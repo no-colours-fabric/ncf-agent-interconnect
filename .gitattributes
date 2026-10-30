@@ -1,0 +1,3 @@
+* text=auto eol=lf
+*.png binary
+/SOURCE_REVISION export-subst

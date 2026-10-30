@@ -1,0 +1,14 @@
+name: Feature request
+description: Describe a focused use case or integration improvement
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+    validations:
+      required: true
+  - type: textarea
+    id: behavior
+    attributes:
+      label: Proposed behavior
+      description: Include the target platform or client and relevant limitations.

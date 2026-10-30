@@ -1,0 +1,49 @@
+appId: io.github.no-colours-fabric.ncf-agent-interconnect
+productName: NCF Agent Interconnect
+asar: true
+electronDist: node_modules/electron/dist
+directories:
+  output: release
+files:
+  - build/**/*
+  - package.json
+  - '!**/*.map'
+extraResources:
+  - from: distribution/README.md
+    to: README.md
+  - from: LICENSE
+    to: licenses/NCF-Agent-Interconnect.LICENSE.txt
+  - from: THIRD_PARTY_NOTICES.md
+    to: licenses/THIRD_PARTY_NOTICES.md
+  - from: node_modules/electron/dist/LICENSE
+    to: licenses/Electron.LICENSE.txt
+  - from: node_modules/electron/dist/LICENSES.chromium.html
+    to: licenses/Chromium.LICENSES.html
+artifactName: NCF-Agent-Interconnect-${version}-${os}-${arch}.${ext}
+mac:
+  category: public.app-category.developer-tools
+  identity: '-'
+  hardenedRuntime: false
+  extendInfo:
+    NSLocalNetworkUsageDescription: Exchange messages and files with nodes explicitly configured by the user.
+  icon: build/assets/icon.png
+  target:
+    - dmg
+    - zip
+win:
+  icon: build/assets/icon.png
+  target:
+    - nsis
+    - zip
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  installerLanguages:
+    - en_US
+  displayLanguageSelector: false
+linux:
+  icon: build/assets/icon.png
+  target:
+    - AppImage

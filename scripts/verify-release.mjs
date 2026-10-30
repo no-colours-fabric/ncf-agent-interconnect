@@ -1,0 +1,144 @@
+import { createRequire } from 'node:module';
+import { spawnSync } from 'node:child_process';
+import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+
+const require = createRequire(import.meta.url),
+  asar = require('@electron/asar');
+const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const release = new URL('../release/', import.meta.url),
+  base = new URL(
+    process.platform === 'darwin'
+      ? `mac-${process.arch}/NCF Agent Interconnect.app/Contents/`
+      : process.platform === 'win32'
+        ? process.arch === 'arm64'
+          ? 'win-arm64-unpacked/'
+          : 'win-unpacked/'
+        : 'linux-unpacked/',
+    release,
+  );
+const { fileURLToPath } = await import('node:url');
+const archive = fileURLToPath(
+  new URL(process.platform === 'darwin' ? 'Resources/app.asar' : 'resources/app.asar', base),
+);
+const executable = fileURLToPath(
+  new URL(
+    process.platform === 'darwin'
+      ? 'MacOS/NCF Agent Interconnect'
+      : process.platform === 'win32'
+        ? 'NCF Agent Interconnect.exe'
+        : 'ncf-agent-interconnect',
+    base,
+  ),
+);
+const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
+assert.ok(entries.includes('/build/integrations/opencode.js'));
+assert.ok(entries.includes('/build/core/client-contexts.js'));
+assert.ok(!entries.includes('/build/core/store.js'));
+assert.ok(!entries.some((entry) => /^\/(src|test-desktop|\.local)\//.test(entry)));
+assert.equal(JSON.parse(asar.extractFile(archive, 'package.json').toString()).version, pkg.version);
+const temporary = await mkdtemp(path.join(os.tmpdir(), 'interconnect-package-'));
+try {
+  const extracted = path.join(temporary, 'application');
+  asar.extractAll(archive, extracted);
+  const worker = path.join(extracted, 'verify-installed.mjs');
+  await writeFile(
+    worker,
+    `
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import { readFile } from 'node:fs/promises';
+import { NodeService } from './build/core/service.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+const directory = path.resolve('../isolated-data'), service = new NodeService(directory), clients = [];
+let host; const prompts = [];
+try {
+  assert.ok(process.versions.electron, 'Use the runtime shipped in the package');
+  await service.open();
+  const instructions = await service.userCall('instructions', { client: 'opencode' });
+  const config = JSON.parse(instructions.configuration), plugin = await import(config.plugin[0]);
+  assert.ok(config.plugin[0].includes('/isolated-data/Integrations/'));
+  assert.ok(!config.plugin[0].includes(process.cwd()));
+  const workspace = path.join(directory, 'workspace');
+  host = await plugin.NCFAgentInterconnect({ directory: workspace, client: { session: {
+    get: async options => ({ data: { id: options.path.id, directory: workspace } }),
+    status: async () => ({ data: {} }),
+    promptAsync: async options => { prompts.push({ id: options.path.id, text: options.body.parts[0].text }); return {}; }
+  } } });
+  const connectClient = async name => {
+    const client = new Client({ name, version: 'package-verification' });
+    await client.connect(new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), { requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } } }));
+    clients.push(client); return client;
+  };
+  const cursor = await connectClient('Cursor'), opencode = await connectClient('opencode');
+  const tools = await opencode.listTools(), schema = tools.tools.find(tool => tool.name === 'agent_connect').inputSchema;
+  assert.ok(opencode.getInstructions().includes('Reply-To')); assert.ok(opencode.getInstructions().includes('agent_send'));
+  assert.equal(tools.tools.length, 8); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
+  for (const removed of ['client', 'chatId', 'adapterId', 'codexTarget']) assert.ok(!(removed in schema.properties));
+  const first = (await cursor.callTool({ name: 'agent_connect', arguments: { nickname: 'Package sender' } })).structuredContent;
+  assert.equal(first.status, 'connected'); assert.equal(first.delivery.automatic, false);
+  const output = { args: { nickname: 'Package recipient' } };
+  await host['tool.execute.before']({ tool: 'ncf_agent_interconnect_agent_connect', sessionID: 'ses_packaged' }, output);
+  const second = (await opencode.callTool({ name: 'agent_connect', arguments: output.args })).structuredContent;
+  assert.equal(second.status, 'connected'); assert.equal(second.delivery.automatic, true);
+  const message = await service.send({ connectionId: first.binding.connectionId, recipientNickname: 'Package recipient', text: 'The package runs without source files' });
+  const deadline = Date.now() + 5000;
+  while (service.store.dispatchState(message.id)?.state !== 'admitted') { if (Date.now() > deadline) throw new Error('Packaged integration did not deliver'); await new Promise(resolve => setTimeout(resolve, 10)); }
+  assert.equal(prompts.length, 1); assert.equal(prompts[0].id, 'ses_packaged');
+  assert.equal(prompts[0].text, ['**Incoming NCF Agent Interconnect**', 'From: "Package sender"', '', '---', '', 'The package runs without source files', '', '---', '', 'Reply-To: "Package sender"', '', '*Use NCF Agent Interconnect MCP to reply.*'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
+  while (service.snapshot().agents.find(agent => agent.nickname === 'Package recipient').unread) { if (Date.now() > deadline) throw new Error('Delivered message still unread'); await new Promise(resolve => setTimeout(resolve, 10)); } assert.deepEqual(service.snapshot().peers, []);
+  assert.ok((await readFile(path.join(directory, 'Integrations/opencode.js'), 'utf8')).includes('tool.execute.before'));
+  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+} finally {
+  if (host) await host.event({ event: { type: 'server.instance.disposed' } });
+  for (const client of clients) await client.close(); await service.close();
+}
+`,
+  );
+  const result = spawnSync(executable, [worker], {
+    cwd: extracted,
+    env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+    encoding: 'utf8',
+    timeout: 30000,
+    windowsHide: true,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0)
+    throw new Error(
+      'Installed package verification: ' + (result.stderr || result.stdout).slice(-4000),
+    );
+  const git = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: fileURLToPath(new URL('..', import.meta.url)),
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  const archivedRevision = (
+    await readFile(new URL('../SOURCE_REVISION', import.meta.url), 'utf8')
+  ).trim();
+  const sourceRevision =
+    process.env.GITHUB_SHA ??
+    process.env.NCF_SOURCE_REVISION ??
+    (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(archivedRevision)
+      ? archivedRevision
+      : git.status === 0
+        ? git.stdout.trim()
+        : null);
+  if (sourceRevision && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(sourceRevision))
+    throw new Error('Invalid source revision');
+  const report = {
+    version: pkg.version,
+    sourceRevision,
+    platform: process.platform,
+    arch: process.arch,
+    verifiedAt: new Date().toISOString(),
+    ...JSON.parse(result.stdout.trim().split('\n').at(-1)),
+  };
+  await writeFile(new URL('verification.json', release), JSON.stringify(report, null, 2) + '\n');
+  console.log(JSON.stringify(report));
+} finally {
+  await rm(temporary, { recursive: true, force: true });
+}

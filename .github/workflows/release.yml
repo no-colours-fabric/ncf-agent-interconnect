@@ -1,0 +1,41 @@
+name: macOS release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Apple Silicon package
+    runs-on: macos-15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Check tag and version
+        run: node scripts/assert-release-tag.mjs
+      - name: Build and verify native packages
+        run: npm run build:release -- --mac
+      - name: Verify macOS signature
+        run: codesign --verify --deep --strict 'release/mac-arm64/NCF Agent Interconnect.app'
+      - name: Publish tagged release
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            release/NCF-Agent-Interconnect-*-mac-arm64.dmg \
+            release/NCF-Agent-Interconnect-*-mac-arm64.zip \
+            release/SHA256SUMS release/verification.json release/README.md \
+            --verify-tag --title "NCF Agent Interconnect $GITHUB_REF_NAME" \
+            --notes-file distribution/release-notes.md

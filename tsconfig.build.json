@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "build",
+    "rootDir": "desktop",
+    "sourceMap": false
+  },
+  "include": [
+    "desktop/core/**/*.ts",
+    "desktop/shared/**/*.ts",
+    "desktop/main/**/*.ts",
+    "desktop/main/**/*.cts",
+    "desktop/integrations/**/*.ts"
+  ],
+  "exclude": ["desktop/renderer", "test-desktop"]
+}

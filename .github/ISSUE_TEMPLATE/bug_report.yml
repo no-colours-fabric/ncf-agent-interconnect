@@ -1,0 +1,35 @@
+name: Bug report
+description: Report a reproducible application or integration problem
+body:
+  - type: markdown
+    attributes:
+      value: Do not include private chats, live pairing codes, MCP tokens, private keys or personal paths. Use SECURITY.md for vulnerabilities.
+  - type: input
+    id: version
+    attributes:
+      label: App version
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Operating system and architecture
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Client and adapter
+      description: Include the client version and whether it uses standard MCP or a reactive integration.
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
