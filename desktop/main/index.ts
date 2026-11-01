@@ -203,19 +203,23 @@ function setupIpc(): void {
       const { messageId, fileId } = z
         .object({ messageId: z.uuid(), fileId: z.string().regex(/^[a-f0-9]{64}$/) })
         .parse(raw);
-      const row = service.store.get(messageId),
-        file = row?.envelope.attachments.find((f) => f.id === fileId);
-      if (!row || row.state === 'received' || !file)
-        throw new Error('Verified attachment not found');
-      const local = await service.files.materialize(messageId, file);
-      if (method === 'openAttachment') {
-        const error = await shell.openPath(local);
-        if (error) throw new Error(error);
-        return { opened: true };
-      }
-      const destination = await dialog.showSaveDialog(window, { defaultPath: file.name });
-      if (destination.filePath) await copyFile(local, destination.filePath);
-      return { saved: !!destination.filePath };
+      const attachmentWindow = window;
+      return service.withUserAttachment(messageId, fileId, async (file, local, assertCurrent) => {
+        if (method === 'openAttachment') {
+          assertCurrent();
+          const error = await shell.openPath(local);
+          if (error) throw new Error(error);
+          return { opened: true };
+        }
+        const destination = await dialog.showSaveDialog(attachmentWindow, {
+          defaultPath: file.name,
+        });
+        if (destination.filePath) {
+          assertCurrent();
+          await copyFile(local, destination.filePath);
+        }
+        return { saved: !!destination.filePath };
+      });
     }
     if (
       ![

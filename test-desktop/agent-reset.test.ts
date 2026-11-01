@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm, writeFile, readFile, access } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile, readFile, access, copyFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -958,4 +958,117 @@ test('UI send captured from an occupied source cannot continue as its replacemen
   await rejected;
   await until(() => service.store.fileCleanup().length === 0);
   assert.equal(service.store.pending('out').length, 0);
+});
+
+test('UI attachment materialize lease prevents copy/open after reset and cleanup cannot be followed by a late copy', async (t) => {
+  const service = await node(t),
+    old = connected(service.connect({ nickname: 'Филипп', client: 'MCP' }));
+  const filename = path.join(service.settings.value.exportRoots[0], 'ui-materialize.txt');
+  await writeFile(filename, 'UI materialize');
+  const sent = await service.send({
+    connectionId: old.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Филипп',
+    text: 'File',
+    files: [filename],
+  });
+  const file = service.store.get(sent.id, 'in')!.envelope.attachments[0];
+  const barrier = gate(),
+    materialize = service.files.materialize.bind(service.files);
+  service.files.materialize = async (...args) => {
+    const result = await materialize(...args);
+    await barrier.wait();
+    return result;
+  };
+  let operations = 0;
+  const rejected = assert.rejects(
+    service.withUserAttachment(sent.id, file.id, async () => {
+      operations++;
+    }),
+    /cleared.*cannot be recalled/,
+  );
+  try {
+    await until(() => barrier.entered);
+    reset(service);
+    assert.ok(service.store.fileCleanup().length);
+  } finally {
+    barrier.release();
+  }
+  await rejected;
+  await until(() => service.store.fileCleanup().length === 0);
+  assert.equal(operations, 0);
+  await assert.rejects(access(path.join(service.directory, 'Received', sent.id)));
+});
+
+test('UI attachment lease covers actual copy; a copied external file is retained and explicitly cannot be recalled', async (t) => {
+  const service = await node(t),
+    old = connected(service.connect({ nickname: 'Филипп', client: 'MCP' }));
+  const filename = path.join(service.settings.value.exportRoots[0], 'ui-copy.txt'),
+    destination = path.join(service.directory, 'saved-by-user.txt');
+  await writeFile(filename, 'Already copied');
+  const sent = await service.send({
+    connectionId: old.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Филипп',
+    text: 'File',
+    files: [filename],
+  });
+  const file = service.store.get(sent.id, 'in')!.envelope.attachments[0],
+    barrier = gate();
+  let local = '';
+  const rejected = assert.rejects(
+    service.withUserAttachment(sent.id, file.id, async (_file, path, assertCurrent) => {
+      local = path;
+      assertCurrent();
+      await copyFile(path, destination);
+      await barrier.wait();
+    }),
+    /cleared.*already opened or copied external file cannot be recalled/,
+  );
+  try {
+    await until(() => barrier.entered);
+    reset(service);
+    assert.ok(service.store.fileCleanup().length);
+    await access(local);
+  } finally {
+    barrier.release();
+  }
+  await rejected;
+  await until(() => service.store.fileCleanup().length === 0);
+  await assert.rejects(access(local));
+  assert.equal(await readFile(destination, 'utf8'), 'Already copied');
+});
+
+test('UI save-dialog callback rechecks the row before copying to the user-selected destination', async (t) => {
+  const service = await node(t),
+    old = connected(service.connect({ nickname: 'Филипп', client: 'MCP' }));
+  const filename = path.join(service.settings.value.exportRoots[0], 'ui-dialog.txt'),
+    destination = path.join(service.directory, 'must-not-save.txt');
+  await writeFile(filename, 'Not submitted');
+  const sent = await service.send({
+    connectionId: old.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Филипп',
+    text: 'File',
+    files: [filename],
+  });
+  const file = service.store.get(sent.id, 'in')!.envelope.attachments[0],
+    barrier = gate();
+  const rejected = assert.rejects(
+    service.withUserAttachment(sent.id, file.id, async (_file, path, assertCurrent) => {
+      await barrier.wait();
+      assertCurrent();
+      await copyFile(path, destination);
+    }),
+    /cleared/,
+  );
+  try {
+    await until(() => barrier.entered);
+    reset(service);
+  } finally {
+    barrier.release();
+  }
+  await rejected;
+  await until(() => service.store.fileCleanup().length === 0);
+  await assert.rejects(access(destination));
 });

@@ -10,6 +10,7 @@ import {
   nicknameKey,
   nicknameSchema,
   type AdapterProfile,
+  type Attachment,
   type Envelope,
   type Snapshot,
   type SendInput,
@@ -834,6 +835,29 @@ export class NodeService extends EventEmitter {
       this.store.assertOwner(connectionId);
       if (!this.store.get(messageId, row.direction)) throw new Error('The message was cleared');
       return { ...file, localPath };
+    });
+  }
+  async withUserAttachment<T>(
+    messageId: string,
+    fileId: string,
+    work: (file: Attachment, localPath: string, assertCurrent: () => void) => Promise<T>,
+  ): Promise<T> {
+    return this.fileOperation(async () => {
+      const row = this.store.get(messageId),
+        file = row?.envelope.attachments.find((file) => file.id === fileId);
+      if (!row || row.state === 'received' || !file)
+        throw new Error('Verified attachment not found');
+      const assertCurrent = () => {
+        if (!this.store.get(messageId, row.direction))
+          throw new Error(
+            'The attachment message was cleared. An already opened or copied external file cannot be recalled',
+          );
+      };
+      const localPath = await this.files.materialize(messageId, file);
+      assertCurrent();
+      const result = await work(file, localPath, assertCurrent);
+      assertCurrent();
+      return result;
     });
   }
   private async receive(peerId: string, frame: Frame): Promise<void> {
