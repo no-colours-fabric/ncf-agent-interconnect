@@ -149,10 +149,43 @@ export class AgentStore {
     if (!row) throw new Error('Agent not found');
     return row;
   }
+  private confirmedTransfer(input: ConnectInput): Row {
+    const request = this.db
+      .prepare('SELECT * FROM transfers WHERE id=?')
+      .get(input.transferId ?? '') as Row | undefined;
+    if (
+      !request ||
+      request.key !== nicknameKey(input.nickname) ||
+      request.requester !== input.connectionId ||
+      request.consumed ||
+      Number(request.expires) < Date.now()
+    )
+      throw new Error('A current transferId and user approval for this transfer are required');
+    const row = this.db
+      .prepare('SELECT generation,binding FROM agents WHERE key=?')
+      .get(nicknameKey(input.nickname)) as Row | undefined;
+    if (
+      !row?.binding ||
+      request.generation !== row.generation ||
+      request.details !==
+        JSON.stringify({
+          client: input.client,
+          chatId: input.chatId,
+          adapterId: input.adapterId,
+        })
+    )
+      throw new Error('The binding changed. Request a new transfer and obtain user approval again');
+    if (request.mode !== (input.resetHistory ? 'reset' : 'transfer'))
+      throw new Error(
+        'This transferId does not approve the selected history mode. Use the matching choice',
+      );
+    return request;
+  }
   connect(input: ConnectInput): ConnectResult {
     const key = nicknameKey(input.nickname);
     return this.transaction(() => {
-      if (input.connectionId && !input.transferId) {
+      const request = input.confirmTransfer === true ? this.confirmedTransfer(input) : null;
+      if (input.connectionId && !request) {
         const owner = this.assertOwner(input.connectionId);
         if (owner.key !== key) throw new Error('The connection belongs to another agent');
       }
@@ -216,34 +249,7 @@ export class AgentStore {
             userApprovalRequired: true,
           };
         }
-        const request = this.db
-          .prepare('SELECT * FROM transfers WHERE id=?')
-          .get(input.transferId ?? '') as Row | undefined;
-        if (
-          !request ||
-          request.key !== key ||
-          request.requester !== input.connectionId ||
-          request.consumed ||
-          Number(request.expires) < Date.now()
-        )
-          throw new Error('A current transferId and user approval for this transfer are required');
-        if (
-          request.generation !== row.generation ||
-          request.details !==
-            JSON.stringify({
-              client: input.client,
-              chatId: input.chatId,
-              adapterId: input.adapterId,
-            })
-        )
-          throw new Error(
-            'The binding changed. Request a new transfer and obtain user approval again',
-          );
-        if (request.mode !== (input.resetHistory ? 'reset' : 'transfer'))
-          throw new Error(
-            'This transferId does not approve the selected history mode. Use the matching choice',
-          );
-        connectionId = String(request.requester);
+        connectionId = String(request!.requester);
         this.db.prepare('UPDATE transfers SET consumed=1 WHERE id=?').run(input.transferId!);
         if (input.resetHistory) {
           this.clearHistory(key);

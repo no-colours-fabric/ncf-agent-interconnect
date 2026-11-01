@@ -13,6 +13,9 @@ import {
   type Envelope,
 } from '../desktop/shared/contracts.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
+import { createAgentMcp } from '../desktop/core/mcp-http.js';
+import type { ClientContext } from '../desktop/core/client-contexts.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const ui = (session = 'window-a') => ({ channel: 'interface' as const, session });
@@ -774,4 +777,108 @@ test('an empty incarnation cannot be cleared by a token issued for a deleted emp
     /clear_preview_stale/,
   );
   assert.equal(f.store.list().length, 1);
+});
+
+test('revoked IDs with bogus transfer tokens cannot recreate a cleared agent through trusted MCP context after reopen', async (t) => {
+  const service = await node(t),
+    old = connected(
+      service.connect({ nickname: 'Removed', client: 'OpenCode', chatId: 'ses_fixture' }),
+    );
+  const p = preview(service.clearAgents({ scope: 'agent', nickname: 'Removed' }, ui()));
+  service.clearAgents(
+    { scope: 'agent', nickname: 'Removed', operationId: p.operationId, confirm: true },
+    ui(),
+  );
+  service.store.close();
+  service.store = new AgentStore(service.directory);
+  const [serverTransport, clientTransport] = InMemoryTransport.createLinkedPair();
+  const server = createAgentMcp(service, randomUUID());
+  const client = new Client({ name: 'OpenCode', version: 'test' });
+  await server.connect(serverTransport);
+  await client.connect(clientTransport);
+  const tickets = (
+    service.contexts as unknown as {
+      tickets: Map<string, { context: ClientContext; expires: number }>;
+    }
+  ).tickets;
+  const context = (chatId = 'ses_fixture') => {
+    const token = randomUUID();
+    // Fixture issuance is trusted; MCP schema, handler and one-use ticket consumption remain real.
+    tickets.set(token, {
+      context: { client: 'OpenCode', chatId, adapterId: old.binding.adapterId },
+      expires: Date.now() + 60000,
+    });
+    return token;
+  };
+  const connect = async (args: Record<string, unknown>, chatId = 'ses_fixture') =>
+    client.callTool({
+      name: 'agent_connect',
+      arguments: { nickname: 'Removed', ...args, contextToken: context(chatId) },
+    });
+  let ensureCalls = 0;
+  const ensure = service.store.ensure.bind(service.store);
+  service.store.ensure = (nickname) => {
+    ensureCalls++;
+    return ensure(nickname);
+  };
+  try {
+    for (const confirmTransfer of [false, true]) {
+      const blocked = await connect({
+        connectionId: old.binding.connectionId,
+        transferId: randomUUID(),
+        confirmTransfer,
+      });
+      assert.equal(blocked.isError, true, `confirmTransfer=${confirmTransfer}`);
+      assert.deepEqual(service.store.list(), []);
+    }
+    assert.equal(ensureCalls, 0, 'Invalid restore must fail before any ensure attempt');
+    service.store.ensure = ensure;
+    const fresh = connected((await connect({})).structuredContent as unknown as ConnectResult);
+    const incarnation = service.store.sourceStamp('Removed').incarnation;
+    const sent = await service.send({
+      connectionId: fresh.binding.connectionId,
+      recipientNode: service.settings.value.nodeId,
+      recipientNickname: 'Removed',
+      text: 'Preserve then reset',
+    });
+    const pending = (await connect({}, 'ses_other')).structuredContent as unknown as ConnectResult;
+    if (pending.status !== 'nickname_in_use') throw new Error('Transfer preview expected');
+    const moved = connected(
+      (
+        await connect(
+          {
+            connectionId: pending.connectionId,
+            transferId: pending.transferId,
+            confirmTransfer: true,
+          },
+          'ses_other',
+        )
+      ).structuredContent as unknown as ConnectResult,
+    );
+    assert.equal(service.store.sourceStamp('Removed').incarnation, incarnation);
+    assert.ok(service.store.get(sent.id, 'in'));
+    const reset = (await connect({}, 'ses_third')).structuredContent as unknown as ConnectResult;
+    if (reset.status !== 'nickname_in_use') throw new Error('Reset preview expected');
+    const replacement = connected(
+      (
+        await connect(
+          {
+            connectionId: reset.connectionId,
+            transferId: reset.choices.find((choice) => choice.mode === 'reset')!.transferId,
+            confirmTransfer: true,
+            resetHistory: true,
+          },
+          'ses_third',
+        )
+      ).structuredContent as unknown as ConnectResult,
+    );
+    assert.notEqual(service.store.sourceStamp('Removed').incarnation, incarnation);
+    assert.equal(service.store.history(nicknameKey('Removed')).messages.length, 0);
+    assert.throws(() => service.store.assertOwner(moved.binding.connectionId), /agent_moved/);
+    assert.ok(service.store.assertOwner(replacement.binding.connectionId));
+  } finally {
+    service.store.ensure = ensure;
+    await client.close();
+    await server.close();
+  }
 });
