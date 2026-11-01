@@ -147,7 +147,7 @@ test('a bound not-confirmed connection warns only about delivery impact, without
   assert.ok(!visible.includes(t('ru', 'clientsPaused')));
 });
 
-test('a verified Codex connection shows last-verified status and the historical stamp in details', () => {
+test('a verified Codex connection shows last-verified status, readable time and the historical stamp in details', () => {
   const connection = {
       ...profile('verified-connection', null),
       state: 'ready' as const,
@@ -159,9 +159,12 @@ test('a verified Codex connection shows last-verified status and the historical 
   assert.ok(visible.includes(t('ru', 'clientsLastVerifiedImpact')));
   assert.ok(!visible.includes(t('ru', 'clientsAuto')));
   assert.ok(!visible.includes(t('ru', 'clientsConnected')));
+  // The readable local time is part of the ordinary row, not only details.
+  const localTime = new Date(connection.lastOwnerVerifiedAt).toLocaleString('ru');
+  assert.ok(visible.includes(localTime));
   const details = [...html.matchAll(/<details\b[\s\S]*?<\/details>/g)].map((match) => match[0]);
   assert.ok(details[0].includes(t('ru', 'clientsLastVerified')));
-  assert.ok(details[0].includes('2026'));
+  assert.ok(details[0].includes(localTime));
 });
 
 const releasedUncertainOpenCode = (): AdapterState => ({

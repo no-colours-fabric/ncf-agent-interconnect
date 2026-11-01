@@ -27,10 +27,31 @@ export function connectionPresentation(
       tone: 'default',
     };
   if (profile.state === 'ready') {
+    const automatic = canDeliverAutomatically(profile);
     if (profile.kind === 'codex-desktop') {
-      // Codex has only a historical last-verified observation, never proof of
-      // current liveness. Until the first exact-owner evidence, delivery to
-      // this exact chat is not confirmed.
+      // A historical verification can never mask a current failure (error) or
+      // missing capability. Check operational eligibility first, then only
+      // decide between historical "last verified" and "not confirmed".
+      if (!automatic) {
+        const unsupported =
+          profile.error === 'The handler for this Codex chat does not support external input';
+        const unconfirmed =
+          profile.error ===
+          'The handler for this Codex chat did not confirm external input support';
+        if (hasBoundAgents && (unsupported || unconfirmed))
+          return {
+            status: 'clientsPaused',
+            impact: unsupported ? 'clientsUnsupportedImpact' : 'clientsUnconfirmedImpact',
+            action: unsupported ? 'clientsMcpAction' : 'clientsCheckExactChat',
+            tone: 'warning',
+          };
+        return {
+          status: 'clientsNotConfirmed',
+          impact: hasBoundAgents ? 'clientsUnavailableImpact' : 'clientsUnboundImpact',
+          action: hasBoundAgents ? 'clientsCheckExactChat' : 'clientsUseSavedAction',
+          tone: hasBoundAgents ? 'warning' : 'default',
+        };
+      }
       if (!profile.lastOwnerVerifiedAt)
         return {
           status: 'clientsNotConfirmed',
@@ -45,7 +66,6 @@ export function connectionPresentation(
         tone: 'default',
       };
     }
-    const automatic = canDeliverAutomatically(profile);
     return {
       status: hasBoundAgents
         ? automatic

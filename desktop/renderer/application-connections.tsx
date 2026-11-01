@@ -160,6 +160,16 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                                 },
                               }}
                             />
+                            {presentation.status === 'clientsLastVerified' &&
+                              profile.lastOwnerVerifiedAt && (
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  sx={{ display: 'block', mt: 0.8, overflowWrap: 'anywhere' }}
+                                >
+                                  {new Date(profile.lastOwnerVerifiedAt).toLocaleString(locale)}
+                                </Typography>
+                              )}
                           </TableCell>
                           <TableCell>{t(locale, presentation.impact)}</TableCell>
                           <TableCell>

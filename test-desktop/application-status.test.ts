@@ -410,3 +410,94 @@ test('inconsistent ready flags do not claim confirmed automatic delivery', () =>
     );
   }
 });
+
+test('a verified Codex-ready profile with a current failure is not masked as Last verified', () => {
+  // Regression: the Codex-ready branch must not let a historical stamp override
+  // a known failure. Error and missing capabilities stay above the stamp.
+  for (const profileOf of [
+    () => ({
+      ...profile('bad-error', 'ready', 'An unresolved diagnostic', 'codex-desktop', verified),
+    }),
+    () => ({
+      ...profile('bad-wake', 'ready', null, 'codex-desktop', verified),
+      capabilities: {
+        ...profile('bad-wake', 'ready', null, 'codex-desktop', verified).capabilities,
+        wakeIdle: false,
+      },
+    }),
+    () => ({
+      ...profile('bad-exact', 'ready', null, 'codex-desktop', verified),
+      capabilities: {
+        ...profile('bad-exact', 'ready', null, 'codex-desktop', verified).capabilities,
+        exactSession: false,
+      },
+    }),
+  ]) {
+    const connection = profileOf();
+    for (const bound of [true, false]) {
+      const presentation = connectionPresentation(connection, bound);
+      assert.notEqual(presentation.status, 'clientsLastVerified', 'stamp must not win');
+      assert.equal(
+        presentation.impact,
+        bound ? 'clientsUnavailableImpact' : 'clientsUnboundImpact',
+      );
+      assert.equal(presentation.action, bound ? 'clientsCheckExactChat' : 'clientsUseSavedAction');
+      assert.equal(presentation.tone, bound ? 'warning' : 'default');
+    }
+    assert.equal(
+      applicationStatus('codex-desktop', {
+        adapters: [connection],
+        agents: [agent('Проверка', connection.id)],
+      }).summary,
+      'notConfirmed',
+    );
+  }
+});
+
+test('explicit Codex unsupported and unconfirmed support stay distinct even with a verification stamp', () => {
+  const rejected = {
+      ...profile(
+        'rejected-verified',
+        'ready',
+        'The handler for this Codex chat does not support external input',
+        'codex-desktop',
+        verified,
+      ),
+    },
+    unconfirmed = {
+      ...profile(
+        'unconfirmed-verified',
+        'ready',
+        'The handler for this Codex chat did not confirm external input support',
+        'codex-desktop',
+        verified,
+      ),
+    };
+  for (const bound of [true, false]) {
+    const rejectedPresentation = connectionPresentation(rejected, bound);
+    assert.equal(rejectedPresentation.status, bound ? 'clientsPaused' : 'clientsNotConfirmed');
+    assert.equal(
+      rejectedPresentation.impact,
+      bound ? 'clientsUnsupportedImpact' : 'clientsUnboundImpact',
+    );
+    assert.equal(rejectedPresentation.action, bound ? 'clientsMcpAction' : 'clientsUseSavedAction');
+    assert.equal(rejectedPresentation.tone, bound ? 'warning' : 'default');
+    const unconfirmedPresentation = connectionPresentation(unconfirmed, bound);
+    assert.equal(unconfirmedPresentation.status, bound ? 'clientsPaused' : 'clientsNotConfirmed');
+    assert.equal(
+      unconfirmedPresentation.impact,
+      bound ? 'clientsUnconfirmedImpact' : 'clientsUnboundImpact',
+    );
+    assert.equal(
+      unconfirmedPresentation.action,
+      bound ? 'clientsCheckExactChat' : 'clientsUseSavedAction',
+    );
+    assert.equal(unconfirmedPresentation.tone, bound ? 'warning' : 'default');
+  }
+  const rejectedStatus = applicationStatus('codex-desktop', {
+    adapters: [rejected],
+    agents: [agent('Отклонён', 'rejected-verified')],
+  });
+  assert.equal(rejectedStatus.summary, 'notConfirmed');
+  assert.equal(rejectedStatus.issues.length, 1);
+});
