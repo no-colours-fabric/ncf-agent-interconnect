@@ -41,6 +41,10 @@ PAKE authentication establishes that this certificate belongs to the code holder
    connection only after successful persistence, and returns a committed MAC.
    The client verifies this acknowledgement before saving its peer.
 
+Transport restart and status notifications run after the durable authorization
+and committed acknowledgement are recorded. Their failure reports a connection
+problem and does not release the claim or repeat admission.
+
 The canonical transcript is a UTF-8 JSON array containing, in order: domain,
 suite, session UUID, salt, A, B, client node UUID, client label, client certificate
 DER encoded as base64, server node UUID, server label and server certificate DER

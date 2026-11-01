@@ -474,6 +474,40 @@ test('failed server persistence leaves the existing authenticated connection unc
   b.settings.savePeers = save;
 });
 
+test('a throwing post-commit reconnect cannot release the claim or repeat admission on retry', async (t) => {
+  const a = await node(t),
+    b = await node(t);
+  const save = b.settings.savePeers.bind(b.settings);
+  let commits = 0,
+    reconnects = 0;
+  b.settings.savePeers = async (update) => {
+    commits++;
+    await save(update);
+  };
+  b.network.reconnectPeer = () => {
+    reconnects++;
+    throw new Error('Isolated reconnect listener failure');
+  };
+  const request = a.network as unknown as { pairRequest: (...args: unknown[]) => Promise<unknown> };
+  const original = request.pairRequest.bind(a.network);
+  let dropped = false;
+  request.pairRequest = async (...args) => {
+    const result = await original(...args);
+    if ((args[1] as { phase: string }).phase === 'confirm' && !dropped) {
+      dropped = true;
+      throw new Error('Isolated lost committed response');
+    }
+    return result;
+  };
+  const code = b.network.accessCode().code;
+  await a.network.join(b.snapshot().peerUrl, code);
+  assert.equal(commits, 1);
+  assert.equal(reconnects, 1);
+  assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
+  assert.ok(b.snapshot().errors.some((error) => error.includes('authorized, but its connection')));
+  await assert.rejects(a.network.join(b.snapshot().peerUrl, code), /already been used/);
+});
+
 test('restart after server commit reports uncertainty and a fresh explicit pairing recovers', async (t) => {
   const a = await node(t),
     b = await node(t);

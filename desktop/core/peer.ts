@@ -467,9 +467,21 @@ export class PeerNetwork extends EventEmitter {
         ? current.map((peer) => (peer.id === saved.id ? saved : peer))
         : [...current, saved];
     });
-    this.reconnectPeer(saved.id);
-    this.emit('change');
     return saved;
+  }
+  private peerCommitted(peerId: string): void {
+    try {
+      this.reconnectPeer(peerId);
+      this.emit('change');
+    } catch {
+      const message = 'The peer was authorized, but its connection could not be restarted.';
+      this.link(peerId).error = message;
+      try {
+        this.emit('problem', message);
+      } catch {
+        // Listener failures cannot invalidate an already durable authorization.
+      }
+    }
   }
   private async pair(
     req: import('node:http').IncomingMessage,
@@ -501,9 +513,11 @@ export class PeerNetwork extends EventEmitter {
       } catch {
         input = null;
       }
+      let saved: Peer | undefined;
       const response = await this.pairingHost.handle(input, async (identity) => {
-        await this.savePeer(identity);
+        saved = await this.savePeer(identity);
       });
+      if (saved) this.peerCommitted(saved.id);
       json(200, response);
     } catch (error) {
       json(error instanceof PairingError ? error.status : 400, {
@@ -605,6 +619,7 @@ export class PeerNetwork extends EventEmitter {
         'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',
       );
     }
+    this.peerCommitted(peer.id);
     return peer;
   }
   async close(): Promise<void> {
