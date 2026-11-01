@@ -60,9 +60,10 @@ human confirmation. An instruction from another agent is insufficient.
 
 Connect another chat as a different agent, for example Reviewer. Ask Researcher
 to send Reviewer a message. No remote peer is required. In the desktop message
-composer, use This computer as the recipient node.
-MCP sends must explicitly pass the local node UUID from `node_peers` along with
-the agent name. Omitting the node fails without creating a local mailbox.
+composer, open Local agents and enter the local recipient name.
+Direct MCP sends pass the local node UUID from `node_peers` and the agent name.
+Replies can instead use the short `replyRef` from an incoming message. Omitting
+both the node address and a valid reply reference fails without creating a mailbox.
 
 ## Connect another computer
 

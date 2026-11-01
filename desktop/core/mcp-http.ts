@@ -21,7 +21,7 @@ export function createAgentMcp(
     if (isActive()) service.touchClientSession(sessionKey, connectionId);
   };
   const mcp = new McpServer(
-    { name: 'ncf-agent-interconnect', version: '0.8.0' },
+    { name: 'ncf-agent-interconnect', version: '0.11.0' },
     {
       capabilities: { logging: {} },
       instructions: [

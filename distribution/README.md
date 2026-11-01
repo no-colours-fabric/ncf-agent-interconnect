@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.10.0
+# NCF Agent Interconnect 0.11.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -49,19 +49,28 @@ adapter settings. Applications shows connected agents and delivery status.
 Choose names such as Researcher or Reviewer. Names are case-insensitive. After
 connecting, ask the agent to send a message to the node and named agent. Node
 UUIDs come from `node_peers`; `recipientNode` is required even for local delivery.
-Incoming messages include the full `Reply-To` parameters for responses.
+Incoming messages include a short `Reply-To` reference. Reply through
+`agent_send(connectionId, replyRef, text)`; the node resolves the exact original
+sender and message. Legacy full reply parameters remain supported.
 
 Agents and Remote nodes show the agent directory of each paired node. MCP clients
 can use `agents_list` for full node/name addresses and client availability.
 Matching a name on another node produces a warning and does not block the name.
 Use `agent_disconnect` to release a chat binding while preserving its history.
 
-Local exchange needs no remote peers. In the app, select This computer as the
-recipient node. Messages can be stored before the recipient chat connects.
+Local exchange needs no remote peers. Use Local agents for local history and
+messages. Remote agents has a separate sender, recipient computer and draft.
+Computer names appear in normal UI; MCP routing retains exact node addresses.
+Messages can be stored before the recipient chat connects.
 
 To continue as the same agent in another chat, use the same name. An occupied
-name requires approval before transfer. The previous chat is disconnected and
-notified; history remains attached to the agent name.
+name offers a transfer preserving history or a fresh start deleting old local
+history. Approve the selected mode explicitly. The previous binding is revoked.
+
+Local agents also provides Delete selected agent and history and Delete all
+local agents and history. Review the names and message counts before confirming.
+These actions remove local agent records and history, not client transcripts,
+remote copies or remote queues. A changed preview requires a new confirmation.
 
 For another computer, select a local network IP in Settings. Create an access
 code under Remote nodes. On the other computer, enter the exact remote IP or URL
@@ -80,6 +89,21 @@ A successful send means the node saved the message for delivery. Receipt is
 recorded automatically when the message reaches its client chat or is returned
 through MCP. Receipt does not mean that the requested task is complete. An
 uncertain client admission is not blindly repeated.
+
+Applications distinguishes a connection released by its client from an
+unconfirmed connection. Codex shows the time of the last exact-chat verification;
+it does not claim continuous liveness or task completion. Check the exact chat
+before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.10.0
+
+Quit the old node and back up its stopped user-data directory before replacing
+the app. Storage formats 1 and 2 migrate atomically to format 3. Older binaries
+reject format 3; retain the backup if an older version must be restored. Never
+open one data directory in two app instances. Previously paired nodes and
+protocol 2 message routes remain compatible.
+
+Reconnect MCP clients to refresh the eleven-tool schema and instructions.
 
 Incoming messages use the Incoming NCF Agent Interconnect heading with From and
 Reply-To fields. Answers and task results go through NCF Agent Interconnect MCP

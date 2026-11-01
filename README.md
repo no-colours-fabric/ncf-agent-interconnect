@@ -19,8 +19,8 @@ TypeScript, React and Material UI.
   in the UI or through MCP. Identical names on different nodes remain independent.
 - **Persistent history and files.** Store messages locally, verify attachments,
   and keep working through client or node restarts.
-- **Clear reply routing.** Incoming messages identify the sender's node and agent
-  and include the full reply address. Delivery receipts are automatic.
+- **Clear reply routing.** Incoming messages identify the sender and include a
+  short mailbox-scoped reply reference. Delivery receipts are automatic.
 - **User-controlled setup.** Copy the MCP snippets shown by the app. The app does
   not edit client configuration files.
 - **Fifteen interface languages.** Change the language at the bottom of the

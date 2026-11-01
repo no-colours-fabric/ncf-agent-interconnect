@@ -1,81 +1,65 @@
 Download the macOS Apple Silicon DMG/ZIP or Windows x64 installer/ZIP and verify
-the package against `SHA256SUMS`. Packages include Electron 45.1.0; Node.js and
-source files are not required for installation. macOS requires version 13 or later.
+the files against the accompanying SHA256SUMS. Packages include Electron 45.1.0;
+Node.js, npm and a source checkout are not required. macOS requires version 13 or
+later.
 
-### Changes
+### Changes in 0.11.0
 
-- Choose among fifteen interface languages using the selector at the bottom of
-  the sidebar: English, Russian, Simplified Chinese, French, German, Italian,
-  Spanish, Kazakh, Japanese, Brazilian Portuguese, Korean, Turkish, Polish, Dutch
-  and Ukrainian. English is the default and fallback. The choice persists in the
-  app profile; unavailable storage leaves the app usable for the current session.
-- Language changes preserve agent names, message text, filenames, addresses and
-  MCP configuration. MCP instructions and core diagnostics remain in English.
-- Agents and Remote nodes show names and client availability from explicitly
-  paired nodes. Updates follow client arrival, departure and reconnection.
-  `agents_list` exposes the directory with full addresses and explicit
-  unavailable, syncing and unsupported states.
-- `agent_disconnect` releases the current chat binding while preserving history.
-  A name also used on another node produces an advisory warning and remains
-  available locally.
-- Pair computers with an eight-character code containing case-insensitive letters
-  and digits. Codes expire after ten minutes and allow five attempts. Mutual PAKE
-  authentication pins certificates automatically without sending the code or
-  permanent peer credential over the network.
-- Pairing commits use queued settings transactions, idempotent confirmation and
-  explicit conflict or uncertainty results during overlapping attempts, stop and
-  write failure. Existing paired connections and stored history are preserved.
-- Clicking the selected agent again preserves the displayed history and
-  attachment controls.
-
-- Messages require an explicit node UUID and agent name. Identical agent names
-  on different nodes remain independent, and offline queues keep their address.
-- Incoming messages include `From-Node`, `Message-ID` and ready-to-use `Reply-To`
-  JSON with `recipientNode`, `recipientNickname` and `replyTo`.
-- Sending returns `accepted: true` with `queued`, `accepted_by_node` or
-  `received_by_agent` status. Acceptance into a durable queue is separate from
-  receipt by the agent. History shows the node and delivery status.
-- Updated build dependencies remove the four deprecated-package warnings and
-  reported moderate vulnerabilities.
+- Startup waits for the service and IPC before opening a window, including early
+  activate, second-instance and tray requests.
+- Agents has separate local and remote tabs with independent drafts and exact
+  sender/recipient selection. Normal UI displays computer names; transport keeps
+  full node identities. Remote-node directories use compact agent rows.
+- Incoming messages carry a short persistent reply reference instead of routing
+  UUID headers. `agent_send(connectionId, replyRef, text)` replies to the original
+  exact sender/message. Legacy explicit addresses remain compatible.
+- Taking an occupied name offers preserving history or starting fresh. Each mode
+  has its own confirmation. Delete a selected agent and history, or all local
+  agents and history, from Local agents. The new `agent_clear_history` MCP tool
+  requires an explicit human request and preview confirmation.
+- Cleanup revokes old bindings while preserving uncertain admission evidence,
+  foreign delivered history, shared or modified files and user exports. Stale
+  asynchronous work cannot recreate deleted history or use a recreated name.
+- Applications groups each connection with its agents, delivery impact and
+  guidance. Technical identifiers and raw diagnostics stay in expandable details.
+  A client release differs from an unconfirmed connection; neither means task
+  completion.
+- Codex shows the local time of its last successful exact-owner verification.
+  Historical verification is not continuous liveness. Older responses cannot
+  replace newer connection health or trigger stale delivery/recovery. A recovered
+  connection does not repeat an earlier uncertain input.
+- All interface changes retain the fifteen-language selector and original user
+  names, message text and filenames.
 
 ### Upgrade
 
-Quit the existing app before replacing it. Local data remains separate from the
-application. Reconnect MCP clients to refresh the changed schema and instructions;
-restart OpenCode when its bundled integration changes.
+Quit the existing node and back up its stopped user-data directory before
+replacing the application. Formats 1 and 2 migrate atomically to storage format 3.
+Older application binaries reject format 3 rather than ignore deletion markers
+and agent identities. Keep the stopped backup to restore an older version. Never
+open the same profile in two instances.
 
-Both computers need short-code pairing support to create a new connection. The
-old certificate-bearing access-code format is no longer accepted. Previously
-paired nodes keep their credentials and continue exchanging protocol 2 messages;
-older nodes show an unsupported agent directory. Reconnect MCP clients to expose
-`agents_list` and `agent_disconnect`.
+Reconnect MCP clients to obtain the eleven-tool schema and updated instructions.
+Restart OpenCode when updating its bundled integration. Existing peer pairing,
+protocol 2 messages, original routes and message IDs remain compatible.
 
-`agent_send` now requires `recipientNode`, including local sends. Use UUIDs from
-`node_peers`; replies copy all incoming `Reply-To` parameters. Clients that inspect
-the send result must use `accepted` and `delivery` instead of `sent`.
-Peer protocol 2 and the database format are unchanged. Existing messages retain
-their original routes and message IDs.
+Deletion affects local agent records and MCP history. Client transcripts, remote
+copies and queues remain. Submitted messages and opened/exported files cannot be
+recalled; a previously unknown incoming message may create a new unbound mailbox.
+Check the exact chat before repeating an input whose admission is uncertain.
 
 ### Verification and limits
 
-Both native builds use the same source revision. Platform verification reports
-record their runtime, isolated delivery checks and source revision. Packaged GUI
-checks use temporary profiles and synthetic local/remote messages and attachments;
-they do not contact live agents or alter real MCP client configuration.
-The remote-directory acceptance scenarios use the packaged applications on two
-computers. Refer to the accompanying reports for the scenarios actually completed.
-The locale verifier checks fifteen languages across six pages, persistence and
-storage-failure recovery, literal user content, MCP configuration and layout at
-the supported minimum window size. Structural and runtime checks do not amount
-to a native-speaker review of every translation.
+Native platform reports record the exact source revision and completed runtime
+checks. Packaged GUI checks use temporary profiles and synthetic messages/files,
+without contacting live agents or changing real client configuration. Consult the
+reports for checks actually completed; source tests and renderer fixtures alone
+are not native package verification.
 
-The macOS package is ad-hoc signed without Apple notarization. Windows packages
-are unsigned; interactive installer/uninstaller and Start at login smoke checks
-remain manual. OpenCode targets the v1 plugin/SDK contract. Codex Desktop delivery
-is experimental and version-dependent; protocol fixtures do not prove every live
-client version. Cursor supports MCP tools without automatic idle-chat wake-up.
-
-The build toolchain pins electron-builder 27.0.0-alpha.14 with scoped dependency
-overrides; see `docs/development.md` for the rationale and upgrade checks.
-The application pairing protocol has not received an independent cryptographic
-audit; its suite and recovery semantics are documented in `docs/pairing.md`.
+macOS packages are ad-hoc signed without Apple notarization. Windows packages are
+unsigned. Interactive installation/uninstallation and Start at login remain
+manual checks unless explicitly recorded otherwise. Codex Desktop integration is
+experimental and version-dependent; a missing owner is not proof of a closed chat
+or restored delivery. OpenCode uses the v1 plugin/SDK contract, including frontends
+that load that instance's plugin. Standard MCP clients do not automatically wake
+idle chats.
