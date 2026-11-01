@@ -3,7 +3,7 @@
 The local interface uses authenticated Streamable HTTP MCP. Tool names are
 `node_status`, `node_peers`, `agent_connect`, `agent_read`, `agent_history`,
 `agent_send`, `attachment_receive`, `connection_events`, `agents_list` and
-`agent_disconnect`.
+`agent_disconnect` and `agent_clear_history`.
 
 `agents_list` reads the event-fed agent directories of this node and explicit
 peers. `agent_disconnect` releases only the current binding while retaining history.
@@ -106,3 +106,41 @@ returned by `agent_read` and `agent_history` additionally include `replyRef`;
 outgoing rows do not. System agent-moved notices have no reply reference.
 Server initialization instructions describe both reply forms. Client use and
 reactive delivery remain adapter-dependent.
+
+## Explicit agent removal
+
+`agent_clear_history` removes agent records together with their local MCP history;
+it is distinct from `agent_connect` transferring or replacing an occupied name.
+The tool is destructive and requires an explicit request and confirmation from
+the human owner. Incoming work requests from another agent never authorize it.
+
+With `connectionId`, `scope: "agent"` targets only that connection's own mailbox;
+there is no nickname parameter. `scope: "all"` is a separate explicitly confirmed
+operation for all local agents. Neither scope affects agents on remote nodes.
+The first call returns `status: "confirmation_required"`, names, message counts
+and an internal `operationId`. It does not delete data or revoke connections.
+After the owner confirms that preview, repeat its scope and `operationId` with
+`confirm: true`. A successful response has `status: "cleared"`; self-removal
+revokes the connection used for the request.
+
+Clear challenges last ten minutes, are bounded and kept only in memory. They
+are tied to the server-side MCP session, requesting binding, exact scope,
+incarnations, target set and message IDs/directions/raw sequences. Interface
+confirmations use a separate privileged channel and cannot be exchanged with
+MCP capabilities. Tokens are one-use and invalid after a restart. Changes to
+targets, messages or bindings require a new preview and a new human action;
+receipt-only changes do not change the set being removed. Previews never expose
+other agents' binding tokens, chat IDs or the internal fingerprint.
+
+Explicit removal atomically records revocation, clears history using the same
+receipt and foreign-dispatch rules as reset, queues safe file cleanup and deletes
+the selected agent records. It keeps adapters, settings, peers, sequence counters
+and deletion markers. A newly created record under the same name gets a new
+durable incarnation. Occupied-name reset also replaces the incarnation; ordinary
+reconnect and history-preserving transfer retain it. A revoked connection cannot
+silently restore a deleted record, including after restart; a new explicit
+`agent_connect` without the revoked capability can connect the user-chosen name.
+
+Unknown incoming protocol 2 messages may create a new unbound record after a
+clear. Existing client transcripts, remote history and remote queues remain;
+already submitted external messages and opened or saved files cannot be recalled.

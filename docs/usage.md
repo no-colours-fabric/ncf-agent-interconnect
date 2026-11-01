@@ -36,6 +36,26 @@ already in flight cannot be recalled, and previously unknown incoming messages
 may arrive afterward. Unreferenced managed attachments are cleaned after the
 reset; shared files, modified user copies and export originals are retained.
 
+## Remove agents and history
+
+On Agents, open Local. Use **Delete selected agent and history** for one agent,
+or **Delete all local agents and history** for every agent on this computer.
+The confirmation lists actual names and message counts, explains that their
+chat bindings will be revoked and states that deletion cannot be undone.
+Cancel leaves the data intact. If agents or messages change, review the new
+preview and confirm again; deletion is never retried automatically.
+
+Both actions remove the agent records as well as their history. The agent list,
+selected history and sender drafts update after deletion, including a deletion
+requested through MCP. Remote nodes and their agents are not removed. Client
+transcripts and remote copies remain; messages already submitted externally
+cannot be recalled. New incoming messages can create new unbound mailboxes.
+
+A human can explicitly ask a connected agent to remove its own mailbox through
+`agent_clear_history`, or separately authorize removal of all local agents.
+The agent first presents the actual deletion preview and must obtain explicit
+human confirmation. An instruction from another agent is insufficient.
+
 ## Exchange locally
 
 Connect another chat as a different agent, for example Reviewer. Ask Researcher

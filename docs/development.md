@@ -113,10 +113,10 @@ system's own dialogs.
 
 ## History reset storage
 
-Agent storage format 2 migrates format 1 inside one SQLite transaction. Legacy
+Agent storage format 3 migrates formats 1 and 2 inside one SQLite transaction. Legacy
 transfer requests acquire the default preserve-only mode; new occupied-name
 requests issue separate preserve and reset tokens. Older binaries reject format
-2 rather than ignore its deletion markers. Test migrations only in isolated
+3 rather than ignore its deletion markers and agent incarnations. Test migrations only in isolated
 profiles; back up a stopped node before a real upgrade.
 
 Reset never modifies `sqlite_sequence`. Its rollback tests cover owner/history,
@@ -128,3 +128,14 @@ cannot deadlock two receiving nodes. Cleanup failures retain durable tasks for
 startup or the next file-operation/commit event; no agent polling is scheduled.
 Modified copies and referenced content are retained. These source fixtures do
 not establish native client or packaged application verification.
+
+Format 3 adds a durable incarnation to each local agent. It is replaced on a
+fresh start or delete/recreate, and is included in pending-send guards and the
+local-only snapshot/history cache identity. It is never printed in the normal
+interface or sent in peer directories. Raw message and timeline sequences stay
+monotonic. Two-phase explicit-clear previews bind the exact target identities
+and raw message row set; the renderer must refresh a stale preview without
+automatically confirming it. Server-side MCP session keys and privileged IPC
+sender identity prevent confirmation capabilities crossing requester channels.
+Source and model/render tests cover confirmation, cancellation and external
+MCP deletion. They do not establish Electron GUI or native package verification.

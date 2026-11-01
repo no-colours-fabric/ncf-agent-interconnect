@@ -112,7 +112,7 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   assert.match(instructions, /Reply-To/);
   assert.match(instructions, /Example:.*agent_send/);
   const catalog = await firstClient.listTools();
-  assert.equal(catalog.tools.length, 10);
+  assert.equal(catalog.tools.length, 11);
   assert.ok(catalog.tools.some((tool) => tool.name === 'agent_connect'));
   assert.ok(catalog.tools.every((tool) => !tool.name.startsWith('conversation_')));
   const connectSchema = catalog.tools.find((tool) => tool.name === 'agent_connect')!.inputSchema;

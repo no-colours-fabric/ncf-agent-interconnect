@@ -6,6 +6,9 @@ import {
   nicknameKey,
   type Binding,
   type Attachment,
+  type AgentClearInput,
+  type AgentClearPreview,
+  type AgentClearResponse,
   type AgentIdentity,
   type Envelope,
   type Message,
@@ -47,13 +50,24 @@ export type ConnectResult = (
 
 export class AgentStore {
   readonly db: DatabaseSync;
+  private clearRequests = new Map<
+    string,
+    {
+      requester: string;
+      scope: 'agent' | 'all';
+      key: string | null;
+      snapshot: string;
+      preview: AgentClearPreview;
+      expires: number;
+    }
+  >();
   constructor(directory: string) {
     mkdirSync(directory, { recursive: true, mode: 0o700 });
     this.db = new DatabaseSync(path.join(directory, 'agents.sqlite'));
     const version = Number(
       (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
     );
-    if (version !== 0 && version !== 1 && version !== 2) {
+    if (version !== 0 && version !== 1 && version !== 2 && version !== 3) {
       this.db.close();
       throw new Error('Unsupported agent storage format');
     }
@@ -70,7 +84,7 @@ export class AgentStore {
     try {
       this.transaction(() => {
         this.db.exec(`
-      CREATE TABLE IF NOT EXISTS agents (key TEXT PRIMARY KEY, nickname TEXT NOT NULL, binding TEXT, generation INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS agents (key TEXT PRIMARY KEY, nickname TEXT NOT NULL, binding TEXT, generation INTEGER NOT NULL DEFAULT 0, incarnation TEXT NOT NULL DEFAULT '');
       CREATE TABLE IF NOT EXISTS transfers (id TEXT PRIMARY KEY, key TEXT NOT NULL, generation INTEGER NOT NULL, requester TEXT NOT NULL, details TEXT NOT NULL, expires INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'transfer');
       CREATE TABLE IF NOT EXISTS messages (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL, local_key TEXT NOT NULL, direction TEXT NOT NULL, envelope TEXT NOT NULL, state TEXT NOT NULL, error TEXT, UNIQUE(id,direction));
       CREATE INDEX IF NOT EXISTS inbox ON messages(local_key,state,sequence);
@@ -81,9 +95,16 @@ export class AgentStore {
       CREATE TABLE IF NOT EXISTS dispatches (message_id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, state TEXT NOT NULL, error TEXT);
       UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching';
       UPDATE system_events SET dispatch_state='uncertain' WHERE dispatch_state='dispatching';
-      PRAGMA user_version=2;`);
+      PRAGMA user_version=3;`);
         if (version === 1)
           this.db.exec("ALTER TABLE transfers ADD COLUMN mode TEXT NOT NULL DEFAULT 'transfer'");
+        if (version === 1 || version === 2) {
+          this.db.exec("ALTER TABLE agents ADD COLUMN incarnation TEXT NOT NULL DEFAULT ''");
+          for (const row of this.db.prepare('SELECT key FROM agents').all() as Row[])
+            this.db
+              .prepare('UPDATE agents SET incarnation=? WHERE key=?')
+              .run(randomUUID(), row.key);
+        }
       });
     } catch (error) {
       this.db.close();
@@ -104,15 +125,22 @@ export class AgentStore {
   }
   ensure(nickname: string): string {
     const key = nicknameKey(nickname);
-    this.db.prepare('INSERT OR IGNORE INTO agents(key,nickname) VALUES(?,?)').run(key, nickname);
+    this.db
+      .prepare('INSERT OR IGNORE INTO agents(key,nickname,incarnation) VALUES(?,?,?)')
+      .run(key, nickname, randomUUID());
     return key;
   }
-  sourceStamp(nickname: string): { generation: number; connectionId: string | null } {
+  sourceStamp(nickname: string): {
+    generation: number;
+    connectionId: string | null;
+    incarnation: string | null;
+  } {
     const row = this.db
-      .prepare('SELECT generation,binding FROM agents WHERE key=?')
+      .prepare('SELECT generation,binding,incarnation FROM agents WHERE key=?')
       .get(nicknameKey(nickname)) as Row | undefined;
     return {
       generation: Number(row?.generation ?? 0),
+      incarnation: row ? String(row.incarnation) : null,
       connectionId: row?.binding ? (JSON.parse(String(row.binding)) as Binding).connectionId : null,
     };
   }
@@ -124,6 +152,10 @@ export class AgentStore {
   connect(input: ConnectInput): ConnectResult {
     const key = nicknameKey(input.nickname);
     return this.transaction(() => {
+      if (input.connectionId && !input.transferId) {
+        const owner = this.assertOwner(input.connectionId);
+        if (owner.key !== key) throw new Error('The connection belongs to another agent');
+      }
       this.ensure(input.nickname);
       const row = this.identity(key);
       const owner = row.binding ? (JSON.parse(String(row.binding)) as Binding) : null;
@@ -241,8 +273,13 @@ export class AgentStore {
         generation: Number(row.generation) + 1,
       };
       this.db
-        .prepare('UPDATE agents SET binding=?,generation=? WHERE key=?')
-        .run(JSON.stringify(binding), binding.generation, key);
+        .prepare('UPDATE agents SET binding=?,generation=?,incarnation=? WHERE key=?')
+        .run(
+          JSON.stringify(binding),
+          binding.generation,
+          input.resetHistory ? randomUUID() : row.incarnation,
+          key,
+        );
       return {
         status: 'connected',
         nickname: String(row.nickname),
@@ -256,6 +293,138 @@ export class AgentStore {
           : {}),
       };
     });
+  }
+  invalidateClearRequests(): void {
+    this.clearRequests.clear();
+  }
+  clearAgents(
+    input: AgentClearInput,
+    requester: { channel: 'interface' | 'mcp'; session: string; connectionId?: string },
+  ): AgentClearResponse {
+    const result = this.transaction<AgentClearResponse>(() => {
+      const owner =
+        requester.channel === 'mcp' ? this.assertOwner(requester.connectionId ?? '') : null;
+      if (owner && input.nickname !== undefined)
+        throw new Error('MCP agent scope only clears its own mailbox');
+      if (input.scope === 'all' && input.nickname !== undefined)
+        throw new Error('All scope does not accept a nickname');
+      const key =
+        input.scope === 'agent' ? (owner?.key ?? nicknameKey(input.nickname ?? '')) : null;
+      const requesterKey = JSON.stringify([
+        requester.channel,
+        requester.session,
+        requester.connectionId ?? null,
+        owner?.binding ?? null,
+      ]);
+      const rows = (
+        key === null
+          ? this.db.prepare('SELECT * FROM agents ORDER BY key').all()
+          : this.db.prepare('SELECT * FROM agents WHERE key=?').all(key)
+      ) as Row[];
+      if (key !== null && !rows.length)
+        throw new Error(
+          input.confirm
+            ? 'clear_preview_stale: the agent was removed; request a new preview and obtain explicit user confirmation'
+            : 'Agent not found',
+        );
+      const targets = rows.map((row) => {
+        const messages = this.db
+          .prepare('SELECT id,direction,sequence FROM messages WHERE local_key=? ORDER BY sequence')
+          .all(row.key);
+        return {
+          key: row.key,
+          nickname: row.nickname,
+          incarnation: row.incarnation,
+          generation: row.generation,
+          binding: row.binding,
+          count: messages.length,
+          fingerprint: createHash('sha256').update(JSON.stringify(messages)).digest('hex'),
+        };
+      });
+      const snapshot = JSON.stringify(targets);
+      if (!input.confirm) {
+        if (input.operationId)
+          throw new Error('An operationId can only be used to confirm its preview');
+        for (const [id, request] of this.clearRequests)
+          if (request.expires <= Date.now()) this.clearRequests.delete(id);
+        if (this.clearRequests.size >= 128)
+          throw new Error('Too many pending clear previews; wait for one to expire');
+        const operationId = randomUUID(),
+          expires = Date.now() + 600000;
+        const preview: AgentClearPreview = {
+          status: 'confirmation_required',
+          operationId,
+          scope: input.scope,
+          targets: targets.map((target) => ({
+            nickname: String(target.nickname),
+            messageCount: target.count,
+          })),
+          agentCount: targets.length,
+          messageCount: targets.reduce((sum, target) => sum + target.count, 0),
+          expiresAt: new Date(expires).toISOString(),
+        };
+        this.clearRequests.set(operationId, {
+          requester: requesterKey,
+          scope: input.scope,
+          key,
+          snapshot,
+          preview,
+          expires,
+        });
+        return preview;
+      }
+      const request = this.clearRequests.get(input.operationId ?? '');
+      if (!request || request.expires <= Date.now()) {
+        this.clearRequests.delete(input.operationId ?? '');
+        throw new Error(
+          'clear_preview_expired: request a new preview and obtain explicit user confirmation',
+        );
+      }
+      if (
+        request.requester !== requesterKey ||
+        request.scope !== input.scope ||
+        request.key !== key
+      )
+        throw new Error('This clear operation does not belong to this requester, scope or target');
+      if (request.snapshot !== snapshot) {
+        this.clearRequests.delete(input.operationId!);
+        throw new Error(
+          'clear_preview_stale: agents or messages changed; request a new preview and obtain explicit user confirmation',
+        );
+      }
+      for (const row of rows) {
+        if (row.binding) {
+          const binding = JSON.parse(String(row.binding)) as Binding;
+          const event = {
+            connectionId: binding.connectionId,
+            binding,
+            type: 'agent_moved',
+            historyCleared: true,
+            agentRemoved: true,
+            nickname: String(row.nickname),
+            text: 'The user removed this agent and its local MCP history. This connection is disabled.',
+            createdAt: new Date().toISOString(),
+          };
+          this.db
+            .prepare('INSERT INTO system_events(connection_id,event) VALUES(?,?)')
+            .run(binding.connectionId, JSON.stringify(event));
+        }
+        this.clearHistory(String(row.key));
+        this.db.prepare('DELETE FROM transfers WHERE key=?').run(row.key);
+        this.db.prepare('DELETE FROM agents WHERE key=?').run(row.key);
+      }
+
+      return {
+        status: 'cleared',
+        scope: input.scope,
+        agentCount: request.preview.agentCount,
+        messageCount: request.preview.messageCount,
+        limits:
+          'Only local agents and MCP history were removed. Client transcripts, remote copies and remote queues remain. Already submitted external messages cannot be recalled; unknown incoming messages may create new mailboxes.',
+      };
+    });
+    if (result.status === 'cleared') this.clearRequests.delete(input.operationId!);
+    return result;
   }
   private clearHistory(key: string): void {
     // Any persistent dispatch row is evidence of a possible past admission, even after its state was overwritten.
@@ -317,9 +486,7 @@ export class AgentStore {
         return { key: String(row.key), nickname: String(row.nickname), binding };
     }
     if (this.events(connectionId).length)
-      throw new Error(
-        'agent_moved: the user moved this agent to another chat; read connection_events',
-      );
+      throw new Error('agent_moved: the user moved or removed this agent; read connection_events');
     throw new Error(
       'Connection not found. Call agent_connect with the agent name chosen by the user',
     );
@@ -350,6 +517,7 @@ export class AgentStore {
         .all() as Row[]
     ).map((r) => ({
       key: String(r.key),
+      incarnation: String(r.incarnation),
       nickname: String(r.nickname),
       binding: r.binding ? (JSON.parse(String(r.binding)) as Binding) : null,
       messageCount: Number(r.message_count),
@@ -559,6 +727,7 @@ export class AgentStore {
     return row ? { connectionId: String(row.connection_id), state: String(row.state) } : null;
   }
   close(): void {
+    this.clearRequests.clear();
     this.db.close();
   }
 }

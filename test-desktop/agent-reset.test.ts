@@ -97,7 +97,7 @@ test('reset tokens are mode-bound, exact-chat-bound and never grant legacy prese
   );
   assert.throws(
     () => f.store.connect({ ...confirm(request), confirmTransfer: true, transferId: undefined }),
-    /transferId/,
+    /transferId|Connection not found/,
   );
   assert.ok(f.store.get(message.id, 'in'));
   assert.ok(f.store.assertOwner(old.binding.connectionId));
@@ -121,11 +121,13 @@ test('format 1 migration is atomic, idempotent and keeps legacy requests preserv
   f.store.db
     .exec(`CREATE TABLE legacy_transfers AS SELECT id,key,generation,requester,details,expires,consumed FROM transfers WHERE mode='transfer';
     DROP TABLE transfers; ALTER TABLE legacy_transfers RENAME TO transfers;
-    DROP TABLE cleared_messages; DROP TABLE file_cleanup; PRAGMA user_version=1;`);
+    DROP TABLE cleared_messages; DROP TABLE file_cleanup; CREATE TABLE legacy_agents(key TEXT PRIMARY KEY,nickname TEXT NOT NULL,binding TEXT,generation INTEGER NOT NULL DEFAULT 0);
+    INSERT INTO legacy_agents SELECT key,nickname,binding,generation FROM agents;
+    DROP TABLE agents; ALTER TABLE legacy_agents RENAME TO agents; PRAGMA user_version=1;`);
   f.reopen();
   assert.equal(
     (f.store.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    2,
+    3,
   );
   assert.throws(
     () => f.store.connect({ ...confirm(request), transferId: request.transferId }),
@@ -370,7 +372,7 @@ test('MCP advertises two choices; reset revokes old tools, clears refs, preserve
   );
   assert.ok(
     catalog.tools
-      .filter((tool) => tool.name !== 'agent_connect')
+      .filter((tool) => !['agent_connect', 'agent_clear_history'].includes(tool.name))
       .every((tool) => tool.annotations?.destructiveHint === false),
   );
   const callConnect = async (client: Client, args: Record<string, unknown>) =>
@@ -1108,7 +1110,9 @@ test('foreign admission evidence survives overwritten dispatch status, preserve 
             f.store.db
               .exec(`CREATE TABLE legacy_transfers AS SELECT id,key,generation,requester,details,expires,consumed FROM transfers WHERE mode='transfer';
               DROP TABLE transfers; ALTER TABLE legacy_transfers RENAME TO transfers;
-              DROP TABLE cleared_messages; DROP TABLE file_cleanup; PRAGMA user_version=1;`);
+              DROP TABLE cleared_messages; DROP TABLE file_cleanup; CREATE TABLE legacy_agents(key TEXT PRIMARY KEY,nickname TEXT NOT NULL,binding TEXT,generation INTEGER NOT NULL DEFAULT 0);
+    INSERT INTO legacy_agents SELECT key,nickname,binding,generation FROM agents;
+    DROP TABLE agents; ALTER TABLE legacy_agents RENAME TO agents; PRAGMA user_version=1;`);
           }
           f.reopen();
           const fresh = connected(
@@ -1161,7 +1165,11 @@ test('unbound UI source stamp rejects snapshot sends after bind/reset, including
       const service = await node(t);
       service.store.ensure('Source');
       service.store.ensure('Target');
-      assert.deepEqual(service.store.sourceStamp('Source'), { generation: 0, connectionId: null });
+      assert.deepEqual(service.store.sourceStamp('Source'), {
+        generation: 0,
+        connectionId: null,
+        incarnation: service.store.list().find((agent) => agent.nickname === 'Source')!.incarnation,
+      });
       const filename = path.join(service.settings.value.exportRoots[0], 'unbound.txt');
       await writeFile(filename, 'Unbound staged blob');
       const barrier = gate(),

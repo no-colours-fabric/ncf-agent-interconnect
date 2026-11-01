@@ -11,6 +11,8 @@ import {
   nicknameSchema,
   type AdapterProfile,
   type Attachment,
+  type AgentClearInput,
+  type AgentClearResponse,
   type Envelope,
   type Snapshot,
   type SendInput,
@@ -285,6 +287,29 @@ export class NodeService extends EventEmitter {
     this.refreshPresence();
     const warnings = this.nicknameWarnings(input.nickname);
     return warnings.length ? { ...result, warnings } : result;
+  }
+  clearAgents(
+    args: AgentClearInput,
+    requester: { channel: 'interface' | 'mcp'; session: string; connectionId?: string },
+  ): AgentClearResponse {
+    const input = z
+      .object({
+        scope: z.enum(['agent', 'all']),
+        nickname: nicknameSchema.optional(),
+        operationId: z.uuid().optional(),
+        confirm: z.boolean().default(false),
+      })
+      .strict()
+      .parse(args);
+    const result = this.store.clearAgents(input, requester);
+    if (result.status === 'cleared') {
+      this.refreshPresence();
+      this.mcp.notify({ source: 'application', type: 'agents_cleared', scope: result.scope });
+      this.emit('change');
+      this.drainAdapters();
+      this.drainFileCleanup();
+    }
+    return result;
   }
   touchClientSession(session: string, connectionId?: string): void {
     if (connectionId) this.store.assertOwner(connectionId);
@@ -723,17 +748,6 @@ export class NodeService extends EventEmitter {
   ): Promise<SendResult> {
     if (!args.recipientNode)
       throw new Error('recipientNode is required; select an explicit node UUID from node_peers');
-    const sourceStamp = this.store.sourceStamp(nickname);
-    const checkSource = () => {
-      stillOwner();
-      if (sourceStamp.connectionId) this.store.assertOwner(sourceStamp.connectionId);
-      const current = this.store.sourceStamp(nickname);
-      if (
-        current.generation !== sourceStamp.generation ||
-        current.connectionId !== sourceStamp.connectionId
-      )
-        throw new Error('The source agent binding changed; this pending send was cancelled');
-    };
     const recipientNode = z.uuid().parse(args.recipientNode).toLowerCase(),
       local = recipientNode === this.settings.value.nodeId,
       replyTo = args.replyTo ? z.uuid().parse(args.replyTo) : null;
@@ -755,6 +769,20 @@ export class NodeService extends EventEmitter {
       }
     };
     checkReply();
+    this.store.ensure(nickname);
+    const sourceStamp = this.store.sourceStamp(nickname);
+    const checkSource = () => {
+      stillOwner();
+      if (sourceStamp.connectionId) this.store.assertOwner(sourceStamp.connectionId);
+      const current = this.store.sourceStamp(nickname);
+      if (
+        current.incarnation !== sourceStamp.incarnation ||
+        current.generation !== sourceStamp.generation ||
+        current.connectionId !== sourceStamp.connectionId
+      )
+        throw new Error('The source agent binding changed; this pending send was cancelled');
+    };
+
     const id = args.id ? z.uuid().parse(args.id) : randomUUID();
     const envelope = await this.fileOperation(async () => {
       checkSource();
@@ -1091,16 +1119,28 @@ export class NodeService extends EventEmitter {
       void job.finally(() => this.jobs.delete(job));
     }
   }
-  async userCall(method: string, raw: unknown = {}): Promise<unknown> {
+  async userCall(
+    method: string,
+    raw: unknown = {},
+    context: { requesterSession?: string } = {},
+  ): Promise<unknown> {
     if (method === 'snapshot') return this.snapshot();
+    if (method === 'clearAgents')
+      return this.clearAgents(raw as AgentClearInput, {
+        channel: 'interface',
+        session: context.requesterSession ?? 'local-interface',
+      });
     if (method === 'history') {
-      const { nickname, after, limit } = z
+      const { nickname, after, limit, incarnation } = z
         .object({
           nickname: nicknameSchema,
+          incarnation: z.uuid().optional(),
           after: z.number().int().min(0).default(0),
           limit: z.number().int().min(1).max(200).default(100),
         })
         .parse(raw);
+      if (incarnation && this.store.sourceStamp(nickname).incarnation !== incarnation)
+        throw new Error('The selected agent changed');
       return this.store.history(nicknameKey(nickname), after, limit);
     }
     if (method === 'instructions') {
@@ -1158,6 +1198,7 @@ export class NodeService extends EventEmitter {
       const args = z
         .object({
           nickname: nicknameSchema,
+          sourceIncarnation: z.uuid().optional(),
           recipientNode: z.uuid(),
           recipientNickname: nicknameSchema,
           text: z.string().min(1).max(65536),
@@ -1165,6 +1206,11 @@ export class NodeService extends EventEmitter {
         })
         .strict()
         .parse(raw);
+      if (
+        args.sourceIncarnation &&
+        this.store.sourceStamp(args.nickname).incarnation !== args.sourceIncarnation
+      )
+        throw new Error('The selected source agent changed');
       return this.sendFrom(args.nickname, args);
     }
     if (method === 'exportRoots') {
@@ -1188,6 +1234,7 @@ export class NodeService extends EventEmitter {
     this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
     this.contexts.clear();
+    this.store.invalidateClearRequests();
     await this.adapters.close();
     await this.network.close();
     await this.receiving;

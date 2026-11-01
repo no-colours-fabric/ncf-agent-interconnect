@@ -30,9 +30,11 @@ export type EventInput = {
 const markdownName = (text: string): string => text.replace(/[\\`*_{}\[\]<>#!|]/g, '\\$&');
 export function agentMessageText(input: EventInput): string {
   if (input.systemEvent)
-    return input.systemEvent.historyCleared
-      ? `Agent ${markdownName(input.nickname)} was reset by the user. Its previous MCP history was deleted. This connection is disabled.`
-      : `Agent ${markdownName(input.nickname)} was moved to another chat by the user. This connection is disabled.`;
+    return input.systemEvent.agentRemoved
+      ? `Agent ${markdownName(input.nickname)} and its local MCP history were removed by the user. This connection is disabled.`
+      : input.systemEvent.historyCleared
+        ? `Agent ${markdownName(input.nickname)} was reset by the user. Its previous MCP history was deleted. This connection is disabled.`
+        : `Agent ${markdownName(input.nickname)} was moved to another chat by the user. This connection is disabled.`;
   const { fromNickname, text, files } = input.message;
   const attachments = files.length
     ? '\n\nAttachments:\n' +

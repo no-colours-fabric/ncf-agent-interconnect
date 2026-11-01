@@ -119,6 +119,7 @@ export interface Binding {
 export interface AgentIdentity {
   nickname: string;
   key: string;
+  incarnation?: string;
   binding: Binding | null;
   messageCount: number;
   unread: number;
@@ -129,6 +130,7 @@ export interface SystemEvent {
   binding: Binding;
   type: 'agent_moved';
   historyCleared?: true;
+  agentRemoved?: true;
   nickname: string;
   text: string;
   createdAt: string;
@@ -213,3 +215,28 @@ declare global {
     interconnect: DesktopBridge;
   }
 }
+
+export type AgentClearScope = 'agent' | 'all';
+export interface AgentClearInput {
+  scope: AgentClearScope;
+  nickname?: string;
+  operationId?: string;
+  confirm?: boolean;
+}
+export interface AgentClearPreview {
+  status: 'confirmation_required';
+  operationId: string;
+  scope: AgentClearScope;
+  targets: { nickname: string; messageCount: number }[];
+  agentCount: number;
+  messageCount: number;
+  expiresAt: string;
+}
+export interface AgentClearResult {
+  status: 'cleared';
+  scope: AgentClearScope;
+  agentCount: number;
+  messageCount: number;
+  limits: string;
+}
+export type AgentClearResponse = AgentClearPreview | AgentClearResult;

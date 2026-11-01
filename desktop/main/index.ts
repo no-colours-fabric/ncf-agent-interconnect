@@ -229,6 +229,7 @@ function setupIpc(): void {
         'accessCode',
         'connectPeer',
         'registerAgent',
+        'clearAgents',
         'saveNode',
         'stop',
         'start',
@@ -236,6 +237,6 @@ function setupIpc(): void {
       ].includes(method)
     )
       throw new Error('This operation is not allowed by the interface');
-    return service.userCall(method, raw);
+    return service.userCall(method, raw, { requesterSession: String(event.sender.id) });
   });
 }
