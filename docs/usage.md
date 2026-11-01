@@ -33,6 +33,14 @@ address is supplied explicitly; the app does not discover arbitrary LAN peers.
 
 ## Receive and reply
 
+Under Agents and Remote nodes, connected peers show their agent names and client
+availability. Selecting a remote entry fills both recipient fields. The
+`agents_list` MCP tool provides the same directory with full addresses; offline,
+unsupported and unknown states are explicit. A matching name on another node
+produces an advisory warning and remains available locally. See
+[agent presence](agent-presence.md) for details. Use `agent_disconnect` when an
+agent leaves; its history remains available.
+
 Reactive adapters deliver complete messages to the exact bound chat:
 
 ```text

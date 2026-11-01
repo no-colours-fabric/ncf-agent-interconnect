@@ -10,6 +10,8 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { z } from 'zod';
 import {
   envelopeSchema,
+  directorySnapshotSchema,
+  type DirectorySnapshot,
   type Envelope,
   type MessageState,
   type Peer,
@@ -17,8 +19,10 @@ import {
 import { localAddresses, normalizePeerAddress, type SettingsFile } from './settings.js';
 
 const messageFrame = z.object({ type: z.literal('message'), envelope: envelopeSchema }).strict();
+const directoryFeature = 'agent-directory-v1';
 const frameSchema = z.discriminatedUnion('type', [
   messageFrame,
+  z.object({ type: z.literal('directory'), snapshot: directorySnapshotSchema }).strict(),
   z.object({ type: z.literal('hello'), protocol: z.literal(2), nodeId: z.uuid() }).strict(),
   z
     .object({
@@ -53,6 +57,8 @@ interface Link {
   socket: WebSocket | null;
   error: string | null;
   connecting: boolean;
+  directorySupported: boolean;
+  generation: number;
   timer?: NodeJS.Timeout;
 }
 interface PairCode {
@@ -93,6 +99,7 @@ export class PeerNetwork extends EventEmitter {
   private wss?: WebSocketServer;
   private links = new Map<string, Link>();
   private sockets = new Set<WebSocket>();
+  private socketPeers = new WeakMap<WebSocket, string>();
   private requests = new Map<
     string,
     {
@@ -156,6 +163,10 @@ export class PeerNetwork extends EventEmitter {
       maxPayload: 512 * 1024,
       perMessageDeflate: false,
     });
+    this.wss.on('headers', (headers, req) => {
+      if (req.headers['x-ncf-features'] === directoryFeature)
+        headers.push('X-NCF-Features: ' + directoryFeature);
+    });
     this.server.on('upgrade', (req, socket, head) => {
       const peer = this.settings.value.peers.find((p) => p.id === req.headers['x-node-id']);
       if (
@@ -167,7 +178,9 @@ export class PeerNetwork extends EventEmitter {
         socket.end('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
         return;
       }
-      this.wss!.handleUpgrade(req, socket, head, (ws) => this.attach(peer, ws, false));
+      this.wss!.handleUpgrade(req, socket, head, (ws) =>
+        this.attach(peer, ws, false, req.headers['x-ncf-features'] === directoryFeature),
+      );
     });
     const listen = (port: number) =>
       new Promise<void>((resolve, reject) => {
@@ -207,19 +220,34 @@ export class PeerNetwork extends EventEmitter {
   private link(peerId: string): Link {
     let value = this.links.get(peerId);
     if (!value) {
-      value = { socket: null, error: null, connecting: false };
+      value = {
+        socket: null,
+        error: null,
+        connecting: false,
+        directorySupported: false,
+        generation: 0,
+      };
       this.links.set(peerId, value);
     }
     return value;
   }
-  states(): { id: string; connected: boolean; error: string | null }[] {
+  states(): {
+    id: string;
+    connected: boolean;
+    directorySupported: boolean;
+    error: string | null;
+  }[] {
     return this.settings.value.peers.map((p) => ({
       id: p.id,
       connected: this.link(p.id).socket?.readyState === WebSocket.OPEN,
+      directorySupported: this.link(p.id).directorySupported,
       error: this.link(p.id).error,
     }));
   }
   private schedule(peer: Peer): void {
+    const current = this.settings.value.peers.find((value) => value.id === peer.id);
+    if (!current) return;
+    peer = current;
     const link = this.link(peer.id);
     if (this.stopped || link.socket || link.timer || !peer.address) return;
     link.timer = setTimeout(() => {
@@ -229,24 +257,41 @@ export class PeerNetwork extends EventEmitter {
     link.timer.unref();
   }
   private connect(peer: Peer): void {
+    const current = this.settings.value.peers.find((value) => value.id === peer.id);
+    if (!current) return;
+    peer = current;
     const link = this.link(peer.id);
     if (this.stopped || !peer.address || link.socket || link.connecting) return;
     link.connecting = true;
     const ws = new WebSocket(normalizePeerAddress(peer.address), {
       ...pinned(peer.certificate),
-      headers: { authorization: 'Bearer ' + peer.secret, 'x-node-id': this.settings.value.nodeId },
+      headers: {
+        authorization: 'Bearer ' + peer.secret,
+        'x-node-id': this.settings.value.nodeId,
+        'x-ncf-features': directoryFeature,
+      },
       handshakeTimeout: 6000,
       maxPayload: 512 * 1024,
       perMessageDeflate: false,
     });
     this.attach(peer, ws, true);
   }
-  private attach(peer: Peer, ws: WebSocket, outbound: boolean): void {
+  private attach(peer: Peer, ws: WebSocket, outbound: boolean, directorySupported = false): void {
+    this.socketPeers.set(ws, peer.id);
     this.sockets.add(ws);
     let verified = false;
+    if (outbound)
+      ws.once('upgrade', (response) => {
+        directorySupported = response.headers['x-ncf-features'] === directoryFeature;
+      });
     const link = this.link(peer.id),
+      generation = link.generation,
       deadline = setTimeout(() => ws.terminate(), 6000);
     const hello = () => {
+      if (this.stopped || link.generation !== generation) {
+        ws.terminate();
+        return;
+      }
       void this.write(ws, { type: 'hello', protocol: 2, nodeId: this.settings.value.nodeId }).catch(
         () => ws.terminate(),
       );
@@ -255,6 +300,8 @@ export class PeerNetwork extends EventEmitter {
     else ws.once('open', hello);
     ws.on('message', (data: RawData, binary: boolean) => {
       void (async () => {
+        if (link.generation !== generation) return;
+        if (verified && link.socket !== ws) return;
         if (binary) throw new Error('Expected protocol 2 JSON');
         const frame = frameSchema.parse(JSON.parse(data.toString()));
         if (!verified) {
@@ -271,13 +318,17 @@ export class PeerNetwork extends EventEmitter {
           verified = true;
           clearTimeout(deadline);
           link.socket = ws;
+          link.directorySupported = directorySupported;
           link.connecting = false;
           link.error = null;
           this.emit('connected', peer.id);
           this.emit('change');
           return;
         }
+        if (link.socket !== ws) return;
         if (frame.type === 'hello') throw new Error('Repeated handshake');
+        if (frame.type === 'directory' && !directorySupported)
+          throw new Error('Agent directory was not negotiated on this connection');
         if (frame.type === 'blob/result' || frame.type === 'blob/error') {
           const request = this.requests.get(frame.requestId);
           if (request && request.peerId === peer.id) {
@@ -290,21 +341,27 @@ export class PeerNetwork extends EventEmitter {
         }
         await this.onFrame(peer.id, frame);
       })().catch((e) => {
+        if (link.generation !== generation) return;
+        if (verified && link.socket !== ws) return;
         link.error = (e as Error).message;
         ws.close(1008, 'Invalid message');
         this.emit('change');
       });
     });
     ws.on('error', (e) => {
+      if (link.generation !== generation) return;
+      if (verified && link.socket !== ws) return;
       link.error = e.message;
       this.emit('change');
     });
     ws.on('close', () => {
       clearTimeout(deadline);
       this.sockets.delete(ws);
+      if (link.generation !== generation) return;
       link.connecting = false;
       if (link.socket === ws) {
         link.socket = null;
+        link.directorySupported = false;
         for (const [id, r] of this.requests)
           if (r.peerId === peer.id) {
             clearTimeout(r.timer);
@@ -312,6 +369,7 @@ export class PeerNetwork extends EventEmitter {
             this.requests.delete(id);
           }
         this.emit('change');
+        this.emit('disconnected', peer.id);
       }
       this.schedule(peer);
     });
@@ -331,8 +389,35 @@ export class PeerNetwork extends EventEmitter {
       ? this.write(ws, frame)
       : Promise.reject(new Error('The remote node is disconnected'));
   }
+  reconnectPeer(peerId: string): void {
+    const link = this.link(peerId);
+    link.generation++;
+    clearTimeout(link.timer);
+    link.timer = undefined;
+    link.socket = null;
+    link.connecting = false;
+    link.directorySupported = false;
+    link.error = null;
+    for (const socket of this.sockets)
+      if (this.socketPeers.get(socket) === peerId) socket.terminate();
+    for (const [id, request] of this.requests)
+      if (request.peerId === peerId) {
+        clearTimeout(request.timer);
+        request.reject(new Error('The peer authorization changed'));
+        this.requests.delete(id);
+      }
+    this.emit('disconnected', peerId);
+    this.emit('change');
+    const peer = this.settings.value.peers.find((value) => value.id === peerId);
+    if (peer) this.connect(peer);
+  }
   message(envelope: Envelope): Promise<void> {
     return this.send(envelope.toNode, { type: 'message', envelope });
+  }
+  directory(peerId: string, snapshot: DirectorySnapshot): Promise<void> {
+    if (!this.link(peerId).directorySupported)
+      return Promise.reject(new Error('Agent directory is not supported by this peer'));
+    return this.send(peerId, { type: 'directory', snapshot });
   }
   receipt(peerId: string, id: string, state: Exclude<MessageState, 'queued'>): Promise<void> {
     return this.send(peerId, { type: 'receipt', id, state });

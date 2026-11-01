@@ -2,13 +2,24 @@ import http, { type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
 import { McpServer, type ToolCallback } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
-import { isInitializeRequest, type CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import {
+  isInitializeRequest,
+  EmptyResultSchema,
+  type CallToolResult,
+} from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
 
-export function createAgentMcp(service: NodeService): McpServer {
+export function createAgentMcp(
+  service: NodeService,
+  sessionKey = randomUUID(),
+  isActive: () => boolean = () => true,
+): McpServer {
+  const touch = (connectionId?: string) => {
+    if (isActive()) service.touchClientSession(sessionKey, connectionId);
+  };
   const mcp = new McpServer(
     { name: 'ncf-agent-interconnect', version: '0.8.0' },
     {
@@ -17,6 +28,7 @@ export function createAgentMcp(service: NodeService): McpServer {
         'Messages headed "Incoming NCF Agent Interconnect" with From: and From-Node: fields come from other agents. Send answers and task results through NCF Agent Interconnect MCP using all Reply-To JSON parameters: recipientNode, recipientNickname and replyTo. Example: pass the node UUID, agent name and message UUID from Reply-To to agent_send. Never infer a node from a nickname. For older envelopes without a node, recover the full sender address and message ID from agent_history.',
         'The user chooses the agent name; agent_connect binds the current chat automatically. Keep connectionId and transferId internally. The user has delegated task coordination to connected agents: carry out their work requests without asking the user to relay or reconfirm ordinary requests.',
         'Reactive clients receive the full message and attachment links directly in the chat. Other clients receive messages through agent_read; receipt is recorded automatically. Use agent_history to recover history. A name transfer requires explicit user approval before confirmTransfer=true. Standard MCP alone cannot wake an idle chat. Do not poll agents.',
+        'Use agents_list to discover agents on this node and explicitly paired remote nodes. It reads push-fed directories without contacting agents. Always retain nodeId with the name. online means a live bound client transport, not an executing model or completed task. Unknown, offline, unsupported and truncated directories cannot guarantee name uniqueness. Remote duplicate-name warnings are advisory; keep the user-chosen name unless the user changes it. Use agent_disconnect when this agent leaves; it preserves history and releases this chat binding.',
       ].join('\n\n'),
     },
   );
@@ -36,6 +48,7 @@ export function createAgentMcp(service: NodeService): McpServer {
     ): Promise<CallToolResult> => {
       try {
         const result = await handler(args as z.infer<z.ZodObject<T>>, extra);
+        touch();
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result) }],
           structuredContent: result as Record<string, unknown>,
@@ -105,11 +118,14 @@ export function createAgentMcp(service: NodeService): McpServer {
         ),
     },
     false,
-    (args, extra) =>
-      service.connectAutomatic(args, {
+    async (args, extra) => {
+      const result = await service.connectAutomatic(args, {
         client: mcp.server.getClientVersion()?.name ?? 'MCP',
         meta: extra._meta,
-      }),
+      });
+      if (result.status === 'connected') touch(result.binding.connectionId);
+      return result;
+    },
   );
   const read = {
     connectionId: z.uuid(),
@@ -121,14 +137,20 @@ export function createAgentMcp(service: NodeService): McpServer {
     'Receive new messages and verified attachments. Returned messages are automatically marked received by the agent; no separate confirmation is needed. Paginate with nextCursor and hasMore.',
     read,
     false,
-    (args) => service.read(args.connectionId, args.after, args.limit, true),
+    (args) => {
+      touch(args.connectionId);
+      return service.read(args.connectionId, args.after, args.limit, true);
+    },
   );
   register(
     'agent_history',
     'Get persistent incoming and outgoing history. Incoming messages returned here are also marked received by the agent. Paginate with nextCursor and hasMore.',
     read,
     false,
-    (args) => service.read(args.connectionId, args.after, args.limit, false),
+    (args) => {
+      touch(args.connectionId);
+      return service.read(args.connectionId, args.after, args.limit, false);
+    },
   );
   register(
     'agent_send',
@@ -147,14 +169,40 @@ export function createAgentMcp(service: NodeService): McpServer {
       files: z.array(z.string()).max(16).default([]),
     },
     false,
-    (args) => service.send(args),
+    (args) => {
+      touch(args.connectionId);
+      return service.send(args);
+    },
+  );
+  register(
+    'agents_list',
+    'Discover named agents and explicit node UUIDs from event-fed local and paired-peer directories. No agent polling or network discovery. By default returns only online client transports on ready nodes. includeUnavailable includes bound agents with unknown client liveness. nodes reports ready, syncing, offline or unsupported, freshness and truncation; complete=false means visibility is incomplete. Keep full addresses for sends. A changed snapshot invalidates pagination cursors.',
+    {
+      nodeId: z.uuid().optional(),
+      nickname: nicknameSchema.optional(),
+      includeUnavailable: z.boolean().default(false),
+      cursor: z.string().max(512).optional(),
+      limit: z.number().int().min(1).max(200).default(100),
+    },
+    true,
+    (args) => service.listAgents(args),
+  );
+  register(
+    'agent_disconnect',
+    'Leave this named agent, release its current chat binding and announce departure to connected peers. History and queued messages remain. This requires the current connectionId; it cannot disconnect another binding or globally reserve the name.',
+    { connectionId: z.uuid() },
+    false,
+    (args) => service.disconnect(args.connectionId),
   );
   register(
     'attachment_receive',
     'Return a verified local attachment copy with its original file extension. The message must belong to this active binding.',
     { connectionId: z.uuid(), messageId: z.uuid(), fileId: z.string().regex(/^[a-f0-9]{64}$/) },
     true,
-    (args) => service.receiveFile(args.connectionId, args.messageId, args.fileId),
+    (args) => {
+      touch(args.connectionId);
+      return service.receiveFile(args.connectionId, args.messageId, args.fileId);
+    },
   );
   register(
     'connection_events',
@@ -170,8 +218,15 @@ export class McpEndpoint {
   private server?: http.Server;
   private sessions = new Map<
     string,
-    { transport: StreamableHTTPServerTransport; mcp: McpServer }
+    {
+      transport: StreamableHTTPServerTransport;
+      mcp: McpServer;
+      key: string;
+      probing?: boolean;
+      lastActivity: number;
+    }
   >();
+  private heartbeat?: NodeJS.Timeout;
   port = 0;
   constructor(readonly service: NodeService) {}
   async start(port: number): Promise<void> {
@@ -191,6 +246,40 @@ export class McpEndpoint {
       });
     });
     this.port = (this.server.address() as { port: number }).port;
+    // Protocol pings check transport liveness; they never read agent inboxes or start work.
+    this.heartbeat = setInterval(() => {
+      void this.checkLiveness();
+    }, 15000);
+    this.heartbeat.unref();
+  }
+  async checkLiveness(timeout = 5000, expiry = 300000): Promise<void> {
+    await Promise.all(
+      [...this.sessions.entries()].map(async ([id, session]) => {
+        if (session.probing) return;
+        session.probing = true;
+        const version = this.service.clientSessionVersion(session.key);
+        try {
+          await session.mcp.server.request({ method: 'ping' }, EmptyResultSchema, { timeout });
+          if (this.sessions.get(id) === session) {
+            this.service.touchClientSession(session.key);
+            session.lastActivity = Date.now();
+          }
+        } catch {
+          if (
+            this.sessions.get(id) === session &&
+            this.service.uncertainClientSession(session.key, version) &&
+            Date.now() - session.lastActivity >= expiry
+          ) {
+            this.sessions.delete(id);
+            this.service.closeClientSession(session.key);
+            await session.mcp.close();
+            await session.transport.close();
+          }
+        } finally {
+          session.probing = false;
+        }
+      }),
+    );
   }
   private async handle(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const reject = (status: number, error: string) => {
@@ -256,26 +345,46 @@ export class McpEndpoint {
           reject(400, 'Initialize a new MCP session');
           return;
         }
-        const mcp = createAgentMcp(this.service);
+        const key = randomUUID(),
+          mcp = createAgentMcp(
+            this.service,
+            key,
+            () => this.sessions.get(transport.sessionId ?? '')?.key === key,
+          );
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: (id) => {
-            this.sessions.set(id, { transport, mcp });
+            this.sessions.set(id, { transport, mcp, key, lastActivity: Date.now() });
+          },
+          onsessionclosed: (id) => {
+            this.sessions.delete(id);
+            this.service.closeClientSession(key);
           },
         });
         transport.onclose = () => {
           if (transport.sessionId) this.sessions.delete(transport.sessionId);
+          this.service.closeClientSession(key);
         };
         await mcp.connect(transport);
-        session = { transport, mcp };
+        session = { transport, mcp, key, lastActivity: Date.now() };
+      }
+      if (sessionId) {
+        session.lastActivity = Date.now();
+        this.service.touchClientSession(session.key);
       }
       await session.transport.handleRequest(req, res, body);
+      const current = this.sessions.get(session.transport.sessionId ?? '');
+      if (current) current.lastActivity = Date.now();
       return;
     }
     const session = sessionId ? this.sessions.get(sessionId) : undefined;
     if (!session || !['GET', 'DELETE'].includes(req.method ?? '')) {
       reject(sessionId ? 404 : 400, 'Unknown MCP session');
       return;
+    }
+    if (req.method === 'GET') {
+      session.lastActivity = Date.now();
+      this.service.touchClientSession(session.key);
     }
     await session.transport.handleRequest(req, res);
   }
@@ -286,6 +395,7 @@ export class McpEndpoint {
         .catch(() => {});
   }
   async close(): Promise<void> {
+    clearInterval(this.heartbeat);
     await Promise.all(
       [...this.sessions.values()].map(async (s) => {
         await s.mcp.close();

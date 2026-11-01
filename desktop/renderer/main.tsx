@@ -39,7 +39,13 @@ import AddOutlined from '@mui/icons-material/AddOutlined';
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import SendOutlined from '@mui/icons-material/SendOutlined';
-import type { Snapshot, Message, McpInstructions } from '../shared/contracts.js';
+import {
+  nicknameKey,
+  type Snapshot,
+  type Message,
+  type McpInstructions,
+  type AgentDirectory,
+} from '../shared/contracts.js';
 
 const theme = createTheme({
   palette: {
@@ -74,6 +80,85 @@ const navigation: { id: Page; label: string; icon: React.ReactNode }[] = [
   { id: 'settings', label: 'Settings', icon: <SettingsOutlined /> },
 ];
 const time = (value: string) => new Date(value).toLocaleString('en-US');
+
+function DirectoryList({
+  directories,
+  choose,
+}: {
+  directories: AgentDirectory[];
+  choose: (node: string, nickname: string) => void;
+}): React.JSX.Element {
+  return (
+    <Stack spacing={1.5}>
+      {directories.map((directory) => (
+        <Box key={directory.nodeId} data-testid={'directory-' + directory.nodeId}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
+            <Typography variant="body2" sx={{ fontWeight: 650 }}>
+              {directory.nodeLabel}
+            </Typography>
+            <Chip
+              size="small"
+              color={directory.state === 'ready' ? 'success' : 'default'}
+              label={
+                {
+                  ready: 'Connected',
+                  syncing: 'Synchronizing',
+                  unsupported: 'Directory unsupported',
+                  offline: 'Offline',
+                }[directory.state]
+              }
+            />
+          </Stack>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: 'block', overflowWrap: 'anywhere' }}
+          >
+            {directory.nodeId}
+          </Typography>
+          {directory.updatedAt && (
+            <Typography variant="caption" color="text.secondary">
+              Updated {time(directory.updatedAt)}
+            </Typography>
+          )}
+          <List dense disablePadding>
+            {directory.agents.map((agent) => (
+              <ListItemButton
+                key={agent.nickname}
+                onClick={() => choose(directory.nodeId, agent.nickname)}
+              >
+                <ListItemText
+                  primary={agent.nickname}
+                  secondary={
+                    agent.availability === 'online'
+                      ? 'Online client'
+                      : 'Client availability unknown'
+                  }
+                />
+              </ListItemButton>
+            ))}
+          </List>
+          {directory.state === 'ready' && !directory.agents.length && (
+            <Typography variant="caption" color="text.secondary">
+              No connected agents registered.
+            </Typography>
+          )}
+          {directory.state === 'unsupported' && (
+            <Typography variant="caption" color="text.secondary">
+              Update this peer to share its agent directory. Message delivery remains available.
+            </Typography>
+          )}
+          {directory.truncated && (
+            <Alert severity="warning">
+              Directory is incomplete: showing {directory.agents.length} of {directory.total}{' '}
+              agents.
+            </Alert>
+          )}
+        </Box>
+      ))}
+    </Stack>
+  );
+}
 
 function App(): React.JSX.Element {
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
@@ -192,6 +277,25 @@ function App(): React.JSX.Element {
       </Stack>
     );
   const selectedAgent = snapshot.agents.find((c) => c.nickname === selected);
+  const chooseRemoteAgent = (nodeId: string, agent: string) => {
+    setRecipient(nodeId);
+    setRecipientNick(agent);
+    setPage('agents');
+  };
+  const nameConflicts = (() => {
+    try {
+      const key = nicknameKey(nickname.trim());
+      return snapshot.directories
+        .filter((directory) => !directory.local && directory.state === 'ready')
+        .flatMap((directory) =>
+          directory.agents
+            .filter((agent) => nicknameKey(agent.nickname) === key)
+            .map((agent) => ({ directory, agent })),
+        );
+    } catch {
+      return [];
+    }
+  })();
   const copy = (value: string) => run(() => call('copy', { text: value }), 'Copied');
   const title = navigation.find((n) => n.id === page)?.label ?? 'Overview';
   return (
@@ -414,6 +518,15 @@ function App(): React.JSX.Element {
                   <Typography color="text.secondary" variant="body2" sx={{ p: 2 }}>
                     Add an agent with a name of your choice.
                   </Typography>
+                )}
+                {!!snapshot.peers.length && (
+                  <Box sx={{ p: 2, borderTop: '1px solid #e2e7ec', overflow: 'auto' }}>
+                    <Typography sx={{ fontWeight: 650, mb: 1 }}>Remote agents</Typography>
+                    <DirectoryList
+                      directories={snapshot.directories.filter((directory) => !directory.local)}
+                      choose={chooseRemoteAgent}
+                    />
+                  </Box>
                 )}
               </Box>
               <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -720,6 +833,13 @@ function App(): React.JSX.Element {
                       <Typography variant="body2" color="text.secondary">
                         {p.address || 'Incoming connection'}
                       </Typography>
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        sx={{ overflowWrap: 'anywhere' }}
+                      >
+                        {p.id}
+                      </Typography>
                     </Box>
                     <Chip
                       color={p.connected ? 'success' : 'default'}
@@ -731,6 +851,14 @@ function App(): React.JSX.Element {
                       {p.error}
                     </Alert>
                   )}
+                  <Box sx={{ mt: 2 }}>
+                    <DirectoryList
+                      directories={snapshot.directories.filter(
+                        (directory) => directory.nodeId === p.id,
+                      )}
+                      choose={chooseRemoteAgent}
+                    />
+                  </Box>
                 </Paper>
               ))}
             </Stack>
@@ -1026,6 +1154,22 @@ function App(): React.JSX.Element {
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
           />
+          {!!nameConflicts.length && (
+            <Alert severity="warning" sx={{ mt: 2 }}>
+              This name is also used on{' '}
+              {nameConflicts
+                .map(({ directory }) => `${directory.nodeLabel} (${directory.nodeId})`)
+                .join(', ')}
+              . You may keep this name on this node or choose another name.
+            </Alert>
+          )}
+          {snapshot.directories.some(
+            (directory) => !directory.local && (directory.state !== 'ready' || directory.truncated),
+          ) && (
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Some remote directories are unavailable or incomplete. Other nodes may use this name.
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setNicknameDialog(false)}>Cancel</Button>

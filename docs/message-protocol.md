@@ -2,7 +2,14 @@
 
 The local interface uses authenticated Streamable HTTP MCP. Tool names are
 `node_status`, `node_peers`, `agent_connect`, `agent_read`, `agent_history`,
-`agent_send`, `attachment_receive` and `connection_events`.
+`agent_send`, `attachment_receive`, `connection_events`, `agents_list` and
+`agent_disconnect`.
+
+`agents_list` reads the event-fed agent directories of this node and explicit
+peers. `agent_disconnect` releases only the current binding while retaining history.
+Remote duplicate-name warnings do not block `agent_connect`. See
+[agent directories and presence](agent-presence.md) for liveness, negotiation,
+pagination and native verification.
 
 `agent_connect` accepts a user-chosen name. Client integrations supply the exact
 chat context. The model keeps returned connection and transfer capabilities;

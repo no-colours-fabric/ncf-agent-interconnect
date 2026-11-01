@@ -10,6 +10,7 @@ import {
   type Message,
   type MessageState,
   type SystemEvent,
+  type NicknameConflict,
 } from '../shared/contracts.js';
 
 type Row = Record<string, string | number | null>;
@@ -22,7 +23,7 @@ export interface ConnectInput {
   transferId?: string;
   confirmTransfer?: boolean;
 }
-export type ConnectResult =
+export type ConnectResult = (
   | { status: 'connected'; nickname: string; binding: Binding }
   | {
       status: 'nickname_in_use';
@@ -32,7 +33,8 @@ export type ConnectResult =
       currentOwner: Omit<Binding, 'connectionId'>;
       requestingChat: { client: string; chatId: string; adapterId: string };
       userApprovalRequired: true;
-    };
+    }
+) & { warnings?: NicknameConflict[] };
 
 export class AgentStore {
   readonly db: DatabaseSync;
@@ -237,6 +239,12 @@ export class AgentStore {
       messageCount: Number(r.message_count),
       unread: Number(r.unread ?? 0),
     }));
+  }
+  disconnect(connectionId: string): void {
+    this.transaction(() => {
+      const owner = this.assertOwner(connectionId);
+      this.db.prepare('UPDATE agents SET binding=NULL WHERE key=?').run(owner.key);
+    });
   }
   events(connectionId: string, after = 0): SystemEvent[] {
     return (

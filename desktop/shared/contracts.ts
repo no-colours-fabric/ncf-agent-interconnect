@@ -15,6 +15,43 @@ export const nicknameKey = (nickname: string): string =>
     .toLowerCase()
     .replace(/\u03c2/g, '\u03c3')
     .replace(/ß/g, 'ss');
+export const directoryAgentSchema = z
+  .object({
+    nickname: nicknameSchema,
+    availability: z.enum(['online', 'unknown']),
+    delivery: z.enum(['mcp', 'automatic', 'unknown']),
+  })
+  .strict();
+export const directorySnapshotSchema = z
+  .object({
+    epoch: z.uuid(),
+    revision: z.number().int().nonnegative(),
+    agents: z.array(directoryAgentSchema).max(1000),
+    total: z.number().int().nonnegative(),
+  })
+  .strict()
+  .refine((value) => value.total >= value.agents.length, 'Invalid directory count');
+export type DirectoryAgent = z.infer<typeof directoryAgentSchema>;
+export type DirectorySnapshot = z.infer<typeof directorySnapshotSchema>;
+export interface AgentDirectory {
+  nodeId: string;
+  nodeLabel: string;
+  local: boolean;
+  state: 'ready' | 'syncing' | 'unsupported' | 'offline';
+  epoch: string | null;
+  revision: number | null;
+  updatedAt: string | null;
+  total: number;
+  truncated: boolean;
+  agents: DirectoryAgent[];
+}
+export interface NicknameConflict {
+  code: 'nickname_on_remote_node';
+  nodeId: string;
+  nodeLabel: string;
+  nickname: string;
+  availability: DirectoryAgent['availability'];
+}
 export const attachmentSchema = z
   .object({
     id: z.string().regex(/^[a-f0-9]{64}$/),
@@ -153,6 +190,7 @@ export interface Snapshot {
   localAddresses: string[];
   peers: { id: string; label: string; address: string; connected: boolean; error: string | null }[];
   agents: AgentIdentity[];
+  directories: AgentDirectory[];
   adapters: AdapterState[];
   exportRoots: string[];
   errors: string[];

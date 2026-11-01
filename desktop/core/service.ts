@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -14,6 +14,8 @@ import {
   type Snapshot,
   type SendInput,
   type SendResult,
+  type AgentDirectory,
+  type NicknameConflict,
 } from '../shared/contracts.js';
 import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
@@ -24,6 +26,7 @@ import { McpEndpoint } from './mcp-http.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
+import { AgentPresence } from './presence.js';
 
 export class NodeService extends EventEmitter {
   store!: AgentStore;
@@ -33,6 +36,7 @@ export class NodeService extends EventEmitter {
   readonly settings: SettingsFile;
   readonly adapters = new AdapterRegistry();
   readonly contexts = new ClientContexts(this);
+  private readonly presence: AgentPresence;
   running = false;
   private receiving: Promise<void> | null = null;
   private receiveAgain = false;
@@ -43,15 +47,23 @@ export class NodeService extends EventEmitter {
   private closing: Promise<void> | null = null;
   private adapterSetup: Promise<void> = Promise.resolve();
   private acceptingIntegrations = false;
+  private directoryPublish?: NodeJS.Timeout;
   get integrationsReady(): boolean {
     return this.running && this.acceptingIntegrations;
   }
   constructor(
     readonly directory: string,
-    private readonly integrationOptions: { codexSockets?: () => string[] } = {},
+    private readonly integrationOptions: {
+      codexSockets?: () => string[];
+      clientLeaseMs?: number;
+    } = {},
   ) {
     super();
     this.settings = new SettingsFile(directory);
+    this.presence = new AgentPresence(
+      () => this.refreshPresence(),
+      integrationOptions.clientLeaseMs,
+    );
   }
   private get integrationExtension(): string {
     return import.meta.url.endsWith('.ts') ? 'ts' : 'js';
@@ -77,7 +89,10 @@ export class NodeService extends EventEmitter {
     this.store = new AgentStore(this.directory);
     this.files = new FileStore(this.directory, this.settings.value.exportRoots);
     await this.files.init();
-    this.adapters.on('change', () => this.emit('change'));
+    this.adapters.on('change', () => {
+      this.refreshPresence();
+      this.emit('change');
+    });
     this.adapters.on('idle', () => this.drainAdapters());
     await this.start();
   }
@@ -99,13 +114,21 @@ export class NodeService extends EventEmitter {
       this.settings.value.listenHost = '127.0.0.1';
     }
     this.network = new PeerNetwork(this.settings);
+    this.presence.reset();
     this.mcp = new McpEndpoint(this);
     this.network.onFrame = (id, frame) => this.receive(id, frame);
     this.network.on('change', () => this.emit('change'));
     this.network.on('problem', (e) => this.problem(String(e)));
     this.network.on('connected', (id: string) => {
+      this.presence.begin(id);
+      if (this.network.states().find((state) => state.id === id)?.directorySupported)
+        void this.network.directory(id, this.presence.snapshot()).catch(() => {});
       void this.flush(id);
       void this.drainIncoming();
+    });
+    this.network.on('disconnected', () => {
+      this.emit('change');
+      this.mcp.notify({ source: 'application', type: 'directory_changed' });
     });
     try {
       await this.network.start();
@@ -114,6 +137,7 @@ export class NodeService extends EventEmitter {
       this.settings.value.mcpPort = this.mcp.port;
       await this.settings.save();
       this.running = true;
+      this.refreshPresence();
       await this.adapters.configure(this.settings.value.adapters);
       await this.publishIntegration();
       this.acceptingIntegrations = true;
@@ -150,6 +174,7 @@ export class NodeService extends EventEmitter {
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),
       agents: this.store.list(),
+      directories: this.agentDirectories(),
       adapters: this.adapters.states(),
       exportRoots: this.settings.value.exportRoots,
       errors: [...this.errors],
@@ -193,7 +218,170 @@ export class NodeService extends EventEmitter {
       this.drainAdapters();
     }
     this.emit('change');
-    return result;
+    this.refreshPresence();
+    const warnings = this.nicknameWarnings(input.nickname);
+    return warnings.length ? { ...result, warnings } : result;
+  }
+  touchClientSession(session: string, connectionId?: string): void {
+    if (connectionId) this.store.assertOwner(connectionId);
+    this.presence.touch(session, connectionId);
+  }
+  clientSessionVersion(session: string): number {
+    return this.presence.version(session);
+  }
+  uncertainClientSession(session: string, version: number): boolean {
+    return this.presence.uncertain(session, version);
+  }
+  closeClientSession(session: string): void {
+    this.presence.close(session);
+  }
+  disconnect(connectionId: string): { disconnected: true } {
+    this.store.disconnect(connectionId);
+    this.refreshPresence();
+    this.emit('change');
+    return { disconnected: true };
+  }
+  private refreshPresence(): void {
+    if (!this.store || !this.network) return;
+    const changed = this.presence.update(
+      this.store.list().flatMap((agent) => {
+        if (!agent.binding) return [];
+        const online = this.running && this.presence.isOnline(agent.binding.connectionId);
+        const adapter = this.adapters
+          .states()
+          .find((value) => value.id === agent.binding!.adapterId);
+        const automatic = adapter?.state === 'ready' && adapter.capabilities.wakeIdle;
+        return [
+          {
+            nickname: agent.nickname,
+            availability: online ? ('online' as const) : ('unknown' as const),
+            delivery: !online
+              ? ('unknown' as const)
+              : automatic
+                ? ('automatic' as const)
+                : ('mcp' as const),
+          },
+        ];
+      }),
+    );
+    if (!changed) return;
+    if (this.running && !this.directoryPublish) {
+      this.directoryPublish = setTimeout(() => {
+        this.directoryPublish = undefined;
+        for (const peer of this.network.states())
+          if (this.running && peer.connected && peer.directorySupported)
+            void this.network.directory(peer.id, this.presence.snapshot()).catch(() => {});
+      }, 25);
+      this.directoryPublish.unref();
+    }
+    this.emit('change');
+    this.mcp?.notify({ source: 'application', type: 'directory_changed' });
+  }
+  agentDirectories(): AgentDirectory[] {
+    const local = this.presence.snapshot();
+    return [
+      {
+        nodeId: this.settings.value.nodeId,
+        nodeLabel: this.settings.value.nodeLabel,
+        local: true,
+        state: this.running ? 'ready' : 'offline',
+        epoch: local.epoch,
+        revision: local.revision,
+        updatedAt: null,
+        total: local.total,
+        truncated: local.total > local.agents.length,
+        agents: this.running ? local.agents : [],
+      },
+      ...this.settings.value.peers.map((peer) => {
+        const state = this.network?.states().find((value) => value.id === peer.id);
+        return this.presence.remoteDirectory(
+          peer.id,
+          peer.label,
+          this.running && !!state?.connected,
+          !!state?.directorySupported,
+        );
+      }),
+    ];
+  }
+  nicknameWarnings(nickname: string): NicknameConflict[] {
+    const key = nicknameKey(nickname);
+    return this.agentDirectories()
+      .filter((directory) => !directory.local && directory.state === 'ready')
+      .flatMap((directory) =>
+        directory.agents
+          .filter((agent) => nicknameKey(agent.nickname) === key)
+          .map((agent) => ({
+            code: 'nickname_on_remote_node' as const,
+            nodeId: directory.nodeId,
+            nodeLabel: directory.nodeLabel,
+            nickname: agent.nickname,
+            availability: agent.availability,
+          })),
+      );
+  }
+  listAgents(
+    args: {
+      nodeId?: string;
+      nickname?: string;
+      includeUnavailable?: boolean;
+      cursor?: string;
+      limit?: number;
+    } = {},
+  ): unknown {
+    const directories = this.agentDirectories().filter(
+      (directory) => !args.nodeId || directory.nodeId === args.nodeId.toLowerCase(),
+    );
+    if (args.nodeId && !directories.length) throw new Error('The node is not configured');
+    const snapshotId = createHash('sha256')
+      .update(
+        JSON.stringify({
+          directories,
+          nodeId: args.nodeId,
+          nickname: args.nickname,
+          includeUnavailable: !!args.includeUnavailable,
+        }),
+      )
+      .digest('hex');
+    let offset = 0;
+    if (args.cursor) {
+      const cursor = z
+        .object({ snapshotId: z.string(), offset: z.number().int().nonnegative() })
+        .strict()
+        .parse(JSON.parse(Buffer.from(args.cursor, 'base64url').toString()));
+      if (cursor.snapshotId !== snapshotId)
+        throw new Error('The directory changed; restart pagination without a cursor');
+      offset = cursor.offset;
+    }
+    const agents = directories
+      .filter((directory) => directory.state === 'ready')
+      .flatMap((directory) =>
+        directory.agents
+          .filter(
+            (agent) =>
+              (args.includeUnavailable || agent.availability === 'online') &&
+              (!args.nickname || nicknameKey(agent.nickname) === nicknameKey(args.nickname)),
+          )
+          .map((agent) => ({
+            ...agent,
+            nodeId: directory.nodeId,
+            nodeLabel: directory.nodeLabel,
+            local: directory.local,
+          })),
+      );
+    const limit = args.limit ?? 100,
+      hasMore = offset + limit < agents.length;
+    return {
+      snapshotId,
+      complete: directories.every(
+        (directory) => directory.state === 'ready' && !directory.truncated,
+      ),
+      nodes: directories.map(({ agents: _agents, ...node }) => node),
+      agents: agents.slice(offset, offset + limit),
+      hasMore,
+      nextCursor: hasMore
+        ? Buffer.from(JSON.stringify({ snapshotId, offset: offset + limit })).toString('base64url')
+        : null,
+    };
   }
   async installAdapter(raw: AdapterProfile): Promise<void> {
     if (!this.running) throw new Error('Node stopped');
@@ -260,7 +448,11 @@ export class NodeService extends EventEmitter {
         const owner = this.store.assertOwner(input.connectionId);
         if (owner.key !== nicknameKey(input.nickname))
           throw new Error('The connection belongs to another agent');
-        context = owner.binding;
+        context = {
+          client: owner.binding.client,
+          chatId: owner.binding.chatId,
+          adapterId: owner.binding.adapterId,
+        };
       }
       if (context.client !== host.client)
         throw new Error('This connection was created by another client');
@@ -491,7 +683,15 @@ export class NodeService extends EventEmitter {
     return { ...file, localPath };
   }
   private async receive(peerId: string, frame: Frame): Promise<void> {
-    if (frame.type === 'message') {
+    if (frame.type === 'directory') {
+      const link = this.network.states().find((state) => state.id === peerId);
+      if (!link?.connected || !link.directorySupported)
+        throw new Error('The directory does not belong to a negotiated peer connection');
+      if (this.presence.receive(peerId, frame.snapshot)) {
+        this.emit('change');
+        this.mcp.notify({ source: 'application', type: 'directory_changed', nodeId: peerId });
+      }
+    } else if (frame.type === 'message') {
       const envelope = frame.envelope;
       if (envelope.fromNode !== peerId || envelope.toNode !== this.settings.value.nodeId)
         throw new Error('The message route does not match the connection');
@@ -783,6 +983,8 @@ export class NodeService extends EventEmitter {
   private async stopNow(): Promise<void> {
     if (!this.running) return;
     this.running = false;
+    clearTimeout(this.directoryPublish);
+    this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
     this.contexts.clear();
     await this.adapters.close();
