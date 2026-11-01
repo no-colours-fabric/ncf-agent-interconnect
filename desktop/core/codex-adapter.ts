@@ -372,6 +372,9 @@ export class CodexDesktopAdapter implements AgentAdapter {
   private retry?: NodeJS.Timeout;
   private stopped = false;
   private starting?: Promise<void>;
+  private generation = 0;
+  private exchangeSeq = 0;
+  private currentRevision = 0;
   constructor(
     readonly profile: AdapterProfile,
     readonly changed: () => void,
@@ -401,31 +404,63 @@ export class CodexDesktopAdapter implements AgentAdapter {
       exactSession: available,
     };
   }
-  private recordVerified(): void {
-    // Historical exact-owner observation. Never applied after stop, and the
-    // evidence time is the discovery observation, not message delivery.
-    if (this.stopped || this.controller.signal.aborted) return;
+  private recordVerified(revision: number, generation: number): void {
+    // Historical exact-owner observation. Only the newest-started exchange of
+    // the current lifecycle may publish it; a late older callback cannot
+    // overwrite a newer diagnostic or evidence, and nothing applies after stop.
+    if (!this.current(revision, generation)) return;
     this.state.lastOwnerVerifiedAt = new Date().toISOString();
   }
-  private async exchange(input?: EventInput): Promise<Admission> {
+  private beginExchange(): { generation: number; revision: number } {
+    const revision = ++this.exchangeSeq;
+    this.currentRevision = revision;
+    return { generation: this.generation, revision };
+  }
+  private current(revision: number, generation: number): boolean {
+    return (
+      !this.stopped &&
+      !this.controller.signal.aborted &&
+      generation === this.generation &&
+      revision === this.currentRevision
+    );
+  }
+  private async exchange(input?: EventInput): Promise<{
+    result: Admission;
+    generation: number;
+    revision: number;
+  }> {
+    const { generation, revision } = this.beginExchange();
     const job = codexExchange(this.profile, input, this.controller.signal, 5000, () =>
-      this.recordVerified(),
+      this.recordVerified(revision, generation),
     ).catch((e) => ({
       state: 'failed' as const,
       error: (e as Error).message,
     }));
     this.jobs.add(job);
     try {
-      return await job;
+      return { result: await job, generation, revision };
     } finally {
       this.jobs.delete(job);
     }
   }
   private reconnect(): void {
     if (!this.controller.signal.aborted && !this.retry) {
+      const generation = this.generation,
+        revision = this.currentRevision;
       this.retry = setTimeout(() => {
         this.retry = undefined;
-        void this.start();
+        // A failed delivery may overtake an older pending probe. Wait for that
+        // coalesced start to settle so this existing recovery attempt is not
+        // lost, and retry only if the current lifecycle still needs recovery.
+        void (async () => {
+          await this.starting;
+          if (
+            !this.current(revision, generation) ||
+            !['error', 'uncertain'].includes(this.state.state)
+          )
+            return;
+          await this.start();
+        })();
       }, 3000);
       this.retry.unref();
     }
@@ -436,7 +471,10 @@ export class CodexDesktopAdapter implements AgentAdapter {
         if (this.controller.signal.aborted) return;
         clearTimeout(this.retry);
         this.retry = undefined;
-        const result = await this.exchange();
+        const { result, generation, revision } = await this.exchange();
+        // Only the newest-started exchange of the current lifecycle may change
+        // shared health. A late older probe cannot override a newer failure.
+        if (!this.current(revision, generation)) return;
         this.state.state = result.state === 'admitted' ? 'ready' : 'error';
         this.state.error = result.error ?? null;
         this.availability(result.state === 'admitted');
@@ -448,10 +486,15 @@ export class CodexDesktopAdapter implements AgentAdapter {
     return this.starting;
   }
   async deliver(input: EventInput): Promise<Admission> {
-    if (this.state.state !== 'ready')
+    if (this.stopped || this.controller.signal.aborted || this.state.state !== 'ready')
       return { state: 'failed', error: this.state.error ?? 'The Codex adapter is disconnected' };
-    const result = await this.exchange(input);
-    if (result.state === 'failed' || result.state === 'uncertain') {
+    const { result, generation, revision } = await this.exchange(input);
+    // An admission (even late uncertain) always returns to its caller; only
+    // shared health updates are gated on being the newest-started exchange.
+    if (
+      this.current(revision, generation) &&
+      (result.state === 'failed' || result.state === 'uncertain')
+    ) {
       this.state.state = result.state === 'uncertain' ? 'uncertain' : 'error';
       this.state.error = result.error ?? null;
       this.availability(false);
@@ -462,6 +505,7 @@ export class CodexDesktopAdapter implements AgentAdapter {
   }
   async stop(): Promise<void> {
     this.stopped = true;
+    this.generation++;
     clearTimeout(this.retry);
     this.controller.abort();
     await this.starting;

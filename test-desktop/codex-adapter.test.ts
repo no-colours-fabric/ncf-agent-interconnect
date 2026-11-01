@@ -8,6 +8,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { CodexDesktopAdapter, codexExchange } from '../desktop/core/codex-adapter.js';
+import { AdapterRegistry } from '../desktop/core/adapters.js';
 import { NodeService } from '../desktop/core/service.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
 
@@ -19,6 +20,14 @@ interface Request {
   targetClientId?: string;
   params: Record<string, unknown>;
 }
+interface HeldReply {
+  release(): void;
+  disconnect(): void;
+}
+type ReplyGate = (reply: HeldReply) => void;
+function nextReply(queue: ReplyGate[]): Promise<HeldReply> {
+  return new Promise((resolve) => queue.push(resolve));
+}
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-'));
   const socket =
@@ -26,7 +35,9 @@ async function fixture(t: test.TestContext) {
       ? '\\\\.\\pipe\\interconnect-test-' + randomUUID()
       : path.join(directory, 'ipc.sock');
   const requests: Request[] = [],
-    sockets = new Set<net.Socket>();
+    sockets = new Set<net.Socket>(),
+    discoveryGates: ReplyGate[] = [],
+    admissionGates: ReplyGate[] = [];
   const state = {
     runtime: 'idle',
     support: true as boolean | undefined,
@@ -38,8 +49,10 @@ async function fixture(t: test.TestContext) {
   const server = net.createServer((connection) => {
     sockets.add(connection);
     connection.on('close', () => sockets.delete(connection));
+    connection.on('error', () => {});
     let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
     const write = (value: object) => {
+      if (connection.destroyed || !connection.writable) return;
       const bytes = Buffer.from(JSON.stringify(value)),
         frame = Buffer.alloc(bytes.length + 4);
       frame.writeUInt32LE(bytes.length);
@@ -60,8 +73,8 @@ async function fixture(t: test.TestContext) {
             resultType: 'success',
             result: { clientId: 'test-follower' },
           });
-        if (request.method === 'thread-owner-discovery')
-          write({
+        if (request.method === 'thread-owner-discovery') {
+          const response = {
             type: 'response',
             requestId: request.requestId,
             resultType:
@@ -71,7 +84,12 @@ async function fixture(t: test.TestContext) {
             handledByClientId: state.ownerClientId,
             result: { supportsUntrustedAppInput: state.support },
             error: 'private-protocol-detail',
-          });
+          };
+          const gate = discoveryGates.shift();
+          if (gate)
+            gate({ release: () => write(response), disconnect: () => connection.destroy() });
+          else write(response);
+        }
         if (
           request.method === 'thread-stream-following-changed' &&
           request.params.following === true
@@ -97,9 +115,16 @@ async function fixture(t: test.TestContext) {
           request.method === 'thread-follower-start-turn' ||
           request.method === 'thread-follower-steer-turn'
         ) {
-          if (state.admission === 'lost') connection.destroy();
-          else
-            write({ type: 'response', requestId: request.requestId, resultType: state.admission });
+          const response = {
+            type: 'response',
+            requestId: request.requestId,
+            resultType: state.admission,
+          };
+          const gate = admissionGates.shift();
+          if (gate)
+            gate({ release: () => write(response), disconnect: () => connection.destroy() });
+          else if (state.admission === 'lost') connection.destroy();
+          else write(response);
         }
       }
     });
@@ -118,7 +143,14 @@ async function fixture(t: test.TestContext) {
     socket,
   };
   state.ownerThreadId = profile.threadId!;
-  return { directory, profile, requests, state };
+  return {
+    directory,
+    profile,
+    requests,
+    state,
+    holdDiscovery: () => nextReply(discoveryGates),
+    holdAdmission: () => nextReply(admissionGates),
+  };
 }
 function input(profile: AdapterProfile) {
   return {
@@ -605,21 +637,312 @@ test('Codex keeps the previous verified stamp when a later attempt fails or is s
   assert.equal(adapter.status().lastOwnerVerifiedAt, stamp);
 });
 
-test('Codex delivery after a verified probe performs exactly one exact preflight without extra calls', async (t) => {
+async function registeredFixture(t: test.TestContext) {
   const f = await fixture(t),
-    adapter = new CodexDesktopAdapter(f.profile, () => {});
-  t.after(() => adapter.stop());
-  await adapter.start();
-  assert.ok(adapter.status().lastOwnerVerifiedAt);
-  const before = f.requests.length;
-  f.state.runtime = 'active';
-  const result = await adapter.deliver(input(f.profile));
-  assert.equal(result.state, 'admitted');
-  const discovered = f.requests.filter((r) => r.method === 'thread-owner-discovery').length;
-  const submitted = f.requests.filter(
-    (r) => r.method === 'thread-follower-start-turn' || r.method === 'thread-follower-steer-turn',
-  ).length;
-  assert.equal(submitted, 1);
-  assert.ok(f.requests.length > before);
-  assert.equal(f.requests.filter((r) => r.method === 'thread-owner-discovery').length, discovered);
-});
+    registry = new AdapterRegistry();
+  let idle = 0,
+    changed = 0;
+  registry.on('idle', () => idle++);
+  registry.on('change', () => changed++);
+  t.after(() => registry.close());
+  await registry.add(f.profile);
+  return {
+    ...f,
+    registry,
+    adapter: registry.get(f.profile.id),
+    notifications: () => ({ idle, changed }),
+  };
+}
+
+test(
+  'Codex idleness adds no calls and one delivery performs exactly one exact preflight',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 2000000 });
+    const connections = t.mock.method(net, 'createConnection'),
+      f = await registeredFixture(t);
+    const count = (method: string) =>
+      f.requests.filter((request) => request.method === method).length;
+    const before = {
+      connections: connections.mock.callCount(),
+      initialize: count('initialize'),
+      discovery: count('thread-owner-discovery'),
+      inputs: count('thread-follower-start-turn') + count('thread-follower-steer-turn'),
+      notifications: f.notifications(),
+    };
+    t.mock.timers.tick(60000);
+    await Promise.resolve();
+    assert.equal(connections.mock.callCount(), before.connections);
+    assert.deepEqual(f.notifications(), before.notifications);
+    f.state.runtime = 'active';
+    assert.equal((await f.adapter.deliver(input(f.profile))).state, 'admitted');
+    assert.equal(connections.mock.callCount() - before.connections, 1);
+    assert.equal(count('initialize') - before.initialize, 1);
+    assert.equal(count('thread-owner-discovery') - before.discovery, 1);
+    assert.equal(
+      count('thread-follower-start-turn') + count('thread-follower-steer-turn') - before.inputs,
+      1,
+    );
+    assert.ok(
+      f.requests
+        .filter(
+          (request) =>
+            request.method === 'thread-owner-discovery' ||
+            request.method.startsWith('thread-follower-'),
+        )
+        .every((request) => request.params.conversationId === f.profile.threadId),
+    );
+    assert.deepEqual(
+      f.notifications(),
+      before.notifications,
+      'metadata alone must not emit idle/change',
+    );
+  },
+);
+
+test(
+  'an older held Codex probe cannot replace newer failure evidence or emit idle',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 2000000 });
+    const f = await registeredFixture(t),
+      arrival = f.holdDiscovery(),
+      older = f.adapter.start();
+    assert.equal(f.adapter.start(), older, 'coalesced start must not create another observation');
+    const held = await arrival;
+    f.state.discoveryResult = 'error';
+    assert.equal((await f.adapter.deliver(input(f.profile))).state, 'failed');
+    const failure = f.adapter.status(),
+      notifications = f.notifications(),
+      count = f.requests.length;
+    assert.equal(failure.state, 'error');
+    assert.equal(failure.capabilities.wakeIdle, false);
+    t.mock.timers.tick(1000);
+    held.release();
+    await older;
+    assert.deepEqual(f.adapter.status(), failure);
+    assert.deepEqual(f.notifications(), notifications);
+    assert.equal(f.requests.length, count);
+    assert.ok(!f.requests.some((request) => request.method.startsWith('thread-follower-')));
+  },
+);
+
+test(
+  'a late uncertain Codex admission returns to its caller without replacing newer health or retrying',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 2000000 });
+    const timers = t.mock.method(globalThis, 'setTimeout'),
+      f = await registeredFixture(t),
+      before = f.notifications(),
+      arrival = f.holdAdmission();
+    t.mock.timers.tick(1000);
+    const delivery = f.adapter.deliver(input(f.profile)),
+      held = await arrival;
+    assert.equal(
+      f.adapter.status().lastOwnerVerifiedAt,
+      new Date().toISOString(),
+      'proof precedes admission',
+    );
+    assert.deepEqual(f.notifications(), before, 'proof metadata cannot trigger drain');
+    t.mock.timers.tick(1000);
+    await f.adapter.start();
+    const newer = f.adapter.status(),
+      notifications = f.notifications(),
+      recoveries = () => timers.mock.calls.filter((call) => call.arguments[1] === 3000).length,
+      retryCount = recoveries();
+    t.mock.timers.tick(1000);
+    held.disconnect();
+    assert.equal((await delivery).state, 'uncertain');
+    assert.deepEqual(f.adapter.status(), newer);
+    assert.deepEqual(f.notifications(), notifications);
+    assert.equal(recoveries(), retryCount, 'obsolete outcome must not schedule recovery');
+    assert.equal(
+      f.requests.filter((request) => request.method.startsWith('thread-follower-')).length,
+      1,
+    );
+  },
+);
+
+test(
+  'stop invalidates a pending Codex proof and all later shared completion effects',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 2000000 });
+    const connections = t.mock.method(net, 'createConnection'),
+      f = await registeredFixture(t),
+      before = f.adapter.status(),
+      arrival = f.holdDiscovery(),
+      pending = f.adapter.start(),
+      held = await arrival,
+      notifications = f.notifications();
+    t.mock.timers.tick(1000);
+    await f.adapter.stop();
+    await pending;
+    held.release();
+    const connectionCount = connections.mock.callCount();
+    await f.adapter.start();
+    assert.equal((await f.adapter.deliver(input(f.profile))).state, 'failed');
+    assert.equal(connections.mock.callCount(), connectionCount);
+    assert.deepEqual(f.adapter.status(), before);
+    assert.deepEqual(f.notifications(), notifications);
+  },
+);
+
+test(
+  'a pending delivery stopped after submission still returns uncertain without publishing health',
+  { timeout: 10000 },
+  async (t) => {
+    const f = await registeredFixture(t),
+      arrival = f.holdAdmission(),
+      pending = f.adapter.deliver(input(f.profile)),
+      held = await arrival,
+      before = f.adapter.status(),
+      notifications = f.notifications();
+    await f.adapter.stop();
+    assert.equal((await pending).state, 'uncertain');
+    held.release();
+    assert.deepEqual(f.adapter.status(), before);
+    assert.deepEqual(f.notifications(), notifications);
+    assert.equal(
+      f.requests.filter((request) => request.method.startsWith('thread-follower-')).length,
+      1,
+    );
+  },
+);
+
+test(
+  'an old Codex probe cannot publish into a replacement adapter with the same profile',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date'], now: 2000000 });
+    const f = await registeredFixture(t),
+      arrival = f.holdDiscovery(),
+      pending = f.adapter.start(),
+      held = await arrival;
+    t.mock.timers.tick(1000);
+    await f.registry.add(f.profile);
+    await pending;
+    const replacement = f.registry.get(f.profile.id),
+      status = replacement.status(),
+      notifications = f.notifications(),
+      calls = f.requests.length;
+    assert.notEqual(replacement, f.adapter);
+    t.mock.timers.tick(1000);
+    held.release();
+    await Promise.resolve();
+    assert.deepEqual(replacement.status(), status);
+    assert.deepEqual(f.notifications(), notifications);
+    assert.equal(f.requests.length, calls);
+  },
+);
+
+test(
+  'existing Codex failure recovery survives an older coalesced probe without extra idle',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 2000000 });
+    const f = await registeredFixture(t),
+      arrival = f.holdDiscovery(),
+      older = f.adapter.start(),
+      held = await arrival;
+    f.state.discoveryResult = 'error';
+    assert.equal((await f.adapter.deliver(input(f.profile))).state, 'failed');
+    const before = f.notifications();
+    t.mock.timers.tick(3000);
+    await Promise.resolve();
+    assert.equal(f.requests.filter((request) => request.method === 'initialize').length, 3);
+    const retryArrival = f.holdDiscovery();
+    f.state.discoveryResult = 'success';
+    held.release();
+    await older;
+    const retry = await retryArrival;
+    assert.deepEqual(f.notifications(), before, 'older probe cannot emit a recovery event');
+    const recovered = new Promise<void>((resolve) => f.registry.once('idle', resolve));
+    retry.release();
+    await recovered;
+    assert.equal(f.adapter.status().state, 'ready');
+    assert.equal(f.notifications().idle, before.idle + 1);
+    assert.equal(f.requests.filter((request) => request.method === 'initialize').length, 4);
+    assert.ok(!f.requests.some((request) => request.method.startsWith('thread-follower-')));
+  },
+);
+
+test(
+  'stop cancels recovery waiting for an older Codex probe without another network attempt',
+  { timeout: 10000 },
+  async (t) => {
+    t.mock.timers.enable({ apis: ['Date', 'setTimeout'], now: 2000000 });
+    const connections = t.mock.method(net, 'createConnection'),
+      f = await registeredFixture(t),
+      arrival = f.holdDiscovery(),
+      older = f.adapter.start();
+    await arrival;
+    f.state.discoveryResult = 'error';
+    assert.equal((await f.adapter.deliver(input(f.profile))).state, 'failed');
+    const notifications = f.notifications(),
+      count = connections.mock.callCount();
+    t.mock.timers.tick(3000);
+    await Promise.resolve();
+    await f.adapter.stop();
+    await older;
+    t.mock.timers.tick(60000);
+    await Promise.resolve();
+    assert.equal(connections.mock.callCount(), count);
+    assert.deepEqual(f.notifications(), notifications);
+  },
+);
+
+test(
+  'a late uncertain dispatch remains pending in the store after a newer Codex proof',
+  { timeout: 10000 },
+  async (t) => {
+    const f = await fixture(t),
+      directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-late-uncertain-')),
+      service = new NodeService(directory);
+    t.after(async () => {
+      await service.close();
+      await rm(directory, { recursive: true, force: true });
+    });
+    await service.open();
+    const receiver = await service.connectCodex(
+      { nickname: 'Получатель', client: 'Codex' },
+      { threadId: f.profile.threadId!, socket: f.profile.socket },
+    );
+    const sender = service.connect({ nickname: 'Автор', client: 'MCP' });
+    if (receiver.status !== 'connected' || sender.status !== 'connected') throw new Error();
+    const arrival = f.holdAdmission();
+    const sent = await service.send({
+      connectionId: sender.binding.connectionId,
+      recipientNode: service.settings.value.nodeId,
+      recipientNickname: receiver.nickname,
+      text: 'Keep this uncertain request without replaying or acknowledging it.',
+    });
+    const held = await arrival,
+      adapter = service.adapters.get(receiver.binding.adapterId);
+    await adapter.start();
+    const newer = adapter.status();
+    const recorded = new Promise<void>((resolve) => {
+      const changed = () => {
+        if (service.store.dispatchState(sent.id)?.state !== 'uncertain') return;
+        service.off('change', changed);
+        resolve();
+      };
+      service.on('change', changed);
+    });
+    held.disconnect();
+    await recorded;
+    assert.deepEqual(adapter.status(), newer);
+    assert.equal(service.store.dispatchState(sent.id)?.state, 'uncertain');
+    assert.equal(service.store.get(sent.id, 'in')?.state, 'ready');
+    assert.equal(service.store.get(sent.id, 'out')?.state, 'ready');
+    assert.equal(
+      service.snapshot().agents.find((agent) => agent.nickname === receiver.nickname)?.unread,
+      1,
+    );
+    assert.equal(
+      f.requests.filter((request) => request.method.startsWith('thread-follower-')).length,
+      1,
+    );
+  },
+);
