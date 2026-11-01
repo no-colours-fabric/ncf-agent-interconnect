@@ -55,10 +55,10 @@ test('every dictionary covers all interface messages', () => {
 });
 
 test('supported locales are stable and labelled', () => {
-  assert.deepEqual(supportedLocales, ['en', 'ru', 'zh', 'fr', 'de', 'it', 'es', 'kk', 'ja']);
+  assert.deepEqual(supportedLocales, ['en', 'ru', 'zh-CN', 'fr', 'de', 'it', 'es', 'kk', 'ja']);
   assert.equal(localeLabel('en'), 'English');
   assert.equal(localeLabel('ru'), 'Русский');
-  assert.equal(localeLabel('zh'), '中文');
+  assert.equal(localeLabel('zh-CN'), '中文（简体）');
   assert.equal(localeLabel('fr'), 'Français');
   assert.equal(localeLabel('de'), 'Deutsch');
   assert.equal(localeLabel('it'), 'Italiano');
@@ -70,7 +70,7 @@ test('supported locales are stable and labelled', () => {
 const spotChecks: [Locale, string][] = [
   ['en', 'Settings'],
   ['ru', 'Настройки'],
-  ['zh', '设置'],
+  ['zh-CN', '设置'],
   ['fr', 'Réglages'],
   ['de', 'Einstellungen'],
   ['it', 'Impostazioni'],
@@ -90,7 +90,7 @@ test('interpolation substitutes parameters', () => {
   assert.equal(t('en', 'agentMessages', { count: 12 }), 'Messages: 12');
   assert.equal(t('ru', 'agentMessages', { count: 12 }), 'Сообщений: 12');
   assert.equal(t('de', 'agentMessages', { count: 12 }), 'Nachrichten: 12');
-  assert.equal(t('zh', 'agentMessages', { count: 12 }), '消息：12');
+  assert.equal(t('zh-CN', 'agentMessages', { count: 12 }), '消息：12');
   assert.equal(t('en', 'directoryUpdated', { time: 'Nov 1, 2026' }), 'Updated Nov 1, 2026');
   assert.equal(t('ru', 'directoryUpdated', { time: '1 нояб. 2026' }), 'Обновлено 1 нояб. 2026');
   assert.equal(t('fr', 'directoryUpdated', { time: '1 nov. 2026' }), 'Mise à jour : 1 nov. 2026');

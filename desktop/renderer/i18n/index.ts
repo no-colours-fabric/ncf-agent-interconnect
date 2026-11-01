@@ -9,9 +9,9 @@ import type { Messages } from './messages.js';
 import { ru } from './ru.js';
 import { zh } from './zh.js';
 
-export type Locale = 'en' | 'ru' | 'zh' | 'fr' | 'de' | 'it' | 'es' | 'kk' | 'ja';
+export type Locale = 'en' | 'ru' | 'zh-CN' | 'fr' | 'de' | 'it' | 'es' | 'kk' | 'ja';
 export const defaultLocale: Locale = 'en';
-export const supportedLocales: Locale[] = ['en', 'ru', 'zh', 'fr', 'de', 'it', 'es', 'kk', 'ja'];
+export const supportedLocales: Locale[] = ['en', 'ru', 'zh-CN', 'fr', 'de', 'it', 'es', 'kk', 'ja'];
 export const localeStorageKey = 'interconnect.locale';
 
 export function isLocale(value: unknown): value is Locale {
@@ -23,7 +23,7 @@ export function localeLabel(locale: Locale): string {
     {
       en: 'English',
       ru: 'Русский',
-      zh: '中文',
+      'zh-CN': '中文（简体）',
       fr: 'Français',
       de: 'Deutsch',
       it: 'Italiano',
@@ -34,7 +34,17 @@ export function localeLabel(locale: Locale): string {
   )[locale];
 }
 
-const dictionaries: Record<Locale, Messages> = { en, ru, zh, fr, de, it, es, kk, ja };
+const dictionaries: Record<Locale, Messages> = {
+  en,
+  ru,
+  'zh-CN': zh,
+  fr,
+  de,
+  it,
+  es,
+  kk,
+  ja,
+};
 
 const interpolate = (template: string, params: Record<string, string | number>): string =>
   Object.entries(params).reduce(
