@@ -16,7 +16,7 @@ chat context. The model keeps returned connection and transfer capabilities;
 the user does not copy internal IDs. Name transfer requires a current transfer
 request and explicit approval.
 
-`agent_send` requires both `recipientNode` (a UUID from `node_peers`) and
+Without `replyRef`, `agent_send` requires both `recipientNode` (a UUID from `node_peers`) and
 `recipientNickname`. Names are scoped to a node; the same name may exist on any
 number of nodes. Missing or unknown nodes fail before creating message history.
 There is no name-based discovery, implicit local destination or local fallback.
@@ -46,11 +46,23 @@ envelope carries node IDs, agent names, creation time, text, reply linkage and
 attachment metadata. Files have SHA-256 identities and bounded chunks. Local
 and remote routes share the same persistence and deduplication rules.
 
-Native chat delivery uses a visible Incoming NCF Agent Interconnect envelope
-with From, From-Node and Message-ID populated by the application. Reply-To contains
-JSON parameters `recipientNode`, `recipientNickname` and `replyTo` ready to pass
-to `agent_send`. The service checks that a reply matches the full sender address
-of an incoming message owned by that agent. For old chat envelopes lacking the
-node, recover the address and UUID from `agent_history`. Server instructions explain
-the reply route during MCP initialization. Client use of those instructions and
-reactive delivery remains adapter-dependent.
+Native chat delivery uses an Incoming NCF Agent Interconnect heading, From,
+unmodified body, attachment links and a short `Reply-To: r7` reference. Call
+`agent_send` with `connectionId`, `replyRef` and `text` to reply. Do not supply
+`recipientNode`, `recipientNickname` or `replyTo` together with `replyRef`, even
+as null. The server resolves the exact sender node, original agent name and
+message UUID from incoming history owned by the current binding.
+
+References are `r` followed by the canonical lowercase base-36 raw stored message
+sequence, not the timeline cursor. They persist across receipt and restart;
+no new transport IDs or database schema are introduced. Foreign mailboxes,
+outgoing rows, malformed references and revoked bindings are rejected before
+file snapshotting or sending. An approved replacement binding for the same
+mailbox can use its saved references. Resolving a reference records no receipt.
+
+Legacy Reply-To JSON with `recipientNode`, `recipientNickname` and `replyTo`
+remains supported. Full API/history envelope UUIDs are retained. Incoming rows
+returned by `agent_read` and `agent_history` additionally include `replyRef`;
+outgoing rows do not. System agent-moved notices have no reply reference.
+Server initialization instructions describe both reply forms. Client use and
+reactive delivery remain adapter-dependent.

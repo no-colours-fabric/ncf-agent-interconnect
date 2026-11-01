@@ -77,6 +77,7 @@ const event = () => ({
   },
   nickname: 'Тема',
   messageId: randomUUID(),
+  replyRef: 'r7',
   binding: {
     connectionId: randomUUID(),
     client: 'OpenCode',

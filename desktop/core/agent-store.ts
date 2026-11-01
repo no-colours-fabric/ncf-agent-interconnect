@@ -325,6 +325,12 @@ export class AgentStore {
     ) as Row | undefined;
     return r ? this.message(r) : undefined;
   }
+  incomingBySequence(key: string, sequence: number): Message | undefined {
+    const row = this.db
+      .prepare("SELECT * FROM messages WHERE sequence=? AND direction='in' AND local_key=?")
+      .get(sequence, key) as Row | undefined;
+    return row ? this.message(row) : undefined;
+  }
   history(
     key: string,
     after = 0,

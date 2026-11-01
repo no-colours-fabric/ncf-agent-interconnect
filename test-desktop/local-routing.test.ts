@@ -65,12 +65,11 @@ test('missing, malformed and unknown nodes fail before files, phantom agents or 
   );
   const catalog = await c.listTools();
   assert.ok(
-    catalog.tools
-      .find((tool) => tool.name === 'agent_send')!
-      .inputSchema.required?.includes('recipientNode'),
+    catalog.tools.find((tool) => tool.name === 'agent_send')!.inputSchema.properties?.replyRef,
   );
   const missing = await c.callTool({ name: 'agent_send', arguments: args });
   assert.equal(missing.isError, true);
+  assert.match(JSON.stringify(missing.content), /recipientNode.*required/);
   assert.equal(snapshots, 0);
   assert.deepEqual(
     service.store.list().map((agent) => agent.nickname),

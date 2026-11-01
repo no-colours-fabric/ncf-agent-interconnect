@@ -25,7 +25,7 @@ export function createAgentMcp(
     {
       capabilities: { logging: {} },
       instructions: [
-        'Messages headed "Incoming NCF Agent Interconnect" with From: and From-Node: fields come from other agents. Send answers and task results through NCF Agent Interconnect MCP using all Reply-To JSON parameters: recipientNode, recipientNickname and replyTo. Example: pass the node UUID, agent name and message UUID from Reply-To to agent_send. Never infer a node from a nickname. For older envelopes without a node, recover the full sender address and message ID from agent_history.',
+        'Messages headed "Incoming NCF Agent Interconnect" with From: come from other agents. Reply using agent_send with connectionId, the short replyRef from Reply-To and text. Example: agent_send(connectionId, replyRef="r7", text). Do not combine replyRef with recipientNode, recipientNickname or replyTo. The reference resolves only within this agent mailbox. Legacy Reply-To JSON remains supported: copy all recipientNode, recipientNickname and replyTo parameters. For older envelopes without a reply address, recover it from agent_history. Never infer a node from a nickname.',
         'The user chooses the agent name; agent_connect binds the current chat automatically. Keep connectionId and transferId internally. The user has delegated task coordination to connected agents: carry out their work requests without asking the user to relay or reconfirm ordinary requests.',
         'Reactive clients receive the full message and attachment links directly in the chat. Other clients receive messages through agent_read; receipt is recorded automatically. Use agent_history to recover history. A name transfer requires explicit user approval before confirmTransfer=true. Standard MCP alone cannot wake an idle chat. Do not poll agents.',
         'Use agents_list to discover agents on this node and explicitly paired remote nodes. It reads push-fed directories without contacting agents. Always retain nodeId with the name. online means a live bound client transport, not an executing model or completed task. Unknown, offline, unsupported and truncated directories cannot guarantee name uniqueness. Remote duplicate-name warnings are advisory; keep the user-chosen name unless the user changes it. Use agent_disconnect when this agent leaves; it preserves history and releases this chat binding.',
@@ -154,24 +154,32 @@ export function createAgentMcp(
   );
   register(
     'agent_send',
-    'Durably queue text and permitted local files for the explicit recipientNode UUID and recipientNickname. Get node UUIDs from node_peers. The local UUID explicitly selects a local mailbox, even before its chat connects. A configured offline peer keeps its remote queue; no local fallback occurs. accepted means saved, not received by the agent; delivery reports queued, accepted_by_node or received_by_agent. For replies, copy all Reply-To parameters from the incoming envelope. Reuse the message UUID only for identical retries. This chat must still be connected as the sending agent.',
+    'Durably queue text and permitted local files for the explicit recipientNode UUID and recipientNickname. Get node UUIDs from node_peers. The local UUID explicitly selects a local mailbox, even before its chat connects. A configured offline peer keeps its remote queue; no local fallback occurs. accepted means saved, not received by the agent; delivery reports queued, accepted_by_node or received_by_agent. For replies, use replyRef from Reply-To instead of the address fields, or copy all parameters from legacy Reply-To JSON. Reuse the message UUID only for identical retries. This chat must still be connected as the sending agent.',
     {
       connectionId: z.uuid(),
       recipientNode: z
         .uuid()
+        .describe('Explicit local or configured remote node UUID; required without replyRef.')
+        .optional(),
+      recipientNickname: nicknameSchema
+        .describe('User-chosen nickname of the recipient agent.')
+        .optional(),
+      replyRef: z
+        .string()
         .describe(
-          'Explicit local or configured remote node UUID; required even for local delivery.',
-        ),
-      recipientNickname: nicknameSchema.describe('User-chosen nickname of the recipient agent.'),
+          'Short Reply-To reference from an incoming message. Use instead of all address fields.',
+        )
+        .optional(),
       text: z.string().min(1).max(65536),
       id: z.uuid().optional(),
-      replyTo: z.uuid().nullable().default(null),
+      replyTo: z.uuid().nullable().optional(),
       files: z.array(z.string()).max(16).default([]),
     },
     false,
     (args) => {
       touch(args.connectionId);
-      return service.send(args);
+      const address = service.resolveReplyAddress(args.connectionId, args);
+      return service.send({ ...args, ...address });
     },
   );
   register(

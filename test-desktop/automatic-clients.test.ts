@@ -134,7 +134,7 @@ test('one OpenCode integration connects any chat without user session settings a
   );
   assert.equal(
     f.prompts[0].text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nFrom-Node: ${f.service.settings.value.nodeId}\nMessage-ID: ${message.id}\n\n---\n\nДоставить локально\n\n---\n\nReply-To:\n\n    {"recipientNode":"${f.service.settings.value.nodeId}","recipientNickname":"Автор","replyTo":"${message.id}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\nДоставить локально\n\nReply-To: ${'r' + f.service.store.get(message.id, 'in')!.sequence.toString(36)}\nUse agent_send(connectionId, replyRef="${'r' + f.service.store.get(message.id, 'in')!.sequence.toString(36)}", text) to reply.`,
   );
   assert.ok(!f.prompts[0].text.includes(b.binding.connectionId));
   assert.ok(!f.prompts[0].text.includes(a.binding.connectionId));
@@ -189,14 +189,14 @@ test('queued messages and attachment links arrive as complete chat messages with
   );
   assert.ok(
     f.prompts[0].text.startsWith(
-      `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nFrom-Node: ${f.service.settings.value.nodeId}\nMessage-ID: ${first.id}\n\n---\n\nИзучи план.\nПодготовь расчёт.\n\nAttachments:\n- [`,
+      `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\nИзучи план.\nПодготовь расчёт.\n\nAttachments:\n- [`,
     ),
   );
   const target = f.prompts[0].text.match(/\]\(<([^>]+)>\)/)![1];
   assert.equal(await readFile(target, 'utf8'), 'Содержимое плана');
   assert.equal(
     f.prompts[1].text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nFrom-Node: ${f.service.settings.value.nodeId}\nMessage-ID: ${second.id}\n\n---\n\nСравни два варианта.\n\n---\n\nReply-To:\n\n    {"recipientNode":"${f.service.settings.value.nodeId}","recipientNickname":"Автор","replyTo":"${second.id}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\nСравни два варианта.\n\nReply-To: ${'r' + f.service.store.get(second.id, 'in')!.sequence.toString(36)}\nUse agent_send(connectionId, replyRef="${'r' + f.service.store.get(second.id, 'in')!.sequence.toString(36)}", text) to reply.`,
   );
   for (const prompt of f.prompts)
     for (const noise of [

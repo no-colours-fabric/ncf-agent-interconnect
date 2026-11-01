@@ -575,6 +575,9 @@ export class NodeService extends EventEmitter {
       .filter((row) => !unread || delivered.has(row.envelope.id))
       .map(({ state, error: _error, ...message }) => ({
         ...message,
+        ...(message.direction === 'in'
+          ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+          : {}),
         delivery: deliveryStatus(
           this.store.get(message.envelope.id, message.direction)?.state ?? state,
         ),
@@ -592,6 +595,45 @@ export class NodeService extends EventEmitter {
     );
     if (delivered.size) this.emit('change');
     return delivered;
+  }
+  resolveReplyAddress(
+    connectionId: string,
+    address: {
+      replyRef?: string;
+      recipientNode?: string;
+      recipientNickname?: string;
+      replyTo?: string | null;
+    },
+  ): Pick<SendInput, 'recipientNode' | 'recipientNickname' | 'replyTo'> {
+    const owner = this.store.assertOwner(connectionId);
+    if (address.replyRef !== undefined) {
+      if (
+        address.recipientNode !== undefined ||
+        address.recipientNickname !== undefined ||
+        address.replyTo !== undefined
+      )
+        throw new Error('Use either replyRef or a full explicit reply address, not both');
+      const ref = address.replyRef;
+      if (!/^r[1-9a-z][0-9a-z]{0,10}$/.test(ref)) throw new Error('Invalid replyRef');
+      const sequence = Number.parseInt(ref.slice(1), 36);
+      if (!Number.isSafeInteger(sequence) || 'r' + sequence.toString(36) !== ref)
+        throw new Error('Invalid replyRef');
+      const original = this.store.incomingBySequence(owner.key, sequence)?.envelope;
+      if (!original || original.toNode !== this.settings.value.nodeId)
+        throw new Error('replyRef does not identify an incoming message for this agent');
+      return {
+        recipientNode: original.fromNode,
+        recipientNickname: original.fromNickname,
+        replyTo: original.id,
+      };
+    }
+    if (!address.recipientNode || !address.recipientNickname)
+      throw new Error('recipientNode and recipientNickname are required without replyRef');
+    return {
+      recipientNode: address.recipientNode,
+      recipientNickname: address.recipientNickname,
+      replyTo: address.replyTo,
+    };
   }
   async send(args: SendInput & { connectionId: string }): Promise<SendResult> {
     const before = this.store.assertOwner(args.connectionId);
@@ -848,6 +890,7 @@ export class NodeService extends EventEmitter {
             nickname: identity.nickname,
             binding,
             messageId: row.envelope.id,
+            replyRef: 'r' + this.store.get(row.envelope.id, 'in')!.sequence.toString(36),
             message: {
               fromNode: row.envelope.fromNode,
               fromNickname: row.envelope.fromNickname,

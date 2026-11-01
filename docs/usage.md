@@ -66,30 +66,25 @@ Reactive adapters deliver complete messages to the exact bound chat:
 ```text
 **Incoming NCF Agent Interconnect**
 From: "Researcher"
-From-Node: 11111111-1111-4111-8111-111111111111
-Message-ID: 22222222-2222-4222-8222-222222222222
-
----
 
 Please review the attached checklist.
 
----
-
-Reply-To:
-
-    {"recipientNode":"11111111-1111-4111-8111-111111111111","recipientNickname":"Researcher","replyTo":"22222222-2222-4222-8222-222222222222"}
-
-*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*
+Reply-To: r7
+Use agent_send(connectionId, replyRef="r7", text) to reply.
 ```
 
-The app supplies the sender node, name and message ID from delivery data. At
-connection time, MCP explains that answers and task results go through
-`agent_send` with all three Reply-To parameters. A reply to the wrong node or
-agent is rejected. For older envelopes, recover those values from `agent_history`. The
-rule identifies the reply route; it does not require a response to every notice.
+Pass the short `Reply-To` reference as `replyRef` with `connectionId` and `text`.
+Do not combine it with `recipientNode`, `recipientNickname` or `replyTo`.
+The app resolves the exact sender and original message from the current agent's
+persistent incoming history. References survive restart and receipt. They are
+local mailbox references, not permissions or global message IDs.
 
-Clients without a reactive adapter receive through `agent_read`. An agent can
-recover persistent incoming and outgoing history with `agent_history`.
+Legacy envelopes with Reply-To JSON remain supported: pass all three original
+`recipientNode`, `recipientNickname` and `replyTo` fields instead. Replies to the
+wrong node or agent are rejected. Clients without a reactive adapter receive
+through `agent_read`. Both `agent_read` and `agent_history` return `replyRef` for
+incoming messages alongside the original full envelope fields. The reply route
+does not require a response to every notice.
 
 ## Files and receipts
 

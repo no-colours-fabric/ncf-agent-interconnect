@@ -248,7 +248,7 @@ test('one node serves multiple peers and keeps messages isolated by user-selecte
   );
 });
 
-test('same agent name on three nodes has independent routes and full reply parameters survive native chat formatting', async (t) => {
+test('same agent name on three nodes has independent routes and compact replies preserve exact addresses', async (t) => {
   const a = await node(t),
     b = await node(t),
     c = await node(t);
@@ -301,6 +301,7 @@ test('same agent name on three nodes has independent routes and full reply param
       nickname: owners[i + 1].nickname,
       binding: owners[i + 1].binding,
       messageId: message.envelope.id,
+      replyRef: 'r' + message.sequence.toString(36),
       message: {
         fromNode: message.envelope.fromNode,
         fromNickname: message.envelope.fromNickname,
@@ -308,12 +309,12 @@ test('same agent name on three nodes has independent routes and full reply param
         files: [],
       },
     });
-    assert.ok(formatted.includes('From-Node: ' + a.settings.value.nodeId));
-    const address = JSON.parse(formatted.match(/Reply-To:\n\n    ([^\n]+)/)![1]) as {
-      recipientNode: string;
-      recipientNickname: string;
-      replyTo: string;
-    };
+    assert.ok(!formatted.includes('From-Node:'));
+    assert.ok(!formatted.includes(message.envelope.id));
+    const ref = formatted.match(/Reply-To: (r[0-9a-z]+)/)![1];
+    const address = service.resolveReplyAddress(owners[i + 1].binding.connectionId, {
+      replyRef: ref,
+    });
     assert.deepEqual(address, {
       recipientNode: a.settings.value.nodeId,
       recipientNickname: 'Общий агент',
@@ -399,6 +400,17 @@ test('same agent name on three nodes has independent routes and full reply param
     ),
     new Set([b.settings.value.nodeId, c.settings.value.nodeId]),
   );
+  for (const id of replies) {
+    const incoming = a.store.get(id, 'in')!;
+    const address = a.resolveReplyAddress(owners[0].binding.connectionId, {
+      replyRef: 'r' + incoming.sequence.toString(36),
+    });
+    assert.deepEqual(address, {
+      recipientNode: incoming.envelope.fromNode,
+      recipientNickname: incoming.envelope.fromNickname,
+      replyTo: id,
+    });
+  }
   assert.ok(history.messages.every((message) => message.delivery === 'received_by_agent'));
   for (const service of [a, b, c])
     assert.equal(service.store.history('другой агент').messages.length, 0);

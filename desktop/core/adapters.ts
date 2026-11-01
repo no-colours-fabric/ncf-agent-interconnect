@@ -24,14 +24,14 @@ export type EventInput = {
   messageId: string;
   isCurrent?: () => boolean;
 } & (
-  | { message: AgentMessageInput; systemEvent?: never }
+  | { message: AgentMessageInput; replyRef: string; systemEvent?: never }
   | { systemEvent: SystemEvent; message?: never }
 );
 const markdownName = (text: string): string => text.replace(/[\\`*_{}\[\]<>#!|]/g, '\\$&');
 export function agentMessageText(input: EventInput): string {
   if (input.systemEvent)
     return `Agent ${markdownName(input.nickname)} was moved to another chat by the user. This connection is disabled.`;
-  const { fromNode, fromNickname, text, files } = input.message;
+  const { fromNickname, text, files } = input.message;
   const attachments = files.length
     ? '\n\nAttachments:\n' +
       files
@@ -44,12 +44,7 @@ export function agentMessageText(input: EventInput): string {
         .join('\n')
     : '';
   const sender = markdownName(JSON.stringify(fromNickname));
-  const reply = JSON.stringify({
-    recipientNode: fromNode,
-    recipientNickname: fromNickname,
-    replyTo: input.messageId,
-  });
-  return `**Incoming NCF Agent Interconnect**\nFrom: ${sender}\nFrom-Node: ${fromNode}\nMessage-ID: ${input.messageId}\n\n---\n\n${text}${attachments}\n\n---\n\nReply-To:\n\n    ${reply}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`;
+  return `**Incoming NCF Agent Interconnect**\nFrom: ${sender}\n\n${text}${attachments}\n\nReply-To: ${input.replyRef}\nUse agent_send(connectionId, replyRef="${input.replyRef}", text) to reply.`;
 }
 // An adapter admits an event to an exact existing session. It does not execute
 // arbitrary CLI commands and does not infer permission from peer text.
