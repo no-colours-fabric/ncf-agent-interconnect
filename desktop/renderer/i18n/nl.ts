@@ -38,6 +38,8 @@ export const nl: Messages = {
   agentListClient: 'Client: {client}',
   agentNoChat: 'Geen actieve chat',
   agentEmptyPrompt: 'Voeg een agent toe met een naam naar keuze.',
+  agentsLocalTitle: 'Lokale agenten',
+  composeSenderAgent: 'Verzendende agent',
   agentsRemoteTitle: 'Externe agents',
   directoryReady: 'Verbonden',
   directorySyncing: 'Synchroniseren',

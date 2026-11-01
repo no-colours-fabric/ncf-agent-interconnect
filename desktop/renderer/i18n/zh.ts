@@ -35,6 +35,8 @@ export const zh: Messages = {
   agentListClient: '客户端：{client}',
   agentNoChat: '无活动聊天',
   agentEmptyPrompt: '以您选择的名称添加一个智能体。',
+  agentsLocalTitle: '本机代理',
+  composeSenderAgent: '发送代理',
   agentsRemoteTitle: '远程智能体',
   directoryReady: '已连接',
   directorySyncing: '同步中',

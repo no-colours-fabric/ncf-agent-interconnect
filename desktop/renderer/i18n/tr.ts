@@ -38,6 +38,8 @@ export const tr: Messages = {
   agentListClient: 'İstemci: {client}',
   agentNoChat: 'Etkin sohbet yok',
   agentEmptyPrompt: 'Seçtiğiniz bir adla bir aracı ekleyin.',
+  agentsLocalTitle: 'Yerel ajanlar',
+  composeSenderAgent: 'Gönderen ajan',
   agentsRemoteTitle: 'Uzak aracılar',
   directoryReady: 'Bağlı',
   directorySyncing: 'Senkronize ediliyor',

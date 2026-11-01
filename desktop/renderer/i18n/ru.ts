@@ -38,6 +38,8 @@ export const ru: Messages = {
   agentListClient: 'Клиент: {client}',
   agentNoChat: 'Нет активного чата',
   agentEmptyPrompt: 'Добавьте агента с именем на ваш выбор.',
+  agentsLocalTitle: 'Агенты узла',
+  composeSenderAgent: 'Агент-отправитель',
   agentsRemoteTitle: 'Удалённые агенты',
   directoryReady: 'Подключено',
   directorySyncing: 'Синхронизация',

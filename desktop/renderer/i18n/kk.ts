@@ -38,6 +38,8 @@ export const kk: Messages = {
   agentListClient: 'Клиент: {client}',
   agentNoChat: 'Белсенді чат жоқ',
   agentEmptyPrompt: 'Өз таңдауыңыздағы атпен агент қосыңыз.',
+  agentsLocalTitle: 'Жергілікті агенттер',
+  composeSenderAgent: 'Жіберуші агент',
   agentsRemoteTitle: 'Қашықтағы агенттер',
   directoryReady: 'Қосылған',
   directorySyncing: 'Синхрондалуда',

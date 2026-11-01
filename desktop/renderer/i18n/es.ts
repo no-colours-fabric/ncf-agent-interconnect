@@ -38,6 +38,8 @@ export const es: Messages = {
   agentListClient: 'Cliente: {client}',
   agentNoChat: 'Sin chat activo',
   agentEmptyPrompt: 'Añade un agente con un nombre de tu elección.',
+  agentsLocalTitle: 'Agentes locales',
+  composeSenderAgent: 'Agente remitente',
   agentsRemoteTitle: 'Agentes remotos',
   directoryReady: 'Conectado',
   directorySyncing: 'Sincronizando',

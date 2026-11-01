@@ -37,6 +37,8 @@ export const ko: Messages = {
   agentListClient: '클라이언트: {client}',
   agentNoChat: '활성 채팅 없음',
   agentEmptyPrompt: '원하는 이름으로 에이전트를 추가하세요.',
+  agentsLocalTitle: '로컬 에이전트',
+  composeSenderAgent: '발신 에이전트',
   agentsRemoteTitle: '원격 에이전트',
   directoryReady: '연결됨',
   directorySyncing: '동기화 중',

@@ -37,6 +37,8 @@ export const ptBR: Messages = {
   agentListClient: 'Cliente: {client}',
   agentNoChat: 'Nenhum chat ativo',
   agentEmptyPrompt: 'Adicione um agente com um nome de sua escolha.',
+  agentsLocalTitle: 'Agentes locais',
+  composeSenderAgent: 'Agente remetente',
   agentsRemoteTitle: 'Agentes remotos',
   directoryReady: 'Conectado',
   directorySyncing: 'Sincronizando',

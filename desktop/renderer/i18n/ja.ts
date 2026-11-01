@@ -38,6 +38,8 @@ export const ja: Messages = {
   agentListClient: 'クライアント: {client}',
   agentNoChat: 'アクティブなチャットがありません',
   agentEmptyPrompt: 'お好みの名前でエージェントを追加してください。',
+  agentsLocalTitle: 'ローカルエージェント',
+  composeSenderAgent: '送信元エージェント',
   agentsRemoteTitle: 'リモートエージェント',
   directoryReady: '接続済み',
   directorySyncing: '同期中',

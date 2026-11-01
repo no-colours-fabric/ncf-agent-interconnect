@@ -33,6 +33,8 @@ export interface Messages {
   agentListClient: string;
   agentNoChat: string;
   agentEmptyPrompt: string;
+  agentsLocalTitle: string;
+  composeSenderAgent: string;
   agentsRemoteTitle: string;
   directoryReady: string;
   directorySyncing: string;
