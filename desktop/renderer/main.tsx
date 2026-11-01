@@ -46,6 +46,15 @@ import {
   type McpInstructions,
   type AgentDirectory,
 } from '../shared/contracts.js';
+import {
+  isLocale,
+  loadLocale,
+  localeLabel,
+  persistLocale,
+  supportedLocales,
+  t,
+  type Locale,
+} from './i18n/index.js';
 
 const theme = createTheme({
   palette: {
@@ -71,22 +80,39 @@ const theme = createTheme({
   },
 });
 type Page = 'overview' | 'agents' | 'network' | 'mcp' | 'clients' | 'settings';
-const navigation: { id: Page; label: string; icon: React.ReactNode }[] = [
-  { id: 'overview', label: 'Overview', icon: <HubOutlined /> },
-  { id: 'agents', label: 'Agents', icon: <ForumOutlined /> },
-  { id: 'network', label: 'Remote nodes', icon: <CableOutlined /> },
-  { id: 'mcp', label: 'MCP setup', icon: <ExtensionOutlined /> },
-  { id: 'clients', label: 'Applications', icon: <ExtensionOutlined /> },
-  { id: 'settings', label: 'Settings', icon: <SettingsOutlined /> },
+const navigation: {
+  id: Page;
+  tKey: 'navOverview' | 'navAgents' | 'navNetwork' | 'navMcp' | 'navClients' | 'navSettings';
+  icon: React.ReactNode;
+}[] = [
+  { id: 'overview', tKey: 'navOverview', icon: <HubOutlined /> },
+  { id: 'agents', tKey: 'navAgents', icon: <ForumOutlined /> },
+  { id: 'network', tKey: 'navNetwork', icon: <CableOutlined /> },
+  { id: 'mcp', tKey: 'navMcp', icon: <ExtensionOutlined /> },
+  { id: 'clients', tKey: 'navClients', icon: <ExtensionOutlined /> },
+  { id: 'settings', tKey: 'navSettings', icon: <SettingsOutlined /> },
 ];
-const time = (value: string) => new Date(value).toLocaleString('en-US');
+const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
+const messageStateKey = (
+  state: Message['state'],
+): 'msgStateQueued' | 'msgStateReceived' | 'msgStateReady' | 'msgStateProcessed' =>
+  (
+    ({
+      queued: 'msgStateQueued',
+      received: 'msgStateReceived',
+      ready: 'msgStateReady',
+      processed: 'msgStateProcessed',
+    }) as const
+  )[state];
 
 function DirectoryList({
   directories,
   choose,
+  locale,
 }: {
   directories: AgentDirectory[];
   choose: (node: string, nickname: string) => void;
+  locale: Locale;
 }): React.JSX.Element {
   return (
     <Stack spacing={1.5}>
@@ -101,10 +127,10 @@ function DirectoryList({
               color={directory.state === 'ready' ? 'success' : 'default'}
               label={
                 {
-                  ready: 'Connected',
-                  syncing: 'Synchronizing',
-                  unsupported: 'Directory unsupported',
-                  offline: 'Offline',
+                  ready: t(locale, 'directoryReady'),
+                  syncing: t(locale, 'directorySyncing'),
+                  unsupported: t(locale, 'directoryUnsupported'),
+                  offline: t(locale, 'directoryOffline'),
                 }[directory.state]
               }
             />
@@ -118,7 +144,7 @@ function DirectoryList({
           </Typography>
           {directory.updatedAt && (
             <Typography variant="caption" color="text.secondary">
-              Updated {time(directory.updatedAt)}
+              {t(locale, 'directoryUpdated', { time: time(directory.updatedAt, locale) })}
             </Typography>
           )}
           <List dense disablePadding>
@@ -131,8 +157,8 @@ function DirectoryList({
                   primary={agent.nickname}
                   secondary={
                     agent.availability === 'online'
-                      ? 'Online client'
-                      : 'Client availability unknown'
+                      ? t(locale, 'directoryOnline')
+                      : t(locale, 'directoryUnknown')
                   }
                 />
               </ListItemButton>
@@ -140,18 +166,20 @@ function DirectoryList({
           </List>
           {directory.state === 'ready' && !directory.agents.length && (
             <Typography variant="caption" color="text.secondary">
-              No connected agents registered.
+              {t(locale, 'directoryNoAgents')}
             </Typography>
           )}
           {directory.state === 'unsupported' && (
             <Typography variant="caption" color="text.secondary">
-              Update this peer to share its agent directory. Message delivery remains available.
+              {t(locale, 'directoryPeerOld')}
             </Typography>
           )}
           {directory.truncated && (
             <Alert severity="warning">
-              Directory is incomplete: showing {directory.agents.length} of {directory.total}{' '}
-              agents.
+              {t(locale, 'directoryTruncated', {
+                count: directory.agents.length,
+                total: directory.total,
+              })}
             </Alert>
           )}
         </Box>
@@ -183,6 +211,7 @@ function App(): React.JSX.Element {
     [recipientNick, setRecipientNick] = useState(''),
     [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
+  const [locale, setLocale] = useState<Locale>(() => loadLocale(window.localStorage));
   const call = useCallback(
     async <T,>(method: string, params: unknown = {}): Promise<T> =>
       window.interconnect.invoke<T>(method, params),
@@ -272,7 +301,7 @@ function App(): React.JSX.Element {
     return (
       <Stack spacing={2} sx={{ height: '100vh', alignItems: 'center', justifyContent: 'center' }}>
         <CircularProgress />
-        <Typography>Starting the messaging node</Typography>
+        <Typography>{t(locale, 'startingNode')}</Typography>
         {error && <Alert severity="error">{error}</Alert>}
       </Stack>
     );
@@ -296,8 +325,13 @@ function App(): React.JSX.Element {
       return [];
     }
   })();
-  const copy = (value: string) => run(() => call('copy', { text: value }), 'Copied');
-  const title = navigation.find((n) => n.id === page)?.label ?? 'Overview';
+  const copy = (value: string) => run(() => call('copy', { text: value }), t(locale, 'copied'));
+  const title = navigation.find((n) => n.id === page)?.tKey ?? 'navOverview';
+  const changeLocale = (next: unknown) => {
+    if (!isLocale(next)) return;
+    setLocale(next);
+    persistLocale(window.localStorage, next);
+  };
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
       <Box
@@ -317,7 +351,7 @@ function App(): React.JSX.Element {
           <Box>
             <Typography sx={{ fontWeight: 750 }}>NCF Agent Interconnect</Typography>
             <Typography variant="caption" sx={{ color: '#aac0cb' }}>
-              Local messaging node
+              {t(locale, 'appSubtitle')}
             </Typography>
           </Box>
         </Stack>
@@ -335,7 +369,10 @@ function App(): React.JSX.Element {
               }}
             >
               <ListItemIcon sx={{ color: '#b9d1da', minWidth: 38 }}>{n.icon}</ListItemIcon>
-              <ListItemText primary={n.label} slotProps={{ primary: { sx: { fontSize: 14 } } }} />
+              <ListItemText
+                primary={t(locale, n.tKey)}
+                slotProps={{ primary: { sx: { fontSize: 14 } } }}
+              />
             </ListItemButton>
           ))}
         </List>
@@ -350,7 +387,7 @@ function App(): React.JSX.Element {
               }}
             />
             <Typography variant="body2">
-              {snapshot.running ? 'Node running' : 'Node stopped'}
+              {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
             </Typography>
           </Stack>
           <Typography
@@ -359,6 +396,34 @@ function App(): React.JSX.Element {
           >
             {snapshot.nodeLabel}
           </Typography>
+        </Box>
+        <Box sx={{ mt: 1.5, px: 0.5 }}>
+          <TextField
+            select
+            size="small"
+            label={t(locale, 'localeTitle')}
+            value={locale}
+            onChange={(e) => changeLocale(e.target.value)}
+            slotProps={{
+              inputLabel: { sx: { color: '#aac0cb' } },
+              select: {
+                sx: {
+                  color: '#fff',
+                  '.MuiSelect-icon': { color: '#b9d1da' },
+                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3a5a66' },
+                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4a6b78' },
+                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#76c9bc' },
+                },
+              },
+            }}
+            fullWidth
+          >
+            {supportedLocales.map((option) => (
+              <MenuItem key={option} value={option}>
+                {localeLabel(option)}
+              </MenuItem>
+            ))}
+          </TextField>
         </Box>
       </Box>
       <Box component="main" sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -376,10 +441,10 @@ function App(): React.JSX.Element {
         >
           <Box>
             <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.3 }}>
-              NODE / {snapshot.nodeLabel}
+              {t(locale, 'headerPrefix', { node: snapshot.nodeLabel })}
             </Typography>
             <Typography variant="h4" sx={{ fontSize: 26 }}>
-              {title}
+              {t(locale, title)}
             </Typography>
           </Box>
           <Stack direction="row" spacing={1}>
@@ -387,7 +452,7 @@ function App(): React.JSX.Element {
               size="small"
               color={snapshot.running ? 'success' : 'default'}
               variant="outlined"
-              label={snapshot.running ? 'Running' : 'Stopped'}
+              label={snapshot.running ? t(locale, 'chipRunning') : t(locale, 'chipStopped')}
             />
             <Button
               size="small"
@@ -395,29 +460,30 @@ function App(): React.JSX.Element {
               disabled={busy}
               onClick={() => run(() => call(snapshot.running ? 'stop' : 'start'))}
             >
-              {snapshot.running ? 'Stop' : 'Start'}
+              {snapshot.running ? t(locale, 'btnStop') : t(locale, 'btnStart')}
             </Button>
           </Stack>
         </Stack>
         <Box sx={{ flex: 1, overflow: 'auto', px: 4, py: 3 }}>
           {page === 'overview' && (
             <Stack spacing={3}>
-              <Typography color="text.secondary">
-                Messages are stored on this computer and remain available when you switch chats or
-                clients.
-              </Typography>
+              <Typography color="text.secondary">{t(locale, 'overviewIntro')}</Typography>
               <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
                 {[
                   {
-                    label: 'Remote nodes',
+                    label: t(locale, 'statRemoteNodes'),
                     value: `${snapshot.peers.filter((p) => p.connected).length} / ${snapshot.peers.length}`,
-                    hint: 'connected',
+                    hint: t(locale, 'statRemoteNodesHint'),
                   },
-                  { label: 'Agents', value: snapshot.agents.length, hint: 'persistent history' },
                   {
-                    label: 'Inbox',
+                    label: t(locale, 'statAgents'),
+                    value: snapshot.agents.length,
+                    hint: t(locale, 'statAgentsHint'),
+                  },
+                  {
+                    label: t(locale, 'statInbox'),
                     value: snapshot.agents.reduce((s, c) => s + c.unread, 0),
-                    hint: 'not received by agents',
+                    hint: t(locale, 'statInboxHint'),
                   },
                 ].map((item) => (
                   <Paper key={item.label} sx={{ p: 2.5 }}>
@@ -435,25 +501,24 @@ function App(): React.JSX.Element {
               </Box>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
-                  Connect agents
+                  {t(locale, 'connectAgentsTitle')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  Choose your client, copy the configuration and add it to its MCP settings. The app
-                  does not change client settings.
+                  {t(locale, 'connectAgentsBody')}
                 </Typography>
                 <Button variant="contained" onClick={() => setPage('mcp')}>
-                  Open MCP setup
+                  {t(locale, 'connectAgentsCta')}
                 </Button>
               </Paper>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
-                  Connect another computer
+                  {t(locale, 'connectPeerTitle')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  Enter the remote node IP or URL and the access code provided by its user.
+                  {t(locale, 'connectPeerBody')}
                 </Typography>
                 <Button variant="outlined" onClick={() => setPage('network')}>
-                  Set up a connection
+                  {t(locale, 'connectPeerCta')}
                 </Button>
               </Paper>
               {snapshot.errors.map((e, i) => (
@@ -485,10 +550,10 @@ function App(): React.JSX.Element {
                   direction="row"
                   sx={{ p: 2, justifyContent: 'space-between', alignItems: 'center' }}
                 >
-                  <Typography sx={{ fontWeight: 650 }}>Agents</Typography>
+                  <Typography sx={{ fontWeight: 650 }}>{t(locale, 'agentsTitle')}</Typography>
                   <IconButton
                     size="small"
-                    aria-label="Add agent"
+                    aria-label={t(locale, 'ariaAddAgent')}
                     onClick={() => setNicknameDialog(true)}
                   >
                     <AddOutlined />
@@ -509,7 +574,11 @@ function App(): React.JSX.Element {
                     >
                       <ListItemText
                         primary={c.nickname}
-                        secondary={c.binding ? `Client: ${c.binding.client}` : 'No active chat'}
+                        secondary={
+                          c.binding
+                            ? t(locale, 'agentListClient', { client: c.binding.client })
+                            : t(locale, 'agentNoChat')
+                        }
                       />
                       {!!c.unread && <Chip size="small" color="primary" label={c.unread} />}
                     </ListItemButton>
@@ -517,15 +586,18 @@ function App(): React.JSX.Element {
                 </List>
                 {!snapshot.agents.length && (
                   <Typography color="text.secondary" variant="body2" sx={{ p: 2 }}>
-                    Add an agent with a name of your choice.
+                    {t(locale, 'agentEmptyPrompt')}
                   </Typography>
                 )}
                 {!!snapshot.peers.length && (
                   <Box sx={{ p: 2, borderTop: '1px solid #e2e7ec', overflow: 'auto' }}>
-                    <Typography sx={{ fontWeight: 650, mb: 1 }}>Remote agents</Typography>
+                    <Typography sx={{ fontWeight: 650, mb: 1 }}>
+                      {t(locale, 'agentsRemoteTitle')}
+                    </Typography>
                     <DirectoryList
                       directories={snapshot.directories.filter((directory) => !directory.local)}
                       choose={chooseRemoteAgent}
+                      locale={locale}
                     />
                   </Box>
                 )}
@@ -546,14 +618,16 @@ function App(): React.JSX.Element {
                         <Typography sx={{ fontWeight: 650 }}>{selected}</Typography>
                         <Typography color="text.secondary" variant="caption">
                           {selectedAgent?.binding
-                            ? `Client: ${selectedAgent.binding.client}`
-                            : 'History is available; no active chat'}
+                            ? t(locale, 'agentListClient', { client: selectedAgent.binding.client })
+                            : t(locale, 'agentHistoryNoChat')}
                         </Typography>
                       </Box>
                       <Chip
                         size="small"
                         variant="outlined"
-                        label={`Messages: ${selectedAgent?.messageCount ?? 0}`}
+                        label={t(locale, 'agentMessages', {
+                          count: selectedAgent?.messageCount ?? 0,
+                        })}
                       />
                     </Stack>
                     <Stack
@@ -581,18 +655,25 @@ function App(): React.JSX.Element {
                             <Chip
                               size="small"
                               variant="outlined"
-                              label={m.direction === 'in' ? 'Incoming message' : 'Outgoing'}
+                              label={
+                                m.direction === 'in'
+                                  ? t(locale, 'msgIncoming')
+                                  : t(locale, 'msgOutgoing')
+                              }
                             />
                           </Stack>
                           <Typography variant="caption" color="text.secondary">
-                            {time(m.envelope.createdAt)}
+                            {time(m.envelope.createdAt, locale)}
                           </Typography>
                           <Typography
                             variant="caption"
                             color="text.secondary"
                             sx={{ display: 'block', overflowWrap: 'anywhere' }}
                           >
-                            From node: {m.envelope.fromNode} · To node: {m.envelope.toNode}
+                            {t(locale, 'msgFromNode', {
+                              from: m.envelope.fromNode,
+                              to: m.envelope.toNode,
+                            })}
                           </Typography>
                           <Typography
                             sx={{
@@ -622,11 +703,14 @@ function App(): React.JSX.Element {
                                 variant="body2"
                                 sx={{ flex: 1, overflowWrap: 'anywhere' }}
                               >
-                                {f.name} · {Math.ceil(f.size / 1024)} KB
+                                {t(locale, 'msgAttachmentSize', {
+                                  name: f.name,
+                                  size: Math.ceil(f.size / 1024),
+                                })}
                               </Typography>
-                              <Tooltip title="Open verified file">
+                              <Tooltip title={t(locale, 'msgOpenVerified')}>
                                 <IconButton
-                                  aria-label={`Open ${f.name}`}
+                                  aria-label={t(locale, 'msgOpenAria', { name: f.name })}
                                   onClick={() =>
                                     run(() =>
                                       call('openAttachment', {
@@ -639,9 +723,9 @@ function App(): React.JSX.Element {
                                   <OpenInNewOutlined fontSize="small" />
                                 </IconButton>
                               </Tooltip>
-                              <Tooltip title="Save as">
+                              <Tooltip title={t(locale, 'msgSaveAs')}>
                                 <IconButton
-                                  aria-label={`Save ${f.name}`}
+                                  aria-label={t(locale, 'msgSaveAria', { name: f.name })}
                                   onClick={() =>
                                     run(() =>
                                       call('saveAttachment', {
@@ -661,14 +745,7 @@ function App(): React.JSX.Element {
                             color="text.secondary"
                             sx={{ display: 'block', mt: 1 }}
                           >
-                            {
-                              {
-                                queued: 'Queued for delivery',
-                                received: 'Accepted by node; receiving attachments',
-                                ready: 'Accepted by node; awaiting agent',
-                                processed: 'Received by agent',
-                              }[m.state]
-                            }
+                            {t(locale, messageStateKey(m.state))}
                           </Typography>
                           {m.error && (
                             <Alert severity="error" sx={{ mt: 1 }}>
@@ -678,11 +755,11 @@ function App(): React.JSX.Element {
                         </Paper>
                       ))}
                       {!messages.length && (
-                        <Typography color="text.secondary">No messages yet.</Typography>
+                        <Typography color="text.secondary">{t(locale, 'msgNoMessages')}</Typography>
                       )}
                       {hasMore && (
                         <Button onClick={() => setHistorySize((size) => size + 100)}>
-                          Load more messages
+                          {t(locale, 'msgLoadMore')}
                         </Button>
                       )}
                     </Stack>
@@ -690,12 +767,14 @@ function App(): React.JSX.Element {
                       <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
                         <TextField
                           select
-                          label="Recipient node"
+                          label={t(locale, 'composeRecipientNode')}
                           value={recipient}
                           onChange={(e) => setRecipient(e.target.value)}
                           sx={{ minWidth: 180 }}
                         >
-                          <MenuItem value={snapshot.nodeId}>This computer</MenuItem>
+                          <MenuItem value={snapshot.nodeId}>
+                            {t(locale, 'composeThisComputer')}
+                          </MenuItem>
                           {snapshot.peers.map((p) => (
                             <MenuItem key={p.id} value={p.id}>
                               {p.label}
@@ -703,7 +782,7 @@ function App(): React.JSX.Element {
                           ))}
                         </TextField>
                         <TextField
-                          label="Recipient agent name"
+                          label={t(locale, 'composeRecipientAgent')}
                           value={recipientNick}
                           onChange={(e) => setRecipientNick(e.target.value)}
                           fullWidth
@@ -711,7 +790,7 @@ function App(): React.JSX.Element {
                       </Stack>
                       <Stack direction="row" spacing={1}>
                         <TextField
-                          label="Message from the user"
+                          label={t(locale, 'composeMessage')}
                           multiline
                           maxRows={4}
                           fullWidth
@@ -720,7 +799,7 @@ function App(): React.JSX.Element {
                         />
                         <Button
                           variant="contained"
-                          aria-label="Send message"
+                          aria-label={t(locale, 'composeSend')}
                           disabled={busy || !text.trim() || !recipient || !recipientNick.trim()}
                           onClick={() =>
                             run(async () => {
@@ -745,7 +824,7 @@ function App(): React.JSX.Element {
                     sx={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
                   >
                     <ForumOutlined sx={{ fontSize: 40, color: 'text.secondary' }} />
-                    <Typography color="text.secondary">Select or add an agent</Typography>
+                    <Typography color="text.secondary">{t(locale, 'agentsSelect')}</Typography>
                   </Stack>
                 )}
               </Box>
@@ -755,14 +834,14 @@ function App(): React.JSX.Element {
             <Stack spacing={3}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
-                  This node
+                  {t(locale, 'networkThisNode')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  Listening address: {snapshot.peerUrl}
+                  {t(locale, 'networkListening', { url: snapshot.peerUrl })}
                 </Typography>
                 {snapshot.listenHost === '127.0.0.1' && (
                   <Alert severity="info" sx={{ mb: 2 }}>
-                    To connect another computer, choose a local network IP in Node settings.
+                    {t(locale, 'networkLocalIpHint')}
                   </Alert>
                 )}
                 <Button
@@ -770,15 +849,15 @@ function App(): React.JSX.Element {
                   disabled={busy || !snapshot.running}
                   onClick={() => run(async () => setOwnCode(await call('accessCode')))}
                 >
-                  Create temporary access code
+                  {t(locale, 'btnAccessCode')}
                 </Button>
                 {ownCode && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Use once on the other computer. Expires at {time(ownCode.expiresAt)}.
+                      {t(locale, 'networkCodeExpires', { time: time(ownCode.expiresAt, locale) })}
                     </Typography>
                     <TextField
-                      label="Temporary access code"
+                      label={t(locale, 'networkCodeLabel')}
                       value={ownCode.code}
                       fullWidth
                       slotProps={{
@@ -789,27 +868,27 @@ function App(): React.JSX.Element {
                       }}
                     />
                     <Button startIcon={<ContentCopyOutlined />} onClick={() => copy(ownCode.code)}>
-                      Copy code
+                      {t(locale, 'btnCopyCode')}
                     </Button>
                   </Box>
                 )}
               </Paper>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
-                  Connect a remote node
+                  {t(locale, 'networkConnectTitle')}
                 </Typography>
                 <Stack spacing={2}>
                   <TextField
-                    label="Exact remote IP:port or URL"
-                    placeholder="192.0.2.10:7336 or wss://host:port/peer"
+                    label={t(locale, 'networkAddressLabel')}
+                    placeholder={t(locale, 'networkAddressPlaceholder')}
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     fullWidth
                   />
                   <TextField
-                    label="Access code from the remote node user"
-                    placeholder="7K3MD8RX"
-                    helperText="8 letters or digits. Letter case does not matter."
+                    label={t(locale, 'networkAccessLabel')}
+                    placeholder={t(locale, 'networkAccessPlaceholder')}
+                    helperText={t(locale, 'networkAccessHelper')}
                     value={access}
                     onChange={(e) =>
                       setAccess(e.target.value.replace(/[a-z]/g, (letter) => letter.toUpperCase()))
@@ -831,13 +910,16 @@ function App(): React.JSX.Element {
                       }
                       variant="contained"
                       onClick={() =>
-                        run(async () => {
-                          await call('connectPeer', { address, code: access.trim() });
-                          setAccess('');
-                        }, 'Node authorized. Connecting.')
+                        run(
+                          async () => {
+                            await call('connectPeer', { address, code: access.trim() });
+                            setAccess('');
+                          },
+                          t(locale, 'networkConnectOk'),
+                        )
                       }
                     >
-                      Connect
+                      {t(locale, 'btnConnect')}
                     </Button>
                   </Box>
                 </Stack>
@@ -848,7 +930,7 @@ function App(): React.JSX.Element {
                     <Box>
                       <Typography sx={{ fontWeight: 650 }}>{p.label}</Typography>
                       <Typography variant="body2" color="text.secondary">
-                        {p.address || 'Incoming connection'}
+                        {p.address || t(locale, 'networkIncoming')}
                       </Typography>
                       <Typography
                         variant="caption"
@@ -860,7 +942,9 @@ function App(): React.JSX.Element {
                     </Box>
                     <Chip
                       color={p.connected ? 'success' : 'default'}
-                      label={p.connected ? 'Connected' : 'Waiting for connection'}
+                      label={
+                        p.connected ? t(locale, 'networkConnected') : t(locale, 'networkWaiting')
+                      }
                     />
                   </Stack>
                   {p.error && (
@@ -874,6 +958,7 @@ function App(): React.JSX.Element {
                         (directory) => directory.nodeId === p.id,
                       )}
                       choose={chooseRemoteAgent}
+                      locale={locale}
                     />
                   </Box>
                 </Paper>
@@ -882,25 +967,23 @@ function App(): React.JSX.Element {
           )}
           {page === 'mcp' && (
             <Stack spacing={2.5}>
-              <Alert severity="info">
-                You control setup. The app does not edit Cursor, OpenCode or Codex configurations.
-              </Alert>
+              <Alert severity="info">{t(locale, 'mcpYouControl')}</Alert>
               <Paper sx={{ p: 3 }}>
                 <TextField
                   select
-                  label="Your client"
+                  label={t(locale, 'mcpYourClient')}
                   value={client}
                   onChange={(e) => setClient(e.target.value)}
                   sx={{ minWidth: 230 }}
                 >
-                  <MenuItem value="cursor">Cursor</MenuItem>
-                  <MenuItem value="opencode">OpenCode</MenuItem>
-                  <MenuItem value="codex">Codex / separate profile</MenuItem>
+                  <MenuItem value="cursor">{t(locale, 'mcpClientCursor')}</MenuItem>
+                  <MenuItem value="opencode">{t(locale, 'mcpClientOpencode')}</MenuItem>
+                  <MenuItem value="codex">{t(locale, 'mcpClientCodex')}</MenuItem>
                 </TextField>
                 {instructions && (
                   <>
                     <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-                      1. Add the configuration
+                      {t(locale, 'mcpStep1')}
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                       {instructions.location}
@@ -924,10 +1007,10 @@ function App(): React.JSX.Element {
                       startIcon={<ContentCopyOutlined />}
                       onClick={() => copy(instructions.configuration)}
                     >
-                      Copy configuration
+                      {t(locale, 'btnCopyConfig')}
                     </Button>
                     <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-                      2. Choose an agent name in any chat
+                      {t(locale, 'mcpStep2')}
                     </Typography>
                     <Typography sx={{ whiteSpace: 'pre-wrap' }}>
                       {instructions.testPrompt}
@@ -936,23 +1019,17 @@ function App(): React.JSX.Element {
                       startIcon={<ContentCopyOutlined />}
                       onClick={() => copy(instructions.testPrompt)}
                     >
-                      Copy example prompt
+                      {t(locale, 'btnCopyPrompt')}
                     </Button>
                   </>
                 )}
               </Paper>
-              <Typography color="text.secondary">
-                You choose the name. The current chat is bound automatically. Configure each
-                application once; new chats do not need separate setup.
-              </Typography>
+              <Typography color="text.secondary">{t(locale, 'mcpFooter')}</Typography>
             </Stack>
           )}
           {page === 'clients' && (
             <Stack spacing={2.5}>
-              <Typography color="text.secondary">
-                Connect an application once, then choose an agent name in any of its chats. The
-                integration manages chat bindings and delivery.
-              </Typography>
+              <Typography color="text.secondary">{t(locale, 'clientsIntro')}</Typography>
               {(['opencode-http', 'codex-desktop', 'manual'] as const).map((kind) => {
                 const profiles = snapshot.adapters.filter((a) => a.kind === kind),
                   ids = new Set(profiles.map((a) => a.id));
@@ -968,30 +1045,30 @@ function App(): React.JSX.Element {
                     >
                       <Typography variant="h6">
                         {kind === 'opencode-http'
-                          ? 'OpenCode and its frontends'
+                          ? t(locale, 'clientsKindOpencode')
                           : kind === 'codex-desktop'
-                            ? 'Codex Desktop'
-                            : 'Cursor and other MCP clients'}
+                            ? t(locale, 'clientsKindCodex')
+                            : t(locale, 'clientsKindManual')}
                       </Typography>
                       <Chip
                         color={ready ? 'success' : 'default'}
                         label={
                           ready
-                            ? 'Connected'
+                            ? t(locale, 'clientsConnected')
                             : agents.length
                               ? kind === 'manual'
-                                ? 'Receive through MCP'
-                                : 'Delivery paused'
-                              : 'No connected agents'
+                                ? t(locale, 'clientsReceiveMcp')
+                                : t(locale, 'clientsPaused')
+                              : t(locale, 'clientsNoAgents')
                         }
                       />
                     </Stack>
                     <Typography color="text.secondary" sx={{ mt: 1 }}>
                       {kind === 'opencode-http'
-                        ? 'The bundled plugin identifies the current chat and delivers incoming messages automatically. A busy agent receives messages when it becomes idle.'
+                        ? t(locale, 'clientsDetailOpencode')
                         : kind === 'codex-desktop'
-                          ? 'The chat and profile are identified from MCP metadata. Messages include the sender, body and attachment links. The Desktop integration is experimental and depends on the Codex version.'
-                          : 'No manual session setup is required. Send and receive through MCP. This connection cannot wake an idle chat automatically.'}
+                          ? t(locale, 'clientsDetailCodex')
+                          : t(locale, 'clientsDetailManual')}
                     </Typography>
                     {agents.map((a) => {
                       const state = profiles.find((p) => p.id === a.binding?.adapterId);
@@ -999,10 +1076,10 @@ function App(): React.JSX.Element {
                         <Typography key={a.key} variant="body2" sx={{ mt: 1.5 }}>
                           {a.nickname} · {a.binding?.client} ·{' '}
                           {state?.state === 'ready'
-                            ? 'Automatic delivery'
+                            ? t(locale, 'clientsAuto')
                             : kind === 'manual'
-                              ? 'Receive through MCP'
-                              : 'Delivery paused'}
+                              ? t(locale, 'clientsReceiveMcp')
+                              : t(locale, 'clientsPaused')}
                         </Typography>
                       );
                     })}
@@ -1017,7 +1094,7 @@ function App(): React.JSX.Element {
                           {agents
                             .filter((agent) => agent.binding?.adapterId === a.id)
                             .map((agent) => agent.nickname)
-                            .join(', ') || 'Connection'}
+                            .join(', ') || t(locale, 'clientsConnectionFallback')}
                           : {a.error}
                         </Alert>
                       ))}
@@ -1034,7 +1111,7 @@ function App(): React.JSX.Element {
                         setPage('mcp');
                       }}
                     >
-                      Setup instructions
+                      {t(locale, 'clientsCta')}
                     </Button>
                   </Paper>
                 );
@@ -1045,24 +1122,24 @@ function App(): React.JSX.Element {
             <Stack spacing={3}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
-                  Node settings
+                  {t(locale, 'settingsNodeTitle')}
                 </Typography>
                 <Stack spacing={2}>
                   <TextField
-                    label="Node name"
+                    label={t(locale, 'settingsNodeName')}
                     value={nodeLabel}
                     onChange={(e) => setNodeLabel(e.target.value)}
                   />
                   <TextField
                     select
-                    label="Local IP for incoming connections"
+                    label={t(locale, 'settingsLocalIp')}
                     value={listenHost}
                     onChange={(e) => setListenHost(e.target.value)}
                   >
                     {snapshot.localAddresses.map((ip) => (
                       <MenuItem key={ip} value={ip}>
                         {ip}
-                        {ip === '127.0.0.1' ? ' — this computer only' : ''}
+                        {ip === '127.0.0.1' ? t(locale, 'settingsLocalOnly') : ''}
                       </MenuItem>
                     ))}
                   </TextField>
@@ -1071,21 +1148,23 @@ function App(): React.JSX.Element {
                       variant="contained"
                       disabled={busy}
                       onClick={() =>
-                        run(() => call('saveNode', { nodeLabel, listenHost }), 'Settings saved')
+                        run(
+                          () => call('saveNode', { nodeLabel, listenHost }),
+                          t(locale, 'settingsSaved'),
+                        )
                       }
                     >
-                      Save
+                      {t(locale, 'btnSave')}
                     </Button>
                   </Box>
                 </Stack>
               </Paper>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
-                  Background operation
+                  {t(locale, 'settingsBackground')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  Closing the window keeps the node running in the tray. Quit closes the app and its
-                  connections.
+                  {t(locale, 'settingsBackgroundBody')}
                 </Typography>
                 <FormControlLabel
                   control={
@@ -1102,17 +1181,17 @@ function App(): React.JSX.Element {
                       }
                     />
                   }
-                  label="Start at login"
+                  label={t(locale, 'settingsStartAtLogin')}
                 />
                 {!login.supported && (
                   <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    Start at login is available in the installed app.
+                    {t(locale, 'settingsStartAtLoginUnavailable')}
                   </Typography>
                 )}
               </Paper>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
-                  Permitted export folders
+                  {t(locale, 'settingsExportRoots')}
                 </Typography>
                 {snapshot.exportRoots.map((root) => (
                   <Typography key={root} variant="body2" sx={{ py: 0.5, overflowWrap: 'anywhere' }}>
@@ -1124,18 +1203,22 @@ function App(): React.JSX.Element {
                   startIcon={<AddOutlined />}
                   onClick={() => run(() => call('pickExportFolder'))}
                 >
-                  Add folder
+                  {t(locale, 'btnAddFolder')}
                 </Button>
               </Paper>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
-                  Diagnostics
+                  {t(locale, 'settingsDiagnostics')}
                 </Typography>
                 <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                  Node: {snapshot.nodeId}
+                  {t(locale, 'settingsNodeId', { id: snapshot.nodeId })}
                 </Typography>
-                <Typography variant="body2">MCP: {snapshot.mcpUrl}</Typography>
-                <Typography variant="body2">Listening: {snapshot.peerUrl}</Typography>
+                <Typography variant="body2">
+                  {t(locale, 'settingsMcp', { url: snapshot.mcpUrl })}
+                </Typography>
+                <Typography variant="body2">
+                  {t(locale, 'settingsListening', { url: snapshot.peerUrl })}
+                </Typography>
                 {snapshot.errors.length ? (
                   snapshot.errors.map((e, i) => (
                     <Alert severity="error" key={i} sx={{ mt: 1 }}>
@@ -1144,7 +1227,7 @@ function App(): React.JSX.Element {
                   ))
                 ) : (
                   <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-                    No application errors
+                    {t(locale, 'settingsNoErrors')}
                   </Typography>
                 )}
               </Paper>
@@ -1158,38 +1241,37 @@ function App(): React.JSX.Element {
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>Add agent</DialogTitle>
+        <DialogTitle>{t(locale, 'dialogAddAgent')}</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
-            You choose the agent name. With your approval, the agent can move to another chat while
-            keeping its message history.
+            {t(locale, 'dialogAddAgentBody')}
           </Typography>
           <TextField
             autoFocus
             fullWidth
-            label="Agent name"
+            label={t(locale, 'dialogAgentName')}
             value={nickname}
             onChange={(e) => setNickname(e.target.value)}
           />
           {!!nameConflicts.length && (
             <Alert severity="warning" sx={{ mt: 2 }}>
-              This name is also used on{' '}
-              {nameConflicts
-                .map(({ directory }) => `${directory.nodeLabel} (${directory.nodeId})`)
-                .join(', ')}
-              . You may keep this name on this node or choose another name.
+              {t(locale, 'dialogNameUsed', {
+                nodes: nameConflicts
+                  .map(({ directory }) => `${directory.nodeLabel} (${directory.nodeId})`)
+                  .join(', '),
+              })}
             </Alert>
           )}
           {snapshot.directories.some(
             (directory) => !directory.local && (directory.state !== 'ready' || directory.truncated),
           ) && (
             <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              Some remote directories are unavailable or incomplete. Other nodes may use this name.
+              {t(locale, 'dialogSomeDirectories')}
             </Typography>
           )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setNicknameDialog(false)}>Cancel</Button>
+          <Button onClick={() => setNicknameDialog(false)}>{t(locale, 'btnCancel')}</Button>
           <Button
             variant="contained"
             disabled={!nickname.trim() || busy}
@@ -1203,7 +1285,7 @@ function App(): React.JSX.Element {
               })
             }
           >
-            Add
+            {t(locale, 'btnAdd')}
           </Button>
         </DialogActions>
       </Dialog>
