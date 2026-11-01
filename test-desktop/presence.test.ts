@@ -434,3 +434,27 @@ test('committed immutable peer rotation revokes active and connecting sockets an
   assert.equal(b.snapshot().peers[0].error, null);
   assert.equal(catalog(a).agents[0].nickname, 'Rotating peer');
 });
+
+test('the same network can close with a queued retry, start into refusal and recover when its peer returns', async (t) => {
+  const a = await node(t),
+    b = await node(t);
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await until(() => advertised(a, b.settings.value.nodeId).state === 'ready');
+  const network = a.network;
+  const disconnected = new Promise<void>((resolve) => network.once('disconnected', resolve));
+  await b.stop();
+  await disconnected;
+  await network.close();
+  assert.equal(network.states()[0].directorySupported, false);
+  assert.equal(network.states()[0].connected, false);
+  await network.start();
+  assert.equal(a.network, network);
+  await until(() => /ECONNREFUSED/.test(network.states()[0].error ?? ''));
+  // Let the failed WebSocket close schedule its next transport retry.
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  await b.start();
+  await until(() => advertised(a, b.settings.value.nodeId).state === 'ready');
+  assert.equal(network.states()[0].connected, true);
+  assert.equal(network.states()[0].directorySupported, true);
+  assert.equal(network.states()[0].error, null);
+});

@@ -689,7 +689,11 @@ export class PeerNetwork extends EventEmitter {
     this.pairingHost.reset();
     clearInterval(this.heartbeat);
     for (const link of this.links.values()) {
+      link.generation++;
       clearTimeout(link.timer);
+      link.timer = undefined;
+      link.connecting = false;
+      link.directorySupported = false;
       link.socket = null;
     }
     for (const ws of this.sockets) ws.terminate();
