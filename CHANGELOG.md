@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — 2026-11-01
 
 - Show agents from explicitly paired nodes in the desktop UI and through the new
   `agents_list` MCP tool. Directory updates follow client arrivals, departures and
