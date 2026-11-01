@@ -1,6 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.10.0 — 2026-11-01
+
+Combined distribution of localization and the routing, directory and pairing
+changes documented in the source checkpoints below.
 
 - Add a persistent sidebar language selector with English fallback and fifteen
   interface languages. MCP instructions and user content keep their original

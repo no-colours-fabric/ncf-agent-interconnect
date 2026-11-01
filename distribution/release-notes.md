@@ -4,6 +4,13 @@ source files are not required for installation. macOS requires version 13 or lat
 
 ### Changes
 
+- Choose among fifteen interface languages using the selector at the bottom of
+  the sidebar: English, Russian, Simplified Chinese, French, German, Italian,
+  Spanish, Kazakh, Japanese, Brazilian Portuguese, Korean, Turkish, Polish, Dutch
+  and Ukrainian. English is the default and fallback. The choice persists in the
+  app profile; unavailable storage leaves the app usable for the current session.
+- Language changes preserve agent names, message text, filenames, addresses and
+  MCP configuration. MCP instructions and core diagnostics remain in English.
 - Agents and Remote nodes show names and client availability from explicitly
   paired nodes. Updates follow client arrival, departure and reconnection.
   `agents_list` exposes the directory with full addresses and explicit
@@ -57,6 +64,10 @@ checks use temporary profiles and synthetic local/remote messages and attachment
 they do not contact live agents or alter real MCP client configuration.
 The remote-directory acceptance scenarios use the packaged applications on two
 computers. Refer to the accompanying reports for the scenarios actually completed.
+The locale verifier checks fifteen languages across six pages, persistence and
+storage-failure recovery, literal user content, MCP configuration and layout at
+the supported minimum window size. Structural and runtime checks do not amount
+to a native-speaker review of every translation.
 
 The macOS package is ad-hoc signed without Apple notarization. Windows packages
 are unsigned; interactive installer/uninstaller and Start at login smoke checks

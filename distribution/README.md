@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.9.0
+# NCF Agent Interconnect 0.10.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -18,6 +18,11 @@ for completed checks and manual installation smoke checks.
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional
 under Settings.
+
+Choose the interface language at the bottom of the sidebar. Fifteen languages
+are available, with English as the default and fallback. The choice is saved in
+this application's profile. Names, messages, filenames and addresses retain
+their original content; MCP instructions and core diagnostics remain in English.
 
 ## Connect a client
 
