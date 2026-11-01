@@ -416,6 +416,32 @@ test('stopping an OpenCode plugin cancels pending startup recovery', async (t) =
   assert.equal(f.prompts.length, 0);
 });
 
+test('stopping during OpenCode host initialization prevents a late session registration', async (t) => {
+  const f = await fixture(t),
+    binding = connected(await f.connect('ses_first', 'Поздняя регистрация')).binding,
+    get = f.sdk.session.get;
+  let release!: () => void, entered!: () => void;
+  const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    }),
+    started = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+  f.sdk.session.get = async (options) => {
+    entered();
+    await gate;
+    return get(options);
+  };
+  await f.restartHost();
+  await started;
+  const stopping = f.host.event({ event: { type: 'server.instance.disposed' } });
+  release();
+  await stopping;
+  assert.equal(f.service.adapters.get(binding.adapterId).status().released, true);
+  assert.deepEqual(f.service.store.assertOwner(binding.connectionId).binding, binding);
+  assert.equal(f.prompts.length, 0);
+});
+
 test('OpenCode context tickets are one-use and unavailable to unauthenticated browser requests', async (t) => {
   const f = await fixture(t),
     output = { args: { nickname: 'Тест' } as Record<string, unknown> };
