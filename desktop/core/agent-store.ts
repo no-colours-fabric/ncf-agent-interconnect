@@ -249,13 +249,13 @@ export class AgentStore {
     });
   }
   private clearHistory(key: string): void {
-    // Retain foreign copies with any admission that may already have happened.
+    // Any persistent dispatch row is evidence of a possible past admission, even after its state was overwritten.
     const rows = this.db
       .prepare(
         `SELECT m.* FROM messages m WHERE m.local_key=? OR
       (m.direction='in' AND m.state!='processed' AND m.id IN
         (SELECT id FROM messages WHERE local_key=? AND direction='out') AND NOT EXISTS
-        (SELECT 1 FROM dispatches d WHERE d.message_id=m.id AND d.state IN ('admitted','dispatching','uncertain')))`,
+        (SELECT 1 FROM dispatches d WHERE d.message_id=m.id))`,
       )
       .all(key, key) as Row[];
     for (const row of rows) {

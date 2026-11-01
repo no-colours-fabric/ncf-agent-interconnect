@@ -38,8 +38,9 @@ message and timeline sequences are never reset or reused.
 The reset transaction clears the selected mailbox's incoming/outgoing records,
 timeline entries and dispatch records, revokes approval requests and replaces
 the owner. Undelivered local copies of its outgoing messages are also removed
-when admission has not happened or become uncertain. Foreign processed,
-admitted, dispatching or uncertain copies and other agents' history remain.
+only when they have never had a dispatch record and are not processed. Any
+foreign copy with dispatch evidence remains, even if its current failed/waiting
+state overwrote a possible earlier admission. Other agents' history remains.
 Unreferenced managed files are cleaned after commit through a durable queue;
 shared files, modified user copies and export originals are preserved.
 

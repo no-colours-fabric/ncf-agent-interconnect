@@ -158,8 +158,12 @@ test('reset clears owned rows and safe local output only, preserves foreign admi
     f.store.insertLocal(local, true);
     if (state === 'processed') f.store.recordDelivery(colleague.binding.connectionId, [local.id]);
     else f.store.dispatch(local.id, colleague.binding.connectionId, state);
-    (state === 'waiting' ? removed : retained).push(local.id);
+    retained.push(local.id);
   }
+  const neverDispatched = { ...envelope('Коллега'), fromNickname: 'Филипп' };
+  neverDispatched.toNode = neverDispatched.fromNode;
+  f.store.insertLocal(neverDispatched, true);
+  removed.push(neverDispatched.id);
   const foreignOutgoing = { ...envelope(), fromNickname: 'Коллега' };
   foreignOutgoing.toNode = foreignOutgoing.fromNode;
   f.store.insertLocal(foreignOutgoing, true);
@@ -1071,4 +1075,82 @@ test('UI save-dialog callback rechecks the row before copying to the user-select
   await rejected;
   await until(() => service.store.fileCleanup().length === 0);
   await assert.rejects(access(destination));
+});
+
+test('foreign admission evidence survives overwritten dispatch status, preserve transfer, restart and legacy migration', async (t) => {
+  for (const evidence of ['uncertain', 'dispatching', 'admitted']) {
+    for (const later of ['failed', 'waiting']) {
+      for (const legacy of [false, true]) {
+        await t.test(`${evidence} -> transfer -> ${later}; format1=${legacy}`, async (t) => {
+          const f = await storage(t),
+            source = connected(f.store.connect(binding('Source'))),
+            target = connected(f.store.connect(binding('Target')));
+          const files = new FileStore(f.directory, [f.directory]);
+          await files.init();
+          const filename = path.join(f.directory, 'evidence.txt');
+          await writeFile(filename, 'Foreign admission evidence');
+          const attachment = await files.snapshot(filename);
+          const message = {
+            ...envelope('Target'),
+            fromNickname: 'Source',
+            attachments: [attachment],
+          };
+          message.toNode = message.fromNode;
+          f.store.insertLocal(message, true);
+          const sequence = f.store.get(message.id, 'in')!.sequence;
+          const copy = await files.materialize(message.id, attachment);
+          f.store.dispatch(message.id, target.binding.connectionId, evidence);
+          const moved = connected(
+            f.store.connect(confirm(pending(f.store.connect(binding('Target'))), false)),
+          );
+          f.store.dispatch(message.id, moved.binding.connectionId, later);
+          if (legacy) {
+            f.store.db
+              .exec(`CREATE TABLE legacy_transfers AS SELECT id,key,generation,requester,details,expires,consumed FROM transfers WHERE mode='transfer';
+              DROP TABLE transfers; ALTER TABLE legacy_transfers RENAME TO transfers;
+              DROP TABLE cleared_messages; DROP TABLE file_cleanup; PRAGMA user_version=1;`);
+          }
+          f.reopen();
+          const fresh = connected(
+            f.store.connect(confirm(pending(f.store.connect(binding('Source'))))),
+          );
+          assert.throws(() => f.store.assertOwner(source.binding.connectionId), /agent_moved/);
+          assert.ok(f.store.assertOwner(fresh.binding.connectionId));
+          assert.ok(f.store.assertOwner(moved.binding.connectionId));
+          assert.equal(f.store.history(nicknameKey('Source')).messages.length, 0);
+          assert.equal(f.store.history(nicknameKey('Target')).messages.length, 1);
+          assert.equal(f.store.get(message.id, 'in')!.sequence, sequence);
+          assert.equal(
+            f.store.incomingBySequence(nicknameKey('Target'), sequence)!.envelope.id,
+            message.id,
+          );
+          assert.deepEqual(f.store.dispatchState(message.id), {
+            connectionId: moved.binding.connectionId,
+            state: later,
+          });
+          assert.equal(f.store.clearedState(message.id, 'in'), undefined);
+          assert.equal(f.store.clearedState(message.id, 'out'), 'ready');
+          assert.equal(f.store.get(message.id, 'out'), undefined);
+          for (const task of f.store.fileCleanup()) {
+            await files.exclusive(() =>
+              files.cleanup(
+                task,
+                (id) => f.store.attachmentReferenced(id),
+                () => !!f.store.get(task.messageId),
+              ),
+            );
+            f.store.finishFileCleanup(task.messageId);
+          }
+          assert.equal(await files.exists(attachment), true);
+          assert.equal(await readFile(copy, 'utf8'), 'Foreign admission evidence');
+          f.reopen();
+          assert.equal(f.store.get(message.id, 'in')!.sequence, sequence);
+          assert.deepEqual(f.store.dispatchState(message.id), {
+            connectionId: moved.binding.connectionId,
+            state: later,
+          });
+        });
+      }
+    }
+  }
 });
