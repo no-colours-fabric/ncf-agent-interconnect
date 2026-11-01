@@ -130,6 +130,7 @@ function input(profile: AdapterProfile) {
     },
     nickname: 'Беседа',
     messageId: randomUUID(),
+    replyRef: 'r7',
     binding: {
       connectionId: randomUUID(),
       client: 'Codex',
@@ -173,7 +174,7 @@ test('Codex owner probe is read-only; idle admission inherits settings and targe
   assert.deepEqual(params.turnStart.request.input, [
     {
       type: 'text',
-      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\nFrom-Node: ${event.message.fromNode}\nMessage-ID: ${event.messageId}\n\n---\n\nГотовое поручение\n\n---\n\nReply-To:\n\n    {"recipientNode":"${event.message.fromNode}","recipientNickname":"Коллега","replyTo":"${event.messageId}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
+      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
       text_elements: [],
     },
   ]);
@@ -196,7 +197,7 @@ test('Codex active admission has required restore metadata; revoked binding neve
   assert.deepEqual(request.params.input, [
     {
       type: 'text',
-      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\nFrom-Node: ${event.message.fromNode}\nMessage-ID: ${event.messageId}\n\n---\n\nГотовое поручение\n\n---\n\nReply-To:\n\n    {"recipientNode":"${event.message.fromNode}","recipientNickname":"Коллега","replyTo":"${event.messageId}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
+      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
       text_elements: [],
     },
   ]);
@@ -207,7 +208,7 @@ test('Codex active admission has required restore metadata; revoked binding neve
   );
   assert.equal(
     (request.params.restoreMessage as { text: string }).text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\nFrom-Node: ${event.message.fromNode}\nMessage-ID: ${event.messageId}\n\n---\n\nГотовое поручение\n\n---\n\nReply-To:\n\n    {"recipientNode":"${event.message.fromNode}","recipientNickname":"Коллега","replyTo":"${event.messageId}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
   );
   assert.ok(!('toolOutput' in request.params));
   f.state.admission = 'lost';
@@ -427,9 +428,13 @@ test('Codex receives the original body and attachment link and completes deliver
   const text = turnStart.request.input[0].text;
   assert.ok(
     text.startsWith(
-      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\nFrom-Node: ${service.settings.value.nodeId}\nMessage-ID: ${message.id}\n\n---\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
+      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
     ),
   );
+  const replyRef = 'r' + service.store.get(message.id, 'in')!.sequence.toString(36);
+  assert.ok(text.includes(`Reply-To: ${replyRef}\n`));
+  assert.ok(!text.includes('From-Node:'));
+  assert.ok(!text.includes('Message-ID:'));
   assert.equal(await readFile(text.match(/\]\(<([^>]+)>\)/)![1], 'utf8'), 'Числа для проверки');
   for (const noise of [
     'agent_read',

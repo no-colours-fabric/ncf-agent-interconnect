@@ -77,7 +77,7 @@ try {
   const tools = await opencode.listTools(), schema = tools.tools.find(tool => tool.name === 'agent_connect').inputSchema;
   const sendSchema = tools.tools.find(tool => tool.name === 'agent_send').inputSchema;
   assert.ok(opencode.getInstructions().includes('Reply-To')); assert.ok(opencode.getInstructions().includes('agent_send'));
-  assert.ok(sendSchema.required.includes('recipientNode'));
+  assert.ok(sendSchema.properties.replyRef);
   assert.equal(tools.tools.length, 10); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
   for (const removed of ['client', 'chatId', 'adapterId', 'codexTarget']) assert.ok(!(removed in schema.properties));
   const first = (await cursor.callTool({ name: 'agent_connect', arguments: { nickname: 'Package sender' } })).structuredContent;
@@ -86,15 +86,21 @@ try {
   await host['tool.execute.before']({ tool: 'ncf_agent_interconnect_agent_connect', sessionID: 'ses_packaged' }, output);
   const second = (await opencode.callTool({ name: 'agent_connect', arguments: output.args })).structuredContent;
   assert.equal(second.status, 'connected'); assert.equal(second.delivery.automatic, true);
+  const missingAddress = await cursor.callTool({ name: 'agent_send', arguments: { connectionId: first.binding.connectionId, recipientNickname: 'Package recipient', text: 'Missing explicit node' } });
+  assert.equal(missingAddress.isError, true); assert.match(JSON.stringify(missingAddress.content), /recipientNode.*required/);
   const message = await service.send({ connectionId: first.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Package recipient', text: 'The package runs without source files' });
   assert.equal(message.accepted, true); assert.equal(message.recipientNode, service.settings.value.nodeId); assert.ok(!('sent' in message));
   const deadline = Date.now() + 5000;
   while (service.store.dispatchState(message.id)?.state !== 'admitted') { if (Date.now() > deadline) throw new Error('Packaged integration did not deliver'); await new Promise(resolve => setTimeout(resolve, 10)); }
   assert.equal(prompts.length, 1); assert.equal(prompts[0].id, 'ses_packaged');
-  assert.equal(prompts[0].text, ['**Incoming NCF Agent Interconnect**', 'From: "Package sender"', 'From-Node: ' + service.settings.value.nodeId, 'Message-ID: ' + message.id, '', '---', '', 'The package runs without source files', '', '---', '', 'Reply-To:', '', '    ' + JSON.stringify({ recipientNode: service.settings.value.nodeId, recipientNickname: 'Package sender', replyTo: message.id }), '', '*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
+  const replyRef = 'r' + service.store.get(message.id, 'in').sequence.toString(36);
+  assert.equal(prompts[0].text, ['**Incoming NCF Agent Interconnect**', 'From: "Package sender"', '', 'The package runs without source files', '', 'Reply-To: ' + replyRef, 'Use agent_send(connectionId, replyRef="' + replyRef + '", text) to reply.'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
+  const reply = await opencode.callTool({ name: 'agent_send', arguments: { connectionId: second.binding.connectionId, replyRef, text: 'Packaged compact reply' } });
+  assert.ok(!reply.isError); const replyEnvelope = service.store.get(reply.structuredContent.id, 'out').envelope;
+  assert.equal(replyEnvelope.toNode, service.settings.value.nodeId); assert.equal(replyEnvelope.toNickname, 'Package sender'); assert.equal(replyEnvelope.replyTo, message.id);
   while (service.snapshot().agents.find(agent => agent.nickname === 'Package recipient').unread) { if (Date.now() > deadline) throw new Error('Delivered message still unread'); await new Promise(resolve => setTimeout(resolve, 10)); } assert.deepEqual(service.snapshot().peers, []);
   assert.ok((await readFile(path.join(directory, 'Integrations/opencode.js'), 'utf8')).includes('tool.execute.before'));
-  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
   if (host) await host.event({ event: { type: 'server.instance.disposed' } });
   for (const client of clients) await client.close(); await service.close();
