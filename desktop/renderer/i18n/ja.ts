@@ -53,7 +53,7 @@ export const ja: Messages = {
   agentHistoryNoChat: '履歴を利用できます。アクティブなチャットはありません',
   agentMessages: 'メッセージ: {count}',
   msgIncoming: '受信メッセージ',
-  msgOutgoing: '送信済み',
+  msgOutgoing: '送信メッセージ',
   msgFromNode: '送信元ノード: {from} · 送信先ノード: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: '検証済みファイルを開く',

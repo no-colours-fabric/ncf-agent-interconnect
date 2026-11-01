@@ -84,5 +84,22 @@ Conventions:
   from `desktop/core`.
 
 Locale coverage is checked by `test-desktop/i18n.test.ts` (fallback, dictionary
-parity and interpolation). The language switch, persistence and restart behavior
-are exercised by `scripts/test-desktop-ui-locale.mjs`.
+and placeholder parity, storage failures and literal interpolation). Run the
+renderer check with:
+
+```sh
+node scripts/test-desktop-ui-locale.mjs
+```
+
+It checks all fifteen languages across six pages, the HTML language attribute,
+language persistence across restart, preserved user content and MCP snippets,
+layout at the supported minimum window size, and recovery from denied or full
+profile storage. Overview and agent screenshots are saved under `release/`;
+configuration snippets and temporary credentials are excluded from the report.
+`INTERCONNECT_TEST_EXECUTABLE` selects a native packaged executable for the same
+check. Source mode reports `packaged: false` and is not native verification.
+
+UI test profiles request ephemeral ports so they can run beside a working node.
+Dictionary parity checks structure, not linguistic quality. Renderer translation
+does not change MCP instructions, core diagnostic strings or the operating
+system's own dialogs.

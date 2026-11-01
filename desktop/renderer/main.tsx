@@ -212,6 +212,9 @@ function App(): React.JSX.Element {
     [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [locale, setLocale] = useState<Locale>(() => loadLocale(() => window.localStorage));
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
   const call = useCallback(
     async <T,>(method: string, params: unknown = {}): Promise<T> =>
       window.interconnect.invoke<T>(method, params),
@@ -359,6 +362,7 @@ function App(): React.JSX.Element {
           {navigation.map((n) => (
             <ListItemButton
               key={n.id}
+              data-testid={`nav-${n.id}`}
               selected={page === n.id}
               onClick={() => setPage(n.id)}
               sx={{
@@ -399,6 +403,7 @@ function App(): React.JSX.Element {
         </Box>
         <Box sx={{ mt: 1.5, px: 0.5 }}>
           <TextField
+            data-testid="interface-language"
             select
             size="small"
             label={t(locale, 'localeTitle')}
@@ -433,21 +438,30 @@ function App(): React.JSX.Element {
           sx={{
             justifyContent: 'space-between',
             alignItems: 'center',
+            gap: 2,
             px: 4,
             py: 2.7,
             bgcolor: 'background.paper',
             borderBottom: '1px solid #e2e7ec',
           }}
         >
-          <Box>
-            <Typography variant="overline" color="text.secondary" sx={{ letterSpacing: 1.3 }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="overline"
+              color="text.secondary"
+              sx={{ letterSpacing: 1.3, display: 'block', overflowWrap: 'anywhere' }}
+            >
               {t(locale, 'headerPrefix', { node: snapshot.nodeLabel })}
             </Typography>
-            <Typography variant="h4" sx={{ fontSize: 26 }}>
+            <Typography
+              data-testid="page-title"
+              variant="h4"
+              sx={{ fontSize: 26, overflowWrap: 'anywhere' }}
+            >
               {t(locale, title)}
             </Typography>
           </Box>
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
             <Chip
               size="small"
               color={snapshot.running ? 'success' : 'default'}
@@ -455,6 +469,7 @@ function App(): React.JSX.Element {
               label={snapshot.running ? t(locale, 'chipRunning') : t(locale, 'chipStopped')}
             />
             <Button
+              data-testid="node-toggle"
               size="small"
               variant="outlined"
               disabled={busy}

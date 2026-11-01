@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { createUiProfile } from './ui-test-profile.mjs';
 import { NodeService } from '../build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -37,6 +38,7 @@ const temp = await mkdtemp(path.join(os.tmpdir(), 'ncf-interconnect-ui-'));
 let application, remote, receiver;
 let stderr = '';
 try {
+  await createUiProfile(path.join(temp, 'desktop'));
   const packaged = process.env.INTERCONNECT_TEST_EXECUTABLE;
   const launchEnv = { ...process.env };
   delete launchEnv.ELECTRON_RUN_AS_NODE;
@@ -98,7 +100,8 @@ try {
     }
   };
   await until(() => remote.snapshot().peers[0]?.connected);
-  const file = path.join(remote.settings.value.exportRoots[0], 'data.txt');
+  const attachmentName = 'data$&-{size}-漢字.txt';
+  const file = path.join(remote.settings.value.exportRoots[0], attachmentName);
   await writeFile(file, 'Verified attachment\nContent and extension are preserved.\n');
   const text =
     'Full incoming message\nThe second line should wrap without horizontal scrolling.\n<script>window.injected = true</script>\n[external link](https://untrusted.invalid)';
@@ -110,22 +113,26 @@ try {
     files: [file],
   });
   await page.getByText('Full incoming message', { exact: false }).waitFor();
-  await page.getByRole('button', { name: 'Open data.txt', exact: true }).waitFor();
+  await page.getByRole('button', { name: `Open ${attachmentName}`, exact: true }).waitFor();
   assert.equal(await page.evaluate(() => window.injected), undefined);
   assert.equal(await page.locator('a[href="https://untrusted.invalid"]').count(), 0);
   const messageCount = await page.getByText(/^Messages: \d+$/).innerText();
-  await page.evaluate(() => {
+  await page.evaluate((attachmentName) => {
     window.__reselectedHistoryMissing = false;
     window.__historyObserver = new MutationObserver(() => {
       if (
         !document.body.textContent.includes('Full incoming message') ||
-        !document.querySelector('button[aria-label="Open data.txt"]') ||
-        !document.querySelector('button[aria-label="Save data.txt"]')
+        !Array.from(document.querySelectorAll('button')).some(
+          (button) => button.getAttribute('aria-label') === 'Open ' + attachmentName,
+        ) ||
+        !Array.from(document.querySelectorAll('button')).some(
+          (button) => button.getAttribute('aria-label') === 'Save ' + attachmentName,
+        )
       )
         window.__reselectedHistoryMissing = true;
     });
     window.__historyObserver.observe(document.body, { childList: true, subtree: true });
-  });
+  }, attachmentName);
   await page.getByRole('button', { name: /^Interface check/ }).click();
   const historyDisappeared = await page.evaluate(async () => {
     await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -138,8 +145,14 @@ try {
     'reselecting the current agent must preserve its history',
   );
   assert.equal(await page.getByText('Full incoming message', { exact: false }).isVisible(), true);
-  assert.equal(await page.getByRole('button', { name: 'Open data.txt', exact: true }).count(), 1);
-  assert.equal(await page.getByRole('button', { name: 'Save data.txt', exact: true }).count(), 1);
+  assert.equal(
+    await page.getByRole('button', { name: `Open ${attachmentName}`, exact: true }).count(),
+    1,
+  );
+  assert.equal(
+    await page.getByRole('button', { name: `Save ${attachmentName}`, exact: true }).count(),
+    1,
+  );
   assert.equal(await page.getByText(/^Messages: \d+$/).innerText(), messageCount);
   const saved = path.join(temp, 'saved.txt');
   await application.evaluate(
@@ -153,8 +166,8 @@ try {
     },
     { saved },
   );
-  await page.getByRole('button', { name: 'Open data.txt', exact: true }).click();
-  await page.getByRole('button', { name: 'Save data.txt', exact: true }).click();
+  await page.getByRole('button', { name: `Open ${attachmentName}`, exact: true }).click();
+  await page.getByRole('button', { name: `Save ${attachmentName}`, exact: true }).click();
   await until(async () => {
     try {
       await readFile(saved);
@@ -228,6 +241,7 @@ try {
       attachmentSaved: true,
       externalTextEscaped: true,
       selectedHistoryPreserved: true,
+      literalAttachmentNamePreserved: true,
       realClientConfigsUnchanged: true,
       screenshots: ['release/preview-overview.png', 'release/preview-agents.png'],
     }),

@@ -1,5 +1,17 @@
 # User guide
 
+## Interface language
+
+Use the language selector at the bottom of the sidebar. English is the default
+and fallback. The choice is saved in this application's profile and survives a
+restart. If profile storage is unavailable, the app remains usable and language
+changes apply for the current session.
+
+The interface supports English, Russian, Simplified Chinese, French, German,
+Italian, Spanish, Kazakh, Japanese, Brazilian Portuguese, Korean, Turkish,
+Polish, Dutch and Ukrainian. Names, message text, filenames and addresses retain
+their original content. MCP instructions and core diagnostics remain in English.
+
 ## Name an agent
 
 After [connecting a client](mcp-clients.md), write a prompt such as

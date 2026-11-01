@@ -1,6 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- Add a persistent sidebar language selector with English fallback and fifteen
+  interface languages. MCP instructions and user content keep their original
+  language. Profile-storage failures leave the app usable.
+- Preserve literal dollar signs and placeholder-like text in translated labels
+  containing user names or filenames. Keep header controls visible with long
+  translated strings at the supported minimum window size.
+
 ## 0.9.0 — 2026-11-01
+
+Source checkpoint. Binary publication was deferred to combine localization with
+the verified transport, routing and pairing changes in one distribution.
 
 - Show agents from explicitly paired nodes in the desktop UI and through the new
   `agents_list` MCP tool. Directory updates follow client arrivals, departures and

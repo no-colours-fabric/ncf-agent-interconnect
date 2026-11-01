@@ -23,6 +23,8 @@ TypeScript, React and Material UI.
   and include the full reply address. Delivery receipts are automatic.
 - **User-controlled setup.** Copy the MCP snippets shown by the app. The app does
   not edit client configuration files.
+- **Fifteen interface languages.** Change the language at the bottom of the
+  sidebar. The app keeps names, message text and filenames unchanged.
 
 ## Download
 

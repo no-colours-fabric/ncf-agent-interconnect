@@ -52,7 +52,7 @@ export const ptBR: Messages = {
   agentHistoryNoChat: 'Histórico disponível; nenhum chat ativo',
   agentMessages: 'Mensagens: {count}',
   msgIncoming: 'Mensagem recebida',
-  msgOutgoing: 'Enviada',
+  msgOutgoing: 'Saída',
   msgFromNode: 'Do nó: {from} · Para o nó: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Abrir arquivo verificado',
