@@ -102,7 +102,27 @@ try {
   assert.equal(replyEnvelope.toNode, service.settings.value.nodeId); assert.equal(replyEnvelope.toNickname, 'Package sender'); assert.equal(replyEnvelope.replyTo, message.id);
   while (service.snapshot().agents.find(agent => agent.nickname === 'Package recipient').unread) { if (Date.now() > deadline) throw new Error('Delivered message still unread'); await new Promise(resolve => setTimeout(resolve, 10)); } assert.deepEqual(service.snapshot().peers, []);
   assert.ok((await readFile(path.join(directory, 'Integrations/opencode.js'), 'utf8')).includes('tool.execute.before'));
-  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+  await host.event({ event: { type: 'server.instance.disposed' } });
+  let releaseSessionApi;
+  const sessionApiReady = new Promise(resolve => { releaseSessionApi = resolve; });
+  const restartingHost = plugin.NCFAgentInterconnect({ directory: workspace, client: { session: {
+    get: async options => { await sessionApiReady; return { data: { id: options.path.id, directory: workspace } }; },
+    status: async () => ({ data: {} }),
+    promptAsync: async options => { prompts.push({ id: options.path.id, text: options.body.parts[0].text }); return {}; }
+  } } });
+  let startupTimer;
+  const hooksReady = await Promise.race([
+    restartingHost.then(() => true),
+    new Promise(resolve => { startupTimer = setTimeout(() => resolve(false), 2000); })
+  ]);
+  releaseSessionApi(); clearTimeout(startupTimer); host = await restartingHost;
+  assert.equal(hooksReady, true, 'Packaged plugin startup must not wait for its host session API');
+  const restored = await service.send({ connectionId: first.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Package recipient', text: 'After cold host restart without UI or connect tools' });
+  const recoveryDeadline = Date.now() + 6000;
+  while (service.store.get(restored.id, 'in')?.state !== 'processed') { if (Date.now() > recoveryDeadline) throw new Error('Packaged host did not restore the saved chat'); await new Promise(resolve => setTimeout(resolve, 10)); }
+  assert.deepEqual(service.store.assertOwner(second.binding.connectionId).binding, second.binding);
+  assert.equal(prompts.length, 2); assert.equal(prompts[1].id, 'ses_packaged');
+  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
   if (host) await host.event({ event: { type: 'server.instance.disposed' } });
   for (const client of clients) await client.close(); await service.close();

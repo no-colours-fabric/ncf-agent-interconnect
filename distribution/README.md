@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.11.0
+# NCF Agent Interconnect 0.11.1
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -94,6 +94,18 @@ Applications distinguishes a connection released by its client from an
 unconfirmed connection. Codex shows the time of the last exact-chat verification;
 it does not claim continuous liveness or task completion. Check the exact chat
 before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.11.0
+
+Storage format 3, peer protocol 2 and the eleven-tool schema are unchanged. Quit
+the node, replace the application and start it again. Then reload OpenCode or
+restart OpenChamber once so its host loads the corrected bundled plugin. Saved
+agent names, bindings, history and peer routes are preserved.
+
+OpenCode restoration no longer waits for session APIs during plugin loading and
+retries temporary startup failures without requiring a manual chat selection.
+This does not fix cold Codex owner initialization: an exact handler must already
+exist before its desktop adapter can admit a message.
 
 ## Upgrade from 0.10.0
 

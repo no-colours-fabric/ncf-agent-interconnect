@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.11.1 — 2026-11-01
+
+- Restore saved OpenCode/OpenChamber chat routes after host startup without
+  waiting for session APIs during plugin initialization.
+- Retry temporary saved-session and registration failures, restore other chats
+  independently, and cancel pending recovery when the host stops. Deleted or
+  foreign sessions are never redirected.
+- Add cold-start and stop-race regressions, including packaged-runtime host
+  restoration. Preserve bindings, history, message identities and uncertain input.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+Restart OpenCode/OpenChamber once after upgrading to load the corrected plugin.
+Codex cold-owner initialization remains a known limitation; the adapter can
+recover once the exact handler exists, but discovery does not create that handler.
+
 ## 0.11.0 — 2026-11-01
 
 - Defer window creation until the node service and IPC are ready, preserving early
