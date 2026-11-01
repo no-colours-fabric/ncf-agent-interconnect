@@ -62,6 +62,10 @@ interface Link {
   generation: number;
   timer?: NodeJS.Timeout;
 }
+interface PairLease {
+  check(): void;
+  release(): void;
+}
 export const secretMatches = (actual: unknown, expected: string): boolean =>
   typeof actual === 'string' &&
   Buffer.byteLength(actual) === Buffer.byteLength(expected) &&
@@ -103,6 +107,8 @@ export class PeerNetwork extends EventEmitter {
   }));
   private heartbeat?: NodeJS.Timeout;
   private stopped = true;
+  private pairingGeneration = 0;
+  private pairingLeases = new Map<string, symbol>();
   port = 0;
   onFrame: (peerId: string, frame: Frame) => Promise<void> = async () => {};
   constructor(readonly settings: SettingsFile) {
@@ -440,6 +446,38 @@ export class PeerNetwork extends EventEmitter {
   accessCode(): { code: string; expiresAt: string } {
     return this.pairingHost.createCode();
   }
+  private holdPeer(nodeId: string): PairLease {
+    if (this.stopped)
+      throw new PairingError(
+        'Pairing was canceled because this node stopped. Create a new access code to reconnect.',
+        409,
+      );
+    const key = nodeId.toLowerCase();
+    if (this.pairingLeases.has(key))
+      throw new PairingError(
+        'Another connection to this node is being paired. Retry from one computer only.',
+        409,
+      );
+    if (this.pairingLeases.size >= 32)
+      throw new PairingError(
+        'Too many connections are being paired. Wait for current attempts to finish.',
+        409,
+      );
+    const token = Symbol();
+    this.pairingLeases.set(key, token);
+    return {
+      check: () => {
+        if (this.stopped || this.pairingLeases.get(key) !== token)
+          throw new PairingError(
+            'Pairing was canceled before saving. Create a new access code.',
+            409,
+          );
+      },
+      release: () => {
+        if (this.pairingLeases.get(key) === token) this.pairingLeases.delete(key);
+      },
+    };
+  }
   reconnectPeer(peerId: string): void {
     const peer = this.settings.value.peers.find((candidate) => candidate.id === peerId);
     if (!peer) return;
@@ -452,7 +490,11 @@ export class PeerNetwork extends EventEmitter {
     previous?.terminate();
     this.connect(peer);
   }
-  private async savePeer(identity: PairedIdentity, address?: string): Promise<Peer> {
+  private async savePeer(
+    identity: PairedIdentity,
+    address?: string,
+    beforeWrite?: () => void,
+  ): Promise<Peer> {
     let saved!: Peer;
     await this.settings.savePeers((current) => {
       const previous = current.find((peer) => peer.id === identity.nodeId);
@@ -466,10 +508,11 @@ export class PeerNetwork extends EventEmitter {
       return previous
         ? current.map((peer) => (peer.id === saved.id ? saved : peer))
         : [...current, saved];
-    });
+    }, beforeWrite);
     return saved;
   }
   private peerCommitted(peerId: string): void {
+    if (this.stopped) return;
     try {
       this.reconnectPeer(peerId);
       this.emit('change');
@@ -514,8 +557,16 @@ export class PeerNetwork extends EventEmitter {
         input = null;
       }
       let saved: Peer | undefined;
-      const response = await this.pairingHost.handle(input, async (identity) => {
-        saved = await this.savePeer(identity);
+      const response = await this.pairingHost.handle(input, async (identity, beforeWrite) => {
+        const lease = this.holdPeer(identity.nodeId);
+        try {
+          saved = await this.savePeer(identity, undefined, () => {
+            lease.check();
+            beforeWrite();
+          });
+        } finally {
+          lease.release();
+        }
       });
       if (saved) this.peerCommitted(saved.id);
       json(200, response);
@@ -580,6 +631,15 @@ export class PeerNetwork extends EventEmitter {
     });
   }
   async join(address: string, code: string): Promise<Peer> {
+    const generation = this.pairingGeneration;
+    const beforeWrite = () => {
+      if (this.stopped || generation !== this.pairingGeneration)
+        throw new PairingError(
+          'Pairing was canceled because this node stopped. Create a new access code to reconnect.',
+          409,
+        );
+    };
+    beforeWrite();
     const client = new PairingClient(code, {
       nodeId: this.settings.value.nodeId,
       label: this.settings.value.nodeLabel,
@@ -590,40 +650,54 @@ export class PeerNetwork extends EventEmitter {
     endpoint.protocol = 'https:';
     endpoint.pathname = '/pair';
     const challenge = await this.pairRequest(endpoint, client.start());
-    const proof = await this.pairRequest(
-      endpoint,
-      client.prove(challenge.body, challenge.certificate),
-      client.certificate(),
-    );
-    const confirm = client.confirm(proof.body);
-    let receipt: unknown;
+    const request = client.prove(challenge.body, challenge.certificate);
+    beforeWrite();
+    const lease = this.holdPeer(client.nodeId());
     try {
-      receipt = (await this.pairRequest(endpoint, confirm, client.certificate())).body;
-    } catch (error) {
-      if (error instanceof PairingError) throw error;
-      // The exact same confirmation is idempotent; never start another claim here.
+      const proof = await this.pairRequest(endpoint, request, client.certificate());
+      lease.check();
+      beforeWrite();
+      const confirm = client.confirm(proof.body);
+      let receipt: unknown;
       try {
         receipt = (await this.pairRequest(endpoint, confirm, client.certificate())).body;
+      } catch (error) {
+        if (error instanceof PairingError) throw error;
+        // The exact same confirmation is idempotent; never start another claim here.
+        try {
+          receipt = (await this.pairRequest(endpoint, confirm, client.certificate())).body;
+        } catch {
+          throw new Error(
+            'Pairing confirmation is uncertain. Create a new access code on the other computer to reconnect.',
+          );
+        }
+      }
+      const identity = client.finish(receipt);
+      let peer: Peer;
+      try {
+        peer = await this.savePeer(identity, normalized, () => {
+          lease.check();
+          beforeWrite();
+        });
       } catch {
         throw new Error(
-          'Pairing confirmation is uncertain. Create a new access code on the other computer to reconnect.',
+          'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',
         );
       }
+      if (this.stopped || generation !== this.pairingGeneration)
+        throw new Error(
+          'Pairing confirmation is uncertain because this node stopped during saving. Create a new access code to reconnect.',
+        );
+      this.peerCommitted(peer.id);
+      return peer;
+    } finally {
+      lease.release();
     }
-    const identity = client.finish(receipt);
-    let peer: Peer;
-    try {
-      peer = await this.savePeer(identity, normalized);
-    } catch {
-      throw new Error(
-        'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',
-      );
-    }
-    this.peerCommitted(peer.id);
-    return peer;
   }
   async close(): Promise<void> {
     this.stopped = true;
+    this.pairingGeneration++;
+    this.pairingLeases.clear();
     this.pairingHost.reset();
     clearInterval(this.heartbeat);
     for (const link of this.links.values()) {

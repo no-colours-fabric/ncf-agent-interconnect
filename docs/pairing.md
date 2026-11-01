@@ -10,7 +10,7 @@ rejects mistyped codes, so all eight positions remain random.
 A code expires after ten minutes and permits five handshake starts across all
 clients. Invalid starts also consume the budget. Each started session permits
 one proof attempt. One successful claim authorizes one peer. Creating a new code
-invalidates unfinished sessions. Stop or restart clears temporary codes and
+invalidates sessions whose settings write has not begun. Stop or restart clears temporary codes and
 sessions; saved peers, identities, keys and message history are preserved.
 
 ## Protocol
@@ -45,6 +45,16 @@ Transport restart and status notifications run after the durable authorization
 and committed acknowledgement are recorded. Their failure reports a connection
 problem and does not release the claim or repeat admission.
 
+Pairing operations also hold an exclusive local lease for the canonical peer
+UUID. An outgoing operation holds it from the checked challenge through its
+local settings commit; an incoming confirmation holds it during admission.
+Conflicting operations receive HTTP 409 before writing and instruct the user to
+retry from one computer only. This prevents simultaneous opposite-direction or
+overlapping outgoing pairings from saving different credentials. Leases are
+bounded to 32 peers, checked at the write boundary, released by their owner and
+cleared on stop. A late response from a stopped operation cannot replace a newer
+authorization.
+
 The canonical transcript is a UTF-8 JSON array containing, in order: domain,
 suite, session UUID, salt, A, B, client node UUID, client label, client certificate
 DER encoded as base64, server node UUID, server label and server certificate DER
@@ -72,6 +82,16 @@ one automatic retry of the exact confirmation after a lost network response,
 without repeating admission. Up to sixteen committed acknowledgements remain
 cached until the original code expires, including when another code is created.
 Stop or restart clears that in-memory cache.
+At most sixteen commits may be in progress. Identical confirmations share their
+pending result even if a new code is created; reset clears this recovery map too.
+
+The settings write guard runs synchronously after directory creation and directly
+before the exclusive temporary-file write begins. Before that boundary, stop,
+expiry or code replacement cancels the queued write. Once the write has begun,
+it may finish durably. Creating a new code then preserves the completed claim's
+acknowledgement. Stop or restart instead reports uncertainty and forbids the old
+operation from restoring the receipt cache or restarting transport. A canceled
+client join likewise cannot perform a late settings write after stop.
 
 If the server restarts before the client recovers its acknowledgement, or the
 client cannot save an already authorized peer, pairing may be incomplete. The

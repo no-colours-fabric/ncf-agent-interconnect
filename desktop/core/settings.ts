@@ -59,9 +59,14 @@ export const settingsSchema = z
     adapters: z.array(adapterSchema).min(1),
   })
   .strict();
-export async function atomicJson(filename: string, data: unknown): Promise<void> {
+export async function atomicJson(
+  filename: string,
+  data: unknown,
+  beforeWrite?: () => void,
+): Promise<void> {
   await mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
   const temporary = filename + '.' + randomUUID() + '.tmp';
+  beforeWrite?.();
   await writeFile(temporary, JSON.stringify(data, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
   await rename(temporary, filename);
 }
@@ -135,13 +140,16 @@ export class SettingsFile {
     this.saving = operation.catch(() => {});
     await operation;
   }
-  async savePeers(update: (current: readonly Peer[]) => Peer[]): Promise<void> {
+  async savePeers(
+    update: (current: readonly Peer[]) => Peer[],
+    beforeWrite?: () => void,
+  ): Promise<void> {
     const operation = this.saving.then(async () => {
       const candidate = settingsSchema.parse({
         ...this.value,
         peers: update(structuredClone(this.value.peers)),
       });
-      await atomicJson(this.filename, candidate);
+      await atomicJson(this.filename, candidate, beforeWrite);
       this.value.peers = candidate.peers;
     });
     this.saving = operation.catch(() => {});

@@ -31,6 +31,7 @@ const identitySchema = z
   .strict();
 export type PairIdentity = z.infer<typeof identitySchema>;
 export type PairedIdentity = PairIdentity & { secret: string };
+type Admit = (identity: PairedIdentity, beforeWrite: () => void) => Promise<void>;
 const startSchema = z.object({ phase: z.literal('start'), identity: identitySchema }).strict();
 const challengeSchema = z
   .object({
@@ -169,6 +170,8 @@ interface Committed {
 export class PairingHost {
   private active?: Code;
   private receipts = new Map<string, Committed>();
+  private committing = new Map<string, { request: Confirm; promise: Promise<Receipt> }>();
+  private generation = 0;
   constructor(private readonly identity: () => PairIdentity) {}
   createCode(): { code: string; expiresAt: string } {
     this.prune();
@@ -182,8 +185,10 @@ export class PairingHost {
     return { code, expiresAt: new Date(this.active.expires).toISOString() };
   }
   reset(): void {
+    this.generation++;
     this.active = undefined;
     this.receipts.clear();
+    this.committing.clear();
   }
   private prune(): void {
     if (this.active && Date.now() >= this.active.expires) this.active = undefined;
@@ -199,10 +204,7 @@ export class PairingHost {
       );
     return this.active;
   }
-  async handle(
-    input: unknown,
-    admit: (identity: PairedIdentity) => Promise<void>,
-  ): Promise<unknown> {
+  async handle(input: unknown, admit: Admit): Promise<unknown> {
     this.prune();
     const phase = input && typeof input === 'object' && 'phase' in input ? input.phase : undefined;
     if (phase === 'confirm') return this.confirm(input, admit);
@@ -281,15 +283,17 @@ export class PairingHost {
       throw invalid();
     }
   }
-  private async confirm(
-    input: unknown,
-    admit: (identity: PairedIdentity) => Promise<void>,
-  ): Promise<Receipt> {
+  private async confirm(input: unknown, admit: Admit): Promise<Receipt> {
     const request = parse(confirmSchema, input);
     const committed = this.receipts.get(request.sessionId);
     if (committed) {
       if (!equal(request.mac, committed.request.mac)) throw invalid();
       return committed.receipt;
+    }
+    const pending = this.committing.get(request.sessionId);
+    if (pending) {
+      if (!equal(request.mac, pending.request.mac)) throw invalid();
+      return pending.promise;
     }
     const { active, session } = this.session(request);
     if (!session.key || !session.context || !session.proofs) throw invalid();
@@ -298,30 +302,64 @@ export class PairingHost {
     if (active.claimant && active.claimant !== request.sessionId)
       throw new PairingError('The access code has already been used. Create a new code.', 409);
     if (session.commit) return session.commit;
+    if (this.committing.size >= receiptLimit)
+      throw new PairingError(
+        'Too many connections are being saved. Retry after the current attempts finish.',
+        429,
+      );
     active.claimant = request.sessionId;
+    const generation = this.generation;
+    let writeBegun = false;
+    const beforeWrite = () => {
+      if (
+        generation !== this.generation ||
+        (!writeBegun && (this.active !== active || Date.now() >= active.expires))
+      )
+        throw new PairingError(
+          'Pairing was canceled before saving. Create a new access code.',
+          409,
+        );
+      writeBegun = true;
+    };
     const receipt = { mac: mac(key, context, 'committed', proofs) };
     session.commit = (async () => {
       try {
-        await admit({
-          ...session.identity,
-          secret: derive(key, context, 'peer-secret').toString('hex'),
-        });
-      } catch {
+        await admit(
+          {
+            ...session.identity,
+            secret: derive(key, context, 'peer-secret').toString('hex'),
+          },
+          beforeWrite,
+        );
+      } catch (error) {
         active.claimant = undefined;
         session.commit = undefined;
+        if (error instanceof PairingError) throw error;
         throw new PairingError(
           'The node could not save this connection. Retry with the same code or create a new code.',
           503,
         );
       }
+      active.sessions.clear();
+      active.password = '';
+      if (generation !== this.generation)
+        throw new PairingError(
+          'Pairing confirmation is uncertain because the node stopped during saving. Create a new access code.',
+          409,
+        );
       this.prune();
       if (this.receipts.size >= receiptLimit)
         this.receipts.delete(this.receipts.keys().next().value!);
       this.receipts.set(request.sessionId, { request, receipt, expires: active.expires });
-      active.sessions.clear();
-      active.password = '';
       return receipt;
     })();
+    const entry = { request, promise: session.commit };
+    this.committing.set(request.sessionId, entry);
+    const release = () => {
+      if (this.committing.get(request.sessionId) === entry)
+        this.committing.delete(request.sessionId);
+    };
+    void session.commit.then(release, release);
     return session.commit;
   }
 }
@@ -408,5 +446,9 @@ export class PairingClient {
   certificate(): string {
     if (!this.challenge) throw invalid();
     return this.challenge.identity.certificate;
+  }
+  nodeId(): string {
+    if (!this.challenge) throw invalid();
+    return this.challenge.identity.nodeId;
   }
 }
