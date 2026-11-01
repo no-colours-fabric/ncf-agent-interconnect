@@ -78,7 +78,9 @@ try {
   const sendSchema = tools.tools.find(tool => tool.name === 'agent_send').inputSchema;
   assert.ok(opencode.getInstructions().includes('Reply-To')); assert.ok(opencode.getInstructions().includes('agent_send'));
   assert.ok(sendSchema.properties.replyRef);
-  assert.equal(tools.tools.length, 10); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
+  assert.equal(tools.tools.length, 11); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
+  assert.ok(tools.tools.find(tool => tool.name === 'agent_clear_history').inputSchema.properties.operationId);
+  for (const tool of tools.tools) assert.equal(tool.annotations.destructiveHint, ['agent_connect', 'agent_clear_history'].includes(tool.name));
   for (const removed of ['client', 'chatId', 'adapterId', 'codexTarget']) assert.ok(!(removed in schema.properties));
   const first = (await cursor.callTool({ name: 'agent_connect', arguments: { nickname: 'Package sender' } })).structuredContent;
   assert.equal(first.status, 'connected'); assert.equal(first.delivery.automatic, false);

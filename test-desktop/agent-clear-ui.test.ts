@@ -80,6 +80,33 @@ test('changed preview refreshes names/count and requires a new human click; neve
   assert.equal(flow.getSnapshot().open, false);
 });
 
+test('Electron IPC errors refresh stale or expired previews without automatically confirming again', async () => {
+  for (const reason of ['stale', 'expired']) {
+    const first = makePreview(),
+      second = makePreview(3);
+    const calls: { confirm?: boolean; operationId?: string }[] = [];
+    const flow = new AgentClearFlow(async (input) => {
+      calls.push(input);
+      if (calls.length === 1) return first;
+      if (input.confirm)
+        throw new Error(
+          "Error invoking remote method 'interconnect:call': Error: clear_preview_" +
+            reason +
+            ': request another preview',
+        );
+      return second;
+    });
+    await flow.begin({ scope: 'agent', nickname: 'Филипп' });
+    assert.equal(await flow.confirm(), null);
+    assert.equal(flow.getSnapshot().stale, true);
+    assert.equal(flow.getSnapshot().preview?.operationId, second.operationId);
+    assert.equal(flow.getSnapshot().preview?.messageCount, 3);
+    assert.equal(calls.filter((input) => input.confirm).length, 1);
+    flow.cancel();
+    assert.equal(flow.getSnapshot().open, false);
+  }
+});
+
 test('confirm has no success before server admission; Cancel cannot imply rollback of an already confirmed request', async () => {
   const pending = deferred<AgentClearResponse>();
   const flow = new AgentClearFlow(async (input) =>

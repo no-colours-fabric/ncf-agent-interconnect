@@ -77,7 +77,12 @@ export class AgentClearFlow {
       return result;
     } catch (error) {
       if (revision !== this.revision) return null;
-      if (/^clear_preview_(stale|expired):/.test((error as Error).message))
+      // Electron prefixes rejected ipcRenderer.invoke errors with the channel name.
+      if (
+        /^(?:Error invoking remote method 'interconnect:call': Error: )?clear_preview_(stale|expired):/.test(
+          (error as Error).message,
+        )
+      )
         await this.begin(input, true);
       else this.update({ ...this.state, busy: null, error: (error as Error).message });
       return null;
