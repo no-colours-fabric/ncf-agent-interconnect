@@ -63,7 +63,9 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                   color={
                     summary === 'connected'
                       ? 'success'
-                      : summary === 'partial' || summary === 'notConfirmed'
+                      : summary === 'partial' ||
+                          summary === 'notConfirmed' ||
+                          summary === 'verifiedSome'
                         ? 'warning'
                         : 'default'
                   }
@@ -73,15 +75,19 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                       ? 'clientsConnected'
                       : summary === 'partial'
                         ? 'clientsPartiallyConnected'
-                        : summary === 'released'
-                          ? 'clientsReleased'
-                          : summary === 'notConfirmed'
-                            ? 'clientsNotConfirmed'
-                            : summary === 'manual'
-                              ? 'clientsReceiveMcp'
-                              : summary === 'paused'
-                                ? 'clientsPaused'
-                                : 'clientsNoAgents',
+                        : summary === 'verifiedAll'
+                          ? 'clientsVerifiedAll'
+                          : summary === 'verifiedSome'
+                            ? 'clientsVerifiedSome'
+                            : summary === 'released'
+                              ? 'clientsReleased'
+                              : summary === 'notConfirmed'
+                                ? 'clientsNotConfirmed'
+                                : summary === 'manual'
+                                  ? 'clientsReceiveMcp'
+                                  : summary === 'paused'
+                                    ? 'clientsPaused'
+                                    : 'clientsNoAgents',
                   )}
                 />
                 {!!issues.length && (
@@ -173,6 +179,14 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                                 </Box>
                                 <dt>{t(locale, 'clientsColumnAgents')}</dt>
                                 <dd>{identity}</dd>
+                                {profile.lastOwnerVerifiedAt && (
+                                  <>
+                                    <dt>{t(locale, 'clientsLastVerified')}</dt>
+                                    <Box component="dd" sx={{ fontFamily: 'monospace' }}>
+                                      {new Date(profile.lastOwnerVerifiedAt).toLocaleString(locale)}
+                                    </Box>
+                                  </>
+                                )}
                                 {profile.error && (
                                   <>
                                     <dt>{t(locale, 'clientsTechnicalMessage')}</dt>

@@ -164,6 +164,7 @@ export interface AdapterState {
   state: 'manual' | 'ready' | 'checking' | 'error' | 'uncertain';
   error: string | null;
   released?: boolean;
+  lastOwnerVerifiedAt?: string;
 }
 export interface Peer {
   id: string;

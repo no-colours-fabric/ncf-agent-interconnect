@@ -169,6 +169,11 @@ export const ko: Messages = {
   clientsReleasedAction:
     '필요한 작업이 없습니다. 이 채팅이 다시 필요하면 앱과 이 정확한 채팅의 가용성을 확인하세요.',
   clientsNotConfirmed: '연결이 확인되지 않음',
+  clientsLastVerified: '마지막 확인',
+  clientsLastVerifiedImpact:
+    '이 정확한 채팅은 이전에 확인되었습니다. 현재 가용성은 확인되지 않았습니다.',
+  clientsVerifiedAll: '이전에 확인됨',
+  clientsVerifiedSome: '일부 연결이 이전에 확인됨',
   clientsDetailOpencode:
     '번들 플러그인이 현재 채팅을 식별하고 수신 메시지를 자동으로 전달합니다. 바쁜 에이전트는 비게 되면 메시지를 받습니다.',
   clientsDetailCodex:

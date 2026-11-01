@@ -178,6 +178,11 @@ export const nl: Messages = {
   clientsReleasedAction:
     'Geen actie vereist. Wanneer deze chat opnieuw nodig is, controleer de beschikbaarheid van de app en van deze exacte chat.',
   clientsNotConfirmed: 'Verbinding niet bevestigd',
+  clientsLastVerified: 'Laatst geverifieerd',
+  clientsLastVerifiedImpact:
+    'Deze exacte chat is eerder geverifieerd; de huidige beschikbaarheid is niet bevestigd.',
+  clientsVerifiedAll: 'Eerder geverifieerd',
+  clientsVerifiedSome: 'Sommige verbindingen eerder geverifieerd',
   clientsDetailOpencode:
     'De meegeleverde plug-in herkent de huidige chat en levert inkomende berichten automatisch. Een bezette agent ontvangt berichten zodra die vrij is.',
   clientsDetailCodex:

@@ -168,6 +168,11 @@ export const en: Messages = {
   clientsReleasedAction:
     'No action needed. If this chat is needed again, check that the application and this exact chat are available.',
   clientsNotConfirmed: 'Connection not confirmed',
+  clientsLastVerified: 'Last verified',
+  clientsLastVerifiedImpact:
+    'This exact chat was previously verified; current availability is not confirmed.',
+  clientsVerifiedAll: 'Previously verified',
+  clientsVerifiedSome: 'Some connections previously verified',
   clientsDetailOpencode:
     'The bundled plugin identifies the current chat and delivers incoming messages automatically. A busy agent receives messages when it becomes idle.',
   clientsDetailCodex:

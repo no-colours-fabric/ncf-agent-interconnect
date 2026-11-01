@@ -27,6 +27,24 @@ export function connectionPresentation(
       tone: 'default',
     };
   if (profile.state === 'ready') {
+    if (profile.kind === 'codex-desktop') {
+      // Codex has only a historical last-verified observation, never proof of
+      // current liveness. Until the first exact-owner evidence, delivery to
+      // this exact chat is not confirmed.
+      if (!profile.lastOwnerVerifiedAt)
+        return {
+          status: 'clientsNotConfirmed',
+          impact: hasBoundAgents ? 'clientsUnavailableImpact' : 'clientsUnboundImpact',
+          action: hasBoundAgents ? 'clientsCheckExactChat' : 'clientsUseSavedAction',
+          tone: hasBoundAgents ? 'warning' : 'default',
+        };
+      return {
+        status: 'clientsLastVerified',
+        impact: hasBoundAgents ? 'clientsLastVerifiedImpact' : 'clientsUnboundImpact',
+        action: hasBoundAgents ? 'clientsCheckExactChat' : 'clientsUseSavedAction',
+        tone: 'default',
+      };
+    }
     const automatic = canDeliverAutomatically(profile);
     return {
       status: hasBoundAgents
@@ -103,7 +121,15 @@ function canDeliverAutomatically(profile: AdapterState): boolean {
 }
 
 export type ConnectionSummary =
-  'none' | 'manual' | 'connected' | 'partial' | 'released' | 'notConfirmed' | 'paused';
+  | 'none'
+  | 'manual'
+  | 'connected'
+  | 'partial'
+  | 'released'
+  | 'notConfirmed'
+  | 'paused'
+  | 'verifiedAll'
+  | 'verifiedSome';
 
 export function applicationStatus(
   kind: AdapterProfile['kind'],
@@ -114,7 +140,8 @@ export function applicationStatus(
   summary: ConnectionSummary;
   issues: { profile: AdapterState; agents: Snapshot['agents'] }[];
 } {
-  const profiles = snapshot.adapters.filter((profile) => profile.kind === kind),
+  const codex = kind === 'codex-desktop',
+    profiles = snapshot.adapters.filter((profile) => profile.kind === kind),
     ids = new Set(profiles.map((profile) => profile.id)),
     agents = snapshot.agents.filter((agent) => agent.binding && ids.has(agent.binding.adapterId)),
     connections = profiles.map((profile) => ({
@@ -123,14 +150,16 @@ export function applicationStatus(
     })),
     bound = connections.filter(({ agents }) => agents.length),
     boundCount = bound.reduce((count, connection) => count + connection.agents.length, 0),
+    deliverable = (profile: AdapterState): boolean =>
+      canDeliverAutomatically(profile) && (!codex || !!profile.lastOwnerVerifiedAt),
     readyAgents = connections
-      .filter(({ profile }) => canDeliverAutomatically(profile))
+      .filter(({ profile }) => deliverable(profile))
       .reduce((count, connection) => count + connection.agents.length, 0);
   let summary: ConnectionSummary;
   if (!boundCount) summary = 'none';
   else if (kind === 'manual') summary = 'manual';
-  else if (readyAgents === boundCount) summary = 'connected';
-  else if (readyAgents > 0) summary = 'partial';
+  else if (readyAgents === boundCount) summary = codex ? 'verifiedAll' : 'connected';
+  else if (readyAgents > 0) summary = codex ? 'verifiedSome' : 'partial';
   else if (bound.some(({ profile }) => profile.state === 'uncertain')) summary = 'paused';
   else if (bound.some(({ profile }) => profile.state === 'checking')) summary = 'paused';
   else if (bound.every(({ profile }) => profile.released)) summary = 'released';

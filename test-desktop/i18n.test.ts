@@ -221,6 +221,10 @@ test('connection guidance is localized and preserves uncertain and unsupported d
       'clientsReleasedImpact',
       'clientsReleasedAction',
       'clientsNotConfirmed',
+      'clientsLastVerified',
+      'clientsLastVerifiedImpact',
+      'clientsVerifiedAll',
+      'clientsVerifiedSome',
     ] as const) {
       assert.ok(t(locale, key).length > 0);
       if (locale !== 'en') assert.notEqual(t(locale, key), t('en', key));
@@ -230,6 +234,8 @@ test('connection guidance is localized and preserves uncertain and unsupported d
     assert.notEqual(t(locale, 'clientsCheckBeforeRetry'), t(locale, 'clientsCheckExactChat'));
     assert.notEqual(t(locale, 'clientsReleased'), t(locale, 'clientsNotConfirmed'));
     assert.notEqual(t(locale, 'clientsReleased'), t(locale, 'clientsPaused'));
+    assert.notEqual(t(locale, 'clientsLastVerified'), t(locale, 'clientsConnected'));
+    assert.notEqual(t(locale, 'clientsLastVerified'), t(locale, 'clientsNotConfirmed'));
   }
   assert.equal(t('ru', 'clientsColumnAction'), 'Что делать');
   assert.equal(t('en', 'clientsNoBoundAgent'), 'No agent attached');

@@ -146,3 +146,20 @@ test('a bound not-confirmed connection warns only about delivery impact, without
   assert.ok(visible.includes(t('ru', 'clientsCheckExactChat')));
   assert.ok(!visible.includes(t('ru', 'clientsPaused')));
 });
+
+test('a verified Codex connection shows last-verified status and the historical stamp in details', () => {
+  const connection = {
+      ...profile('verified-connection', null),
+      state: 'ready' as const,
+      lastOwnerVerifiedAt: '2026-11-01T10:00:00.000Z',
+    },
+    html = render([connection], [agent('Ожидает', connection.id)]),
+    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
+  assert.ok(visible.includes(t('ru', 'clientsLastVerified')));
+  assert.ok(visible.includes(t('ru', 'clientsLastVerifiedImpact')));
+  assert.ok(!visible.includes(t('ru', 'clientsAuto')));
+  assert.ok(!visible.includes(t('ru', 'clientsConnected')));
+  const details = [...html.matchAll(/<details\b[\s\S]*?<\/details>/g)].map((match) => match[0]);
+  assert.ok(details[0].includes(t('ru', 'clientsLastVerified')));
+  assert.ok(details[0].includes('2026'));
+});

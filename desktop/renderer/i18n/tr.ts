@@ -175,6 +175,11 @@ export const tr: Messages = {
   clientsReleasedAction:
     'İşlem gerekli değil. Bu sohbet yeniden gerekirse uygulamanın ve bu tam sohbetin kullanılabilirliğini kontrol edin.',
   clientsNotConfirmed: 'Bağlantı doğrulanmadı',
+  clientsLastVerified: 'Son doğrulama',
+  clientsLastVerifiedImpact:
+    'Bu kesin sohbet daha önce doğrulandı; mevcut kullanılabilirlik doğrulanmadı.',
+  clientsVerifiedAll: 'Daha önce doğrulandı',
+  clientsVerifiedSome: 'Bazı bağlantılar daha önce doğrulandı',
   clientsDetailOpencode:
     'Paket içindeki eklenti geçerli sohbeti tanır ve gelen mesajları otomatik olarak iletir. Meşgul bir aracı mesajları boşaldığında alır.',
   clientsDetailCodex:

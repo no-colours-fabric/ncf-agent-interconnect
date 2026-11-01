@@ -177,6 +177,11 @@ export const pl: Messages = {
   clientsReleasedAction:
     'Brak wymaganych działań. Jeśli ten czat znów będzie potrzebny, sprawdź dostępność aplikacji i tego dokładnego czatu.',
   clientsNotConfirmed: 'Połączenie niepotwierdzone',
+  clientsLastVerified: 'Ostatnia weryfikacja',
+  clientsLastVerifiedImpact:
+    'Ten dokładny czat był wcześniej zweryfikowany; obecna dostępność nie jest potwierdzona.',
+  clientsVerifiedAll: 'Wcześniej zweryfikowano',
+  clientsVerifiedSome: 'Niektóre połączenia zweryfikowane wcześniej',
   clientsDetailOpencode:
     'Dołączona wtyczka identyfikuje bieżący czat i automatycznie dostarcza wiadomości przychodzące. Zajęty agent otrzyma wiadomości, gdy będzie wolny.',
   clientsDetailCodex:

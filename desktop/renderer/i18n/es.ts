@@ -178,6 +178,11 @@ export const es: Messages = {
   clientsReleasedAction:
     'No se requiere ninguna acción. Si este chat vuelve a ser necesario, compruebe la disponibilidad de la aplicación y de este chat exacto.',
   clientsNotConfirmed: 'Conexión no confirmada',
+  clientsLastVerified: 'Última verificación',
+  clientsLastVerifiedImpact:
+    'Este chat exacto se verificó anteriormente; la disponibilidad actual no está confirmada.',
+  clientsVerifiedAll: 'Verificado anteriormente',
+  clientsVerifiedSome: 'Algunas conexiones verificadas anteriormente',
   clientsDetailOpencode:
     'El complemento incluido identifica el chat actual y entrega los mensajes entrantes automáticamente. Un agente ocupado recibe mensajes cuando queda libre.',
   clientsDetailCodex:

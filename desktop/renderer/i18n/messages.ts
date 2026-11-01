@@ -154,6 +154,10 @@ export interface Messages {
   clientsReleasedImpact: string;
   clientsReleasedAction: string;
   clientsNotConfirmed: string;
+  clientsLastVerified: string;
+  clientsLastVerifiedImpact: string;
+  clientsVerifiedAll: string;
+  clientsVerifiedSome: string;
   clientsDetailOpencode: string;
   clientsDetailCodex: string;
   clientsDetailManual: string;

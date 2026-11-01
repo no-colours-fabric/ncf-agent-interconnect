@@ -175,6 +175,11 @@ export const ptBR: Messages = {
   clientsReleasedAction:
     'Nenhuma ação necessária. Se este chat for necessário novamente, verifique a disponibilidade do aplicativo e deste chat exato.',
   clientsNotConfirmed: 'Conexão não confirmada',
+  clientsLastVerified: 'Última verificação',
+  clientsLastVerifiedImpact:
+    'Este chat exato foi verificado anteriormente; a disponibilidade atual não está confirmada.',
+  clientsVerifiedAll: 'Verificado anteriormente',
+  clientsVerifiedSome: 'Algumas conexões verificadas anteriormente',
   clientsDetailOpencode:
     'O plugin incluído identifica o chat atual e entrega mensagens recebidas automaticamente. Um agente ocupado recebe mensagens quando fica livre.',
   clientsDetailCodex:

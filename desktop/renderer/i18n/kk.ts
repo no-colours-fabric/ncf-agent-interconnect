@@ -176,6 +176,10 @@ export const kk: Messages = {
   clientsReleasedAction:
     'Ешқандай әрекет қажет емес. Бұл чат қайта қажет болса, қолданбаның және осы нақты чаттың қолжетімділігін тексеріңіз.',
   clientsNotConfirmed: 'Байланыс расталмаған',
+  clientsLastVerified: 'Соңғы тексеру',
+  clientsLastVerifiedImpact: 'Бұл нақты чат бұрын тексерілді; қазіргі қолжетімділік расталмаған.',
+  clientsVerifiedAll: 'Бұрын расталған',
+  clientsVerifiedSome: 'Кейбір байланыстар бұрын расталған',
   clientsDetailOpencode:
     'Жиынтықтағы плагин ағымдағы чатты анықтайды және кіріс хабарламаларды автоматты түрде жеткізеді. Бос емес агент босаған кезде хабарламаларды алады.',
   clientsDetailCodex:

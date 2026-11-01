@@ -180,6 +180,11 @@ export const fr: Messages = {
   clientsReleasedAction:
     'Aucune action requise. Si ce chat redevient nécessaire, vérifiez la disponibilité de l\u2019application et de ce chat exact.',
   clientsNotConfirmed: 'Connexion non confirmée',
+  clientsLastVerified: 'Dernière vérification',
+  clientsLastVerifiedImpact:
+    'Ce chat exact a été vérifié précédemment ; la disponibilité actuelle n\u2019est pas confirmée.',
+  clientsVerifiedAll: 'Vérifié précédemment',
+  clientsVerifiedSome: 'Certaines connexions vérifiées précédemment',
   clientsDetailOpencode:
     'Le plugin fourni identifie la conversation actuelle et livre automatiquement les messages entrants. Un agent occupé reçoit les messages dès qu’il devient libre.',
   clientsDetailCodex:

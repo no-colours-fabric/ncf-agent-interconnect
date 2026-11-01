@@ -159,6 +159,10 @@ export const zh: Messages = {
   clientsReleasedImpact: '客户端已结束此连接。智能体绑定及其历史记录均已保留；当前自动投递不可用。',
   clientsReleasedAction: '无需操作。如果此聊天再次需要，请检查应用和此确切聊天的可用性。',
   clientsNotConfirmed: '连接未确认',
+  clientsLastVerified: '上次验证',
+  clientsLastVerifiedImpact: '此确切聊天此前已验证；当前可用性未确认。',
+  clientsVerifiedAll: '此前已验证',
+  clientsVerifiedSome: '部分连接此前已验证',
   clientsDetailOpencode: '内置插件会自动识别当前聊天并投递传入消息。忙碌的智能体空闲时会收到消息。',
   clientsDetailCodex:
     '聊天和配置文件通过 MCP 元数据识别。消息包含发送者、正文和附件链接。Desktop 集成处于实验阶段，取决于 Codex 版本。',

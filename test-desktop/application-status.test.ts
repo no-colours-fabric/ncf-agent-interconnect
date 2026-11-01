@@ -11,6 +11,7 @@ function profile(
   state: AdapterState['state'],
   error: string | null = null,
   kind: AdapterState['kind'] = 'codex-desktop',
+  lastOwnerVerifiedAt?: string,
 ): AdapterState {
   return {
     id,
@@ -18,6 +19,7 @@ function profile(
     kind,
     state,
     error,
+    ...(lastOwnerVerifiedAt ? { lastOwnerVerifiedAt } : {}),
     capabilities: {
       wakeIdle: state === 'ready',
       receiveActive: state === 'ready',
@@ -26,6 +28,8 @@ function profile(
     },
   };
 }
+
+const verified = '2026-11-01T10:00:00.000Z';
 
 function agent(nickname: string, adapterId: string | null): AgentIdentity {
   return {
@@ -47,12 +51,14 @@ function agent(nickname: string, adapterId: string | null): AgentIdentity {
 
 test('working bound agents and an unavailable saved connection are reported separately', () => {
   const adapters = [
-      ...['one', 'two', 'three', 'four'].map((id) => profile(id, 'ready')),
+      ...['one', 'two', 'three', 'four'].map((id) =>
+        profile(id, 'ready', null, 'codex-desktop', verified),
+      ),
       profile('saved', 'error', 'Owner discovery failed'),
     ],
     agents = ['one', 'two', 'three', 'four'].map((id) => agent('Example ' + id, id)),
     status = applicationStatus('codex-desktop', { adapters, agents });
-  assert.equal(status.summary, 'connected');
+  assert.equal(status.summary, 'verifiedAll');
   assert.equal(status.agents.length, 4);
   assert.equal(status.connections.length, 5);
   assert.equal(status.issues.length, 1);
@@ -61,11 +67,14 @@ test('working bound agents and an unavailable saved connection are reported sepa
   assert.deepEqual(status.issues[0].agents, []);
 });
 
-test('mixed ready and failed bound connections report partial availability', () => {
-  const adapters = [profile('ready', 'ready'), profile('failed', 'error', 'Connection failed')],
+test('mixed ready and failed bound connections report verified-only availability', () => {
+  const adapters = [
+      profile('ready', 'ready', null, 'codex-desktop', verified),
+      profile('failed', 'error', 'Connection failed'),
+    ],
     agents = [agent('Первый', 'ready'), agent('第二', 'failed')],
     status = applicationStatus('codex-desktop', { adapters, agents });
-  assert.equal(status.summary, 'partial');
+  assert.equal(status.summary, 'verifiedSome');
   assert.equal(status.issues.length, 1);
   assert.deepEqual(
     status.issues[0].agents.map((value) => value.nickname),
@@ -146,25 +155,59 @@ test('connection errors stay associated with exact adapter IDs and Unicode names
 
 test('application summaries do not include another integration kind', () => {
   const adapters = [
-      profile('codex', 'ready'),
+      profile('codex', 'ready', null, 'codex-desktop', verified),
       profile('opencode', 'error', 'Other application failed', 'opencode-http'),
     ],
     agents = [agent('Один', 'codex'), agent('Другой', 'opencode')],
     status = applicationStatus('codex-desktop', { adapters, agents });
-  assert.equal(status.summary, 'connected');
+  assert.equal(status.summary, 'verifiedAll');
   assert.equal(status.connections.length, 1);
   assert.equal(status.agents.length, 1);
   assert.equal(status.issues.length, 0);
 });
 
-test('available delivery and an unused saved connection require different user actions', () => {
-  const ready = profile('ready', 'ready');
-  assert.equal(connectionPresentation(ready, true).tone, 'success');
-  assert.equal(connectionPresentation(ready, true).action, 'clientsNoAction');
-  const saved = connectionPresentation(ready, false);
+test('available delivery and a saved unused connection require different user actions', () => {
+  const readyVerified = profile('verified', 'ready', null, 'codex-desktop', verified);
+  assert.equal(connectionPresentation(readyVerified, true).tone, 'default');
+  assert.equal(connectionPresentation(readyVerified, true).status, 'clientsLastVerified');
+  assert.equal(connectionPresentation(readyVerified, true).action, 'clientsCheckExactChat');
+  const saved = connectionPresentation(readyVerified, false);
   assert.equal(saved.tone, 'default');
+  assert.equal(saved.status, 'clientsLastVerified');
   assert.equal(saved.impact, 'clientsUnboundImpact');
   assert.equal(saved.action, 'clientsUseSavedAction');
+});
+
+test('a fresh OpenCode-ready bound connection keeps automatic delivery presentation', () => {
+  const opencode = profile('opencode', 'ready', null, 'opencode-http');
+  const bound = connectionPresentation(opencode, true);
+  assert.equal(bound.tone, 'success');
+  assert.equal(bound.status, 'clientsAuto');
+  assert.equal(bound.action, 'clientsNoAction');
+});
+
+test('a Codex-ready bound connection without evidence stays not confirmed', () => {
+  const connection = profile('codex', 'ready'),
+    presentation = connectionPresentation(connection, true);
+  assert.equal(presentation.tone, 'warning');
+  assert.equal(presentation.status, 'clientsNotConfirmed');
+  assert.equal(presentation.impact, 'clientsUnavailableImpact');
+  assert.equal(presentation.action, 'clientsCheckExactChat');
+  assert.equal(
+    applicationStatus('codex-desktop', {
+      adapters: [connection],
+      agents: [agent('Проверка', 'codex')],
+    }).summary,
+    'notConfirmed',
+  );
+});
+
+test('a Codex-ready unbound connection without evidence is neutral not confirmed', () => {
+  const presentation = connectionPresentation(profile('codex', 'ready'), false);
+  assert.equal(presentation.tone, 'default');
+  assert.equal(presentation.status, 'clientsNotConfirmed');
+  assert.equal(presentation.impact, 'clientsUnboundImpact');
+  assert.equal(presentation.action, 'clientsUseSavedAction');
 });
 
 test('failed fetch, timeout and unknown diagnostics do not invent a root cause', () => {
@@ -239,12 +282,12 @@ test('a bound not-confirmed connection is summarized as not confirmed, not pause
 
 test('a released profile is not misreported as connected or as an issue', () => {
   const released = { ...profile('released', 'error', 'OpenCode is disconnected'), released: true },
-    other = profile('other', 'ready'),
+    other = profile('other', 'ready', null, 'codex-desktop', verified),
     status = applicationStatus('codex-desktop', {
       adapters: [released, other],
       agents: [agent('Завершён', 'released'), agent('Активен', 'other')],
     });
-  assert.equal(status.summary, 'partial');
+  assert.equal(status.summary, 'verifiedSome');
   assert.equal(status.issues.length, 0);
 });
 

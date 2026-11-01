@@ -93,6 +93,7 @@ export async function codexExchange(
   input?: EventInput,
   signal?: AbortSignal,
   timeoutMs = 5000,
+  onVerified?: () => void,
 ): Promise<Admission> {
   if (!/^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i.test(profile.threadId ?? ''))
     throw new Error('An exact Codex chat UUID is required');
@@ -275,6 +276,9 @@ export async function codexExchange(
           );
           return;
         }
+        // Exact-owner proof validated: record the historical evidence before
+        // any external submission. This is an observation, not a receipt.
+        onVerified?.();
         if (!input) {
           finish('admitted');
           return;
@@ -366,6 +370,7 @@ export class CodexDesktopAdapter implements AgentAdapter {
   private jobs = new Set<Promise<Admission>>();
   private state: AdapterState;
   private retry?: NodeJS.Timeout;
+  private stopped = false;
   private starting?: Promise<void>;
   constructor(
     readonly profile: AdapterProfile,
@@ -396,8 +401,16 @@ export class CodexDesktopAdapter implements AgentAdapter {
       exactSession: available,
     };
   }
+  private recordVerified(): void {
+    // Historical exact-owner observation. Never applied after stop, and the
+    // evidence time is the discovery observation, not message delivery.
+    if (this.stopped || this.controller.signal.aborted) return;
+    this.state.lastOwnerVerifiedAt = new Date().toISOString();
+  }
   private async exchange(input?: EventInput): Promise<Admission> {
-    const job = codexExchange(this.profile, input, this.controller.signal).catch((e) => ({
+    const job = codexExchange(this.profile, input, this.controller.signal, 5000, () =>
+      this.recordVerified(),
+    ).catch((e) => ({
       state: 'failed' as const,
       error: (e as Error).message,
     }));
@@ -448,6 +461,7 @@ export class CodexDesktopAdapter implements AgentAdapter {
     return result;
   }
   async stop(): Promise<void> {
+    this.stopped = true;
     clearTimeout(this.retry);
     this.controller.abort();
     await this.starting;

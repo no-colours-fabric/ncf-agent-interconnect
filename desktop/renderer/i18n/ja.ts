@@ -174,6 +174,10 @@ export const ja: Messages = {
   clientsReleasedAction:
     '操作は不要です。このチャットが再度必要になったら、アプリとこのチャットの利用可否を確認してください。',
   clientsNotConfirmed: '接続が未確認',
+  clientsLastVerified: '最終確認',
+  clientsLastVerifiedImpact: 'このチャットは以前に確認されました。現在の可用性は未確認です。',
+  clientsVerifiedAll: '以前に確認済み',
+  clientsVerifiedSome: '一部の接続が以前に確認されました',
   clientsDetailOpencode:
     '同梱プラグインが現在のチャットを識別し、受信メッセージを自動的に配信します。ビジー状態のエージェントは空いたときにメッセージを受け取ります。',
   clientsDetailCodex:

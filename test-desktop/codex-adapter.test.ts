@@ -564,3 +564,62 @@ test('Codex MCP metadata automatically selects the exact chat and profile among 
   assert.equal(metadataMissing.isError, true);
   assert.match(JSON.stringify(metadataMissing), /current chat context/);
 });
+
+test('Codex records a last-verified observation on success and keeps it as history after a later failure', async (t) => {
+  const f = await fixture(t),
+    adapter = new CodexDesktopAdapter(f.profile, () => {});
+  t.after(() => adapter.stop());
+  await adapter.start();
+  assert.equal(adapter.status().state, 'ready');
+  const stamp = adapter.status().lastOwnerVerifiedAt;
+  assert.ok(stamp && !Number.isNaN(Date.parse(stamp)));
+  f.state.discoveryResult = 'error';
+  await adapter.start();
+  assert.equal(adapter.status().state, 'error');
+  // The previous successful observation remains as historical evidence only.
+  assert.equal(adapter.status().lastOwnerVerifiedAt, stamp);
+  const before = new Set([...f.requests.map((request) => request.method)]);
+  assert.ok(
+    [...before].every((method) => ['initialize', 'thread-owner-discovery'].includes(method)),
+  );
+  f.state.discoveryResult = 'success';
+  await adapter.start();
+  const refreshed = adapter.status().lastOwnerVerifiedAt;
+  assert.ok(refreshed && refreshed >= stamp);
+});
+
+test('Codex keeps the previous verified stamp when a later attempt fails or is stopped', async (t) => {
+  const f = await fixture(t),
+    adapter = new CodexDesktopAdapter(f.profile, () => {});
+  t.after(() => adapter.stop());
+  await adapter.start();
+  const stamp = adapter.status().lastOwnerVerifiedAt;
+  assert.ok(stamp);
+  f.state.support = false;
+  f.state.discoveryResult = 'error';
+  await adapter.start();
+  assert.equal(adapter.status().state, 'error');
+  // A failed or stopped attempt must not clear or refresh the historical stamp.
+  assert.equal(adapter.status().lastOwnerVerifiedAt, stamp);
+  await adapter.stop();
+  assert.equal(adapter.status().lastOwnerVerifiedAt, stamp);
+});
+
+test('Codex delivery after a verified probe performs exactly one exact preflight without extra calls', async (t) => {
+  const f = await fixture(t),
+    adapter = new CodexDesktopAdapter(f.profile, () => {});
+  t.after(() => adapter.stop());
+  await adapter.start();
+  assert.ok(adapter.status().lastOwnerVerifiedAt);
+  const before = f.requests.length;
+  f.state.runtime = 'active';
+  const result = await adapter.deliver(input(f.profile));
+  assert.equal(result.state, 'admitted');
+  const discovered = f.requests.filter((r) => r.method === 'thread-owner-discovery').length;
+  const submitted = f.requests.filter(
+    (r) => r.method === 'thread-follower-start-turn' || r.method === 'thread-follower-steer-turn',
+  ).length;
+  assert.equal(submitted, 1);
+  assert.ok(f.requests.length > before);
+  assert.equal(f.requests.filter((r) => r.method === 'thread-owner-discovery').length, discovered);
+});
