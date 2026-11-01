@@ -211,7 +211,7 @@ function App(): React.JSX.Element {
     [recipientNick, setRecipientNick] = useState(''),
     [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
-  const [locale, setLocale] = useState<Locale>(() => loadLocale(window.localStorage));
+  const [locale, setLocale] = useState<Locale>(() => loadLocale(() => window.localStorage));
   const call = useCallback(
     async <T,>(method: string, params: unknown = {}): Promise<T> =>
       window.interconnect.invoke<T>(method, params),
@@ -330,7 +330,7 @@ function App(): React.JSX.Element {
   const changeLocale = (next: unknown) => {
     if (!isLocale(next)) return;
     setLocale(next);
-    persistLocale(window.localStorage, next);
+    persistLocale(() => window.localStorage, next);
   };
   return (
     <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>

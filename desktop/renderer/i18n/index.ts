@@ -110,11 +110,22 @@ export function t(
   return interpolate(template, params);
 }
 
-export function loadLocale(storage: Pick<Storage, 'getItem'>): Locale {
-  const value = storage.getItem(localeStorageKey);
-  return isLocale(value) ? value : defaultLocale;
+export function loadLocale(getStorage: () => Pick<Storage, 'getItem'> | null | undefined): Locale {
+  try {
+    const value = getStorage()?.getItem(localeStorageKey);
+    return isLocale(value) ? value : defaultLocale;
+  } catch {
+    return defaultLocale;
+  }
 }
 
-export function persistLocale(storage: Pick<Storage, 'setItem'>, locale: Locale): void {
-  storage.setItem(localeStorageKey, locale);
+export function persistLocale(
+  getStorage: () => Pick<Storage, 'setItem'> | null | undefined,
+  locale: Locale,
+): void {
+  try {
+    getStorage()?.setItem(localeStorageKey, locale);
+  } catch {
+    // Storage write failed; the new locale stays active in memory.
+  }
 }

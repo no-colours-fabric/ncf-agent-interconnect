@@ -36,21 +36,67 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
 
 test('default locale is English', () => {
   assert.equal(defaultLocale, 'en');
-  assert.equal(loadLocale(memoryStorage()), 'en');
+  assert.equal(
+    loadLocale(() => memoryStorage()),
+    'en',
+  );
 });
 
 test('locale is loaded and persisted through the app profile storage', () => {
   const storage = memoryStorage();
-  persistLocale(storage, 'ru');
-  assert.equal(loadLocale(storage), 'ru');
-  persistLocale(storage, 'en');
-  assert.equal(loadLocale(storage), 'en');
+  persistLocale(() => storage, 'ru');
+  assert.equal(
+    loadLocale(() => storage),
+    'ru',
+  );
+  persistLocale(() => storage, 'en');
+  assert.equal(
+    loadLocale(() => storage),
+    'en',
+  );
 });
 
 test('unknown locale falls back to English', () => {
   const storage = memoryStorage({ 'interconnect.locale': 'xx' });
-  assert.equal(loadLocale(storage), 'en');
+  assert.equal(
+    loadLocale(() => storage),
+    'en',
+  );
   assert.equal(t('xx' as never, 'navOverview'), 'Overview');
+});
+
+test('storage getter failure falls back to English', () => {
+  assert.equal(
+    loadLocale(() => {
+      const error = new DOMException('blocked', 'SecurityError');
+      assert.throws(() => {
+        throw error;
+      }, /blocked/);
+      throw error;
+    }),
+    'en',
+  );
+});
+
+test('getItem failure falls back to English', () => {
+  const storage: Pick<Storage, 'getItem'> = {
+    getItem: () => {
+      throw new DOMException('blocked', 'SecurityError');
+    },
+  };
+  assert.equal(
+    loadLocale(() => storage),
+    'en',
+  );
+});
+
+test('setItem failure keeps the locale active in memory', () => {
+  const storage: Pick<Storage, 'setItem'> = {
+    setItem: () => {
+      throw new DOMException('quota', 'QuotaExceededError');
+    },
+  };
+  assert.doesNotThrow(() => persistLocale(() => storage, 'ru'));
 });
 
 test('every dictionary covers all interface messages', () => {
