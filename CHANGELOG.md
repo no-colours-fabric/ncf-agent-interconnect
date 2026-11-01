@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+- Show agents from explicitly paired nodes in the desktop UI and through the new
+  `agents_list` MCP tool. Directory updates follow client arrivals, departures and
+  node reconnections; unavailable and unsupported peers remain explicit.
+- Add `agent_disconnect` to release a chat binding while preserving its history.
+  Matching agent names on other nodes produce a warning and do not block a name.
+- Replace certificate-bearing access codes with eight case-insensitive letters
+  and digits. A code expires after ten minutes, permits five attempts and
+  authorizes one peer through mutual PAKE authentication and automatic TLS pinning.
+- Preserve committed pairing results across an identical confirmation retry;
+  reject overlapping authorization changes and report interrupted writes without
+  silently repeating an uncertain admission.
+
+New pairing requires short-code support on both computers. Existing paired
+connections, protocol 2 messages and saved history remain compatible. Reconnect
+MCP clients to discover the two additional tools. See [pairing](docs/pairing.md)
+and [agent presence](docs/agent-presence.md) for behavior and verification limits.
+
 ## 0.8.0 — 2026-11-01
 
 - Require the recipient node UUID and agent name for every message, including

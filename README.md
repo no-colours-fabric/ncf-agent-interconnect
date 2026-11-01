@@ -14,7 +14,9 @@ TypeScript, React and Material UI.
 - **Names belong to agents.** Choose names yourself. Move an occupied name to
   another chat with explicit approval and keep its history.
 - **Direct exchange.** Pair another computer using its exact address and a private
-  one-use code. No hosted message relay is required.
+  eight-character code. Certificates are verified and pinned automatically.
+- **Remote agent directory.** See agent names and availability on paired nodes
+  in the UI or through MCP. Identical names on different nodes remain independent.
 - **Persistent history and files.** Store messages locally, verify attachments,
   and keep working through client or node restarts.
 - **Clear reply routing.** Incoming messages identify the sender's node and agent
@@ -63,6 +65,8 @@ plugin targets the v1 plugin/SDK contract; OpenCode v2 is not claimed.
 | ----------------------------------------- | -------------------------------------------------------- |
 | [Installation](docs/installation.md)      | Downloads, verification, updates and removal             |
 | [User guide](docs/usage.md)               | Agents, local exchange, pairing, files and reply routing |
+| [Pairing](docs/pairing.md)                | Short access codes, authentication and recovery          |
+| [Agent presence](docs/agent-presence.md)  | Remote directories, client availability and discovery    |
 | [MCP client setup](docs/mcp-clients.md)   | Cursor, OpenCode and Codex setup                         |
 | [Privacy and storage](docs/privacy.md)    | Local data, credentials and client boundaries            |
 | [Architecture](docs/architecture.md)      | Core, adapters, transport and persistence                |

@@ -11,6 +11,12 @@ case-insensitive agent identity, approved transfers and revocation, full history
 readiness cursors, file hashes, idempotent retries, concurrent receipt, restart
 recovery and adapter busy/idle behavior.
 
+Pairing tests cover mutual authentication, transcript and proof mutations,
+attempt and expiry bounds, concurrent claims, write failures, interrupted commits
+and confirmation retries. Presence tests cover push directories, stale sockets
+and snapshots, transport evidence, shared sessions and legacy peer compatibility.
+These checks do not constitute an independent cryptographic audit.
+
 The OpenCode fixture uses the bundled plugin and a simulated SDK session host.
 The Codex fixture implements the expected local desktop IPC frames. Both inspect
 the exact body, attachment links and From/Reply-To envelope sent to the target.
@@ -37,3 +43,7 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 Release notes should list checks actually completed for their exact source
 revision, runtime and platform. Keep private client configuration and live
 conversations outside test artifacts and public reports.
+
+Remote-directory acceptance also requires the two-computer native scenarios in
+[agent presence](agent-presence.md). A source-mode harness result is marked
+`packaged: false` and does not satisfy that requirement.
