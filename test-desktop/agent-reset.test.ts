@@ -1154,3 +1154,104 @@ test('foreign admission evidence survives overwritten dispatch status, preserve 
     }
   }
 });
+
+test('unbound UI source stamp rejects snapshot sends after bind/reset, including a replacement disconnected back to null', async (t) => {
+  for (const disconnect of [false, true]) {
+    await t.test(`replacement disconnected=${disconnect}`, async (t) => {
+      const service = await node(t);
+      service.store.ensure('Source');
+      service.store.ensure('Target');
+      assert.deepEqual(service.store.sourceStamp('Source'), { generation: 0, connectionId: null });
+      const filename = path.join(service.settings.value.exportRoots[0], 'unbound.txt');
+      await writeFile(filename, 'Unbound staged blob');
+      const barrier = gate(),
+        snapshot = service.files.snapshot.bind(service.files);
+      let blob = '';
+      service.files.snapshot = async (file) => {
+        const result = await snapshot(file);
+        blob = service.files.blob(result.id);
+        await barrier.wait();
+        return result;
+      };
+      const rejected = assert.rejects(
+        service.userCall('send', {
+          nickname: 'Source',
+          recipientNode: service.settings.value.nodeId,
+          recipientNickname: 'Target',
+          text: 'Stale unbound UI send',
+          files: [filename],
+        }),
+        /source agent binding changed/,
+      );
+      let networkCalls = 0;
+      service.network.message = async () => {
+        networkCalls++;
+      };
+      try {
+        await until(() => barrier.entered);
+        connected(service.connect({ nickname: 'Source', client: 'First binding' }));
+        const replacement = reset(service, 'Source');
+        if (disconnect) service.disconnect(replacement.binding.connectionId);
+        assert.equal(service.store.sourceStamp('Source').generation, 2);
+        assert.equal(service.store.sourceStamp('Source').connectionId === null, disconnect);
+      } finally {
+        barrier.release();
+      }
+      await rejected;
+      await until(() => service.store.fileCleanup().length === 0);
+      assert.equal(service.store.history(nicknameKey('Source')).messages.length, 0);
+      assert.equal(service.store.history(nicknameKey('Target')).messages.length, 0);
+      assert.equal(networkCalls, 0);
+      await assert.rejects(access(blob));
+    });
+  }
+});
+
+test('UI source stamp is captured before waiting for a file lease, even while the mailbox has no binding', async (t) => {
+  const service = await node(t);
+  service.store.ensure('Source');
+  service.store.ensure('Target');
+  const barrier = gate();
+  const exclusive = service.files.exclusive(() => barrier.wait());
+  try {
+    await until(() => barrier.entered);
+    const rejected = assert.rejects(
+      service.userCall('send', {
+        nickname: 'Source',
+        recipientNode: service.settings.value.nodeId,
+        recipientNickname: 'Target',
+        text: 'Waiting for lease',
+      }),
+      /source agent binding changed/,
+    );
+    connected(service.connect({ nickname: 'Source', client: 'First binding' }));
+    const replacement = reset(service, 'Source');
+    service.disconnect(replacement.binding.connectionId);
+    barrier.release();
+    await Promise.all([exclusive, rejected]);
+    assert.equal(service.store.history(nicknameKey('Source')).messages.length, 0);
+    assert.equal(service.store.history(nicknameKey('Target')).messages.length, 0);
+  } finally {
+    barrier.release();
+  }
+});
+
+test('unchanged unbound UI source remains usable for local text and attachments', async (t) => {
+  const service = await node(t);
+  service.store.ensure('Source');
+  const filename = path.join(service.settings.value.exportRoots[0], 'unchanged.txt');
+  await writeFile(filename, 'Unchanged source');
+  const before = service.store.sourceStamp('Source');
+  const result = (await service.userCall('send', {
+    nickname: 'Source',
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Target',
+    text: 'Allowed unbound send',
+    files: [filename],
+  })) as { id: string; accepted: boolean };
+  assert.equal(result.accepted, true);
+  assert.deepEqual(service.store.sourceStamp('Source'), before);
+  assert.equal(service.store.get(result.id, 'out')!.envelope.fromNickname, 'Source');
+  assert.equal(service.store.get(result.id, 'in')!.state, 'ready');
+  assert.equal(service.store.history(nicknameKey('Target')).messages.length, 1);
+});

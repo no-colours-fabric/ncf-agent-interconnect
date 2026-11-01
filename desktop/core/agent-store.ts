@@ -107,6 +107,15 @@ export class AgentStore {
     this.db.prepare('INSERT OR IGNORE INTO agents(key,nickname) VALUES(?,?)').run(key, nickname);
     return key;
   }
+  sourceStamp(nickname: string): { generation: number; connectionId: string | null } {
+    const row = this.db
+      .prepare('SELECT generation,binding FROM agents WHERE key=?')
+      .get(nicknameKey(nickname)) as Row | undefined;
+    return {
+      generation: Number(row?.generation ?? 0),
+      connectionId: row?.binding ? (JSON.parse(String(row.binding)) as Binding).connectionId : null,
+    };
+  }
   private identity(key: string): Row {
     const row = this.db.prepare('SELECT * FROM agents WHERE key=?').get(key) as Row | undefined;
     if (!row) throw new Error('Agent not found');

@@ -723,12 +723,16 @@ export class NodeService extends EventEmitter {
   ): Promise<SendResult> {
     if (!args.recipientNode)
       throw new Error('recipientNode is required; select an explicit node UUID from node_peers');
-    const sourceBinding = this.store
-      .list()
-      .find((agent) => agent.key === nicknameKey(nickname))?.binding;
+    const sourceStamp = this.store.sourceStamp(nickname);
     const checkSource = () => {
       stillOwner();
-      if (sourceBinding) this.store.assertOwner(sourceBinding.connectionId);
+      if (sourceStamp.connectionId) this.store.assertOwner(sourceStamp.connectionId);
+      const current = this.store.sourceStamp(nickname);
+      if (
+        current.generation !== sourceStamp.generation ||
+        current.connectionId !== sourceStamp.connectionId
+      )
+        throw new Error('The source agent binding changed; this pending send was cancelled');
     };
     const recipientNode = z.uuid().parse(args.recipientNode).toLowerCase(),
       local = recipientNode === this.settings.value.nodeId,
