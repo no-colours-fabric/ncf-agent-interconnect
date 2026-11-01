@@ -117,6 +117,39 @@ export const nl: Messages = {
   clientsAvailable: 'Beschikbaar',
   clientsUnavailable: 'Niet beschikbaar',
   clientsChecking: 'Verbinding controleren',
+  clientsColumnAgents: 'Agent',
+  clientsColumnStatus: 'Status',
+  clientsColumnImpact: 'Bezorging',
+  clientsColumnAction: 'Wat te doen',
+  clientsDetails: 'Verbindingsdetails',
+  clientsNoBoundAgent: 'Geen agent gekoppeld',
+  clientsConnectionId: 'Verbindings-ID',
+  clientsTechnicalMessage: 'Technisch bericht',
+  clientsStatusHelp:
+    'Deze statussen beschrijven de bezorging aan afzonderlijke chats, niet de activiteit van agenten of voltooide taken. Een verbindingswaarschuwing op zichzelf betekent geen verlies van geschiedenis of uitval van het hele knooppunt.',
+  clientsNoAction: 'Geen actie nodig.',
+  clientsReadyImpact: 'Automatische bezorging aan deze chat is beschikbaar.',
+  clientsUnavailableImpact:
+    'Automatische bezorging aan precies deze chat is momenteel niet bevestigd.',
+  clientsUnboundImpact: 'Aan deze opgeslagen verbinding is momenteel geen agent gekoppeld.',
+  clientsUseSavedAction:
+    'Controleer deze verbinding alleen als u de bijbehorende chat nog nodig hebt.',
+  clientsCheckExactChat:
+    'Controleer of de toepassing en precies deze chat beschikbaar zijn. Raadpleeg zo nodig de instelinstructies.',
+  clientsCheckingImpact:
+    'Er wordt gecontroleerd of deze verbinding berichten automatisch kan ontvangen.',
+  clientsWaitAction: 'Wacht tot de verbindingscontrole is voltooid.',
+  clientsManualImpact:
+    'In deze modus worden berichten via MCP ontvangen, zonder automatische bezorging in de chat.',
+  clientsMcpAction: 'Lees inkomende berichten via MCP in deze chat. Zie de instelinstructies.',
+  clientsNeedsReview: 'Bezorging controleren',
+  clientsUncertainImpact: 'Het verzoek kan de chat hebben bereikt; de ontvangst is niet bevestigd.',
+  clientsCheckBeforeRetry:
+    'Controleer precies deze chat voordat u opnieuw verzendt om duplicaten te voorkomen.',
+  clientsUnsupportedImpact:
+    'De handler voor deze chat meldt dat externe invoer niet wordt ondersteund.',
+  clientsUnconfirmedImpact:
+    'De handler voor deze chat heeft ondersteuning voor externe invoer niet bevestigd.',
   clientsNoAgents: 'Geen verbonden agents',
   clientsReceiveMcp: 'Ontvangen via MCP',
   clientsPaused: 'Bezorging onderbroken',

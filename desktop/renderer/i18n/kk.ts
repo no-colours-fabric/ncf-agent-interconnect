@@ -117,6 +117,37 @@ export const kk: Messages = {
   clientsAvailable: 'Қолжетімді',
   clientsUnavailable: 'Қолжетімсіз',
   clientsChecking: 'Қосылым тексерілуде',
+  clientsColumnAgents: 'Агент',
+  clientsColumnStatus: 'Күйі',
+  clientsColumnImpact: 'Жеткізу',
+  clientsColumnAction: 'Не істеу керек',
+  clientsDetails: 'Қосылым туралы мәліметтер',
+  clientsNoBoundAgent: 'Агент байланыстырылмаған',
+  clientsConnectionId: 'Қосылым идентификаторы',
+  clientsTechnicalMessage: 'Техникалық хабарлама',
+  clientsStatusHelp:
+    'Бұл күйлер агенттердің жұмысын немесе тапсырмалардың аяқталуын емес, жеке чаттарға жеткізуді көрсетеді. Қосылым туралы ескерту өздігінен тарихтың жоғалуын немесе бүкіл түйіннің істен шығуын білдірмейді.',
+  clientsNoAction: 'Әрекет қажет емес.',
+  clientsReadyImpact: 'Осы чатқа автоматты жеткізу қолжетімді.',
+  clientsUnavailableImpact: 'Дәл осы чатқа автоматты жеткізу қазір расталмаған.',
+  clientsUnboundImpact: 'Бұл сақталған қосылымға қазір агент байланыстырылмаған.',
+  clientsUseSavedAction: 'Осы қосылымды оның чаты әлі қажет болса ғана тексеріңіз.',
+  clientsCheckExactChat:
+    'Қолданба мен дәл осы чаттың қолжетімді екенін тексеріңіз. Қажет болса, баптау нұсқаулығын қараңыз.',
+  clientsCheckingImpact:
+    'Бұл қосылымның хабарламаларды автоматты түрде қабылдау мүмкіндігі тексерілуде.',
+  clientsWaitAction: 'Қосылымды тексеру аяқталғанша күтіңіз.',
+  clientsManualImpact:
+    'Бұл режимде хабарламалар чатқа автоматты жеткізусіз MCP арқылы қабылданады.',
+  clientsMcpAction:
+    'Осы чаттағы кіріс хабарламаларды MCP арқылы оқыңыз. Баптау нұсқаулығын қараңыз.',
+  clientsNeedsReview: 'Жеткізуді тексеріңіз',
+  clientsUncertainImpact: 'Сұрау чатқа жеткен болуы мүмкін, бірақ қабылданғаны расталмады.',
+  clientsCheckBeforeRetry:
+    'Қайталануды болдырмау үшін қайта жібермес бұрын дәл осы чатты тексеріңіз.',
+  clientsUnsupportedImpact:
+    'Осы чаттың өңдегіші сыртқы енгізуге қолдау көрсетілмейтінін хабарлады.',
+  clientsUnconfirmedImpact: 'Осы чаттың өңдегіші сыртқы енгізуге қолдауды растамады.',
   clientsNoAgents: 'Қосылған агенттер жоқ',
   clientsReceiveMcp: 'MCP арқылы қабылдау',
   clientsPaused: 'Жеткізу тоқтатылды',

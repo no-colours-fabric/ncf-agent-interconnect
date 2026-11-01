@@ -117,6 +117,41 @@ export const fr: Messages = {
   clientsAvailable: 'Disponible',
   clientsUnavailable: 'Indisponible',
   clientsChecking: 'Vérification de la connexion',
+  clientsColumnAgents: 'Agent',
+  clientsColumnStatus: 'État',
+  clientsColumnImpact: 'Livraison',
+  clientsColumnAction: 'Que faire',
+  clientsDetails: 'Détails de la connexion',
+  clientsNoBoundAgent: 'Aucun agent associé',
+  clientsConnectionId: 'Identifiant de connexion',
+  clientsTechnicalMessage: 'Message technique',
+  clientsStatusHelp:
+    "Ces états décrivent la livraison dans chaque discussion, pas l'activité des agents ni la fin des tâches. Un avertissement de connexion seul ne signifie pas une perte d'historique ou une panne de tout le nœud.",
+  clientsNoAction: 'Aucune action nécessaire.',
+  clientsReadyImpact: 'La livraison automatique dans cette discussion est disponible.',
+  clientsUnavailableImpact:
+    "La livraison automatique dans cette discussion précise n'est pas confirmée actuellement.",
+  clientsUnboundImpact: "Cette connexion enregistrée n'est actuellement associée à aucun agent.",
+  clientsUseSavedAction:
+    'Vérifiez cette connexion uniquement si vous avez encore besoin de sa discussion.',
+  clientsCheckExactChat:
+    "Vérifiez que l'application et cette discussion précise sont accessibles. Consultez la configuration si nécessaire.",
+  clientsCheckingImpact:
+    'Vérification de la réception automatique des messages par cette connexion.',
+  clientsWaitAction: 'Attendez la fin de la vérification de connexion.',
+  clientsManualImpact:
+    'Ce mode reçoit les messages via MCP, sans livraison automatique dans la discussion.',
+  clientsMcpAction:
+    'Lisez les messages entrants via MCP dans cette discussion. Consultez les instructions de configuration.',
+  clientsNeedsReview: 'Vérifier la livraison',
+  clientsUncertainImpact:
+    "La demande a pu atteindre la discussion, mais sa réception n'a pas été confirmée.",
+  clientsCheckBeforeRetry:
+    'Vérifiez cette discussion précise avant de renvoyer pour éviter les doublons.',
+  clientsUnsupportedImpact:
+    "Le gestionnaire de cette discussion indique que la saisie externe n'est pas prise en charge.",
+  clientsUnconfirmedImpact:
+    "Le gestionnaire de cette discussion n'a pas confirmé la prise en charge de la saisie externe.",
   clientsNoAgents: 'Aucun agent connecté',
   clientsReceiveMcp: 'Réception via MCP',
   clientsPaused: 'Livraison suspendue',

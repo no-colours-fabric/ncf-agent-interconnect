@@ -117,6 +117,40 @@ export const it: Messages = {
   clientsAvailable: 'Disponibile',
   clientsUnavailable: 'Non disponibile',
   clientsChecking: 'Verifica della connessione',
+  clientsColumnAgents: 'Agente',
+  clientsColumnStatus: 'Stato',
+  clientsColumnImpact: 'Consegna',
+  clientsColumnAction: 'Cosa fare',
+  clientsDetails: 'Dettagli della connessione',
+  clientsNoBoundAgent: 'Nessun agente associato',
+  clientsConnectionId: 'ID connessione',
+  clientsTechnicalMessage: 'Messaggio tecnico',
+  clientsStatusHelp:
+    "Questi stati descrivono la consegna alle singole chat, non l'attività degli agenti o il completamento delle attività. Un avviso di connessione da solo non indica perdita della cronologia o un guasto dell'intero nodo.",
+  clientsNoAction: 'Nessuna azione richiesta.',
+  clientsReadyImpact: 'La consegna automatica a questa chat è disponibile.',
+  clientsUnavailableImpact:
+    'La consegna automatica a questa specifica chat non è attualmente confermata.',
+  clientsUnboundImpact: 'Questa connessione salvata non ha attualmente alcun agente associato.',
+  clientsUseSavedAction: 'Controlla questa connessione solo se ti serve ancora la relativa chat.',
+  clientsCheckExactChat:
+    "Verifica che l'applicazione e questa specifica chat siano disponibili. Consulta la configurazione se necessario.",
+  clientsCheckingImpact:
+    'Verifica della ricezione automatica dei messaggi tramite questa connessione.',
+  clientsWaitAction: 'Attendi il completamento della verifica della connessione.',
+  clientsManualImpact:
+    'Questa modalità riceve messaggi tramite MCP, senza consegna automatica nella chat.',
+  clientsMcpAction:
+    'Leggi i messaggi in arrivo tramite MCP in questa chat. Consulta le istruzioni di configurazione.',
+  clientsNeedsReview: 'Controlla la consegna',
+  clientsUncertainImpact:
+    'La richiesta potrebbe essere arrivata alla chat, ma la ricezione non è stata confermata.',
+  clientsCheckBeforeRetry:
+    'Controlla questa specifica chat prima di inviare di nuovo per evitare duplicati.',
+  clientsUnsupportedImpact:
+    "Il gestore di questa chat segnala che l'input esterno non è supportato.",
+  clientsUnconfirmedImpact:
+    "Il gestore di questa chat non ha confermato il supporto per l'input esterno.",
   clientsNoAgents: 'Nessun agente connesso',
   clientsReceiveMcp: 'Ricezione tramite MCP',
   clientsPaused: 'Consegna in pausa',

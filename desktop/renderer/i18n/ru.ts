@@ -117,6 +117,36 @@ export const ru: Messages = {
   clientsAvailable: 'Доступно',
   clientsUnavailable: 'Недоступно',
   clientsChecking: 'Проверка подключения',
+  clientsColumnAgents: 'Агент',
+  clientsColumnStatus: 'Состояние',
+  clientsColumnImpact: 'Доставка',
+  clientsColumnAction: 'Что делать',
+  clientsDetails: 'Технические подробности',
+  clientsNoBoundAgent: 'Агент не привязан',
+  clientsConnectionId: 'Идентификатор подключения',
+  clientsTechnicalMessage: 'Техническое сообщение',
+  clientsStatusHelp:
+    'Здесь показано состояние доставки в отдельные чаты, а не работа агентов или выполнение задач. Само предупреждение о подключении не означает потерю истории или отказ всего узла.',
+  clientsNoAction: 'Ничего делать не требуется.',
+  clientsReadyImpact: 'Автоматическая доставка в этот чат доступна.',
+  clientsUnavailableImpact: 'Автоматическая доставка в этот конкретный чат сейчас не подтверждена.',
+  clientsUnboundImpact: 'К этому сохранённому подключению сейчас не привязан агент.',
+  clientsUseSavedAction: 'Проверяйте это подключение, только если его чат вам ещё нужен.',
+  clientsCheckExactChat:
+    'Проверьте доступность приложения и именно этого чата. При необходимости откройте инструкции по настройке.',
+  clientsCheckingImpact:
+    'Проверяется возможность автоматического получения сообщений через это подключение.',
+  clientsWaitAction: 'Дождитесь окончания проверки подключения.',
+  clientsManualImpact:
+    'В этом режиме сообщения получают через MCP, без автоматической доставки в чат.',
+  clientsMcpAction:
+    'Прочитайте входящие сообщения через MCP в этом чате. См. инструкции по настройке.',
+  clientsNeedsReview: 'Проверьте доставку',
+  clientsUncertainImpact: 'Запрос мог попасть в чат, но получение не подтверждено.',
+  clientsCheckBeforeRetry:
+    'Перед повторной отправкой проверьте именно этот чат, чтобы не создать дубликат.',
+  clientsUnsupportedImpact: 'Обработчик этого чата сообщил, что внешний ввод не поддерживается.',
+  clientsUnconfirmedImpact: 'Обработчик этого чата не подтвердил поддержку внешнего ввода.',
   clientsNoAgents: 'Нет подключённых агентов',
   clientsReceiveMcp: 'Получение через MCP',
   clientsPaused: 'Доставка приостановлена',

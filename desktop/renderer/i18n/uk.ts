@@ -117,6 +117,36 @@ export const uk: Messages = {
   clientsAvailable: 'Доступно',
   clientsUnavailable: 'Недоступно',
   clientsChecking: 'Перевірка підключення',
+  clientsColumnAgents: 'Агент',
+  clientsColumnStatus: 'Стан',
+  clientsColumnImpact: 'Доставка',
+  clientsColumnAction: 'Що робити',
+  clientsDetails: 'Технічні подробиці',
+  clientsNoBoundAgent: "Агента не прив'язано",
+  clientsConnectionId: 'Ідентифікатор підключення',
+  clientsTechnicalMessage: 'Технічне повідомлення',
+  clientsStatusHelp:
+    'Ці стани показують доставку в окремі чати, а не роботу агентів чи завершення завдань. Саме попередження про підключення не означає втрату історії або відмову всього вузла.',
+  clientsNoAction: 'Нічого робити не потрібно.',
+  clientsReadyImpact: 'Автоматична доставка в цей чат доступна.',
+  clientsUnavailableImpact: 'Автоматичну доставку саме в цей чат наразі не підтверджено.',
+  clientsUnboundImpact: "До цього збереженого підключення наразі не прив'язано агента.",
+  clientsUseSavedAction: 'Перевіряйте це підключення лише тоді, коли його чат вам ще потрібен.',
+  clientsCheckExactChat:
+    'Перевірте доступність застосунку та саме цього чату. За потреби відкрийте інструкції з налаштування.',
+  clientsCheckingImpact:
+    'Перевіряється можливість автоматичного отримання повідомлень через це підключення.',
+  clientsWaitAction: 'Дочекайтеся завершення перевірки підключення.',
+  clientsManualImpact:
+    'У цьому режимі повідомлення отримують через MCP, без автоматичної доставки в чат.',
+  clientsMcpAction:
+    'Прочитайте вхідні повідомлення через MCP у цьому чаті. Див. інструкції з налаштування.',
+  clientsNeedsReview: 'Перевірте доставку',
+  clientsUncertainImpact: 'Запит міг надійти в чат, але отримання не підтверджено.',
+  clientsCheckBeforeRetry:
+    'Перед повторним надсиланням перевірте саме цей чат, щоб уникнути дублікатів.',
+  clientsUnsupportedImpact: 'Обробник цього чату повідомив, що зовнішнє введення не підтримується.',
+  clientsUnconfirmedImpact: 'Обробник цього чату не підтвердив підтримку зовнішнього введення.',
   clientsNoAgents: 'Немає підключених агентів',
   clientsReceiveMcp: 'Отримання через MCP',
   clientsPaused: 'Доставлення призупинено',

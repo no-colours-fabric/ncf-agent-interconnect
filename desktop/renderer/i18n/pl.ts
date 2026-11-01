@@ -116,6 +116,39 @@ export const pl: Messages = {
   clientsAvailable: 'Dostępne',
   clientsUnavailable: 'Niedostępne',
   clientsChecking: 'Sprawdzanie połączenia',
+  clientsColumnAgents: 'Agent',
+  clientsColumnStatus: 'Stan',
+  clientsColumnImpact: 'Dostarczanie',
+  clientsColumnAction: 'Co zrobić',
+  clientsDetails: 'Szczegóły połączenia',
+  clientsNoBoundAgent: 'Brak przypisanego agenta',
+  clientsConnectionId: 'Identyfikator połączenia',
+  clientsTechnicalMessage: 'Komunikat techniczny',
+  clientsStatusHelp:
+    'Te stany opisują dostarczanie do poszczególnych czatów, a nie aktywność agentów ani zakończenie zadań. Samo ostrzeżenie o połączeniu nie oznacza utraty historii ani awarii całego węzła.',
+  clientsNoAction: 'Nie trzeba nic robić.',
+  clientsReadyImpact: 'Automatyczne dostarczanie do tego czatu jest dostępne.',
+  clientsUnavailableImpact:
+    'Automatyczne dostarczanie do tego konkretnego czatu nie jest obecnie potwierdzone.',
+  clientsUnboundImpact: 'To zapisane połączenie nie ma obecnie przypisanego agenta.',
+  clientsUseSavedAction: 'Sprawdź to połączenie tylko wtedy, gdy nadal potrzebujesz jego czatu.',
+  clientsCheckExactChat:
+    'Sprawdź dostępność aplikacji i tego konkretnego czatu. W razie potrzeby przeczytaj instrukcję konfiguracji.',
+  clientsCheckingImpact:
+    'Trwa sprawdzanie, czy to połączenie może automatycznie odbierać wiadomości.',
+  clientsWaitAction: 'Poczekaj na zakończenie sprawdzania połączenia.',
+  clientsManualImpact:
+    'Ten tryb odbiera wiadomości przez MCP, bez automatycznego dostarczania do czatu.',
+  clientsMcpAction:
+    'Odczytaj przychodzące wiadomości przez MCP w tym czacie. Zobacz instrukcję konfiguracji.',
+  clientsNeedsReview: 'Sprawdź dostarczenie',
+  clientsUncertainImpact: 'Żądanie mogło dotrzeć do czatu, ale odbiór nie został potwierdzony.',
+  clientsCheckBeforeRetry:
+    'Przed ponownym wysłaniem sprawdź ten konkretny czat, aby uniknąć duplikatów.',
+  clientsUnsupportedImpact:
+    'Program obsługujący ten czat zgłasza brak obsługi danych wejściowych z zewnątrz.',
+  clientsUnconfirmedImpact:
+    'Program obsługujący ten czat nie potwierdził obsługi danych wejściowych z zewnątrz.',
   clientsNoAgents: 'Brak połączonych agentów',
   clientsReceiveMcp: 'Odbieranie przez MCP',
   clientsPaused: 'Dostarczanie wstrzymane',

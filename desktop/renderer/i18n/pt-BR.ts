@@ -116,6 +116,37 @@ export const ptBR: Messages = {
   clientsAvailable: 'Disponível',
   clientsUnavailable: 'Indisponível',
   clientsChecking: 'Verificando a conexão',
+  clientsColumnAgents: 'Agente',
+  clientsColumnStatus: 'Estado',
+  clientsColumnImpact: 'Entrega',
+  clientsColumnAction: 'O que fazer',
+  clientsDetails: 'Detalhes da conexão',
+  clientsNoBoundAgent: 'Nenhum agente vinculado',
+  clientsConnectionId: 'ID da conexão',
+  clientsTechnicalMessage: 'Mensagem técnica',
+  clientsStatusHelp:
+    'Estes estados descrevem a entrega a cada chat, não a atividade dos agentes ou a conclusão das tarefas. Um aviso de conexão por si só não indica perda do histórico ou falha de todo o nó.',
+  clientsNoAction: 'Nenhuma ação necessária.',
+  clientsReadyImpact: 'A entrega automática a este chat está disponível.',
+  clientsUnavailableImpact:
+    'A entrega automática a este chat específico não está confirmada no momento.',
+  clientsUnboundImpact: 'Esta conexão salva não tem nenhum agente vinculado no momento.',
+  clientsUseSavedAction: 'Verifique esta conexão apenas se ainda precisar do chat correspondente.',
+  clientsCheckExactChat:
+    'Verifique se o aplicativo e este chat específico estão disponíveis. Consulte a configuração se necessário.',
+  clientsCheckingImpact: 'Verificando se esta conexão pode receber mensagens automaticamente.',
+  clientsWaitAction: 'Aguarde a conclusão da verificação da conexão.',
+  clientsManualImpact: 'Este modo recebe mensagens por MCP, sem entrega automática no chat.',
+  clientsMcpAction:
+    'Leia as mensagens recebidas por MCP neste chat. Consulte as instruções de configuração.',
+  clientsNeedsReview: 'Verificar entrega',
+  clientsUncertainImpact:
+    'A solicitação pode ter chegado ao chat, mas o recebimento não foi confirmado.',
+  clientsCheckBeforeRetry:
+    'Verifique este chat específico antes de enviar novamente para evitar duplicatas.',
+  clientsUnsupportedImpact:
+    'O manipulador deste chat informa que a entrada externa não é compatível.',
+  clientsUnconfirmedImpact: 'O manipulador deste chat não confirmou o suporte à entrada externa.',
   clientsNoAgents: 'Nenhum agente conectado',
   clientsReceiveMcp: 'Recebimento via MCP',
   clientsPaused: 'Entrega pausada',

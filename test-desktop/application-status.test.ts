@@ -1,6 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { applicationStatus } from '../desktop/renderer/application-status.js';
+import {
+  applicationStatus,
+  connectionPresentation,
+} from '../desktop/renderer/application-status.js';
 import type { AdapterState, AgentIdentity } from '../desktop/shared/contracts.js';
 
 function profile(
@@ -152,4 +155,111 @@ test('application summaries do not include another integration kind', () => {
   assert.equal(status.connections.length, 1);
   assert.equal(status.agents.length, 1);
   assert.equal(status.issues.length, 0);
+});
+
+test('available delivery and an unused saved connection require different user actions', () => {
+  const ready = profile('ready', 'ready');
+  assert.equal(connectionPresentation(ready, true).tone, 'success');
+  assert.equal(connectionPresentation(ready, true).action, 'clientsNoAction');
+  const saved = connectionPresentation(ready, false);
+  assert.equal(saved.tone, 'default');
+  assert.equal(saved.impact, 'clientsUnboundImpact');
+  assert.equal(saved.action, 'clientsUseSavedAction');
+});
+
+test('failed fetch, timeout and unknown diagnostics do not invent a root cause', () => {
+  for (const error of [
+    'fetch failed',
+    'Codex IPC: request timed out',
+    'Codex owner discovery failed for this exact chat',
+    'No owner supporting external input was found for this Codex chat',
+    'An unfamiliar connection diagnostic',
+  ]) {
+    const connection = profile('failed', 'error', error),
+      before = structuredClone(connection),
+      bound = connectionPresentation(connection, true),
+      unused = connectionPresentation(connection, false);
+    assert.equal(bound.tone, 'warning');
+    assert.equal(bound.impact, 'clientsUnavailableImpact');
+    assert.equal(bound.action, 'clientsCheckExactChat');
+    assert.equal(unused.tone, 'default');
+    assert.equal(unused.impact, 'clientsUnboundImpact');
+    assert.equal(unused.action, 'clientsUseSavedAction');
+    assert.deepEqual(connection, before);
+  }
+});
+
+test('uncertain admission always requires checking the exact chat before another send', () => {
+  const connection = profile('uncertain', 'uncertain', 'Codex IPC: request timed out');
+  for (const bound of [true, false]) {
+    const presentation = connectionPresentation(connection, bound);
+    assert.equal(presentation.tone, 'warning');
+    assert.equal(presentation.status, 'clientsNeedsReview');
+    assert.equal(presentation.impact, 'clientsUncertainImpact');
+    assert.equal(presentation.action, 'clientsCheckBeforeRetry');
+  }
+});
+
+test('normal manual MCP delivery is explanatory and not a connection error', () => {
+  const presentation = connectionPresentation(profile('mcp', 'manual', null, 'manual'), true);
+  assert.equal(presentation.tone, 'default');
+  assert.equal(presentation.status, 'clientsReceiveMcp');
+  assert.equal(presentation.impact, 'clientsManualImpact');
+  assert.equal(presentation.action, 'clientsMcpAction');
+});
+
+test('checking is an unfinished availability check, without a success claim', () => {
+  for (const bound of [true, false]) {
+    const presentation = connectionPresentation(profile('checking', 'checking'), bound);
+    assert.equal(presentation.tone, 'info');
+    assert.equal(presentation.status, 'clientsChecking');
+    assert.equal(presentation.impact, 'clientsCheckingImpact');
+    assert.equal(presentation.action, 'clientsWaitAction');
+  }
+});
+
+test('explicit rejection and absent support confirmation keep different explanations', () => {
+  const rejected = connectionPresentation(
+    profile('rejected', 'error', 'The handler for this Codex chat does not support external input'),
+    true,
+  );
+  const unconfirmed = connectionPresentation(
+    profile(
+      'missing',
+      'error',
+      'The handler for this Codex chat did not confirm external input support',
+    ),
+    true,
+  );
+  assert.equal(rejected.impact, 'clientsUnsupportedImpact');
+  assert.equal(rejected.action, 'clientsMcpAction');
+  assert.equal(unconfirmed.impact, 'clientsUnconfirmedImpact');
+  assert.equal(unconfirmed.action, 'clientsCheckExactChat');
+});
+
+test('inconsistent ready flags do not claim confirmed automatic delivery', () => {
+  const cases = [
+    { ...profile('diagnostic', 'ready'), error: 'An unresolved diagnostic' },
+    {
+      ...profile('no-wake', 'ready'),
+      capabilities: { ...profile('no-wake', 'ready').capabilities, wakeIdle: false },
+    },
+    {
+      ...profile('no-target', 'ready'),
+      capabilities: { ...profile('no-target', 'ready').capabilities, exactSession: false },
+    },
+  ];
+  for (const connection of cases) {
+    const presentation = connectionPresentation(connection, true);
+    assert.equal(presentation.impact, 'clientsUnavailableImpact');
+    assert.equal(presentation.action, 'clientsCheckExactChat');
+    assert.notEqual(presentation.tone, 'success');
+    assert.equal(
+      applicationStatus('codex-desktop', {
+        adapters: [connection],
+        agents: [agent('Проверка', connection.id)],
+      }).summary,
+      'paused',
+    );
+  }
 });

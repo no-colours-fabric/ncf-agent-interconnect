@@ -205,6 +205,30 @@ test('application connection labels identify saved profiles and issue counts in 
   assert.equal(t('ru', 'clientsConnectionIssues', { count: 7 }), 'Подключения с ошибками: 7');
 });
 
+test('connection guidance is localized and preserves uncertain and unsupported distinctions', () => {
+  for (const locale of supportedLocales) {
+    for (const key of [
+      'clientsStatusHelp',
+      'clientsUnavailableImpact',
+      'clientsUnboundImpact',
+      'clientsUseSavedAction',
+      'clientsCheckExactChat',
+      'clientsUncertainImpact',
+      'clientsCheckBeforeRetry',
+      'clientsUnsupportedImpact',
+      'clientsUnconfirmedImpact',
+    ] as const) {
+      assert.ok(t(locale, key).length > 0);
+      if (locale !== 'en') assert.notEqual(t(locale, key), t('en', key));
+    }
+    assert.notEqual(t(locale, 'clientsUncertainImpact'), t(locale, 'clientsUnavailableImpact'));
+    assert.notEqual(t(locale, 'clientsUnsupportedImpact'), t(locale, 'clientsUnconfirmedImpact'));
+    assert.notEqual(t(locale, 'clientsCheckBeforeRetry'), t(locale, 'clientsCheckExactChat'));
+  }
+  assert.equal(t('ru', 'clientsColumnAction'), 'Что делать');
+  assert.equal(t('en', 'clientsNoBoundAgent'), 'No agent attached');
+});
+
 test('interpolation preserves dollar-pattern user values literally', () => {
   assert.equal(
     t('en', 'msgAttachmentSize', { name: 'budget$&.txt', size: 1 }),

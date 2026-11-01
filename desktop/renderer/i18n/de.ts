@@ -117,6 +117,41 @@ export const de: Messages = {
   clientsAvailable: 'Verfügbar',
   clientsUnavailable: 'Nicht verfügbar',
   clientsChecking: 'Verbindung wird geprüft',
+  clientsColumnAgents: 'Agent',
+  clientsColumnStatus: 'Status',
+  clientsColumnImpact: 'Zustellung',
+  clientsColumnAction: 'Was tun',
+  clientsDetails: 'Verbindungsdetails',
+  clientsNoBoundAgent: 'Kein Agent zugeordnet',
+  clientsConnectionId: 'Verbindungs-ID',
+  clientsTechnicalMessage: 'Technische Meldung',
+  clientsStatusHelp:
+    'Diese Statusangaben beschreiben die Zustellung an einzelne Chats, nicht die Aktivität von Agenten oder abgeschlossene Aufgaben. Eine Verbindungswarnung allein bedeutet keinen Verlust des Verlaufs oder Ausfall des gesamten Knotens.',
+  clientsNoAction: 'Keine Aktion erforderlich.',
+  clientsReadyImpact: 'Automatische Zustellung an diesen Chat ist verfügbar.',
+  clientsUnavailableImpact:
+    'Automatische Zustellung an genau diesen Chat ist derzeit nicht bestätigt.',
+  clientsUnboundImpact: 'Dieser gespeicherten Verbindung ist derzeit kein Agent zugeordnet.',
+  clientsUseSavedAction:
+    'Prüfen Sie diese Verbindung nur, wenn Sie den zugehörigen Chat noch benötigen.',
+  clientsCheckExactChat:
+    'Prüfen Sie, ob die Anwendung und genau dieser Chat verfügbar sind. Lesen Sie bei Bedarf die Einrichtungsanleitung.',
+  clientsCheckingImpact:
+    'Es wird geprüft, ob diese Verbindung Nachrichten automatisch empfangen kann.',
+  clientsWaitAction: 'Warten Sie, bis die Verbindungsprüfung abgeschlossen ist.',
+  clientsManualImpact:
+    'In diesem Modus werden Nachrichten über MCP empfangen, ohne automatische Zustellung im Chat.',
+  clientsMcpAction:
+    'Lesen Sie eingehende Nachrichten über MCP in diesem Chat. Beachten Sie die Einrichtungsanleitung.',
+  clientsNeedsReview: 'Zustellung prüfen',
+  clientsUncertainImpact:
+    'Die Anfrage hat den Chat möglicherweise erreicht; der Empfang wurde nicht bestätigt.',
+  clientsCheckBeforeRetry:
+    'Prüfen Sie genau diesen Chat vor dem erneuten Senden, um Duplikate zu vermeiden.',
+  clientsUnsupportedImpact:
+    'Der Handler dieses Chats meldet, dass externe Eingaben nicht unterstützt werden.',
+  clientsUnconfirmedImpact:
+    'Der Handler dieses Chats hat die Unterstützung externer Eingaben nicht bestätigt.',
   clientsNoAgents: 'Keine verbundenen Agenten',
   clientsReceiveMcp: 'Empfang über MCP',
   clientsPaused: 'Zustellung pausiert',

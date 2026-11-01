@@ -57,7 +57,7 @@ import {
   t,
   type Locale,
 } from './i18n/index.js';
-import { applicationStatus } from './application-status.js';
+import { ApplicationConnections } from './application-connections.js';
 
 const theme = createTheme({
   palette: {
@@ -1086,124 +1086,20 @@ function App(): React.JSX.Element {
             </Stack>
           )}
           {page === 'clients' && (
-            <Stack spacing={2.5}>
-              <Typography color="text.secondary">{t(locale, 'clientsIntro')}</Typography>
-              {(['opencode-http', 'codex-desktop', 'manual'] as const).map((kind) => {
-                const { agents, connections, summary, issues } = applicationStatus(kind, snapshot);
-                return (
-                  <Paper key={kind} sx={{ p: 3 }}>
-                    <Stack
-                      direction="row"
-                      sx={{ justifyContent: 'space-between', alignItems: 'center' }}
-                    >
-                      <Typography variant="h6">
-                        {kind === 'opencode-http'
-                          ? t(locale, 'clientsKindOpencode')
-                          : kind === 'codex-desktop'
-                            ? t(locale, 'clientsKindCodex')
-                            : t(locale, 'clientsKindManual')}
-                      </Typography>
-                      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
-                        <Chip
-                          color={
-                            summary === 'connected'
-                              ? 'success'
-                              : summary === 'partial'
-                                ? 'warning'
-                                : 'default'
-                          }
-                          label={
-                            summary === 'connected'
-                              ? t(locale, 'clientsConnected')
-                              : summary === 'partial'
-                                ? t(locale, 'clientsPartiallyConnected')
-                                : summary === 'manual'
-                                  ? t(locale, 'clientsReceiveMcp')
-                                  : summary === 'paused'
-                                    ? t(locale, 'clientsPaused')
-                                    : t(locale, 'clientsNoAgents')
-                          }
-                        />
-                        {!!issues.length && (
-                          <Chip
-                            color="warning"
-                            label={t(locale, 'clientsConnectionIssues', { count: issues.length })}
-                          />
-                        )}
-                      </Stack>
-                    </Stack>
-                    <Typography color="text.secondary" sx={{ mt: 1 }}>
-                      {kind === 'opencode-http'
-                        ? t(locale, 'clientsDetailOpencode')
-                        : kind === 'codex-desktop'
-                          ? t(locale, 'clientsDetailCodex')
-                          : t(locale, 'clientsDetailManual')}
-                    </Typography>
-                    {agents.map((a) => {
-                      const state = connections.find(
-                        ({ profile }) => profile.id === a.binding?.adapterId,
-                      )?.profile;
-                      return (
-                        <Typography key={a.key} variant="body2" sx={{ mt: 1.5 }}>
-                          {a.nickname} · {a.binding?.client} ·{' '}
-                          {state?.state === 'ready'
-                            ? t(locale, 'clientsAuto')
-                            : kind === 'manual'
-                              ? t(locale, 'clientsReceiveMcp')
-                              : state?.state === 'checking'
-                                ? t(locale, 'clientsChecking')
-                                : t(locale, 'clientsPaused')}
-                        </Typography>
-                      );
-                    })}
-                    {kind !== 'manual' &&
-                      connections
-                        .filter((connection) => !connection.agents.length)
-                        .map(({ profile }) => (
-                          <Typography
-                            key={profile.id}
-                            variant="body2"
-                            sx={{ mt: 1.5, overflowWrap: 'anywhere' }}
-                          >
-                            {t(locale, 'clientsSavedConnection', { id: profile.id })} ·{' '}
-                            {profile.state === 'ready'
-                              ? t(locale, 'clientsAvailable')
-                              : profile.state === 'checking'
-                                ? t(locale, 'clientsChecking')
-                                : t(locale, 'clientsUnavailable')}
-                          </Typography>
-                        ))}
-                    {issues.map(({ profile, agents: affected }) => (
-                      <Alert
-                        key={profile.id}
-                        severity={profile.state === 'uncertain' ? 'warning' : 'error'}
-                        sx={{ mt: 2, overflowWrap: 'anywhere' }}
-                      >
-                        {affected.length
-                          ? `${affected.map((agent) => agent.nickname).join(', ')} (${profile.id})`
-                          : t(locale, 'clientsSavedConnection', { id: profile.id })}
-                        : {profile.error ?? t(locale, 'clientsUnavailable')}
-                      </Alert>
-                    ))}
-                    <Button
-                      sx={{ mt: 2 }}
-                      onClick={() => {
-                        setClient(
-                          kind === 'opencode-http'
-                            ? 'opencode'
-                            : kind === 'codex-desktop'
-                              ? 'codex'
-                              : 'cursor',
-                        );
-                        setPage('mcp');
-                      }}
-                    >
-                      {t(locale, 'clientsCta')}
-                    </Button>
-                  </Paper>
+            <ApplicationConnections
+              snapshot={snapshot}
+              locale={locale}
+              onSetup={(kind) => {
+                setClient(
+                  kind === 'opencode-http'
+                    ? 'opencode'
+                    : kind === 'codex-desktop'
+                      ? 'codex'
+                      : 'cursor',
                 );
-              })}
-            </Stack>
+                setPage('mcp');
+              }}
+            />
           )}
           {page === 'settings' && (
             <Stack spacing={3}>

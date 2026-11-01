@@ -117,6 +117,39 @@ export const es: Messages = {
   clientsAvailable: 'Disponible',
   clientsUnavailable: 'No disponible',
   clientsChecking: 'Comprobando la conexión',
+  clientsColumnAgents: 'Agente',
+  clientsColumnStatus: 'Estado',
+  clientsColumnImpact: 'Entrega',
+  clientsColumnAction: 'Qué hacer',
+  clientsDetails: 'Detalles de la conexión',
+  clientsNoBoundAgent: 'Sin agente vinculado',
+  clientsConnectionId: 'ID de conexión',
+  clientsTechnicalMessage: 'Mensaje técnico',
+  clientsStatusHelp:
+    'Estos estados describen la entrega a cada chat, no la actividad del agente ni la finalización de tareas. Un aviso de conexión por sí solo no indica pérdida del historial ni fallo de todo el nodo.',
+  clientsNoAction: 'No se requiere ninguna acción.',
+  clientsReadyImpact: 'La entrega automática a este chat está disponible.',
+  clientsUnavailableImpact:
+    'La entrega automática a este chat concreto no está confirmada actualmente.',
+  clientsUnboundImpact: 'Esta conexión guardada no tiene ningún agente vinculado actualmente.',
+  clientsUseSavedAction: 'Revise esta conexión solo si todavía necesita su chat.',
+  clientsCheckExactChat:
+    'Compruebe que la aplicación y este chat concreto estén disponibles. Revise la configuración si es necesario.',
+  clientsCheckingImpact:
+    'Se está comprobando si esta conexión puede recibir mensajes automáticamente.',
+  clientsWaitAction: 'Espere a que termine la comprobación de conexión.',
+  clientsManualImpact: 'Este modo recibe mensajes mediante MCP, sin entrega automática al chat.',
+  clientsMcpAction:
+    'Lea los mensajes entrantes mediante MCP en este chat. Consulte las instrucciones de configuración.',
+  clientsNeedsReview: 'Comprobar entrega',
+  clientsUncertainImpact:
+    'La solicitud puede haber llegado al chat, pero su recepción no se confirmó.',
+  clientsCheckBeforeRetry:
+    'Revise este chat concreto antes de volver a enviar para evitar duplicados.',
+  clientsUnsupportedImpact:
+    'El controlador de este chat indica que la entrada externa no es compatible.',
+  clientsUnconfirmedImpact:
+    'El controlador de este chat no confirmó la compatibilidad con la entrada externa.',
   clientsNoAgents: 'Sin agentes conectados',
   clientsReceiveMcp: 'Recepción mediante MCP',
   clientsPaused: 'Entrega en pausa',
