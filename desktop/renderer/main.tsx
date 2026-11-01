@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import { CompactPeerDirectory } from './CompactPeerDirectory.js';
 import { AgentHistory } from './AgentHistory.js';
 import { useAgentHistory } from './useAgentHistory.js';
 import { draftNicknameKey, remoteConversation } from './agent-history.js';
@@ -973,11 +974,20 @@ function App(): React.JSX.Element {
                 </Stack>
               </Paper>
               {snapshot.peers.map((p) => (
-                <Paper key={p.id} sx={{ p: 2.5 }}>
-                  <Stack direction="row" sx={{ justifyContent: 'space-between' }}>
-                    <Box>
-                      <Typography sx={{ fontWeight: 650 }}>{p.label}</Typography>
-                      <Typography variant="body2" color="text.secondary">
+                <Paper key={p.id} data-testid={'peer-' + p.id} sx={{ p: 2 }}>
+                  <Stack
+                    direction="row"
+                    sx={{ justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}
+                  >
+                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                      <Typography sx={{ fontWeight: 650, overflowWrap: 'anywhere' }}>
+                        {p.label}
+                      </Typography>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ overflowWrap: 'anywhere' }}
+                      >
                         {p.address || t(locale, 'networkIncoming')}
                       </Typography>
                       <Typography
@@ -1000,8 +1010,8 @@ function App(): React.JSX.Element {
                       {p.error}
                     </Alert>
                   )}
-                  <Box sx={{ mt: 2 }}>
-                    <DirectoryList
+                  <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid #e2e7ec' }}>
+                    <CompactPeerDirectory
                       directories={snapshot.directories.filter(
                         (directory) => directory.nodeId === p.id,
                       )}
