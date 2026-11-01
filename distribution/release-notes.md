@@ -18,6 +18,8 @@ source files are not required for installation. macOS requires version 13 or lat
 - Pairing commits use queued settings transactions, idempotent confirmation and
   explicit conflict or uncertainty results during overlapping attempts, stop and
   write failure. Existing paired connections and stored history are preserved.
+- Clicking the selected agent again preserves the displayed history and
+  attachment controls.
 
 - Messages require an explicit node UUID and agent name. Identical agent names
   on different nodes remain independent, and offline queues keep their address.

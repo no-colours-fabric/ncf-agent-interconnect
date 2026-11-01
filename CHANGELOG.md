@@ -13,6 +13,8 @@
 - Preserve committed pairing results across an identical confirmation retry;
   reject overlapping authorization changes and report interrupted writes without
   silently repeating an uncertain admission.
+- Preserve visible message history and attachment controls when the selected
+  agent is clicked again.
 
 New pairing requires short-code support on both computers. Existing paired
 connections, protocol 2 messages and saved history remain compatible. Reconnect

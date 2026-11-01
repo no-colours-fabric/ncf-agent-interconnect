@@ -501,6 +501,7 @@ function App(): React.JSX.Element {
                       key={c.key}
                       selected={c.nickname === selected}
                       onClick={() => {
+                        if (c.nickname === selected) return;
                         setMessages([]);
                         setHistorySize(100);
                         setSelected(c.nickname);

@@ -113,6 +113,34 @@ try {
   await page.getByRole('button', { name: 'Open data.txt', exact: true }).waitFor();
   assert.equal(await page.evaluate(() => window.injected), undefined);
   assert.equal(await page.locator('a[href="https://untrusted.invalid"]').count(), 0);
+  const messageCount = await page.getByText(/^Messages: \d+$/).innerText();
+  await page.evaluate(() => {
+    window.__reselectedHistoryMissing = false;
+    window.__historyObserver = new MutationObserver(() => {
+      if (
+        !document.body.textContent.includes('Full incoming message') ||
+        !document.querySelector('button[aria-label="Open data.txt"]') ||
+        !document.querySelector('button[aria-label="Save data.txt"]')
+      )
+        window.__reselectedHistoryMissing = true;
+    });
+    window.__historyObserver.observe(document.body, { childList: true, subtree: true });
+  });
+  await page.getByRole('button', { name: /^Interface check/ }).click();
+  const historyDisappeared = await page.evaluate(async () => {
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    window.__historyObserver.disconnect();
+    return window.__reselectedHistoryMissing;
+  });
+  assert.equal(
+    historyDisappeared,
+    false,
+    'reselecting the current agent must preserve its history',
+  );
+  assert.equal(await page.getByText('Full incoming message', { exact: false }).isVisible(), true);
+  assert.equal(await page.getByRole('button', { name: 'Open data.txt', exact: true }).count(), 1);
+  assert.equal(await page.getByRole('button', { name: 'Save data.txt', exact: true }).count(), 1);
+  assert.equal(await page.getByText(/^Messages: \d+$/).innerText(), messageCount);
   const saved = path.join(temp, 'saved.txt');
   await application.evaluate(
     ({ dialog, shell }, { saved }) => {
@@ -199,6 +227,7 @@ try {
       attachmentOpenBoundary: true,
       attachmentSaved: true,
       externalTextEscaped: true,
+      selectedHistoryPreserved: true,
       realClientConfigsUnchanged: true,
       screenshots: ['release/preview-overview.png', 'release/preview-agents.png'],
     }),
