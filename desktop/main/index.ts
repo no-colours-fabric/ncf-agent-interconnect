@@ -14,6 +14,7 @@ import path from 'node:path';
 import { mkdir, copyFile, appendFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { NodeService } from '../core/service.js';
+import { StartupLifecycle } from './startup-lifecycle.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataArg = process.argv.indexOf('--data-dir');
@@ -24,6 +25,8 @@ let window: BrowserWindow | null = null,
   tray: Tray | null = null,
   service: NodeService | null = null,
   quitting = false;
+let opening: Promise<void> | null = null;
+const startup = new StartupLifecycle(showWindow);
 const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
 else {
@@ -34,16 +37,24 @@ else {
     if (quitting) return;
     event.preventDefault();
     quitting = true;
-    void service?.close().finally(() => {
-      tray?.destroy();
-      app.quit();
-    });
+    startup.stop();
+    void Promise.resolve(opening)
+      .then(
+        () => service?.close(),
+        () => {},
+      )
+      .finally(() => {
+        tray?.destroy();
+        app.quit();
+      });
   });
   void app
     .whenReady()
     .then(async () => {
+      if (quitting) return;
       const data = app.getPath('userData');
       await mkdir(data, { recursive: true, mode: 0o700 });
+      if (quitting) return;
       const image = nativeImage
         .createFromPath(
           path.join(
@@ -60,25 +71,30 @@ else {
         updateTray();
         window?.webContents.send('interconnect:change');
       });
-      await service.open();
-      updateTray();
-      setupIpc();
-      if (!process.argv.includes('--background') && !app.getLoginItemSettings().wasOpenedAtLogin)
-        show();
+      await startup.start(
+        () => (opening = service!.open()),
+        () => {
+          updateTray();
+          setupIpc();
+        },
+        !process.argv.includes('--background') && !app.getLoginItemSettings().wasOpenedAtLogin,
+      );
     })
     .catch(async (e) => {
+      startup.stop();
+      if (quitting) return;
+      quitting = true;
       const message = (e as Error).stack ?? String(e);
       await appendFile(
         path.join(app.getPath('userData'), 'startup-error.log'),
         message + '\n',
       ).catch(() => {});
       dialog.showErrorBox('NCF Agent Interconnect', (e as Error).message);
-      quitting = true;
       app.quit();
     });
 }
 function updateTray(): void {
-  if (!service || !tray) return;
+  if (quitting || !service || !tray) return;
   const state = service.snapshot(),
     unread = state.agents.reduce((sum, c) => sum + c.unread, 0);
   tray.setToolTip(
@@ -109,7 +125,10 @@ function updateTray(): void {
   }
 }
 function show(tab?: string): void {
-  if (!service) return;
+  startup.requestOpen(tab);
+}
+function showWindow(tab?: string): void {
+  if (quitting || !service) return;
   if (window && !window.isDestroyed()) {
     window.show();
     window.focus();
@@ -143,7 +162,9 @@ function show(tab?: string): void {
   window.on('closed', () => {
     window = null;
   });
-  window.once('ready-to-show', () => window?.show());
+  window.once('ready-to-show', () => {
+    if (!quitting) window?.show();
+  });
   void window.loadFile(path.join(directory, '../renderer/index.html'), { hash: tab ?? '' });
 }
 function setupIpc(): void {
