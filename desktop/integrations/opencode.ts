@@ -13,6 +13,12 @@ interface Descriptor {
   token: string;
 }
 
+class UnavailableSession extends Error {
+  constructor(readonly retryable: boolean) {
+    super('The current OpenCode chat is unavailable');
+  }
+}
+
 // This file is shipped with the app and loaded once by OpenCode. No shell,
 // shell permissions, private OpenChamber API, or credentials of OpenCode.
 export const NCFAgentInterconnect = async (context: Context, options?: { descriptor?: string }) => {
@@ -27,15 +33,17 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
     restoring: Promise<void> | undefined;
   const query = { directory: context.directory };
   const sessionGet = async (id: string): Promise<unknown> => {
-    if (!/^ses_[a-zA-Z0-9_-]+$/.test(id)) throw new Error('Invalid OpenCode chat context');
+    if (!/^ses_[a-zA-Z0-9_-]+$/.test(id)) throw new UnavailableSession(false);
     const result = await context.client.session.get({
       path: { id },
       query,
       signal: AbortSignal.timeout(10000),
     });
     const data = result.data as { id?: string; directory?: string } | undefined;
-    if (result.error || data?.id !== id || (data.directory && data.directory !== context.directory))
-      throw new Error('The current OpenCode chat is unavailable');
+    if (result.error || !data)
+      throw new UnavailableSession(![404, 410].includes(result.response?.status ?? 0));
+    if (data.id !== id || (data.directory && data.directory !== context.directory))
+      throw new UnavailableSession(false);
     return data;
   };
   const scheduleRestore = () => {
@@ -206,26 +214,36 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
   const restore = (): Promise<void> => {
     if (!restoring)
       restoring = (async () => {
+        if (stopped) return;
         const result = await register();
+        let retryNeeded = false;
         for (const id of result.sessions ?? []) {
+          if (stopped) return;
           try {
             await sessionGet(id);
-          } catch {
-            continue;
-          } // Deleted/foreign session: never redirect it.
-          sessions.add(id);
-          await register(id);
+            if (stopped) return;
+            sessions.add(id);
+            await register(id);
+          } catch (error) {
+            // Deleted/foreign chats stay untouched. A temporary host/API failure
+            // must not silently finish recovery or prevent other chats restoring.
+            if (!(error instanceof UnavailableSession) || error.retryable) retryNeeded = true;
+          }
         }
+        if (retryNeeded) throw new Error('Some saved OpenCode chats are not ready to reconnect');
       })().finally(() => {
         restoring = undefined;
       });
     return restoring;
   };
-  await restore().catch(scheduleRestore);
+  // Session APIs can wait for host plugin initialization. Return the hooks
+  // before restoring saved chats, or startup can wait on itself.
+  void restore().catch(scheduleRestore);
   const close = async () => {
     if (stopped) return;
     stopped = true;
     clearTimeout(retry);
+    await restoring?.catch(() => {});
     await nodeCall('/integrations/opencode/release', { instanceId }).catch(() => {});
     for (const response of streams) response.end();
     server.closeAllConnections();

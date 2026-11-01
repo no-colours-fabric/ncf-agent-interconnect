@@ -173,6 +173,67 @@ function input(profile: AdapterProfile) {
   };
 }
 
+test(
+  'a complete node restart waits for the exact Codex owner, recovers without UI, and preserves uncertain input',
+  { timeout: 15000 },
+  async (t) => {
+    const f = await fixture(t),
+      directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-cold-'));
+    let service = new NodeService(directory);
+    t.after(async () => {
+      await service.close();
+      await rm(directory, { recursive: true, force: true });
+    });
+    const until = async (check: () => boolean) => {
+      const deadline = Date.now() + 6000;
+      while (!check()) {
+        if (Date.now() > deadline) throw new Error('Exact-owner recovery timed out');
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    };
+    await service.open();
+    const target = await service.connectCodex(
+      { nickname: 'Точный получатель', client: 'Codex' },
+      { threadId: f.profile.threadId!, socket: f.profile.socket },
+    );
+    const sender = service.connect({ nickname: 'Источник', client: 'MCP' });
+    if (target.status !== 'connected' || sender.status !== 'connected') throw new Error();
+    const send = (text: string) =>
+      service.send({
+        connectionId: sender.binding.connectionId,
+        recipientNode: service.settings.value.nodeId,
+        recipientNickname: target.nickname,
+        text,
+      });
+    f.state.admission = 'lost';
+    const uncertain = await send('An uncertain request must survive restart without a duplicate.');
+    await until(() => service.store.dispatchState(uncertain.id)?.state === 'uncertain');
+    await service.close();
+    f.state.discoveryResult = 'error';
+    f.state.admission = 'success';
+    service = new NodeService(directory);
+    await service.open();
+    assert.equal(service.adapters.get(target.binding.adapterId).status().state, 'error');
+    const queued = await send('Deliver only when the exact handler is available.');
+    assert.equal(service.store.get(queued.id, 'in')?.state, 'ready');
+    assert.equal(f.requests.filter((r) => r.method.startsWith('thread-follower-')).length, 1);
+    // This fixture supplies an initialized handler, not a UI or a new binding.
+    // Discovery itself cannot create a handler in an external application.
+    f.state.discoveryResult = 'success';
+    await until(() => service.store.get(queued.id, 'in')?.state === 'processed');
+    assert.deepEqual(
+      service.store.assertOwner(target.binding.connectionId).binding,
+      target.binding,
+    );
+    assert.equal(service.store.dispatchState(uncertain.id)?.state, 'uncertain');
+    assert.equal(service.store.get(uncertain.id, 'in')?.state, 'ready');
+    assert.equal(service.store.get(uncertain.id, 'out')?.state, 'ready');
+    const deliveries = f.requests.filter((r) => r.method.startsWith('thread-follower-'));
+    assert.equal(deliveries.length, 2);
+    assert.ok(deliveries.every((r) => r.params.conversationId === f.profile.threadId));
+  },
+);
+
 test('Codex owner probe is read-only; idle admission inherits settings and targets only the discovered exact owner', async (t) => {
   const f = await fixture(t),
     adapter = new CodexDesktopAdapter(f.profile, () => {});

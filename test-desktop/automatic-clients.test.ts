@@ -29,15 +29,21 @@ async function fixture(t: test.TestContext) {
   );
   const workspace = path.join(directory, 'project'),
     known = new Set(['ses_first', 'ses_second', 'ses_third']);
+  const unavailable = new Set<string>();
+  const foreign = new Set<string>(),
+    sessionReads = new Map<string, number>();
   const states: Record<string, { type: string }> = {},
     prompts: { id: string; text: string }[] = [];
   const sdk = {
     session: {
       get: async (options: Record<string, unknown>) => {
         const id = (options.path as { id: string }).id;
+        sessionReads.set(id, (sessionReads.get(id) ?? 0) + 1);
+        if (unavailable.has(id))
+          return { error: { message: 'starting' }, response: new Response(null, { status: 503 }) };
         return known.has(id)
-          ? { data: { id, directory: workspace } }
-          : { error: { message: 'missing' } };
+          ? { data: { id, directory: foreign.has(id) ? path.join(directory, 'other') : workspace } }
+          : { error: { message: 'missing' }, response: new Response(null, { status: 404 }) };
       },
       status: async () => ({ data: states }),
       promptAsync: async (options: Record<string, unknown>) => {
@@ -83,6 +89,10 @@ async function fixture(t: test.TestContext) {
     states,
     prompts,
     known,
+    unavailable,
+    foreign,
+    sessionReads,
+    sdk,
     directory,
     get host() {
       return host;
@@ -287,6 +297,123 @@ test('OpenCode host and node restart restore the existing agent without reconfig
     f.service.snapshot().agents.find((a) => a.nickname === 'Воевода')!.binding,
     binding,
   );
+});
+
+test('OpenCode startup retries temporarily unavailable saved chats without a tool call or UI activation', async (t) => {
+  const f = await fixture(t),
+    first = connected(await f.connect('ses_first', 'Поздний чат')).binding,
+    second = connected(await f.connect('ses_second', 'Готовый чат')).binding;
+  f.unavailable.add('ses_first');
+  await f.restartHost();
+  await until(() => f.service.adapters.get(second.adapterId).status().state === 'ready');
+  assert.equal(f.service.adapters.get(first.adapterId).status().released, true);
+  assert.equal(f.service.adapters.get(second.adapterId).status().state, 'ready');
+  const sender = f.service.connect({ nickname: 'Источник', client: 'MCP' });
+  if (sender.status !== 'connected') throw new Error();
+  const message = await f.service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
+    recipientNickname: 'Поздний чат',
+    text: 'Deliver after host initialization without opening this chat.',
+  });
+  assert.equal(f.prompts.length, 0);
+  assert.equal(f.service.store.get(message.id, 'in')?.state, 'ready');
+  // Only the host API becomes available. No connect tool, UI or idle event.
+  f.unavailable.delete('ses_first');
+  await until(() => f.service.store.get(message.id, 'in')?.state === 'processed');
+  assert.deepEqual(
+    f.prompts.map((prompt) => prompt.id),
+    ['ses_first'],
+  );
+  assert.deepEqual(f.service.store.assertOwner(first.connectionId).binding, first);
+  assert.deepEqual(f.service.store.assertOwner(second.connectionId).binding, second);
+});
+
+test('OpenCode plugin initialization does not wait for session APIs that require plugins to finish loading', async (t) => {
+  const f = await fixture(t),
+    binding = connected(await f.connect('ses_first', 'Сохранённый чат')).binding,
+    get = f.sdk.session.get;
+  let release!: () => void;
+  const ready = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  f.sdk.session.get = async (options) => {
+    await ready;
+    return get(options);
+  };
+  const restarting = f.restartHost().then(() => {
+    release();
+  });
+  let timer: NodeJS.Timeout | undefined;
+  const initialized = await Promise.race([
+    restarting.then(() => true),
+    new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), 500);
+    }),
+  ]);
+  release();
+  clearTimeout(timer);
+  await restarting;
+  assert.equal(
+    initialized,
+    true,
+    'plugin loading must finish before waiting for the host session API',
+  );
+  await until(() => f.service.adapters.get(binding.adapterId).status().state === 'ready');
+  assert.deepEqual(f.service.store.assertOwner(binding.connectionId).binding, binding);
+});
+
+test('OpenCode restoration skips deleted and foreign chats without retrying or redirecting them', async (t) => {
+  const f = await fixture(t),
+    missing = connected(await f.connect('ses_first', 'Удалённый чат')).binding,
+    foreign = connected(await f.connect('ses_second', 'Другой проект')).binding,
+    healthy = connected(await f.connect('ses_third', 'Готовый чат')).binding;
+  f.known.delete('ses_first');
+  f.foreign.add('ses_second');
+  await f.restartHost();
+  await until(() => f.service.adapters.get(healthy.adapterId).status().state === 'ready');
+  const reads = new Map(f.sessionReads);
+  await new Promise((resolve) => setTimeout(resolve, 1750));
+  assert.deepEqual(f.sessionReads, reads);
+  for (const binding of [missing, foreign]) {
+    assert.equal(f.service.adapters.get(binding.adapterId).status().released, true);
+    assert.deepEqual(f.service.store.assertOwner(binding.connectionId).binding, binding);
+  }
+  assert.equal(f.prompts.length, 0);
+});
+
+test('one failed OpenCode registration does not prevent other saved chats restoring', async (t) => {
+  const f = await fixture(t),
+    first = connected(await f.connect('ses_first', 'Первый')).binding,
+    second = connected(await f.connect('ses_second', 'Второй')).binding,
+    install = f.service.installAdapter.bind(f.service);
+  let blocked = true;
+  f.service.installAdapter = async (profile) => {
+    if (blocked && profile.sessionId === 'ses_first') throw new Error('Test host is starting');
+    await install(profile);
+  };
+  await f.restartHost();
+  await until(() => f.service.adapters.get(second.adapterId).status().state === 'ready');
+  assert.equal(f.service.adapters.get(first.adapterId).status().released, true);
+  blocked = false;
+  await until(() => f.service.adapters.get(first.adapterId).status().state === 'ready');
+  for (const binding of [first, second])
+    assert.deepEqual(f.service.store.assertOwner(binding.connectionId).binding, binding);
+});
+
+test('stopping an OpenCode plugin cancels pending startup recovery', async (t) => {
+  const f = await fixture(t),
+    binding = connected(await f.connect('ses_first', 'Остановленный')).binding;
+  f.unavailable.add('ses_first');
+  await f.restartHost();
+  await until(() => (f.sessionReads.get('ses_first') ?? 0) >= 3);
+  await f.host.event({ event: { type: 'server.instance.disposed' } });
+  const reads = new Map(f.sessionReads);
+  f.unavailable.delete('ses_first');
+  await new Promise((resolve) => setTimeout(resolve, 1750));
+  assert.deepEqual(f.sessionReads, reads);
+  assert.equal(f.service.adapters.get(binding.adapterId).status().released, true);
+  assert.equal(f.prompts.length, 0);
 });
 
 test('OpenCode context tickets are one-use and unavailable to unauthenticated browser requests', async (t) => {
