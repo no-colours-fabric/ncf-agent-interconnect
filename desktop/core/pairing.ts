@@ -24,7 +24,7 @@ const hex = (bytes: number) => z.string().regex(new RegExp(`^[a-f0-9]{${bytes * 
 const macSchema = hex(32);
 const identitySchema = z
   .object({
-    nodeId: z.uuid(),
+    nodeId: z.uuid().refine((value) => value === value.toLowerCase()),
     label: z.string().min(1).max(120),
     certificate: z.string().min(1).max(20000),
   })
@@ -366,20 +366,19 @@ export class PairingHost {
 
 export class PairingClient {
   private readonly password: string;
+  private readonly identity: PairIdentity;
   private challenge?: Challenge;
   private client?: SrpClient;
   private key?: Buffer;
   private context?: string;
   private proofs?: string[];
-  constructor(
-    code: string,
-    private readonly identity: PairIdentity,
-  ) {
+  constructor(code: string, identity: PairIdentity) {
+    this.identity = parse(identitySchema, identity);
     this.password = normalizeAccessCode(code);
-    certificateDer(identity.certificate);
+    certificateDer(this.identity.certificate);
   }
   start(): z.infer<typeof startSchema> {
-    return { phase: 'start', identity: this.identity };
+    return { phase: 'start', identity: { ...this.identity } };
   }
   prove(input: unknown, observedCertificate: string): Prove {
     const challenge = parse(challengeSchema, input);

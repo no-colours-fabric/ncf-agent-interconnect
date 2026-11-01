@@ -21,6 +21,9 @@ with its fixed `SRP.params[3072]` group, SHA-256 and HAP proof mode. The SRP ide
 is the ASCII string `ncf-pair/v3`; the password is the uppercase ASCII code.
 Neither side accepts group, hash or proof-mode parameters from the network.
 The implementation uses fresh 32-byte salts and private values per session.
+New pairing identities require canonical lowercase node UUIDs, including each
+app's own identity. Uppercase aliases are rejected before authentication or
+admission. Existing peer records and historical message IDs are not rewritten.
 
 The initial TLS certificate is untrusted. Only public identities, certificates
 and PAKE values cross that channel. The code and the permanent peer credential

@@ -80,6 +80,66 @@ test('eight ASCII symbols are case-insensitive; Unicode expansion and punctuatio
   for (let i = 0; i < 32; i++) assert.match(host.createCode().code, /^[A-HJ-NP-Z2-9]{8}$/);
 });
 
+test('new pairing identities reject uppercase own node UUIDs and retain validated copies', async () => {
+  const canonical = { ...clientIdentity, nodeId: 'abcdef12-3456-4789-8abc-def012345678' };
+  const uppercase = { ...canonical, nodeId: canonical.nodeId.toUpperCase() };
+  const { code } = fixture();
+  assert.throws(() => new PairingClient(code, uppercase), /Invalid pairing/);
+  const mutable = { ...canonical };
+  const client = new PairingClient(code, mutable);
+  mutable.nodeId = uppercase.nodeId;
+  const start = client.start();
+  start.identity.nodeId = uppercase.nodeId;
+  assert.equal(client.start().identity.nodeId, canonical.nodeId);
+  const host = new PairingHost(() => uppercase);
+  const hostCode = host.createCode().code;
+  await assert.rejects(
+    host.handle(new PairingClient(hostCode, otherIdentity).start(), noop),
+    /Invalid pairing/,
+  );
+});
+
+test('uppercase self and remote aliases are rejected before PAKE admission with the correct code', async () => {
+  const own = { ...hostIdentity, nodeId: 'abcdef12-3456-4789-8abc-def012345678' };
+  const remote = { ...clientIdentity, nodeId: 'fedcba98-7654-4321-8fed-cba987654321' };
+  const host = new PairingHost(() => own);
+  const code = host.createCode().code;
+  const client = new PairingClient(code, remote);
+  let admissions = 0;
+  const admit = async () => {
+    admissions++;
+  };
+  for (const identity of [own, remote]) {
+    await assert.rejects(
+      host.handle(
+        {
+          ...client.start(),
+          identity: { ...identity, nodeId: identity.nodeId.toUpperCase() },
+        },
+        admit,
+      ),
+      /Invalid pairing/,
+    );
+  }
+  const challenge = (await host.handle(client.start(), admit)) as StartResult;
+  assert.throws(
+    () =>
+      client.prove(
+        {
+          ...challenge,
+          identity: { ...challenge.identity, nodeId: own.nodeId.toUpperCase() },
+        },
+        own.certificate,
+      ),
+    /Invalid pairing/,
+  );
+  assert.equal(admissions, 0);
+  const proof = await host.handle(client.prove(challenge, own.certificate), admit);
+  const receipt = await host.handle(client.confirm(proof), admit);
+  assert.equal(client.finish(receipt).nodeId, own.nodeId);
+  assert.equal(admissions, 1);
+});
+
 test('mutual proofs precede admission and both nodes derive the same private peer credential', async () => {
   const { host, code } = fixture();
   const prepared = await prepare(host, code.toLowerCase());
@@ -483,10 +543,11 @@ test('the queued write guard runs before file creation and preserves previous se
   assert.equal(file.value.peers.length, 1);
 });
 
-async function node(t: test.TestContext): Promise<NodeService> {
+async function node(t: test.TestContext, nodeId?: string): Promise<NodeService> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-pair-node-'));
   const file = new SettingsFile(directory);
   await file.load();
+  if (nodeId) file.value.nodeId = nodeId;
   file.value.peerPort = 0;
   await file.save();
   const service = new NodeService(file.directory);
@@ -837,6 +898,98 @@ test('client persistence failure after remote commit is explicit and recoverable
   await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
   assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
   assert.equal(b.settings.value.peers.length, 1);
+});
+
+test('uppercase aliases cannot write duplicate peers or change live authentication; canonical re-pair works', async (t) => {
+  const a = await node(t, 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa');
+  const b = await node(t, 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+  const oldA = structuredClone(a.settings.value.peers),
+    oldB = structuredClone(b.settings.value.peers);
+  const diskA = await readFile(a.settings.filename, 'utf8'),
+    diskB = await readFile(b.settings.filename, 'utf8');
+  const ownA = {
+    nodeId: a.settings.value.nodeId,
+    label: a.settings.value.nodeLabel,
+    certificate: await readFile(path.join(a.directory, 'node-cert.pem'), 'utf8'),
+  };
+  const ownB = {
+    nodeId: b.settings.value.nodeId,
+    label: b.settings.value.nodeLabel,
+    certificate: await readFile(path.join(b.directory, 'node-cert.pem'), 'utf8'),
+  };
+  let writes = 0,
+    hooks = 0;
+  for (const service of [a, b]) {
+    const save = service.settings.savePeers.bind(service.settings);
+    service.settings.savePeers = async (...args) => {
+      writes++;
+      await save(...args);
+    };
+    const reconnect = service.network.reconnectPeer.bind(service.network);
+    service.network.reconnectPeer = (peerId) => {
+      hooks++;
+      reconnect(peerId);
+    };
+  }
+  const endpoint = new URL(b.snapshot().peerUrl);
+  endpoint.protocol = 'https:';
+  endpoint.pathname = '/pair';
+  const code = b.network.accessCode().code;
+  const client = new PairingClient(code, ownA);
+  const post = (input: unknown) =>
+    new Promise<number>((resolve, reject) => {
+      const request = https.request(
+        endpoint,
+        { method: 'POST', rejectUnauthorized: false },
+        (response) => {
+          response.resume();
+          response.on('end', () => resolve(response.statusCode!));
+        },
+      );
+      request.on('error', reject);
+      request.end(JSON.stringify(input));
+    });
+  for (const identity of [ownB, ownA]) {
+    assert.equal(
+      await post({
+        ...client.start(),
+        identity: { ...identity, nodeId: identity.nodeId.toUpperCase() },
+      }),
+      400,
+    );
+  }
+  const network = a.network as unknown as {
+    pairRequest: (...args: unknown[]) => Promise<{ body: StartResult; certificate: string }>;
+  };
+  const original = network.pairRequest.bind(network);
+  network.pairRequest = async (...args) => {
+    const response = await original(...args);
+    if ((args[1] as { phase: string }).phase === 'start')
+      response.body.identity.nodeId = response.body.identity.nodeId.toUpperCase();
+    return response;
+  };
+  await assert.rejects(
+    a.network.join(b.snapshot().peerUrl, b.network.accessCode().code),
+    /Invalid pairing/,
+  );
+  network.pairRequest = original;
+  assert.equal(writes, 0);
+  assert.equal(hooks, 0);
+  assert.deepEqual(a.settings.value.peers, oldA);
+  assert.deepEqual(b.settings.value.peers, oldB);
+  assert.equal(await readFile(a.settings.filename, 'utf8'), diskA);
+  assert.equal(await readFile(b.settings.filename, 'utf8'), diskB);
+  assert.equal(a.snapshot().peers[0].connected, true);
+  assert.equal(b.snapshot().peers[0].connected, true);
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+  assert.equal(writes, 2);
+  assert.equal(hooks, 2);
+  assert.equal(a.settings.value.peers.length, 1);
+  assert.equal(b.settings.value.peers.length, 1);
+  assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
 });
 
 test('HTTP parsing is bounded and pairing endpoints reject browser origins', async (t) => {
