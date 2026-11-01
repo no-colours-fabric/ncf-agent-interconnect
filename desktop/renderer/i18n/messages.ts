@@ -150,6 +150,10 @@ export interface Messages {
   clientsNoAgents: string;
   clientsReceiveMcp: string;
   clientsPaused: string;
+  clientsReleased: string;
+  clientsReleasedImpact: string;
+  clientsReleasedAction: string;
+  clientsNotConfirmed: string;
   clientsDetailOpencode: string;
   clientsDetailCodex: string;
   clientsDetailManual: string;

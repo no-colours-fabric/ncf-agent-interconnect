@@ -169,6 +169,11 @@ export const ru: Messages = {
   clientsNoAgents: 'Нет подключённых агентов',
   clientsReceiveMcp: 'Получение через MCP',
   clientsPaused: 'Доставка приостановлена',
+  clientsReleased: 'Соединение завершено клиентом',
+  clientsReleasedImpact:
+    'Клиент завершил это соединение. Привязка агента и его история сохранены; доставка не принуждается.',
+  clientsReleasedAction: 'Ничего делать не требуется.',
+  clientsNotConfirmed: 'Соединение не подтверждено',
   clientsDetailOpencode:
     'Встроенный плагин определяет текущий чат и доставляет входящие сообщения автоматически. Занятый агент получает сообщения, когда освободится.',
   clientsDetailCodex:

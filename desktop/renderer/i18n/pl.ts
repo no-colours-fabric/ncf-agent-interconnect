@@ -171,6 +171,11 @@ export const pl: Messages = {
   clientsNoAgents: 'Brak połączonych agentów',
   clientsReceiveMcp: 'Odbieranie przez MCP',
   clientsPaused: 'Dostarczanie wstrzymane',
+  clientsReleased: 'Połączenie zwolnione przez klienta',
+  clientsReleasedImpact:
+    'Klient zakończył to połączenie. Powiązanie agenta i jego historia są zachowane; dostarczanie nie jest wymuszane.',
+  clientsReleasedAction: 'Brak wymaganych działań.',
+  clientsNotConfirmed: 'Połączenie niepotwierdzone',
   clientsDetailOpencode:
     'Dołączona wtyczka identyfikuje bieżący czat i automatycznie dostarcza wiadomości przychodzące. Zajęty agent otrzyma wiadomości, gdy będzie wolny.',
   clientsDetailCodex:

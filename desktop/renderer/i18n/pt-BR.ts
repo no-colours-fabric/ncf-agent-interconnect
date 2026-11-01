@@ -169,6 +169,11 @@ export const ptBR: Messages = {
   clientsNoAgents: 'Nenhum agente conectado',
   clientsReceiveMcp: 'Recebimento via MCP',
   clientsPaused: 'Entrega pausada',
+  clientsReleased: 'Conexão liberada pelo cliente',
+  clientsReleasedImpact:
+    'O cliente encerrou esta conexão. A vinculação do agente e seu histórico são preservados; a entrega não é forçada.',
+  clientsReleasedAction: 'Nenhuma ação necessária.',
+  clientsNotConfirmed: 'Conexão não confirmada',
   clientsDetailOpencode:
     'O plugin incluído identifica o chat atual e entrega mensagens recebidas automaticamente. Um agente ocupado recebe mensagens quando fica livre.',
   clientsDetailCodex:

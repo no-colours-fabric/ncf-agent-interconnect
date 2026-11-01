@@ -174,6 +174,11 @@ export const de: Messages = {
   clientsNoAgents: 'Keine verbundenen Agenten',
   clientsReceiveMcp: 'Empfang über MCP',
   clientsPaused: 'Zustellung pausiert',
+  clientsReleased: 'Verbindung vom Client freigegeben',
+  clientsReleasedImpact:
+    'Der Client hat diese Verbindung beendet. Die Bindung des Agenten und sein Verlauf bleiben erhalten; die Zustellung wird nicht erzwungen.',
+  clientsReleasedAction: 'Keine Aktion erforderlich.',
+  clientsNotConfirmed: 'Verbindung nicht bestätigt',
   clientsDetailOpencode:
     'Das gebündelte Plugin erkennt den aktuellen Chat und stellt eingehende Nachrichten automatisch zu. Ein beschäftigter Agent erhält Nachrichten, sobald er frei wird.',
   clientsDetailCodex:

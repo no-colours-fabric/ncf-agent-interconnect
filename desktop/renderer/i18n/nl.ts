@@ -172,6 +172,11 @@ export const nl: Messages = {
   clientsNoAgents: 'Geen verbonden agents',
   clientsReceiveMcp: 'Ontvangen via MCP',
   clientsPaused: 'Bezorging onderbroken',
+  clientsReleased: 'Verbinding door de client vrijgegeven',
+  clientsReleasedImpact:
+    'De client heeft deze verbinding beëindigd. De binding van de agent en zijn geschiedenis blijven behouden; bezorging wordt niet afgedwongen.',
+  clientsReleasedAction: 'Geen actie vereist.',
+  clientsNotConfirmed: 'Verbinding niet bevestigd',
   clientsDetailOpencode:
     'De meegeleverde plug-in herkent de huidige chat en levert inkomende berichten automatisch. Een bezette agent ontvangt berichten zodra die vrij is.',
   clientsDetailCodex:

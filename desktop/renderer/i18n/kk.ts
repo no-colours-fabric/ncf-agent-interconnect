@@ -170,6 +170,11 @@ export const kk: Messages = {
   clientsNoAgents: 'Қосылған агенттер жоқ',
   clientsReceiveMcp: 'MCP арқылы қабылдау',
   clientsPaused: 'Жеткізу тоқтатылды',
+  clientsReleased: 'Клиент байланысты босатты',
+  clientsReleasedImpact:
+    'Клиент бұл байланысты аяқтады. Агенттің байлауы мен оның тарихы сақталады; жеткізу мәжбүрленбейді.',
+  clientsReleasedAction: 'Ешқандай әрекет қажет емес.',
+  clientsNotConfirmed: 'Байланыс расталмаған',
   clientsDetailOpencode:
     'Жиынтықтағы плагин ағымдағы чатты анықтайды және кіріс хабарламаларды автоматты түрде жеткізеді. Бос емес агент босаған кезде хабарламаларды алады.',
   clientsDetailCodex:

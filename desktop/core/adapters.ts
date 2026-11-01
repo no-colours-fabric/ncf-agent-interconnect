@@ -102,6 +102,7 @@ export class OpenCodeAdapter implements AgentAdapter {
       capabilities: { ...capabilities, wakeIdle: true, exactSession: true },
       state: 'checking',
       error: null,
+      released: profile.released === true,
     };
   }
   status(): AdapterState {
@@ -170,8 +171,11 @@ export class OpenCodeAdapter implements AgentAdapter {
   private async startNow(): Promise<void> {
     if (this.controller.signal.aborted) return;
     if (this.profile.released) {
+      // The client released the connection; keep the raw diagnostic for
+      // details but surface this as a released fact, not a transport error.
       this.state.state = 'error';
       this.state.error = 'OpenCode is disconnected';
+      this.state.released = true;
       this.changed();
       return;
     }
@@ -201,10 +205,12 @@ export class OpenCodeAdapter implements AgentAdapter {
       });
       this.state.state = 'ready';
       this.state.error = null;
+      this.state.released = false;
     } catch (e) {
       if (!this.controller.signal.aborted) {
         this.state.state = 'error';
         this.state.error = (e as Error).message;
+        this.state.released = false;
         this.reconnect();
       }
     }
@@ -299,6 +305,7 @@ export class OpenCodeAdapter implements AgentAdapter {
     await this.streamTask;
     this.state.state = 'error';
     this.state.error = 'OpenCode is disconnected';
+    this.state.released = this.profile.released === true;
     this.changed();
   }
 }

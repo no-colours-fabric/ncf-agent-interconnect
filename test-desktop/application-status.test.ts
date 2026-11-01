@@ -77,7 +77,7 @@ test('an available unbound profile cannot mark an unavailable bound agent as con
   const adapters = [profile('unbound', 'ready'), profile('bound', 'error', 'Connection failed')],
     agents = [agent('История', null), agent('Ожидающий', 'bound')],
     status = applicationStatus('codex-desktop', { adapters, agents });
-  assert.equal(status.summary, 'paused');
+  assert.equal(status.summary, 'notConfirmed');
   assert.deepEqual(
     status.agents.map((value) => value.nickname),
     ['Ожидающий'],
@@ -180,6 +180,7 @@ test('failed fetch, timeout and unknown diagnostics do not invent a root cause',
       bound = connectionPresentation(connection, true),
       unused = connectionPresentation(connection, false);
     assert.equal(bound.tone, 'warning');
+    assert.equal(bound.status, 'clientsNotConfirmed');
     assert.equal(bound.impact, 'clientsUnavailableImpact');
     assert.equal(bound.action, 'clientsCheckExactChat');
     assert.equal(unused.tone, 'default');
@@ -187,6 +188,63 @@ test('failed fetch, timeout and unknown diagnostics do not invent a root cause',
     assert.equal(unused.action, 'clientsUseSavedAction');
     assert.deepEqual(connection, before);
   }
+});
+
+test('a released connection is a confirmed client release, not a transport failure', () => {
+  const released = { ...profile('released', 'error', 'OpenCode is disconnected'), released: true },
+    bound = connectionPresentation(released, true),
+    unused = connectionPresentation(released, false);
+  assert.equal(bound.tone, 'default');
+  assert.equal(bound.status, 'clientsReleased');
+  assert.equal(bound.impact, 'clientsReleasedImpact');
+  assert.equal(bound.action, 'clientsReleasedAction');
+  assert.equal(unused.tone, 'default');
+  assert.equal(unused.status, 'clientsReleased');
+  assert.equal(unused.impact, 'clientsUnboundImpact');
+  assert.equal(unused.action, 'clientsUseSavedAction');
+});
+
+test('uncertain overrides a released connection and never allows an automatic retry', () => {
+  const connection = {
+      ...profile('uncertain', 'uncertain', 'Codex IPC: request timed out'),
+      released: true,
+    },
+    presentation = connectionPresentation(connection, true);
+  assert.equal(presentation.status, 'clientsNeedsReview');
+  assert.equal(presentation.impact, 'clientsUncertainImpact');
+  assert.equal(presentation.action, 'clientsCheckBeforeRetry');
+  assert.equal(presentation.tone, 'warning');
+});
+
+test('released connections are not counted as delivery issues', () => {
+  const released = { ...profile('released', 'error', 'OpenCode is disconnected'), released: true },
+    status = applicationStatus('codex-desktop', {
+      adapters: [released],
+      agents: [agent('Завершён', 'released')],
+    });
+  assert.equal(status.summary, 'released');
+  assert.equal(status.issues.length, 0);
+});
+
+test('a bound not-confirmed connection is summarized as not confirmed, not paused', () => {
+  const failed = profile('failed', 'error', 'fetch failed'),
+    status = applicationStatus('codex-desktop', {
+      adapters: [failed],
+      agents: [agent('Симба', 'failed')],
+    });
+  assert.equal(status.summary, 'notConfirmed');
+  assert.equal(status.issues.length, 1);
+});
+
+test('a released profile is not misreported as connected or as an issue', () => {
+  const released = { ...profile('released', 'error', 'OpenCode is disconnected'), released: true },
+    other = profile('other', 'ready'),
+    status = applicationStatus('codex-desktop', {
+      adapters: [released, other],
+      agents: [agent('Завершён', 'released'), agent('Активен', 'other')],
+    });
+  assert.equal(status.summary, 'partial');
+  assert.equal(status.issues.length, 0);
 });
 
 test('uncertain admission always requires checking the exact chat before another send', () => {
@@ -259,7 +317,7 @@ test('inconsistent ready flags do not claim confirmed automatic delivery', () =>
         adapters: [connection],
         agents: [agent('Проверка', connection.id)],
       }).summary,
-      'paused',
+      'notConfirmed',
     );
   }
 });

@@ -155,6 +155,10 @@ export const zh: Messages = {
   clientsNoAgents: '未连接智能体',
   clientsReceiveMcp: '通过 MCP 接收',
   clientsPaused: '投递已暂停',
+  clientsReleased: '连接已由客户端释放',
+  clientsReleasedImpact: '客户端已结束此连接。智能体绑定及其历史记录均已保留；不强制投递。',
+  clientsReleasedAction: '无需操作。',
+  clientsNotConfirmed: '连接未确认',
   clientsDetailOpencode: '内置插件会自动识别当前聊天并投递传入消息。忙碌的智能体空闲时会收到消息。',
   clientsDetailCodex:
     '聊天和配置文件通过 MCP 元数据识别。消息包含发送者、正文和附件链接。Desktop 集成处于实验阶段，取决于 Codex 版本。',

@@ -56,6 +56,13 @@ export function connectionPresentation(
       action: 'clientsWaitAction',
       tone: 'info',
     };
+  if (profile.released)
+    return {
+      status: 'clientsReleased',
+      impact: hasBoundAgents ? 'clientsReleasedImpact' : 'clientsUnboundImpact',
+      action: hasBoundAgents ? 'clientsReleasedAction' : 'clientsUseSavedAction',
+      tone: 'default',
+    };
   if (!hasBoundAgents)
     return {
       status: 'clientsUnavailable',
@@ -67,14 +74,21 @@ export function connectionPresentation(
     profile.error === 'The handler for this Codex chat does not support external input';
   const unconfirmed =
     profile.error === 'The handler for this Codex chat did not confirm external input support';
+  if (unsupported || unconfirmed)
+    return {
+      status: 'clientsPaused',
+      impact: unsupported
+        ? 'clientsUnsupportedImpact'
+        : unconfirmed
+          ? 'clientsUnconfirmedImpact'
+          : 'clientsUnavailableImpact',
+      action: unsupported ? 'clientsMcpAction' : 'clientsCheckExactChat',
+      tone: 'warning',
+    };
   return {
-    status: 'clientsPaused',
-    impact: unsupported
-      ? 'clientsUnsupportedImpact'
-      : unconfirmed
-        ? 'clientsUnconfirmedImpact'
-        : 'clientsUnavailableImpact',
-    action: unsupported ? 'clientsMcpAction' : 'clientsCheckExactChat',
+    status: 'clientsNotConfirmed',
+    impact: 'clientsUnavailableImpact',
+    action: 'clientsCheckExactChat',
     tone: 'warning',
   };
 }
@@ -88,10 +102,18 @@ function canDeliverAutomatically(profile: AdapterState): boolean {
   );
 }
 
+export type ConnectionSummary =
+  'none' | 'manual' | 'connected' | 'partial' | 'released' | 'notConfirmed' | 'paused';
+
 export function applicationStatus(
   kind: AdapterProfile['kind'],
   snapshot: Pick<Snapshot, 'adapters' | 'agents'>,
-) {
+): {
+  agents: Snapshot['agents'];
+  connections: { profile: AdapterState; agents: Snapshot['agents'] }[];
+  summary: ConnectionSummary;
+  issues: { profile: AdapterState; agents: Snapshot['agents'] }[];
+} {
   const profiles = snapshot.adapters.filter((profile) => profile.kind === kind),
     ids = new Set(profiles.map((profile) => profile.id)),
     agents = snapshot.agents.filter((agent) => agent.binding && ids.has(agent.binding.adapterId)),
@@ -99,20 +121,25 @@ export function applicationStatus(
       profile,
       agents: agents.filter((agent) => agent.binding?.adapterId === profile.id),
     })),
+    bound = connections.filter(({ agents }) => agents.length),
+    boundCount = bound.reduce((count, connection) => count + connection.agents.length, 0),
     readyAgents = connections
       .filter(({ profile }) => canDeliverAutomatically(profile))
       .reduce((count, connection) => count + connection.agents.length, 0);
-  const summary = !agents.length
-    ? 'none'
-    : kind === 'manual'
-      ? 'manual'
-      : !readyAgents
-        ? 'paused'
-        : readyAgents < agents.length
-          ? 'partial'
-          : 'connected';
+  let summary: ConnectionSummary;
+  if (!boundCount) summary = 'none';
+  else if (kind === 'manual') summary = 'manual';
+  else if (readyAgents === boundCount) summary = 'connected';
+  else if (readyAgents > 0) summary = 'partial';
+  else if (bound.some(({ profile }) => profile.state === 'uncertain')) summary = 'paused';
+  else if (bound.some(({ profile }) => profile.state === 'checking')) summary = 'paused';
+  else if (bound.every(({ profile }) => profile.released)) summary = 'released';
+  else summary = 'notConfirmed';
+  // A released connection is not a technical failure; keep only real issues.
   const issues = connections.filter(
-    ({ profile }) => profile.error || profile.state === 'error' || profile.state === 'uncertain',
+    ({ profile }) =>
+      !profile.released &&
+      (profile.error || profile.state === 'error' || profile.state === 'uncertain'),
   );
   return { agents, connections, summary, issues };
 }

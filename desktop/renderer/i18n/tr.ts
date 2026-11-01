@@ -169,6 +169,11 @@ export const tr: Messages = {
   clientsNoAgents: 'Bağlı aracı yok',
   clientsReceiveMcp: 'MCP üzerinden alma',
   clientsPaused: 'Teslimat duraklatıldı',
+  clientsReleased: 'Bağlantı istemci tarafından serbest bırakıldı',
+  clientsReleasedImpact:
+    'İstemci bu bağlantıyı sonlandırdı. Aracının bağlanması ve geçmişi korunur; teslimat zorlanmaz.',
+  clientsReleasedAction: 'İşlem gerekli değil.',
+  clientsNotConfirmed: 'Bağlantı doğrulanmadı',
   clientsDetailOpencode:
     'Paket içindeki eklenti geçerli sohbeti tanır ve gelen mesajları otomatik olarak iletir. Meşgul bir aracı mesajları boşaldığında alır.',
   clientsDetailCodex:

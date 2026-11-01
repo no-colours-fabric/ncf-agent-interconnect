@@ -174,6 +174,11 @@ export const fr: Messages = {
   clientsNoAgents: 'Aucun agent connecté',
   clientsReceiveMcp: 'Réception via MCP',
   clientsPaused: 'Livraison suspendue',
+  clientsReleased: 'Connexion libérée par le client',
+  clientsReleasedImpact:
+    'Le client a mis fin à cette connexion. La liaison et l\u2019historique de l\u2019agent sont conservés ; aucune livraison n\u2019est forcée.',
+  clientsReleasedAction: 'Aucune action requise.',
+  clientsNotConfirmed: 'Connexion non confirmée',
   clientsDetailOpencode:
     'Le plugin fourni identifie la conversation actuelle et livre automatiquement les messages entrants. Un agent occupé reçoit les messages dès qu’il devient libre.',
   clientsDetailCodex:

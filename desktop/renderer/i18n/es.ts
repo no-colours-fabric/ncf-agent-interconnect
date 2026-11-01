@@ -172,6 +172,11 @@ export const es: Messages = {
   clientsNoAgents: 'Sin agentes conectados',
   clientsReceiveMcp: 'Recepción mediante MCP',
   clientsPaused: 'Entrega en pausa',
+  clientsReleased: 'Conexión liberada por el cliente',
+  clientsReleasedImpact:
+    'El cliente finalizó esta conexión. La vinculación del agente y su historial se conservan; no se fuerza la entrega.',
+  clientsReleasedAction: 'No se requiere ninguna acción.',
+  clientsNotConfirmed: 'Conexión no confirmada',
   clientsDetailOpencode:
     'El complemento incluido identifica el chat actual y entrega los mensajes entrantes automáticamente. Un agente ocupado recibe mensajes cuando queda libre.',
   clientsDetailCodex:

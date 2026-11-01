@@ -121,3 +121,28 @@ test('uncertain admission is explained separately and does not expose a resend a
   assert.equal(buttons.length, 3);
   assert.ok(buttons.every((button) => button.includes(t('ru', 'clientsCta'))));
 });
+
+test('a released bound connection explains the preserved binding without a warning action', () => {
+  const connection = {
+      ...profile('released-connection', 'OpenCode is disconnected'),
+      state: 'error' as const,
+      released: true,
+    },
+    html = render([connection], [agent('Завершён', connection.id)]),
+    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
+  assert.ok(visible.includes(t('ru', 'clientsReleased')));
+  assert.ok(visible.includes(t('ru', 'clientsReleasedImpact')));
+  assert.ok(visible.includes(t('ru', 'clientsReleasedAction')));
+  assert.ok(!visible.includes(t('ru', 'clientsCheckExactChat')));
+  assert.ok(!visible.includes('role="alert"'));
+});
+
+test('a bound not-confirmed connection warns only about delivery impact, without a root-cause claim', () => {
+  const connection = profile('not-confirmed', 'fetch failed'),
+    html = render([connection], [agent('Симба', connection.id)]),
+    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
+  assert.ok(visible.includes(t('ru', 'clientsNotConfirmed')));
+  assert.ok(visible.includes(t('ru', 'clientsUnavailableImpact')));
+  assert.ok(visible.includes(t('ru', 'clientsCheckExactChat')));
+  assert.ok(!visible.includes(t('ru', 'clientsPaused')));
+});

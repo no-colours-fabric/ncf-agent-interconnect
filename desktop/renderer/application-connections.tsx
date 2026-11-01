@@ -63,7 +63,7 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                   color={
                     summary === 'connected'
                       ? 'success'
-                      : summary === 'partial'
+                      : summary === 'partial' || summary === 'notConfirmed'
                         ? 'warning'
                         : 'default'
                   }
@@ -73,11 +73,15 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                       ? 'clientsConnected'
                       : summary === 'partial'
                         ? 'clientsPartiallyConnected'
-                        : summary === 'manual'
-                          ? 'clientsReceiveMcp'
-                          : summary === 'paused'
-                            ? 'clientsPaused'
-                            : 'clientsNoAgents',
+                        : summary === 'released'
+                          ? 'clientsReleased'
+                          : summary === 'notConfirmed'
+                            ? 'clientsNotConfirmed'
+                            : summary === 'manual'
+                              ? 'clientsReceiveMcp'
+                              : summary === 'paused'
+                                ? 'clientsPaused'
+                                : 'clientsNoAgents',
                   )}
                 />
                 {!!issues.length && (

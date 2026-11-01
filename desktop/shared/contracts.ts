@@ -163,6 +163,7 @@ export interface AdapterState {
   capabilities: AdapterCapabilities;
   state: 'manual' | 'ready' | 'checking' | 'error' | 'uncertain';
   error: string | null;
+  released?: boolean;
 }
 export interface Peer {
   id: string;

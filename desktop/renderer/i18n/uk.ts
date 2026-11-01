@@ -169,6 +169,11 @@ export const uk: Messages = {
   clientsNoAgents: 'Немає підключених агентів',
   clientsReceiveMcp: 'Отримання через MCP',
   clientsPaused: 'Доставлення призупинено',
+  clientsReleased: 'З\u2019єднання звільнено клієнтом',
+  clientsReleasedImpact:
+    'Клієнт завершив це з\u2019єднання. Прив\u2019язка агента та його історія збережені; доставку не примушуємо.',
+  clientsReleasedAction: 'Нічого робити не потрібно.',
+  clientsNotConfirmed: 'З\u2019єднання не підтверджено',
   clientsDetailOpencode:
     'Вбудований плагін визначає поточний чат і автоматично доставляє вхідні повідомлення. Зайнятий агент отримає повідомлення, коли звільниться.',
   clientsDetailCodex:
