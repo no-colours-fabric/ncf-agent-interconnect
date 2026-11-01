@@ -774,14 +774,18 @@ function App(): React.JSX.Element {
                 {ownCode && (
                   <Box sx={{ mt: 2 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      A code for one other node. Expires at {time(ownCode.expiresAt)}.
+                      Use once on the other computer. Expires at {time(ownCode.expiresAt)}.
                     </Typography>
                     <TextField
+                      label="Temporary access code"
                       value={ownCode.code}
-                      multiline
-                      maxRows={3}
                       fullWidth
-                      slotProps={{ input: { readOnly: true } }}
+                      slotProps={{
+                        input: { readOnly: true },
+                        htmlInput: {
+                          style: { fontFamily: 'monospace', fontSize: 24, letterSpacing: '0.15em' },
+                        },
+                      }}
                     />
                     <Button startIcon={<ContentCopyOutlined />} onClick={() => copy(ownCode.code)}>
                       Copy code
@@ -803,15 +807,27 @@ function App(): React.JSX.Element {
                   />
                   <TextField
                     label="Access code from the remote node user"
+                    placeholder="7K3MD8RX"
+                    helperText="8 letters or digits. Letter case does not matter."
                     value={access}
-                    onChange={(e) => setAccess(e.target.value)}
-                    multiline
-                    maxRows={3}
+                    onChange={(e) =>
+                      setAccess(e.target.value.replace(/[a-z]/g, (letter) => letter.toUpperCase()))
+                    }
+                    slotProps={{
+                      htmlInput: {
+                        maxLength: 8,
+                        autoCapitalize: 'characters',
+                        autoComplete: 'off',
+                        spellCheck: false,
+                      },
+                    }}
                     fullWidth
                   />
                   <Box>
                     <Button
-                      disabled={busy || !address.trim() || !access.trim() || !snapshot.running}
+                      disabled={
+                        busy || !address.trim() || access.trim().length !== 8 || !snapshot.running
+                      }
                       variant="contained"
                       onClick={() =>
                         run(async () => {

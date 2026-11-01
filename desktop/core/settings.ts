@@ -4,7 +4,7 @@ import { networkInterfaces, hostname } from 'node:os';
 import path from 'node:path';
 import { isIP } from 'node:net';
 import { z } from 'zod';
-import type { Settings } from '../shared/contracts.js';
+import type { Peer, Settings } from '../shared/contracts.js';
 
 export const adapterSchema = z
   .object({
@@ -131,6 +131,18 @@ export class SettingsFile {
     const operation = this.saving.then(async () => {
       settingsSchema.parse(this.value);
       await atomicJson(this.filename, this.value);
+    });
+    this.saving = operation.catch(() => {});
+    await operation;
+  }
+  async savePeers(update: (current: readonly Peer[]) => Peer[]): Promise<void> {
+    const operation = this.saving.then(async () => {
+      const candidate = settingsSchema.parse({
+        ...this.value,
+        peers: update(structuredClone(this.value.peers)),
+      });
+      await atomicJson(this.filename, candidate);
+      this.value.peers = candidate.peers;
     });
     this.saving = operation.catch(() => {});
     await operation;

@@ -24,12 +24,20 @@ the agent name. Omitting the node fails without creating a local mailbox.
 
 1. Run the app on both computers.
 2. On the receiving computer, choose a local network IP under Settings.
-3. Under Remote nodes, create a temporary access code.
-4. On the other computer, enter that node IP:port or URL and its access code.
+3. Under Remote nodes, create a temporary eight-character access code.
+4. On the other computer, enter that node IP:port or URL and type its access code.
 
-The code expires after ten minutes and authorizes one peer. Share it privately.
-The app pins the peer certificate and manages subsequent reconnection. The
-address is supplied explicitly; the app does not discover arbitrary LAN peers.
+The code contains letters and digits, without spaces or punctuation. Letter case
+does not matter. It expires after ten minutes, allows up to five connection
+attempts and authorizes one peer. Creating another code replaces the previous
+one. Share it privately.
+
+The apps verify the code without sending it over the network and automatically
+exchange and pin their certificates. No certificate handling is needed. Saved
+peers reconnect without another code. Both apps need short-code pairing support
+for a new connection; existing paired connections remain usable after updating.
+The address is supplied explicitly; the app does not discover arbitrary LAN
+peers. See [Pairing](pairing.md) for the authentication protocol.
 
 ## Receive and reply
 

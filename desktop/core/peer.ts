@@ -1,7 +1,7 @@
 import https from 'node:https';
 import tls from 'node:tls';
 import { readFile, writeFile } from 'node:fs/promises';
-import { X509Certificate, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { X509Certificate, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { hostname } from 'node:os';
 import { EventEmitter } from 'node:events';
@@ -17,6 +17,7 @@ import {
   type Peer,
 } from '../shared/contracts.js';
 import { localAddresses, normalizePeerAddress, type SettingsFile } from './settings.js';
+import { PairingClient, PairingError, PairingHost, type PairedIdentity } from './pairing.js';
 
 const messageFrame = z.object({ type: z.literal('message'), envelope: envelopeSchema }).strict();
 const directoryFeature = 'agent-directory-v1';
@@ -61,22 +62,6 @@ interface Link {
   generation: number;
   timer?: NodeJS.Timeout;
 }
-interface PairCode {
-  v: 2;
-  nodeId: string;
-  certificate: string;
-  token: string;
-  expires: number;
-}
-const codeSchema = z
-  .object({
-    v: z.literal(2),
-    nodeId: z.uuid(),
-    certificate: z.string().max(20000),
-    token: z.string().regex(/^[a-f0-9]{64}$/),
-    expires: z.number().int(),
-  })
-  .strict();
 export const secretMatches = (actual: unknown, expected: string): boolean =>
   typeof actual === 'string' &&
   Buffer.byteLength(actual) === Buffer.byteLength(expected) &&
@@ -111,9 +96,11 @@ export class PeerNetwork extends EventEmitter {
   >();
   private certificate = '';
   private key = '';
-  private pairCode: PairCode | null = null;
-  private claimedBy: string | null = null;
-  private pairing = false;
+  private readonly pairingHost = new PairingHost(() => ({
+    nodeId: this.settings.value.nodeId,
+    label: this.settings.value.nodeLabel,
+    certificate: this.certificate,
+  }));
   private heartbeat?: NodeJS.Timeout;
   private stopped = true;
   port = 0;
@@ -451,18 +438,38 @@ export class PeerNetwork extends EventEmitter {
     });
   }
   accessCode(): { code: string; expiresAt: string } {
-    this.pairCode = {
-      v: 2,
-      nodeId: this.settings.value.nodeId,
-      certificate: this.certificate,
-      token: randomBytes(32).toString('hex'),
-      expires: Date.now() + 600000,
-    };
-    this.claimedBy = null;
-    return {
-      code: 'ncfnode:v2:' + Buffer.from(JSON.stringify(this.pairCode)).toString('base64url'),
-      expiresAt: new Date(this.pairCode.expires).toISOString(),
-    };
+    return this.pairingHost.createCode();
+  }
+  reconnectPeer(peerId: string): void {
+    const peer = this.settings.value.peers.find((candidate) => candidate.id === peerId);
+    if (!peer) return;
+    const link = this.link(peerId),
+      previous = link.socket;
+    clearTimeout(link.timer);
+    link.timer = undefined;
+    link.socket = null;
+    link.connecting = false;
+    previous?.terminate();
+    this.connect(peer);
+  }
+  private async savePeer(identity: PairedIdentity, address?: string): Promise<Peer> {
+    let saved!: Peer;
+    await this.settings.savePeers((current) => {
+      const previous = current.find((peer) => peer.id === identity.nodeId);
+      saved = {
+        id: identity.nodeId,
+        label: identity.label,
+        address: address ?? previous?.address ?? '',
+        certificate: identity.certificate,
+        secret: identity.secret,
+      };
+      return previous
+        ? current.map((peer) => (peer.id === saved.id ? saved : peer))
+        : [...current, saved];
+    });
+    this.reconnectPeer(saved.id);
+    this.emit('change');
+    return saved;
   }
   private async pair(
     req: import('node:http').IncomingMessage,
@@ -476,146 +483,133 @@ export class PeerNetwork extends EventEmitter {
       json(404, { error: 'Not found' });
       return;
     }
-    if (
-      !this.pairCode ||
-      Date.now() > this.pairCode.expires ||
-      !secretMatches(req.headers.authorization, 'Bearer ' + this.pairCode.token)
-    ) {
-      json(401, { error: 'The access code is missing or expired' });
-      return;
-    }
-    if (this.pairing) {
-      json(409, { error: 'A connection is already being established' });
-      return;
-    }
-    this.pairing = true;
-    try {
-      const chunks: Buffer[] = [];
-      let length = 0;
-      for await (const chunk of req) {
-        length += (chunk as Buffer).length;
-        if (length > 24000) {
-          json(413, { error: 'Request too large' });
-          return;
-        }
-        chunks.push(Buffer.from(chunk));
-      }
-      const input = z
-        .object({
-          nodeId: z.uuid(),
-          label: z.string().min(1).max(120),
-          certificate: z.string().max(20000),
-        })
-        .strict()
-        .parse(JSON.parse(Buffer.concat(chunks).toString()));
-      if (
-        input.nodeId === this.settings.value.nodeId ||
-        (this.claimedBy && this.claimedBy !== input.nodeId)
-      ) {
-        json(409, { error: 'The code was already used by another node' });
+    req.setTimeout(8000, () => req.destroy());
+    const chunks: Buffer[] = [];
+    let length = 0;
+    for await (const chunk of req) {
+      length += (chunk as Buffer).length;
+      if (length > 24000) {
+        json(413, { error: 'Request too large' });
         return;
       }
-      new X509Certificate(input.certificate);
-      let peer = this.settings.value.peers.find((p) => p.id === input.nodeId);
-      if (!peer) {
-        peer = {
-          id: input.nodeId,
-          label: input.label,
-          address: '',
-          certificate: input.certificate,
-          secret: randomBytes(32).toString('hex'),
-        };
-        this.settings.value.peers.push(peer);
-        await this.settings.save();
+      chunks.push(Buffer.from(chunk));
+    }
+    try {
+      let input: unknown;
+      try {
+        input = JSON.parse(Buffer.concat(chunks).toString());
+      } catch {
+        input = null;
       }
-      this.claimedBy = input.nodeId;
-      json(200, {
-        nodeId: this.settings.value.nodeId,
-        label: this.settings.value.nodeLabel,
-        secret: peer.secret,
+      const response = await this.pairingHost.handle(input, async (identity) => {
+        await this.savePeer(identity);
       });
-      this.emit('change');
-    } finally {
-      this.pairing = false;
+      json(200, response);
+    } catch (error) {
+      json(error instanceof PairingError ? error.status : 400, {
+        error: error instanceof PairingError ? error.message : 'Pairing verification failed',
+      });
     }
   }
+  private pairRequest(
+    endpoint: URL,
+    input: unknown,
+    certificate?: string,
+  ): Promise<{ body: unknown; certificate: string }> {
+    return new Promise((resolve, reject) => {
+      const req = https.request(
+        endpoint,
+        {
+          // Only public PAKE data crosses the initial, unauthenticated TLS channel.
+          ...(certificate ? pinned(certificate) : { rejectUnauthorized: false }),
+          agent: false,
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          timeout: 8000,
+        },
+        (res) => {
+          const raw = (res.socket as tls.TLSSocket).getPeerCertificate().raw;
+          if (!raw) {
+            req.destroy(new Error('The remote node did not provide a certificate'));
+            return;
+          }
+          const observed = new X509Certificate(raw).toString();
+          const chunks: Buffer[] = [];
+          let length = 0;
+          res.on('data', (chunk: Buffer) => {
+            length += chunk.length;
+            if (length > 24000) req.destroy(new Error('Invalid node response'));
+            else chunks.push(chunk);
+          });
+          res.on('end', () => {
+            try {
+              const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+              if (res.statusCode !== 200) {
+                const error = z.object({ error: z.string().max(240) }).safeParse(body);
+                throw new PairingError(
+                  error.success ? error.data.error : 'Connection rejected',
+                  res.statusCode ?? 400,
+                );
+              }
+              resolve({ body, certificate: observed });
+            } catch (error) {
+              reject(error);
+            }
+          });
+          res.on('aborted', () => reject(new Error('The pairing response was interrupted')));
+          res.on('error', reject);
+        },
+      );
+      req.on('error', reject);
+      req.on('timeout', () => req.destroy(new Error('The node is unavailable at this address')));
+      req.end(JSON.stringify(input));
+    });
+  }
   async join(address: string, code: string): Promise<Peer> {
-    if (!code.startsWith('ncfnode:v2:') || code.length > 30000)
-      throw new Error('Enter the access code from the app on the other computer');
-    const claim = codeSchema.parse(JSON.parse(Buffer.from(code.slice(10), 'base64url').toString()));
-    if (claim.nodeId === this.settings.value.nodeId || claim.expires < Date.now())
-      throw new Error('The code expired or belongs to this node');
+    const client = new PairingClient(code, {
+      nodeId: this.settings.value.nodeId,
+      label: this.settings.value.nodeLabel,
+      certificate: this.certificate,
+    });
     const normalized = normalizePeerAddress(address),
       endpoint = new URL(normalized);
     endpoint.protocol = 'https:';
     endpoint.pathname = '/pair';
-    const response = await new Promise<{ nodeId: string; label: string; secret: string }>(
-      (resolve, reject) => {
-        const req = https.request(
-          endpoint,
-          {
-            ...pinned(claim.certificate),
-            method: 'POST',
-            headers: { authorization: 'Bearer ' + claim.token, 'content-type': 'application/json' },
-            timeout: 8000,
-          },
-          (res) => {
-            const chunks: Buffer[] = [];
-            let length = 0;
-            res.on('data', (b: Buffer) => {
-              length += b.length;
-              if (length > 24000) req.destroy(new Error('Invalid node response'));
-              else chunks.push(b);
-            });
-            res.on('end', () => {
-              try {
-                const body = JSON.parse(Buffer.concat(chunks).toString());
-                if (res.statusCode !== 200) throw new Error(body.error ?? 'Connection rejected');
-                resolve(
-                  z
-                    .object({
-                      nodeId: z.literal(claim.nodeId),
-                      label: z.string().max(120),
-                      secret: z.string().regex(/^[a-f0-9]{64}$/),
-                    })
-                    .strict()
-                    .parse(body),
-                );
-              } catch (e) {
-                reject(e);
-              }
-            });
-            res.on('error', reject);
-          },
-        );
-        req.on('error', reject);
-        req.on('timeout', () => req.destroy(new Error('The node is unavailable at this address')));
-        req.end(
-          JSON.stringify({
-            nodeId: this.settings.value.nodeId,
-            label: this.settings.value.nodeLabel,
-            certificate: this.certificate,
-          }),
-        );
-      },
+    const challenge = await this.pairRequest(endpoint, client.start());
+    const proof = await this.pairRequest(
+      endpoint,
+      client.prove(challenge.body, challenge.certificate),
+      client.certificate(),
     );
-    const existing = this.settings.value.peers.find((p) => p.id === response.nodeId);
-    const peer: Peer = {
-      id: response.nodeId,
-      label: response.label,
-      address: normalized,
-      secret: response.secret,
-      certificate: claim.certificate,
-    };
-    if (existing) Object.assign(existing, peer);
-    else this.settings.value.peers.push(peer);
-    await this.settings.save();
-    this.connect(peer);
-    this.emit('change');
+    const confirm = client.confirm(proof.body);
+    let receipt: unknown;
+    try {
+      receipt = (await this.pairRequest(endpoint, confirm, client.certificate())).body;
+    } catch (error) {
+      if (error instanceof PairingError) throw error;
+      // The exact same confirmation is idempotent; never start another claim here.
+      try {
+        receipt = (await this.pairRequest(endpoint, confirm, client.certificate())).body;
+      } catch {
+        throw new Error(
+          'Pairing confirmation is uncertain. Create a new access code on the other computer to reconnect.',
+        );
+      }
+    }
+    const identity = client.finish(receipt);
+    let peer: Peer;
+    try {
+      peer = await this.savePeer(identity, normalized);
+    } catch {
+      throw new Error(
+        'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',
+      );
+    }
     return peer;
   }
   async close(): Promise<void> {
     this.stopped = true;
+    this.pairingHost.reset();
     clearInterval(this.heartbeat);
     for (const link of this.links.values()) {
       clearTimeout(link.timer);

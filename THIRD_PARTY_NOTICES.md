@@ -4,8 +4,9 @@ NCF Agent Interconnect is distributed under BSD-3-Clause. Dependencies retain
 their own licenses and copyright notices.
 
 The application uses Electron and Chromium, React and React DOM, Material UI,
-Emotion, the Model Context Protocol TypeScript SDK, Zod, ws, selfsigned and
-jsonc-parser. The locked versions are recorded in `package-lock.json`.
+Emotion, the Model Context Protocol TypeScript SDK, Zod, ws, selfsigned,
+fast-srp-hap (MIT) and jsonc-parser. The locked versions are recorded in
+`package-lock.json`.
 
 Packaged applications include Electron and Chromium license documents under
 `resources/licenses` (`Contents/Resources/licenses` on macOS). Runtime dependency
