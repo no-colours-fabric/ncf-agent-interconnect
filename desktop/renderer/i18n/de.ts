@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const de: Messages = {
+  clearSelectedAgent: 'Ausgewählten Agenten und Verlauf löschen',
+  clearAllLocalAgents: 'Alle lokalen Agenten und Verläufe löschen',
+  clearAgentTitle: 'Agent und Verlauf löschen',
+  clearAllAgentsTitle: 'Alle lokalen Agenten und Verläufe löschen',
+  clearAgentWarning:
+    'Der ausgewählte lokale Agent und sein Verlauf werden gelöscht, sein Chat wird getrennt. Client-Chats und entfernte Kopien bleiben erhalten.',
+  clearAllAgentsWarning:
+    'Alle lokalen Agenten und ihre Verläufe werden gelöscht, ihre Chats werden getrennt. Entfernte Knoten, Client-Chats und entfernte Kopien bleiben erhalten.',
+  clearAgentCount: '{name}: {count} Nachrichten',
+  clearAllAgentCount: '{agents} lokale Agenten, {messages} Nachrichten',
+  clearIrreversible: 'Dies kann nicht rückgängig gemacht werden.',
+  clearAgentConfirm: 'Agent und Verlauf löschen',
+  clearAllAgentsConfirm: 'Alle lokalen Agenten löschen',
+  clearPreviewStale:
+    'Agenten oder Nachrichten wurden geändert. Prüfen Sie die neue Vorschau und klicken Sie erneut auf Löschen.',
+  clearCompleted: 'Agent und lokaler Verlauf gelöscht.',
+  clearAllCompleted: 'Alle lokalen Agenten und Verläufe gelöscht.',
+
   appSubtitle: 'Lokaler Nachrichtenknoten',
   startingNode: 'Nachrichtenknoten wird gestartet',
   navOverview: 'Übersicht',

@@ -1,7 +1,9 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { CompactPeerDirectory } from './CompactPeerDirectory.js';
+import { AgentClearControls } from './AgentClearControls.js';
+import { invalidatedAgent } from './agent-clear-model.js';
 import { AgentHistory } from './AgentHistory.js';
 import { useAgentHistory } from './useAgentHistory.js';
 import { draftNicknameKey, remoteConversation } from './agent-history.js';
@@ -48,6 +50,9 @@ import {
   type Snapshot,
   type McpInstructions,
   type AgentDirectory,
+  type AgentIdentity,
+  type AgentClearInput,
+  type AgentClearResponse,
 } from '../shared/contracts.js';
 import {
   isLocale,
@@ -229,6 +234,12 @@ function App(): React.JSX.Element {
       window.interconnect.invoke<T>(method, params),
     [],
   );
+  const clearAgents = useCallback(
+    (input: AgentClearInput) => call<AgentClearResponse>('clearAgents', input),
+    [call],
+  );
+  const previousAgents = useRef<AgentIdentity[]>([]);
+  const snapshotRequest = useRef(0);
   const run = async (work: () => Promise<unknown>, success = '') => {
     setBusy(true);
     try {
@@ -241,9 +252,10 @@ function App(): React.JSX.Element {
     }
   };
   const refresh = useCallback(async () => {
+    const request = ++snapshotRequest.current;
     try {
       const value = await call<Snapshot>('snapshot');
-      setSnapshot(value);
+      if (request === snapshotRequest.current) setSnapshot(value);
     } catch (e) {
       setError((e as Error).message);
     }
@@ -263,9 +275,25 @@ function App(): React.JSX.Element {
     if (snapshot) {
       setNodeLabel(snapshot.nodeLabel);
       setListenHost(snapshot.listenHost);
-      if (!selected && snapshot.agents.length) setSelected(snapshot.agents[0].nickname);
     }
   }, [snapshot?.nodeLabel, snapshot?.listenHost, snapshot?.agents.length]);
+  useEffect(() => {
+    if (!snapshot) return;
+    const changed = previousAgents.current !== snapshot.agents;
+    if (invalidatedAgent(previousAgents.current, snapshot.agents, selected)) {
+      setSelected('');
+      setHistorySize(100);
+      setText('');
+      setRecipientNick('');
+    } else if (!selected && changed && snapshot.agents.length)
+      setSelected(snapshot.agents[0].nickname);
+    if (invalidatedAgent(previousAgents.current, snapshot.agents, remoteSender)) {
+      setRemoteSender('');
+      setRemoteHistorySize(100);
+      setRemoteText('');
+    }
+    previousAgents.current = snapshot.agents;
+  }, [snapshot, selected, remoteSender]);
   const { messages, hasMore } = useAgentHistory({
     owner: selected,
     snapshot,
@@ -571,6 +599,41 @@ function App(): React.JSX.Element {
                   label={t(locale, 'agentsRemoteTitle')}
                 />
               </Tabs>
+              {agentsTab === 'local' && (
+                <AgentClearControls
+                  agents={snapshot.agents}
+                  selected={selected}
+                  locale={locale}
+                  invoke={clearAgents}
+                  onCleared={(result, names) => {
+                    const removed = new Set(names.map(nicknameKey));
+                    setSnapshot((current) =>
+                      current
+                        ? {
+                            ...current,
+                            agents:
+                              result.scope === 'all'
+                                ? []
+                                : current.agents.filter((agent) => !removed.has(agent.key)),
+                          }
+                        : current,
+                    );
+                    setSelected('');
+                    setHistorySize(100);
+                    setText('');
+                    setRecipientNick('');
+                    if (result.scope === 'all') {
+                      setRemoteSender('');
+                      setRemoteHistorySize(100);
+                      setRemoteText('');
+                    }
+                    setNotice(
+                      t(locale, result.scope === 'all' ? 'clearAllCompleted' : 'clearCompleted'),
+                    );
+                    void refresh();
+                  }}
+                />
+              )}
               <Box
                 role="tabpanel"
                 id="agents-panel-local"
@@ -697,6 +760,7 @@ function App(): React.JSX.Element {
                               run(async () => {
                                 await call('send', {
                                   nickname: selected,
+                                  sourceIncarnation: selectedAgent?.incarnation,
                                   recipientNode: snapshot.nodeId,
                                   recipientNickname: recipientNick,
                                   text,
@@ -875,6 +939,9 @@ function App(): React.JSX.Element {
                               run(async () => {
                                 await call('send', {
                                   nickname: remoteSender,
+                                  sourceIncarnation: snapshot.agents.find(
+                                    (agent) => agent.nickname === remoteSender,
+                                  )?.incarnation,
                                   recipientNode: remoteNode,
                                   recipientNickname: remoteNickname,
                                   text: remoteText,

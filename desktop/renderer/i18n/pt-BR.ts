@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  clearSelectedAgent: 'Excluir agente selecionado e histórico',
+  clearAllLocalAgents: 'Excluir todos os agentes locais e históricos',
+  clearAgentTitle: 'Excluir agente e histórico',
+  clearAllAgentsTitle: 'Excluir todos os agentes locais e históricos',
+  clearAgentWarning:
+    'O agente local selecionado e seu histórico serão excluídos, e seu chat será desconectado. As conversas do cliente e cópias remotas serão mantidas.',
+  clearAllAgentsWarning:
+    'Todos os agentes locais e seus históricos serão excluídos, e seus chats serão desconectados. Nós remotos, conversas dos clientes e cópias remotas serão mantidos.',
+  clearAgentCount: '{name}: {count} mensagens',
+  clearAllAgentCount: '{agents} agentes locais, {messages} mensagens',
+  clearIrreversible: 'Esta ação não pode ser desfeita.',
+  clearAgentConfirm: 'Excluir agente e histórico',
+  clearAllAgentsConfirm: 'Excluir todos os agentes locais',
+  clearPreviewStale:
+    'Os agentes ou as mensagens mudaram. Confira esta nova prévia e clique em Excluir novamente.',
+  clearCompleted: 'Agente e histórico local excluídos.',
+  clearAllCompleted: 'Todos os agentes locais e históricos excluídos.',
+
   appSubtitle: 'Nó de mensagens local',
   startingNode: 'Iniciando o nó de mensagens',
   navOverview: 'Visão geral',

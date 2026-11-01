@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  clearSelectedAgent: '선택한 에이전트 및 기록 삭제',
+  clearAllLocalAgents: '모든 로컬 에이전트 및 기록 삭제',
+  clearAgentTitle: '에이전트 및 기록 삭제',
+  clearAllAgentsTitle: '모든 로컬 에이전트 및 기록 삭제',
+  clearAgentWarning:
+    '선택한 로컬 에이전트와 기록을 삭제하고 채팅 연결을 해제합니다. 클라이언트 대화와 원격 사본은 유지됩니다.',
+  clearAllAgentsWarning:
+    '모든 로컬 에이전트와 기록을 삭제하고 채팅 연결을 해제합니다. 원격 노드, 클라이언트 대화 및 원격 사본은 유지됩니다.',
+  clearAgentCount: '{name}: 메시지 {count}개',
+  clearAllAgentCount: '로컬 에이전트 {agents}개, 메시지 {messages}개',
+  clearIrreversible: '이 작업은 취소할 수 없습니다.',
+  clearAgentConfirm: '에이전트 및 기록 삭제',
+  clearAllAgentsConfirm: '모든 로컬 에이전트 삭제',
+  clearPreviewStale:
+    '에이전트 또는 메시지가 변경되었습니다. 새 미리보기를 확인하고 삭제를 다시 누르세요.',
+  clearCompleted: '에이전트 및 로컬 기록을 삭제했습니다.',
+  clearAllCompleted: '모든 로컬 에이전트 및 기록을 삭제했습니다.',
+
   appSubtitle: '로컬 메시징 노드',
   startingNode: '메시징 노드를 시작하는 중',
   navOverview: '개요',

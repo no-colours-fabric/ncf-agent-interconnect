@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { Snapshot } from '../shared/contracts.js';
+import { agentCacheKey, visibleAgentHistory } from './agent-clear-model.js';
+import { nicknameKey } from '../shared/contracts.js';
 import { loadAgentHistory, type HistoryPage } from './agent-history.js';
 
 export function useAgentHistory({
@@ -17,6 +19,10 @@ export function useAgentHistory({
   address?: string;
   onError: (error: string) => void;
 }): HistoryPage {
+  const agent = owner
+    ? snapshot?.agents.find((agent) => agent.key === nicknameKey(owner))
+    : undefined;
+  const cacheKey = agentCacheKey(agent);
   const [history, setHistory] = useState<HistoryPage & { owner: string }>({
     owner: '',
     messages: [],
@@ -24,16 +30,20 @@ export function useAgentHistory({
     hasMore: false,
   });
   useEffect(() => {
-    if (!owner || !active) return;
+    if (!owner || !active || !cacheKey) return;
     let cancelled = false;
     void loadAgentHistory(
       owner,
       historySize,
-      (params) => window.interconnect.invoke<HistoryPage>('history', params),
+      (params) =>
+        window.interconnect.invoke<HistoryPage>('history', {
+          ...params,
+          ...(agent?.incarnation ? { incarnation: agent.incarnation } : {}),
+        }),
       () => cancelled,
     )
       .then((page) => {
-        if (page && !cancelled) setHistory({ ...page, owner });
+        if (page && !cancelled) setHistory({ ...page, owner: cacheKey });
       })
       .catch((error: Error) => {
         if (!cancelled) onError(error.message);
@@ -41,6 +51,6 @@ export function useAgentHistory({
     return () => {
       cancelled = true;
     };
-  }, [owner, snapshot, historySize, active, address, onError]);
-  return history.owner === owner ? history : { messages: [], nextCursor: 0, hasMore: false };
+  }, [owner, cacheKey, snapshot, historySize, active, address, onError]);
+  return visibleAgentHistory(history, cacheKey);
 }

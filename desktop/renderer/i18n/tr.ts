@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  clearSelectedAgent: 'Seçili aracıyı ve geçmişi sil',
+  clearAllLocalAgents: 'Tüm yerel aracıları ve geçmişleri sil',
+  clearAgentTitle: 'Aracıyı ve geçmişi sil',
+  clearAllAgentsTitle: 'Tüm yerel aracıları ve geçmişleri sil',
+  clearAgentWarning:
+    'Seçili yerel aracı ve geçmişi silinir, sohbet bağlantısı kesilir. İstemci konuşmaları ve uzak kopyalar korunur.',
+  clearAllAgentsWarning:
+    'Tüm yerel aracılar ve geçmişleri silinir, sohbet bağlantıları kesilir. Uzak düğümler, istemci konuşmaları ve uzak kopyalar korunur.',
+  clearAgentCount: '{name}: {count} ileti',
+  clearAllAgentCount: '{agents} yerel aracı, {messages} ileti',
+  clearIrreversible: 'Bu işlem geri alınamaz.',
+  clearAgentConfirm: 'Aracıyı ve geçmişi sil',
+  clearAllAgentsConfirm: 'Tüm yerel aracıları sil',
+  clearPreviewStale:
+    'Aracılar veya iletiler değişti. Yeni önizlemeyi inceleyip Sil düğmesine tekrar basın.',
+  clearCompleted: 'Aracı ve yerel geçmiş silindi.',
+  clearAllCompleted: 'Tüm yerel aracılar ve geçmişleri silindi.',
+
   appSubtitle: 'Yerel mesajlaşma düğümü',
   startingNode: 'Mesajlaşma düğümü başlatılıyor',
   navOverview: 'Genel Bakış',

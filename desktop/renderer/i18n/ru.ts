@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  clearSelectedAgent: 'Удалить выбранного агента и переписку',
+  clearAllLocalAgents: 'Удалить всех локальных агентов и переписку',
+  clearAgentTitle: 'Удаление агента и переписки',
+  clearAllAgentsTitle: 'Удаление всех локальных агентов и переписки',
+  clearAgentWarning:
+    'Выбранный локальный агент и его переписка будут удалены, чат отключён. Переписка в приложении клиента и удалённые копии сохранятся.',
+  clearAllAgentsWarning:
+    'Все локальные агенты и их переписка будут удалены, чаты отключены. Удалённые узлы, переписка в приложениях клиентов и удалённые копии сохранятся.',
+  clearAgentCount: '{name}: сообщений — {count}',
+  clearAllAgentCount: 'Локальных агентов: {agents}, сообщений: {messages}',
+  clearIrreversible: 'Отменить удаление невозможно.',
+  clearAgentConfirm: 'Удалить агента и переписку',
+  clearAllAgentsConfirm: 'Удалить всех локальных агентов',
+  clearPreviewStale:
+    'Агенты или сообщения изменились. Проверьте обновлённый список и нажмите «Удалить» ещё раз.',
+  clearCompleted: 'Агент и локальная переписка удалены.',
+  clearAllCompleted: 'Все локальные агенты и переписка удалены.',
+
   appSubtitle: 'Локальный узел обмена сообщениями',
   startingNode: 'Запуск узла обмена сообщениями',
   navOverview: 'Обзор',

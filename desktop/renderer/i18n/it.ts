@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const it: Messages = {
+  clearSelectedAgent: 'Elimina agente selezionato e cronologia',
+  clearAllLocalAgents: 'Elimina tutti gli agenti locali e le cronologie',
+  clearAgentTitle: 'Elimina agente e cronologia',
+  clearAllAgentsTitle: 'Elimina tutti gli agenti locali e le cronologie',
+  clearAgentWarning:
+    'L’agente locale selezionato e la sua cronologia saranno eliminati e la chat disconnessa. Le conversazioni del client e le copie remote saranno conservate.',
+  clearAllAgentsWarning:
+    'Tutti gli agenti locali e le loro cronologie saranno eliminati e le chat disconnesse. I nodi remoti, le conversazioni dei client e le copie remote saranno conservati.',
+  clearAgentCount: '{name}: {count} messaggi',
+  clearAllAgentCount: '{agents} agenti locali, {messages} messaggi',
+  clearIrreversible: 'Questa operazione è irreversibile.',
+  clearAgentConfirm: 'Elimina agente e cronologia',
+  clearAllAgentsConfirm: 'Elimina tutti gli agenti locali',
+  clearPreviewStale:
+    'Gli agenti o i messaggi sono cambiati. Controlla la nuova anteprima e premi di nuovo Elimina.',
+  clearCompleted: 'Agente e cronologia locale eliminati.',
+  clearAllCompleted: 'Tutti gli agenti locali e le cronologie eliminati.',
+
   appSubtitle: 'Nodo di messaggistica locale',
   startingNode: 'Avvio del nodo di messaggistica',
   navOverview: 'Panoramica',

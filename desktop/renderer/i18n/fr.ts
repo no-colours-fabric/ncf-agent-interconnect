@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const fr: Messages = {
+  clearSelectedAgent: 'Supprimer l’agent sélectionné et son historique',
+  clearAllLocalAgents: 'Supprimer tous les agents locaux et leurs historiques',
+  clearAgentTitle: 'Supprimer l’agent et son historique',
+  clearAllAgentsTitle: 'Supprimer tous les agents locaux et leurs historiques',
+  clearAgentWarning:
+    'L’agent local sélectionné et son historique seront supprimés, son chat sera déconnecté. Les conversations du client et les copies distantes seront conservées.',
+  clearAllAgentsWarning:
+    'Tous les agents locaux et leurs historiques seront supprimés, leurs chats seront déconnectés. Les nœuds distants, conversations des clients et copies distantes seront conservés.',
+  clearAgentCount: '{name} : {count} messages',
+  clearAllAgentCount: '{agents} agents locaux, {messages} messages',
+  clearIrreversible: 'Cette action est irréversible.',
+  clearAgentConfirm: 'Supprimer l’agent et son historique',
+  clearAllAgentsConfirm: 'Supprimer tous les agents locaux',
+  clearPreviewStale:
+    'Les agents ou messages ont changé. Vérifiez ce nouvel aperçu et cliquez à nouveau sur Supprimer.',
+  clearCompleted: 'Agent et historique local supprimés.',
+  clearAllCompleted: 'Tous les agents locaux et leurs historiques sont supprimés.',
+
   appSubtitle: 'Nœud de messagerie local',
   startingNode: 'Démarrage du nœud de messagerie',
   navOverview: 'Aperçu',

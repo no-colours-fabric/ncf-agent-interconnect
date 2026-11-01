@@ -1,6 +1,23 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  clearSelectedAgent: '删除所选代理及历史记录',
+  clearAllLocalAgents: '删除所有本地代理及历史记录',
+  clearAgentTitle: '删除代理及历史记录',
+  clearAllAgentsTitle: '删除所有本地代理及历史记录',
+  clearAgentWarning:
+    '将删除所选本地代理及其历史记录，并断开其聊天连接。客户端聊天记录和远程副本将保留。',
+  clearAllAgentsWarning:
+    '将删除所有本地代理及其历史记录，并断开其聊天连接。远程节点、客户端聊天记录和远程副本将保留。',
+  clearAgentCount: '{name}：{count} 条消息',
+  clearAllAgentCount: '{agents} 个本地代理，{messages} 条消息',
+  clearIrreversible: '此操作无法撤销。',
+  clearAgentConfirm: '删除代理及历史记录',
+  clearAllAgentsConfirm: '删除所有本地代理',
+  clearPreviewStale: '代理或消息已更改。请检查新预览，然后再次点击删除。',
+  clearCompleted: '已删除代理及本地历史记录。',
+  clearAllCompleted: '已删除所有本地代理及历史记录。',
+
   appSubtitle: '本地消息节点',
   startingNode: '正在启动消息节点',
   navOverview: '概览',

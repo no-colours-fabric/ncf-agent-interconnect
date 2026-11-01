@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const es: Messages = {
+  clearSelectedAgent: 'Eliminar agente seleccionado e historial',
+  clearAllLocalAgents: 'Eliminar todos los agentes locales e historiales',
+  clearAgentTitle: 'Eliminar agente e historial',
+  clearAllAgentsTitle: 'Eliminar todos los agentes locales e historiales',
+  clearAgentWarning:
+    'Se eliminarán el agente local seleccionado y su historial, y se desconectará su chat. Las conversaciones del cliente y las copias remotas se conservarán.',
+  clearAllAgentsWarning:
+    'Se eliminarán todos los agentes locales y sus historiales, y se desconectarán sus chats. Los nodos remotos, conversaciones de los clientes y copias remotas se conservarán.',
+  clearAgentCount: '{name}: {count} mensajes',
+  clearAllAgentCount: '{agents} agentes locales, {messages} mensajes',
+  clearIrreversible: 'Esta acción no se puede deshacer.',
+  clearAgentConfirm: 'Eliminar agente e historial',
+  clearAllAgentsConfirm: 'Eliminar todos los agentes locales',
+  clearPreviewStale:
+    'Los agentes o mensajes han cambiado. Revise esta nueva vista previa y pulse Eliminar de nuevo.',
+  clearCompleted: 'Agente e historial local eliminados.',
+  clearAllCompleted: 'Todos los agentes locales e historiales eliminados.',
+
   appSubtitle: 'Nodo de mensajería local',
   startingNode: 'Iniciando el nodo de mensajería',
   navOverview: 'Resumen',

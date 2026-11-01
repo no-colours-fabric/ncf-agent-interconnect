@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  clearSelectedAgent: '選択したエージェントと履歴を削除',
+  clearAllLocalAgents: 'すべてのローカルエージェントと履歴を削除',
+  clearAgentTitle: 'エージェントと履歴を削除',
+  clearAllAgentsTitle: 'すべてのローカルエージェントと履歴を削除',
+  clearAgentWarning:
+    '選択したローカルエージェントと履歴を削除し、チャットを切断します。クライアントの会話とリモートのコピーは残ります。',
+  clearAllAgentsWarning:
+    'すべてのローカルエージェントと履歴を削除し、チャットを切断します。リモートノード、クライアントの会話、リモートのコピーは残ります。',
+  clearAgentCount: '{name}：{count} 件のメッセージ',
+  clearAllAgentCount: 'ローカルエージェント {agents} 件、メッセージ {messages} 件',
+  clearIrreversible: 'この操作は元に戻せません。',
+  clearAgentConfirm: 'エージェントと履歴を削除',
+  clearAllAgentsConfirm: 'すべてのローカルエージェントを削除',
+  clearPreviewStale:
+    'エージェントまたはメッセージが変更されました。新しいプレビューを確認し、再度削除を押してください。',
+  clearCompleted: 'エージェントとローカル履歴を削除しました。',
+  clearAllCompleted: 'すべてのローカルエージェントと履歴を削除しました。',
+
   appSubtitle: 'ローカルメッセージノード',
   startingNode: 'メッセージノードを起動しています',
   navOverview: '概要',

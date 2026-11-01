@@ -1,4 +1,19 @@
 export interface Messages {
+  clearSelectedAgent: string;
+  clearAllLocalAgents: string;
+  clearAgentTitle: string;
+  clearAllAgentsTitle: string;
+  clearAgentWarning: string;
+  clearAllAgentsWarning: string;
+  clearAgentCount: string;
+  clearAllAgentCount: string;
+  clearIrreversible: string;
+  clearAgentConfirm: string;
+  clearAllAgentsConfirm: string;
+  clearPreviewStale: string;
+  clearCompleted: string;
+  clearAllCompleted: string;
+
   appSubtitle: string;
   startingNode: string;
   navOverview: string;

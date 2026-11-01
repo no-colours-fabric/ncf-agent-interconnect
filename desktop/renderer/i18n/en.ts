@@ -1,6 +1,23 @@
 import type { Messages } from './messages.js';
 
 export const en: Messages = {
+  clearSelectedAgent: 'Delete selected agent and history',
+  clearAllLocalAgents: 'Delete all local agents and history',
+  clearAgentTitle: 'Delete agent and history',
+  clearAllAgentsTitle: 'Delete all local agents and history',
+  clearAgentWarning:
+    'This deletes the selected local agent and its history and disconnects its chat. Client transcripts and remote copies remain.',
+  clearAllAgentsWarning:
+    'This deletes all local agents and their history and disconnects their chats. Remote nodes, client transcripts and remote copies remain.',
+  clearAgentCount: '{name}: {count} messages',
+  clearAllAgentCount: '{agents} local agents, {messages} messages',
+  clearIrreversible: 'This cannot be undone.',
+  clearAgentConfirm: 'Delete agent and history',
+  clearAllAgentsConfirm: 'Delete all local agents',
+  clearPreviewStale: 'Agents or messages changed. Review this new preview and press Delete again.',
+  clearCompleted: 'Agent and local history deleted.',
+  clearAllCompleted: 'All local agents and history deleted.',
+
   appSubtitle: 'Local messaging node',
   startingNode: 'Starting the messaging node',
   navOverview: 'Overview',

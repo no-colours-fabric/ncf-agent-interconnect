@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  clearSelectedAgent: 'Geselecteerde agent en geschiedenis verwijderen',
+  clearAllLocalAgents: 'Alle lokale agenten en geschiedenissen verwijderen',
+  clearAgentTitle: 'Agent en geschiedenis verwijderen',
+  clearAllAgentsTitle: 'Alle lokale agenten en geschiedenissen verwijderen',
+  clearAgentWarning:
+    'De geselecteerde lokale agent en diens geschiedenis worden verwijderd en de chat wordt losgekoppeld. Clientgesprekken en externe kopieën blijven behouden.',
+  clearAllAgentsWarning:
+    'Alle lokale agenten en hun geschiedenissen worden verwijderd en hun chats worden losgekoppeld. Externe nodes, clientgesprekken en externe kopieën blijven behouden.',
+  clearAgentCount: '{name}: {count} berichten',
+  clearAllAgentCount: '{agents} lokale agenten, {messages} berichten',
+  clearIrreversible: 'Dit kan niet ongedaan worden gemaakt.',
+  clearAgentConfirm: 'Agent en geschiedenis verwijderen',
+  clearAllAgentsConfirm: 'Alle lokale agenten verwijderen',
+  clearPreviewStale:
+    'Agenten of berichten zijn gewijzigd. Controleer het nieuwe overzicht en klik opnieuw op Verwijderen.',
+  clearCompleted: 'Agent en lokale geschiedenis verwijderd.',
+  clearAllCompleted: 'Alle lokale agenten en geschiedenissen verwijderd.',
+
   appSubtitle: 'Lokaal berichtknooppunt',
   startingNode: 'Het berichtknooppunt wordt gestart',
   navOverview: 'Overzicht',

@@ -1,6 +1,24 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  clearSelectedAgent: 'Usuń wybranego agenta i historię',
+  clearAllLocalAgents: 'Usuń wszystkich lokalnych agentów i historie',
+  clearAgentTitle: 'Usuń agenta i historię',
+  clearAllAgentsTitle: 'Usuń wszystkich lokalnych agentów i historie',
+  clearAgentWarning:
+    'Wybrany lokalny agent i jego historia zostaną usunięci, a czat rozłączony. Rozmowy klienta i kopie zdalne pozostaną.',
+  clearAllAgentsWarning:
+    'Wszyscy lokalni agenci i ich historie zostaną usunięci, a ich czaty rozłączone. Zdalne węzły, rozmowy klientów i kopie zdalne pozostaną.',
+  clearAgentCount: '{name}: {count} wiadomości',
+  clearAllAgentCount: 'Lokalni agenci: {agents}, wiadomości: {messages}',
+  clearIrreversible: 'Tej operacji nie można cofnąć.',
+  clearAgentConfirm: 'Usuń agenta i historię',
+  clearAllAgentsConfirm: 'Usuń wszystkich lokalnych agentów',
+  clearPreviewStale:
+    'Agenci lub wiadomości uległy zmianie. Sprawdź nowy podgląd i ponownie naciśnij Usuń.',
+  clearCompleted: 'Agent i lokalna historia usunięci.',
+  clearAllCompleted: 'Wszyscy lokalni agenci i historie usunięci.',
+
   appSubtitle: 'Lokalny węzeł wiadomości',
   startingNode: 'Uruchamianie węzła wiadomości',
   navOverview: 'Przegląd',
