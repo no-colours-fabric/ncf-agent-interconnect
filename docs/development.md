@@ -47,6 +47,13 @@ live node data directory for fixtures.
 For a packaged GUI check, set `INTERCONNECT_TEST_EXECUTABLE` to the built app
 executable before running `npm run test:ui`.
 
+On macOS, run Electron GUI tests in an authorized desktop GUI environment. In
+Codex, use an approved `require_escalated` execution rather than the restricted
+sandbox. A restricted launch can abort during macOS application registration,
+before a test window exists. Record that launch as failed, retain its phase and
+available PIDs, and inspect the failure before another launch. Do not retry
+automatically or disable Electron or operating-system security controls.
+
 ## Source layout
 
 | Path                   | Purpose                                         |

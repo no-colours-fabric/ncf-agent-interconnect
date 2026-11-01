@@ -18,6 +18,14 @@ const screenshots = [],
   errors = [],
   remotes = [];
 let application, page;
+const launchDiagnostic = {
+  testPid: process.pid,
+  testParentPid: process.ppid,
+  electronPid: null,
+};
+function logLaunchPhase(phase) {
+  console.error(JSON.stringify({ event: 'agents-tabs-gui-launch', phase, ...launchDiagnostic }));
+}
 const invoke = (method, params = {}) =>
   page.evaluate(({ method, params }) => window.interconnect.invoke(method, params), {
     method,
@@ -55,14 +63,32 @@ try {
   await createUiProfile(profile);
   const env = { ...process.env };
   delete env.ELECTRON_RUN_AS_NODE;
-  application = await electron.launch({
-    executablePath: require('electron'),
-    args: [process.cwd(), '--data-dir', profile],
-    cwd: temp,
-    env,
-    timeout: 30000,
-  });
+  logLaunchPhase('resolve-runtime');
+  const executablePath = require('electron');
+  logLaunchPhase('electron.launch');
+  try {
+    application = await electron.launch({
+      executablePath,
+      args: [process.cwd(), '--data-dir', profile],
+      cwd: temp,
+      env,
+      timeout: 30000,
+    });
+  } catch (error) {
+    logLaunchPhase('electron.launch-failed');
+    throw new Error(
+      'Electron GUI initialization failed during electron.launch. ' +
+        `Test PID: ${process.pid}; test parent PID: ${process.ppid}; Electron PID: unavailable. ` +
+        'On macOS, use an authorized desktop GUI environment; in Codex, use approved ' +
+        'require_escalated execution instead of the restricted sandbox. ' +
+        'No automatic retry was attempted. Inspect the original launch error before another launch.',
+      { cause: error },
+    );
+  }
+  launchDiagnostic.electronPid = application.process().pid ?? null;
+  logLaunchPhase('first-window');
   page = await application.firstWindow();
+  logLaunchPhase('window-ready');
   page.on('pageerror', (error) => errors.push(error.message));
   await page.getByTestId('nav-agents').click();
   assert.equal(await tab('local').getAttribute('aria-selected'), 'true');
