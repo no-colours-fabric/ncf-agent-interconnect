@@ -34,6 +34,7 @@ const executable = fileURLToPath(
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 assert.ok(entries.includes('/build/integrations/opencode.js'));
 assert.ok(entries.includes('/build/core/client-contexts.js'));
+assert.ok(entries.includes('/node_modules/fast-srp-hap/LICENSE'));
 assert.ok(!entries.includes('/build/core/store.js'));
 assert.ok(!entries.some((entry) => /^\/(src|test-desktop|\.local)\//.test(entry)));
 assert.equal(JSON.parse(asar.extractFile(archive, 'package.json').toString()).version, pkg.version);
@@ -77,7 +78,7 @@ try {
   const sendSchema = tools.tools.find(tool => tool.name === 'agent_send').inputSchema;
   assert.ok(opencode.getInstructions().includes('Reply-To')); assert.ok(opencode.getInstructions().includes('agent_send'));
   assert.ok(sendSchema.required.includes('recipientNode'));
-  assert.equal(tools.tools.length, 8); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
+  assert.equal(tools.tools.length, 10); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
   for (const removed of ['client', 'chatId', 'adapterId', 'codexTarget']) assert.ok(!(removed in schema.properties));
   const first = (await cursor.callTool({ name: 'agent_connect', arguments: { nickname: 'Package sender' } })).structuredContent;
   assert.equal(first.status, 'connected'); assert.equal(first.delivery.automatic, false);

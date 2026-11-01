@@ -478,18 +478,6 @@ export class PeerNetwork extends EventEmitter {
       },
     };
   }
-  reconnectPeer(peerId: string): void {
-    const peer = this.settings.value.peers.find((candidate) => candidate.id === peerId);
-    if (!peer) return;
-    const link = this.link(peerId),
-      previous = link.socket;
-    clearTimeout(link.timer);
-    link.timer = undefined;
-    link.socket = null;
-    link.connecting = false;
-    previous?.terminate();
-    this.connect(peer);
-  }
   private async savePeer(
     identity: PairedIdentity,
     address?: string,

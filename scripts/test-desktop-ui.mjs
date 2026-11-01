@@ -146,7 +146,7 @@ try {
       requestInit: { headers: { authorization: 'Bearer ' + settings.localToken } },
     }),
   );
-  assert.equal((await receiver.listTools()).tools.length, 8);
+  assert.equal((await receiver.listTools()).tools.length, 10);
   const connected = (
     await receiver.callTool({ name: 'agent_connect', arguments: { nickname: 'Interface check' } })
   ).structuredContent;
