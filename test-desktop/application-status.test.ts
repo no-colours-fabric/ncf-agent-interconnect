@@ -250,7 +250,7 @@ test('a released connection is a confirmed client release, not a transport failu
 
 test('uncertain overrides a released connection and never allows an automatic retry', () => {
   const connection = {
-      ...profile('uncertain', 'uncertain', 'Codex IPC: request timed out'),
+      ...profile('uncertain', 'uncertain', 'The OpenCode event stream was closed', 'opencode-http'),
       released: true,
     },
     presentation = connectionPresentation(connection, true);
@@ -291,32 +291,49 @@ test('a released profile is not misreported as connected or as an issue', () => 
   assert.equal(status.issues.length, 0);
 });
 
-test('uncertain stays an issue above a released connection and never allows an automatic retry', () => {
-  const released = { ...profile('released', 'error', 'OpenCode is disconnected'), released: true },
-    uncertain = { ...profile('uncertain', 'uncertain', 'Codex IPC: request timed out') },
-    status = applicationStatus('codex-desktop', {
-      adapters: [released, uncertain],
-      agents: [agent('Завершён', 'released'), agent('Ожидает проверки', 'uncertain')],
+test('a bound released+uncertain profile stays a single warning issue and blocks retry', () => {
+  // Regression: the old "!profile.released && ..." predicate dropped an
+  // uncertain profile that was also released. One profile must stay an issue.
+  const releasedUncertain = {
+      ...profile(
+        'released-uncertain',
+        'uncertain',
+        'The OpenCode event stream was closed',
+        'opencode-http',
+      ),
+      released: true,
+    },
+    status = applicationStatus('opencode-http', {
+      adapters: [releasedUncertain],
+      agents: [agent('Завершён-но-неподтверждён', 'released-uncertain')],
     });
   assert.equal(status.summary, 'paused');
   assert.equal(status.issues.length, 1);
-  assert.equal(status.issues[0].profile.id, 'uncertain');
-  const presentation = connectionPresentation(uncertain, true);
+  assert.equal(status.issues[0].profile.id, 'released-uncertain');
+  const presentation = connectionPresentation(releasedUncertain, true);
   assert.equal(presentation.status, 'clientsNeedsReview');
   assert.equal(presentation.tone, 'warning');
   assert.equal(presentation.action, 'clientsCheckBeforeRetry');
 });
 
-test('uncertain remains an issue for an unbound released connection too', () => {
-  const released = { ...profile('released', 'error', 'OpenCode is disconnected'), released: true },
-    uncertain = { ...profile('uncertain', 'uncertain', 'Codex IPC: request timed out') },
-    status = applicationStatus('codex-desktop', { adapters: [released, uncertain], agents: [] });
+test('an unbound released+uncertain profile still counts as a single warning issue', () => {
+  const releasedUncertain = {
+      ...profile(
+        'released-uncertain',
+        'uncertain',
+        'The OpenCode event stream was closed',
+        'opencode-http',
+      ),
+      released: true,
+    },
+    status = applicationStatus('opencode-http', { adapters: [releasedUncertain], agents: [] });
   assert.equal(status.summary, 'none');
   assert.equal(status.issues.length, 1);
-  assert.equal(status.issues[0].profile.id, 'uncertain');
-  const presentation = connectionPresentation(uncertain, false);
+  assert.equal(status.issues[0].profile.id, 'released-uncertain');
+  const presentation = connectionPresentation(releasedUncertain, false);
   assert.equal(presentation.tone, 'warning');
   assert.equal(presentation.status, 'clientsNeedsReview');
+  assert.equal(presentation.action, 'clientsCheckBeforeRetry');
 });
 
 test('uncertain admission always requires checking the exact chat before another send', () => {

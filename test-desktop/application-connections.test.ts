@@ -163,3 +163,43 @@ test('a verified Codex connection shows last-verified status and the historical 
   assert.ok(details[0].includes(t('ru', 'clientsLastVerified')));
   assert.ok(details[0].includes('2026'));
 });
+
+const releasedUncertainOpenCode = (): AdapterState => ({
+  id: 'released-uncertain',
+  label: 'OpenCode',
+  kind: 'opencode-http',
+  state: 'uncertain',
+  error: 'The OpenCode event stream was closed',
+  released: true,
+  capabilities: {
+    wakeIdle: true,
+    receiveActive: false,
+    nativeDisplay: false,
+    exactSession: true,
+  },
+});
+
+test('a bound released+uncertain OpenCode profile stays a single warning issue row in ApplicationConnections', () => {
+  const html = render(
+    [releasedUncertainOpenCode()],
+    [agent('Завершён-но-неподтверждён', 'released-uncertain')],
+  );
+  const visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
+  // Warning row: check before retry, never released without retry.
+  assert.ok(visible.includes(t('ru', 'clientsNeedsReview')));
+  assert.ok(visible.includes(t('ru', 'clientsUncertainImpact')));
+  assert.ok(visible.includes(t('ru', 'clientsCheckBeforeRetry')));
+  // Issued as a single warning issue chip.
+  assert.ok(html.includes(t('ru', 'clientsConnectionIssues', { count: 1 })));
+  assert.ok(html.includes('role="alert"') === false);
+  const alertChips = [...html.matchAll(/class="[^"]*MuiChip-colorWarning[^"]*"/g)];
+  assert.ok(alertChips.length >= 1);
+});
+
+test('an unbound released+uncertain OpenCode profile still keeps the warning issue chip', () => {
+  const html = render([releasedUncertainOpenCode()]);
+  assert.ok(html.includes(t('ru', 'clientsNoBoundAgent')));
+  assert.ok(html.includes(t('ru', 'clientsNeedsReview')));
+  assert.ok(html.includes(t('ru', 'clientsCheckBeforeRetry')));
+  assert.ok(html.includes(t('ru', 'clientsConnectionIssues', { count: 1 })));
+});
