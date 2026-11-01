@@ -13,11 +13,13 @@ let app;
 const clients = [];
 try {
   const packaged = process.env.INTERCONNECT_TEST_EXECUTABLE;
+  const launchEnv = { ...process.env, TZ: 'UTC' };
+  delete launchEnv.ELECTRON_RUN_AS_NODE;
   app = await electron.launch({
     executablePath: packaged ?? require('electron'),
     args: [...(packaged ? [] : [process.cwd()]), '--data-dir', temporary],
     cwd: temporary,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '', TZ: 'UTC' },
+    env: launchEnv,
   });
   const page = await app.firstWindow();
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 980));
@@ -48,7 +50,13 @@ try {
   const send = (sender, recipientNickname, text, files = []) =>
     sender.client.callTool({
       name: 'agent_send',
-      arguments: { connectionId: sender.connectionId, recipientNickname, text, files },
+      arguments: {
+        connectionId: sender.connectionId,
+        recipientNode: settings.nodeId,
+        recipientNickname,
+        text,
+        files,
+      },
     });
   const receive = (receiver) =>
     receiver.client.callTool({

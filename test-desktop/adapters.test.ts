@@ -69,7 +69,12 @@ async function fixture(t: test.TestContext) {
   };
 }
 const event = () => ({
-  message: { fromNickname: 'Коллега', text: 'Текст поручения\nВторая строка', files: [] },
+  message: {
+    fromNode: '11111111-1111-4111-8111-111111111111',
+    fromNickname: 'Коллега',
+    text: 'Текст поручения\nВторая строка',
+    files: [],
+  },
   nickname: 'Тема',
   messageId: randomUUID(),
   binding: {
@@ -154,6 +159,7 @@ test('transport recovery retries a failed status lookup but never repeats an unc
   f.state.statusReply = 503;
   const first = await service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'После временной ошибки',
   });
@@ -166,6 +172,7 @@ test('transport recovery retries a failed status lookup but never repeats an unc
   f.state.reply = 503;
   const second = await service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'Приём неизвестен',
   });
@@ -284,6 +291,7 @@ test('local delivery wakes the recipient adapter once with no peers and never ta
   const args = {
     id: randomUUID(),
     connectionId: a.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'ПОЛУЧАТЕЛЬ',
     text: 'Событие только локальному получателю',
   };

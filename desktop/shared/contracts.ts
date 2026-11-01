@@ -47,6 +47,24 @@ export const envelopeSchema = z
   .strict();
 export type Envelope = z.infer<typeof envelopeSchema>;
 export type MessageState = 'queued' | 'received' | 'ready' | 'processed';
+export type DeliveryStatus = 'queued' | 'accepted_by_node' | 'received_by_agent';
+export const deliveryStatus = (state: MessageState): DeliveryStatus =>
+  state === 'processed' ? 'received_by_agent' : state === 'queued' ? 'queued' : 'accepted_by_node';
+export interface SendInput {
+  recipientNode: string;
+  recipientNickname: string;
+  text: string;
+  files?: string[];
+  id?: string;
+  replyTo?: string | null;
+}
+export interface SendResult {
+  id: string;
+  accepted: true;
+  recipientNode: string;
+  recipientNickname: string;
+  delivery: DeliveryStatus;
+}
 export interface Message {
   envelope: Envelope;
   direction: 'in' | 'out';

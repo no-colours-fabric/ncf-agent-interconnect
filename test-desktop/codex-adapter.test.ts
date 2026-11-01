@@ -111,7 +111,12 @@ async function fixture(t: test.TestContext) {
 }
 function input(profile: AdapterProfile) {
   return {
-    message: { fromNickname: 'Коллега', text: 'Готовое поручение', files: [] },
+    message: {
+      fromNode: '11111111-1111-4111-8111-111111111111',
+      fromNickname: 'Коллега',
+      text: 'Готовое поручение',
+      files: [],
+    },
     nickname: 'Беседа',
     messageId: randomUUID(),
     binding: {
@@ -157,7 +162,7 @@ test('Codex owner probe is read-only; idle admission inherits settings and targe
   assert.deepEqual(params.turnStart.request.input, [
     {
       type: 'text',
-      text: '**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\n---\n\nГотовое поручение\n\n---\n\nReply-To: "Коллега"\n\n*Use NCF Agent Interconnect MCP to reply.*',
+      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\nFrom-Node: ${event.message.fromNode}\nMessage-ID: ${event.messageId}\n\n---\n\nГотовое поручение\n\n---\n\nReply-To:\n\n    {"recipientNode":"${event.message.fromNode}","recipientNickname":"Коллега","replyTo":"${event.messageId}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
       text_elements: [],
     },
   ]);
@@ -180,7 +185,7 @@ test('Codex active admission has required restore metadata; revoked binding neve
   assert.deepEqual(request.params.input, [
     {
       type: 'text',
-      text: '**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\n---\n\nГотовое поручение\n\n---\n\nReply-To: "Коллега"\n\n*Use NCF Agent Interconnect MCP to reply.*',
+      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\nFrom-Node: ${event.message.fromNode}\nMessage-ID: ${event.messageId}\n\n---\n\nГотовое поручение\n\n---\n\nReply-To:\n\n    {"recipientNode":"${event.message.fromNode}","recipientNickname":"Коллега","replyTo":"${event.messageId}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
       text_elements: [],
     },
   ]);
@@ -191,7 +196,7 @@ test('Codex active admission has required restore metadata; revoked binding neve
   );
   assert.equal(
     (request.params.restoreMessage as { text: string }).text,
-    '**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\n---\n\nГотовое поручение\n\n---\n\nReply-To: "Коллега"\n\n*Use NCF Agent Interconnect MCP to reply.*',
+    `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\nFrom-Node: ${event.message.fromNode}\nMessage-ID: ${event.messageId}\n\n---\n\nГотовое поручение\n\n---\n\nReply-To:\n\n    {"recipientNode":"${event.message.fromNode}","recipientNickname":"Коллега","replyTo":"${event.messageId}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
   );
   assert.ok(!('toolOutput' in request.params));
   f.state.admission = 'lost';
@@ -221,6 +226,7 @@ test('Codex receives the original body and attachment link and completes deliver
   await writeFile(filename, 'Числа для проверки');
   const message = await service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'Проверь расчёт.\nОтветь с результатом.',
     files: [filename],
@@ -235,7 +241,7 @@ test('Codex receives the original body and attachment link and completes deliver
   const text = turnStart.request.input[0].text;
   assert.ok(
     text.startsWith(
-      '**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\n\n---\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n',
+      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\nFrom-Node: ${service.settings.value.nodeId}\nMessage-ID: ${message.id}\n\n---\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
     ),
   );
   assert.equal(await readFile(text.match(/\]\(<([^>]+)>\)/)![1], 'utf8'), 'Числа для проверки');
@@ -245,7 +251,6 @@ test('Codex receives the original body and attachment link and completes deliver
     'untrusted_input',
     'Системное событие',
     receiver.binding.connectionId,
-    message.id,
   ])
     assert.ok(!text.replace(/\]\(<[^>]+>\)/g, ']').includes(noise));
   assert.equal(service.store.get(message.id, 'out')!.state, 'processed');

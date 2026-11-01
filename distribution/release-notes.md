@@ -1,35 +1,44 @@
-Download the macOS DMG or ZIP below and verify it against `SHA256SUMS`.
-Requires **macOS 13 or later** and **Apple Silicon**. The application includes
-its runtime; Node.js and source files are not needed to install it.
+Download the macOS Apple Silicon DMG/ZIP or Windows x64 installer/ZIP and verify
+the package against `SHA256SUMS`. Packages include Electron 45.1.0; Node.js and
+source files are not required for installation. macOS requires version 13 or later.
 
-### Install
+### Changes in 0.8.0
 
-1. Open the DMG and drag NCF Agent Interconnect into Applications.
-2. Start the app and open MCP setup.
-3. Merge its generated snippet into the selected client and reconnect MCP.
-4. For OpenCode, also add the bundled plugin and restart that OpenCode instance.
-5. Choose an agent name in a chat, for example: Connect as agent Researcher.
+- Messages require an explicit node UUID and agent name. Identical agent names
+  on different nodes remain independent, and offline queues keep their address.
+- Incoming messages include `From-Node`, `Message-ID` and ready-to-use `Reply-To`
+  JSON with `recipientNode`, `recipientNickname` and `replyTo`.
+- Sending returns `accepted: true` with `queued`, `accepted_by_node` or
+  `received_by_agent` status. Acceptance into a durable queue is separate from
+  receipt by the agent. History shows the node and delivery status.
+- Updated build dependencies remove the four deprecated-package warnings and
+  reported moderate vulnerabilities. Native package and GUI checks cover macOS
+  Apple Silicon and Windows x64.
 
-### Included
+### Upgrade
 
-- One local message hub for multiple AI clients and user-named agents.
-- Local exchange without remote peers, explicitly paired remote TLS nodes,
-  persistent history and verified attachments.
-- Automatic receipt tracking and user-approved agent-name transfer between chats.
-- Incoming messages with From and Reply-To fields and a short MCP reply rule.
-- OpenCode v1 integration and an experimental Codex Desktop adapter.
-- English interface, setup instructions and documentation.
+Quit the existing app before replacing it. Local data remains separate from the
+application. Reconnect MCP clients to refresh the changed schema and instructions;
+restart OpenCode when its bundled integration changes.
+
+`agent_send` now requires `recipientNode`, including local sends. Use UUIDs from
+`node_peers`; replies copy all incoming `Reply-To` parameters. Clients that inspect
+the send result must use `accepted` and `delivery` instead of `sent`.
+Peer protocol 2 and the database format are unchanged. Existing messages retain
+their original routes and message IDs.
 
 ### Verification and limits
 
-The release builder runs TypeScript checks, the isolated core suite and a
-shipped-runtime verification outside the source checkout. `verification.json`
-records platform, architecture and runtime checks. Adapter fixtures do not
-invoke a live model client.
+Both native builds use the same source revision. Platform verification reports
+record their runtime, isolated delivery checks and source revision. Packaged GUI
+checks use temporary profiles and synthetic local/remote messages and attachments;
+they do not contact live agents or alter real MCP client configuration.
 
-The macOS build is ad-hoc signed, without Apple Developer ID signing or Apple
-notarization. Windows packages require a native Windows build and are not part
-of this release validation. Cursor supports MCP tools but has no idle-chat
-wake-up adapter in this release. OpenCode v2 is not claimed.
+The macOS package is ad-hoc signed without Apple notarization. Windows packages
+are unsigned; interactive installer/uninstaller and Start at login smoke checks
+remain manual. OpenCode targets the v1 plugin/SDK contract. Codex Desktop delivery
+is experimental and version-dependent; protocol fixtures do not prove every live
+client version. Cursor supports MCP tools without automatic idle-chat wake-up.
 
-See the repository installation, client setup and Windows build guides for details.
+The build toolchain pins electron-builder 27.0.0-alpha.14 with scoped dependency
+overrides; see `docs/development.md` for the rationale and upgrade checks.

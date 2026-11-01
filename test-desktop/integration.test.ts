@@ -10,6 +10,7 @@ import { NodeService } from '../desktop/core/service.js';
 import { normalizePeerAddress } from '../desktop/core/settings.js';
 import type { ConnectResult } from '../desktop/core/agent-store.js';
 import type { McpInstructions } from '../desktop/shared/contracts.js';
+import { agentMessageText } from '../desktop/core/adapters.js';
 
 async function until(check: () => boolean, timeout = 5000): Promise<void> {
   const end = Date.now() + timeout;
@@ -245,4 +246,160 @@ test('one node serves multiple peers and keeps messages isolated by user-selecte
     ((await b.read(isolated.binding.connectionId)) as { messages: unknown[] }).messages.length,
     0,
   );
+});
+
+test('same agent name on three nodes has independent routes and full reply parameters survive native chat formatting', async (t) => {
+  const a = await node(t),
+    b = await node(t),
+    c = await node(t);
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await a.network.join(c.snapshot().peerUrl, c.network.accessCode().code);
+  await until(() => a.snapshot().peers.filter((peer) => peer.connected).length === 2);
+  const owners = [a, b, c].map((service) => {
+    const owner = service.connect({ nickname: 'Общий агент', client: 'MCP' });
+    service.connect({ nickname: 'Другой агент', client: 'MCP' });
+    if (owner.status !== 'connected') throw new Error();
+    return owner;
+  });
+  const outgoing = await Promise.all(
+    [b, c].map((service) =>
+      a.send({
+        connectionId: owners[0].binding.connectionId,
+        recipientNode: service.settings.value.nodeId.toUpperCase(),
+        recipientNickname: 'ОБЩИЙ АГЕНТ',
+        text: 'Поручение этому узлу',
+      }),
+    ),
+  );
+  await until(() =>
+    [b, c].every((service, i) => service.store.get(outgoing[i].id, 'in')?.state === 'ready'),
+  );
+  assert.equal(a.store.history('общий агент').messages.length, 2);
+  assert.ok(
+    a.store.history('общий агент').messages.every((message) => message.direction === 'out'),
+  );
+  await assert.rejects(
+    a.network.onFrame(c.settings.value.nodeId, {
+      type: 'receipt',
+      id: outgoing[0].id,
+      state: 'processed',
+    }),
+    /receipt does not belong/,
+  );
+  const replies: string[] = [];
+  for (const [i, service] of [b, c].entries()) {
+    await until(() => a.store.get(outgoing[i].id, 'out')?.state === 'ready');
+    const before = (await a.read(owners[0].binding.connectionId)) as {
+      messages: { envelope: { id: string }; delivery: string }[];
+    };
+    assert.equal(
+      before.messages.find((message) => message.envelope.id === outgoing[i].id)!.delivery,
+      'accepted_by_node',
+    );
+    const message = service.store.get(outgoing[i].id, 'in')!;
+    const formatted = agentMessageText({
+      nickname: owners[i + 1].nickname,
+      binding: owners[i + 1].binding,
+      messageId: message.envelope.id,
+      message: {
+        fromNode: message.envelope.fromNode,
+        fromNickname: message.envelope.fromNickname,
+        text: message.envelope.text,
+        files: [],
+      },
+    });
+    assert.ok(formatted.includes('From-Node: ' + a.settings.value.nodeId));
+    const address = JSON.parse(formatted.match(/Reply-To:\n\n    ([^\n]+)/)![1]) as {
+      recipientNode: string;
+      recipientNickname: string;
+      replyTo: string;
+    };
+    assert.deepEqual(address, {
+      recipientNode: a.settings.value.nodeId,
+      recipientNickname: 'Общий агент',
+      replyTo: outgoing[i].id,
+    });
+    let snapshots = 0;
+    const snapshot = service.files.snapshot;
+    service.files.snapshot = async () => {
+      snapshots++;
+      throw new Error('Unexpected snapshot');
+    };
+    await assert.rejects(
+      service.send({
+        ...address,
+        connectionId: owners[i + 1].binding.connectionId,
+        recipientNode: service.settings.value.nodeId,
+        text: 'Wrong node',
+        files: ['/missing.txt'],
+      }),
+      /reply address must match/,
+    );
+    await assert.rejects(
+      service.send({
+        ...address,
+        connectionId: owners[i + 1].binding.connectionId,
+        recipientNickname: 'Другой агент',
+        text: 'Wrong name',
+        files: ['/missing.txt'],
+      }),
+      /reply address must match/,
+    );
+    const stranger = service.store
+      .list()
+      .find((agent) => agent.nickname === 'Другой агент')!.binding!;
+    await assert.rejects(
+      service.send({
+        ...address,
+        connectionId: stranger.connectionId,
+        text: 'Foreign message',
+        files: ['/missing.txt'],
+      }),
+      /reply address must match/,
+    );
+    assert.equal(snapshots, 0);
+    service.files.snapshot = snapshot;
+    await service.read(owners[i + 1].binding.connectionId);
+    const reply = await service.send({
+      ...address,
+      recipientNickname: 'ОБЩИЙ АГЕНТ',
+      replyTo: address.replyTo,
+      connectionId: owners[i + 1].binding.connectionId,
+      text: 'Ответ с конкретного узла',
+    });
+    replies.push(reply.id);
+    await assert.rejects(
+      service.send({
+        ...address,
+        replyTo: reply.id,
+        connectionId: owners[i + 1].binding.connectionId,
+        text: 'Outgoing message cannot authorize a reply',
+      }),
+      /reply address must match/,
+    );
+    await until(() => a.store.get(outgoing[i].id, 'out')?.state === 'processed');
+    await a.network.onFrame(service.settings.value.nodeId, {
+      type: 'receipt',
+      id: outgoing[i].id,
+      state: 'ready',
+    });
+    assert.equal(a.store.get(outgoing[i].id, 'out')!.state, 'processed');
+  }
+  await until(() =>
+    replies.every((id) => ['ready', 'processed'].includes(a.store.get(id, 'in')?.state ?? '')),
+  );
+  const history = (await a.read(owners[0].binding.connectionId)) as {
+    messages: { envelope: { id: string; fromNode: string }; direction: string; delivery: string }[];
+  };
+  assert.deepEqual(
+    new Set(
+      history.messages
+        .filter((message) => message.direction === 'in')
+        .map((message) => message.envelope.fromNode),
+    ),
+    new Set([b.settings.value.nodeId, c.settings.value.nodeId]),
+  );
+  assert.ok(history.messages.every((message) => message.delivery === 'received_by_agent'));
+  for (const service of [a, b, c])
+    assert.equal(service.store.history('другой агент').messages.length, 0);
 });

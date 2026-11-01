@@ -30,11 +30,13 @@ test("MCP receipt is automatic for exactly the returned page; history persists a
   for (const text of ['Первое', 'Второе', 'Третье']) {
     const sent = await f.service.send({
       connectionId: f.sender.binding.connectionId,
+      recipientNode: f.service.settings.value.nodeId,
       recipientNickname: 'Получатель',
       text,
     });
-    assert.equal(sent.sent, true);
-    assert.deepEqual(Object.keys(sent).sort(), ['id', 'sent']);
+    assert.equal(sent.accepted, true);
+    assert.equal(sent.delivery, 'accepted_by_node');
+    assert.equal(sent.recipientNode, f.service.settings.value.nodeId);
     ids.push(sent.id);
   }
   await f.service.read(f.sender.binding.connectionId);
@@ -71,6 +73,7 @@ test('simultaneous inbox requests do not both receive the same messages', async 
   for (const text of ['Один', 'Два'])
     await f.service.send({
       connectionId: f.sender.binding.connectionId,
+      recipientNode: f.service.settings.value.nodeId,
       recipientNickname: 'Получатель',
       text,
     });
@@ -90,6 +93,7 @@ test('failed attachment preparation and a revoked chat cannot clear the inbox', 
   await writeFile(filename, 'Проверенное вложение');
   await f.service.send({
     connectionId: f.sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'Изучи план',
     files: [filename],

@@ -3,8 +3,21 @@
 Use Node.js 22.12 or later and npm. `npm ci` installs the exact versions in
 `package-lock.json`; Electron supplies the runtime in binary packages.
 
+The build toolchain pins `electron-builder` to `27.0.0-alpha.14`. This prerelease
+updates the legacy ASAR, download and Squirrel dependency chains that produced
+deprecated-package warnings in version 26. Scoped overrides pin `minimatch` to
+11.0.3 and ASAR's `glob` to 14.0.3 to address
+[GHSA-g3hv-75wg-m249](https://github.com/advisories/GHSA-g3hv-75wg-m249) and
+[GHSA-3g3m-2fjr-6pw4](https://github.com/advisories/GHSA-3g3m-2fjr-6pw4).
+Review these overrides when updating the builder. Changes to this toolchain
+require native package and packaged-UI verification on macOS and Windows.
+The builder configuration sets `publish: null` because the application has no
+automatic updater. Release assets are uploaded separately; the builder must not
+infer an update feed from the repository URL.
+
 ```sh
 npm run check
+npm audit --audit-level=moderate
 npm test
 npm run build
 npm run test:ui
@@ -21,6 +34,8 @@ live node data directory for fixtures.
 
 - `test-desktop` exercises real loopback MCP clients and two or three isolated
   TLS nodes, ownership, transfers, history, file verification and restart recovery.
+  Packaging fixtures check builder filters, file lists and ASAR unpack rules with
+  the overridden dependencies.
 - Adapter fixtures validate exact targets, complete message envelopes, busy/idle
   behavior and uncertain admission. They do not prove a live model client UI.
 - `scripts/test-desktop-ui.mjs` opens the actual Electron app with temporary data.

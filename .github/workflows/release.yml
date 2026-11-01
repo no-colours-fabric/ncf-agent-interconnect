@@ -1,8 +1,6 @@
-name: macOS release
+name: macOS release (manual)
 
 on:
-  push:
-    tags: ['v*']
   workflow_dispatch:
 
 permissions:

@@ -38,11 +38,13 @@ let application, remote, receiver;
 let stderr = '';
 try {
   const packaged = process.env.INTERCONNECT_TEST_EXECUTABLE;
+  const launchEnv = { ...process.env };
+  delete launchEnv.ELECTRON_RUN_AS_NODE;
   application = await electron.launch({
     executablePath: packaged ?? require('electron'),
     args: [...(packaged ? [] : [process.cwd()]), '--data-dir', path.join(temp, 'desktop')],
     cwd: temp,
-    env: { ...process.env, ELECTRON_RUN_AS_NODE: '' },
+    env: launchEnv,
     timeout: 30000,
   });
   application.process().stderr?.on('data', (b) => {

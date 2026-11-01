@@ -2,13 +2,11 @@ import { spawnSync } from 'node:child_process';
 import { readFile, readdir, writeFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = fileURLToPath(new URL('..', import.meta.url)),
-  args = process.argv.slice(2),
-  require = createRequire(import.meta.url);
+  args = process.argv.slice(2);
 for (const [flag, platform] of [
   ['--mac', 'darwin'],
   ['--win', 'win32'],
@@ -35,15 +33,7 @@ function run(script, argv) {
 }
 for (const task of ['prepare:runtime', 'typecheck', 'test:desktop', 'build'])
   run(npm, ['run', task]);
-const builderPackage = require.resolve('electron-builder/package.json'),
-  builder = JSON.parse(await readFile(builderPackage, 'utf8'));
-run(
-  path.resolve(
-    path.dirname(builderPackage),
-    typeof builder.bin === 'string' ? builder.bin : builder.bin['electron-builder'],
-  ),
-  ['--publish', 'never', ...args],
-);
+run(npm, ['exec', '--offline', '--no', '--', 'electron-builder', '--publish', 'never', ...args]);
 const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const artifactPrefix = pkg.productName.replaceAll(' ', '-') + '-' + pkg.version + '-';
 const artifacts = (await readdir(path.join(root, 'release'))).filter(

@@ -114,6 +114,7 @@ test('one OpenCode integration connects any chat without user session settings a
   f.states.ses_second = { type: 'busy' };
   const message = await f.service.send({
     connectionId: a.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'проверяющий',
     text: 'Доставить локально',
   });
@@ -133,7 +134,7 @@ test('one OpenCode integration connects any chat without user session settings a
   );
   assert.equal(
     f.prompts[0].text,
-    '**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\n---\n\nДоставить локально\n\n---\n\nReply-To: "Автор"\n\n*Use NCF Agent Interconnect MCP to reply.*',
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nFrom-Node: ${f.service.settings.value.nodeId}\nMessage-ID: ${message.id}\n\n---\n\nДоставить локально\n\n---\n\nReply-To:\n\n    {"recipientNode":"${f.service.settings.value.nodeId}","recipientNickname":"Автор","replyTo":"${message.id}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
   );
   assert.ok(!f.prompts[0].text.includes(b.binding.connectionId));
   assert.ok(!f.prompts[0].text.includes(a.binding.connectionId));
@@ -160,12 +161,14 @@ test('queued messages and attachment links arrive as complete chat messages with
   f.states.ses_second = { type: 'busy' };
   const first = await f.service.send({
     connectionId: a.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'Изучи план.\nПодготовь расчёт.',
     files: [filename],
   });
   const second = await f.service.send({
     connectionId: a.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'Сравни два варианта.',
   });
@@ -186,14 +189,14 @@ test('queued messages and attachment links arrive as complete chat messages with
   );
   assert.ok(
     f.prompts[0].text.startsWith(
-      '**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\n---\n\nИзучи план.\nПодготовь расчёт.\n\nAttachments:\n- [',
+      `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nFrom-Node: ${f.service.settings.value.nodeId}\nMessage-ID: ${first.id}\n\n---\n\nИзучи план.\nПодготовь расчёт.\n\nAttachments:\n- [`,
     ),
   );
   const target = f.prompts[0].text.match(/\]\(<([^>]+)>\)/)![1];
   assert.equal(await readFile(target, 'utf8'), 'Содержимое плана');
   assert.equal(
     f.prompts[1].text,
-    '**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\n---\n\nСравни два варианта.\n\n---\n\nReply-To: "Автор"\n\n*Use NCF Agent Interconnect MCP to reply.*',
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nFrom-Node: ${f.service.settings.value.nodeId}\nMessage-ID: ${second.id}\n\n---\n\nСравни два варианта.\n\n---\n\nReply-To:\n\n    {"recipientNode":"${f.service.settings.value.nodeId}","recipientNickname":"Автор","replyTo":"${second.id}"}\n\n*Use NCF Agent Interconnect MCP agent_send with the Reply-To parameters to reply.*`,
   );
   for (const prompt of f.prompts)
     for (const noise of [
@@ -202,8 +205,6 @@ test('queued messages and attachment links arrive as complete chat messages with
       'untrusted_input',
       'Системное событие',
       b.binding.connectionId,
-      first.id,
-      second.id,
     ])
       assert.ok(!prompt.text.replace(/\]\(<[^>]+>\)/g, ']').includes(noise));
   assert.equal(f.service.store.get(first.id, 'out')!.state, 'processed');
@@ -211,6 +212,7 @@ test('queued messages and attachment links arrive as complete chat messages with
   await f.service.send({
     id: second.id,
     connectionId: a.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Получатель',
     text: 'Сравни два варианта.',
   });
@@ -245,6 +247,7 @@ test('automatic transfer needs user consent, revokes the old chat and notifies i
   if (sender.status !== 'connected') throw new Error();
   const message = await f.service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Дизайнер',
     text: 'Новое задание',
   });
@@ -262,6 +265,7 @@ test('OpenCode host and node restart restore the existing agent without reconfig
   if (sender.status !== 'connected') throw new Error();
   const first = await f.service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Воевода',
     text: 'После перезапуска клиента',
   });
@@ -270,6 +274,7 @@ test('OpenCode host and node restart restore the existing agent without reconfig
   await f.service.start();
   const second = await f.service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Воевода',
     text: 'После перезапуска узла',
   });

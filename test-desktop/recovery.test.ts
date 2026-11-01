@@ -40,7 +40,10 @@ test('queued file snapshot and binding survive a complete sender restart while r
     text: 'Офлайн-доставка',
     files: [file],
   });
-  assert.equal(sent.sent, true);
+  assert.equal(sent.accepted, true);
+  assert.equal(sent.delivery, 'queued');
+  assert.equal(sent.recipientNode, b.settings.value.nodeId);
+  assert.ok(!a.store.list().some((agent) => agent.nickname === 'Получатель'));
   assert.equal(a.store.get(sent.id, 'out')?.state, 'queued');
   await writeFile(file, 'Исходник уже изменён');
   const directory = a.directory;
@@ -50,6 +53,8 @@ test('queued file snapshot and binding survive a complete sender restart while r
   await b.start();
   await until(() => b.store.get(sent.id)?.state === 'ready');
   const stored = b.store.get(sent.id)!;
+  assert.equal(stored.envelope.toNode, b.settings.value.nodeId);
+  assert.equal(stored.envelope.fromNode, a.settings.value.nodeId);
   const copy = (await b.receiveFile(
     receiver.binding.connectionId,
     sent.id,

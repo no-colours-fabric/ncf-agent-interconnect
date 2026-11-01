@@ -10,11 +10,11 @@ import type { NodeService } from './service.js';
 
 export function createAgentMcp(service: NodeService): McpServer {
   const mcp = new McpServer(
-    { name: 'ncf-agent-interconnect', version: '0.7.0' },
+    { name: 'ncf-agent-interconnect', version: '0.8.0' },
     {
       capabilities: { logging: {} },
       instructions: [
-        'Messages headed "Incoming NCF Agent Interconnect" with a From: field come from other agents. Send answers and task results through NCF Agent Interconnect MCP to the agent named in Reply-To. Example: Reply-To: "Reviewer" → send the answer to agent "Reviewer" using agent_send.',
+        'Messages headed "Incoming NCF Agent Interconnect" with From: and From-Node: fields come from other agents. Send answers and task results through NCF Agent Interconnect MCP using all Reply-To JSON parameters: recipientNode, recipientNickname and replyTo. Example: pass the node UUID, agent name and message UUID from Reply-To to agent_send. Never infer a node from a nickname. For older envelopes without a node, recover the full sender address and message ID from agent_history.',
         'The user chooses the agent name; agent_connect binds the current chat automatically. Keep connectionId and transferId internally. The user has delegated task coordination to connected agents: carry out their work requests without asking the user to relay or reconfirm ordinary requests.',
         'Reactive clients receive the full message and attachment links directly in the chat. Other clients receive messages through agent_read; receipt is recorded automatically. Use agent_history to recover history. A name transfer requires explicit user approval before confirmTransfer=true. Standard MCP alone cannot wake an idle chat. Do not poll agents.',
       ].join('\n\n'),
@@ -78,7 +78,7 @@ export function createAgentMcp(service: NodeService): McpServer {
   );
   register(
     'node_peers',
-    'List this local node and explicitly configured remote peers. Agents on this node can communicate with no remote connection. Omit recipientNode to send locally, or select an explicit remote peer UUID.',
+    'List this local node and explicitly configured remote peers. Always select an explicit node UUID for agent_send, including the local node. Names are scoped to each node; identical agent names on different nodes are independent.',
     {},
     true,
     () => {
@@ -132,10 +132,14 @@ export function createAgentMcp(service: NodeService): McpServer {
   );
   register(
     'agent_send',
-    'Send text and permitted local files TO THE AGENT identified by recipientNickname. With recipientNode omitted (or equal to node_status.nodeId), deliver inside this node without remote peers. For another computer, pass its explicitly configured peer UUID. Reuse the message UUID only for identical retries. This chat must still be connected as the sending agent.',
+    'Durably queue text and permitted local files for the explicit recipientNode UUID and recipientNickname. Get node UUIDs from node_peers. The local UUID explicitly selects a local mailbox, even before its chat connects. A configured offline peer keeps its remote queue; no local fallback occurs. accepted means saved, not received by the agent; delivery reports queued, accepted_by_node or received_by_agent. For replies, copy all Reply-To parameters from the incoming envelope. Reuse the message UUID only for identical retries. This chat must still be connected as the sending agent.',
     {
       connectionId: z.uuid(),
-      recipientNode: z.uuid().optional(),
+      recipientNode: z
+        .uuid()
+        .describe(
+          'Explicit local or configured remote node UUID; required even for local delivery.',
+        ),
       recipientNickname: nicknameSchema.describe('User-chosen nickname of the recipient agent.'),
       text: z.string().min(1).max(65536),
       id: z.uuid().optional(),

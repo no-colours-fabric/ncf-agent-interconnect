@@ -6,11 +6,14 @@ import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import {
   envelopeSchema,
+  deliveryStatus,
   nicknameKey,
   nicknameSchema,
   type AdapterProfile,
   type Envelope,
   type Snapshot,
+  type SendInput,
+  type SendResult,
 } from '../shared/contracts.js';
 import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
@@ -378,7 +381,12 @@ export class NodeService extends EventEmitter {
     );
     const messages = prepared
       .filter((row) => !unread || delivered.has(row.envelope.id))
-      .map(({ state: _state, error: _error, ...message }) => message);
+      .map(({ state, error: _error, ...message }) => ({
+        ...message,
+        delivery: deliveryStatus(
+          this.store.get(message.envelope.id, message.direction)?.state ?? state,
+        ),
+      }));
     return { ...page, messages };
   }
   private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
@@ -393,15 +401,7 @@ export class NodeService extends EventEmitter {
     if (delivered.size) this.emit('change');
     return delivered;
   }
-  async send(args: {
-    connectionId: string;
-    recipientNode?: string;
-    recipientNickname: string;
-    text: string;
-    files?: string[];
-    id?: string;
-    replyTo?: string | null;
-  }): Promise<{ id: string; sent: true }> {
+  async send(args: SendInput & { connectionId: string }): Promise<SendResult> {
     const before = this.store.assertOwner(args.connectionId);
     return this.sendFrom(before.nickname, args, () => {
       this.store.assertOwner(args.connectionId);
@@ -409,25 +409,34 @@ export class NodeService extends EventEmitter {
   }
   private async sendFrom(
     nickname: string,
-    args: {
-      recipientNode?: string;
-      recipientNickname: string;
-      text: string;
-      files?: string[];
-      id?: string;
-      replyTo?: string | null;
-    },
+    args: SendInput,
     stillOwner: () => void = () => {},
-  ): Promise<{ id: string; sent: true }> {
-    const recipientNode = args.recipientNode ?? this.settings.value.nodeId,
-      local = recipientNode === this.settings.value.nodeId;
+  ): Promise<SendResult> {
+    if (!args.recipientNode)
+      throw new Error('recipientNode is required; select an explicit node UUID from node_peers');
+    const recipientNode = z.uuid().parse(args.recipientNode).toLowerCase(),
+      local = recipientNode === this.settings.value.nodeId,
+      replyTo = args.replyTo ? z.uuid().parse(args.replyTo) : null;
     if (!local && !this.settings.value.peers.some((p) => p.id === recipientNode))
       throw new Error('The remote node has not been configured by the user');
+    if (replyTo) {
+      const original = this.store.get(replyTo, 'in')?.envelope;
+      if (
+        !original ||
+        original.toNode !== this.settings.value.nodeId ||
+        nicknameKey(original.toNickname) !== nicknameKey(nickname) ||
+        original.fromNode !== recipientNode ||
+        nicknameKey(original.fromNickname) !== nicknameKey(args.recipientNickname)
+      )
+        throw new Error(
+          'The reply address must match the sender of an incoming message for this agent',
+        );
+    }
     const attachments = await Promise.all(
       (args.files ?? []).map((file) => this.files.snapshot(file)),
     );
     stillOwner();
-    const id = args.id ?? randomUUID(),
+    const id = args.id ? z.uuid().parse(args.id) : randomUUID(),
       existing = this.store.get(id, 'out');
     const envelope = envelopeSchema.parse({
       protocol: 2,
@@ -438,7 +447,7 @@ export class NodeService extends EventEmitter {
       toNickname: args.recipientNickname,
       createdAt: existing?.envelope.createdAt ?? new Date().toISOString(),
       text: args.text,
-      replyTo: args.replyTo ?? null,
+      replyTo,
       attachments,
     });
     if (local) {
@@ -450,7 +459,13 @@ export class NodeService extends EventEmitter {
       if (this.running) await this.network.message(envelope).catch(() => {});
     }
     this.emit('change');
-    return { id, sent: true };
+    return {
+      id,
+      accepted: true,
+      recipientNode,
+      recipientNickname: envelope.toNickname,
+      delivery: deliveryStatus(this.store.get(id, 'out')!.state),
+    };
   }
   async receiveFile(connectionId: string, messageId: string, fileId: string): Promise<unknown> {
     const owner = this.store.assertOwner(connectionId),
@@ -633,7 +648,12 @@ export class NodeService extends EventEmitter {
             nickname: identity.nickname,
             binding,
             messageId: row.envelope.id,
-            message: { fromNickname: row.envelope.fromNickname, text: row.envelope.text, files },
+            message: {
+              fromNode: row.envelope.fromNode,
+              fromNickname: row.envelope.fromNickname,
+              text: row.envelope.text,
+              files,
+            },
             isCurrent: () => {
               try {
                 this.store.assertOwner(binding.connectionId);

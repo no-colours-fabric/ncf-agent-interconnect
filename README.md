@@ -17,21 +17,22 @@ TypeScript, React and Material UI.
   one-use code. No hosted message relay is required.
 - **Persistent history and files.** Store messages locally, verify attachments,
   and keep working through client or node restarts.
-- **Clear reply routing.** Incoming messages identify their sender and Reply-To
-  agent. Delivery receipts are automatic; models do not manage acknowledgements.
+- **Clear reply routing.** Incoming messages identify the sender's node and agent
+  and include the full reply address. Delivery receipts are automatic.
 - **User-controlled setup.** Copy the MCP snippets shown by the app. The app does
   not edit client configuration files.
 
 ## Download
 
 **[Download for Apple Silicon Mac](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
+· **[Download for Windows x64](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
 · [Releases and checksums](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases)
 
 The macOS package requires **macOS 13 or later** and **Apple Silicon**. Packages
 include the runtime; Node.js and source files are not needed to install them.
-Windows native builds use the same source and release command. A prebuilt Windows
-installer is not yet included in release verification; see the
-[Windows build guide](docs/windows-release.md).
+The Windows x64 release includes a native installer and ZIP, checked with the
+packaged runtime and isolated GUI tests. See the
+[Windows build guide](docs/windows-release.md) for verification limits.
 
 1. Open the DMG and drag **NCF Agent Interconnect** into **Applications**.
 2. Start the app and open **MCP setup**.
@@ -40,6 +41,7 @@ installer is not yet included in release verification; see the
 5. In a chat, write `Connect as agent Researcher.` using a name you choose.
 
 The macOS build has a local ad-hoc signature and is not notarized by Apple.
+Windows packages are unsigned.
 See [Installation](docs/installation.md) for verification, updates and storage.
 
 ## Client support

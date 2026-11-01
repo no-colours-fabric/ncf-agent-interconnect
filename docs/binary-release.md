@@ -28,4 +28,7 @@ must be recorded separately; see [Windows builds](windows-release.md).
 Publish packages as GitHub Release assets with checksums, a tag matching the
 source version, installation instructions and accurate platform verification
 notes. Use the same frozen source for each platform and record its revision.
+Release publication is coordinated by direct upload of both native builds;
+tag pushes do not publish an independent macOS-only release. The macOS release
+workflow remains available for explicit manual dispatch.
 Do not publish node data, credentials, logs or private chats with a release.

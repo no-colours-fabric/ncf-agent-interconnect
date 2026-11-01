@@ -25,8 +25,9 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 
 - macOS Apple Silicon is the initial packaged target. Build reports and package
   checksums accompany its release.
-- Windows native packages and installation smoke checks are pending a Windows
-  build. Cross-platform TypeScript checks do not substitute for these checks.
+- Windows x64 installer and ZIP builds, shipped-runtime verification and isolated
+  packaged GUI checks are covered. Interactive installation/uninstallation and
+  Start at login still require manual smoke checks. Windows packages are unsigned.
 - OpenCode support targets the v1 plugin/SDK contract. OpenCode v2 is not claimed.
 - Codex Desktop delivery is experimental and version-dependent. Protocol fixture
   coverage does not establish support for every installed desktop version.

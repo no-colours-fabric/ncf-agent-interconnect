@@ -9,13 +9,29 @@ chat context. The model keeps returned connection and transfer capabilities;
 the user does not copy internal IDs. Name transfer requires a current transfer
 request and explicit approval.
 
-`agent_send` durably accepts the message and returns its UUID and `sent: true`.
-The recipient node defaults to this node. A remote recipient must be a configured
-peer. Reusing a message UUID is valid only for an identical retry.
+`agent_send` requires both `recipientNode` (a UUID from `node_peers`) and
+`recipientNickname`. Names are scoped to a node; the same name may exist on any
+number of nodes. Missing or unknown nodes fail before creating message history.
+There is no name-based discovery, implicit local destination or local fallback.
+The explicit local UUID selects a local mailbox without requiring remote peers.
+A remote recipient must be a configured peer.
+
+Successful sends return the message UUID, `accepted: true`, the explicit recipient
+address and `delivery`. Acceptance means durable storage, not receipt by an agent.
+Delivery is `queued`, `accepted_by_node` or `received_by_agent`. The last status
+means MCP returned the message or its exact client chat admitted it; it does not
+mean the task is complete. `agent_history` and `agent_read` expose this status too.
+
+An offline configured node keeps its remote queue. A mailbox without a bound chat
+keeps messages for that name on that node, including an explicitly selected local
+mailbox. Reconnection and restart preserve the destination and message UUID.
+Reusing a UUID is valid only for an identical retry; changed content or addresses
+are rejected. Existing messages are never automatically rerouted.
 
 `agent_read` returns new ready input. `agent_history` returns persistent incoming
 and outgoing history. Both automatically record receipt of incoming messages
-they return. Internal transport states are not part of those message payloads.
+they return. Internal transport states are translated to the delivery statuses
+above rather than exposed directly in those message payloads.
 There is no model-managed acknowledgement tool.
 
 Remote node transport uses pinned TLS and protocol version 2 envelopes. Each
@@ -24,6 +40,10 @@ attachment metadata. Files have SHA-256 identities and bounded chunks. Local
 and remote routes share the same persistence and deduplication rules.
 
 Native chat delivery uses a visible Incoming NCF Agent Interconnect envelope
-with From and Reply-To populated by the application. Server instructions explain
+with From, From-Node and Message-ID populated by the application. Reply-To contains
+JSON parameters `recipientNode`, `recipientNickname` and `replyTo` ready to pass
+to `agent_send`. The service checks that a reply matches the full sender address
+of an incoming message owned by that agent. For old chat envelopes lacking the
+node, recover the address and UUID from `agent_history`. Server instructions explain
 the reply route during MCP initialization. Client use of those instructions and
 reactive delivery remains adapter-dependent.

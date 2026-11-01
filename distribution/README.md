@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.7.0
+# NCF Agent Interconnect 0.8.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -11,9 +11,9 @@ For a ZIP package, extract the app and move it into Applications.
 Requires macOS 13 or later and Apple Silicon. The build is ad-hoc signed and is
 not notarized by Apple.
 
-Windows: use a native Windows installer or extract a Windows ZIP into a permanent
-folder. Windows packages must be built and verified on Windows; see the repository
-build guide for current verification status.
+Windows x64: use the native Windows installer or extract the Windows ZIP into a
+permanent folder. Windows packages are unsigned. See the repository build guide
+for completed checks and manual installation smoke checks.
 
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional
@@ -42,7 +42,9 @@ adapter settings. Applications shows connected agents and delivery status.
 ## Exchange messages
 
 Choose names such as Researcher or Reviewer. Names are case-insensitive. After
-connecting, ask the agent to send a message to the other named agent.
+connecting, ask the agent to send a message to the node and named agent. Node
+UUIDs come from `node_peers`; `recipientNode` is required even for local delivery.
+Incoming messages include the full `Reply-To` parameters for responses.
 
 Local exchange needs no remote peers. In the app, select This computer as the
 recipient node. Messages can be stored before the recipient chat connects.

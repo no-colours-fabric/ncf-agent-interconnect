@@ -8,7 +8,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { NodeService } from '../desktop/core/service.js';
 import { AgentStore, type ConnectResult } from '../desktop/core/agent-store.js';
-import { nicknameKey, type Envelope, type Message } from '../desktop/shared/contracts.js';
+import {
+  nicknameKey,
+  type Envelope,
+  type Message,
+  type SendInput,
+} from '../desktop/shared/contracts.js';
 
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-local-')),
@@ -32,6 +37,47 @@ async function client(t: test.TestContext, service: NodeService) {
 }
 const page = (value: unknown) =>
   value as { messages: Message[]; nextCursor: number; hasMore: boolean };
+
+test('missing, malformed and unknown nodes fail before files, phantom agents or history', async (t) => {
+  const service = await fixture(t),
+    c = await client(t, service);
+  const sender = service.connect({ nickname: 'Автор', client: 'A' });
+  if (sender.status !== 'connected') throw new Error();
+  const args = {
+    connectionId: sender.binding.connectionId,
+    recipientNickname: 'Удалённый',
+    text: 'Не локально',
+    files: ['/missing.txt'],
+  };
+  let snapshots = 0;
+  service.files.snapshot = async () => {
+    snapshots++;
+    throw new Error('Unexpected snapshot');
+  };
+  await assert.rejects(
+    service.send(args as SendInput & { connectionId: string }),
+    /recipientNode is required/,
+  );
+  await assert.rejects(service.send({ ...args, recipientNode: 'invalid' }));
+  await assert.rejects(
+    service.send({ ...args, recipientNode: randomUUID() }),
+    /not been configured/,
+  );
+  const catalog = await c.listTools();
+  assert.ok(
+    catalog.tools
+      .find((tool) => tool.name === 'agent_send')!
+      .inputSchema.required?.includes('recipientNode'),
+  );
+  const missing = await c.callTool({ name: 'agent_send', arguments: args });
+  assert.equal(missing.isError, true);
+  assert.equal(snapshots, 0);
+  assert.deepEqual(
+    service.store.list().map((agent) => agent.nickname),
+    ['Автор'],
+  );
+  assert.equal(service.store.history(nicknameKey('Автор')).messages.length, 0);
+});
 
 test('two MCP chats exchange local text/files and automatic delivery receipts without any configured peer or network dispatch', async (t) => {
   const service = await fixture(t),
@@ -66,6 +112,7 @@ test('two MCP chats exchange local text/files and automatic delivery receipts wi
   await writeFile(file, 'Локальное вложение\n');
   const args = {
     connectionId: first.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'ПРОВЕРЯЮЩИЙ',
     text: 'Первое локальное сообщение',
     id: randomUUID(),
@@ -73,7 +120,7 @@ test('two MCP chats exchange local text/files and automatic delivery receipts wi
   };
   const sent = await a.callTool({ name: 'agent_send', arguments: args });
   assert.ok(!sent.isError, JSON.stringify(sent.content));
-  assert.equal((sent.structuredContent as { sent: boolean }).sent, true);
+  assert.equal((sent.structuredContent as { accepted: boolean }).accepted, true);
   assert.ok(!(await a.callTool({ name: 'agent_send', arguments: args })).isError);
   assert.equal(service.store.history(nicknameKey('Автор')).messages.length, 1);
   assert.equal(service.store.history(nicknameKey('Проверяющий')).messages.length, 1);
@@ -159,11 +206,13 @@ test('queued local delivery and both histories survive a full restart, even befo
   await service.stop();
   const sent = await service.send({
     connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'Второй',
     text: 'До подключения получателя',
     files: [file],
   });
-  assert.equal(sent.sent, true);
+  assert.equal(sent.accepted, true);
+  assert.equal(sent.delivery, 'queued');
   assert.equal(service.store.get(sent.id, 'out')?.state, 'queued');
   await writeFile(file, 'Изменённый исходник');
   await service.close();
@@ -185,8 +234,10 @@ test('queued local delivery and both histories survive a full restart, even befo
   )) as { localPath: string };
   assert.equal(await readFile(attachment.localPath, 'utf8'), 'Снимок до перезапуска');
   assert.equal(service.store.get(sent.id, 'out')!.state, 'processed');
+  assert.equal(service.store.get(sent.id, 'out')!.envelope.toNode, service.settings.value.nodeId);
   const self = await service.send({
     connectionId: recipient.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
     recipientNickname: 'Второй',
     text: 'Себе',
   });
@@ -243,4 +294,100 @@ test('local message pair is atomic, persists agent bindings/cursors, and never r
   assert.equal(store.insertLocal(message, true), false);
   assert.equal(store.history(nicknameKey('Проверяющий')).messages.length, 1);
   assert.equal(await readFile(previous, 'utf8'), 'previous test data');
+});
+
+test('explicit local mailbox retries are atomic and self replies choose the incoming side', async (t) => {
+  const service = await fixture(t);
+  const sender = service.connect({ nickname: 'Автор', client: 'MCP' });
+  if (sender.status !== 'connected') throw new Error();
+  const args = {
+    connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Будущий',
+    id: randomUUID(),
+    text: 'В очередь',
+  };
+  const results = await Promise.all([service.send(args), service.send(args)]);
+  assert.ok(results.every((result) => result.accepted && result.delivery === 'accepted_by_node'));
+  assert.equal(service.store.history(nicknameKey('Будущий')).messages.length, 1);
+  assert.equal(service.store.list().find((agent) => agent.nickname === 'Будущий')!.binding, null);
+  const recipient = service.connect({ nickname: 'БУДУЩИЙ', client: 'MCP' });
+  if (recipient.status !== 'connected') throw new Error();
+  await service.read(recipient.binding.connectionId);
+  assert.equal((await service.send(args)).delivery, 'received_by_agent');
+  assert.equal(service.store.history(nicknameKey('Будущий')).messages.length, 1);
+  await assert.rejects(
+    service.send({ ...args, recipientNickname: 'Другое имя' }),
+    /different content/,
+  );
+  await assert.rejects(service.send({ ...args, text: 'Другой текст' }), /different content/);
+  assert.ok(!service.store.list().some((agent) => agent.nickname === 'Другое имя'));
+  const self = await service.send({ ...args, id: randomUUID(), recipientNickname: 'Автор' });
+  const reply = await service.send({
+    ...args,
+    id: randomUUID(),
+    recipientNickname: 'АВТОР',
+    replyTo: self.id,
+    text: 'Ответ себе',
+  });
+  assert.equal(service.store.get(reply.id, 'in')!.envelope.replyTo, self.id);
+  assert.equal(
+    service.store
+      .history(nicknameKey('Автор'))
+      .messages.filter((message) => message.envelope.id === reply.id).length,
+    2,
+  );
+});
+
+test('legacy queued envelopes preserve uppercase message IDs and reply linkage across restart and retry', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-legacy-route-'));
+  let service = new NodeService(directory);
+  await service.open();
+  t.after(async () => {
+    await service.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const sender = service.connect({ nickname: 'Автор', client: 'MCP' });
+  if (sender.status !== 'connected') throw new Error();
+  const envelope: Envelope = {
+    protocol: 2,
+    id: randomUUID().toUpperCase(),
+    fromNode: service.settings.value.nodeId,
+    toNode: service.settings.value.nodeId,
+    fromNickname: 'Автор',
+    toNickname: 'Получатель',
+    createdAt: '2026-10-30T12:00:00.000Z',
+    text: 'Legacy queued message',
+    replyTo: null,
+    attachments: [],
+  };
+  service.store.insertLocal(envelope, false);
+  await service.close();
+  service = new NodeService(directory);
+  await service.open();
+  const recipient = service.connect({ nickname: 'Получатель', client: 'MCP' });
+  if (recipient.status !== 'connected') throw new Error();
+  const args = {
+    connectionId: sender.binding.connectionId,
+    recipientNode: envelope.toNode,
+    recipientNickname: envelope.toNickname,
+    id: envelope.id,
+    text: envelope.text,
+  };
+  assert.equal((await service.send(args)).id, envelope.id);
+  assert.deepEqual(service.store.get(envelope.id, 'out')!.envelope, envelope);
+  assert.equal(service.store.history(nicknameKey('Автор')).messages.length, 1);
+  assert.equal(service.store.get(envelope.id.toLowerCase(), 'out'), undefined);
+  const reply = await service.send({
+    connectionId: recipient.binding.connectionId,
+    recipientNode: envelope.fromNode,
+    recipientNickname: envelope.fromNickname,
+    replyTo: envelope.id,
+    text: 'Legacy reply',
+  });
+  assert.equal(service.store.get(reply.id, 'out')!.envelope.replyTo, envelope.id);
+  await assert.rejects(
+    service.send({ ...args, replyTo: reply.id }),
+    /reply address must match|different content/,
+  );
 });

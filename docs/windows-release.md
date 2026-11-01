@@ -1,7 +1,11 @@
 # Build and verify on Windows
 
-Windows binary verification is pending. Build from the same source revision and
-version as the matching macOS release. Use a Windows machine with Node.js 22.12
+Windows x64 packages are built and checked natively with installed-runtime and
+isolated packaged GUI tests. Interactive installation/uninstallation and Start at
+login require the manual checks below. Packages are unsigned.
+
+Build from the same source revision and version as the matching macOS release.
+Use a Windows machine with Node.js 22.12
 or later, npm and the native architecture you intend to package.
 
 GitHub source archives include `SOURCE_REVISION`; the packaged verification

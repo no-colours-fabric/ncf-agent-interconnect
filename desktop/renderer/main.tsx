@@ -474,6 +474,13 @@ function App(): React.JSX.Element {
                             {time(m.envelope.createdAt)}
                           </Typography>
                           <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ display: 'block', overflowWrap: 'anywhere' }}
+                          >
+                            From node: {m.envelope.fromNode} · To node: {m.envelope.toNode}
+                          </Typography>
+                          <Typography
                             sx={{
                               whiteSpace: 'pre-wrap',
                               overflowWrap: 'anywhere',
@@ -542,9 +549,9 @@ function App(): React.JSX.Element {
                           >
                             {
                               {
-                                queued: 'Sent',
-                                received: 'Receiving attachments',
-                                ready: m.direction === 'out' ? 'Sent' : 'New message',
+                                queued: 'Queued for delivery',
+                                received: 'Accepted by node; receiving attachments',
+                                ready: 'Accepted by node; awaiting agent',
                                 processed: 'Received by agent',
                               }[m.state]
                             }
