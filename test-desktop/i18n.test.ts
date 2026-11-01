@@ -134,3 +134,50 @@ test('interpolation substitutes parameters', () => {
   assert.equal(t('nl', 'directoryUpdated', { time: '1 nov. 2026' }), 'Gewijzigd op 1 nov. 2026');
   assert.equal(t('fr', 'directoryUpdated', { time: '1 nov. 2026' }), 'Mise à jour : 1 nov. 2026');
 });
+
+test('interpolation preserves dollar-pattern user values literally', () => {
+  assert.equal(
+    t('en', 'msgAttachmentSize', { name: 'budget$&.txt', size: 1 }),
+    'budget$&.txt · 1 KB',
+  );
+  assert.equal(t('en', 'msgAttachmentSize', { name: 'slot$$.txt', size: 2 }), 'slot$$.txt · 2 KB');
+  assert.equal(
+    t('en', 'msgAttachmentSize', { name: 'left$`right.txt', size: 3 }),
+    'left$`right.txt · 3 KB',
+  );
+  assert.equal(
+    t('en', 'msgAttachmentSize', { name: "mid$'end.txt", size: 4 }),
+    "mid$'end.txt · 4 KB",
+  );
+});
+
+test('interpolation never re-reads substituted user values', () => {
+  assert.equal(t('en', 'msgAttachmentSize', { name: '{size}.txt', size: 1 }), '{size}.txt · 1 KB');
+  assert.equal(t('en', 'agentListClient', { client: '{client}' }), 'Client: {client}');
+  assert.equal(t('en', 'headerPrefix', { node: '{node}' }), 'NODE / {node}');
+});
+
+test('every translation uses the same placeholder names as English', () => {
+  const placeholders = (value: string) => [...value.matchAll(/\{(\w+)\}/g)].map((m) => m[1]);
+  const keyPlaceholders = (dictionary: Messages) => {
+    const result: Record<string, string[]> = {};
+    for (const key of Object.keys(en as Messages)) {
+      result[key] = placeholders(dictionary[key as keyof Messages]).sort();
+    }
+    return result;
+  };
+  const english = keyPlaceholders(en);
+  const dictionaries = [en, ru, zh, fr, de, it, es, kk, ja, ptBR, ko, tr, pl, nl, uk];
+  for (const dictionary of dictionaries) {
+    assert.deepEqual(keyPlaceholders(dictionary), english);
+  }
+});
+
+test('no translation value is empty', () => {
+  const dictionaries = [en, ru, zh, fr, de, it, es, kk, ja, ptBR, ko, tr, pl, nl, uk];
+  for (const dictionary of dictionaries) {
+    for (const key of Object.keys(en as Messages)) {
+      assert.ok(String(dictionary[key as keyof Messages]).length > 0, `empty value for ${key}`);
+    }
+  }
+});

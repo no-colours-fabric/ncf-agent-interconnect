@@ -9,13 +9,18 @@ const require = createRequire(import.meta.url);
 const temp = await mkdtemp(path.join(os.tmpdir(), 'ncf-interconnect-locale-'));
 let application;
 try {
-  const launch = () =>
-    electron.launch({
-      executablePath: require('electron'),
-      args: [process.cwd(), '--data-dir', path.join(temp, 'desktop')],
+  const launch = () => {
+    const launchEnv = { ...process.env };
+    delete launchEnv.ELECTRON_RUN_AS_NODE;
+    const packaged = process.env.INTERCONNECT_TEST_EXECUTABLE;
+    return electron.launch({
+      executablePath: packaged ?? require('electron'),
+      args: [...(packaged ? [] : [process.cwd()]), '--data-dir', path.join(temp, 'desktop')],
       cwd: temp,
+      env: launchEnv,
       timeout: 30000,
     });
+  };
   const getPage = async () => await application.firstWindow();
   application = await launch();
   let current = await getPage();

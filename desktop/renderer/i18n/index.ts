@@ -96,9 +96,8 @@ const dictionaries: Record<Locale, Messages> = {
 };
 
 const interpolate = (template: string, params: Record<string, string | number>): string =>
-  Object.entries(params).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, String(value)),
-    template,
+  template.replace(/\{(\w+)\}/g, (match, key: string) =>
+    Object.prototype.hasOwnProperty.call(params, key) ? String(params[key]) : match,
   );
 
 export function t(
