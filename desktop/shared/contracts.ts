@@ -128,6 +128,7 @@ export interface SystemEvent {
   connectionId: string;
   binding: Binding;
   type: 'agent_moved';
+  historyCleared?: true;
   nickname: string;
   text: string;
   createdAt: string;

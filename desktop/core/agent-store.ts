@@ -1,10 +1,11 @@
 import { DatabaseSync } from 'node:sqlite';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import {
   nicknameKey,
   type Binding,
+  type Attachment,
   type AgentIdentity,
   type Envelope,
   type Message,
@@ -22,14 +23,22 @@ export interface ConnectInput {
   connectionId?: string;
   transferId?: string;
   confirmTransfer?: boolean;
+  resetHistory?: boolean;
 }
 export type ConnectResult = (
-  | { status: 'connected'; nickname: string; binding: Binding }
+  | {
+      status: 'connected';
+      nickname: string;
+      binding: Binding;
+      historyCleared?: true;
+      resetLimits?: string;
+    }
   | {
       status: 'nickname_in_use';
       nickname: string;
       connectionId: string;
       transferId: string;
+      choices: { mode: 'transfer' | 'reset'; transferId: string }[];
       currentOwner: Omit<Binding, 'connectionId'>;
       requestingChat: { client: string; chatId: string; adapterId: string };
       userApprovalRequired: true;
@@ -44,7 +53,7 @@ export class AgentStore {
     const version = Number(
       (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
     );
-    if (version !== 0 && version !== 1) {
+    if (version !== 0 && version !== 1 && version !== 2) {
       this.db.close();
       throw new Error('Unsupported agent storage format');
     }
@@ -57,17 +66,29 @@ export class AgentStore {
       this.db.close();
       throw new Error('Unversioned storage is not supported');
     }
-    this.db.exec(`PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;
+    this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL; PRAGMA busy_timeout=5000;');
+    try {
+      this.transaction(() => {
+        this.db.exec(`
       CREATE TABLE IF NOT EXISTS agents (key TEXT PRIMARY KEY, nickname TEXT NOT NULL, binding TEXT, generation INTEGER NOT NULL DEFAULT 0);
-      CREATE TABLE IF NOT EXISTS transfers (id TEXT PRIMARY KEY, key TEXT NOT NULL, generation INTEGER NOT NULL, requester TEXT NOT NULL, details TEXT NOT NULL, expires INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0);
+      CREATE TABLE IF NOT EXISTS transfers (id TEXT PRIMARY KEY, key TEXT NOT NULL, generation INTEGER NOT NULL, requester TEXT NOT NULL, details TEXT NOT NULL, expires INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'transfer');
       CREATE TABLE IF NOT EXISTS messages (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL, local_key TEXT NOT NULL, direction TEXT NOT NULL, envelope TEXT NOT NULL, state TEXT NOT NULL, error TEXT, UNIQUE(id,direction));
       CREATE INDEX IF NOT EXISTS inbox ON messages(local_key,state,sequence);
+      CREATE TABLE IF NOT EXISTS cleared_messages (id TEXT NOT NULL, direction TEXT NOT NULL, digest TEXT NOT NULL, state TEXT NOT NULL, PRIMARY KEY(id,direction));
+      CREATE TABLE IF NOT EXISTS file_cleanup (message_id TEXT PRIMARY KEY, files TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS timeline (cursor INTEGER PRIMARY KEY AUTOINCREMENT, message_id TEXT NOT NULL, direction TEXT NOT NULL, UNIQUE(message_id,direction));
       CREATE TABLE IF NOT EXISTS system_events (id INTEGER PRIMARY KEY AUTOINCREMENT, connection_id TEXT NOT NULL, event TEXT NOT NULL, dispatch_state TEXT NOT NULL DEFAULT 'pending', error TEXT);
       CREATE TABLE IF NOT EXISTS dispatches (message_id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, state TEXT NOT NULL, error TEXT);
       UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching';
       UPDATE system_events SET dispatch_state='uncertain' WHERE dispatch_state='dispatching';
-      PRAGMA user_version=1;`);
+      PRAGMA user_version=2;`);
+        if (version === 1)
+          this.db.exec("ALTER TABLE transfers ADD COLUMN mode TEXT NOT NULL DEFAULT 'transfer'");
+      });
+    } catch (error) {
+      this.db.close();
+      throw error;
+    }
   }
 
   private transaction<T>(work: () => T): T {
@@ -97,6 +118,13 @@ export class AgentStore {
       this.ensure(input.nickname);
       const row = this.identity(key);
       const owner = row.binding ? (JSON.parse(String(row.binding)) as Binding) : null;
+      if (
+        input.resetHistory &&
+        (!owner || (input.chatId === owner.chatId && input.adapterId === owner.adapterId))
+      )
+        throw new Error(
+          'A fresh start is available only when taking an occupied name from another chat',
+        );
       if (owner && input.connectionId === owner.connectionId) {
         if (
           input.chatId !== owner.chatId ||
@@ -109,29 +137,35 @@ export class AgentStore {
       let connectionId: string = randomUUID();
       if (owner) {
         if (!input.confirmTransfer) {
-          const transferId = randomUUID();
-          this.db
-            .prepare(
-              'INSERT INTO transfers(id,key,generation,requester,details,expires) VALUES(?,?,?,?,?,?)',
-            )
-            .run(
-              transferId,
-              key,
-              row.generation,
-              connectionId,
-              JSON.stringify({
-                client: input.client,
-                chatId: input.chatId,
-                adapterId: input.adapterId,
-              }),
-              Date.now() + 600000,
-            );
+          const choices = (['transfer', 'reset'] as const).map((mode) => {
+            const transferId = randomUUID();
+            this.db
+              .prepare(
+                'INSERT INTO transfers(id,key,generation,requester,details,expires,mode) VALUES(?,?,?,?,?,?,?)',
+              )
+              .run(
+                transferId,
+                key,
+                row.generation,
+                connectionId,
+                JSON.stringify({
+                  client: input.client,
+                  chatId: input.chatId,
+                  adapterId: input.adapterId,
+                }),
+                Date.now() + 600000,
+                mode,
+              );
+            return { mode, transferId };
+          });
+          const transferId = choices[0].transferId;
           const { connectionId: _secret, ...currentOwner } = owner;
           return {
             status: 'nickname_in_use',
             nickname: String(row.nickname),
             connectionId,
             transferId,
+            choices,
             currentOwner,
             requestingChat: {
               client: input.client,
@@ -164,14 +198,25 @@ export class AgentStore {
           throw new Error(
             'The binding changed. Request a new transfer and obtain user approval again',
           );
+        if (request.mode !== (input.resetHistory ? 'reset' : 'transfer'))
+          throw new Error(
+            'This transferId does not approve the selected history mode. Use the matching choice',
+          );
         connectionId = String(request.requester);
         this.db.prepare('UPDATE transfers SET consumed=1 WHERE id=?').run(input.transferId!);
+        if (input.resetHistory) {
+          this.clearHistory(key);
+          this.db.prepare('DELETE FROM transfers WHERE key=?').run(key);
+        }
         const event = {
           connectionId: owner.connectionId,
           binding: owner,
           type: 'agent_moved',
+          ...(input.resetHistory ? { historyCleared: true } : {}),
           nickname: String(row.nickname),
-          text: `Agent ${JSON.stringify(row.nickname)} was moved to another chat (${input.client}) by the user. The previous chat connection is disabled.`,
+          text: input.resetHistory
+            ? `Agent ${JSON.stringify(row.nickname)} was reset by the user. Its previous MCP history was deleted and this connection is disabled.`
+            : `Agent ${JSON.stringify(row.nickname)} was moved to another chat (${input.client}) by the user. The previous chat connection is disabled.`,
           createdAt: new Date().toISOString(),
         };
         this.db
@@ -189,8 +234,70 @@ export class AgentStore {
       this.db
         .prepare('UPDATE agents SET binding=?,generation=? WHERE key=?')
         .run(JSON.stringify(binding), binding.generation, key);
-      return { status: 'connected', nickname: String(row.nickname), binding };
+      return {
+        status: 'connected',
+        nickname: String(row.nickname),
+        binding,
+        ...(input.resetHistory
+          ? {
+              historyCleared: true as const,
+              resetLimits:
+                'Reset clears local MCP history and queued output. Existing client transcripts, foreign admitted history and remote queues remain. In-flight messages cannot be recalled; previously unknown incoming messages may arrive after reset.',
+            }
+          : {}),
+      };
     });
+  }
+  private clearHistory(key: string): void {
+    // Retain foreign copies with any admission that may already have happened.
+    const rows = this.db
+      .prepare(
+        `SELECT m.* FROM messages m WHERE m.local_key=? OR
+      (m.direction='in' AND m.state!='processed' AND m.id IN
+        (SELECT id FROM messages WHERE local_key=? AND direction='out') AND NOT EXISTS
+        (SELECT 1 FROM dispatches d WHERE d.message_id=m.id AND d.state IN ('admitted','dispatching','uncertain')))`,
+      )
+      .all(key, key) as Row[];
+    for (const row of rows) {
+      const id = String(row.id),
+        direction = String(row.direction),
+        envelope = JSON.parse(String(row.envelope)) as Envelope;
+      this.db
+        .prepare('INSERT INTO cleared_messages(id,direction,digest,state) VALUES(?,?,?,?)')
+        .run(id, direction, envelopeDigest(envelope), row.state);
+      this.queueFileCleanup(id, envelope.attachments);
+      this.db.prepare('DELETE FROM timeline WHERE message_id=? AND direction=?').run(id, direction);
+      this.db.prepare('DELETE FROM messages WHERE id=? AND direction=?').run(id, direction);
+      if (direction === 'in') this.db.prepare('DELETE FROM dispatches WHERE message_id=?').run(id);
+    }
+  }
+  clearedState(id: string, direction: 'in' | 'out'): MessageState | undefined {
+    const row = this.db
+      .prepare('SELECT state FROM cleared_messages WHERE id=? AND direction=?')
+      .get(id, direction) as Row | undefined;
+    return row?.state as MessageState | undefined;
+  }
+  queueFileCleanup(messageId: string, files: Pick<Attachment, 'id' | 'size'>[]): void {
+    if (files.length)
+      this.db
+        .prepare('INSERT OR IGNORE INTO file_cleanup(message_id,files) VALUES(?,?)')
+        .run(messageId, JSON.stringify(files.map(({ id, size }) => ({ id, size }))));
+  }
+  fileCleanup(): { messageId: string; files: Pick<Attachment, 'id' | 'size'>[] }[] {
+    return (this.db.prepare('SELECT * FROM file_cleanup').all() as Row[]).map((row) => ({
+      messageId: String(row.message_id),
+      files: JSON.parse(String(row.files)),
+    }));
+  }
+  finishFileCleanup(messageId: string): void {
+    this.db.prepare('DELETE FROM file_cleanup WHERE message_id=?').run(messageId);
+  }
+  attachmentReferenced(id: string): boolean {
+    return !!this.db
+      .prepare(
+        "SELECT 1 FROM messages m, json_each(m.envelope,'$.attachments') f WHERE json_extract(f.value,'$.id')=? LIMIT 1",
+      )
+      .get(id);
   }
   assertOwner(connectionId: string): { key: string; nickname: string; binding: Binding } {
     for (const row of this.db
@@ -281,6 +388,14 @@ export class AgentStore {
     });
   }
   private insertRow(envelope: Envelope, direction: 'in' | 'out'): boolean {
+    const cleared = this.db
+      .prepare('SELECT digest FROM cleared_messages WHERE id=? AND direction=?')
+      .get(envelope.id, direction) as Row | undefined;
+    if (cleared) {
+      if (cleared.digest !== envelopeDigest(envelope))
+        throw new Error('Duplicate ID with different content');
+      return false;
+    }
     const existing = this.get(envelope.id, direction),
       other = this.get(envelope.id, direction === 'in' ? 'out' : 'in'),
       encoded = JSON.stringify(envelope);
@@ -413,6 +528,7 @@ export class AgentStore {
     this.db.prepare("UPDATE messages SET error=? WHERE id=? AND direction='in'").run(error, id);
   }
   dispatch(id: string, connectionId: string, state: string, error: string | null = null): void {
+    if (!this.get(id, 'in')) return;
     this.db
       .prepare(
         'INSERT INTO dispatches(message_id,connection_id,state,error) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET connection_id=excluded.connection_id,state=excluded.state,error=excluded.error',
@@ -428,4 +544,24 @@ export class AgentStore {
   close(): void {
     this.db.close();
   }
+}
+
+// Field order is canonical; user text, Unicode, case and attachment order stay intact.
+function envelopeDigest(envelope: Envelope): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        envelope.protocol,
+        envelope.id,
+        envelope.fromNode,
+        envelope.toNode,
+        envelope.fromNickname,
+        envelope.toNickname,
+        envelope.createdAt,
+        envelope.text,
+        envelope.replyTo,
+        envelope.attachments.map(({ id, name, size }) => [id, name, size]),
+      ]),
+    )
+    .digest('hex');
 }
