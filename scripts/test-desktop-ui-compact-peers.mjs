@@ -144,7 +144,7 @@ try {
   await page.getByTestId('nav-network').click();
   await card(0).waitFor();
   assert.equal(await card(0).getByText('Peer Alpha', { exact: true }).count(), 1);
-  assert.equal(await card(0).getByText(directories[0].nodeId, { exact: true }).count(), 1);
+  assert.equal(await card(0).getByText(directories[0].nodeId, { exact: true }).count(), 0);
   assert.equal(await card(0).getByText('Connected', { exact: true }).count(), 1);
   assert.equal(await directory(0).getByText('Online client', { exact: true }).count(), 2);
   await directory(0).getByText('Client availability unknown', { exact: true }).waitFor();
@@ -175,7 +175,7 @@ try {
     assert.equal(await page.getByTestId('agents-tab-remote').getAttribute('aria-selected'), 'true');
     assert.ok(
       (await page.getByTestId('remote-recipient-node').getByRole('combobox').innerText()).includes(
-        directories[index].nodeId,
+        directories[index].nodeLabel,
       ),
     );
     assert.equal(
@@ -184,6 +184,10 @@ try {
         .getByRole('textbox', { name: 'Recipient agent name', exact: true })
         .inputValue(),
       sharedName,
+    );
+    assert.equal(
+      await page.getByTestId('remote-recipient-node').locator('input').inputValue(),
+      directories[index].nodeId,
     );
     await page.getByTestId('nav-network').click();
   }

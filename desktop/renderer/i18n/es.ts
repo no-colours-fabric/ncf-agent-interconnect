@@ -56,6 +56,7 @@ export const es: Messages = {
   agentMessages: 'Mensajes: {count}',
   msgIncoming: 'Mensaje entrante',
   msgOutgoing: 'Saliente',
+  unknownComputer: 'Equipo desconocido',
   msgFromNode: 'Del nodo: {from} · Al nodo: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Abrir archivo verificado',

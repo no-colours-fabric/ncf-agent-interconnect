@@ -52,6 +52,7 @@ export const zh: Messages = {
   agentMessages: '消息：{count}',
   msgIncoming: '收到的消息',
   msgOutgoing: '传出消息',
+  unknownComputer: '未知计算机',
   msgFromNode: '来自节点：{from} · 目标节点：{to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: '打开已验证文件',

@@ -56,6 +56,7 @@ export const kk: Messages = {
   agentMessages: 'Хабарламалар: {count}',
   msgIncoming: 'Кіріс хабарлама',
   msgOutgoing: 'Шығыс',
+  unknownComputer: 'Белгісіз компьютер',
   msgFromNode: 'Тораптан: {from} · Торапқа: {to}',
   msgAttachmentSize: '{name} · {size} КБ',
   msgOpenVerified: 'Тексерілген файлды ашу',

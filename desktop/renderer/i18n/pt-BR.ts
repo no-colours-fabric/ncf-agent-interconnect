@@ -55,6 +55,7 @@ export const ptBR: Messages = {
   agentMessages: 'Mensagens: {count}',
   msgIncoming: 'Mensagem recebida',
   msgOutgoing: 'Saída',
+  unknownComputer: 'Computador desconhecido',
   msgFromNode: 'Do nó: {from} · Para o nó: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Abrir arquivo verificado',

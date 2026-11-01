@@ -56,6 +56,7 @@ export const nl: Messages = {
   agentMessages: 'Berichten: {count}',
   msgIncoming: 'Binnenkomend bericht',
   msgOutgoing: 'Uitgaand',
+  unknownComputer: 'Onbekende computer',
   msgFromNode: 'Van knooppunt: {from} · Naar knooppunt: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Geverifieerd bestand openen',

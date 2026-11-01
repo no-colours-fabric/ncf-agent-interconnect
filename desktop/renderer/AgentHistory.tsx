@@ -25,6 +25,7 @@ export function AgentHistory({
   locale,
   run,
   call,
+  nodeName,
 }: {
   messages: Message[];
   hasMore: boolean;
@@ -32,6 +33,7 @@ export function AgentHistory({
   locale: Locale;
   run: (work: () => Promise<unknown>) => Promise<void>;
   call: (method: string, params: unknown) => Promise<unknown>;
+  nodeName: (id: string) => string;
 }): React.JSX.Element {
   return (
     <Stack spacing={2} sx={{ flex: 1, overflow: 'auto', p: 2.5, bgcolor: '#f8fafb' }}>
@@ -63,16 +65,18 @@ export function AgentHistory({
             {time(m.envelope.createdAt, locale)}
           </Typography>
           <Typography
+            data-testid="message-node-labels"
             variant="caption"
             color="text.secondary"
             sx={{ display: 'block', overflowWrap: 'anywhere' }}
           >
             {t(locale, 'msgFromNode', {
-              from: m.envelope.fromNode,
-              to: m.envelope.toNode,
+              from: nodeName(m.envelope.fromNode),
+              to: nodeName(m.envelope.toNode),
             })}
           </Typography>
           <Typography
+            data-testid="message-text"
             sx={{
               whiteSpace: 'pre-wrap',
               overflowWrap: 'anywhere',

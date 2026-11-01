@@ -56,6 +56,7 @@ export const ru: Messages = {
   agentMessages: 'Сообщений: {count}',
   msgIncoming: 'Входящее сообщение',
   msgOutgoing: 'Исходящее',
+  unknownComputer: 'Неизвестный компьютер',
   msgFromNode: 'От узла: {from} · Узлу: {to}',
   msgAttachmentSize: '{name} · {size} КБ',
   msgOpenVerified: 'Открыть проверенный файл',

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { createRoot } from 'react-dom/client';
+import { createNodeLabelResolver } from './node-labels.js';
 import { CompactPeerDirectory } from './CompactPeerDirectory.js';
 import { AgentHistory } from './AgentHistory.js';
 import { useAgentHistory } from './useAgentHistory.js';
@@ -103,7 +104,9 @@ function DirectoryList({
   locale,
   selectedNode,
   selectedNickname,
+  nodeName,
 }: {
+  nodeName: (id: string) => string;
   selectedNode?: string;
   selectedNickname?: string;
   directories: AgentDirectory[];
@@ -115,8 +118,11 @@ function DirectoryList({
       {directories.map((directory) => (
         <Box key={directory.nodeId} data-testid={'directory-' + directory.nodeId}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography variant="body2" sx={{ fontWeight: 650 }}>
-              {directory.nodeLabel}
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: 650, overflowWrap: 'anywhere', minWidth: 0 }}
+            >
+              {nodeName(directory.nodeId)}
             </Typography>
             <Chip
               size="small"
@@ -131,13 +137,6 @@ function DirectoryList({
               }
             />
           </Stack>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: 'block', overflowWrap: 'anywhere' }}
-          >
-            {directory.nodeId}
-          </Typography>
           {directory.updatedAt && (
             <Typography variant="caption" color="text.secondary">
               {t(locale, 'directoryUpdated', { time: time(directory.updatedAt, locale) })}
@@ -195,6 +194,7 @@ function DirectoryList({
 }
 
 function App(): React.JSX.Element {
+  const [resolveNodeLabels] = useState(createNodeLabelResolver);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [page, setPage] = useState<Page>((location.hash.slice(1) as Page) || 'overview');
   const [error, setError] = useState(''),
@@ -301,6 +301,7 @@ function App(): React.JSX.Element {
         {error && <Alert severity="error">{error}</Alert>}
       </Stack>
     );
+  const nodeName = resolveNodeLabels(snapshot, locale);
   const selectedAgent = snapshot.agents.find((c) => c.nickname === selected);
   const chooseRemoteAgent = (nodeId: string, agent: string) => {
     if (nodeId !== remoteNode || nicknameKey(agent) !== draftNicknameKey(remoteNickname))
@@ -662,6 +663,7 @@ function App(): React.JSX.Element {
                         />
                       </Stack>
                       <AgentHistory
+                        nodeName={nodeName}
                         messages={messages}
                         hasMore={hasMore}
                         loadMore={() => setHistorySize((size) => size + 100)}
@@ -743,6 +745,7 @@ function App(): React.JSX.Element {
                       directories={snapshot.directories.filter((directory) => !directory.local)}
                       choose={chooseRemoteAgent}
                       locale={locale}
+                      nodeName={nodeName}
                       selectedNode={remoteNode}
                       selectedNickname={remoteNickname}
                     />
@@ -786,11 +789,12 @@ function App(): React.JSX.Element {
                           color="text.secondary"
                           sx={{ display: 'block', overflowWrap: 'anywhere' }}
                         >
-                          {remoteNode}
+                          {nodeName(remoteNode)}
                         </Typography>
                       )}
                     </Box>
                     <AgentHistory
+                      nodeName={nodeName}
                       messages={remoteConversation(
                         remoteHistory.messages,
                         remoteNode,
@@ -809,6 +813,12 @@ function App(): React.JSX.Element {
                             select
                             fullWidth
                             data-testid="remote-recipient-node"
+                            sx={{
+                              '& .MuiSelect-select': {
+                                whiteSpace: 'normal',
+                                overflowWrap: 'anywhere',
+                              },
+                            }}
                             label={t(locale, 'composeRecipientNode')}
                             value={
                               snapshot.peers.some((peer) => peer.id === remoteNode)
@@ -823,8 +833,12 @@ function App(): React.JSX.Element {
                             }}
                           >
                             {snapshot.peers.map((peer) => (
-                              <MenuItem key={peer.id} value={peer.id}>
-                                {peer.label} · {peer.id}
+                              <MenuItem
+                                key={peer.id}
+                                value={peer.id}
+                                sx={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                              >
+                                {nodeName(peer.id)}
                               </MenuItem>
                             ))}
                           </TextField>
@@ -981,7 +995,7 @@ function App(): React.JSX.Element {
                   >
                     <Box sx={{ minWidth: 0, flex: 1 }}>
                       <Typography sx={{ fontWeight: 650, overflowWrap: 'anywhere' }}>
-                        {p.label}
+                        {nodeName(p.id)}
                       </Typography>
                       <Typography
                         variant="body2"
@@ -989,13 +1003,6 @@ function App(): React.JSX.Element {
                         sx={{ overflowWrap: 'anywhere' }}
                       >
                         {p.address || t(locale, 'networkIncoming')}
-                      </Typography>
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ overflowWrap: 'anywhere' }}
-                      >
-                        {p.id}
                       </Typography>
                     </Box>
                     <Chip
@@ -1237,11 +1244,9 @@ function App(): React.JSX.Element {
             onChange={(e) => setNickname(e.target.value)}
           />
           {!!nameConflicts.length && (
-            <Alert severity="warning" sx={{ mt: 2 }}>
+            <Alert severity="warning" sx={{ mt: 2, overflowWrap: 'anywhere' }}>
               {t(locale, 'dialogNameUsed', {
-                nodes: nameConflicts
-                  .map(({ directory }) => `${directory.nodeLabel} (${directory.nodeId})`)
-                  .join(', '),
+                nodes: nameConflicts.map(({ directory }) => nodeName(directory.nodeId)).join(', '),
               })}
             </Alert>
           )}

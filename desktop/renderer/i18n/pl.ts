@@ -56,6 +56,7 @@ export const pl: Messages = {
   agentMessages: 'Wiadomości: {count}',
   msgIncoming: 'Wiadomość przychodząca',
   msgOutgoing: 'Wychodząca',
+  unknownComputer: 'Nieznany komputer',
   msgFromNode: 'Z węzła: {from} · Do węzła: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Otwórz zweryfikowany plik',

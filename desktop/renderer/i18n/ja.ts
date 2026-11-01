@@ -56,6 +56,7 @@ export const ja: Messages = {
   agentMessages: 'メッセージ: {count}',
   msgIncoming: '受信メッセージ',
   msgOutgoing: '送信メッセージ',
+  unknownComputer: '不明なコンピューター',
   msgFromNode: '送信元ノード: {from} · 送信先ノード: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: '検証済みファイルを開く',

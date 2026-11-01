@@ -50,6 +50,7 @@ export interface Messages {
   agentMessages: string;
   msgIncoming: string;
   msgOutgoing: string;
+  unknownComputer: string;
   msgFromNode: string;
   msgAttachmentSize: string;
   msgOpenVerified: string;

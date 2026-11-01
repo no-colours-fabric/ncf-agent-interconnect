@@ -55,6 +55,7 @@ export const ko: Messages = {
   agentMessages: '메시지: {count}',
   msgIncoming: '수신 메시지',
   msgOutgoing: '발신',
+  unknownComputer: '알 수 없는 컴퓨터',
   msgFromNode: '보낸 노드: {from} · 받는 노드: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: '검증된 파일 열기',

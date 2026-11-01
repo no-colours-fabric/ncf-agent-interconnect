@@ -56,6 +56,7 @@ export const de: Messages = {
   agentMessages: 'Nachrichten: {count}',
   msgIncoming: 'Eingehende Nachricht',
   msgOutgoing: 'Ausgehend',
+  unknownComputer: 'Unbekannter Computer',
   msgFromNode: 'Von Knoten: {from} · An Knoten: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Verifizierte Datei öffnen',

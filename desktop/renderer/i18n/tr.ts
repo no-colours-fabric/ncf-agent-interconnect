@@ -56,6 +56,7 @@ export const tr: Messages = {
   agentMessages: 'Mesaj: {count}',
   msgIncoming: 'Gelen mesaj',
   msgOutgoing: 'Giden',
+  unknownComputer: 'Bilinmeyen bilgisayar',
   msgFromNode: 'Düğümden: {from} · Düğüme: {to}',
   msgAttachmentSize: '{name} · {size} KB',
   msgOpenVerified: 'Doğrulanmış dosyayı aç',

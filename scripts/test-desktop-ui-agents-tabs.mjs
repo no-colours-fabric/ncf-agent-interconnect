@@ -273,7 +273,7 @@ try {
   await choose(secondId);
   await page.getByTestId('remote-recipient-node').getByRole('combobox').click();
   assert.equal(await page.getByRole('option', { name: 'This computer', exact: true }).count(), 0);
-  await page.getByRole('option', { name: 'Isolated remote 1 · ' + firstId, exact: true }).click();
+  await page.getByRole('option', { name: 'Isolated remote 1', exact: true }).click();
   assert.equal(await field(remote(), 'Recipient agent name').inputValue(), '');
   await field(remote(), 'Recipient agent name').fill('a'.repeat(121));
   await field(remote(), 'Recipient agent name').fill(counterpart);
@@ -285,10 +285,14 @@ try {
   assert.equal(await tab('remote').getAttribute('aria-selected'), 'true');
   assert.ok(
     (await page.getByTestId('remote-recipient-node').getByRole('combobox').innerText()).includes(
-      firstId,
+      'Isolated remote 1',
     ),
   );
   assert.equal(await field(remote(), 'Recipient agent name').inputValue(), counterpart);
+  assert.equal(
+    await page.getByTestId('remote-recipient-node').locator('input').inputValue(),
+    firstId,
+  );
   const snapshotAfter = await invoke('snapshot');
   assert.deepEqual(
     snapshotAfter.agents,

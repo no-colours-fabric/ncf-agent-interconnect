@@ -56,6 +56,7 @@ export const uk: Messages = {
   agentMessages: 'Повідомлень: {count}',
   msgIncoming: 'Вхідне повідомлення',
   msgOutgoing: 'Вихідне',
+  unknownComputer: 'Невідомий комп’ютер',
   msgFromNode: 'Від вузла: {from} · Вузлу: {to}',
   msgAttachmentSize: '{name} · {size} КБ',
   msgOpenVerified: 'Відкрити перевірений файл',
