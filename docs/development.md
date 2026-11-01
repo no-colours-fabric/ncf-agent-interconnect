@@ -60,3 +60,27 @@ executable before running `npm run test:ui`.
 | `test-desktop`         | Isolated product tests                          |
 
 Follow [AGENTS.md](../AGENTS.md) and [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+## UI localization
+
+The renderer supports switchable interface languages. English is the default
+and the fallback when a key is missing. A selector at the bottom of the left
+sidebar changes the language; the choice is stored in the Electron application
+profile (renderer `localStorage`) and survives restarts.
+
+Conventions:
+
+- Add every user-visible string in `desktop/renderer/main.tsx` through the `t`
+  helper, keyed by an entry in `desktop/renderer/i18n/messages.ts`.
+- Provide every key in `desktop/renderer/i18n/en.ts` and
+  `desktop/renderer/i18n/ru.ts`. Add a new locale by creating its dictionary
+  and registering it in `desktop/renderer/i18n/index.ts`.
+- Never translate user text: agent names, nicknames, message bodies, file names,
+  node IDs, addresses and UUIDs stay as-is.
+- MCP instructions are served in English and are not localized.
+- `desktop/renderer/i18n` is bundled only into the renderer; it must not import
+  from `desktop/core`.
+
+Locale coverage is checked by `test-desktop/i18n.test.ts` (fallback, dictionary
+parity and interpolation). The language switch, persistence and restart behavior
+are exercised by `scripts/test-desktop-ui-locale.mjs`.
