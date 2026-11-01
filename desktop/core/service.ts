@@ -42,6 +42,48 @@ export class NodeService extends EventEmitter {
   private receiveAgain = false;
   private dispatching = new Set<string>();
   private jobs = new Set<Promise<void>>();
+  private fileJobs = new Set<Promise<unknown>>();
+  private cleaningFiles: Promise<void> | null = null;
+  private cleanFilesAgain = false;
+  private async fileOperation<T>(work: () => Promise<T>): Promise<T> {
+    const operation = this.files.withLease(work);
+    this.fileJobs.add(operation);
+    try {
+      return await operation;
+    } finally {
+      this.fileJobs.delete(operation);
+      this.drainFileCleanup();
+    }
+  }
+  private drainFileCleanup(): void {
+    if (this.closing || !this.store || !this.files) return;
+    if (this.cleaningFiles) {
+      this.cleanFilesAgain = true;
+      return;
+    }
+    if (!this.store.fileCleanup().length) return;
+    this.cleaningFiles = this.files
+      .exclusive(async () => {
+        for (const task of this.store.fileCleanup()) {
+          try {
+            await this.files.cleanup(
+              task,
+              (id) => this.store.attachmentReferenced(id),
+              () => !!this.store.get(task.messageId),
+            );
+            this.store.finishFileCleanup(task.messageId);
+          } catch {
+            // Keep the durable task for the next operation or restart; never log history or paths.
+          }
+        }
+      })
+      .finally(() => {
+        this.cleaningFiles = null;
+        const again = this.cleanFilesAgain;
+        this.cleanFilesAgain = false;
+        if (again) this.drainFileCleanup();
+      });
+  }
   private errors: string[] = [];
   private lifecycle: Promise<void> = Promise.resolve();
   private closing: Promise<void> | null = null;
@@ -143,6 +185,7 @@ export class NodeService extends EventEmitter {
       this.acceptingIntegrations = true;
       void this.drainIncoming();
       this.drainAdapters();
+      this.drainFileCleanup();
       this.emit('change');
     } catch (e) {
       this.running = false;
@@ -190,6 +233,7 @@ export class NodeService extends EventEmitter {
         connectionId: z.uuid().optional(),
         transferId: z.uuid().optional(),
         confirmTransfer: z.boolean().optional(),
+        resetHistory: z.boolean().optional(),
       })
       .strict()
       .parse(args);
@@ -203,6 +247,24 @@ export class NodeService extends EventEmitter {
       throw new Error(
         'The adapter chatId must match its exact session. Use a separate integration for another chat.',
       );
+    if (input.resetHistory) {
+      const previous = this.store
+        .list()
+        .find((agent) => agent.key === nicknameKey(input.nickname))?.binding;
+      const prior = this.settings.value.adapters.find(
+        (adapter) => adapter.id === previous?.adapterId,
+      );
+      if (
+        prior &&
+        profile &&
+        prior.kind === profile.kind &&
+        ((profile.kind === 'codex-desktop' && prior.threadId === profile.threadId) ||
+          (profile.kind === 'opencode-http' &&
+            prior.workspace === profile.workspace &&
+            prior.sessionId === profile.sessionId))
+      )
+        throw new Error('A fresh start requires another exact chat');
+    }
     this.adapters.get(adapterId);
     const result = this.store.connect({
       ...input,
@@ -216,6 +278,7 @@ export class NodeService extends EventEmitter {
         nickname: result.nickname,
       });
       this.drainAdapters();
+      if (result.historyCleared) this.drainFileCleanup();
     }
     this.emit('change');
     this.refreshPresence();
@@ -401,6 +464,7 @@ export class NodeService extends EventEmitter {
       connectionId?: string;
       transferId?: string;
       confirmTransfer?: boolean;
+      resetHistory?: boolean;
     },
     host: { client: string; meta?: Record<string, unknown> },
   ): Promise<ConnectResult & { delivery?: { automatic: boolean; description: string } }> {
@@ -552,37 +616,47 @@ export class NodeService extends EventEmitter {
     return this.connect({ ...args, connectionId, chatId: validated.threadId, adapterId });
   }
   async read(connectionId: string, after = 0, limit = 50, unread = false): Promise<unknown> {
-    const owner = this.store.assertOwner(connectionId),
-      page = this.store.history(owner.key, after, limit, unread);
-    const prepared = await Promise.all(
-      page.messages.map(async (row) => ({
-        ...row,
-        files: await Promise.all(
-          row.envelope.attachments.map(async (file) => ({
-            ...file,
-            localPath: await this.files.materialize(row.envelope.id, file),
-          })),
-        ),
-      })),
-    );
-    const delivered = await this.recordDelivery(
-      connectionId,
-      prepared
-        .filter((row) => row.direction === 'in' && row.state === 'ready')
-        .map((row) => row.envelope.id),
-    );
-    const messages = prepared
-      .filter((row) => !unread || delivered.has(row.envelope.id))
-      .map(({ state, error: _error, ...message }) => ({
-        ...message,
-        ...(message.direction === 'in'
-          ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
-          : {}),
-        delivery: deliveryStatus(
-          this.store.get(message.envelope.id, message.direction)?.state ?? state,
-        ),
-      }));
-    return { ...page, messages };
+    return this.fileOperation(async () => {
+      const owner = this.store.assertOwner(connectionId),
+        page = this.store.history(owner.key, after, limit, unread);
+      const prepared = await allFileResults(
+        page.messages.map(async (row) => ({
+          ...row,
+          files: await allFileResults(
+            row.envelope.attachments.map(async (file) => ({
+              ...file,
+              localPath: await this.files.materialize(row.envelope.id, file),
+            })),
+          ),
+        })),
+      );
+      this.store.assertOwner(connectionId);
+      for (const row of prepared)
+        if (!this.store.get(row.envelope.id, row.direction))
+          throw new Error('The message was cleared');
+      const delivered = await this.recordDelivery(
+        connectionId,
+        prepared
+          .filter((row) => row.direction === 'in' && row.state === 'ready')
+          .map((row) => row.envelope.id),
+      );
+      this.store.assertOwner(connectionId);
+      for (const row of prepared)
+        if (!this.store.get(row.envelope.id, row.direction))
+          throw new Error('The message was cleared');
+      const messages = prepared
+        .filter((row) => !unread || delivered.has(row.envelope.id))
+        .map(({ state, error: _error, ...message }) => ({
+          ...message,
+          ...(message.direction === 'in'
+            ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+            : {}),
+          delivery: deliveryStatus(
+            this.store.get(message.envelope.id, message.direction)?.state ?? state,
+          ),
+        }));
+      return { ...page, messages };
+    });
   }
   private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
     const delivered = this.store.recordDelivery(connectionId, ids);
@@ -648,81 +722,119 @@ export class NodeService extends EventEmitter {
   ): Promise<SendResult> {
     if (!args.recipientNode)
       throw new Error('recipientNode is required; select an explicit node UUID from node_peers');
+    const sourceBinding = this.store
+      .list()
+      .find((agent) => agent.key === nicknameKey(nickname))?.binding;
+    const checkSource = () => {
+      stillOwner();
+      if (sourceBinding) this.store.assertOwner(sourceBinding.connectionId);
+    };
     const recipientNode = z.uuid().parse(args.recipientNode).toLowerCase(),
       local = recipientNode === this.settings.value.nodeId,
       replyTo = args.replyTo ? z.uuid().parse(args.replyTo) : null;
     if (!local && !this.settings.value.peers.some((p) => p.id === recipientNode))
       throw new Error('The remote node has not been configured by the user');
-    if (replyTo) {
-      const original = this.store.get(replyTo, 'in')?.envelope;
-      if (
-        !original ||
-        original.toNode !== this.settings.value.nodeId ||
-        nicknameKey(original.toNickname) !== nicknameKey(nickname) ||
-        original.fromNode !== recipientNode ||
-        nicknameKey(original.fromNickname) !== nicknameKey(args.recipientNickname)
-      )
-        throw new Error(
-          'The reply address must match the sender of an incoming message for this agent',
-        );
-    }
-    const attachments = await Promise.all(
-      (args.files ?? []).map((file) => this.files.snapshot(file)),
-    );
-    stillOwner();
-    const id = args.id ? z.uuid().parse(args.id) : randomUUID(),
-      existing = this.store.get(id, 'out');
-    const envelope = envelopeSchema.parse({
-      protocol: 2,
-      id,
-      fromNode: this.settings.value.nodeId,
-      toNode: recipientNode,
-      fromNickname: nickname,
-      toNickname: args.recipientNickname,
-      createdAt: existing?.envelope.createdAt ?? new Date().toISOString(),
-      text: args.text,
-      replyTo,
-      attachments,
+    const checkReply = () => {
+      if (replyTo) {
+        const original = this.store.get(replyTo, 'in')?.envelope;
+        if (
+          !original ||
+          original.toNode !== this.settings.value.nodeId ||
+          nicknameKey(original.toNickname) !== nicknameKey(nickname) ||
+          original.fromNode !== recipientNode ||
+          nicknameKey(original.fromNickname) !== nicknameKey(args.recipientNickname)
+        )
+          throw new Error(
+            'The reply address must match the sender of an incoming message for this agent',
+          );
+      }
+    };
+    checkReply();
+    const id = args.id ? z.uuid().parse(args.id) : randomUUID();
+    const envelope = await this.fileOperation(async () => {
+      checkSource();
+      if (this.store.clearedState(id, 'out'))
+        throw new Error('This message ID belongs to cleared history. Use a new message ID');
+      const snapshots = await Promise.allSettled(
+        (args.files ?? []).map((file) => this.files.snapshot(file)),
+      );
+      const attachments = snapshots.flatMap((result) =>
+        result.status === 'fulfilled' ? [result.value] : [],
+      );
+      try {
+        const failed = snapshots.find((result) => result.status === 'rejected');
+        if (failed?.status === 'rejected') throw failed.reason;
+        checkSource();
+        checkReply();
+        const existing = this.store.get(id, 'out');
+        const envelope = envelopeSchema.parse({
+          protocol: 2,
+          id,
+          fromNode: this.settings.value.nodeId,
+          toNode: recipientNode,
+          fromNickname: nickname,
+          toNickname: args.recipientNickname,
+          createdAt: existing?.envelope.createdAt ?? new Date().toISOString(),
+          text: args.text,
+          replyTo,
+          attachments,
+        });
+        if (local) {
+          const previous = this.store.get(id, 'in');
+          this.store.insertLocal(envelope, this.running);
+          if (
+            this.running &&
+            this.store.get(id, 'in')?.state === 'ready' &&
+            (!previous || previous.state === 'received')
+          )
+            this.messageReady(envelope);
+        } else this.store.insert(envelope, 'out');
+        return envelope;
+      } catch (error) {
+        this.store.queueFileCleanup(randomUUID(), attachments);
+        throw error;
+      }
     });
-    if (local) {
-      const previous = this.store.get(id, 'in');
-      this.store.insertLocal(envelope, this.running);
-      if (this.running && (!previous || previous.state === 'received')) this.messageReady(envelope);
-    } else {
-      this.store.insert(envelope, 'out');
-      if (this.running) await this.network.message(envelope).catch(() => {});
-    }
+    checkSource();
+    if (!this.store.get(id, 'out')) throw new Error('The outgoing message was cleared');
+    if (!local && this.running) await this.network.message(envelope).catch(() => {});
+    checkSource();
+    const current = this.store.get(id, 'out');
+    if (!current) throw new Error('The outgoing message was cleared');
     this.emit('change');
     return {
       id,
       accepted: true,
       recipientNode,
       recipientNickname: envelope.toNickname,
-      delivery: deliveryStatus(this.store.get(id, 'out')!.state),
+      delivery: deliveryStatus(current.state),
     };
   }
   async receiveFile(connectionId: string, messageId: string, fileId: string): Promise<unknown> {
-    const owner = this.store.assertOwner(connectionId),
-      row = [this.store.get(messageId, 'in'), this.store.get(messageId, 'out')].find(
-        (candidate) =>
-          candidate &&
-          (candidate.direction === 'in'
-            ? nicknameKey(candidate.envelope.toNickname)
-            : nicknameKey(candidate.envelope.fromNickname)) === owner.key,
-      );
-    if (
-      !row ||
-      (row.direction === 'in'
-        ? nicknameKey(row.envelope.toNickname)
-        : nicknameKey(row.envelope.fromNickname)) !== owner.key ||
-      row.state === 'received'
-    )
-      throw new Error('The attachment does not belong to this agent or is not ready');
-    const file = row.envelope.attachments.find((f) => f.id === fileId);
-    if (!file) throw new Error('Attachment not found');
-    const localPath = await this.files.materialize(messageId, file);
-    this.store.assertOwner(connectionId);
-    return { ...file, localPath };
+    return this.fileOperation(async () => {
+      const owner = this.store.assertOwner(connectionId),
+        row = [this.store.get(messageId, 'in'), this.store.get(messageId, 'out')].find(
+          (candidate) =>
+            candidate &&
+            (candidate.direction === 'in'
+              ? nicknameKey(candidate.envelope.toNickname)
+              : nicknameKey(candidate.envelope.fromNickname)) === owner.key,
+        );
+      if (
+        !row ||
+        (row.direction === 'in'
+          ? nicknameKey(row.envelope.toNickname)
+          : nicknameKey(row.envelope.fromNickname)) !== owner.key ||
+        row.state === 'received'
+      )
+        throw new Error('The attachment does not belong to this agent or is not ready');
+      const file = row.envelope.attachments.find((f) => f.id === fileId);
+      if (!file) throw new Error('Attachment not found');
+      const localPath = await this.files.materialize(messageId, file);
+      this.store.assertOwner(connectionId);
+      if (!this.store.get(messageId, row.direction)) throw new Error('The message was cleared');
+      return { ...file, localPath };
+    });
   }
   private async receive(peerId: string, frame: Frame): Promise<void> {
     if (frame.type === 'directory') {
@@ -734,18 +846,19 @@ export class NodeService extends EventEmitter {
         this.mcp.notify({ source: 'application', type: 'directory_changed', nodeId: peerId });
       }
     } else if (frame.type === 'message') {
-      const envelope = frame.envelope;
-      if (envelope.fromNode !== peerId || envelope.toNode !== this.settings.value.nodeId)
-        throw new Error('The message route does not match the connection');
-      this.store.insert(envelope, 'in');
-      await this.network.receipt(
-        peerId,
-        envelope.id,
-        this.store.get(envelope.id, 'in')!.state as 'received' | 'ready' | 'processed',
-      );
+      await this.fileOperation(async () => {
+        const envelope = frame.envelope;
+        if (envelope.fromNode !== peerId || envelope.toNode !== this.settings.value.nodeId)
+          throw new Error('The message route does not match the connection');
+        this.store.insert(envelope, 'in');
+        const state =
+          this.store.get(envelope.id, 'in')?.state ?? this.store.clearedState(envelope.id, 'in');
+        if (state && state !== 'queued') await this.network.receipt(peerId, envelope.id, state);
+      });
       void this.drainIncoming();
       this.emit('change');
     } else if (frame.type === 'receipt') {
+      if (this.store.clearedState(frame.id, 'out')) return;
       if (this.store.get(frame.id, 'out')?.envelope.toNode !== peerId)
         throw new Error('The receipt does not belong to this sender');
       this.store.receipt(frame.id, frame.state);
@@ -756,7 +869,13 @@ export class NodeService extends EventEmitter {
           file = row?.envelope.attachments.find((f) => f.id === frame.fileId);
         if (row?.direction !== 'out' || row.envelope.toNode !== peerId || !file)
           throw new Error('Invalid file request');
-        const data = await this.files.chunk(file, frame.offset, frame.length);
+        const data = await this.fileOperation(async () => {
+          if (!this.store.get(frame.messageId, 'out')) throw new Error('The message was cleared');
+          const data = await this.files.chunk(file, frame.offset, frame.length);
+          if (!this.store.get(frame.messageId, 'out')) throw new Error('The message was cleared');
+          return data;
+        });
+        if (!this.store.get(frame.messageId, 'out')) throw new Error('The message was cleared');
         await this.network.send(peerId, { type: 'blob/result', requestId: frame.requestId, data });
       } catch {
         await this.network
@@ -771,7 +890,7 @@ export class NodeService extends EventEmitter {
   }
   private async flush(peerId: string): Promise<void> {
     for (const row of this.store.pending('out'))
-      if (row.envelope.toNode === peerId) {
+      if (row.envelope.toNode === peerId && this.store.get(row.envelope.id, 'out')) {
         try {
           await this.network.message(row.envelope);
         } catch {
@@ -789,28 +908,32 @@ export class NodeService extends EventEmitter {
         this.receiveAgain = false;
         for (const row of this.store.pending('in')) {
           try {
-            const local = row.envelope.fromNode === this.settings.value.nodeId;
-            for (const file of row.envelope.attachments) {
-              if (local) {
-                if (!(await this.files.exists(file)))
-                  throw new Error('The local attachment is damaged or unavailable');
-              } else
-                await this.files.receive(file, (offset, length) =>
-                  this.network.chunk(
-                    row.envelope.fromNode,
-                    row.envelope.id,
-                    file.id,
-                    offset,
-                    length,
-                  ),
-                );
-            }
-            this.store.ready(row.envelope.id);
-            if (!local)
-              await this.network
-                .receipt(row.envelope.fromNode, row.envelope.id, 'ready')
-                .catch(() => {});
-            this.messageReady(row.envelope);
+            await this.fileOperation(async () => {
+              if (!this.store.get(row.envelope.id, 'in')) return;
+              const local = row.envelope.fromNode === this.settings.value.nodeId;
+              for (const file of row.envelope.attachments) {
+                if (local) {
+                  if (!(await this.files.exists(file)))
+                    throw new Error('The local attachment is damaged or unavailable');
+                } else
+                  await this.files.receive(file, (offset, length) =>
+                    this.network.chunk(
+                      row.envelope.fromNode,
+                      row.envelope.id,
+                      file.id,
+                      offset,
+                      length,
+                    ),
+                  );
+              }
+              if (!this.store.get(row.envelope.id, 'in')) return;
+              this.store.ready(row.envelope.id);
+              if (!local)
+                await this.network
+                  .receipt(row.envelope.fromNode, row.envelope.id, 'ready')
+                  .catch(() => {});
+              if (this.store.get(row.envelope.id, 'in')) this.messageReady(row.envelope);
+            });
           } catch (e) {
             this.store.error(row.envelope.id, (e as Error).message);
             this.emit('change');
@@ -860,10 +983,11 @@ export class NodeService extends EventEmitter {
       void job.finally(() => this.jobs.delete(job));
     }
     for (const identity of this.store.list()) {
-      if (!identity.binding || this.dispatching.has(identity.key)) continue;
+      if (!identity.binding) continue;
       const binding = identity.binding,
+        dispatchKey = identity.key + ':' + identity.binding.connectionId,
         adapter = this.adapters.get(binding.adapterId);
-      if (!adapter.status().capabilities.wakeIdle) continue;
+      if (this.dispatching.has(dispatchKey) || !adapter.status().capabilities.wakeIdle) continue;
       const ready = this.store.history(identity.key, 0, 200, true).messages;
       const row = ready.find((message) => {
         const previous = this.store.dispatchState(message.envelope.id);
@@ -874,18 +998,24 @@ export class NodeService extends EventEmitter {
         );
       });
       if (!row) continue;
-      this.dispatching.add(identity.key);
+      this.dispatching.add(dispatchKey);
       const job = (async () => {
-        let admitted = false;
+        let admitted = false,
+          submitting = false;
         try {
           this.store.assertOwner(binding.connectionId);
           this.store.dispatch(row.envelope.id, binding.connectionId, 'dispatching');
-          const files = await Promise.all(
-            row.envelope.attachments.map(async (file) => ({
-              ...file,
-              localPath: await this.files.materialize(row.envelope.id, file),
-            })),
+          const files = await this.fileOperation(() =>
+            allFileResults(
+              row.envelope.attachments.map(async (file) => ({
+                ...file,
+                localPath: await this.files.materialize(row.envelope.id, file),
+              })),
+            ),
           );
+          this.store.assertOwner(binding.connectionId);
+          if (!this.store.get(row.envelope.id, 'in')) throw new Error('The message was cleared');
+          submitting = true;
           const result = await adapter.deliver({
             nickname: identity.nickname,
             binding,
@@ -920,11 +1050,11 @@ export class NodeService extends EventEmitter {
           this.store.dispatch(
             row.envelope.id,
             binding.connectionId,
-            'failed',
+            submitting ? 'uncertain' : 'failed',
             (e as Error).message,
           );
         } finally {
-          this.dispatching.delete(identity.key);
+          this.dispatching.delete(dispatchKey);
           this.emit('change');
           if (admitted) this.drainAdapters();
         }
@@ -1041,8 +1171,18 @@ export class NodeService extends EventEmitter {
     if (!this.closing)
       this.closing = (async () => {
         await this.stop();
+        await Promise.allSettled([...this.fileJobs]);
+        await this.cleaningFiles;
         this.store.close();
       })();
     return this.closing;
   }
+}
+
+// A failed file must not release its lease while sibling operations still write copies.
+async function allFileResults<T>(operations: Promise<T>[]): Promise<T[]> {
+  const results = await Promise.allSettled(operations);
+  const failed = results.find((result) => result.status === 'rejected');
+  if (failed?.status === 'rejected') throw failed.reason;
+  return results.map((result) => (result as PromiseFulfilledResult<T>).value);
 }

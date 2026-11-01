@@ -21,8 +21,20 @@ case-insensitively within each node; identical names on different nodes are
 independent. User content and Unicode filenames are preserved.
 
 To move an agent to another chat, connect using the same name. If it is occupied,
-the new chat explains the transfer and asks for approval. Approval disconnects
-and notifies the previous chat. Message history stays with the agent name.
+the new chat offers two choices and asks for explicit approval:
+
+- Transfer the existing agent, keeping its message history.
+- Start as a new agent, deleting its old local MCP history and queued output.
+
+Both choices disconnect and notify the previous chat. A fresh start requires
+another chat and an occupied name. Reconnecting the current chat or connecting
+a released name preserves history.
+
+A fresh start clears this node's selected mailbox. Other agents' admitted
+history, existing client chat transcripts and remote queues remain. Messages
+already in flight cannot be recalled, and previously unknown incoming messages
+may arrive afterward. Unreferenced managed attachments are cleaned after the
+reset; shared files, modified user copies and export originals are retained.
 
 ## Exchange locally
 

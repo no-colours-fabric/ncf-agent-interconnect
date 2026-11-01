@@ -1,5 +1,16 @@
 import { createReadStream, createWriteStream, realpath as callbackRealpath } from 'node:fs';
-import { mkdir, stat, rename, unlink, open, copyFile, link } from 'node:fs/promises';
+import {
+  mkdir,
+  stat,
+  rename,
+  unlink,
+  open,
+  copyFile,
+  link,
+  readdir,
+  lstat,
+  rmdir,
+} from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Transform } from 'node:stream';
@@ -12,6 +23,97 @@ const code = (error: unknown) => (error as NodeJS.ErrnoException).code;
 const maxBytes = 100 * 1024 * 1024;
 export class FileStore {
   readonly directory: string;
+  private readers = 0;
+  private writing = false;
+  private waiting: { exclusive: boolean; ready: (release: () => void) => void }[] = [];
+  private acquire(exclusive: boolean): Promise<() => void> {
+    return new Promise((ready) => {
+      // Active readers may depend on peer chunk reads: do not queue those behind a waiting cleanup.
+      if (!exclusive && !this.writing && this.readers) {
+        this.readers++;
+        ready(() => {
+          this.readers--;
+          this.releaseWaiters();
+        });
+      } else {
+        this.waiting.push({ exclusive, ready });
+        this.releaseWaiters();
+      }
+    });
+  }
+  private releaseWaiters(): void {
+    while (!this.writing && this.waiting.length) {
+      const next = this.waiting[0];
+      if (next.exclusive && this.readers) return;
+      this.waiting.shift();
+      if (next.exclusive) this.writing = true;
+      else this.readers++;
+      next.ready(() => {
+        if (next.exclusive) this.writing = false;
+        else this.readers--;
+        this.releaseWaiters();
+      });
+    }
+  }
+  async withLease<T>(work: () => Promise<T>): Promise<T> {
+    const release = await this.acquire(false);
+    try {
+      return await work();
+    } finally {
+      release();
+    }
+  }
+  async exclusive<T>(work: () => Promise<T>): Promise<T> {
+    const release = await this.acquire(true);
+    try {
+      return await work();
+    } finally {
+      release();
+    }
+  }
+  async cleanup(
+    task: { messageId: string; files: Pick<Attachment, 'id' | 'size'>[] },
+    referenced: (id: string) => boolean,
+    keepCopies: () => boolean,
+  ): Promise<void> {
+    if (!/^[0-9a-f-]{36}$/i.test(task.messageId)) throw new Error('Invalid cleanup message ID');
+    if (!keepCopies()) {
+      const root = path.join(this.dataDir, 'Received'),
+        directory = path.join(root, task.messageId);
+      try {
+        const rootInfo = await lstat(root),
+          info = await lstat(directory);
+        if (rootInfo.isDirectory() && info.isDirectory()) {
+          for (const entry of await readdir(directory, { withFileTypes: true })) {
+            if (!entry.isFile()) continue;
+            const candidate = path.join(directory, entry.name),
+              info = await lstat(candidate);
+            if (!info.isFile()) continue;
+            const file = task.files.find(
+              (file) =>
+                entry.name.startsWith(file.id.slice(0, 16) + '-') && info.size === file.size,
+            );
+            if (file && (await this.hash(candidate)) === file.id) await unlink(candidate);
+          }
+          await rmdir(directory).catch((error) => {
+            if (!['ENOENT', 'ENOTEMPTY'].includes(code(error) ?? '')) throw error;
+          });
+        }
+      } catch (error) {
+        if (code(error) !== 'ENOENT') throw error;
+      }
+    }
+    if (!(await lstat(this.directory)).isDirectory())
+      throw new Error('The managed blob directory is unavailable');
+    for (const file of task.files) {
+      if (referenced(file.id)) continue;
+      for (const candidate of [this.blob(file.id), this.blob(file.id) + '.part']) {
+        await unlink(candidate).catch((error) => {
+          if (code(error) !== 'ENOENT') throw error;
+        });
+      }
+    }
+  }
   constructor(
     readonly dataDir: string,
     public exportRoots: string[],

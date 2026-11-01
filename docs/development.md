@@ -110,3 +110,21 @@ UI test profiles request ephemeral ports so they can run beside a working node.
 Dictionary parity checks structure, not linguistic quality. Renderer translation
 does not change MCP instructions, core diagnostic strings or the operating
 system's own dialogs.
+
+## History reset storage
+
+Agent storage format 2 migrates format 1 inside one SQLite transaction. Legacy
+transfer requests acquire the default preserve-only mode; new occupied-name
+requests issue separate preserve and reset tokens. Older binaries reject format
+2 rather than ignore its deletion markers. Test migrations only in isolated
+profiles; back up a stopped node before a real upgrade.
+
+Reset never modifies `sqlite_sequence`. Its rollback tests cover owner/history,
+approval tokens, deletion markers and file-cleanup jobs together. Cleanup runs
+only after commit with an exclusive file-operation lease; shared readers hold
+leases through snapshot validation/insertion and copy/receive completion.
+Dependent peer chunk readers can join an active read lease so waiting cleanup
+cannot deadlock two receiving nodes. Cleanup failures retain durable tasks for
+startup or the next file-operation/commit event; no agent polling is scheduled.
+Modified copies and referenced content are retained. These source fixtures do
+not establish native client or packaged application verification.

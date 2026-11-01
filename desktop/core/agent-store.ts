@@ -388,6 +388,14 @@ export class AgentStore {
     });
   }
   private insertRow(envelope: Envelope, direction: 'in' | 'out'): boolean {
+    const otherCleared = this.db
+      .prepare('SELECT digest FROM cleared_messages WHERE id=? AND direction=?')
+      .get(envelope.id, direction === 'in' ? 'out' : 'in') as Row | undefined;
+    if (
+      otherCleared &&
+      (envelope.fromNode !== envelope.toNode || otherCleared.digest !== envelopeDigest(envelope))
+    )
+      throw new Error('Duplicate ID with different content');
     const cleared = this.db
       .prepare('SELECT digest FROM cleared_messages WHERE id=? AND direction=?')
       .get(envelope.id, direction) as Row | undefined;

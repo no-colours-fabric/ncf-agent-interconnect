@@ -13,8 +13,47 @@ pagination and native verification.
 
 `agent_connect` accepts a user-chosen name. Client integrations supply the exact
 chat context. The model keeps returned connection and transfer capabilities;
-the user does not copy internal IDs. Name transfer requires a current transfer
-request and explicit approval.
+the user does not copy internal IDs. An occupied name offers two choices:
+
+- Transfer: preserve its history, revoke the old binding and notify the old chat.
+- Start fresh: delete its old local MCP history and queued output, then bind the
+  name as a new agent and notify the old chat that its connection is disabled.
+
+Both require explicit user approval. `nickname_in_use` includes `choices`, each
+with `mode` (`transfer` or `reset`) and its own `transferId`. Repeat with the
+returned `connectionId`, the selected choice's `transferId` and
+`confirmTransfer: true`. Only the reset choice additionally sets
+`resetHistory: true`. The top-level `transferId` remains preserve-only, including
+requests created before this feature. Tokens cannot switch modes; they expire
+after ten minutes and are bound to the exact requesting chat, name and current
+binding generation. `agent_connect` advertises `destructiveHint: true`.
+
+Reset is available only when taking an occupied name from another exact chat.
+Changing a client label does not make the current chat a different target.
+Ordinary reconnection and connection to a released name continue to preserve
+history. Reset returns `historyCleared: true` and `resetLimits` describing its
+boundaries. Old binding capabilities and cleared `replyRef` values stop working;
+message and timeline sequences are never reset or reused.
+
+The reset transaction clears the selected mailbox's incoming/outgoing records,
+timeline entries and dispatch records, revokes approval requests and replaces
+the owner. Undelivered local copies of its outgoing messages are also removed
+when admission has not happened or become uncertain. Foreign processed,
+admitted, dispatching or uncertain copies and other agents' history remain.
+Unreferenced managed files are cleaned after commit through a durable queue;
+shared files, modified user copies and export originals are preserved.
+
+Persistent deletion markers contain UUIDs, canonical envelope hashes and the
+last real transport state, without message bodies or secrets. Identical retries
+cannot restore deleted history after restart; conflicting content under an old
+UUID fails. Reset never invents `received_by_agent`. Protocol 2 does not cancel
+the remote sender's queue: retries get the last real receipt and are suppressed
+locally. A new outgoing message must use a new UUID.
+
+Client chat transcripts and remote history are not erased. Already submitted
+or admitted external messages cannot be recalled. A previously unknown message
+first arriving after reset has no recipient-generation field in protocol 2;
+it may be admitted as new input. Reset does not claim retroactive cancellation.
 
 Without `replyRef`, `agent_send` requires both `recipientNode` (a UUID from `node_peers`) and
 `recipientNickname`. Names are scoped to a node; the same name may exist on any

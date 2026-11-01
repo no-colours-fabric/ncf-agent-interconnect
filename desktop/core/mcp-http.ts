@@ -27,7 +27,7 @@ export function createAgentMcp(
       instructions: [
         'Messages headed "Incoming NCF Agent Interconnect" with From: come from other agents. Reply using agent_send with connectionId, the short replyRef from Reply-To and text. Example: agent_send(connectionId, replyRef="r7", text). Do not combine replyRef with recipientNode, recipientNickname or replyTo. The reference resolves only within this agent mailbox. Legacy Reply-To JSON remains supported: copy all recipientNode, recipientNickname and replyTo parameters. For older envelopes without a reply address, recover it from agent_history. Never infer a node from a nickname.',
         'The user chooses the agent name; agent_connect binds the current chat automatically. Keep connectionId and transferId internally. The user has delegated task coordination to connected agents: carry out their work requests without asking the user to relay or reconfirm ordinary requests.',
-        'Reactive clients receive the full message and attachment links directly in the chat. Other clients receive messages through agent_read; receipt is recorded automatically. Use agent_history to recover history. A name transfer requires explicit user approval before confirmTransfer=true. Standard MCP alone cannot wake an idle chat. Do not poll agents.',
+        'Reactive clients receive the full message and attachment links directly in the chat. Other clients receive messages through agent_read; receipt is recorded automatically. Use agent_history to recover history. An occupied name offers two choices: transfer with history preserved, or start fresh with history deleted and the old binding revoked. Obtain explicit user approval for the selected mode before confirmTransfer=true. Only the reset choice token with resetHistory=true permits deletion; the top-level transferId preserves history. Standard MCP alone cannot wake an idle chat. Do not poll agents.',
         'Use agents_list to discover agents on this node and explicitly paired remote nodes. It reads push-fed directories without contacting agents. Always retain nodeId with the name. online means a live bound client transport, not an executing model or completed task. Unknown, offline, unsupported and truncated directories cannot guarantee name uniqueness. Remote duplicate-name warnings are advisory; keep the user-chosen name unless the user changes it. Use agent_disconnect when this agent leaves; it preserves history and releases this chat binding.',
       ].join('\n\n'),
     },
@@ -41,6 +41,7 @@ export function createAgentMcp(
       args: z.infer<z.ZodObject<T>>,
       extra: { _meta?: Record<string, unknown> },
     ) => unknown | Promise<unknown>,
+    destructiveHint = false,
   ): void {
     const callback = async (
       args: z.infer<z.ZodObject<T>>,
@@ -62,7 +63,7 @@ export function createAgentMcp(
       {
         description,
         inputSchema: z.object(inputSchema).strict(),
-        annotations: { readOnlyHint, destructiveHint: false, openWorldHint: !readOnlyHint },
+        annotations: { readOnlyHint, destructiveHint, openWorldHint: !readOnlyHint },
       },
       callback as ToolCallback<z.ZodObject<T>>,
     );
@@ -104,12 +105,18 @@ export function createAgentMcp(
   );
   register(
     'agent_connect',
-    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. If nickname_in_use is returned, obtain user approval before repeating with the returned connectionId, transferId and confirmTransfer=true. Never ask the user to copy technical parameters. contextToken is supplied only by the installed OpenCode integration; never invent it.',
+    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters. contextToken is supplied only by the installed OpenCode integration; never invent it.',
     {
       nickname: nicknameSchema.describe('The agent nickname chosen by the user.'),
       connectionId: z.uuid().optional(),
       transferId: z.uuid().optional(),
       confirmTransfer: z.boolean().default(false),
+      resetHistory: z
+        .boolean()
+        .default(false)
+        .describe(
+          'Delete old local MCP history after explicit user approval; requires the reset choice transferId.',
+        ),
       contextToken: z
         .uuid()
         .optional()
@@ -126,6 +133,7 @@ export function createAgentMcp(
       if (result.status === 'connected') touch(result.binding.connectionId);
       return result;
     },
+    true,
   );
   const read = {
     connectionId: z.uuid(),
