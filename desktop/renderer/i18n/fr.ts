@@ -176,8 +176,9 @@ export const fr: Messages = {
   clientsPaused: 'Livraison suspendue',
   clientsReleased: 'Connexion libérée par le client',
   clientsReleasedImpact:
-    'Le client a mis fin à cette connexion. La liaison et l\u2019historique de l\u2019agent sont conservés ; aucune livraison n\u2019est forcée.',
-  clientsReleasedAction: 'Aucune action requise.',
+    'Le client a mis fin à cette connexion. La liaison et l\u2019historique de l\u2019agent sont conservés ; la livraison automatique n\u2019est actuellement pas disponible.',
+  clientsReleasedAction:
+    'Aucune action requise. Si ce chat redevient nécessaire, vérifiez la disponibilité de l\u2019application et de ce chat exact.',
   clientsNotConfirmed: 'Connexion non confirmée',
   clientsDetailOpencode:
     'Le plugin fourni identifie la conversation actuelle et livre automatiquement les messages entrants. Un agent occupé reçoit les messages dès qu’il devient libre.',

@@ -173,8 +173,9 @@ export const pl: Messages = {
   clientsPaused: 'Dostarczanie wstrzymane',
   clientsReleased: 'Połączenie zwolnione przez klienta',
   clientsReleasedImpact:
-    'Klient zakończył to połączenie. Powiązanie agenta i jego historia są zachowane; dostarczanie nie jest wymuszane.',
-  clientsReleasedAction: 'Brak wymaganych działań.',
+    'Klient zakończył to połączenie. Powiązanie agenta i jego historia są zachowane; automatyczne dostarczanie jest obecnie niedostępne.',
+  clientsReleasedAction:
+    'Brak wymaganych działań. Jeśli ten czat znów będzie potrzebny, sprawdź dostępność aplikacji i tego dokładnego czatu.',
   clientsNotConfirmed: 'Połączenie niepotwierdzone',
   clientsDetailOpencode:
     'Dołączona wtyczka identyfikuje bieżący czat i automatycznie dostarcza wiadomości przychodzące. Zajęty agent otrzyma wiadomości, gdy będzie wolny.',

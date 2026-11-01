@@ -170,8 +170,9 @@ export const ja: Messages = {
   clientsPaused: '配信一時停止',
   clientsReleased: 'クライアントによって解放された接続',
   clientsReleasedImpact:
-    'クライアントがこの接続を終了しました。エージェントのバインドと履歴は保持されます。配信は強制されません。',
-  clientsReleasedAction: '操作は不要です。',
+    'クライアントがこの接続を終了しました。エージェントのバインドと履歴は保持されます。現在、自動配信は利用できません。',
+  clientsReleasedAction:
+    '操作は不要です。このチャットが再度必要になったら、アプリとこのチャットの利用可否を確認してください。',
   clientsNotConfirmed: '接続が未確認',
   clientsDetailOpencode:
     '同梱プラグインが現在のチャットを識別し、受信メッセージを自動的に配信します。ビジー状態のエージェントは空いたときにメッセージを受け取ります。',

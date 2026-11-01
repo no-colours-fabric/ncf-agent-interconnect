@@ -175,8 +175,9 @@ export const it: Messages = {
   clientsPaused: 'Consegna in pausa',
   clientsReleased: 'Connessione rilasciata dal client',
   clientsReleasedImpact:
-    'Il client ha terminato questa connessione. Il collegamento dell\u2019agente e la sua cronologia sono conservati; la consegna non è forzata.',
-  clientsReleasedAction: 'Nessuna azione necessaria.',
+    'Il client ha terminato questa connessione. Il collegamento dell\u2019agente e la sua cronologia sono conservati; la consegna automatica è attualmente non disponibile.',
+  clientsReleasedAction:
+    'Nessuna azione necessaria. Se questa chat serve di nuovo, verifica la disponibilità dell\u2019app e di questa chat esatta.',
   clientsNotConfirmed: 'Connessione non confermata',
   clientsDetailOpencode:
     'Il plugin incluso identifica la chat corrente e consegna automaticamente i messaggi in arrivo. Un agente occupato riceve i messaggi quando diventa libero.',

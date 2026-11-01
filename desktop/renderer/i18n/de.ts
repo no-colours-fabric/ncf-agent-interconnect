@@ -176,8 +176,9 @@ export const de: Messages = {
   clientsPaused: 'Zustellung pausiert',
   clientsReleased: 'Verbindung vom Client freigegeben',
   clientsReleasedImpact:
-    'Der Client hat diese Verbindung beendet. Die Bindung des Agenten und sein Verlauf bleiben erhalten; die Zustellung wird nicht erzwungen.',
-  clientsReleasedAction: 'Keine Aktion erforderlich.',
+    'Der Client hat diese Verbindung beendet. Die Bindung des Agenten und sein Verlauf bleiben erhalten; die automatische Zustellung ist derzeit nicht verfügbar.',
+  clientsReleasedAction:
+    'Keine Aktion erforderlich. Wird dieser Chat erneut benötigt, prüfen Sie die Verfügbarkeit der Anwendung und genau dieses Chats.',
   clientsNotConfirmed: 'Verbindung nicht bestätigt',
   clientsDetailOpencode:
     'Das gebündelte Plugin erkennt den aktuellen Chat und stellt eingehende Nachrichten automatisch zu. Ein beschäftigter Agent erhält Nachrichten, sobald er frei wird.',

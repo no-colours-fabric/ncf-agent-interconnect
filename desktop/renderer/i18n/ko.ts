@@ -165,8 +165,9 @@ export const ko: Messages = {
   clientsPaused: '전달 일시 중지',
   clientsReleased: '클라이언트가 해제한 연결',
   clientsReleasedImpact:
-    '클라이언트가 이 연결을 종료했습니다. 에이전트 바인딩과 기록은 유지되며, 전달을 강제하지 않습니다.',
-  clientsReleasedAction: '필요한 작업이 없습니다.',
+    '클라이언트가 이 연결을 종료했습니다. 에이전트 바인딩과 기록은 유지됩니다. 현재 자동 전달을 사용할 수 없습니다.',
+  clientsReleasedAction:
+    '필요한 작업이 없습니다. 이 채팅이 다시 필요하면 앱과 이 정확한 채팅의 가용성을 확인하세요.',
   clientsNotConfirmed: '연결이 확인되지 않음',
   clientsDetailOpencode:
     '번들 플러그인이 현재 채팅을 식별하고 수신 메시지를 자동으로 전달합니다. 바쁜 에이전트는 비게 되면 메시지를 받습니다.',

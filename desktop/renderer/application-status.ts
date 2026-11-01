@@ -65,7 +65,7 @@ export function connectionPresentation(
     };
   if (!hasBoundAgents)
     return {
-      status: 'clientsUnavailable',
+      status: 'clientsNotConfirmed',
       impact: 'clientsUnboundImpact',
       action: 'clientsUseSavedAction',
       tone: 'default',
@@ -135,11 +135,12 @@ export function applicationStatus(
   else if (bound.some(({ profile }) => profile.state === 'checking')) summary = 'paused';
   else if (bound.every(({ profile }) => profile.released)) summary = 'released';
   else summary = 'notConfirmed';
-  // A released connection is not a technical failure; keep only real issues.
+  // A released connection is not a technical failure (unless admission is
+  // uncertain); keep only real issues.
   const issues = connections.filter(
     ({ profile }) =>
-      !profile.released &&
-      (profile.error || profile.state === 'error' || profile.state === 'uncertain'),
+      profile.state === 'uncertain' ||
+      (!profile.released && (profile.error || profile.state === 'error')),
   );
   return { agents, connections, summary, issues };
 }

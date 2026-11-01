@@ -164,8 +164,9 @@ export const en: Messages = {
   clientsPaused: 'Delivery paused',
   clientsReleased: 'Connection released by client',
   clientsReleasedImpact:
-    'The client ended this connection. The agent binding and its history are preserved; delivery is not forced.',
-  clientsReleasedAction: 'No action needed.',
+    'The client ended this connection. The agent binding and its history are preserved; automatic delivery is currently unavailable.',
+  clientsReleasedAction:
+    'No action needed. If this chat is needed again, check that the application and this exact chat are available.',
   clientsNotConfirmed: 'Connection not confirmed',
   clientsDetailOpencode:
     'The bundled plugin identifies the current chat and delivers incoming messages automatically. A busy agent receives messages when it becomes idle.',

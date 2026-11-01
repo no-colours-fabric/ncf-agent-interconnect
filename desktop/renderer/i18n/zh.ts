@@ -156,8 +156,8 @@ export const zh: Messages = {
   clientsReceiveMcp: '通过 MCP 接收',
   clientsPaused: '投递已暂停',
   clientsReleased: '连接已由客户端释放',
-  clientsReleasedImpact: '客户端已结束此连接。智能体绑定及其历史记录均已保留；不强制投递。',
-  clientsReleasedAction: '无需操作。',
+  clientsReleasedImpact: '客户端已结束此连接。智能体绑定及其历史记录均已保留；当前自动投递不可用。',
+  clientsReleasedAction: '无需操作。如果此聊天再次需要，请检查应用和此确切聊天的可用性。',
   clientsNotConfirmed: '连接未确认',
   clientsDetailOpencode: '内置插件会自动识别当前聊天并投递传入消息。忙碌的智能体空闲时会收到消息。',
   clientsDetailCodex:

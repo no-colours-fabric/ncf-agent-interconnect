@@ -171,8 +171,9 @@ export const ptBR: Messages = {
   clientsPaused: 'Entrega pausada',
   clientsReleased: 'Conexão liberada pelo cliente',
   clientsReleasedImpact:
-    'O cliente encerrou esta conexão. A vinculação do agente e seu histórico são preservados; a entrega não é forçada.',
-  clientsReleasedAction: 'Nenhuma ação necessária.',
+    'O cliente encerrou esta conexão. A vinculação do agente e seu histórico são preservados; a entrega automática está indisponível no momento.',
+  clientsReleasedAction:
+    'Nenhuma ação necessária. Se este chat for necessário novamente, verifique a disponibilidade do aplicativo e deste chat exato.',
   clientsNotConfirmed: 'Conexão não confirmada',
   clientsDetailOpencode:
     'O plugin incluído identifica o chat atual e entrega mensagens recebidas automaticamente. Um agente ocupado recebe mensagens quando fica livre.',

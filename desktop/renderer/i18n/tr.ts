@@ -171,8 +171,9 @@ export const tr: Messages = {
   clientsPaused: 'Teslimat duraklatıldı',
   clientsReleased: 'Bağlantı istemci tarafından serbest bırakıldı',
   clientsReleasedImpact:
-    'İstemci bu bağlantıyı sonlandırdı. Aracının bağlanması ve geçmişi korunur; teslimat zorlanmaz.',
-  clientsReleasedAction: 'İşlem gerekli değil.',
+    'İstemci bu bağlantıyı sonlandırdı. Aracının bağlanması ve geçmişi korunur; otomatik teslimat şu anda kullanılamıyor.',
+  clientsReleasedAction:
+    'İşlem gerekli değil. Bu sohbet yeniden gerekirse uygulamanın ve bu tam sohbetin kullanılabilirliğini kontrol edin.',
   clientsNotConfirmed: 'Bağlantı doğrulanmadı',
   clientsDetailOpencode:
     'Paket içindeki eklenti geçerli sohbeti tanır ve gelen mesajları otomatik olarak iletir. Meşgul bir aracı mesajları boşaldığında alır.',
