@@ -73,9 +73,10 @@ Conventions:
 - Add every user-visible string in `desktop/renderer/main.tsx` through the `t`
   helper, keyed by an entry in `desktop/renderer/i18n/messages.ts`.
 - Provide every key in every dictionary under `desktop/renderer/i18n`.
-  Supported locales: English, Russian, Chinese (Simplified), French, German,
-  Italian, Spanish, Kazakh and Japanese. Add a new locale by creating its
-  dictionary and registering it in `desktop/renderer/i18n/index.ts`.
+  Supported locales: English, Russian, Chinese (Simplified, `zh-CN`), French,
+  German, Italian, Spanish, Kazakh, Japanese, Portuguese (Brazil, `pt-BR`),
+  Korean, Turkish, Polish, Dutch and Ukrainian. Add a new locale by creating
+  its dictionary and registering it in `desktop/renderer/i18n/index.ts`.
 - Never translate user text: agent names, nicknames, message bodies, file names,
   node IDs, addresses and UUIDs stay as-is.
 - MCP instructions are served in English and are not localized.

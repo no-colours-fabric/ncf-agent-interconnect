@@ -5,13 +5,50 @@ import { fr } from './fr.js';
 import { it } from './it.js';
 import { ja } from './ja.js';
 import { kk } from './kk.js';
+import { ko } from './ko.js';
 import type { Messages } from './messages.js';
+import { nl } from './nl.js';
+import { pl } from './pl.js';
+import { ptBR } from './pt-BR.js';
 import { ru } from './ru.js';
+import { tr } from './tr.js';
+import { uk } from './uk.js';
 import { zh } from './zh.js';
 
-export type Locale = 'en' | 'ru' | 'zh-CN' | 'fr' | 'de' | 'it' | 'es' | 'kk' | 'ja';
+export type Locale =
+  | 'en'
+  | 'ru'
+  | 'zh-CN'
+  | 'fr'
+  | 'de'
+  | 'it'
+  | 'es'
+  | 'kk'
+  | 'ja'
+  | 'pt-BR'
+  | 'ko'
+  | 'tr'
+  | 'pl'
+  | 'nl'
+  | 'uk';
 export const defaultLocale: Locale = 'en';
-export const supportedLocales: Locale[] = ['en', 'ru', 'zh-CN', 'fr', 'de', 'it', 'es', 'kk', 'ja'];
+export const supportedLocales: Locale[] = [
+  'en',
+  'ru',
+  'zh-CN',
+  'fr',
+  'de',
+  'it',
+  'es',
+  'kk',
+  'ja',
+  'pt-BR',
+  'ko',
+  'tr',
+  'pl',
+  'nl',
+  'uk',
+];
 export const localeStorageKey = 'interconnect.locale';
 
 export function isLocale(value: unknown): value is Locale {
@@ -30,6 +67,12 @@ export function localeLabel(locale: Locale): string {
       es: 'Español',
       kk: 'Қазақша',
       ja: '日本語',
+      'pt-BR': 'Português (Brasil)',
+      ko: '한국어',
+      tr: 'Türkçe',
+      pl: 'Polski',
+      nl: 'Nederlands',
+      uk: 'Українська',
     } as const
   )[locale];
 }
@@ -44,6 +87,12 @@ const dictionaries: Record<Locale, Messages> = {
   es,
   kk,
   ja,
+  'pt-BR': ptBR,
+  ko,
+  tr,
+  pl,
+  nl,
+  uk,
 };
 
 const interpolate = (template: string, params: Record<string, string | number>): string =>

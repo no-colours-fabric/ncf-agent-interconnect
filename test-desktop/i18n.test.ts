@@ -7,8 +7,14 @@ import { fr } from '../desktop/renderer/i18n/fr.js';
 import { it } from '../desktop/renderer/i18n/it.js';
 import { ja } from '../desktop/renderer/i18n/ja.js';
 import { kk } from '../desktop/renderer/i18n/kk.js';
+import { ko } from '../desktop/renderer/i18n/ko.js';
 import type { Messages } from '../desktop/renderer/i18n/messages.js';
+import { nl } from '../desktop/renderer/i18n/nl.js';
+import { pl } from '../desktop/renderer/i18n/pl.js';
+import { ptBR } from '../desktop/renderer/i18n/pt-BR.js';
 import { ru } from '../desktop/renderer/i18n/ru.js';
+import { tr } from '../desktop/renderer/i18n/tr.js';
+import { uk } from '../desktop/renderer/i18n/uk.js';
 import { zh } from '../desktop/renderer/i18n/zh.js';
 import {
   defaultLocale,
@@ -49,13 +55,29 @@ test('unknown locale falls back to English', () => {
 
 test('every dictionary covers all interface messages', () => {
   const keys = Object.keys(en as Messages).sort();
-  for (const dictionary of [en, ru, zh, fr, de, it, es, kk, ja]) {
+  for (const dictionary of [en, ru, zh, fr, de, it, es, kk, ja, ptBR, ko, tr, pl, nl, uk]) {
     assert.deepEqual(Object.keys(dictionary).sort(), keys);
   }
 });
 
 test('supported locales are stable and labelled', () => {
-  assert.deepEqual(supportedLocales, ['en', 'ru', 'zh-CN', 'fr', 'de', 'it', 'es', 'kk', 'ja']);
+  assert.deepEqual(supportedLocales, [
+    'en',
+    'ru',
+    'zh-CN',
+    'fr',
+    'de',
+    'it',
+    'es',
+    'kk',
+    'ja',
+    'pt-BR',
+    'ko',
+    'tr',
+    'pl',
+    'nl',
+    'uk',
+  ]);
   assert.equal(localeLabel('en'), 'English');
   assert.equal(localeLabel('ru'), 'Русский');
   assert.equal(localeLabel('zh-CN'), '中文（简体）');
@@ -65,6 +87,12 @@ test('supported locales are stable and labelled', () => {
   assert.equal(localeLabel('es'), 'Español');
   assert.equal(localeLabel('kk'), 'Қазақша');
   assert.equal(localeLabel('ja'), '日本語');
+  assert.equal(localeLabel('pt-BR'), 'Português (Brasil)');
+  assert.equal(localeLabel('ko'), '한국어');
+  assert.equal(localeLabel('tr'), 'Türkçe');
+  assert.equal(localeLabel('pl'), 'Polski');
+  assert.equal(localeLabel('nl'), 'Nederlands');
+  assert.equal(localeLabel('uk'), 'Українська');
 });
 
 const spotChecks: [Locale, string][] = [
@@ -77,6 +105,12 @@ const spotChecks: [Locale, string][] = [
   ['es', 'Ajustes'],
   ['kk', 'Параметрлер'],
   ['ja', '設定'],
+  ['pt-BR', 'Configurações'],
+  ['ko', '설정'],
+  ['tr', 'Ayarlar'],
+  ['pl', 'Ustawienia'],
+  ['nl', 'Instellingen'],
+  ['uk', 'Налаштування'],
 ];
 
 test('languages do not fall back silently for key interface strings', () => {
@@ -90,8 +124,13 @@ test('interpolation substitutes parameters', () => {
   assert.equal(t('en', 'agentMessages', { count: 12 }), 'Messages: 12');
   assert.equal(t('ru', 'agentMessages', { count: 12 }), 'Сообщений: 12');
   assert.equal(t('de', 'agentMessages', { count: 12 }), 'Nachrichten: 12');
+  assert.equal(t('pt-BR', 'agentMessages', { count: 12 }), 'Mensagens: 12');
+  assert.equal(t('pl', 'agentMessages', { count: 12 }), 'Wiadomości: 12');
+  assert.equal(t('ko', 'agentMessages', { count: 12 }), '메시지: 12');
   assert.equal(t('zh-CN', 'agentMessages', { count: 12 }), '消息：12');
   assert.equal(t('en', 'directoryUpdated', { time: 'Nov 1, 2026' }), 'Updated Nov 1, 2026');
   assert.equal(t('ru', 'directoryUpdated', { time: '1 нояб. 2026' }), 'Обновлено 1 нояб. 2026');
+  assert.equal(t('uk', 'directoryUpdated', { time: '1 листоп. 2026' }), 'Оновлено 1 листоп. 2026');
+  assert.equal(t('nl', 'directoryUpdated', { time: '1 nov. 2026' }), 'Gewijzigd op 1 nov. 2026');
   assert.equal(t('fr', 'directoryUpdated', { time: '1 nov. 2026' }), 'Mise à jour : 1 nov. 2026');
 });
