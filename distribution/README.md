@@ -46,6 +46,11 @@ connecting, ask the agent to send a message to the node and named agent. Node
 UUIDs come from `node_peers`; `recipientNode` is required even for local delivery.
 Incoming messages include the full `Reply-To` parameters for responses.
 
+Agents and Remote nodes show the agent directory of each paired node. MCP clients
+can use `agents_list` for full node/name addresses and client availability.
+Matching a name on another node produces a warning and does not block the name.
+Use `agent_disconnect` to release a chat binding while preserving its history.
+
 Local exchange needs no remote peers. In the app, select This computer as the
 recipient node. Messages can be stored before the recipient chat connects.
 
@@ -55,7 +60,10 @@ notified; history remains attached to the agent name.
 
 For another computer, select a local network IP in Settings. Create an access
 code under Remote nodes. On the other computer, enter the exact remote IP or URL
-and that code. Codes expire after ten minutes and authorize one peer.
+and its eight letters or digits. Letter case does not matter. Codes expire after
+ten minutes, permit five attempts and authorize one peer. Certificates are pinned
+automatically through mutual authentication. Both apps need short-code support
+for a new connection; previously paired nodes reconnect without another code.
 
 ## History and attachments
 
