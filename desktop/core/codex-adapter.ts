@@ -259,12 +259,20 @@ export async function codexExchange(
         return;
       }
       if (message.type === 'response' && message.requestId === discoverId) {
-        if (
-          message.resultType !== 'success' ||
-          typeof message.handledByClientId !== 'string' ||
-          message.result?.supportsUntrustedAppInput !== true
-        ) {
-          fail('No owner supporting external input was found for this Codex chat');
+        if (message.resultType !== 'success') {
+          fail('Codex owner discovery failed for this exact chat');
+          return;
+        }
+        if (typeof message.handledByClientId !== 'string' || !message.handledByClientId.trim()) {
+          fail('Codex did not identify a handler for this exact chat');
+          return;
+        }
+        if (message.result?.supportsUntrustedAppInput !== true) {
+          fail(
+            message.result?.supportsUntrustedAppInput === false
+              ? 'The handler for this Codex chat does not support external input'
+              : 'The handler for this Codex chat did not confirm external input support',
+          );
           return;
         }
         if (!input) {
@@ -380,6 +388,14 @@ export class CodexDesktopAdapter implements AgentAdapter {
   status(): AdapterState {
     return { ...this.state, capabilities: { ...this.state.capabilities } };
   }
+  private availability(available: boolean): void {
+    this.state.capabilities = {
+      wakeIdle: available,
+      receiveActive: available,
+      nativeDisplay: false,
+      exactSession: available,
+    };
+  }
   private async exchange(input?: EventInput): Promise<Admission> {
     const job = codexExchange(this.profile, input, this.controller.signal).catch((e) => ({
       state: 'failed' as const,
@@ -405,17 +421,13 @@ export class CodexDesktopAdapter implements AgentAdapter {
     if (!this.starting)
       this.starting = (async () => {
         if (this.controller.signal.aborted) return;
+        clearTimeout(this.retry);
+        this.retry = undefined;
         const result = await this.exchange();
         this.state.state = result.state === 'admitted' ? 'ready' : 'error';
         this.state.error = result.error ?? null;
-        if (result.state === 'admitted')
-          this.state.capabilities = {
-            wakeIdle: true,
-            receiveActive: true,
-            nativeDisplay: false,
-            exactSession: true,
-          };
-        else this.reconnect();
+        this.availability(result.state === 'admitted');
+        if (result.state !== 'admitted') this.reconnect();
         this.changed();
       })().finally(() => {
         this.starting = undefined;
@@ -429,6 +441,7 @@ export class CodexDesktopAdapter implements AgentAdapter {
     if (result.state === 'failed' || result.state === 'uncertain') {
       this.state.state = result.state === 'uncertain' ? 'uncertain' : 'error';
       this.state.error = result.error ?? null;
+      this.availability(false);
       this.changed();
       this.reconnect();
     }

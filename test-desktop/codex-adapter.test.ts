@@ -27,7 +27,14 @@ async function fixture(t: test.TestContext) {
       : path.join(directory, 'ipc.sock');
   const requests: Request[] = [],
     sockets = new Set<net.Socket>();
-  const state = { runtime: 'idle', support: true, admission: 'success', ownerThreadId: '' };
+  const state = {
+    runtime: 'idle',
+    support: true as boolean | undefined,
+    ownerClientId: 'exact-owner' as string | undefined,
+    discoveryResult: 'success',
+    admission: 'success',
+    ownerThreadId: '',
+  };
   const server = net.createServer((connection) => {
     sockets.add(connection);
     connection.on('close', () => sockets.delete(connection));
@@ -57,9 +64,13 @@ async function fixture(t: test.TestContext) {
           write({
             type: 'response',
             requestId: request.requestId,
-            resultType: request.params.conversationId === state.ownerThreadId ? 'success' : 'error',
-            handledByClientId: 'exact-owner',
+            resultType:
+              request.params.conversationId === state.ownerThreadId
+                ? state.discoveryResult
+                : 'error',
+            handledByClientId: state.ownerClientId,
             result: { supportsUntrustedAppInput: state.support },
+            error: 'private-protocol-detail',
           });
         if (
           request.method === 'thread-stream-following-changed' &&
@@ -205,6 +216,181 @@ test('Codex active admission has required restore metadata; revoked binding neve
   const before = f.requests.filter((r) => r.method.startsWith('thread-follower-')).length;
   assert.equal((await codexExchange(f.profile, input(f.profile))).state, 'failed');
   assert.equal(f.requests.filter((r) => r.method.startsWith('thread-follower-')).length, before);
+});
+
+test('Codex discovery distinguishes unavailable handlers, unconfirmed support and explicit rejection', async (t) => {
+  const scenarios = [
+    {
+      name: 'discovery error without handler or capability',
+      discoveryResult: 'error',
+      ownerClientId: undefined,
+      support: undefined,
+      error: 'Codex owner discovery failed for this exact chat',
+    },
+    {
+      name: 'successful discovery without a handler',
+      discoveryResult: 'success',
+      ownerClientId: undefined,
+      support: true,
+      error: 'Codex did not identify a handler for this exact chat',
+    },
+    {
+      name: 'empty handler',
+      discoveryResult: 'success',
+      ownerClientId: '',
+      support: true,
+      error: 'Codex did not identify a handler for this exact chat',
+    },
+    {
+      name: 'whitespace handler',
+      discoveryResult: 'success',
+      ownerClientId: '  \t ',
+      support: true,
+      error: 'Codex did not identify a handler for this exact chat',
+    },
+    {
+      name: 'handler without capability confirmation',
+      discoveryResult: 'success',
+      ownerClientId: 'exact-owner',
+      support: undefined,
+      error: 'The handler for this Codex chat did not confirm external input support',
+    },
+    {
+      name: 'handler explicitly rejects external input',
+      discoveryResult: 'success',
+      ownerClientId: 'exact-owner',
+      support: false,
+      error: 'The handler for this Codex chat does not support external input',
+    },
+  ];
+  for (const scenario of scenarios)
+    await t.test(scenario.name, async (t) => {
+      const f = await fixture(t);
+      Object.assign(f.state, scenario);
+      const result = await codexExchange(f.profile, input(f.profile));
+      assert.deepEqual(result, { state: 'failed', error: scenario.error });
+      assert.ok(!result.error?.includes('private-protocol-detail'));
+      assert.deepEqual(
+        f.requests.map((request) => request.method),
+        ['initialize', 'thread-owner-discovery'],
+      );
+      assert.equal(f.requests[1].params.conversationId, f.profile.threadId);
+    });
+});
+
+const unavailableCapabilities = {
+  wakeIdle: false,
+  receiveActive: false,
+  nativeDisplay: false,
+  exactSession: false,
+};
+
+test('a failed Codex probe clears previous capabilities and a successful probe restores them', async (t) => {
+  const f = await fixture(t),
+    adapter = new CodexDesktopAdapter(f.profile, () => {});
+  t.after(() => adapter.stop());
+  await adapter.start();
+  assert.equal(adapter.status().state, 'ready');
+  assert.equal(adapter.status().capabilities.wakeIdle, true);
+  f.state.discoveryResult = 'error';
+  await adapter.start();
+  assert.equal(adapter.status().state, 'error');
+  assert.deepEqual(adapter.status().capabilities, unavailableCapabilities);
+  f.state.discoveryResult = 'success';
+  await adapter.start();
+  assert.equal(adapter.status().state, 'ready');
+  assert.equal(adapter.status().error, null);
+  assert.deepEqual(adapter.status().capabilities, {
+    wakeIdle: true,
+    receiveActive: true,
+    nativeDisplay: false,
+    exactSession: true,
+  });
+  assert.ok(
+    f.requests.every((request) =>
+      ['initialize', 'thread-owner-discovery'].includes(request.method),
+    ),
+  );
+});
+
+test('failed Codex delivery clears capabilities without submitting to an unconfirmed owner', async (t) => {
+  const f = await fixture(t),
+    adapter = new CodexDesktopAdapter(f.profile, () => {});
+  t.after(() => adapter.stop());
+  await adapter.start();
+  f.state.support = undefined;
+  assert.equal((await adapter.deliver(input(f.profile))).state, 'failed');
+  assert.equal(adapter.status().state, 'error');
+  assert.deepEqual(adapter.status().capabilities, unavailableCapabilities);
+  assert.ok(!f.requests.some((request) => request.method.startsWith('thread-follower-')));
+});
+
+test('Codex uncertain admission clears capabilities and read-only recovery never repeats input', async (t) => {
+  const f = await fixture(t),
+    adapter = new CodexDesktopAdapter(f.profile, () => {});
+  t.after(() => adapter.stop());
+  await adapter.start();
+  f.state.admission = 'lost';
+  const event = input(f.profile);
+  assert.equal((await adapter.deliver(event)).state, 'uncertain');
+  assert.equal(adapter.status().state, 'uncertain');
+  assert.deepEqual(adapter.status().capabilities, unavailableCapabilities);
+  const submissions = () =>
+    f.requests.filter((request) => request.method.startsWith('thread-follower-'));
+  assert.equal(submissions().length, 1);
+  f.state.admission = 'success';
+  await adapter.start();
+  assert.equal(adapter.status().state, 'ready');
+  assert.equal(adapter.status().capabilities.exactSession, true);
+  assert.equal(submissions().length, 1);
+  const afterRecovery = await adapter.deliver({ ...event, isCurrent: () => false });
+  assert.equal(afterRecovery.state, 'revoked');
+  assert.equal(submissions().length, 1);
+});
+
+test('node recovery preserves uncertain Codex dispatch and does not acknowledge or resend the message', async (t) => {
+  const f = await fixture(t),
+    directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-uncertain-')),
+    service = new NodeService(directory);
+  await service.open();
+  t.after(async () => {
+    await service.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const receiver = await service.connectCodex(
+      { nickname: 'Получатель', client: 'Codex' },
+      { threadId: f.profile.threadId!, socket: f.profile.socket },
+    ),
+    sender = service.connect({ nickname: 'Автор', client: 'MCP' });
+  if (receiver.status !== 'connected' || sender.status !== 'connected') throw new Error();
+  f.state.admission = 'lost';
+  const message = await service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Получатель',
+    text: 'Preserve uncertain admission without repeating external input.',
+  });
+  const deadline = Date.now() + 3000;
+  while (service.store.dispatchState(message.id)?.state !== 'uncertain') {
+    if (Date.now() > deadline) throw new Error('The uncertain Codex dispatch was not recorded');
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  const adapter = service.adapters.get(receiver.binding.adapterId);
+  assert.deepEqual(adapter.status().capabilities, unavailableCapabilities);
+  f.state.admission = 'success';
+  await adapter.start();
+  assert.equal(adapter.status().state, 'ready');
+  assert.equal(service.store.dispatchState(message.id)?.state, 'uncertain');
+  assert.equal(service.store.get(message.id, 'in')?.state, 'ready');
+  assert.equal(service.store.get(message.id, 'out')?.state, 'ready');
+  assert.equal(
+    service.snapshot().agents.find((agent) => agent.nickname === 'Получатель')?.unread,
+    1,
+  );
+  assert.equal(
+    f.requests.filter((request) => request.method.startsWith('thread-follower-')).length,
+    1,
+  );
 });
 
 test('Codex receives the original body and attachment link and completes delivery without asking the model to read or acknowledge', async (t) => {

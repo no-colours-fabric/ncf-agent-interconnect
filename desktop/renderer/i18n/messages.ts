@@ -99,6 +99,12 @@ export interface Messages {
   clientsKindCodex: string;
   clientsKindManual: string;
   clientsConnected: string;
+  clientsPartiallyConnected: string;
+  clientsConnectionIssues: string;
+  clientsSavedConnection: string;
+  clientsAvailable: string;
+  clientsUnavailable: string;
+  clientsChecking: string;
   clientsNoAgents: string;
   clientsReceiveMcp: string;
   clientsPaused: string;

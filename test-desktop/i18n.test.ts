@@ -181,6 +181,30 @@ test('interpolation substitutes parameters', () => {
   assert.equal(t('fr', 'directoryUpdated', { time: '1 nov. 2026' }), 'Mise à jour : 1 nov. 2026');
 });
 
+test('application connection labels identify saved profiles and issue counts in every locale', () => {
+  const id = 'saved-connection-42';
+  for (const locale of supportedLocales) {
+    assert.ok(t(locale, 'clientsSavedConnection', { id }).includes(id));
+    assert.ok(!t(locale, 'clientsSavedConnection', { id }).includes('{id}'));
+    assert.ok(t(locale, 'clientsConnectionIssues', { count: 7 }).includes('7'));
+    assert.ok(!t(locale, 'clientsConnectionIssues', { count: 7 }).includes('{count}'));
+    for (const key of [
+      'clientsPartiallyConnected',
+      'clientsAvailable',
+      'clientsUnavailable',
+      'clientsChecking',
+    ] as const) {
+      assert.ok(t(locale, key).length > 0);
+      if (locale !== 'en') assert.notEqual(t(locale, key), t('en', key));
+    }
+  }
+  assert.equal(
+    t('en', 'clientsSavedConnection', { id }),
+    'Saved connection without an agent (saved-connection-42)',
+  );
+  assert.equal(t('ru', 'clientsConnectionIssues', { count: 7 }), 'Подключения с ошибками: 7');
+});
+
 test('interpolation preserves dollar-pattern user values literally', () => {
   assert.equal(
     t('en', 'msgAttachmentSize', { name: 'budget$&.txt', size: 1 }),

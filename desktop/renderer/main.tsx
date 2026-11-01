@@ -55,6 +55,7 @@ import {
   t,
   type Locale,
 } from './i18n/index.js';
+import { applicationStatus } from './application-status.js';
 
 const theme = createTheme({
   palette: {
@@ -1046,12 +1047,7 @@ function App(): React.JSX.Element {
             <Stack spacing={2.5}>
               <Typography color="text.secondary">{t(locale, 'clientsIntro')}</Typography>
               {(['opencode-http', 'codex-desktop', 'manual'] as const).map((kind) => {
-                const profiles = snapshot.adapters.filter((a) => a.kind === kind),
-                  ids = new Set(profiles.map((a) => a.id));
-                const agents = snapshot.agents.filter(
-                  (a) => a.binding && ids.has(a.binding.adapterId),
-                );
-                const ready = profiles.some((a) => a.state === 'ready');
+                const { agents, connections, summary, issues } = applicationStatus(kind, snapshot);
                 return (
                   <Paper key={kind} sx={{ p: 3 }}>
                     <Stack
@@ -1065,18 +1061,34 @@ function App(): React.JSX.Element {
                             ? t(locale, 'clientsKindCodex')
                             : t(locale, 'clientsKindManual')}
                       </Typography>
-                      <Chip
-                        color={ready ? 'success' : 'default'}
-                        label={
-                          ready
-                            ? t(locale, 'clientsConnected')
-                            : agents.length
-                              ? kind === 'manual'
-                                ? t(locale, 'clientsReceiveMcp')
-                                : t(locale, 'clientsPaused')
-                              : t(locale, 'clientsNoAgents')
-                        }
-                      />
+                      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+                        <Chip
+                          color={
+                            summary === 'connected'
+                              ? 'success'
+                              : summary === 'partial'
+                                ? 'warning'
+                                : 'default'
+                          }
+                          label={
+                            summary === 'connected'
+                              ? t(locale, 'clientsConnected')
+                              : summary === 'partial'
+                                ? t(locale, 'clientsPartiallyConnected')
+                                : summary === 'manual'
+                                  ? t(locale, 'clientsReceiveMcp')
+                                  : summary === 'paused'
+                                    ? t(locale, 'clientsPaused')
+                                    : t(locale, 'clientsNoAgents')
+                          }
+                        />
+                        {!!issues.length && (
+                          <Chip
+                            color="warning"
+                            label={t(locale, 'clientsConnectionIssues', { count: issues.length })}
+                          />
+                        )}
+                      </Stack>
                     </Stack>
                     <Typography color="text.secondary" sx={{ mt: 1 }}>
                       {kind === 'opencode-http'
@@ -1086,7 +1098,9 @@ function App(): React.JSX.Element {
                           : t(locale, 'clientsDetailManual')}
                     </Typography>
                     {agents.map((a) => {
-                      const state = profiles.find((p) => p.id === a.binding?.adapterId);
+                      const state = connections.find(
+                        ({ profile }) => profile.id === a.binding?.adapterId,
+                      )?.profile;
                       return (
                         <Typography key={a.key} variant="body2" sx={{ mt: 1.5 }}>
                           {a.nickname} · {a.binding?.client} ·{' '}
@@ -1094,25 +1108,41 @@ function App(): React.JSX.Element {
                             ? t(locale, 'clientsAuto')
                             : kind === 'manual'
                               ? t(locale, 'clientsReceiveMcp')
-                              : t(locale, 'clientsPaused')}
+                              : state?.state === 'checking'
+                                ? t(locale, 'clientsChecking')
+                                : t(locale, 'clientsPaused')}
                         </Typography>
                       );
                     })}
-                    {profiles
-                      .filter((a) => a.error)
-                      .map((a) => (
-                        <Alert
-                          key={a.id}
-                          severity={a.state === 'uncertain' ? 'warning' : 'error'}
-                          sx={{ mt: 2 }}
-                        >
-                          {agents
-                            .filter((agent) => agent.binding?.adapterId === a.id)
-                            .map((agent) => agent.nickname)
-                            .join(', ') || t(locale, 'clientsConnectionFallback')}
-                          : {a.error}
-                        </Alert>
-                      ))}
+                    {kind !== 'manual' &&
+                      connections
+                        .filter((connection) => !connection.agents.length)
+                        .map(({ profile }) => (
+                          <Typography
+                            key={profile.id}
+                            variant="body2"
+                            sx={{ mt: 1.5, overflowWrap: 'anywhere' }}
+                          >
+                            {t(locale, 'clientsSavedConnection', { id: profile.id })} ·{' '}
+                            {profile.state === 'ready'
+                              ? t(locale, 'clientsAvailable')
+                              : profile.state === 'checking'
+                                ? t(locale, 'clientsChecking')
+                                : t(locale, 'clientsUnavailable')}
+                          </Typography>
+                        ))}
+                    {issues.map(({ profile, agents: affected }) => (
+                      <Alert
+                        key={profile.id}
+                        severity={profile.state === 'uncertain' ? 'warning' : 'error'}
+                        sx={{ mt: 2, overflowWrap: 'anywhere' }}
+                      >
+                        {affected.length
+                          ? `${affected.map((agent) => agent.nickname).join(', ')} (${profile.id})`
+                          : t(locale, 'clientsSavedConnection', { id: profile.id })}
+                        : {profile.error ?? t(locale, 'clientsUnavailable')}
+                      </Alert>
+                    ))}
                     <Button
                       sx={{ mt: 2 }}
                       onClick={() => {
