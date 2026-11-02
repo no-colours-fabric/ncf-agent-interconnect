@@ -33,6 +33,46 @@ let server;
 let browsePath = null;
 let page;
 const openedFiles = [];
+const requestGates = new Map();
+const releaseGates = [];
+function holdOperation(method) {
+  let release;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  requestGates.set(method, pending);
+  releaseGates.push(release);
+  return release;
+}
+async function geometry(dialog) {
+  const result = {};
+  for (const [key, locator] of [
+    ['dialog', dialog],
+    ['path', dialog.getByTestId('mcp-path-configuration')],
+    ['apply', dialog.getByTestId('mcp-apply')],
+  ])
+    result[key] = await locator.boundingBox();
+  return result;
+}
+function assertGeometry(actual, expected, label) {
+  for (const key of Object.keys(expected)) {
+    assert.ok(actual[key] && expected[key], label + ': missing ' + key);
+    for (const dimension of ['x', 'y', 'width', 'height'])
+      assert.ok(
+        Math.abs(actual[key][dimension] - expected[key][dimension]) < 0.5,
+        label + ': ' + key + ' ' + dimension + ' moved',
+      );
+  }
+}
+async function waitForApply() {
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-testid="mcp-apply"]');
+    return button && !button.disabled;
+  });
+}
+async function waitForBusy() {
+  await page.locator('[data-testid="mcp-setup-progress"][data-busy="true"]').waitFor();
+}
 try {
   await mkdir(home);
   await symlink(
@@ -70,6 +110,11 @@ try {
       let body = '';
       for await (const chunk of request) body += chunk;
       const { method, params } = JSON.parse(body);
+      const gate = requestGates.get(method);
+      if (gate) {
+        requestGates.delete(method);
+        await gate;
+      }
       if (params.files?.some((file) => !file.path.startsWith(home + path.sep)))
         throw new Error('Fixture path escaped');
       let result;
@@ -132,10 +177,13 @@ try {
     ['codex', 'Codex'],
   ]) {
     await page.getByRole('tab', { name: label, exact: true }).click();
+    const releaseDefaults = holdOperation('mcpSetupDefaults');
     await page.getByRole('button', { name: 'Configure ' + label, exact: true }).click();
     const dialog = page.getByRole('dialog');
     await dialog.waitFor();
     await dialog.getByRole('button', { name: 'Apply', exact: true }).waitFor({ state: 'visible' });
+    const opening = await dialog.boundingBox();
+    releaseDefaults();
     await page.waitForFunction(
       () => {
         const button = document.querySelector('[data-testid="mcp-apply"]');
@@ -144,6 +192,12 @@ try {
       null,
       { timeout: 10000 },
     );
+    const ready = await dialog.boundingBox();
+    for (const dimension of ['x', 'y', 'width', 'height'])
+      assert.ok(
+        Math.abs(ready[dimension] - opening[dimension]) < 0.5,
+        client + ': dialog moved while loading',
+      );
     const configured = await setup.defaults(client);
     await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
     await assert.rejects(readFile(configured.files[0].path));
@@ -156,26 +210,47 @@ try {
       null,
       { timeout: 10000 },
     );
+    const stable = await geometry(dialog);
     if (client === 'opencode') {
+      const alternatives = (await setup.defaults(client)).files[0].alternatives;
+      const releaseLocation = holdOperation('mcpSetupPreview');
+      await dialog.getByRole('button', { name: alternatives[1], exact: true }).click();
+      await waitForBusy();
+      assertGeometry(await geometry(dialog), stable, 'OpenCode location while checking');
+      releaseLocation();
+      await waitForApply();
+      assertGeometry(await geometry(dialog), stable, 'OpenCode location after checking');
       browsePath = path.join(home, '.hidden', 'выбранный профиль', 'opencode.jsonc');
+      const releasePicker = holdOperation('mcpSetupBrowse');
       await dialog.getByRole('button', { name: 'Choose file…', exact: true }).click();
+      await waitForBusy();
+      assertGeometry(await geometry(dialog), stable, 'OpenCode file picker while open');
+      releasePicker();
       await page.waitForFunction(() =>
         document
           .querySelector('[data-testid="mcp-path-configuration"]')
           ?.value.includes('выбранный'),
       );
-      assert.equal(
-        await dialog.getByRole('button', { name: 'Apply', exact: true }).isDisabled(),
-        true,
-      );
-      await page.waitForFunction(
-        () => {
-          const button = document.querySelector('[data-testid="mcp-apply"]');
-          return button && !button.disabled;
-        },
-        null,
-        { timeout: 10000 },
-      );
+      await waitForApply();
+      assertGeometry(await geometry(dialog), stable, 'OpenCode selected file');
+    } else {
+      const releasePreview = holdOperation('mcpSetupPreview');
+      await dialog
+        .getByTestId('mcp-path-configuration')
+        .fill(path.join(home, '.hidden', client, client === 'codex' ? 'config.toml' : 'mcp.json'));
+      await waitForBusy();
+      assertGeometry(await geometry(dialog), stable, client + ' while checking');
+      releasePreview();
+      await waitForApply();
+      assertGeometry(await geometry(dialog), stable, client + ' after checking');
+      browsePath = null;
+      const releasePicker = holdOperation('mcpSetupBrowse');
+      await dialog.getByRole('button', { name: 'Choose file…', exact: true }).click();
+      await waitForBusy();
+      assertGeometry(await geometry(dialog), stable, client + ' file picker while open');
+      releasePicker();
+      await waitForApply();
+      assertGeometry(await geometry(dialog), stable, client + ' after picker cancellation');
     }
     const selected = await dialog
       .getByRole('textbox', { name: 'Configuration file path', exact: true })
@@ -246,7 +321,7 @@ try {
   assert.equal(await readFile(conflict, 'utf8'), external);
   assert.deepEqual(errors, []);
   console.log(
-    'MCP setup UI: 3 tabs, automatic setup, no configuration contents, remembered paths, startup status, system open action, cancel, backup and concurrent-edit rejection passed.',
+    'MCP setup UI: 3 tabs, stable dialog/path/actions during loading, location changes and file selection, automatic setup, no configuration contents, remembered paths, startup status, system open action, cancel, backup and concurrent-edit rejection passed.',
   );
   console.log('Screenshot: ' + screenshot);
 } catch (error) {
@@ -254,6 +329,7 @@ try {
   if (page) console.error((await page.locator('body').innerText()).slice(-6000));
   throw error;
 } finally {
+  for (const release of releaseGates) release();
   await browser?.close();
   await server?.close();
   await rm(temporary, { recursive: true, force: true });
