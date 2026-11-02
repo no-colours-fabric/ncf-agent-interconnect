@@ -1,6 +1,30 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription:
+    'ペアリング済みアカウントの正確なAionUiチャットにメッセージを配信します。',
+  mcpSetup_aionPairTitle: '1. AionUiをペアリング',
+  mcpSetup_aionPairHelp:
+    'このコンピューターのAionUiでWebUIを有効にし、アドレスとコードを入力して、AionUiでアクセスを承認してください。',
+  mcpSetup_aionAddress: 'AionUi WebUIアドレス',
+  mcpSetup_aionCode: 'ペアリングコード',
+  mcpSetup_aionPair: 'ペアリング',
+  mcpSetup_aionDisconnect: '切断',
+  mcpSetup_aionConfirm: 'AionUiでアクセスを承認してください。',
+  mcpSetup_aionPaired: 'ペアリング済み',
+  mcpSetup_aionRevoked: 'アクセス終了',
+  mcpSetup_aionNotPaired: '未ペアリング',
+  mcpSetup_aionFailure:
+    '設定を完了できませんでした。AionUi WebUIの起動を確認し、新しいコードを承認してください。',
+  mcpSetup_aionMcpTitle: '2. MCPを接続',
+  mcpSetup_aionMcpHelp:
+    'AionUiのMCP設定にこのサーバーをインポートしてください。Cursor Agentの場合はCursorのグローバルMCP設定に貼り付けてください。他のサーバーは保持してください。NCFはこれらの設定を変更しません。',
+  mcpSetup_aionCopy: 'MCP設定をコピー',
+  mcpSetup_aionCopied: 'コピー済み',
+  mcpSetup_aionNext:
+    'AionUiでエージェントを再起動し、以下の接続指示を使用してください。現在のチャットは自動検出されます。現在のチャット情報を提供しないエージェントは接続できません。',
+
   agentsColumnMessages: 'メッセージ',
   mcpSetup_tabsLabel: 'MCPクライアント',
   mcpSetup_userControl:

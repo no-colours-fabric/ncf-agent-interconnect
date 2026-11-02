@@ -48,10 +48,18 @@ This adapter is experimental and depends on the installed Codex Desktop version.
 It uses the existing chat environment and permissions. If ownership is missing
 or ambiguous, the app reports the condition and does not select another chat.
 
+## AionUi
+
+Choose AionUi to pair through its local WebUI with native owner confirmation.
+Copy its generated MCP bridge configuration into the client and restart the
+agent in AionUi. The host supplies the current chat automatically; the node
+verifies that chat and the paired account before admitting messages. This flow
+does not edit client files. See [AionUi setup and limits](aionui-adapter.md).
+
 ## Other clients
 
 Existing compatible Streamable HTTP MCP clients continue to support exchange and
-history. This setup UI configures only Cursor, OpenCode v1 and Codex. Automatic
+history. File-based Apply is available for Cursor, OpenCode v1 and Codex. AionUi has a separate pairing and manual MCP-import flow. Automatic
 wake-up requires a client adapter.
 
 In any configured chat, choose a name with `Connect as agent Researcher.` The

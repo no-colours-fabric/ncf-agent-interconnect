@@ -1,6 +1,30 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription:
+    'Доставка сообщений в точный чат AionUi с привязкой к сопряжённому аккаунту.',
+  mcpSetup_aionPairTitle: '1. Сопряжение с AionUi',
+  mcpSetup_aionPairHelp:
+    'Включите WebUI в AionUi на этом компьютере, введите его адрес и код сопряжения, затем подтвердите доступ в AionUi.',
+  mcpSetup_aionAddress: 'Адрес WebUI AionUi',
+  mcpSetup_aionCode: 'Код сопряжения',
+  mcpSetup_aionPair: 'Сопряжение',
+  mcpSetup_aionDisconnect: 'Отключить',
+  mcpSetup_aionConfirm: 'Подтвердите доступ в AionUi.',
+  mcpSetup_aionPaired: 'Сопряжено',
+  mcpSetup_aionRevoked: 'Доступ прекращён',
+  mcpSetup_aionNotPaired: 'Нет сопряжения',
+  mcpSetup_aionFailure:
+    'Настройка не завершена. Проверьте, что WebUI AionUi запущен, и подтвердите новый код сопряжения.',
+  mcpSetup_aionMcpTitle: '2. Подключение MCP',
+  mcpSetup_aionMcpHelp:
+    'Импортируйте этот сервер в настройках MCP AionUi. Для Cursor Agent вставьте его в глобальную конфигурацию MCP Cursor. Сохраните другие серверы. NCF не изменяет эти настройки.',
+  mcpSetup_aionCopy: 'Копировать конфигурацию MCP',
+  mcpSetup_aionCopied: 'Скопировано',
+  mcpSetup_aionNext:
+    'Перезапустите агента в AionUi, затем используйте команду подключения ниже. Текущий чат определяется автоматически. Агенты без контекста текущего чата не смогут подключиться.',
+
   agentsColumnMessages: 'Сообщения',
   mcpSetup_tabsLabel: 'MCP-клиент',
   mcpSetup_userControl:

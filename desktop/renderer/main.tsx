@@ -5,7 +5,7 @@ import { AgentsPage } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
 import { McpSetup } from './McpSetup.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
-import type { McpSetupClient } from '../shared/mcp-setup.js';
+import type { McpSetupApplication } from '../shared/mcp-setup.js';
 import {
   ThemeProvider,
   createTheme,
@@ -100,7 +100,7 @@ function App(): React.JSX.Element {
   const [address, setAddress] = useState(''),
     [access, setAccess] = useState(''),
     [ownCode, setOwnCode] = useState<{ code: string; expiresAt: string } | null>(null);
-  const [client, setClient] = useState<McpSetupClient>('cursor');
+  const [client, setClient] = useState<McpSetupApplication>('cursor');
   const [nodeLabel, setNodeLabel] = useState(''),
     [listenHost, setListenHost] = useState('');
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
@@ -540,7 +540,9 @@ function App(): React.JSX.Element {
                     ? 'opencode'
                     : kind === 'codex-desktop'
                       ? 'codex'
-                      : 'cursor',
+                      : kind === 'aionui'
+                        ? 'aionui'
+                        : 'cursor',
                 );
                 setPage('mcp');
               }}

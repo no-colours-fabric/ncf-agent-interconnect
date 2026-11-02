@@ -1,6 +1,29 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription: 'İletileri tam AionUi sohbetine ve eşleştirilmiş hesaba iletin.',
+  mcpSetup_aionPairTitle: '1. AionUi eşleştirin',
+  mcpSetup_aionPairHelp:
+    'Bu bilgisayarda AionUi WebUI özelliğini açın, adresi ve kodu girin, ardından AionUi içinde erişimi onaylayın.',
+  mcpSetup_aionAddress: 'AionUi WebUI adresi',
+  mcpSetup_aionCode: 'Eşleştirme kodu',
+  mcpSetup_aionPair: 'Eşleştir',
+  mcpSetup_aionDisconnect: 'Bağlantıyı kes',
+  mcpSetup_aionConfirm: 'AionUi içinde erişimi onaylayın.',
+  mcpSetup_aionPaired: 'Eşleştirildi',
+  mcpSetup_aionRevoked: 'Erişim sona erdi',
+  mcpSetup_aionNotPaired: 'Eşleştirilmedi',
+  mcpSetup_aionFailure:
+    'Kurulum tamamlanamadı. AionUi WebUI çalıştığını kontrol edin ve yeni bir kodu onaylayın.',
+  mcpSetup_aionMcpTitle: '2. MCP bağlayın',
+  mcpSetup_aionMcpHelp:
+    'Bu sunucuyu AionUi MCP ayarlarına aktarın. Cursor Agent için Cursor genel MCP yapılandırmasına yapıştırın. Diğer sunucuları koruyun. NCF bu ayarları değiştirmez.',
+  mcpSetup_aionCopy: 'MCP yapılandırmasını kopyala',
+  mcpSetup_aionCopied: 'Kopyalandı',
+  mcpSetup_aionNext:
+    'AionUi içindeki ajanı yeniden başlatın ve aşağıdaki bağlantı talimatını kullanın. Geçerli sohbet otomatik algılanır. Geçerli sohbet bağlamı olmayan ajanlar bağlanamaz.',
+
   agentsColumnMessages: 'Mesajlar',
   mcpSetup_tabsLabel: 'MCP istemcisi',
   mcpSetup_userControl:

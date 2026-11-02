@@ -54,7 +54,7 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
             </TableRow>
           </TableHead>
           <TableBody>
-            {(['opencode-http', 'codex-desktop', 'manual'] as const).map((kind) => {
+            {(['opencode-http', 'codex-desktop', 'aionui', 'manual'] as const).map((kind) => {
               const { agents } = applicationStatus(kind, snapshot);
               const activity = applicationActivity(kind, snapshot);
               return (
@@ -66,7 +66,9 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
                         ? 'clientsKindOpencode'
                         : kind === 'codex-desktop'
                           ? 'clientsKindCodex'
-                          : 'clientsKindManual',
+                          : kind === 'aionui'
+                            ? 'clientsKindAionui'
+                            : 'clientsKindManual',
                     )}
                   </TableCell>
                   <TableCell>{activity ? new Date(activity).toLocaleString(locale) : ''}</TableCell>

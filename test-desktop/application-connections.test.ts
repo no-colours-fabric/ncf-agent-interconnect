@@ -37,7 +37,7 @@ test('applications show one row per application, total agents and no agent or co
       onSetup: () => assert.fail('render must not trigger setup'),
     }),
   );
-  assert.equal((html.match(/data-testid="application-/g) ?? []).length, 3);
+  assert.equal((html.match(/data-testid="application-/g) ?? []).length, 4);
   assert.ok(html.includes(t('ru', 'clientsLastActivity')));
   assert.ok(html.includes(t('ru', 'clientsKindCodex')));
   assert.ok(html.includes('>2</td>'));
@@ -51,7 +51,7 @@ test('applications show one row per application, total agents and no agent or co
     t('ru', 'clientsNeedsReview'),
   ])
     assert.ok(!html.includes(value), value);
-  assert.equal((html.match(/<button/g) ?? []).length, 3);
+  assert.equal((html.match(/<button/g) ?? []).length, 4);
 });
 
 test('last activity is the latest observed message or exact-chat verification, including failed profiles', () => {

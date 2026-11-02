@@ -152,7 +152,8 @@ export interface AdapterCapabilities {
 export interface AdapterProfile {
   id: string;
   label: string;
-  kind: 'manual' | 'opencode-http' | 'codex-desktop';
+  kind: 'manual' | 'opencode-http' | 'codex-desktop' | 'aionui';
+  aionConnectionId?: string;
   baseUrl?: string;
   sessionId?: string;
   username?: string;

@@ -105,7 +105,7 @@ export function createAgentMcp(
   );
   register(
     'agent_connect',
-    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters. contextToken is supplied only by the installed OpenCode integration; never invent it.',
+    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters. contextToken is supplied only by the installed host integration; never invent it.',
     {
       nickname: nicknameSchema.describe('The agent nickname chosen by the user.'),
       connectionId: z.uuid().optional(),
@@ -121,7 +121,7 @@ export function createAgentMcp(
         .uuid()
         .optional()
         .describe(
-          'Integration-owned one-use current-chat context. OpenCode plugin injects this automatically; otherwise omit.',
+          'Integration-owned one-use current-chat context. The installed OpenCode or AionUi integration injects this automatically; otherwise omit.',
         ),
     },
     false,
@@ -329,7 +329,11 @@ export class McpEndpoint {
       return;
     }
     if (
-      ['/integrations/opencode', '/integrations/opencode/release'].includes(req.url ?? '') &&
+      [
+        '/integrations/opencode',
+        '/integrations/opencode/release',
+        '/integrations/aionui/context',
+      ].includes(req.url ?? '') &&
       req.method === 'POST'
     ) {
       let size = 0;
@@ -343,9 +347,12 @@ export class McpEndpoint {
         chunks.push(Buffer.from(chunk));
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
-      const result = req.url!.endsWith('/release')
-        ? await this.service.contexts.releaseOpenCode(body)
-        : await this.service.contexts.registerOpenCode(body);
+      const result =
+        req.url === '/integrations/aionui/context'
+          ? await this.service.contexts.registerAionUi(body)
+          : req.url!.endsWith('/release')
+            ? await this.service.contexts.releaseOpenCode(body)
+            : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;

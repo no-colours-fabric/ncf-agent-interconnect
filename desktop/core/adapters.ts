@@ -6,6 +6,8 @@ import type {
   Binding,
   SystemEvent,
 } from '../shared/contracts.js';
+import { AionUiAdapter } from './aionui-adapter.js';
+import type { AionUiSessions } from './aionui-sessions.js';
 import { CodexDesktopAdapter } from './codex-adapter.js';
 
 export type Admission = {
@@ -312,6 +314,9 @@ export class OpenCodeAdapter implements AgentAdapter {
 
 export class AdapterRegistry extends EventEmitter {
   private adapters = new Map<string, AgentAdapter>();
+  constructor(private readonly aionui?: AionUiSessions) {
+    super();
+  }
   async configure(profiles: AdapterProfile[]): Promise<void> {
     await this.close();
     await Promise.all(profiles.map((profile) => this.add(profile)));
@@ -329,7 +334,9 @@ export class AdapterRegistry extends EventEmitter {
         ? new ManualAdapter(profile)
         : profile.kind === 'codex-desktop'
           ? new CodexDesktopAdapter(profile, changed)
-          : new OpenCodeAdapter(profile, changed, idle);
+          : profile.kind === 'aionui'
+            ? new AionUiAdapter(profile, this.aionui!, changed, idle)
+            : new OpenCodeAdapter(profile, changed, idle);
     this.adapters.set(profile.id, adapter);
     await adapter.start();
   }

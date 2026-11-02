@@ -1,6 +1,29 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription:
+    'Хабарларды нақты AionUi чатына және жұпталған есептік жазбаға жеткізу.',
+  mcpSetup_aionPairTitle: '1. AionUi жұптау',
+  mcpSetup_aionPairHelp:
+    'Осы компьютердегі AionUi ішінде WebUI қосып, мекенжай мен кодты енгізіңіз, содан кейін AionUi ішінде қол жеткізуді растаңыз.',
+  mcpSetup_aionAddress: 'AionUi WebUI мекенжайы',
+  mcpSetup_aionCode: 'Жұптау коды',
+  mcpSetup_aionPair: 'Жұптау',
+  mcpSetup_aionDisconnect: 'Ажырату',
+  mcpSetup_aionConfirm: 'AionUi ішінде қол жеткізуді растаңыз.',
+  mcpSetup_aionPaired: 'Жұпталған',
+  mcpSetup_aionRevoked: 'Қол жеткізу тоқтатылды',
+  mcpSetup_aionNotPaired: 'Жұпталмаған',
+  mcpSetup_aionFailure: 'Баптау аяқталмады. AionUi WebUI жұмысын тексеріп, жаңа кодты растаңыз.',
+  mcpSetup_aionMcpTitle: '2. MCP қосу',
+  mcpSetup_aionMcpHelp:
+    'Бұл серверді AionUi MCP баптауларына импорттаңыз. Cursor Agent үшін Cursor жаһандық MCP конфигурациясына қойыңыз. Басқа серверлерді сақтаңыз. NCF бұл баптауларды өзгертпейді.',
+  mcpSetup_aionCopy: 'MCP конфигурациясын көшіру',
+  mcpSetup_aionCopied: 'Көшірілді',
+  mcpSetup_aionNext:
+    'AionUi ішіндегі агентті қайта іске қосып, төмендегі қосылу нұсқауын пайдаланыңыз. Ағымдағы чат автоматты анықталады. Ағымдағы чат контексті жоқ агенттер қосыла алмайды.',
+
   agentsColumnMessages: 'Хабарламалар',
   mcpSetup_tabsLabel: 'MCP клиенті',
   mcpSetup_userControl:

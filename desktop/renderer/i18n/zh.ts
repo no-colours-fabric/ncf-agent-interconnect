@@ -1,6 +1,28 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription: '将消息投递到已配对账号的确切 AionUi 聊天。',
+  mcpSetup_aionPairTitle: '1. 配对 AionUi',
+  mcpSetup_aionPairHelp:
+    '在此电脑的 AionUi 中启用 WebUI，输入地址与配对码，然后在 AionUi 中确认访问。',
+  mcpSetup_aionAddress: 'AionUi WebUI 地址',
+  mcpSetup_aionCode: '配对码',
+  mcpSetup_aionPair: '配对',
+  mcpSetup_aionDisconnect: '断开连接',
+  mcpSetup_aionConfirm: '请在 AionUi 中确认访问。',
+  mcpSetup_aionPaired: '已配对',
+  mcpSetup_aionRevoked: '访问已结束',
+  mcpSetup_aionNotPaired: '未配对',
+  mcpSetup_aionFailure: '无法完成设置。请检查 AionUi WebUI 是否运行并确认新的配对码。',
+  mcpSetup_aionMcpTitle: '2. 连接 MCP',
+  mcpSetup_aionMcpHelp:
+    '在 AionUi MCP 设置中导入此服务器。对于 Cursor Agent，请将其粘贴到 Cursor 全局 MCP 配置中。保留其他服务器。NCF 不会修改这些设置。',
+  mcpSetup_aionCopy: '复制 MCP 配置',
+  mcpSetup_aionCopied: '已复制',
+  mcpSetup_aionNext:
+    '在 AionUi 中重启代理，然后使用下面的连接指令。系统会自动识别当前聊天。未提供当前聊天上下文的代理无法连接。',
+
   agentsColumnMessages: '消息',
   mcpSetup_tabsLabel: 'MCP 客户端',
   mcpSetup_userControl: '通过按钮连接应用程序。仅在点击“应用”后才会修改设置。',

@@ -1,6 +1,29 @@
 import type { Messages } from './messages.js';
 
 export const it: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription: 'Invia messaggi alla chat esatta di AionUi e all’account associato.',
+  mcpSetup_aionPairTitle: '1. Associa AionUi',
+  mcpSetup_aionPairHelp:
+    'Attiva WebUI in AionUi su questo computer, inserisci indirizzo e codice e conferma l’accesso in AionUi.',
+  mcpSetup_aionAddress: 'Indirizzo WebUI AionUi',
+  mcpSetup_aionCode: 'Codice di associazione',
+  mcpSetup_aionPair: 'Associa',
+  mcpSetup_aionDisconnect: 'Disconnetti',
+  mcpSetup_aionConfirm: 'Conferma l’accesso in AionUi.',
+  mcpSetup_aionPaired: 'Associato',
+  mcpSetup_aionRevoked: 'Accesso terminato',
+  mcpSetup_aionNotPaired: 'Non associato',
+  mcpSetup_aionFailure:
+    'Configurazione non riuscita. Verifica che WebUI AionUi sia attivo e conferma un nuovo codice.',
+  mcpSetup_aionMcpTitle: '2. Collega MCP',
+  mcpSetup_aionMcpHelp:
+    'Importa questo server nelle impostazioni MCP di AionUi. Per Cursor Agent, incollalo nella configurazione MCP globale di Cursor. Mantieni gli altri server. NCF non modifica queste impostazioni.',
+  mcpSetup_aionCopy: 'Copia configurazione MCP',
+  mcpSetup_aionCopied: 'Copiato',
+  mcpSetup_aionNext:
+    'Riavvia l’agente in AionUi e usa l’istruzione di connessione qui sotto. La chat corrente viene rilevata automaticamente. Gli agenti senza contesto della chat corrente non possono connettersi.',
+
   agentsColumnMessages: 'Messaggi',
   mcpSetup_tabsLabel: 'Client MCP',
   mcpSetup_userControl:

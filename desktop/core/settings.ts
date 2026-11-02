@@ -10,7 +10,8 @@ export const adapterSchema = z
   .object({
     id: z.uuid(),
     label: z.string().min(1).max(120),
-    kind: z.enum(['manual', 'opencode-http', 'codex-desktop']),
+    kind: z.enum(['manual', 'opencode-http', 'codex-desktop', 'aionui']),
+    aionConnectionId: z.uuid().optional(),
     baseUrl: z.url().optional(),
     sessionId: z.string().max(200).optional(),
     username: z.string().max(200).optional(),
@@ -24,6 +25,11 @@ export const adapterSchema = z
   })
   .strict()
   .superRefine((profile, ctx) => {
+    if (profile.kind === 'aionui' && (!profile.aionConnectionId || !profile.sessionId))
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The AionUi integration did not provide the current chat',
+      });
     if (profile.kind === 'codex-desktop' && !profile.threadId)
       ctx.addIssue({
         code: 'custom',

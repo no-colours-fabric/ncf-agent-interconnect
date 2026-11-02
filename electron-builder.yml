@@ -13,6 +13,8 @@ fileOptions:
   extraResources:
     - from: distribution/README.md
       to: README.md
+    - from: docs/aionui-adapter.md
+      to: guides/AionUi.md
     - from: LICENSE
       to: licenses/NCF-Agent-Interconnect.LICENSE.txt
     - from: THIRD_PARTY_NOTICES.md

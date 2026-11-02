@@ -23,11 +23,18 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
-import { mcpSetupClients, type McpSetupClient, type McpSetupInvoke } from '../shared/mcp-setup.js';
+import {
+  mcpSetupClients,
+  type McpSetupClient,
+  type McpSetupInvoke,
+  type McpSetupApplication,
+} from '../shared/mcp-setup.js';
 import { McpSetupFlow } from './mcp-setup-model.js';
 import { mcpSetupEnglish, type McpSetupMessages } from './mcp-setup-messages.js';
 
-const labels = { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex' };
+import { AionUiSetup } from './AionUiSetup.js';
+
+const labels = { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex', aionui: 'AionUi' };
 const keys = {
   cursor: {
     title: 'cursorTitle',
@@ -381,8 +388,8 @@ export function McpSetup({
   invoke,
   messages,
 }: {
-  client: McpSetupClient;
-  onClientChange: (client: McpSetupClient) => void;
+  client: McpSetupApplication;
+  onClientChange: (client: McpSetupApplication) => void;
   invoke: McpSetupInvoke;
   messages?: Partial<McpSetupMessages>;
 }): React.JSX.Element {
@@ -391,13 +398,14 @@ export function McpSetup({
     cursor: CursorSetupDialog,
     opencode: OpenCodeSetupDialog,
     codex: CodexSetupDialog,
+    aionui: AionUiSetup,
   }[client];
   const [copyError, setCopyError] = React.useState('');
   return (
     <Paper sx={{ maxWidth: 1080, overflow: 'hidden' }}>
       <Tabs
         value={client}
-        onChange={(_event, value: McpSetupClient) => {
+        onChange={(_event, value: McpSetupApplication) => {
           setCopyError('');
           onClientChange(value);
         }}
@@ -406,7 +414,7 @@ export function McpSetup({
         scrollButtons="auto"
         sx={{ px: { xs: 2, sm: 3 }, minHeight: 56, borderBottom: 1, borderColor: 'divider' }}
       >
-        {mcpSetupClients.map((item) => (
+        {([...mcpSetupClients, 'aionui'] as const).map((item) => (
           <Tab
             key={item}
             value={item}

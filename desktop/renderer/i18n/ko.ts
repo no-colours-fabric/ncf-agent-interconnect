@@ -1,6 +1,29 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription: '페어링된 계정의 정확한 AionUi 채팅에 메시지를 전달합니다.',
+  mcpSetup_aionPairTitle: '1. AionUi 페어링',
+  mcpSetup_aionPairHelp:
+    '이 컴퓨터의 AionUi에서 WebUI를 활성화하고 주소와 코드를 입력한 뒤 AionUi에서 접근을 승인하세요.',
+  mcpSetup_aionAddress: 'AionUi WebUI 주소',
+  mcpSetup_aionCode: '페어링 코드',
+  mcpSetup_aionPair: '페어링',
+  mcpSetup_aionDisconnect: '연결 해제',
+  mcpSetup_aionConfirm: 'AionUi에서 접근을 승인하세요.',
+  mcpSetup_aionPaired: '페어링됨',
+  mcpSetup_aionRevoked: '접근 종료',
+  mcpSetup_aionNotPaired: '페어링 안 됨',
+  mcpSetup_aionFailure:
+    '설정을 완료할 수 없습니다. AionUi WebUI가 실행 중인지 확인하고 새 코드를 승인하세요.',
+  mcpSetup_aionMcpTitle: '2. MCP 연결',
+  mcpSetup_aionMcpHelp:
+    'AionUi MCP 설정에서 이 서버를 가져오세요. Cursor Agent는 Cursor 전역 MCP 설정에 붙여 넣으세요. 다른 서버는 유지하세요. NCF는 이 설정을 변경하지 않습니다.',
+  mcpSetup_aionCopy: 'MCP 설정 복사',
+  mcpSetup_aionCopied: '복사됨',
+  mcpSetup_aionNext:
+    'AionUi에서 에이전트를 재시작한 뒤 아래 연결 지시를 사용하세요. 현재 채팅은 자동 감지됩니다. 현재 채팅 정보를 제공하지 않는 에이전트는 연결할 수 없습니다.',
+
   agentsColumnMessages: '메시지',
   mcpSetup_tabsLabel: 'MCP 클라이언트',
   mcpSetup_userControl:

@@ -1,4 +1,26 @@
 export const mcpSetupEnglish = {
+  aionDescription: 'Deliver messages to the exact AionUi chat and paired account.',
+  aionPairTitle: '1. Pair AionUi',
+  aionPairHelp:
+    'Enable WebUI in AionUi on this computer, enter its address and pairing code, then confirm access in AionUi.',
+  aionAddress: 'AionUi WebUI address',
+  aionCode: 'Pairing code',
+  aionPair: 'Pair',
+  aionDisconnect: 'Disconnect',
+  aionConfirm: 'Confirm access in AionUi.',
+  aionPaired: 'Paired',
+  aionRevoked: 'Access ended',
+  aionNotPaired: 'Not paired',
+  aionFailure:
+    'Could not complete setup. Check that AionUi WebUI is running and approve a fresh pairing code.',
+  aionMcpTitle: '2. Connect MCP',
+  aionMcpHelp:
+    'Import this server in AionUi MCP settings. For Cursor Agent, paste it into Cursor’s global MCP configuration. Keep other servers. NCF does not edit these settings.',
+  aionCopy: 'Copy MCP configuration',
+  aionCopied: 'Copied',
+  aionNext:
+    'Restart the agent in AionUi, then use the connection prompt below. The current chat is detected automatically. Agents without current-chat context cannot connect.',
+
   tabsLabel: 'MCP client',
   userControl:
     'Connect your application with a button. Settings change only after you click Apply.',

@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import {
   envelopeSchema,
@@ -29,6 +29,8 @@ import { McpEndpoint } from './mcp-http.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
+import { AionUiSessions } from './aionui-sessions.js';
+import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
 
 export class NodeService extends EventEmitter {
@@ -37,7 +39,8 @@ export class NodeService extends EventEmitter {
   network!: PeerNetwork;
   mcp!: McpEndpoint;
   readonly settings: SettingsFile;
-  readonly adapters = new AdapterRegistry();
+  readonly adapters: AdapterRegistry;
+  readonly aionui: AionUiSessions;
   readonly contexts = new ClientContexts(this);
   private readonly presence: AgentPresence;
   running = false;
@@ -105,6 +108,9 @@ export class NodeService extends EventEmitter {
   ) {
     super();
     this.settings = new SettingsFile(directory);
+    this.aionui = new AionUiSessions(directory);
+    this.adapters = new AdapterRegistry(this.aionui);
+    this.aionui.on('change', () => this.emit('change'));
     this.presence = new AgentPresence(
       () => this.refreshPresence(),
       integrationOptions.clientLeaseMs,
@@ -131,6 +137,7 @@ export class NodeService extends EventEmitter {
   }
   async open(): Promise<void> {
     await this.settings.load();
+    await this.aionui.load();
     this.store = new AgentStore(this.directory);
     this.files = new FileStore(this.directory, this.settings.value.exportRoots);
     await this.files.init();
@@ -219,7 +226,18 @@ export class NodeService extends EventEmitter {
         connected: this.running && !!this.network.states().find((s) => s.id === p.id)?.connected,
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),
-      agents: this.store.list(),
+      agents: this.store.list().map((agent) => {
+        if (
+          !agent.binding ||
+          this.settings.value.adapters.find((a) => a.id === agent.binding!.adapterId)?.kind !==
+            'aionui'
+        )
+          return agent;
+        return {
+          ...agent,
+          binding: { ...agent.binding, chatId: '[private]', connectionId: '[private]' },
+        };
+      }),
       directories: this.agentDirectories(),
       adapters: this.adapters.states(),
       exportRoots: this.settings.value.exportRoots,
@@ -244,7 +262,8 @@ export class NodeService extends EventEmitter {
       input.adapterId ?? this.settings.value.adapters.find((a) => a.kind === 'manual')!.id;
     const profile = this.settings.value.adapters.find((a) => a.id === adapterId);
     if (
-      (profile?.kind === 'opencode-http' && input.chatId !== profile.sessionId) ||
+      (['opencode-http', 'aionui'].includes(profile?.kind ?? '') &&
+        input.chatId !== profile?.sessionId) ||
       (profile?.kind === 'codex-desktop' && input.chatId !== profile.threadId)
     )
       throw new Error(
@@ -264,6 +283,9 @@ export class NodeService extends EventEmitter {
         ((profile.kind === 'codex-desktop' && prior.threadId === profile.threadId) ||
           (profile.kind === 'opencode-http' &&
             prior.workspace === profile.workspace &&
+            prior.sessionId === profile.sessionId) ||
+          (profile.kind === 'aionui' &&
+            prior.aionConnectionId === profile.aionConnectionId &&
             prior.sessionId === profile.sessionId))
       )
         throw new Error('A fresh start requires another exact chat');
@@ -496,8 +518,18 @@ export class NodeService extends EventEmitter {
   ): Promise<ConnectResult & { delivery?: { automatic: boolean; description: string } }> {
     const { contextToken, ...input } = args;
     let context: ClientContext | undefined;
-    if (contextToken) context = this.contexts.consume(contextToken);
-    else if (/codex/i.test(host.client)) {
+    if (contextToken) {
+      context = this.contexts.consume(contextToken);
+      if (context.client === 'AionUi') {
+        if (host.client !== 'AionUi')
+          throw new Error('The AionUi context belongs to another client.');
+        const profile = this.settings.value.adapters.find((a) => a.id === context!.adapterId);
+        if (!profile?.aionConnectionId) throw new Error('The AionUi connection is unavailable.');
+        await this.aionui.verify(profile.aionConnectionId);
+        if (this.adapters.get(profile.id).status().state !== 'ready')
+          throw new Error('The AionUi realtime connection is unavailable.');
+      }
+    } else if (/codex/i.test(host.client)) {
       let metadata = host.meta?.['x-codex-turn-metadata'];
       if (typeof metadata === 'string') {
         try {
@@ -527,7 +559,9 @@ export class NodeService extends EventEmitter {
             'Messages with their sender, body and attachment links are delivered automatically to this Codex Desktop chat. This integration is experimental.',
         },
       };
-    } else if (/opencode/i.test(host.client))
+    } else if (/aionui/i.test(host.client))
+      throw new Error('Connect AionUi using its bundled MCP bridge from Applications.');
+    else if (/opencode/i.test(host.client))
       throw new Error(
         'For automatic OpenCode binding, add the bundled plugin using the MCP setup instructions. No session configuration is required.',
       );
@@ -1124,6 +1158,34 @@ export class NodeService extends EventEmitter {
     raw: unknown = {},
     context: { requesterSession?: string } = {},
   ): Promise<unknown> {
+    if (method === 'aionUiStatus') return this.aionui.status();
+    if (method === 'aionUiPair') return this.aionui.pair(raw);
+    if (method === 'aionUiDisconnect') return this.aionui.disconnect();
+    if (method === 'aionUiInstructions') {
+      const result: AionUiSetupInstructions = {
+        configuration: JSON.stringify(
+          {
+            mcpServers: {
+              ncf_agent_interconnect: {
+                command: process.execPath,
+                args: [
+                  fileURLToPath(
+                    new URL('../integrations/aionui.' + this.integrationExtension, import.meta.url),
+                  ),
+                  '--node-file',
+                  path.join(this.directory, 'Integrations', 'node.json'),
+                ],
+                env: { ELECTRON_RUN_AS_NODE: '1' },
+              },
+            },
+          },
+          null,
+          2,
+        ),
+        testPrompt: 'Connect as agent <a name you choose>.',
+      };
+      return result;
+    }
     if (method === 'snapshot') return this.snapshot();
     if (method === 'clearAgents')
       return this.clearAgents(raw as AgentClearInput, {
@@ -1262,6 +1324,7 @@ export class NodeService extends EventEmitter {
         await this.stop();
         await Promise.allSettled([...this.fileJobs]);
         await this.cleaningFiles;
+        await this.aionui.close();
         this.store.close();
       })();
     return this.closing;

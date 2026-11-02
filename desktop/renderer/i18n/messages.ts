@@ -143,6 +143,7 @@ export interface Messages extends McpSetupTranslations {
   clientsKindOpencode: string;
   clientsKindCodex: string;
   clientsKindManual: string;
+  clientsKindAionui: string;
   clientsConnected: string;
   clientsPartiallyConnected: string;
   clientsConnectionIssues: string;

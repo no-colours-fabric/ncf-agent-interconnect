@@ -1,6 +1,30 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  clientsKindAionui: 'AionUi',
+  mcpSetup_aionDescription:
+    'Dostarczanie wiadomości do dokładnego czatu AionUi i sparowanego konta.',
+  mcpSetup_aionPairTitle: '1. Sparuj AionUi',
+  mcpSetup_aionPairHelp:
+    'Włącz WebUI w AionUi na tym komputerze, wpisz adres i kod, a następnie potwierdź dostęp w AionUi.',
+  mcpSetup_aionAddress: 'Adres WebUI AionUi',
+  mcpSetup_aionCode: 'Kod parowania',
+  mcpSetup_aionPair: 'Sparuj',
+  mcpSetup_aionDisconnect: 'Rozłącz',
+  mcpSetup_aionConfirm: 'Potwierdź dostęp w AionUi.',
+  mcpSetup_aionPaired: 'Sparowano',
+  mcpSetup_aionRevoked: 'Dostęp zakończony',
+  mcpSetup_aionNotPaired: 'Nie sparowano',
+  mcpSetup_aionFailure:
+    'Nie udało się skonfigurować. Sprawdź, czy WebUI AionUi działa, i potwierdź nowy kod.',
+  mcpSetup_aionMcpTitle: '2. Połącz MCP',
+  mcpSetup_aionMcpHelp:
+    'Zaimportuj ten serwer w ustawieniach MCP AionUi. Dla Cursor Agent wklej go do globalnej konfiguracji MCP Cursor. Zachowaj inne serwery. NCF nie zmienia tych ustawień.',
+  mcpSetup_aionCopy: 'Kopiuj konfigurację MCP',
+  mcpSetup_aionCopied: 'Skopiowano',
+  mcpSetup_aionNext:
+    'Uruchom ponownie agenta w AionUi i użyj instrukcji poniżej. Bieżący czat jest wykrywany automatycznie. Agenty bez kontekstu bieżącego czatu nie mogą się połączyć.',
+
   agentsColumnMessages: 'Wiadomości',
   mcpSetup_tabsLabel: 'Klient MCP',
   mcpSetup_userControl:

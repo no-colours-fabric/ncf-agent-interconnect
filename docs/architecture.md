@@ -12,7 +12,7 @@ Client chat → MCP tools → local NodeService → persistent agent history
 TLS peers, the authenticated loopback MCP endpoint and adapter dispatch.
 `desktop/main` owns the tray, window, native file dialogs and a narrow IPC API.
 `desktop/renderer` is React with Material UI. `desktop/integrations` contains the
-bundled OpenCode plugin; `desktop/shared` contains typed contracts.
+bundled OpenCode plugin and AionUi MCP bridge; `desktop/shared` contains typed contracts.
 
 Client setup runs through the exact renderer/main-frame IPC boundary. Only the
 owner's Apply action may write a selected client configuration. Setup plans are
@@ -46,6 +46,13 @@ tool session and a private loopback bridge to target the exact chat. Busy chats
 wait for push idle events. Codex Desktop uses an experimental, version-dependent
 local IPC adapter. Each capability is reported separately; MCP alone does not
 establish idle wake-up or native rendering support.
+
+AionUi pairs through the owner's local WebUI approval. Its bundled stdio bridge
+supplies native runtime context, verified against the paired account and exact
+chat before issuing a one-use binding ticket. The adapter uses HTTP admission
+and WebSocket completion events. Pairing credentials are private, account
+changes invalidate old access, and uncertain admission is durable. See
+[AionUi integration](aionui-adapter.md) for setup and verification limits.
 
 Adapters receive the complete body and verified local attachment links. The
 message envelope identifies From and Reply-To. Uncertain external admission is
