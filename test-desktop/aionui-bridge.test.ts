@@ -1,26 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import path from 'node:path';
-import os from 'node:os';
-import { mkdtemp, rm } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import {
   StdioClientTransport,
   getDefaultEnvironment,
 } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { NodeService } from '../desktop/core/service.js';
 import { aionRuntimeContext } from '../desktop/integrations/aionui.js';
 import { aionFixture, until } from './aionui-fixture.js';
+import { ownStdio, temporaryNode } from './aionui-lifecycle.js';
 
 test('bundled stdio bridge injects current context, hides it from the model and forwards real MCP exchange', async (t) => {
   const f = await aionFixture(t);
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-aionui-bridge-isolated-'));
-  const service = new NodeService(directory);
-  await service.settings.load();
-  service.settings.value.peerPort = 0;
-  await service.settings.save();
-  await service.open();
+  const service = await temporaryNode(f.scope, 'ncf-aionui-bridge-isolated-');
+  const directory = service.directory;
   const client = new Client({ name: 'fixture-AionUi-backend', version: 'fixture' });
   const helper = fileURLToPath(new URL('../desktop/integrations/aionui.ts', import.meta.url));
   const transport = new StdioClientTransport({
@@ -41,16 +35,18 @@ test('bundled stdio bridge injects current context, hides it from the model and 
     },
     stderr: 'pipe',
   });
+  const childExited = ownStdio(f.scope, client, transport);
   let stderr = '';
-  t.after(async () => {
-    await client.close();
-    await service.close();
-    await rm(directory, { recursive: true, force: true });
-    assert.ok(!stderr.includes(f.runtimeToken));
-    assert.ok(!stderr.includes(f.session));
+  f.scope.file({
+    label: 'stdio credential output assertions',
+    close: async () => {
+      assert.ok(!stderr.includes(f.runtimeToken));
+      assert.ok(!stderr.includes(f.session));
+      assert.ok(childExited(), 'The owned stdio helper must exit before removing test data');
+    },
   });
   await service.userCall('aionUiPair', { url: f.url, code: f.code });
-  await client.connect(transport);
+  await f.scope.start('stdio MCP connect', () => client.connect(transport));
   transport.stderr?.on('data', (chunk) => {
     stderr += chunk.toString();
   });

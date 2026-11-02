@@ -9,20 +9,13 @@ import { NodeService } from '../desktop/core/service.js';
 import { AionUiSessions } from '../desktop/core/aionui-sessions.js';
 import { AionCookies, aionUrl } from '../desktop/core/aionui-api.js';
 import { aionFixture, until } from './aionui-fixture.js';
+import { ownNode, temporaryNode } from './aionui-lifecycle.js';
 import type { ConnectResult } from '../desktop/core/agent-store.js';
 
 async function setup(t: test.TestContext) {
   const fixture = await aionFixture(t);
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-aionui-isolated-'));
-  const service = new NodeService(directory);
-  await service.settings.load();
-  service.settings.value.peerPort = 0;
-  await service.settings.save();
-  await service.open();
-  t.after(async () => {
-    await service.close();
-    await rm(directory, { recursive: true, force: true });
-  });
+  const service = await temporaryNode(fixture.scope);
+  const directory = service.directory;
   await service.userCall('aionUiPair', { url: fixture.url, code: fixture.code });
   const connect = async (
     chat = 'fixture-chat-a',
@@ -231,8 +224,9 @@ test('private pairing survives restart, refresh stays in the pinned account and 
   const f = await setup(t);
   const old = connected(await f.connect());
   const restored = new AionUiSessions(f.directory);
-  await restored.load();
-  t.after(() => restored.close());
+  f.scope.cancelWith(() => restored.cancelPair());
+  f.scope.consumer({ label: 'restored session cleanup', close: () => restored.close() });
+  await f.scope.start('restored session load', () => restored.load());
   await restored.verify(restored.current().id);
   f.state.expire = true;
   await restored.verify(restored.current().id);
@@ -314,8 +308,13 @@ test('a fresh node instance restores saved pairing and the durable waiting queue
   await f.service.close();
   f.chats.set('fixture-chat-a', false);
   const next = new NodeService(f.directory);
-  t.after(() => next.close());
-  await next.open();
+  let opening: Promise<void> | undefined;
+  const observe = ownNode(f.scope, next, () => opening);
+  opening = f.scope.call('restored node opening', async () => {
+    await next.open();
+    observe();
+  });
+  await f.scope.start('restored node open', () => opening!);
   await until(() => next.store.dispatchState(sent.id)?.state === 'admitted');
   assert.equal(f.posts.length, 1);
   assert.equal(f.posts[0].chat, 'fixture-chat-a');
@@ -354,6 +353,7 @@ test('an invalid setup URL does not leave pairing locked and endpoints cannot ex
     body: JSON.stringify(f.context()),
   });
   assert.equal(denied.status, 401);
+  await denied.body?.cancel();
   const authorization = 'Bearer ' + f.service.settings.value.localToken;
   const ownerOnly = await fetch(new URL('/integrations/aionui/pair', endpoint), {
     method: 'POST',
@@ -361,6 +361,7 @@ test('an invalid setup URL does not leave pairing locked and endpoints cannot ex
     body: '{}',
   });
   assert.equal(ownerOnly.status, 404);
+  await ownerOnly.body?.cancel();
   const invalid = await fetch(endpoint, {
     method: 'POST',
     headers: { authorization, 'content-type': 'application/json' },
@@ -386,12 +387,26 @@ test('runtime proof is validated by the paired WebUI Core, never a caller-select
       }),
     );
   });
-  await new Promise<void>((resolve) => fake.listen(0, '127.0.0.1', resolve));
-  t.after(
-    () =>
-      new Promise<void>((resolve) => {
+  fake.on('error', (error) => f.scope.recordFailure(error));
+  f.scope.transport({
+    label: 'forged proof server close',
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        fake.close((error) =>
+          error && (error as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING'
+            ? reject(error)
+            : resolve(),
+        );
         fake.closeAllConnections();
-        fake.close(() => resolve());
+      }),
+    force: () => fake.closeAllConnections(),
+  });
+  await f.scope.start(
+    'forged proof server listen',
+    () =>
+      new Promise<void>((resolve, reject) => {
+        fake.once('error', reject);
+        fake.listen(0, '127.0.0.1', resolve);
       }),
   );
   const fakeUrl = 'http://127.0.0.1:' + (fake.address() as { port: number }).port;
@@ -421,12 +436,19 @@ test('runtime proof is validated by the paired WebUI Core, never a caller-select
 
 test('failed first pairing persistence publishes no usable authorization and a retry commits durably', async (t) => {
   const f = await aionFixture(t);
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-aionui-save-isolated-'));
-  const sessions = new AionUiSessions(directory);
-  t.after(async () => {
-    await sessions.close();
-    await rm(directory, { recursive: true, force: true });
+  let directory: string | undefined;
+  f.scope.file({
+    label: 'session data removal',
+    close: async () => {
+      if (directory) await rm(directory, { recursive: true, force: true });
+    },
   });
+  directory = await f.scope.start('session data', () =>
+    mkdtemp(path.join(os.tmpdir(), 'ncf-aionui-save-isolated-')),
+  );
+  const sessions = new AionUiSessions(directory);
+  f.scope.cancelWith(() => sessions.cancelPair());
+  f.scope.consumer({ label: 'session cleanup', close: () => sessions.close() });
   const filename = path.join(directory, 'aionui-credentials.json');
   await mkdir(filename);
   await assert.rejects(sessions.pair({ url: f.url, code: f.code }), /could not be saved/);
@@ -438,8 +460,9 @@ test('failed first pairing persistence publishes no usable authorization and a r
   assert.equal(sessions.current().id, persisted.id);
   assert.equal(sessions.status().state, 'paired');
   const restored = new AionUiSessions(directory);
-  t.after(() => restored.close());
-  await restored.load();
+  f.scope.cancelWith(() => restored.cancelPair());
+  f.scope.consumer({ label: 'restored session cleanup', close: () => restored.close() });
+  await f.scope.start('restored session load', () => restored.load());
   assert.equal(restored.current().id, persisted.id);
 });
 
@@ -465,8 +488,9 @@ test('failed replacement persistence preserves the old active binding and retrie
   assert.ok(access.signal.aborted);
   assert.equal(JSON.parse(await readFile(filename, 'utf8')).id, next);
   const restored = new AionUiSessions(f.directory);
-  t.after(() => restored.close());
-  await restored.load();
+  f.scope.cancelWith(() => restored.cancelPair());
+  f.scope.consumer({ label: 'restored session cleanup', close: () => restored.close() });
+  await f.scope.start('restored session load', () => restored.load());
   assert.equal(restored.current().id, next);
 });
 

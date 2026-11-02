@@ -1,9 +1,179 @@
 import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import type test from 'node:test';
+import type { Socket } from 'node:net';
+import { AionLifecycle, FixtureCancelled, type FixtureBarrier } from './aionui-lifecycle.js';
 import WebSocket, { WebSocketServer } from 'ws';
 
-export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
+export async function aionFixture(
+  t: Pick<test.TestContext, 'after'>,
+  options: {
+    afterCoreListen?: () => Promise<void>;
+    inspect?: (snapshot: () => Record<string, unknown>) => void;
+  } = {},
+) {
+  const scope = new AionLifecycle(t);
+  const rawSockets = new Set<Socket>();
+  const proxySockets = new Set<Socket>();
+  const proxyRequests = new Set<http.ClientRequest>();
+  const proxyResponses = new Set<http.IncomingMessage>();
+  const handlers = new Set<Promise<unknown>>();
+  const controllers = new Set<AbortController>();
+  const listeners = new Map<string, http.Server>();
+  const snapshot = () => ({
+    ...scope.snapshot(),
+    coreListening: listeners.get('Core')?.listening ?? false,
+    webuiListening: listeners.get('WebUI')?.listening ?? false,
+    handlers: handlers.size,
+    proxyRequests: proxyRequests.size,
+    proxyResponses: proxyResponses.size,
+    proxySockets: proxySockets.size,
+    tcpSockets: rawSockets.size,
+    webSockets: [...listeners.keys()].length ? wssClients() : 0,
+  });
+  let wssClients = () => 0;
+  scope.details = snapshot;
+  options.inspect?.(snapshot);
+  scope.transport({
+    label: 'owned socket drain',
+    close: async () => {
+      await until(
+        () =>
+          !rawSockets.size &&
+          !proxySockets.size &&
+          !proxyRequests.size &&
+          !proxyResponses.size &&
+          !handlers.size &&
+          !wssClients() &&
+          ![...listeners.values()].some((server) => server.listening),
+      );
+    },
+    force: () => {
+      for (const socket of rawSockets) socket.destroy();
+      for (const socket of proxySockets) socket.destroy();
+    },
+  });
+  const agent = new http.Agent({ keepAlive: false });
+  scope.cancelWith(() => {
+    for (const controller of controllers) controller.abort(new FixtureCancelled());
+  });
+  const expectedAbort = (error: unknown, signal: AbortSignal) =>
+    error instanceof FixtureCancelled ||
+    (signal.aborted &&
+      ['ECONNRESET', 'ERR_STREAM_PREMATURE_CLOSE', 'ABORT_ERR'].includes(
+        (error as NodeJS.ErrnoException).code ?? '',
+      ));
+  const makeServer = (
+    label: string,
+    handler: (
+      req: http.IncomingMessage,
+      res: http.ServerResponse,
+      signal: AbortSignal,
+    ) => Promise<void>,
+  ) => {
+    const server = http.createServer((req, res) => {
+      if (scope.closing) {
+        res.destroy();
+        return;
+      }
+      const controller = new AbortController();
+      controllers.add(controller);
+      const abort = () => {
+        if (!res.writableFinished) controller.abort(new FixtureCancelled());
+      };
+      req.once('aborted', abort);
+      res.once('close', abort);
+      const task = scope.call(
+        label + ' handler',
+        () => handler(req, res, controller.signal),
+        (error) => expectedAbort(error, controller.signal),
+      );
+      handlers.add(task);
+      const finish = () => {
+        handlers.delete(task);
+        controllers.delete(controller);
+        req.off('aborted', abort);
+        res.off('close', abort);
+      };
+      void task.then(finish, (error) => {
+        finish();
+        if (expectedAbort(error, controller.signal) || scope.closing) res.destroy();
+        else {
+          if (!res.headersSent) {
+            res.writeHead(500);
+            res.end();
+          } else res.destroy();
+        }
+      });
+    });
+    listeners.set(label, server);
+    const owned = new Set<Socket>();
+    server.on('connection', (socket: Socket) => {
+      owned.add(socket);
+      rawSockets.add(socket);
+      socket.once('close', () => {
+        owned.delete(socket);
+        rawSockets.delete(socket);
+      });
+      if (scope.closing) socket.destroy();
+    });
+    const force = () => {
+      server.closeAllConnections();
+      for (const socket of owned) socket.destroy();
+    };
+    let closeTask: Promise<void> | undefined;
+    const close = () =>
+      (closeTask ??= new Promise<void>((resolve, reject) => {
+        server.close((error) => {
+          if (error && (error as NodeJS.ErrnoException).code !== 'ERR_SERVER_NOT_RUNNING')
+            reject(error);
+          else resolve();
+        });
+        force();
+      }));
+    server.on('listening', () => {
+      if (scope.closing) {
+        server.close(() => {});
+        force();
+      }
+    });
+    scope.transport({ label: label + ' HTTP close', close, force });
+    return server;
+  };
+  const listen = (server: http.Server, label: string) =>
+    scope.start(
+      label,
+      () =>
+        new Promise<void>((resolve, reject) => {
+          const failed = (error: Error) => reject(error);
+          server.once('error', failed);
+          server.listen(0, '127.0.0.1', () => {
+            server.off('error', failed);
+            resolve();
+          });
+        }),
+    );
+  scope.transport({
+    label: 'handler drain',
+    close: async () => {
+      await Promise.allSettled([...handlers]);
+      if (handlers.size) throw new Error('AionUi fixture handler drain left active handlers');
+    },
+  });
+  const stopProxy = () => {
+    for (const request of proxyRequests) request.destroy(new FixtureCancelled());
+    for (const response of proxyResponses) response.destroy(new FixtureCancelled());
+    agent.destroy();
+    for (const socket of proxySockets) socket.destroy();
+  };
+  scope.transport({
+    label: 'proxy cleanup',
+    close: async () => {
+      stopProxy();
+      await until(() => !proxyRequests.size && !proxyResponses.size && !proxySockets.size);
+    },
+    force: stopProxy,
+  });
   const session = randomBytes(24).toString('hex'),
     runtimeToken = randomBytes(24).toString('hex'),
     code = randomBytes(6).toString('hex');
@@ -31,7 +201,8 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
     refreshes: 0,
     expire: false,
   };
-  let pairGate: Promise<void> | undefined;
+  let pairGate: FixtureBarrier | undefined;
+  let proxyGate: FixtureBarrier | undefined;
   const sockets = new Set<WebSocket>();
   const runtime = (chat: string) => ({
     state: chats.get(chat) ? 'running' : 'idle',
@@ -51,7 +222,7 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
   // Match the native boundary: the WebUI gates its own frontend cookie and
   // transparently forwards /api to a distinct Core. Core JWT takes priority
   // over runtime headers, so proof must exclude that JWT to test the token.
-  const core = http.createServer(async (req, res) => {
+  const core = makeServer('Core', async (req, res, signal) => {
     const url = req.url ?? '';
     if (url === '/api/auth/refresh') {
       state.refreshes++;
@@ -97,6 +268,8 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
       return;
     }
     const chat = decodeURIComponent(match[1]);
+    await proxyGate?.wait(signal);
+    if (scope.closing || signal.aborted) throw new FixtureCancelled();
     if (!jwt && req.headers['x-aionui-conversation-id'] !== chat) {
       send(res, 403, {});
       return;
@@ -140,10 +313,11 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
         : { success: false, code: 'CONFLICT', error: 'private-server-error-' + runtimeToken },
     );
   });
-  await new Promise<void>((resolve) => core.listen(0, '127.0.0.1', resolve));
+  await listen(core, 'Core listen');
+  if (options.afterCoreListen) await scope.start('after Core listen', options.afterCoreListen);
   const corePort = (core.address() as { port: number }).port;
   const coreUrl = 'http://127.0.0.1:' + corePort;
-  const server = http.createServer(async (req, res) => {
+  const server = makeServer('WebUI', async (req, res, signal) => {
     const url = req.url ?? '';
     if (url === '/auth/pair') {
       state.pairRequests++;
@@ -153,7 +327,8 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
         send(res, 200, { status: 'denied' });
         return;
       }
-      await pairGate;
+      await pairGate?.wait(signal);
+      if (scope.closing || signal.aborted) throw new FixtureCancelled();
       res.setHeader('set-cookie', [
         `aionui-webhost-session=${session}; Path=/; HttpOnly; SameSite=Strict`,
         `aionui-session=${session}; Path=/; HttpOnly`,
@@ -188,28 +363,92 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
       send(res, 404, {});
       return;
     }
-    const proxy = http.request(
-      {
-        host: '127.0.0.1',
-        port: corePort,
-        path: url,
-        method: req.method,
-        headers: { ...req.headers, host: '127.0.0.1:' + corePort },
-      },
-      (upstream) => {
-        res.writeHead(upstream.statusCode ?? 502, upstream.headers);
-        upstream.pipe(res);
-      },
-    );
-    proxy.on('error', () => {
-      if (!res.headersSent) send(res, 502, {});
-      else res.destroy();
+    await new Promise<void>((resolve, reject) => {
+      let upstream: http.IncomingMessage | undefined;
+      const proxy = http.request(
+        {
+          host: '127.0.0.1',
+          port: corePort,
+          path: url,
+          method: req.method,
+          headers: { ...req.headers, host: '127.0.0.1:' + corePort },
+          agent,
+        },
+        (response) => {
+          upstream = response;
+          proxyResponses.add(response);
+          response.once('close', () => proxyResponses.delete(response));
+          response.once('error', (error) => {
+            if (
+              (state.drop &&
+                ['ECONNRESET', 'ERR_STREAM_PREMATURE_CLOSE'].includes(
+                  (error as NodeJS.ErrnoException).code ?? '',
+                )) ||
+              expectedAbort(error, signal)
+            ) {
+              res.destroy();
+              resolve();
+            } else reject(error);
+          });
+          if (signal.aborted || scope.closing) {
+            response.destroy(new FixtureCancelled());
+            return;
+          }
+          res.writeHead(response.statusCode ?? 502, response.headers);
+          response.pipe(res);
+        },
+      );
+      proxyRequests.add(proxy);
+      proxy.on('socket', (socket) => {
+        proxySockets.add(socket);
+        socket.once('close', () => proxySockets.delete(socket));
+      });
+      const abort = () => {
+        proxy.destroy(new FixtureCancelled());
+        upstream?.destroy(new FixtureCancelled());
+      };
+      signal.addEventListener('abort', abort, { once: true });
+      proxy.once('error', (error) => {
+        if (
+          (state.drop &&
+            ['ECONNRESET', 'ERR_STREAM_PREMATURE_CLOSE'].includes(
+              (error as NodeJS.ErrnoException).code ?? '',
+            )) ||
+          expectedAbort(error, signal)
+        ) {
+          res.destroy();
+          resolve();
+        } else {
+          reject(error);
+          res.destroy();
+        }
+      });
+      proxy.once('close', () => {
+        proxyRequests.delete(proxy);
+        signal.removeEventListener('abort', abort);
+        resolve();
+      });
+      req.pipe(proxy);
+      if (signal.aborted || scope.closing) abort();
     });
-    req.pipe(proxy);
   });
   const wss = new WebSocketServer({ noServer: true });
+  wssClients = () => sockets.size;
+  const stopWs = () => {
+    for (const socket of sockets) socket.terminate();
+  };
+  scope.transport({
+    label: 'WebSocket close',
+    close: () =>
+      new Promise<void>((resolve, reject) => {
+        wss.close((error) => (error ? reject(error) : resolve()));
+        stopWs();
+      }),
+    force: stopWs,
+  });
   server.on('upgrade', (req, socket, head) => {
     if (
+      scope.closing ||
       req.url !== '/ws' ||
       !state.authenticated ||
       cookieValue(req, 'aionui-webhost-session') !== session
@@ -222,18 +461,8 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
       ws.on('close', () => sockets.delete(ws));
     });
   });
-  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await listen(server, 'WebUI listen');
   const url = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
-  t.after(async () => {
-    for (const socket of sockets) socket.terminate();
-    wss.close();
-    server.closeAllConnections();
-    core.closeAllConnections();
-    await Promise.all([
-      new Promise<void>((resolve) => server.close(() => resolve())),
-      new Promise<void>((resolve) => core.close(() => resolve())),
-    ]);
-  });
   const emit = (event: unknown) => {
     for (const socket of sockets) socket.send(JSON.stringify(event));
   };
@@ -250,15 +479,28 @@ export async function aionFixture(t: Pick<test.TestContext, 'after'>) {
     runtimeToken,
     session,
     emit,
+    scope,
+    close: () => scope.close(),
+    snapshot,
     holdPair: () => {
-      let release!: () => void;
-      pairGate = new Promise<void>((resolve) => {
-        release = () => {
-          pairGate = undefined;
-          resolve();
-        };
-      });
-      return release;
+      const gate = (pairGate = scope.barrier('held Pair'));
+      return Object.assign(
+        () => {
+          if (pairGate === gate) pairGate = undefined;
+          gate.release();
+        },
+        { entered: gate.entered },
+      );
+    },
+    holdProxy: () => {
+      const gate = (proxyGate = scope.barrier('held proxy'));
+      return Object.assign(
+        () => {
+          if (proxyGate === gate) proxyGate = undefined;
+          gate.release();
+        },
+        { entered: gate.entered },
+      );
     },
     context: (chat = 'fixture-chat-a') => ({
       baseUrl: coreUrl,
