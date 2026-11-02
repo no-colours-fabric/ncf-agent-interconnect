@@ -205,7 +205,7 @@ async function launch() {
   await page.getByRole('tab', { name: 'Cursor', exact: true }).waitFor();
   assert.equal(await page.getByRole('tab').count(), 3);
   // The sidebar language selector is outside the MCP setup card.
-  const setupCard = page.getByRole('tablist', { name: 'MCP client', exact: true }).locator('..');
+  const setupCard = page.getByRole('tabpanel').locator('..');
   assert.equal(await setupCard.getByRole('combobox').count(), 0);
   // Read-only bridge calls also confirm that the real app is using the isolated profile.
   const snapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
