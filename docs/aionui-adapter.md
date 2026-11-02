@@ -7,37 +7,56 @@ needs to be copied into a prompt.
 
 ## Set up
 
-1. Install NCF Agent Interconnect and AionUi on the same computer. Start both.
-2. In AionUi, enable **WebUI**, keeping remote access disabled. Obtain its local
-   `http://127.0.0.1:<port>` address and generate a pairing code in AionUi settings.
-3. In NCF, open **Applications → AionUi → MCP setup**. Enter the WebUI address
-   and code, click **Pair**, and approve access in the native AionUi window.
-   The code expires; generate another if approval is not completed in time.
-4. Copy the MCP configuration shown by NCF. Add/import that server through
-   AionUi's MCP settings, preserving other servers. For **Cursor Agent in AionUi**,
-   put the entry in Cursor's global `mcpServers` configuration instead. Replace
-   an existing `ncf_agent_interconnect` entry rather than registering duplicates.
-   This global setting also affects Cursor outside AionUi: the AionUi bridge
-   requires an AionUi runtime and refuses to guess a chat elsewhere. NCF does
-   not write AionUi's database or edit these client settings in this workflow.
-5. Restart the agent inside AionUi so it reloads MCP. In any AionUi chat, write
-   `Connect as agent <a name you choose>.` Each new chat obtains its own context
-   automatically. Never put technical session parameters into the prompt.
-6. Ask another connected agent to send a message to this agent. It appears in
-   the same AionUi chat. No remote peer is required for two agents on one node.
+The supported setup is **Cursor Agent inside AionUi**. Other AionUi backends do
+not yet have a verified setup API or file workflow and are not offered as ready.
 
-The generated command uses the installed NCF runtime and bundled MCP bridge.
-Node.js, npm and the source repository are not required. Keep NCF running and
-installed at the configured location; after moving it, copy the generated
-configuration again. The bridge follows the node descriptor when its port
-changes. If an MCP session expires during a request, reconnect on the next
-request; a failed send must not be repeated automatically.
+1. Install NCF Agent Interconnect and AionUi on the same computer. Start both.
+2. In AionUi, use the account intended for this connection and enable **WebUI**,
+   keeping remote access disabled. Obtain its local
+   `http://127.0.0.1:<port>` address and generate a pairing code in AionUi settings.
+3. In NCF, open **Applications → AionUi → Configure access**. Enter the address
+   and code, click **Pair**, and approve access in the native AionUi window.
+   Cancel abandons the pending request without publishing a new authorization.
+   Generate a new code if approval expires. Authorization saved is not proof
+   that MCP has been installed or connected.
+4. Under **MCP for Cursor Agent**, click **Configure Cursor Agent**. Review the
+   full configuration path or use the system file picker. Opening, checking,
+   changing a path and Cancel do not write a client file. Click **Apply** to
+   install the bundled AionUi bridge in the selected Cursor MCP configuration.
+   Matching settings stay byte-for-byte unchanged; other servers/settings are
+   preserved. Updates create a private backup and remember the selected path.
+5. This replaces an existing NCF entry in that global Cursor file. It also
+   affects Cursor outside AionUi: those chats cannot use this AionUi-only bridge.
+   To preserve another integration, select the configuration of a separate
+   Cursor profile that the agent in AionUi actually uses. The dialog explains
+   this effect before Apply. No JSON/TOML viewer or manual configuration import
+   is used. The system-open icon remains visible for the actual selected file;
+   a missing file is not created merely to open it.
+6. Restart Cursor Agent inside AionUi so it reloads MCP. In any AionUi chat, write
+   `Connect as agent <a name you choose>.` Chat/account context is determined
+   automatically; never enter session IDs or tokens in a prompt. The page
+   distinguishes authorization, saved MCP settings, and a bridge connected to a
+   verified chat. Saved settings alone do not confirm a live connection.
+7. Ask another connected agent to send a message to this agent. It appears in
+   the same AionUi chat. No remote peer is needed for agents on one node.
+
+Apply uses the installed NCF runtime and bundled MCP bridge. Node.js, npm and
+source files are not required. Keep NCF installed at the configured location;
+after moving it, reopen setup and Apply the new path. The bridge follows the
+node descriptor when its port changes. A failed send is never repeated merely
+because an MCP session expired; inspect history before deciding what to send.
 
 ## Behaviour
 
 The bridge reads the current chat and user context inherited from its AionUi
-agent host. The node verifies that context using the runtime API, verifies the
-same chat through the paired WebUI API, and checks the pinned account. It never
+agent host. Runtime proof is requested only through the owner-paired WebUI:
+its frontend cookie passes the WebUI gate, and native runtime headers reach
+that WebUI's own Core. The request excludes Core session/refresh cookies and
+Authorization, forcing Core to verify the runtime token instead of accepting
+the paired JWT. Core and WebUI may use different ports. The environment's Core
+URL is never used as the proof destination; an unrelated loopback server
+cannot attest to a chat. The node also verifies the same chat through the
+ordinary paired API and checks both pinned account identities. It never
 selects the latest chat, searches for a substitute, or asks an agent to infer
 session identifiers. A backend that does not supply native current-chat context
 cannot use automatic delivery through this bridge.
@@ -57,9 +76,13 @@ reconnection or restart. Inspect the exact AionUi transcript and NCF history
 before deciding what to send next.
 
 Pairing credentials are stored privately in the node's user-data directory.
-They are not included in the copied MCP JSON, adapter diagnostics or logs.
+They are not included in the client MCP configuration, renderer instructions,
+adapter diagnostics or logs.
 Native runtime credentials are used only during context registration and are
-not persisted. The refresh cookie is sent only to its own API path.
+not persisted. The refresh cookie is sent only to its own API path. A replacement
+pairing becomes active only after its credentials are durably saved. A failed
+write leaves the previous authorization and binding intact; an initial failed
+write leaves the app unpaired. A new pairing can then be attempted normally.
 
 Logout, revoked access and an account identity mismatch invalidate the saved
 access when observed through an authenticated request or native realtime
@@ -77,14 +100,59 @@ disables local access immediately and attempts normal server-side logout.
 Protocol fixtures cover exact chat/account binding, Unicode and attachment
 preservation, receipt, busy/409 event recovery, transport reconnection, durable
 restart recovery, uncertain admission, logout/revoke, both account identity
-boundaries, and a real stdio MCP bridge process. They use isolated nodes and
+boundaries, and a real stdio MCP bridge process. An integrated Electron scenario uses the
+actual main, preload, renderer and service, synthetic Core/WebUI on separate
+ports, the generated Electron Node-mode bridge, exact-chat delivery and owner
+disconnect. It also rejects setup IPC from a second window. These checks use
+isolated nodes and
 synthetic accounts, not live agents or client configuration files.
 
 Earlier exploratory API experiments used AionUi 2.2.2 with Core 0.2.2 and Cursor
 Agent. They demonstrated owner-approved pairing, HTTP 202/409 and native
-`turn.completed` events. The new bundled bridge and complete setup flow have
-not yet been verified end to end in that installed application. A real account
+`turn.completed` events. The complete setup flow with the installed AionUi application has not yet been
+verified end to end; the integrated Electron check uses synthetic vendor APIs. A real account
 switch was not performed; logout followed by HTTP 401 does not establish account
 switch correctness. Other AionUi versions/backends and native Windows/Linux
 packages require separate verification. This adapter supports desktop-pairing
 WebUI mode on IPv4 loopback; password-mode or remotely hosted WebUI is refused.
+
+## Targeted development checks
+
+After `npm run build`, run
+`node --import tsx scripts/test-desktop-ui-aionui.mjs` for the integrated Electron
+boundary scenario. It creates temporary node and client homes and never starts
+an installed AionUi instance or a real agent.
+
+Runtime-proof and persistence regressions are in `test-desktop/aionui.test.ts`:
+a forged loopback proof server is never contacted; a valid native token reaches
+the paired WebUI's distinct Core without a Core JWT; controlled rename failures
+leave no newly active authorization and successful retries match saved state.
+
+## Supported platform gates
+
+The release targets are macOS Apple Silicon and Windows x64. Both use the
+installed NCF executable, `ELECTRON_RUN_AS_NODE=1`, an absolute bundled helper
+path, and separate argument elements. No shell command, manual path quoting,
+source checkout or system Node is required by the product configuration.
+Paths are built with `fileURLToPath` and `path.join`; never treat a file URL's
+pathname as a Windows filesystem path. The default Cursor file is
+`~/.cursor/mcp.json` on both platforms and can be changed with the owner picker.
+Project/profile overrides must point to the file actually used by Cursor Agent.
+
+Before marking a native target ready, run the installed executable directly
+against its own `app.asar/build/integrations/aionui.js` and production
+dependencies (`Contents/Resources` on macOS, `resources` on Windows), from a
+real directory outside the checkout. An extracted helper
+or external verification script is not this test. Preserve Electron's RunAsNode
+fuse. Check install/user-data paths containing spaces, Cyrillic and CJK, the
+stdio handshake, exact synthetic chats, missing-context errors without secrets,
+and unchanged client files outside Apply. GUI test launches must delete an
+inherited `ELECTRON_RUN_AS_NODE`; helper launches must explicitly set it to `1`.
+
+The real AionUi → Cursor Agent → MCP-helper environment chain remains a separate
+vendor integration gate on both platforms. A backend may filter inherited
+variables; a configured RunAsNode override does not prove that the four AionUi
+context variables survived. Never persist the runtime token in the client file
+or fall back to another chat. The synthetic spawn check injects per-chat host
+context and does not establish this vendor chain. No Windows installed AionUi
+helper, real account-switch or native release package PASS is claimed here.

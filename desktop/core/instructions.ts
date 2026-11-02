@@ -5,8 +5,19 @@ export function mcpInstructions(
   token: string,
   client: string,
   openCodePlugin: string,
+  aionConfiguration?: string,
 ): McpInstructions {
   const testPrompt = 'Connect as agent <a name you choose>.';
+  if (client === 'aionui') {
+    if (!aionConfiguration) throw new Error('The AionUi bridge configuration is unavailable.');
+    return {
+      client,
+      location: 'Cursor Agent global MCP configuration',
+      text: 'Apply configures the AionUi bridge in the selected Cursor file. This replaces an existing NCF entry and affects Cursor outside AionUi. Use a separate profile to preserve another integration.',
+      configuration: aionConfiguration,
+      testPrompt,
+    };
+  }
   if (client === 'codex')
     return {
       client,

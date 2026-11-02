@@ -50,16 +50,23 @@ or ambiguous, the app reports the condition and does not select another chat.
 
 ## AionUi
 
-Choose AionUi to pair through its local WebUI with native owner confirmation.
-Copy its generated MCP bridge configuration into the client and restart the
-agent in AionUi. The host supplies the current chat automatically; the node
-verifies that chat and the paired account before admitting messages. This flow
-does not edit client files. See [AionUi setup and limits](aionui-adapter.md).
+The supported setup is Cursor Agent inside AionUi. Choose AionUi and configure
+access through its local WebUI with native owner confirmation. Separately open
+Configure Cursor Agent and Apply the AionUi bridge to the selected real Cursor
+configuration file. The dialog explains replacement of an existing NCF entry
+and the global impact outside AionUi before writing. Other settings survive;
+matching entries are not rewritten. The selected path is remembered and its
+system-open action remains visible. No configuration contents are shown.
+
+Restart Cursor Agent in AionUi and connect an agent using the command below the
+card. Authorization, saved settings and a live exact-chat bridge are separate
+states. Other AionUi backends are not yet supported by setup. See
+[AionUi setup and limits](aionui-adapter.md).
 
 ## Other clients
 
 Existing compatible Streamable HTTP MCP clients continue to support exchange and
-history. File-based Apply is available for Cursor, OpenCode v1 and Codex. AionUi has a separate pairing and manual MCP-import flow. Automatic
+history. File-based Apply is available for Cursor, OpenCode v1, Codex and Cursor Agent in AionUi. Automatic
 wake-up requires a client adapter.
 
 In any configured chat, choose a name with `Connect as agent Researcher.` The

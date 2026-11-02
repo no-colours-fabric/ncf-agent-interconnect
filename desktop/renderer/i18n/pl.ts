@@ -1,10 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Most niepołączony ze zweryfikowanym czatem',
+
+  mcpSetup_aionBridgeConnected: 'Most połączony ze zweryfikowanym czatem',
+
+  mcpSetup_aionConfigure: 'Skonfiguruj Cursor Agent',
+
+  mcpSetup_aionConfigureAccess: 'Skonfiguruj dostęp',
+
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
-    'Dostarczanie wiadomości do dokładnego czatu AionUi i sparowanego konta.',
-  mcpSetup_aionPairTitle: '1. Sparuj AionUi',
+    'Połącz Cursor Agent w AionUi. Dostęp, zapisane ustawienia MCP i aktywny most to osobne stany.',
+  mcpSetup_aionPairTitle: 'Dostęp do AionUi',
   mcpSetup_aionPairHelp:
     'Włącz WebUI w AionUi na tym komputerze, wpisz adres i kod, a następnie potwierdź dostęp w AionUi.',
   mcpSetup_aionAddress: 'Adres WebUI AionUi',
@@ -12,18 +20,16 @@ export const pl: Messages = {
   mcpSetup_aionPair: 'Sparuj',
   mcpSetup_aionDisconnect: 'Rozłącz',
   mcpSetup_aionConfirm: 'Potwierdź dostęp w AionUi.',
-  mcpSetup_aionPaired: 'Sparowano',
+  mcpSetup_aionPaired: 'Dostęp zapisany',
   mcpSetup_aionRevoked: 'Dostęp zakończony',
   mcpSetup_aionNotPaired: 'Nie sparowano',
   mcpSetup_aionFailure:
     'Nie udało się skonfigurować. Sprawdź, czy WebUI AionUi działa, i potwierdź nowy kod.',
-  mcpSetup_aionMcpTitle: '2. Połącz MCP',
+  mcpSetup_aionMcpTitle: 'MCP dla Cursor Agent',
   mcpSetup_aionMcpHelp:
-    'Zaimportuj ten serwer w ustawieniach MCP AionUi. Dla Cursor Agent wklej go do globalnej konfiguracji MCP Cursor. Zachowaj inne serwery. NCF nie zmienia tych ustawień.',
-  mcpSetup_aionCopy: 'Kopiuj konfigurację MCP',
-  mcpSetup_aionCopied: 'Skopiowano',
+    'Zastosuj instaluje most AionUi w wybranym globalnym pliku Cursor i zastępuje istniejący wpis NCF. Wpływa to też na Cursor poza AionUi: te czaty nie mogą używać mostu. Użyj osobnego profilu, aby zachować inną integrację.',
   mcpSetup_aionNext:
-    'Uruchom ponownie agenta w AionUi i użyj instrukcji poniżej. Bieżący czat jest wykrywany automatycznie. Agenty bez kontekstu bieżącego czatu nie mogą się połączyć.',
+    'Po zastosowaniu uruchom ponownie Cursor Agent w AionUi i użyj polecenia poniżej. Zapisane ustawienia nie potwierdzają aktywnego mostu. Ta konfiguracja nie obsługuje innych backendów AionUi.',
 
   agentsColumnMessages: 'Wiadomości',
   mcpSetup_tabsLabel: 'Klient MCP',

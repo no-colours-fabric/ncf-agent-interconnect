@@ -1,10 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const uk: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Міст не підключено до перевіреного чату',
+
+  mcpSetup_aionBridgeConnected: 'Міст підключено до перевіреного чату',
+
+  mcpSetup_aionConfigure: 'Налаштувати Cursor Agent',
+
+  mcpSetup_aionConfigureAccess: 'Налаштувати доступ',
+
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
-    'Доставка повідомлень у точний чат AionUi з прив’язкою до сполученого облікового запису.',
-  mcpSetup_aionPairTitle: '1. Сполучення з AionUi',
+    'Підключення Cursor Agent усередині AionUi. Доступ, збережені налаштування MCP та активний міст — окремі стани.',
+  mcpSetup_aionPairTitle: 'Доступ до AionUi',
   mcpSetup_aionPairHelp:
     'Увімкніть WebUI в AionUi на цьому комп’ютері, введіть адресу та код, а потім підтвердьте доступ у AionUi.',
   mcpSetup_aionAddress: 'Адреса WebUI AionUi',
@@ -12,18 +20,16 @@ export const uk: Messages = {
   mcpSetup_aionPair: 'Сполучити',
   mcpSetup_aionDisconnect: 'Від’єднати',
   mcpSetup_aionConfirm: 'Підтвердьте доступ у AionUi.',
-  mcpSetup_aionPaired: 'Сполучено',
+  mcpSetup_aionPaired: 'Доступ збережено',
   mcpSetup_aionRevoked: 'Доступ припинено',
   mcpSetup_aionNotPaired: 'Не сполучено',
   mcpSetup_aionFailure:
     'Налаштування не завершено. Перевірте роботу WebUI AionUi та підтвердьте новий код.',
-  mcpSetup_aionMcpTitle: '2. Підключення MCP',
+  mcpSetup_aionMcpTitle: 'MCP для Cursor Agent',
   mcpSetup_aionMcpHelp:
-    'Імпортуйте цей сервер у налаштуваннях MCP AionUi. Для Cursor Agent вставте його у глобальну конфігурацію MCP Cursor. Збережіть інші сервери. NCF не змінює ці налаштування.',
-  mcpSetup_aionCopy: 'Копіювати конфігурацію MCP',
-  mcpSetup_aionCopied: 'Скопійовано',
+    'Застосування встановить міст AionUi у вибраний глобальний файл Cursor і замінить наявний запис NCF. Це також вплине на Cursor поза AionUi: такі чати не зможуть використовувати міст. Для збереження іншої інтеграції скористайтеся окремим профілем.',
   mcpSetup_aionNext:
-    'Перезапустіть агента в AionUi та скористайтеся командою нижче. Поточний чат визначається автоматично. Агенти без контексту поточного чату не зможуть підключитися.',
+    'Після застосування перезапустіть Cursor Agent в AionUi та скористайтеся командою нижче. Наявність налаштувань не підтверджує підключення мосту. Інші backend AionUi цим налаштуванням не підтримуються.',
 
   agentsColumnMessages: 'Повідомлення',
   mcpSetup_tabsLabel: 'MCP-клієнт',

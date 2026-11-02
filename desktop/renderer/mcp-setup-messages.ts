@@ -1,6 +1,15 @@
 export const mcpSetupEnglish = {
-  aionDescription: 'Deliver messages to the exact AionUi chat and paired account.',
-  aionPairTitle: '1. Pair AionUi',
+  aionBridgeDisconnected: 'Bridge not connected to a verified chat',
+
+  aionBridgeConnected: 'Bridge connected to a verified chat',
+
+  aionConfigure: 'Configure Cursor Agent',
+
+  aionConfigureAccess: 'Configure access',
+
+  aionDescription:
+    'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
+  aionPairTitle: 'Access to AionUi',
   aionPairHelp:
     'Enable WebUI in AionUi on this computer, enter its address and pairing code, then confirm access in AionUi.',
   aionAddress: 'AionUi WebUI address',
@@ -8,18 +17,16 @@ export const mcpSetupEnglish = {
   aionPair: 'Pair',
   aionDisconnect: 'Disconnect',
   aionConfirm: 'Confirm access in AionUi.',
-  aionPaired: 'Paired',
+  aionPaired: 'Authorization saved',
   aionRevoked: 'Access ended',
   aionNotPaired: 'Not paired',
   aionFailure:
     'Could not complete setup. Check that AionUi WebUI is running and approve a fresh pairing code.',
-  aionMcpTitle: '2. Connect MCP',
+  aionMcpTitle: 'MCP for Cursor Agent',
   aionMcpHelp:
-    'Import this server in AionUi MCP settings. For Cursor Agent, paste it into Cursor’s global MCP configuration. Keep other servers. NCF does not edit these settings.',
-  aionCopy: 'Copy MCP configuration',
-  aionCopied: 'Copied',
+    'Apply installs the AionUi bridge in the selected global Cursor file and replaces any existing NCF entry. This also affects Cursor outside AionUi: those chats cannot use this bridge. Use a separate profile to preserve another integration.',
   aionNext:
-    'Restart the agent in AionUi, then use the connection prompt below. The current chat is detected automatically. Agents without current-chat context cannot connect.',
+    'Restart Cursor Agent in AionUi after Apply, then connect using the command below. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
 
   tabsLabel: 'MCP client',
   userControl:

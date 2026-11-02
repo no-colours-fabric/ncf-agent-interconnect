@@ -1,9 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  mcpSetup_aionBridgeDisconnected: '브리지가 검증된 채팅에 연결되지 않음',
+
+  mcpSetup_aionBridgeConnected: '브리지가 검증된 채팅에 연결됨',
+
+  mcpSetup_aionConfigure: 'Cursor Agent 설정',
+
+  mcpSetup_aionConfigureAccess: '접근 설정',
+
   clientsKindAionui: 'AionUi',
-  mcpSetup_aionDescription: '페어링된 계정의 정확한 AionUi 채팅에 메시지를 전달합니다.',
-  mcpSetup_aionPairTitle: '1. AionUi 페어링',
+  mcpSetup_aionDescription:
+    'AionUi 안에서 Cursor Agent를 연결합니다. 접근, 저장된 MCP 설정, 활성 브리지는 별도 상태입니다.',
+  mcpSetup_aionPairTitle: 'AionUi 접근',
   mcpSetup_aionPairHelp:
     '이 컴퓨터의 AionUi에서 WebUI를 활성화하고 주소와 코드를 입력한 뒤 AionUi에서 접근을 승인하세요.',
   mcpSetup_aionAddress: 'AionUi WebUI 주소',
@@ -11,18 +20,16 @@ export const ko: Messages = {
   mcpSetup_aionPair: '페어링',
   mcpSetup_aionDisconnect: '연결 해제',
   mcpSetup_aionConfirm: 'AionUi에서 접근을 승인하세요.',
-  mcpSetup_aionPaired: '페어링됨',
+  mcpSetup_aionPaired: '접근 저장됨',
   mcpSetup_aionRevoked: '접근 종료',
   mcpSetup_aionNotPaired: '페어링 안 됨',
   mcpSetup_aionFailure:
     '설정을 완료할 수 없습니다. AionUi WebUI가 실행 중인지 확인하고 새 코드를 승인하세요.',
-  mcpSetup_aionMcpTitle: '2. MCP 연결',
+  mcpSetup_aionMcpTitle: 'Cursor Agent용 MCP',
   mcpSetup_aionMcpHelp:
-    'AionUi MCP 설정에서 이 서버를 가져오세요. Cursor Agent는 Cursor 전역 MCP 설정에 붙여 넣으세요. 다른 서버는 유지하세요. NCF는 이 설정을 변경하지 않습니다.',
-  mcpSetup_aionCopy: 'MCP 설정 복사',
-  mcpSetup_aionCopied: '복사됨',
+    '적용하면 선택한 Cursor 전역 파일에 AionUi 브리지를 설정하고 기존 NCF 항목을 대체합니다. AionUi 외부 Cursor에도 영향을 주며 해당 채팅은 이 브리지를 사용할 수 없습니다. 다른 연동을 유지하려면 별도 프로필을 사용하세요.',
   mcpSetup_aionNext:
-    'AionUi에서 에이전트를 재시작한 뒤 아래 연결 지시를 사용하세요. 현재 채팅은 자동 감지됩니다. 현재 채팅 정보를 제공하지 않는 에이전트는 연결할 수 없습니다.',
+    '적용 후 AionUi 안의 Cursor Agent를 재시작하고 아래 명령을 사용하세요. 저장된 설정은 활성 브리지를 확인하지 않습니다. 이 설정은 다른 AionUi 백엔드를 지원하지 않습니다.',
 
   agentsColumnMessages: '메시지',
   mcpSetup_tabsLabel: 'MCP 클라이언트',

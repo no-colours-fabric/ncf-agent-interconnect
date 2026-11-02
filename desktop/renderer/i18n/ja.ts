@@ -1,10 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'ブリッジは検証済みチャットに未接続',
+
+  mcpSetup_aionBridgeConnected: 'ブリッジは検証済みチャットに接続済み',
+
+  mcpSetup_aionConfigure: 'Cursor Agentを設定',
+
+  mcpSetup_aionConfigureAccess: 'アクセスを設定',
+
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
-    'ペアリング済みアカウントの正確なAionUiチャットにメッセージを配信します。',
-  mcpSetup_aionPairTitle: '1. AionUiをペアリング',
+    'AionUi内のCursor Agentを接続します。アクセス、保存済みMCP設定、稼働中のブリッジは別の状態です。',
+  mcpSetup_aionPairTitle: 'AionUiへのアクセス',
   mcpSetup_aionPairHelp:
     'このコンピューターのAionUiでWebUIを有効にし、アドレスとコードを入力して、AionUiでアクセスを承認してください。',
   mcpSetup_aionAddress: 'AionUi WebUIアドレス',
@@ -12,18 +20,16 @@ export const ja: Messages = {
   mcpSetup_aionPair: 'ペアリング',
   mcpSetup_aionDisconnect: '切断',
   mcpSetup_aionConfirm: 'AionUiでアクセスを承認してください。',
-  mcpSetup_aionPaired: 'ペアリング済み',
+  mcpSetup_aionPaired: 'アクセスを保存済み',
   mcpSetup_aionRevoked: 'アクセス終了',
   mcpSetup_aionNotPaired: '未ペアリング',
   mcpSetup_aionFailure:
     '設定を完了できませんでした。AionUi WebUIの起動を確認し、新しいコードを承認してください。',
-  mcpSetup_aionMcpTitle: '2. MCPを接続',
+  mcpSetup_aionMcpTitle: 'Cursor Agent用MCP',
   mcpSetup_aionMcpHelp:
-    'AionUiのMCP設定にこのサーバーをインポートしてください。Cursor Agentの場合はCursorのグローバルMCP設定に貼り付けてください。他のサーバーは保持してください。NCFはこれらの設定を変更しません。',
-  mcpSetup_aionCopy: 'MCP設定をコピー',
-  mcpSetup_aionCopied: 'コピー済み',
+    '適用すると、選択したCursorのグローバルファイルにAionUiブリッジを設定し、既存のNCF項目を置き換えます。AionUi外のCursorにも影響し、それらのチャットはこのブリッジを使用できません。他の連携を維持するには別のプロファイルを使用してください。',
   mcpSetup_aionNext:
-    'AionUiでエージェントを再起動し、以下の接続指示を使用してください。現在のチャットは自動検出されます。現在のチャット情報を提供しないエージェントは接続できません。',
+    '適用後にAionUi内のCursor Agentを再起動し、以下のコマンドを使用してください。保存済み設定はブリッジの稼働を保証しません。この設定は他のAionUiバックエンドをサポートしません。',
 
   agentsColumnMessages: 'メッセージ',
   mcpSetup_tabsLabel: 'MCPクライアント',

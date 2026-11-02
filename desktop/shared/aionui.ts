@@ -3,6 +3,9 @@ export interface AionUiSetupState {
   url: string;
 }
 export interface AionUiSetupInstructions {
-  configuration: string;
   testPrompt: string;
+}
+
+export interface AionUiApplicationState extends AionUiSetupState {
+  bridgeConnected: boolean;
 }

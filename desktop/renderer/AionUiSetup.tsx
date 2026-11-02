@@ -1,155 +1,225 @@
-import React, { useEffect, useState } from 'react';
-import { Alert, Button, Chip, Paper, Stack, TextField, Typography } from '@mui/material';
-import type { AionUiSetupInstructions, AionUiSetupState } from '../shared/aionui.js';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import type { AionUiApplicationState } from '../shared/aionui.js';
 import type { McpSetupInvoke } from '../shared/mcp-setup.js';
 import type { McpSetupMessages } from './mcp-setup-messages.js';
 
-export function AionUiSetup({
+export function AionUiAuthorization({
   invoke,
   messages: m,
 }: {
   invoke: McpSetupInvoke;
   messages: McpSetupMessages;
 }): React.JSX.Element {
-  const [status, setStatus] = useState<AionUiSetupState>();
-  const [configuration, setConfiguration] = useState('');
+  const [status, setStatus] = useState<AionUiApplicationState>();
   const [url, setUrl] = useState('http://127.0.0.1:25808');
   const [code, setCode] = useState('');
+  const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const revision = useRef(0);
+  const pending = useRef(false);
   useEffect(() => {
     let active = true;
-    void Promise.all([
-      invoke<AionUiSetupState>('aionUiStatus'),
-      invoke<AionUiSetupInstructions>('aionUiInstructions'),
-    ])
-      .then(([state, instructions]) => {
-        if (active) {
-          setStatus(state);
-          setUrl(state.url);
-          setConfiguration(instructions.configuration);
-        }
-      })
-      .catch(() => {
-        if (active) setError(true);
-      });
-    const off = window.interconnect.onChange(() => {
-      void invoke<AionUiSetupState>('aionUiStatus')
+    const refresh = () => {
+      void invoke<AionUiApplicationState>('aionUiStatus')
         .then((state) => {
           if (active) setStatus(state);
         })
         .catch(() => {
           if (active) setError(true);
         });
-    });
+    };
+    refresh();
+    const off = window.interconnect.onChange(refresh);
     return () => {
       active = false;
+      revision.current++;
+      if (pending.current) void invoke('aionUiCancelPair').catch(() => {});
       off();
     };
   }, [invoke]);
-  const perform = async (method: 'aionUiPair' | 'aionUiDisconnect') => {
+  const cancel = () => {
+    revision.current++;
+    if (pending.current) void invoke('aionUiCancelPair').catch(() => {});
+    pending.current = false;
+    setCode('');
+    setOpen(false);
+    setBusy(false);
+    setError(false);
+  };
+  const pair = async () => {
+    const current = ++revision.current;
     setBusy(true);
+    pending.current = true;
     setError(false);
     const input = { url, code };
     setCode('');
     try {
-      setStatus(await invoke<AionUiSetupState>(method, method === 'aionUiPair' ? input : {}));
+      await invoke('aionUiPair', input);
+      const state = await invoke<AionUiApplicationState>('aionUiStatus');
+      if (current === revision.current) {
+        setStatus(state);
+        setSuccess(true);
+      }
     } catch {
-      setError(true);
+      if (current === revision.current) setError(true);
     } finally {
-      setBusy(false);
+      if (current === revision.current) {
+        pending.current = false;
+        setBusy(false);
+      }
     }
   };
   return (
-    <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 3 } }} data-testid="aionui-setup">
-      <Stack
-        direction="row"
-        spacing={2}
-        sx={{ alignItems: 'center', justifyContent: 'space-between' }}
-      >
-        <Typography variant="h6" component="h2">
-          AionUi
-        </Typography>
-        <Chip
-          label={
-            !status
-              ? m.checking
-              : status.state === 'paired'
-                ? m.aionPaired
-                : status.state === 'revoked'
-                  ? m.aionRevoked
-                  : m.aionNotPaired
-          }
-          color={status?.state === 'paired' ? 'success' : 'default'}
-        />
-      </Stack>
-      <Typography variant="body2">{m.aionDescription}</Typography>
-      <Typography variant="subtitle2" component="h3">
-        {m.aionPairTitle}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {m.aionPairHelp}
-      </Typography>
-      <TextField
-        label={m.aionAddress}
-        value={url}
-        disabled={busy}
-        onChange={(e) => setUrl(e.target.value)}
-        fullWidth
-      />
-      <TextField
-        label={m.aionCode}
-        type="password"
-        autoComplete="off"
-        value={code}
-        disabled={busy}
-        onChange={(e) => setCode(e.target.value)}
-        fullWidth
-        slotProps={{ htmlInput: { maxLength: 100 } }}
-      />
-      <Stack direction="row" spacing={1}>
-        <Button
-          variant="contained"
-          disabled={busy || !code.trim() || !url.trim()}
-          onClick={() => void perform('aionUiPair')}
-        >
-          {m.aionPair}
-        </Button>
-        {status?.state === 'paired' && (
-          <Button disabled={busy} onClick={() => void perform('aionUiDisconnect')}>
-            {m.aionDisconnect}
-          </Button>
-        )}
-      </Stack>
-      {busy && <Alert severity="info">{m.aionConfirm}</Alert>}
-      {error && <Alert severity="error">{m.aionFailure}</Alert>}
+    <Stack spacing={2}>
+      <Paper variant="outlined" sx={{ p: 2 }} data-testid="aionui-authorization">
+        <Stack spacing={1.5}>
+          <Stack
+            direction="row"
+            spacing={2}
+            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+          >
+            <Typography variant="subtitle2" component="h3">
+              {m.aionPairTitle}
+            </Typography>
+            <Chip
+              size="small"
+              label={
+                !status
+                  ? m.checking
+                  : status.state === 'paired'
+                    ? m.aionPaired
+                    : status.state === 'revoked'
+                      ? m.aionRevoked
+                      : m.aionNotPaired
+              }
+              color={status?.state === 'paired' ? 'success' : 'default'}
+              data-testid="aionui-authorization-status"
+            />
+          </Stack>
+          <Typography variant="body2" color="text.secondary">
+            {m.aionPairHelp}
+          </Typography>
+          {status?.state === 'paired' && (
+            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+              {status.url}
+            </Typography>
+          )}
+          <Typography variant="body2" data-testid="aionui-bridge-status">
+            {status?.bridgeConnected ? m.aionBridgeConnected : m.aionBridgeDisconnected}
+          </Typography>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              data-testid="aionui-configure-access"
+              onClick={() => {
+                setUrl(status?.url ?? url);
+                setCode('');
+                setError(false);
+                setSuccess(false);
+                setOpen(true);
+              }}
+            >
+              {m.aionConfigureAccess}
+            </Button>
+            {status?.state === 'paired' && (
+              <Button
+                onClick={() => {
+                  void invoke('aionUiDisconnect')
+                    .then(() => invoke<AionUiApplicationState>('aionUiStatus'))
+                    .then(setStatus)
+                    .catch(() => setError(true));
+                }}
+              >
+                {m.aionDisconnect}
+              </Button>
+            )}
+          </Stack>
+          {error && !open && <Alert severity="error">{m.aionFailure}</Alert>}
+        </Stack>
+      </Paper>
       <Typography variant="subtitle2" component="h3">
         {m.aionMcpTitle}
       </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {m.aionMcpHelp}
-      </Typography>
-      <Paper variant="outlined" sx={{ p: 2, overflow: 'auto' }}>
-        <Typography
-          component="pre"
-          variant="body2"
-          sx={{ m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-        >
-          {configuration}
-        </Typography>
-      </Paper>
-      <Button
-        disabled={!configuration}
-        onClick={() => {
-          void invoke('copy', { text: configuration })
-            .then(() => setCopied(true))
-            .catch(() => setError(true));
-        }}
+      <Dialog
+        open={open}
+        onClose={cancel}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="aionui-access-title"
+        slotProps={{ paper: { sx: { height: 'min(520px, calc(100dvh - 64px))' } } }}
       >
-        {copied ? m.aionCopied : m.aionCopy}
-      </Button>
-      <Alert severity="info">{m.aionNext}</Alert>
+        <DialogTitle id="aionui-access-title">{m.aionPairTitle}</DialogTitle>
+        <DialogContent sx={{ scrollbarGutter: 'stable' }}>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            <Typography>{m.aionPairHelp}</Typography>
+            <TextField
+              label={m.aionAddress}
+              value={url}
+              disabled={busy || success}
+              onChange={(event) => setUrl(event.target.value)}
+              fullWidth
+              slotProps={{ htmlInput: { 'data-testid': 'aionui-address' } }}
+            />
+            <TextField
+              label={m.aionCode}
+              type="password"
+              autoComplete="off"
+              value={code}
+              disabled={busy || success}
+              onChange={(event) => setCode(event.target.value)}
+              fullWidth
+              slotProps={{ htmlInput: { maxLength: 100, 'data-testid': 'aionui-code' } }}
+            />
+            <Box sx={{ minHeight: 72 }} aria-live="polite">
+              {error && <Alert severity="error">{m.aionFailure}</Alert>}
+              {success && <Alert severity="success">{m.aionPaired}</Alert>}
+            </Box>
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ minHeight: 56, gap: 1, flexShrink: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ flex: 1, minWidth: 0, height: 24, alignItems: 'center' }}
+            role="status"
+            aria-live="polite"
+            data-testid="aionui-pair-progress"
+            data-busy={busy}
+          >
+            <Box sx={{ width: 20, height: 20 }}>{busy && <CircularProgress size={18} />}</Box>
+            <Typography variant="body2" noWrap>
+              {busy ? m.aionConfirm : ''}
+            </Typography>
+          </Stack>
+          <Button onClick={cancel}>{success ? m.close : m.cancel}</Button>
+          {!success && (
+            <Button
+              variant="contained"
+              disabled={busy || !code.trim() || !url.trim()}
+              onClick={() => void pair()}
+            >
+              {m.aionPair}
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

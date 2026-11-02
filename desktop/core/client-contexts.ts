@@ -150,7 +150,7 @@ export class ClientContexts {
       .safeParse(raw);
     if (!parsed.success) throw new AionUiError('The AionUi runtime context is invalid.');
     const input = parsed.data;
-    const baseUrl = aionUrl(input.baseUrl);
+    aionUrl(input.baseUrl);
     const work = this.setup.then(async () => {
       const connection = this.service.aionui.current();
       await this.service.aionui.verify(connection.id);
@@ -158,20 +158,7 @@ export class ClientContexts {
       if (input.userId !== access.userId)
         throw new AionUiError('This AionUi account has not been paired.');
       const route = '/api/conversations/' + encodeURIComponent(input.sessionId);
-      let runtime: Response;
-      try {
-        runtime = await fetch(baseUrl + route, {
-          headers: {
-            'x-aionui-runtime-token': input.runtimeToken,
-            'x-aionui-user-id': input.userId,
-            'x-aionui-conversation-id': input.sessionId,
-          },
-          redirect: 'error',
-          signal: AbortSignal.any([access.signal, AbortSignal.timeout(5000)]),
-        });
-      } catch {
-        throw new AionUiError('The AionUi runtime could not be verified.');
-      }
+      const runtime = await access.http.runtimeProof(route, input, access.signal);
       const native = conversationSchema.safeParse(await aionJson(runtime));
       if (!runtime.ok || !native.success || native.data.data.id !== input.sessionId)
         throw new AionUiError('The AionUi runtime could not be verified.');

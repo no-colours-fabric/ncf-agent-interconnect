@@ -1,10 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Bridge niet verbonden met een geverifieerde chat',
+
+  mcpSetup_aionBridgeConnected: 'Bridge verbonden met een geverifieerde chat',
+
+  mcpSetup_aionConfigure: 'Cursor Agent instellen',
+
+  mcpSetup_aionConfigureAccess: 'Toegang instellen',
+
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
-    'Berichten afleveren aan de exacte AionUi-chat en het gekoppelde account.',
-  mcpSetup_aionPairTitle: '1. AionUi koppelen',
+    'Verbind Cursor Agent in AionUi. Toegang, opgeslagen MCP-instellingen en een actieve bridge zijn aparte toestanden.',
+  mcpSetup_aionPairTitle: 'Toegang tot AionUi',
   mcpSetup_aionPairHelp:
     'Schakel WebUI in AionUi op deze computer in, voer adres en koppelcode in en bevestig toegang in AionUi.',
   mcpSetup_aionAddress: 'AionUi-WebUI-adres',
@@ -12,18 +20,16 @@ export const nl: Messages = {
   mcpSetup_aionPair: 'Koppelen',
   mcpSetup_aionDisconnect: 'Verbinding verbreken',
   mcpSetup_aionConfirm: 'Bevestig toegang in AionUi.',
-  mcpSetup_aionPaired: 'Gekoppeld',
+  mcpSetup_aionPaired: 'Toegang opgeslagen',
   mcpSetup_aionRevoked: 'Toegang beëindigd',
   mcpSetup_aionNotPaired: 'Niet gekoppeld',
   mcpSetup_aionFailure:
     'Instellen mislukt. Controleer of AionUi WebUI actief is en bevestig een nieuwe code.',
-  mcpSetup_aionMcpTitle: '2. MCP verbinden',
+  mcpSetup_aionMcpTitle: 'MCP voor Cursor Agent',
   mcpSetup_aionMcpHelp:
-    'Importeer deze server in de MCP-instellingen van AionUi. Plak deze voor Cursor Agent in de globale MCP-configuratie van Cursor. Behoud andere servers. NCF wijzigt deze instellingen niet.',
-  mcpSetup_aionCopy: 'MCP-configuratie kopiëren',
-  mcpSetup_aionCopied: 'Gekopieerd',
+    'Toepassen installeert de AionUi-bridge in het gekozen globale Cursor-bestand en vervangt een bestaande NCF-vermelding. Dit raakt ook Cursor buiten AionUi: die chats kunnen deze bridge niet gebruiken. Gebruik een apart profiel om een andere integratie te behouden.',
   mcpSetup_aionNext:
-    'Herstart de agent in AionUi en gebruik de verbindingsinstructie hieronder. De huidige chat wordt automatisch gedetecteerd. Agents zonder context van de huidige chat kunnen niet verbinden.',
+    'Herstart Cursor Agent in AionUi na toepassen en gebruik het onderstaande commando. Opgeslagen instellingen bevestigen geen actieve bridge. Andere AionUi-backends worden niet ondersteund door deze instelling.',
 
   agentsColumnMessages: 'Berichten',
   mcpSetup_tabsLabel: 'MCP-client',

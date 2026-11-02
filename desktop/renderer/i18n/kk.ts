@@ -1,10 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Көпір тексерілген чатқа қосылмаған',
+
+  mcpSetup_aionBridgeConnected: 'Көпір тексерілген чатқа қосылған',
+
+  mcpSetup_aionConfigure: 'Cursor Agent баптау',
+
+  mcpSetup_aionConfigureAccess: 'Қол жеткізуді баптау',
+
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
-    'Хабарларды нақты AionUi чатына және жұпталған есептік жазбаға жеткізу.',
-  mcpSetup_aionPairTitle: '1. AionUi жұптау',
+    'AionUi ішіндегі Cursor Agent қосу. Қол жеткізу, сақталған MCP баптаулары және белсенді көпір — бөлек күйлер.',
+  mcpSetup_aionPairTitle: 'AionUi қол жеткізуі',
   mcpSetup_aionPairHelp:
     'Осы компьютердегі AionUi ішінде WebUI қосып, мекенжай мен кодты енгізіңіз, содан кейін AionUi ішінде қол жеткізуді растаңыз.',
   mcpSetup_aionAddress: 'AionUi WebUI мекенжайы',
@@ -12,17 +20,15 @@ export const kk: Messages = {
   mcpSetup_aionPair: 'Жұптау',
   mcpSetup_aionDisconnect: 'Ажырату',
   mcpSetup_aionConfirm: 'AionUi ішінде қол жеткізуді растаңыз.',
-  mcpSetup_aionPaired: 'Жұпталған',
+  mcpSetup_aionPaired: 'Қол жеткізу сақталды',
   mcpSetup_aionRevoked: 'Қол жеткізу тоқтатылды',
   mcpSetup_aionNotPaired: 'Жұпталмаған',
   mcpSetup_aionFailure: 'Баптау аяқталмады. AionUi WebUI жұмысын тексеріп, жаңа кодты растаңыз.',
-  mcpSetup_aionMcpTitle: '2. MCP қосу',
+  mcpSetup_aionMcpTitle: 'Cursor Agent үшін MCP',
   mcpSetup_aionMcpHelp:
-    'Бұл серверді AionUi MCP баптауларына импорттаңыз. Cursor Agent үшін Cursor жаһандық MCP конфигурациясына қойыңыз. Басқа серверлерді сақтаңыз. NCF бұл баптауларды өзгертпейді.',
-  mcpSetup_aionCopy: 'MCP конфигурациясын көшіру',
-  mcpSetup_aionCopied: 'Көшірілді',
+    'Қолдану таңдалған Cursor жаһандық файлына AionUi көпірін орнатып, бар NCF жазбасын ауыстырады. Бұл AionUi сыртындағы Cursor чатына да әсер етеді: олар көпірді қолдана алмайды. Басқа интеграцияны сақтау үшін бөлек профильді қолданыңыз.',
   mcpSetup_aionNext:
-    'AionUi ішіндегі агентті қайта іске қосып, төмендегі қосылу нұсқауын пайдаланыңыз. Ағымдағы чат автоматты анықталады. Ағымдағы чат контексті жоқ агенттер қосыла алмайды.',
+    'Қолданған соң AionUi ішіндегі Cursor Agent қайта іске қосып, төмендегі пәрменді пайдаланыңыз. Сақталған баптаулар белсенді көпірді растамайды. Бұл баптау басқа AionUi backend түрлерін қолдамайды.',
 
   agentsColumnMessages: 'Хабарламалар',
   mcpSetup_tabsLabel: 'MCP клиенті',

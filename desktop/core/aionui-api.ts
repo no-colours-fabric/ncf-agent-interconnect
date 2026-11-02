@@ -46,10 +46,11 @@ export const cookieSchema = z
 export type AionCookie = z.infer<typeof cookieSchema>;
 export class AionCookies {
   constructor(private values: AionCookie[] = []) {}
-  header(route: string): string {
+  header(route: string, names?: readonly string[]): string {
     return this.values
       .filter(
         (c) =>
+          (!names || names.includes(c.name)) &&
           (!c.expires || c.expires > Date.now()) &&
           (route === c.path || route.startsWith(c.path.endsWith('/') ? c.path : c.path + '/')),
       )
@@ -136,6 +137,32 @@ export class AionHttp {
     private readonly changed: () => Promise<void> = async () => {},
   ) {
     this.url = aionUrl(url);
+  }
+  async runtimeProof(
+    route: string,
+    context: { runtimeToken: string; userId: string; sessionId: string },
+    signal: AbortSignal,
+  ): Promise<Response> {
+    // WebUI authorizes its frontend cookie before forwarding the native headers
+    // to its own Core. Excluding every Core JWT forces runtime-token validation;
+    // a caller-controlled Core URL can never supply this proof.
+    const cookie = this.cookies.header(route, ['aionui-webhost-session']);
+    if (!cookie) throw new AionUiRevoked();
+    try {
+      return await fetch(this.url + route, {
+        headers: {
+          cookie,
+          'user-agent': 'NCF Agent Interconnect',
+          'x-aionui-runtime-token': context.runtimeToken,
+          'x-aionui-user-id': context.userId,
+          'x-aionui-conversation-id': context.sessionId,
+        },
+        redirect: 'error',
+        signal: AbortSignal.any([signal, AbortSignal.timeout(5000)]),
+      });
+    } catch {
+      throw new AionUiError('The AionUi runtime could not be verified.');
+    }
   }
   async request(route: string, init: RequestInit = {}, signal?: AbortSignal): Promise<Response> {
     try {

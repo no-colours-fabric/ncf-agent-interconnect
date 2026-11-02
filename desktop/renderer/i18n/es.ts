@@ -1,9 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const es: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Puente sin conexión a un chat verificado',
+
+  mcpSetup_aionBridgeConnected: 'Puente conectado a un chat verificado',
+
+  mcpSetup_aionConfigure: 'Configurar Cursor Agent',
+
+  mcpSetup_aionConfigureAccess: 'Configurar acceso',
+
   clientsKindAionui: 'AionUi',
-  mcpSetup_aionDescription: 'Entregar mensajes al chat exacto de AionUi y a la cuenta vinculada.',
-  mcpSetup_aionPairTitle: '1. Vincular AionUi',
+  mcpSetup_aionDescription:
+    'Conectar Cursor Agent dentro de AionUi. El acceso, los ajustes MCP guardados y un puente activo son estados separados.',
+  mcpSetup_aionPairTitle: 'Acceso a AionUi',
   mcpSetup_aionPairHelp:
     'Active WebUI en AionUi en este equipo, introduzca la dirección y el código y confirme el acceso en AionUi.',
   mcpSetup_aionAddress: 'Dirección WebUI de AionUi',
@@ -11,18 +20,16 @@ export const es: Messages = {
   mcpSetup_aionPair: 'Vincular',
   mcpSetup_aionDisconnect: 'Desconectar',
   mcpSetup_aionConfirm: 'Confirme el acceso en AionUi.',
-  mcpSetup_aionPaired: 'Vinculado',
+  mcpSetup_aionPaired: 'Acceso guardado',
   mcpSetup_aionRevoked: 'Acceso finalizado',
   mcpSetup_aionNotPaired: 'Sin vincular',
   mcpSetup_aionFailure:
     'No se pudo completar la configuración. Compruebe que WebUI de AionUi está activo y confirme un código nuevo.',
-  mcpSetup_aionMcpTitle: '2. Conectar MCP',
+  mcpSetup_aionMcpTitle: 'MCP para Cursor Agent',
   mcpSetup_aionMcpHelp:
-    'Importe este servidor en los ajustes MCP de AionUi. Para Cursor Agent, péguelo en la configuración MCP global de Cursor. Conserve los demás servidores. NCF no modifica estos ajustes.',
-  mcpSetup_aionCopy: 'Copiar configuración MCP',
-  mcpSetup_aionCopied: 'Copiado',
+    'Aplicar instala el puente AionUi en el archivo global Cursor elegido y reemplaza la entrada NCF existente. También afecta a Cursor fuera de AionUi: esos chats no pueden usar este puente. Use un perfil separado para conservar otra integración.',
   mcpSetup_aionNext:
-    'Reinicie el agente en AionUi y use la instrucción de conexión de abajo. El chat actual se detecta automáticamente. Los agentes sin contexto del chat actual no pueden conectarse.',
+    'Reinicie Cursor Agent en AionUi después de aplicar y use el comando siguiente. Los ajustes guardados no confirman un puente activo. Esta configuración no admite otros motores AionUi.',
 
   agentsColumnMessages: 'Mensajes',
   mcpSetup_tabsLabel: 'Cliente MCP',

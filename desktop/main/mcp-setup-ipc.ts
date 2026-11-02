@@ -57,7 +57,12 @@ export function createMcpSetupHandler(
       const selected = await options.dialog.showOpenDialog(parent, {
         title:
           'Select ' +
-          { cursor: 'Cursor', opencode: 'OpenCode v1', codex: 'Codex' }[client] +
+          {
+            cursor: 'Cursor',
+            opencode: 'OpenCode v1',
+            codex: 'Codex',
+            aionui: 'Cursor Agent in AionUi',
+          }[client] +
           ' configuration',
         defaultPath,
         properties: ['openFile', 'showHiddenFiles'],

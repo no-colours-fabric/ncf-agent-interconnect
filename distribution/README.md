@@ -84,12 +84,13 @@ for a new connection; previously paired nodes reconnect without another code.
 
 ## AionUi
 
-Open Applications → AionUi for local WebUI pairing and the MCP configuration.
-Approve access in AionUi, import the generated server settings and restart the
-agent in AionUi. For Cursor Agent, use Cursor's global MCP settings. Chat and
-account context are verified automatically; no session IDs are entered.
-See the included `guides/AionUi.md` for steps, delivery rules and verification
-limits. NCF does not edit AionUi or Cursor settings in this flow.
+The supported setup is Cursor Agent inside AionUi. Open Applications → AionUi.
+Configure access and approve it in AionUi, then separately configure Cursor
+Agent with the owner-operated file dialog and Apply. The dialog explains how
+replacing a global Cursor entry affects chats outside AionUi. Restart the agent
+and use the connection command. No session IDs or JSON configuration are entered.
+Authorization, saved settings and a connected bridge are distinct states.
+See the included `guides/AionUi.md` for instructions and verification limits.
 
 ## History and attachments
 

@@ -11,6 +11,7 @@ const schema = z
     paths: z
       .object({
         cursor: filenameSchema.optional(),
+        aionui: filenameSchema.optional(),
         opencode: filenameSchema.optional(),
         codex: filenameSchema.optional(),
       })

@@ -1,9 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  mcpSetup_aionBridgeDisconnected: '桥接未连接到已验证的聊天',
+
+  mcpSetup_aionBridgeConnected: '桥接已连接到已验证的聊天',
+
+  mcpSetup_aionConfigure: '配置 Cursor Agent',
+
+  mcpSetup_aionConfigureAccess: '配置访问',
+
   clientsKindAionui: 'AionUi',
-  mcpSetup_aionDescription: '将消息投递到已配对账号的确切 AionUi 聊天。',
-  mcpSetup_aionPairTitle: '1. 配对 AionUi',
+  mcpSetup_aionDescription:
+    '连接 AionUi 内的 Cursor Agent。访问授权、已保存的 MCP 设置和活动桥接是独立状态。',
+  mcpSetup_aionPairTitle: 'AionUi 访问授权',
   mcpSetup_aionPairHelp:
     '在此电脑的 AionUi 中启用 WebUI，输入地址与配对码，然后在 AionUi 中确认访问。',
   mcpSetup_aionAddress: 'AionUi WebUI 地址',
@@ -11,17 +20,15 @@ export const zh: Messages = {
   mcpSetup_aionPair: '配对',
   mcpSetup_aionDisconnect: '断开连接',
   mcpSetup_aionConfirm: '请在 AionUi 中确认访问。',
-  mcpSetup_aionPaired: '已配对',
+  mcpSetup_aionPaired: '授权已保存',
   mcpSetup_aionRevoked: '访问已结束',
   mcpSetup_aionNotPaired: '未配对',
   mcpSetup_aionFailure: '无法完成设置。请检查 AionUi WebUI 是否运行并确认新的配对码。',
-  mcpSetup_aionMcpTitle: '2. 连接 MCP',
+  mcpSetup_aionMcpTitle: 'Cursor Agent 的 MCP',
   mcpSetup_aionMcpHelp:
-    '在 AionUi MCP 设置中导入此服务器。对于 Cursor Agent，请将其粘贴到 Cursor 全局 MCP 配置中。保留其他服务器。NCF 不会修改这些设置。',
-  mcpSetup_aionCopy: '复制 MCP 配置',
-  mcpSetup_aionCopied: '已复制',
+    '应用会在所选 Cursor 全局文件中安装 AionUi 桥接并替换现有 NCF 条目。这也会影响 AionUi 之外的 Cursor：那些聊天无法使用此桥接。要保留其他集成，请使用独立配置。',
   mcpSetup_aionNext:
-    '在 AionUi 中重启代理，然后使用下面的连接指令。系统会自动识别当前聊天。未提供当前聊天上下文的代理无法连接。',
+    '应用后请重启 AionUi 内的 Cursor Agent，再使用下面的命令。已保存设置不代表桥接已连接。此设置不支持其他 AionUi 后端。',
 
   agentsColumnMessages: '消息',
   mcpSetup_tabsLabel: 'MCP 客户端',

@@ -57,7 +57,7 @@ try {
   await mkdir('release', { recursive: true });
   await page.screenshot({ path: 'release/preview-overview.png' });
   await page.getByRole('button', { name: 'MCP setup', exact: true }).click();
-  assert.equal(await page.getByRole('tab').count(), 3);
+  assert.equal(await page.getByRole('tab').count(), 4);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   for (const [client, label] of [
     ['cursor', 'Cursor'],
@@ -84,6 +84,29 @@ try {
       'status and cancellation must preserve private client files',
     );
   }
+  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
+  const aionSetup = page.getByTestId('aionui-setup');
+  await aionSetup.getByText('Not paired', { exact: true }).waitFor();
+  await page.getByTestId('aionui-configure-access').click();
+  const accessDialog = page.getByRole('dialog');
+  assert.equal(
+    await accessDialog
+      .getByRole('textbox', { name: 'AionUi WebUI address', exact: true })
+      .inputValue(),
+    'http://127.0.0.1:25808',
+  );
+  assert.equal(
+    await accessDialog.getByLabel('Pairing code', { exact: true }).getAttribute('type'),
+    'password',
+  );
+  assert.ok(await accessDialog.getByRole('button', { name: 'Pair', exact: true }).isDisabled());
+  await accessDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
+  assert.deepEqual(
+    await hashes(),
+    before,
+    'AionUi instructions must not write client configuration',
+  );
   await page.getByRole('button', { name: 'Applications', exact: true }).click();
   await page.getByText('OpenCode and its frontends', { exact: true }).waitFor();
   await page.getByText('Codex Desktop', { exact: true }).waitFor();
@@ -273,6 +296,8 @@ try {
   );
   console.log(
     JSON.stringify({
+      aionUiReadOnlySetup: true,
+      mcpTabs: 4,
       electron: '45.1.0',
       renderer: 'React + MUI 9.5.0',
       liveTlsMessage: sent.id,

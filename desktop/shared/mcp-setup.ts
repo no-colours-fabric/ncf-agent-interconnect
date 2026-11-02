@@ -1,6 +1,6 @@
-export const mcpSetupClients = ['cursor', 'opencode', 'codex'] as const;
+export const mcpSetupClients = ['cursor', 'opencode', 'codex', 'aionui'] as const;
 export type McpSetupClient = (typeof mcpSetupClients)[number];
-export type McpSetupApplication = McpSetupClient | 'aionui';
+export type McpSetupApplication = McpSetupClient;
 export type McpSetupFormat = 'jsonc' | 'toml';
 
 export interface McpSetupTarget {

@@ -87,7 +87,7 @@ export class McpSetupService {
         ? this.env.XDG_CONFIG_HOME
         : path.join(this.home, '.config');
     const candidates =
-      client === 'cursor'
+      client === 'cursor' || client === 'aionui'
         ? [path.join(this.home, '.cursor', 'mcp.json')]
         : client === 'codex'
           ? [path.join(codexHome, 'config.toml')]

@@ -34,7 +34,7 @@ test('bundled stdio bridge injects current context, hides it from the model and 
     ],
     env: {
       ...getDefaultEnvironment(),
-      AIONUI_BASE_URL: f.url,
+      AIONUI_BASE_URL: f.coreUrl,
       AIONUI_USER_ID: f.state.userId,
       AIONUI_CONVERSATION_ID: 'fixture-chat-b',
       AIONUI_RUNTIME_TOKEN: f.runtimeToken,

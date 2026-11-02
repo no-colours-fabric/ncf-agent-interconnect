@@ -25,6 +25,10 @@ const cases = [
 ];
 const setupLabels = {
   en: {
+    aionAddress: 'AionUi WebUI address',
+    aionCode: 'Pairing code',
+    aionNotPaired: 'Not paired',
+
     chatClose: 'Close chat',
     configureCursor: 'Configure Cursor',
     configureOpencode: 'Configure OpenCode',
@@ -39,6 +43,10 @@ const setupLabels = {
     missing: 'Not configured',
   },
   ru: {
+    aionAddress: 'Адрес WebUI AionUi',
+    aionCode: 'Код сопряжения',
+    aionNotPaired: 'Нет сопряжения',
+
     chatClose: 'Закрыть чат',
     configureCursor: 'Настроить Cursor',
     configureOpencode: 'Настроить OpenCode',
@@ -53,6 +61,10 @@ const setupLabels = {
     missing: 'Не настроено',
   },
   de: {
+    aionAddress: 'AionUi-WebUI-Adresse',
+    aionCode: 'Kopplungscode',
+    aionNotPaired: 'Nicht gekoppelt',
+
     chatClose: 'Chat schließen',
     configureCursor: 'Cursor einrichten',
     configureOpencode: 'OpenCode einrichten',
@@ -67,6 +79,10 @@ const setupLabels = {
     missing: 'Nicht eingerichtet',
   },
   fr: {
+    aionAddress: 'Adresse WebUI AionUi',
+    aionCode: 'Code d’association',
+    aionNotPaired: 'Non associé',
+
     chatClose: 'Fermer le chat',
     configureCursor: 'Configurer Cursor',
     configureOpencode: 'Configurer OpenCode',
@@ -81,6 +97,10 @@ const setupLabels = {
     missing: 'Non configuré',
   },
   es: {
+    aionAddress: 'Dirección WebUI de AionUi',
+    aionCode: 'Código de vinculación',
+    aionNotPaired: 'Sin vincular',
+
     chatClose: 'Cerrar chat',
     configureCursor: 'Configurar Cursor',
     configureOpencode: 'Configurar OpenCode',
@@ -95,6 +115,10 @@ const setupLabels = {
     missing: 'Sin configurar',
   },
   it: {
+    aionAddress: 'Indirizzo WebUI AionUi',
+    aionCode: 'Codice di associazione',
+    aionNotPaired: 'Non associato',
+
     chatClose: 'Chiudi chat',
     configureCursor: 'Configura Cursor',
     configureOpencode: 'Configura OpenCode',
@@ -109,6 +133,10 @@ const setupLabels = {
     missing: 'Non configurato',
   },
   ja: {
+    aionAddress: 'AionUi WebUIアドレス',
+    aionCode: 'ペアリングコード',
+    aionNotPaired: '未ペアリング',
+
     chatClose: 'チャットを閉じる',
     configureCursor: 'Cursorを設定',
     configureOpencode: 'OpenCodeを設定',
@@ -123,6 +151,10 @@ const setupLabels = {
     missing: '未設定',
   },
   kk: {
+    aionAddress: 'AionUi WebUI мекенжайы',
+    aionCode: 'Жұптау коды',
+    aionNotPaired: 'Жұпталмаған',
+
     chatClose: 'Чатты жабу',
     configureCursor: 'Cursor баптау',
     configureOpencode: 'OpenCode баптау',
@@ -137,6 +169,10 @@ const setupLabels = {
     missing: 'Бапталмаған',
   },
   ko: {
+    aionAddress: 'AionUi WebUI 주소',
+    aionCode: '페어링 코드',
+    aionNotPaired: '페어링 안 됨',
+
     chatClose: '채팅 닫기',
     configureCursor: 'Cursor 설정',
     configureOpencode: 'OpenCode 설정',
@@ -150,6 +186,10 @@ const setupLabels = {
     missing: '설정되지 않음',
   },
   nl: {
+    aionAddress: 'AionUi-WebUI-adres',
+    aionCode: 'Koppelcode',
+    aionNotPaired: 'Niet gekoppeld',
+
     chatClose: 'Chat sluiten',
     configureCursor: 'Cursor instellen',
     configureOpencode: 'OpenCode instellen',
@@ -164,6 +204,10 @@ const setupLabels = {
     missing: 'Niet ingesteld',
   },
   pl: {
+    aionAddress: 'Adres WebUI AionUi',
+    aionCode: 'Kod parowania',
+    aionNotPaired: 'Nie sparowano',
+
     chatClose: 'Zamknij czat',
     configureCursor: 'Skonfiguruj Cursor',
     configureOpencode: 'Skonfiguruj OpenCode',
@@ -178,6 +222,10 @@ const setupLabels = {
     missing: 'Nie skonfigurowano',
   },
   'pt-BR': {
+    aionAddress: 'Endereço WebUI do AionUi',
+    aionCode: 'Código de pareamento',
+    aionNotPaired: 'Não pareado',
+
     chatClose: 'Fechar chat',
     configureCursor: 'Configurar Cursor',
     configureOpencode: 'Configurar OpenCode',
@@ -192,6 +240,10 @@ const setupLabels = {
     missing: 'Não configurado',
   },
   tr: {
+    aionAddress: 'AionUi WebUI adresi',
+    aionCode: 'Eşleştirme kodu',
+    aionNotPaired: 'Eşleştirilmedi',
+
     chatClose: 'Sohbeti kapat',
     configureCursor: 'Cursor uygulamasını yapılandır',
     configureOpencode: 'OpenCode uygulamasını yapılandır',
@@ -206,6 +258,10 @@ const setupLabels = {
     missing: 'Yapılandırılmadı',
   },
   uk: {
+    aionAddress: 'Адреса WebUI AionUi',
+    aionCode: 'Код сполучення',
+    aionNotPaired: 'Не сполучено',
+
     chatClose: 'Закрити чат',
     configureCursor: 'Налаштувати Cursor',
     configureOpencode: 'Налаштувати OpenCode',
@@ -220,6 +276,10 @@ const setupLabels = {
     missing: 'Не налаштовано',
   },
   'zh-CN': {
+    aionAddress: 'AionUi WebUI 地址',
+    aionCode: '配对码',
+    aionNotPaired: '未配对',
+
     chatClose: '关闭聊天',
     configureCursor: '配置 Cursor',
     configureOpencode: '配置 OpenCode',
@@ -291,7 +351,7 @@ async function closeChat(locale) {
 }
 async function checkMcpSetup(locale) {
   const expected = setupLabels[locale];
-  assert.equal(await page.getByRole('tab').count(), 3);
+  assert.equal(await page.getByRole('tab').count(), 4);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
   await page.getByText(expected.userControl, { exact: true }).waitFor();
@@ -304,6 +364,23 @@ async function checkMcpSetup(locale) {
     assert.equal(await page.getByTestId('mcp-configure-' + client).innerText(), configure);
     await page.getByTestId('mcp-settings-status').filter({ hasText: expected.missing }).waitFor();
   }
+  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
+  const aionSetup = page.getByTestId('aionui-setup');
+  await aionSetup.getByText(expected.aionNotPaired, { exact: true }).waitFor();
+  await page.getByTestId('aionui-configure-access').click();
+  const accessDialog = page.getByRole('dialog');
+  assert.equal(
+    await accessDialog
+      .getByRole('textbox', { name: expected.aionAddress, exact: true })
+      .inputValue(),
+    'http://127.0.0.1:25808',
+  );
+  assert.equal(
+    await accessDialog.getByLabel(expected.aionCode, { exact: true }).getAttribute('type'),
+    'password',
+  );
+  await accessDialog.getByRole('button', { name: expected.cancel, exact: true }).click();
+  assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
   await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
   await page.getByRole('button', { name: expected.copyPrompt, exact: true }).waitFor();
   await page.getByText(expected.connectionPrompt, { exact: true }).waitFor();
@@ -418,6 +495,8 @@ try {
     assert.deepEqual(await invoke('history', { nickname: agentName }), historyBefore);
     results.push({
       locale,
+      aionUiSetupLocalized: true,
+      mcpTabs: 4,
       pages: 6,
       htmlLang: true,
       headerControlsVisible: true,

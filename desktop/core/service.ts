@@ -30,6 +30,7 @@ import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
 import { AionUiSessions } from './aionui-sessions.js';
+import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
 
@@ -1153,35 +1154,67 @@ export class NodeService extends EventEmitter {
       void job.finally(() => this.jobs.delete(job));
     }
   }
+  clientInstructions(client: McpSetupClient) {
+    const aionConfiguration = JSON.stringify(
+      {
+        mcpServers: {
+          ncf_agent_interconnect: {
+            command: process.execPath,
+            args: [
+              fileURLToPath(
+                new URL('../integrations/aionui.' + this.integrationExtension, import.meta.url),
+              ),
+              '--node-file',
+              path.join(this.directory, 'Integrations', 'node.json'),
+            ],
+            env: { ELECTRON_RUN_AS_NODE: '1' },
+          },
+        },
+      },
+      null,
+      2,
+    );
+    return mcpInstructions(
+      this.snapshot().mcpUrl,
+      this.settings.value.localToken,
+      client,
+      pathToFileURL(this.openCodePlugin).href,
+      aionConfiguration,
+    );
+  }
   async userCall(
     method: string,
     raw: unknown = {},
     context: { requesterSession?: string } = {},
   ): Promise<unknown> {
-    if (method === 'aionUiStatus') return this.aionui.status();
+    if (method === 'aionUiStatus') {
+      const status = this.aionui.status();
+      const current = status.state === 'paired' ? this.aionui.current().id : undefined;
+      const bridgeConnected =
+        !!current &&
+        this.store.list().some((agent) => {
+          const binding = agent.binding;
+          const profile = this.settings.value.adapters.find((a) => a.id === binding?.adapterId);
+          return (
+            !!binding &&
+            profile?.kind === 'aionui' &&
+            profile.aionConnectionId === current &&
+            this.adapters
+              .states()
+              .some((adapter) => adapter.id === profile.id && adapter.state === 'ready') &&
+            this.presence.isOnline(binding.connectionId)
+          );
+        });
+      return { ...status, bridgeConnected };
+    }
     if (method === 'aionUiPair') return this.aionui.pair(raw);
+    if (method === 'aionUiCancelPair') {
+      this.aionui.cancelPair();
+      return { cancelled: true };
+    }
     if (method === 'aionUiDisconnect') return this.aionui.disconnect();
     if (method === 'aionUiInstructions') {
       const result: AionUiSetupInstructions = {
-        configuration: JSON.stringify(
-          {
-            mcpServers: {
-              ncf_agent_interconnect: {
-                command: process.execPath,
-                args: [
-                  fileURLToPath(
-                    new URL('../integrations/aionui.' + this.integrationExtension, import.meta.url),
-                  ),
-                  '--node-file',
-                  path.join(this.directory, 'Integrations', 'node.json'),
-                ],
-                env: { ELECTRON_RUN_AS_NODE: '1' },
-              },
-            },
-          },
-          null,
-          2,
-        ),
         testPrompt: 'Connect as agent <a name you choose>.',
       };
       return result;

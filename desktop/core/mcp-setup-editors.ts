@@ -64,7 +64,11 @@ export function editMcpConfiguration(
     // Parser errors may contain user secrets from the source line.
     throw new Error(`The configuration contains invalid ${toml ? 'TOML' : 'JSON/JSONC'}`);
   }
-  const parent = toml ? 'mcp_servers' : client === 'cursor' ? 'mcpServers' : 'mcp';
+  const parent = toml
+    ? 'mcp_servers'
+    : client === 'cursor' || client === 'aionui'
+      ? 'mcpServers'
+      : 'mcp';
   const servers = table(root, parent);
   if (
     client === 'opencode' &&

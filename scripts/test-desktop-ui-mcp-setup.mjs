@@ -203,7 +203,7 @@ async function launch() {
   page.on('pageerror', (error) => pageErrors.push(error));
   await page.getByRole('button', { name: 'MCP setup', exact: true }).click();
   await page.getByRole('tab', { name: 'Cursor', exact: true }).waitFor();
-  assert.equal(await page.getByRole('tab').count(), 3);
+  assert.equal(await page.getByRole('tab').count(), 4);
   // The sidebar language selector is outside the MCP setup card.
   const setupCard = page.getByRole('tabpanel').locator('..');
   assert.equal(await setupCard.getByRole('combobox').count(), 0);
@@ -219,6 +219,20 @@ async function launch() {
   assert.ok(pathsEqual(boundaries.home, clientHome));
   assert.ok(pathsEqual(boundaries.data, nodeData));
   assert.ok(pathsEqual(boundaries.appData, appData));
+  await assertNoConfigurationUi();
+  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
+  const aionSetup = page.getByTestId('aionui-setup');
+  await aionSetup.getByText('Not paired', { exact: true }).waitFor();
+  assert.equal(await aionSetup.getByTestId('mcp-open-file').count(), 1);
+  await page.getByTestId('aionui-configure-access').click();
+  const accessDialog = page.getByRole('dialog');
+  assert.equal(
+    await accessDialog.getByLabel('Pairing code', { exact: true }).getAttribute('type'),
+    'password',
+  );
+  await accessDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await assertNoConfigurationUi();
+  await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
   await assertNoConfigurationUi();
 }
 
@@ -397,13 +411,15 @@ try {
   console.log(
     JSON.stringify({
       electronRendererIpcSetup: true,
-      clientTabs: 3,
+      clientTabs: 4,
+      fileSetupTabs: 4,
+      aionUiOwnerSetup: true,
       cancelExistingAndMissingFiles: true,
       applyUsesSelectedFile: true,
       repeatedApplyDoesNotRewrite: true,
       rememberedPathsAfterProcessRestart: true,
       startupChecksAreReadOnly: true,
-      noConfigurationViewerOrEditor: true,
+      noFileConfigurationViewerOrEditor: true,
       allNodeAndClientPathsTemporary: true,
       nativePicker: 'not exercised; requires a separate native check',
       systemFileOpening: 'icon presence only; requires a separate native check',

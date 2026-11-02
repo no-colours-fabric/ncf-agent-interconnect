@@ -1,10 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const de: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Bridge nicht mit geprüftem Chat verbunden',
+
+  mcpSetup_aionBridgeConnected: 'Bridge mit geprüftem Chat verbunden',
+
+  mcpSetup_aionConfigure: 'Cursor Agent einrichten',
+
+  mcpSetup_aionConfigureAccess: 'Zugriff einrichten',
+
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
-    'Nachrichten an den genauen AionUi-Chat und das gekoppelte Konto zustellen.',
-  mcpSetup_aionPairTitle: '1. AionUi koppeln',
+    'Cursor Agent in AionUi verbinden. Zugriff, gespeicherte MCP-Einstellungen und eine aktive Bridge sind getrennte Zustände.',
+  mcpSetup_aionPairTitle: 'Zugriff auf AionUi',
   mcpSetup_aionPairHelp:
     'Aktivieren Sie WebUI in AionUi auf diesem Computer, geben Sie Adresse und Kopplungscode ein und bestätigen Sie den Zugriff in AionUi.',
   mcpSetup_aionAddress: 'AionUi-WebUI-Adresse',
@@ -12,18 +20,16 @@ export const de: Messages = {
   mcpSetup_aionPair: 'Koppeln',
   mcpSetup_aionDisconnect: 'Trennen',
   mcpSetup_aionConfirm: 'Bestätigen Sie den Zugriff in AionUi.',
-  mcpSetup_aionPaired: 'Gekoppelt',
+  mcpSetup_aionPaired: 'Zugriff gespeichert',
   mcpSetup_aionRevoked: 'Zugriff beendet',
   mcpSetup_aionNotPaired: 'Nicht gekoppelt',
   mcpSetup_aionFailure:
     'Einrichtung fehlgeschlagen. Prüfen Sie, ob AionUi WebUI läuft, und bestätigen Sie einen neuen Kopplungscode.',
-  mcpSetup_aionMcpTitle: '2. MCP verbinden',
+  mcpSetup_aionMcpTitle: 'MCP für Cursor Agent',
   mcpSetup_aionMcpHelp:
-    'Importieren Sie diesen Server in den MCP-Einstellungen von AionUi. Für Cursor Agent fügen Sie ihn in die globale MCP-Konfiguration von Cursor ein. Andere Server beibehalten. NCF ändert diese Einstellungen nicht.',
-  mcpSetup_aionCopy: 'MCP-Konfiguration kopieren',
-  mcpSetup_aionCopied: 'Kopiert',
+    'Anwenden installiert die AionUi-Bridge in der gewählten globalen Cursor-Datei und ersetzt einen bestehenden NCF-Eintrag. Das betrifft auch Cursor außerhalb von AionUi: Diese Chats können die Bridge nicht nutzen. Verwenden Sie ein separates Profil, um eine andere Integration zu behalten.',
   mcpSetup_aionNext:
-    'Starten Sie den Agenten in AionUi neu und verwenden Sie die Verbindungsanweisung unten. Der aktuelle Chat wird automatisch erkannt. Agenten ohne aktuellen Chatkontext können keine Verbindung herstellen.',
+    'Starten Sie Cursor Agent in AionUi nach dem Anwenden neu und verwenden Sie den Befehl unten. Gespeicherte Einstellungen bestätigen keine aktive Bridge. Andere AionUi-Backends werden von dieser Einrichtung nicht unterstützt.',
 
   agentsColumnMessages: 'Nachrichten',
   mcpSetup_tabsLabel: 'MCP-Client',

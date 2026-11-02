@@ -171,6 +171,8 @@ contextBridge.exposeInMainWorld('interconnect', {
   invoke:async(method,params)=>{
     if(method==='snapshot')return snapshot;
     if(method==='appVersion')return '0.11.1-fixture';
+    if(method==='aionUiStatus')return {state:'not-paired',url:'http://127.0.0.1:1'};
+    if(method==='mcpSetupStatus')return {client:params.client,remembered:false,state:'missing',files:[{id:'configuration',path:'/isolated/cursor/mcp.json',state:'missing'}]};
     if(method==='chatHistory'){
       calls.push({method,...params});
       const selected=messages.filter(message=>!params.before||message.sequence<params.before).slice().reverse();
@@ -345,11 +347,20 @@ contextBridge.exposeInMainWorld('interconnect', {
   assert.equal(await page.getByTestId('remote-nodes-table').getByRole('button').count(), 0);
   await capture('network-en');
   await page.getByTestId('nav-clients').click();
-  assert.equal(await page.getByTestId('applications-table').locator('tbody tr').count(), 3);
+  assert.equal(await page.getByTestId('applications-table').locator('tbody tr').count(), 4);
   assert.ok(!(await page.getByTestId('applications-table').innerText()).includes(agent.nickname));
   assert.ok(
     !(await page.getByTestId('applications-table').innerText()).includes('Private diagnostic'),
   );
+  const aionRow = page.getByTestId('application-aionui');
+  assert.ok((await aionRow.innerText()).includes('AionUi'));
+  await aionRow.getByRole('button').click();
+  await page.getByTestId('aionui-setup').getByText('Not paired', { exact: true }).waitFor();
+  assert.equal(
+    await page.getByRole('tab', { name: 'AionUi', exact: true }).getAttribute('aria-selected'),
+    'true',
+  );
+  await page.getByTestId('nav-clients').click();
   await capture('applications-en');
   await page.getByTestId('interface-language').getByRole('combobox').click();
   await page.getByRole('option', { name: 'Русский', exact: true }).click();
@@ -387,6 +398,8 @@ contextBridge.exposeInMainWorld('interconnect', {
       incarnationInvalidatesDraft: true,
       nodeCountsOnly: true,
       applicationsActivityAndCounts: true,
+      applicationRows: 4,
+      aionUiSetupNavigation: true,
       sidebarVersionAndOrder: true,
       syntheticOnly: true,
       errors,

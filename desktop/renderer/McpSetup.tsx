@@ -32,7 +32,7 @@ import {
 import { McpSetupFlow } from './mcp-setup-model.js';
 import { mcpSetupEnglish, type McpSetupMessages } from './mcp-setup-messages.js';
 
-import { AionUiSetup } from './AionUiSetup.js';
+import { AionUiAuthorization } from './AionUiSetup.js';
 
 const labels = { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex', aionui: 'AionUi' };
 const keys = {
@@ -47,6 +47,12 @@ const keys = {
     description: 'opencodeDescription',
     next: 'opencodeNext',
     button: 'configureOpencode',
+  },
+  aionui: {
+    title: 'aionMcpTitle',
+    description: 'aionMcpHelp',
+    next: 'aionNext',
+    button: 'aionConfigure',
   },
   codex: {
     title: 'codexTitle',
@@ -64,7 +70,8 @@ function ClientSetupDialog({
   client,
   invoke,
   messages: m,
-}: DialogProps & { client: McpSetupClient }): React.JSX.Element {
+  before,
+}: DialogProps & { client: McpSetupClient; before?: React.ReactNode }): React.JSX.Element {
   const flow = useMemo(() => new McpSetupFlow(client, invoke), [client, invoke]);
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   useEffect(() => {
@@ -95,7 +102,11 @@ function ClientSetupDialog({
       : m.openFile;
   return (
     <>
-      <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 3 } }}>
+      <Stack
+        spacing={2.5}
+        sx={{ p: { xs: 2, sm: 3 } }}
+        data-testid={client === 'aionui' ? 'aionui-setup' : undefined}
+      >
         <Stack
           direction={{ xs: 'column', sm: 'row' }}
           spacing={2}
@@ -125,7 +136,7 @@ function ClientSetupDialog({
                 color="text.secondary"
                 sx={{ mt: 0.5, maxWidth: 620, lineHeight: 1.6 }}
               >
-                {m[k.description]}
+                {client === 'aionui' ? m.aionDescription : m[k.description]}
               </Typography>
             </Box>
           </Stack>
@@ -142,6 +153,7 @@ function ClientSetupDialog({
             <Typography variant="body2">{m.checking}</Typography>
           )}
         </Stack>
+        {before}
         <Box
           sx={{ border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'action.hover', p: 2 }}
         >
@@ -382,6 +394,12 @@ export function CodexSetupDialog(props: DialogProps): React.JSX.Element {
   return <ClientSetupDialog {...props} client="codex" />;
 }
 
+function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
+  return (
+    <ClientSetupDialog {...props} client="aionui" before={<AionUiAuthorization {...props} />} />
+  );
+}
+
 export function McpSetup({
   client,
   onClientChange,
@@ -398,7 +416,7 @@ export function McpSetup({
     cursor: CursorSetupDialog,
     opencode: OpenCodeSetupDialog,
     codex: CodexSetupDialog,
-    aionui: AionUiSetup,
+    aionui: AionUiSetupDialog,
   }[client];
   const [copyError, setCopyError] = React.useState('');
   return (
@@ -414,7 +432,7 @@ export function McpSetup({
         scrollButtons="auto"
         sx={{ px: { xs: 2, sm: 3 }, minHeight: 56, borderBottom: 1, borderColor: 'divider' }}
       >
-        {([...mcpSetupClients, 'aionui'] as const).map((item) => (
+        {mcpSetupClients.map((item) => (
           <Tab
             key={item}
             value={item}

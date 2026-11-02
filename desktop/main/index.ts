@@ -16,7 +16,6 @@ import { z } from 'zod';
 import { NodeService } from '../core/service.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
-import type { McpInstructions } from '../shared/contracts.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataArg = process.argv.indexOf('--data-dir');
@@ -171,8 +170,7 @@ function showWindow(tab?: string): void {
 }
 function setupIpc(): void {
   const mcpSetup = createMcpSetupHandler({
-    instructions: async (client) =>
-      (await service!.userCall('instructions', { client })) as McpInstructions,
+    instructions: (client) => service!.clientInstructions(client),
     dialog,
     window: () => window,
     stateDirectory: app.getPath('userData'),
@@ -236,6 +234,11 @@ function setupIpc(): void {
     }
     if (
       ![
+        'aionUiStatus',
+        'aionUiInstructions',
+        'aionUiPair',
+        'aionUiCancelPair',
+        'aionUiDisconnect',
         'snapshot',
         'history',
         'chatHistory',

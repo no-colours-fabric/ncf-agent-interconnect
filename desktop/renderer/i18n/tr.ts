@@ -1,9 +1,18 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  mcpSetup_aionBridgeDisconnected: 'Köprü doğrulanmış sohbete bağlı değil',
+
+  mcpSetup_aionBridgeConnected: 'Köprü doğrulanmış sohbete bağlı',
+
+  mcpSetup_aionConfigure: 'Cursor Agent yapılandır',
+
+  mcpSetup_aionConfigureAccess: 'Erişimi yapılandır',
+
   clientsKindAionui: 'AionUi',
-  mcpSetup_aionDescription: 'İletileri tam AionUi sohbetine ve eşleştirilmiş hesaba iletin.',
-  mcpSetup_aionPairTitle: '1. AionUi eşleştirin',
+  mcpSetup_aionDescription:
+    'AionUi içinde Cursor Agent bağlayın. Erişim, kaydedilmiş MCP ayarları ve etkin köprü ayrı durumlardır.',
+  mcpSetup_aionPairTitle: 'AionUi erişimi',
   mcpSetup_aionPairHelp:
     'Bu bilgisayarda AionUi WebUI özelliğini açın, adresi ve kodu girin, ardından AionUi içinde erişimi onaylayın.',
   mcpSetup_aionAddress: 'AionUi WebUI adresi',
@@ -11,18 +20,16 @@ export const tr: Messages = {
   mcpSetup_aionPair: 'Eşleştir',
   mcpSetup_aionDisconnect: 'Bağlantıyı kes',
   mcpSetup_aionConfirm: 'AionUi içinde erişimi onaylayın.',
-  mcpSetup_aionPaired: 'Eşleştirildi',
+  mcpSetup_aionPaired: 'Erişim kaydedildi',
   mcpSetup_aionRevoked: 'Erişim sona erdi',
   mcpSetup_aionNotPaired: 'Eşleştirilmedi',
   mcpSetup_aionFailure:
     'Kurulum tamamlanamadı. AionUi WebUI çalıştığını kontrol edin ve yeni bir kodu onaylayın.',
-  mcpSetup_aionMcpTitle: '2. MCP bağlayın',
+  mcpSetup_aionMcpTitle: 'Cursor Agent için MCP',
   mcpSetup_aionMcpHelp:
-    'Bu sunucuyu AionUi MCP ayarlarına aktarın. Cursor Agent için Cursor genel MCP yapılandırmasına yapıştırın. Diğer sunucuları koruyun. NCF bu ayarları değiştirmez.',
-  mcpSetup_aionCopy: 'MCP yapılandırmasını kopyala',
-  mcpSetup_aionCopied: 'Kopyalandı',
+    'Uygula, seçilen genel Cursor dosyasına AionUi köprüsünü kurar ve mevcut NCF girdisini değiştirir. AionUi dışındaki Cursor da etkilenir: bu sohbetler köprüyü kullanamaz. Başka bir entegrasyonu korumak için ayrı profil kullanın.',
   mcpSetup_aionNext:
-    'AionUi içindeki ajanı yeniden başlatın ve aşağıdaki bağlantı talimatını kullanın. Geçerli sohbet otomatik algılanır. Geçerli sohbet bağlamı olmayan ajanlar bağlanamaz.',
+    'Uyguladıktan sonra AionUi içindeki Cursor Agent uygulamasını yeniden başlatın ve aşağıdaki komutu kullanın. Kaydedilmiş ayarlar etkin köprüyü doğrulamaz. Bu kurulum diğer AionUi arka uçlarını desteklemez.',
 
   agentsColumnMessages: 'Mesajlar',
   mcpSetup_tabsLabel: 'MCP istemcisi',

@@ -25,6 +25,7 @@ const setup = new McpSetupService({
       'isolated-ui-token',
       client,
       'file:///isolated/plugin.js',
+      aionConfiguration,
     ),
 });
 const errors = [];
@@ -33,6 +34,10 @@ let server;
 let browsePath = null;
 let page;
 const openedFiles = [];
+const copiedTexts = [];
+const aionConfiguration = JSON.stringify({
+  mcpServers: { ncf_agent_interconnect: { command: 'fixture-runtime', args: ['fixture-bridge'] } },
+});
 const requestGates = new Map();
 const releaseGates = [];
 function holdOperation(method) {
@@ -97,6 +102,7 @@ try {
       if (!response.ok) throw new Error(result.error);
       return result;
     };
+    window.interconnect={onChange:()=>()=>{}};
     function App() {
       const [client, setClient] = React.useState('cursor');
       return <ThemeProvider theme={createTheme()}><CssBaseline /><McpSetup client={client} onClientChange={setClient}
@@ -131,8 +137,12 @@ try {
         setup.discard('isolated-browser', params.planId);
         result = {};
       } else if (method === 'mcpSetupBrowse') result = browsePath;
-      else if (method === 'copy') result = { copied: true };
-      else throw new Error('Unknown fixture operation');
+      else if (method === 'aionUiStatus')
+        result = { state: 'not-paired', url: 'http://127.0.0.1:1' };
+      else if (method === 'copy') {
+        copiedTexts.push(params.text);
+        result = { copied: true };
+      } else throw new Error('Unknown fixture operation');
       response.setHeader('content-type', 'application/json');
       response.end(JSON.stringify(result));
     } catch (error) {
@@ -169,8 +179,32 @@ try {
   page.on('pageerror', (error) => errors.push(error.message));
   await page.goto(server.resolvedUrls.local[0]);
   await page.getByRole('tab', { name: 'Cursor', exact: true }).waitFor();
-  assert.equal(await page.getByRole('tab').count(), 3);
+  assert.equal(await page.getByRole('tab').count(), 4);
   assert.equal(await page.getByRole('combobox').count(), 0);
+  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
+  const aionSetup = page.getByTestId('aionui-setup');
+  await aionSetup.getByText('Not paired', { exact: true }).waitFor();
+  await page.getByTestId('aionui-configure-access').click();
+  const accessDialog = page.getByRole('dialog');
+  assert.equal(
+    await accessDialog
+      .getByRole('textbox', { name: 'AionUi WebUI address', exact: true })
+      .inputValue(),
+    'http://127.0.0.1:1',
+  );
+  assert.equal(
+    await accessDialog.getByLabel('Pairing code', { exact: true }).getAttribute('type'),
+    'password',
+  );
+  await accessDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByTestId('mcp-configure-aionui').click();
+  const fileDialog = page.getByRole('dialog');
+  await waitForApply();
+  assert.ok((await fileDialog.innerText()).includes('replaces any existing NCF entry'));
+  assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
+  await fileDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
+
   for (const [client, label] of [
     ['cursor', 'Cursor'],
     ['opencode', 'OpenCode'],
@@ -321,7 +355,7 @@ try {
   assert.equal(await readFile(conflict, 'utf8'), external);
   assert.deepEqual(errors, []);
   console.log(
-    'MCP setup UI: 3 tabs, stable dialog/path/actions during loading, location changes and file selection, automatic setup, no configuration contents, remembered paths, startup status, system open action, cancel, backup and concurrent-edit rejection passed.',
+    'MCP setup UI: 4 tabs including AionUi read-only setup, stable file dialog/path/actions during loading, location changes and file selection, automatic file setup, no unrelated file configuration contents, remembered paths, startup status, system open action, cancel, backup and concurrent-edit rejection passed.',
   );
   console.log('Screenshot: ' + screenshot);
 } catch (error) {

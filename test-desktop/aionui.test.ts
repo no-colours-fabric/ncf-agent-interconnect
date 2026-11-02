@@ -1,7 +1,8 @@
 import test from 'node:test';
+import http from 'node:http';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm, readFile, stat, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, readFile, stat, writeFile, rename, mkdir } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { NodeService } from '../desktop/core/service.js';
@@ -267,9 +268,10 @@ test('only loopback URLs and scoped cookies are accepted; diagnostics never cont
   await assert.rejects(f.service.aionui.pair({ url: f.url, code: f.code }), /not approved/);
   assert.equal(f.service.aionui.status().state, 'paired');
   const status = await f.service.userCall('aionUiStatus');
-  assert.deepEqual(Object.keys(status as object).sort(), ['state', 'url']);
+  assert.deepEqual(Object.keys(status as object).sort(), ['bridgeConnected', 'state', 'url']);
   const instructions = await f.service.userCall('aionUiInstructions');
-  const config = JSON.parse((instructions as { configuration: string }).configuration);
+  assert.ok(!('configuration' in (instructions as object)));
+  const config = JSON.parse(f.service.clientInstructions('aionui').configuration);
   assert.equal(config.mcpServers.ncf_agent_interconnect.env.ELECTRON_RUN_AS_NODE, '1');
 });
 
@@ -366,4 +368,119 @@ test('an invalid setup URL does not leave pairing locked and endpoints cannot ex
   });
   assert.equal(invalid.status, 400);
   assert.ok(!(await invalid.text()).includes(f.runtimeToken));
+});
+
+test('runtime proof is validated by the paired WebUI Core, never a caller-selected loopback server', async (t) => {
+  const f = await setup(t);
+  let fakeRequests = 0;
+  const fake = http.createServer((_req, res) => {
+    fakeRequests++;
+    res.setHeader('content-type', 'application/json');
+    res.end(
+      JSON.stringify({
+        success: true,
+        data: {
+          id: 'fixture-chat-b',
+          runtime: { state: 'idle', can_send_message: true, pending_confirmations: 0 },
+        },
+      }),
+    );
+  });
+  await new Promise<void>((resolve) => fake.listen(0, '127.0.0.1', resolve));
+  t.after(
+    () =>
+      new Promise<void>((resolve) => {
+        fake.closeAllConnections();
+        fake.close(() => resolve());
+      }),
+  );
+  const fakeUrl = 'http://127.0.0.1:' + (fake.address() as { port: number }).port;
+  await assert.rejects(
+    f.service.contexts.registerAionUi({
+      ...f.context('fixture-chat-b'),
+      baseUrl: fakeUrl,
+      runtimeToken: 'invalid-runtime-token',
+    }),
+    /could not be verified/,
+  );
+  assert.equal(fakeRequests, 0);
+  assert.equal(f.service.settings.value.adapters.filter((a) => a.kind === 'aionui').length, 0);
+  assert.ok(f.proofs.length > 0);
+  assert.ok(
+    f.proofs.every((proof) => !proof.hasCoreJwt && proof.hasFrontendCookie && !proof.accepted),
+  );
+  assert.notEqual(
+    f.context().baseUrl,
+    f.url,
+    'native Core and owner-paired WebUI use distinct ports',
+  );
+  connected(await f.connect('fixture-chat-b', 'Native context'));
+  assert.ok(f.proofs.at(-1)?.accepted);
+  assert.ok(f.proofs.every((proof) => !proof.hasCoreJwt && proof.hasFrontendCookie));
+});
+
+test('failed first pairing persistence publishes no usable authorization and a retry commits durably', async (t) => {
+  const f = await aionFixture(t);
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-aionui-save-isolated-'));
+  const sessions = new AionUiSessions(directory);
+  t.after(async () => {
+    await sessions.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const filename = path.join(directory, 'aionui-credentials.json');
+  await mkdir(filename);
+  await assert.rejects(sessions.pair({ url: f.url, code: f.code }), /could not be saved/);
+  assert.equal(sessions.status().state, 'not-paired');
+  assert.throws(() => sessions.current(), /access ended/);
+  await rm(filename, { recursive: true });
+  await sessions.pair({ url: f.url, code: f.code });
+  const persisted = JSON.parse(await readFile(filename, 'utf8'));
+  assert.equal(sessions.current().id, persisted.id);
+  assert.equal(sessions.status().state, 'paired');
+  const restored = new AionUiSessions(directory);
+  t.after(() => restored.close());
+  await restored.load();
+  assert.equal(restored.current().id, persisted.id);
+});
+
+test('failed replacement persistence preserves the old active binding and retries without publishing an unsaved candidate', async (t) => {
+  const f = await setup(t);
+  const binding = connected(await f.connect());
+  const old = f.service.aionui.current().id;
+  const access = f.service.aionui.access(old);
+  const filename = path.join(f.directory, 'aionui-credentials.json');
+  await rename(filename, filename + '.original');
+  await mkdir(filename);
+  await assert.rejects(f.service.aionui.pair({ url: f.url, code: f.code }), /could not be saved/);
+  assert.equal(f.service.aionui.current().id, old);
+  assert.equal(f.service.aionui.status().state, 'paired');
+  assert.ok(!access.signal.aborted);
+  assert.equal(f.service.adapters.get(binding.adapterId).status().state, 'ready');
+  await rm(filename, { recursive: true });
+  await rename(filename + '.original', filename);
+  assert.equal(JSON.parse(await readFile(filename, 'utf8')).id, old);
+  await f.service.aionui.pair({ url: f.url, code: f.code });
+  const next = f.service.aionui.current().id;
+  assert.notEqual(next, old);
+  assert.ok(access.signal.aborted);
+  assert.equal(JSON.parse(await readFile(filename, 'utf8')).id, next);
+  const restored = new AionUiSessions(f.directory);
+  t.after(() => restored.close());
+  await restored.load();
+  assert.equal(restored.current().id, next);
+});
+
+test('cancelling pending owner approval preserves the old authorization and permits a fresh pairing', async (t) => {
+  const f = await setup(t);
+  const previous = f.service.aionui.current().id;
+  const count = f.state.pairRequests;
+  const release = f.holdPair();
+  const pending = f.service.aionui.pair({ url: f.url, code: f.code });
+  await until(() => f.state.pairRequests > count);
+  f.service.aionui.cancelPair();
+  await assert.rejects(pending);
+  release();
+  assert.equal(f.service.aionui.current().id, previous);
+  await f.service.aionui.pair({ url: f.url, code: f.code });
+  assert.notEqual(f.service.aionui.current().id, previous);
 });

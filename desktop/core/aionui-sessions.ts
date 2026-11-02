@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { readFile, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { atomicJson } from './settings.js';
@@ -40,6 +40,7 @@ export class AionUiSessions extends EventEmitter {
   private active?: Active;
   private saving = Promise.resolve();
   private pairing = false;
+  private pairController?: AbortController;
   private stopped = false;
   private epoch = 0;
   constructor(private readonly directory: string) {
@@ -68,13 +69,21 @@ export class AionUiSessions extends EventEmitter {
     this.active = active;
     return active;
   }
-  private save(): Promise<void> {
-    const record = this.active ? structuredClone(this.active.record) : undefined;
-    if (!record) return Promise.resolve();
-    const operation = this.saving.then(() => atomicJson(this.filename, record));
+  private persist(work: () => Promise<void>): Promise<void> {
+    const operation = this.saving.then(work);
     this.saving = operation.catch(() => {});
-    return operation.catch(() => {
+    return operation.catch((error) => {
+      if (error instanceof AionUiError) throw error;
       throw new AionUiError('The AionUi connection could not be saved.');
+    });
+  }
+  private save(): Promise<void> {
+    const active = this.active;
+    if (!active) return Promise.resolve();
+    const record = structuredClone(active.record);
+    return this.persist(async () => {
+      // A refresh on an old connection cannot overwrite a later pairing commit.
+      if (this.active === active) await atomicJson(this.filename, record);
     });
   }
   status(): AionUiSetupState {
@@ -94,11 +103,16 @@ export class AionUiSessions extends EventEmitter {
     const http = new AionHttp(aionUrl(parsed.data.url));
     this.pairing = true;
     const epoch = ++this.epoch;
+    const controller = (this.pairController = new AbortController());
     try {
-      const response = await http.request('/auth/pair', {
-        method: 'POST',
-        body: JSON.stringify({ code: parsed.data.code }),
-      });
+      const response = await http.request(
+        '/auth/pair',
+        {
+          method: 'POST',
+          body: JSON.stringify({ code: parsed.data.code }),
+        },
+        controller.signal,
+      );
       const result = z
         .object({ status: z.literal('approved') })
         .safeParse(await aionJson(response));
@@ -106,24 +120,41 @@ export class AionUiSessions extends EventEmitter {
         throw new AionUiError(
           'Pairing was not approved. Generate a new code in AionUi and confirm access in its desktop window.',
         );
-      const identity = await this.identity(http);
+      const identity = await this.identity(http, controller.signal);
       if (this.stopped || epoch !== this.epoch)
         throw new AionUiError('AionUi setup is unavailable.');
-      const previous = this.active;
-      previous?.controller.abort();
-      previous?.http.cookies.clear();
-      if (previous) previous.record.cookies = [];
-      if (previous) this.emit('revoked', previous.record.id);
-      this.activate({
+      const candidate: Credential = {
         version: 1,
         id: randomUUID(),
         url: http.url,
         ...identity,
         revoked: false,
         cookies: http.cookies.snapshot(),
+      };
+      await this.persist(async () => {
+        const check = () => {
+          if (this.stopped || epoch !== this.epoch)
+            throw new AionUiError('AionUi setup is unavailable.');
+        };
+        check();
+        // Keep the previous authorization active until the candidate is durable.
+        // A failed rename must neither revoke it nor publish the candidate.
+        await atomicJson(this.filename, candidate, check);
+        if (this.stopped || epoch !== this.epoch) {
+          if (this.active) await atomicJson(this.filename, this.active.record);
+          else await unlink(this.filename);
+          throw new AionUiError('AionUi setup is unavailable.');
+        }
+        const previous = this.active;
+        this.activate(candidate);
+        previous?.controller.abort();
+        previous?.http.cookies.clear();
+        if (previous) {
+          previous.record.cookies = [];
+          this.emit('revoked', previous.record.id);
+        }
+        this.emit('change');
       });
-      await this.save();
-      this.emit('change');
       return this.status();
     } catch (error) {
       http.cookies.clear();
@@ -131,6 +162,7 @@ export class AionUiSessions extends EventEmitter {
       throw new AionUiError('AionUi pairing failed.');
     } finally {
       this.pairing = false;
+      if (this.pairController === controller) this.pairController = undefined;
     }
   }
   private async identity(
@@ -213,8 +245,12 @@ export class AionUiSessions extends EventEmitter {
     this.emit('change');
     await this.save();
   }
-  async disconnect(): Promise<AionUiSetupState> {
+  cancelPair(): void {
     this.epoch++;
+    this.pairController?.abort();
+  }
+  async disconnect(): Promise<AionUiSetupState> {
+    this.cancelPair();
     const active = this.active;
     if (active && !active.record.revoked) {
       // Disable locally before attempting best-effort server-side logout.
@@ -227,7 +263,7 @@ export class AionUiSessions extends EventEmitter {
   }
   async close(): Promise<void> {
     this.stopped = true;
-    this.epoch++;
+    this.cancelPair();
     this.active?.controller.abort();
     await this.saving;
   }

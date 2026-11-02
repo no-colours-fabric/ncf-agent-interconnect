@@ -18,9 +18,14 @@ test('AionUi has its own application row and owner pairing instructions in every
     );
     assert.ok(html.includes('data-testid="aionui-setup"'));
     assert.ok(html.includes('mcp-tab-aionui'));
-    assert.ok(html.includes('127.0.0.1:25808'));
-    for (const text of [messages.aionAddress, messages.aionCode, messages.aionPair])
+    for (const text of [
+      messages.aionPairTitle,
+      messages.aionConfigureAccess,
+      messages.aionConfigure,
+    ])
       assert.ok(html.includes(text));
+    assert.ok(!html.includes('<pre'));
+    assert.ok(!html.includes('Copy MCP configuration'));
     const applications = renderToStaticMarkup(
       createElement(ApplicationConnections, {
         snapshot: { agents: [], adapters: [] },

@@ -15,7 +15,22 @@ const owner = 'isolated-window';
 const url = 'http://127.0.0.1:42000/mcp';
 const token = 'fixture-token-never-live';
 const plugin = 'file:///isolated/NCF%20Interconnect/opencode.js';
-const instructions = (client: McpSetupClient) => mcpInstructions(url, token, client, plugin);
+const instructions = (client: McpSetupClient) =>
+  mcpInstructions(
+    url,
+    token,
+    client,
+    plugin,
+    JSON.stringify({
+      mcpServers: {
+        ncf_agent_interconnect: {
+          command: 'fixture-runtime',
+          args: ['fixture-bridge'],
+          env: { ELECTRON_RUN_AS_NODE: '1' },
+        },
+      },
+    }),
+  );
 
 async function fixture(
   t: test.TestContext,
@@ -494,4 +509,35 @@ test('main startup checks are read-only and system opening uses only the remembe
   await assert.rejects(
     handler('mcpSetupOpen', { client: 'codex', path: '/arbitrary/file' }, owner),
   );
+});
+
+test('AionUi owner Apply targets the real Cursor file with its bridge, preserving other settings and no-op bytes', async (t) => {
+  const { service, directory } = await fixture(t);
+  const filename = (await service.defaults('aionui')).files[0].path;
+  assert.equal(filename, path.join(directory, '.cursor', 'mcp.json'));
+  await mkdir(path.dirname(filename), { recursive: true });
+  const original = JSON.stringify({
+    other: 'keep',
+    mcpServers: {
+      foreign: { command: 'keep' },
+      ncf_agent_interconnect: { url: 'http://127.0.0.1:1/mcp' },
+    },
+  });
+  await writeFile(filename, original);
+  const preview = await service.preview(owner, 'aionui', [{ id: 'configuration', path: filename }]);
+  assert.equal(preview.requiresReplacement, true);
+  assert.equal(await readFile(filename, 'utf8'), original);
+  const applied = await service.apply(owner, preview.planId, true);
+  assert.equal(applied.status, 'applied');
+  const bytes = await readFile(filename, 'utf8');
+  const parsed = JSON.parse(bytes);
+  assert.equal(parsed.other, 'keep');
+  assert.equal(parsed.mcpServers.foreign.command, 'keep');
+  assert.equal(parsed.mcpServers.ncf_agent_interconnect.command, 'fixture-runtime');
+  assert.ok(!('url' in parsed.mcpServers.ncf_agent_interconnect));
+  const next = await service.preview(owner, 'aionui', [{ id: 'configuration', path: filename }]);
+  assert.equal(next.files[0].action, 'unchanged');
+  await service.apply(owner, next.planId, false);
+  assert.equal(await readFile(filename, 'utf8'), bytes);
+  assert.equal((await service.status('aionui')).state, 'configured');
 });

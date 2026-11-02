@@ -12,14 +12,12 @@ the existing `jsonc-parser` dependency.
 
 ## Electron main
 
-Import `createMcpSetupHandler` from `./mcp-setup-ipc.js` and the `McpInstructions`
-type from the existing shared contracts. Create the handler once per application
+Import `createMcpSetupHandler` from `./mcp-setup-ipc.js`. The handler consumes core-generated instructions through `service.clientInstructions`. Create the handler once per application
 service inside `setupIpc`, outside the per-invocation callback:
 
 ```ts
 const mcpSetup = createMcpSetupHandler({
-  instructions: async (client) =>
-    (await service!.userCall('instructions', { client })) as McpInstructions,
+  instructions: (client) => service!.clientInstructions(client),
   dialog,
   window: () => window,
   stateDirectory: app.getPath('userData'),
@@ -80,7 +78,7 @@ a user-operated setup dialog and Apply instead of manual-only configuration.
   in `mcp-setup-paths.json` inside `stateDirectory`. No credentials, configuration
   contents or technical plan are persisted there. A failed operation never changes
   the remembered path. A path-saving failure is reported separately after success.
-- Creating the main handler checks all three clients once, read-only, at startup.
+- Creating the main handler checks all four setup clients once, read-only, at startup.
   The visible tab checks again on mount and after Apply. There is no polling,
   automatic repair or configuration write on startup. The status is Settings are
   present, Not configured, Settings need updating or Could not check settings.
@@ -130,3 +128,9 @@ the integrated Electron check on each target OS.
 After integration, run the full project checks and update the existing UI test:
 MCP client selection is now by tab. Configuration snippets and their copy controls are removed; assert status and the owner-operated setup flow instead.
 The standalone component check does not replace packaged-app or Windows testing.
+
+AionUi reuses the file flow for Cursor Agent and the actual selected Cursor MCP
+file. Its owner authorization has a separate client-specific dialog. It does
+not imply that MCP was installed or registered. Before Apply, the UI explains
+replacement of an existing NCF entry and the global effect outside AionUi.
+Other AionUi backends without verified setup paths/APIs are not advertised.
