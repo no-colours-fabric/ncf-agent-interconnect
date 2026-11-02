@@ -1,12 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.12.0 — 2026-11-02
 
 - Combine local and known remote agents in one table with confirmed online
   indicators and a compact total/incoming/outgoing message count.
 - Add chat drawers with avatars, latest-first loading, older history above and
   preserved scroll position, attachments and send drafts. Keep failed sends
   visible in their original chat without automatic retries.
+- Keep the visible message anchored while older pages and loading indicators
+  change the layout. Use a contour chat icon and show the configuration-file
+  action even when setup must first create the file.
 - Simplify remote-node and application tables and move language selection above
   the sidebar node status alongside the application version.
 - Add localized Cursor, OpenCode v1 and Codex setup dialogs with owner-operated
@@ -14,7 +17,7 @@
   Preserve matching settings and unrelated configuration; back up changed files.
 
 Storage format 3, peer protocol 2 and the MCP tool schema are unchanged.
-Native release packages for these source changes have not been built.
+Native verification is recorded in the accompanying platform reports.
 
 ## 0.11.1 — 2026-11-01
 

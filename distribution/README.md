@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.11.1
+# NCF Agent Interconnect 0.12.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -97,6 +97,18 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Applications reports the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.11.1
+
+Agent names, bindings, history, paired routes and client connection settings remain
+compatible. Agents now uses a unified table and chat drawers. Open a local row's
+chat icon for history, older messages and verified attachments; remote rows provide
+an explicitly addressed send form. Applications reports counts and known activity.
+
+MCP setup now provides client-specific tabs and dialogs. Startup checks only read
+client files. Apply is required to create or update settings, and matching entries
+remain unchanged. The app remembers the selected configuration path; the open-file
+icon becomes available after that file exists. OpenCode setup supports v1 only.
 
 ## Upgrade from 0.11.0
 

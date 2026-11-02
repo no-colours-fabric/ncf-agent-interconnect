@@ -1,46 +1,51 @@
-Download the macOS Apple Silicon DMG/ZIP or Windows x64 installer/ZIP and verify
-the files against SHA256SUMS. Packages include Electron 45.1.0 and do not require
-Node.js, npm or a source checkout. macOS requires version 13 or later.
+Verify the native installer/archive against its accompanying checksums. Packages
+include Electron 45.1.0 and do not require Node.js, npm or a source checkout.
+macOS requires version 13 or later and Apple Silicon; Windows packages target x64.
 
-### Changes in 0.11.1
+### Changes in 0.12.0
 
-- Fix OpenCode/OpenChamber startup restoration. Plugin loading returns before
-  waiting for chat APIs, avoiding a dependency cycle during host initialization.
-- Retry temporary saved-chat/API and registration failures. One unavailable chat
-  no longer prevents other saved chats from restoring. Deleted or foreign chats
-  are not redirected. Stopping the host cancels recovery.
-- Preserve existing agent bindings, history, message identities, attachments and
-  uncertain admissions. No new polling of working agents or automatic repeat of
-  uncertain model input is introduced.
-- Add isolated startup/stop regressions and packaged-runtime host-restart checks.
+- Combine local and known remote agents in one table with a contour chat icon,
+  confirmed online indicators and compact total/incoming/outgoing message counts.
+- Open local chats in a right drawer with avatars, latest messages at the bottom,
+  older history above and verified attachment controls. Preserve the visible
+  message through pagination and loading-state changes. Keep newer drafts when
+  delayed sends finish, and display failed sends in their original chat.
+- Simplify remote-node and application tables. Show the application version and
+  place language selection above the sidebar node status.
+- Add client-specific Cursor, OpenCode v1 and Codex setup tabs and dialogs in all
+  fifteen interface languages. Only Apply creates or updates the selected client
+  file; matching settings and unrelated options remain unchanged. Changed files
+  receive a private backup.
+- Remember selected configuration paths and check settings read-only at startup.
+  Keep the system open-file icon visible, with guidance when setup must first
+  create the file. Present the connection prompt as code with a copy icon.
 
 ### Upgrade
 
-Quit the existing node before replacing the application. Never open its data
+Quit the existing node before replacing the application. Never open one data
 directory in two instances. Storage format 3, peer protocol 2 and the eleven-tool
-MCP schema are unchanged from 0.11.0. Existing agents and paired routes remain.
+MCP schema are unchanged. Existing agents, history, attachments and paired routes
+remain compatible. Client configuration is not rewritten automatically on upgrade.
 
-After starting the updated node, reload OpenCode or restart OpenChamber once to
-load the corrected bundled plugin. The already running host retains its previous
-plugin until it reloads. No client configuration edits or agent-name transfers
-are needed for the update.
-
-Upgrades from 0.10.0 or earlier migrate storage formats 1/2 atomically to format 3;
-back up a stopped node first. Older binaries reject format 3.
+Reconnect MCP after updating the app. Restart OpenCode/OpenChamber if its bundled
+plugin changed. Upgrades from 0.10.0 or earlier migrate storage formats 1/2
+atomically to format 3; back up a stopped node first. Older binaries reject format 3.
 
 ### Verification and known limits
 
-Consult the accompanying native platform reports for the exact source revision
-and completed runtime/GUI checks. Automated package checks use temporary profiles
-and synthetic messages, not live agents or real client configuration. Manual
-macOS OpenChamber validation of the plugin fix is documented separately; it does
-not substitute for native Windows verification.
+The accompanying native platform reports identify the exact source revision,
+operating system, architecture and completed runtime/GUI checks. Source tests and
+renderer fixtures alone do not constitute native package verification. Automated
+checks use temporary profiles, synthetic messages and private attachment fixtures,
+without contacting live agents or changing real client configuration.
 
-Codex cold-owner initialization is **not fixed** in this release. Discovery finds
-an existing exact handler but does not load an unloaded desktop chat. Recovery
-once a handler exists is tested separately. A manually activated PING/ACK matrix
-does not prove unattended startup or MCP-tool restoration by the client.
+OpenCode setup targets v1 and rejects detected v2 configuration. Codex Desktop
+delivery remains experimental and depends on an existing exact owner handler;
+discovery does not initialize an unloaded chat. Standard MCP clients do not
+automatically wake idle chats. A setup status does not prove that a client reloaded
+its configuration or connected.
 
-macOS packages are ad-hoc signed without Apple notarization. Windows packages are
-unsigned. Interactive installation/uninstallation and Start at login remain
-manual checks unless a platform report explicitly records otherwise.
+macOS packages use an ad-hoc signature without Apple notarization. Windows
+packages are unsigned. Interactive installation/uninstallation, Start at login,
+native file-picker display and external editor launching are verified only when
+the platform report explicitly records those checks.
