@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { createUiEnvironment } from './ui-test-profile.mjs';
 
 // Synthetic renderer fixtures never start a node, client adapter or real agent.
 const require = createRequire(import.meta.url);
@@ -193,8 +194,7 @@ contextBridge.exposeInMainWorld('interconnect', {
     main,
     `const{app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(path.join(temporary, 'profile'))});app.whenReady().then(()=>{const window=new BrowserWindow({width:1050,height:700,webPreferences:{preload:${JSON.stringify(preload)},contextIsolation:true,sandbox:true}});window.loadFile(${JSON.stringify(path.resolve('build/renderer/index.html'))});});app.on('window-all-closed',()=>app.quit());`,
   );
-  const env = { ...process.env };
-  delete env.ELECTRON_RUN_AS_NODE;
+  const env = await createUiEnvironment(path.join(temporary, 'clients'));
   application = await electron.launch({
     executablePath: require('electron'),
     args: [main],
@@ -208,6 +208,20 @@ contextBridge.exposeInMainWorld('interconnect', {
   await page.getByText('v0.11.1-fixture', { exact: true }).waitFor();
   assert.equal(await page.getByRole('tab').count(), 0);
   assert.equal(await page.getByTestId('agent-row').count(), 4);
+  assert.equal(await page.getByTestId('agents-table').getByRole('columnheader').count(), 6);
+  await page.getByRole('columnheader', { name: 'Messages', exact: true }).waitFor();
+  assert.equal(
+    await exactRow(local, agent.nickname)
+      .getByRole('img', { name: 'In: 115', exact: true })
+      .count(),
+    1,
+  );
+  assert.equal(
+    await exactRow(local, agent.nickname)
+      .getByRole('img', { name: 'Out: 115', exact: true })
+      .count(),
+    1,
+  );
   assert.equal(await page.getByTestId('agent-online').count(), 2);
   assert.equal(await exactRow(first, 'Same agent').getByTestId('agent-online').count(), 1);
   assert.equal(await exactRow(second, 'Same agent').getByTestId('agent-online').count(), 0);

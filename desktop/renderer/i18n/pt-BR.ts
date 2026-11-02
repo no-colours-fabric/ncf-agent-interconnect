@@ -1,6 +1,54 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  agentsColumnMessages: 'Mensagens',
+  mcpSetup_tabsLabel: 'Cliente MCP',
+  mcpSetup_userControl:
+    'Conecte seu aplicativo com um botão. As configurações só mudam depois de clicar em “Aplicar”.',
+  mcpSetup_configureCursor: 'Configurar Cursor',
+  mcpSetup_configureOpencode: 'Configurar OpenCode',
+  mcpSetup_configureCodex: 'Configurar Codex',
+  mcpSetup_cursorTitle: 'Configurar Cursor',
+  mcpSetup_opencodeTitle: 'Configurar OpenCode',
+  mcpSetup_codexTitle: 'Configurar Codex',
+  mcpSetup_cursorDescription:
+    'Conecte o Cursor ao NCF Agent Interconnect. As configurações de conexão serão adicionadas ao arquivo selecionado.',
+  mcpSetup_opencodeDescription:
+    'Conecte o OpenCode v1 ao NCF Agent Interconnect. As configurações de conexão serão adicionadas e a integração incluída será ativada. O OpenCode v2 não é compatível.',
+  mcpSetup_codexDescription:
+    'Conecte o Codex ao NCF Agent Interconnect. As configurações de conexão serão adicionadas à instância ou ao perfil selecionado.',
+  mcpSetup_pathLabel: 'Caminho do arquivo de configuração',
+  mcpSetup_browse: 'Escolher arquivo…',
+  mcpSetup_knownPaths: 'Outros locais',
+  mcpSetup_pathHint:
+    'Escolha o arquivo usado por este aplicativo. Se ele não existir, será criado ao clicar em “Aplicar”.',
+  mcpSetup_checking: 'Verificando configurações…',
+  mcpSetup_ready: 'Pronto para aplicar',
+  mcpSetup_create: 'As configurações de conexão serão adicionadas.',
+  mcpSetup_update:
+    'As configurações de conexão serão atualizadas. Uma cópia de segurança será salva.',
+  mcpSetup_unchanged: 'Essas configurações já existem. Nenhuma alteração é necessária.',
+  mcpSetup_configured: 'Configurações presentes',
+  'mcpSetup_not-configured': 'Não configurado',
+  'mcpSetup_needs-update': 'As configurações precisam ser atualizadas',
+  mcpSetup_missing: 'Não configurado',
+  mcpSetup_unavailable: 'Não foi possível verificar as configurações',
+  mcpSetup_openFile: 'Abrir arquivo de configuração',
+  mcpSetup_backup: 'Cópia de segurança',
+  mcpSetup_cancel: 'Cancelar',
+  mcpSetup_apply: 'Aplicar',
+  mcpSetup_close: 'Fechar',
+  mcpSetup_applied: 'Configuração aplicada.',
+  mcpSetup_noChanges: 'As configurações já existem. Nada foi alterado.',
+  mcpSetup_failed: 'Não foi possível aplicar a configuração.',
+  mcpSetup_cursorNext: 'Reconecte o MCP no Cursor para usar essas configurações.',
+  mcpSetup_opencodeNext: 'Reinicie o OpenCode v1 para usar essas configurações.',
+  mcpSetup_codexNext:
+    'Reconecte o MCP na instância ou no perfil selecionado do Codex para usar essas configurações.',
+  mcpSetup_copyPrompt: 'Copiar solicitação de conexão',
+  mcpSetup_connect: 'Conectar um agente no cliente',
+  mcpSetup_connectionPrompt: 'Conecte-se como agente <um nome de sua escolha>.',
+
   agentsColumnName: 'Nome',
   agentsColumnClient: 'Cliente',
   agentsColumnNode: 'Nó',
@@ -65,7 +113,7 @@ export const ptBR: Messages = {
   statInboxHint: 'não recebidas pelos agentes',
   connectAgentsTitle: 'Conectar agentes',
   connectAgentsBody:
-    'Escolha o seu cliente, copie a configuração e adicione-a às configurações de MCP dele. O aplicativo não altera as configurações do cliente.',
+    'Conecte seu aplicativo com um botão. As configurações só mudam depois de clicar em “Aplicar”.',
   connectAgentsCta: 'Abrir configuração do MCP',
   connectPeerTitle: 'Conectar outro computador',
   connectPeerBody: 'Digite o IP ou URL do nó remoto e o código de acesso fornecido pelo usuário.',
@@ -132,7 +180,7 @@ export const ptBR: Messages = {
   networkConnected: 'Conectado',
   networkWaiting: 'Aguardando conexão',
   mcpYouControl:
-    'Você controla a configuração. O aplicativo não edita configurações do Cursor, OpenCode ou Codex.',
+    'Conecte seu aplicativo com um botão. As configurações só mudam depois de clicar em “Aplicar”.',
   mcpYourClient: 'Seu cliente',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

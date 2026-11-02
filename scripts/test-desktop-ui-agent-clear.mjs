@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { createUiProfile } from './ui-test-profile.mjs';
+import { createUiEnvironment, createUiProfile } from './ui-test-profile.mjs';
 import { NodeService } from '../build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -72,8 +72,7 @@ try {
   const secondIncarnation = seed.store.sourceStamp(secondName).incarnation;
   await seed.close();
   seed = null;
-  const environment = { ...process.env };
-  delete environment.ELECTRON_RUN_AS_NODE;
+  const environment = await createUiEnvironment(path.join(temporary, 'clients'));
   console.error(
     JSON.stringify({
       event: 'clear-ui-launch',

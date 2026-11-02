@@ -5,24 +5,18 @@ import { createHash } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
-import { createUiProfile } from './ui-test-profile.mjs';
+import { createUiEnvironment, createUiProfile, uiClientConfigPaths } from './ui-test-profile.mjs';
 import { NodeService } from '../build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 const require = createRequire(import.meta.url);
-const userConfigs = [
-  path.join(os.homedir(), '.cursor/mcp.json'),
-  path.join(os.homedir(), '.config/opencode/opencode.json'),
-  path.join(os.homedir(), '.config/opencode/opencode.jsonc'),
-  path.join(os.homedir(), '.opencode/opencode.json'),
-  path.join(os.homedir(), '.opencode/opencode.jsonc'),
-  ...(process.env.CODEX_HOME ? [path.join(process.env.CODEX_HOME, 'config.toml')] : []),
-  path.join(os.homedir(), '.codex/config.toml'),
-];
+const temp = await mkdtemp(path.join(os.tmpdir(), 'ncf-interconnect-ui-'));
+const launchEnv = await createUiEnvironment(path.join(temp, 'clients'));
+const clientConfigs = uiClientConfigPaths(launchEnv);
 const hashes = async () =>
   Promise.all(
-    userConfigs.map(async (file) => {
+    clientConfigs.map(async (file) => {
       try {
         return createHash('sha256')
           .update(await readFile(file))
@@ -33,15 +27,21 @@ const hashes = async () =>
       }
     }),
   );
-const before = await hashes();
-const temp = await mkdtemp(path.join(os.tmpdir(), 'ncf-interconnect-ui-'));
+let before;
 let application, remote, receiver;
 let stderr = '';
 try {
   await createUiProfile(path.join(temp, 'desktop'));
   const packaged = process.env.INTERCONNECT_TEST_EXECUTABLE;
-  const launchEnv = { ...process.env };
-  delete launchEnv.ELECTRON_RUN_AS_NODE;
+  for (const filename of clientConfigs) {
+    await mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
+    await writeFile(
+      filename,
+      filename.endsWith('.toml') ? '# Private UI fixture\n' : '{"fixture":true}\n',
+      { mode: 0o600 },
+    );
+  }
+  before = await hashes();
   application = await electron.launch({
     executablePath: packaged ?? require('electron'),
     args: [...(packaged ? [] : [process.cwd()]), '--data-dir', path.join(temp, 'desktop')],
@@ -57,10 +57,33 @@ try {
   await mkdir('release', { recursive: true });
   await page.screenshot({ path: 'release/preview-overview.png' });
   await page.getByRole('button', { name: 'MCP setup', exact: true }).click();
-  await page.getByText('1. Add the configuration', { exact: true }).waitFor();
-  const configuration = await page.locator('pre').textContent();
-  assert.ok(configuration.includes('/mcp'));
-  assert.ok(!configuration.includes(process.cwd()));
+  assert.equal(await page.getByRole('tab').count(), 3);
+  assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
+  for (const [client, label] of [
+    ['cursor', 'Cursor'],
+    ['opencode', 'OpenCode'],
+    ['codex', 'Codex'],
+  ]) {
+    await page.getByRole('tab', { name: label, exact: true }).click();
+    await page.getByTestId('mcp-settings-status').waitFor();
+    assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
+    await page.getByTestId('mcp-configure-' + client).click();
+    const dialog = page.getByRole('dialog', { name: 'Configure ' + label, exact: true });
+    const selectedPath = await dialog
+      .getByRole('textbox', { name: 'Configuration file path', exact: true })
+      .inputValue();
+    assert.ok(clientConfigs.includes(selectedPath));
+    await page.waitForFunction(() => {
+      const apply = document.querySelector('[data-testid="mcp-apply"]');
+      return apply && !apply.disabled;
+    });
+    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    assert.deepEqual(
+      await hashes(),
+      before,
+      'status and cancellation must preserve private client files',
+    );
+  }
   await page.getByRole('button', { name: 'Applications', exact: true }).click();
   await page.getByText('OpenCode and its frontends', { exact: true }).waitFor();
   await page.getByText('Codex Desktop', { exact: true }).waitFor();
@@ -239,7 +262,11 @@ try {
         (agent) => agent.nickname === 'Interface check',
       ).unread === 0,
   );
-  assert.deepEqual(await hashes(), before, 'real MCP client settings must be unchanged');
+  assert.deepEqual(
+    await hashes(),
+    before,
+    'private client settings must be unchanged without Apply',
+  );
   console.log(
     JSON.stringify({
       electron: '45.1.0',
@@ -254,7 +281,7 @@ try {
       drawerHistoryAndAttachmentsPreserved: true,
       newestFirstPaginationAndScrollAnchor: true,
       literalAttachmentNamePreserved: true,
-      realClientConfigsUnchanged: true,
+      isolatedClientConfigsUnchangedWithoutApply: true,
       screenshots: ['release/preview-overview.png', 'release/preview-agents.png'],
     }),
   );

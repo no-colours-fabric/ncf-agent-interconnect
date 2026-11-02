@@ -1,6 +1,53 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  agentsColumnMessages: 'Berichten',
+  mcpSetup_tabsLabel: 'MCP-client',
+  mcpSetup_userControl:
+    'Verbind uw toepassing met een knop. Instellingen veranderen pas nadat u op ‘Toepassen’ klikt.',
+  mcpSetup_configureCursor: 'Cursor instellen',
+  mcpSetup_configureOpencode: 'OpenCode instellen',
+  mcpSetup_configureCodex: 'Codex instellen',
+  mcpSetup_cursorTitle: 'Cursor instellen',
+  mcpSetup_opencodeTitle: 'OpenCode instellen',
+  mcpSetup_codexTitle: 'Codex instellen',
+  mcpSetup_cursorDescription:
+    'Verbind Cursor met NCF Agent Interconnect. De verbindingsinstellingen worden aan het geselecteerde bestand toegevoegd.',
+  mcpSetup_opencodeDescription:
+    'Verbind OpenCode v1 met NCF Agent Interconnect. De verbindingsinstellingen worden toegevoegd en de meegeleverde integratie wordt ingeschakeld. OpenCode v2 wordt niet ondersteund.',
+  mcpSetup_codexDescription:
+    'Verbind Codex met NCF Agent Interconnect. De verbindingsinstellingen worden aan de geselecteerde instantie of het profiel toegevoegd.',
+  mcpSetup_pathLabel: 'Pad naar configuratiebestand',
+  mcpSetup_browse: 'Bestand kiezen…',
+  mcpSetup_knownPaths: 'Andere locaties',
+  mcpSetup_pathHint:
+    'Kies het bestand dat deze toepassing gebruikt. Een ontbrekend bestand wordt aangemaakt wanneer u op ‘Toepassen’ klikt.',
+  mcpSetup_checking: 'Instellingen controleren…',
+  mcpSetup_ready: 'Gereed om toe te passen',
+  mcpSetup_create: 'De verbindingsinstellingen worden toegevoegd.',
+  mcpSetup_update: 'De verbindingsinstellingen worden bijgewerkt. Er wordt een back-up opgeslagen.',
+  mcpSetup_unchanged: 'Deze instellingen zijn al aanwezig. Er zijn geen wijzigingen nodig.',
+  mcpSetup_configured: 'Instellingen aanwezig',
+  'mcpSetup_not-configured': 'Niet ingesteld',
+  'mcpSetup_needs-update': 'Instellingen moeten worden bijgewerkt',
+  mcpSetup_missing: 'Niet ingesteld',
+  mcpSetup_unavailable: 'Instellingen konden niet worden gecontroleerd',
+  mcpSetup_openFile: 'Configuratiebestand openen',
+  mcpSetup_backup: 'Back-up',
+  mcpSetup_cancel: 'Annuleren',
+  mcpSetup_apply: 'Toepassen',
+  mcpSetup_close: 'Sluiten',
+  mcpSetup_applied: 'Instellingen toegepast.',
+  mcpSetup_noChanges: 'De instellingen zijn al aanwezig. Er is niets gewijzigd.',
+  mcpSetup_failed: 'Instellingen konden niet worden toegepast.',
+  mcpSetup_cursorNext: 'Verbind MCP opnieuw in Cursor om deze instellingen te gebruiken.',
+  mcpSetup_opencodeNext: 'Start OpenCode v1 opnieuw om deze instellingen te gebruiken.',
+  mcpSetup_codexNext:
+    'Verbind MCP opnieuw in de geselecteerde Codex-instantie of het profiel om deze instellingen te gebruiken.',
+  mcpSetup_copyPrompt: 'Verbindingsprompt kopiëren',
+  mcpSetup_connect: 'Een agent verbinden in de client',
+  mcpSetup_connectionPrompt: 'Verbind als agent <een naam naar keuze>.',
+
   agentsColumnName: 'Naam',
   agentsColumnClient: 'Client',
   agentsColumnNode: 'Knooppunt',
@@ -65,7 +112,7 @@ export const nl: Messages = {
   statInboxHint: 'nog niet ontvangen door agents',
   connectAgentsTitle: 'Agents verbinden',
   connectAgentsBody:
-    'Kies uw client, kopieer de configuratie en voeg die toe aan de MCP-instellingen ervan. De app wijzigt geen clientinstellingen.',
+    'Verbind uw toepassing met een knop. Instellingen veranderen pas nadat u op ‘Toepassen’ klikt.',
   connectAgentsCta: 'MCP-instellingen openen',
   connectPeerTitle: 'Andere computer verbinden',
   connectPeerBody:
@@ -133,7 +180,7 @@ export const nl: Messages = {
   networkConnected: 'Verbonden',
   networkWaiting: 'Wachten op verbinding',
   mcpYouControl:
-    'U beheert de instellingen. De app bewerkt geen configuraties van Cursor, OpenCode of Codex.',
+    'Verbind uw toepassing met een knop. Instellingen veranderen pas nadat u op ‘Toepassen’ klikt.',
   mcpYourClient: 'Uw client',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

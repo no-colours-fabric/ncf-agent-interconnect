@@ -1,6 +1,53 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  agentsColumnMessages: 'Сообщения',
+  mcpSetup_tabsLabel: 'MCP-клиент',
+  mcpSetup_userControl:
+    'Подключите приложение с помощью кнопки. Настройки изменяются только после нажатия «Применить».',
+  mcpSetup_configureCursor: 'Настроить Cursor',
+  mcpSetup_configureOpencode: 'Настроить OpenCode',
+  mcpSetup_configureCodex: 'Настроить Codex',
+  mcpSetup_cursorTitle: 'Настроить Cursor',
+  mcpSetup_opencodeTitle: 'Настроить OpenCode',
+  mcpSetup_codexTitle: 'Настроить Codex',
+  mcpSetup_cursorDescription:
+    'Подключите Cursor к NCF Agent Interconnect. Настройки подключения будут добавлены в выбранный файл.',
+  mcpSetup_opencodeDescription:
+    'Подключите OpenCode v1 к NCF Agent Interconnect. Будут добавлены настройки подключения и включена встроенная интеграция. OpenCode v2 не поддерживается.',
+  mcpSetup_codexDescription:
+    'Подключите Codex к NCF Agent Interconnect. Настройки подключения будут добавлены в выбранный экземпляр или профиль.',
+  mcpSetup_pathLabel: 'Путь к файлу конфигурации',
+  mcpSetup_browse: 'Выбрать файл…',
+  mcpSetup_knownPaths: 'Другие расположения',
+  mcpSetup_pathHint:
+    'Выберите файл, используемый этим приложением. Отсутствующий файл будет создан после нажатия «Применить».',
+  mcpSetup_checking: 'Проверка настроек…',
+  mcpSetup_ready: 'Готово к применению',
+  mcpSetup_create: 'Настройки подключения будут добавлены.',
+  mcpSetup_update: 'Настройки подключения будут обновлены. Будет сохранена резервная копия.',
+  mcpSetup_unchanged: 'Эти настройки уже присутствуют. Изменения не требуются.',
+  mcpSetup_configured: 'Настройки присутствуют',
+  'mcpSetup_not-configured': 'Не настроено',
+  'mcpSetup_needs-update': 'Настройки требуют обновления',
+  mcpSetup_missing: 'Не настроено',
+  mcpSetup_unavailable: 'Не удалось проверить настройки',
+  mcpSetup_openFile: 'Открыть файл конфигурации',
+  mcpSetup_backup: 'Резервная копия',
+  mcpSetup_cancel: 'Отмена',
+  mcpSetup_apply: 'Применить',
+  mcpSetup_close: 'Закрыть',
+  mcpSetup_applied: 'Настройка применена.',
+  mcpSetup_noChanges: 'Настройки уже присутствуют. Ничего не изменено.',
+  mcpSetup_failed: 'Не удалось применить настройку.',
+  mcpSetup_cursorNext: 'Переподключите MCP в Cursor, чтобы использовать эти настройки.',
+  mcpSetup_opencodeNext: 'Перезапустите OpenCode v1, чтобы использовать эти настройки.',
+  mcpSetup_codexNext:
+    'Переподключите MCP в выбранном экземпляре или профиле Codex, чтобы использовать эти настройки.',
+  mcpSetup_copyPrompt: 'Скопировать запрос подключения',
+  mcpSetup_connect: 'Подключить агента в клиенте',
+  mcpSetup_connectionPrompt: 'Подключись как агент <выбранное вами имя>.',
+
   agentsColumnName: 'Имя',
   agentsColumnClient: 'Клиент',
   agentsColumnNode: 'Узел',
@@ -65,7 +112,7 @@ export const ru: Messages = {
   statInboxHint: 'ещё не получено агентами',
   connectAgentsTitle: 'Подключение агентов',
   connectAgentsBody:
-    'Выберите клиент, скопируйте конфигурацию и добавьте её в настройки MCP. Приложение не изменяет настройки клиента.',
+    'Подключите приложение с помощью кнопки. Настройки изменяются только после нажатия «Применить».',
   connectAgentsCta: 'Открыть настройку MCP',
   connectPeerTitle: 'Подключение другого компьютера',
   connectPeerBody:
@@ -133,7 +180,7 @@ export const ru: Messages = {
   networkConnected: 'Подключено',
   networkWaiting: 'Ожидание подключения',
   mcpYouControl:
-    'Вы управляете настройкой. Приложение не изменяет конфигурации Cursor, OpenCode или Codex.',
+    'Подключите приложение с помощью кнопки. Настройки изменяются только после нажатия «Применить».',
   mcpYourClient: 'Ваш клиент',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

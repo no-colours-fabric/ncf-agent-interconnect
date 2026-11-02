@@ -1,10 +1,17 @@
-export interface Messages {
+import type { McpSetupMessages } from '../mcp-setup-messages.js';
+
+type McpSetupTranslations = {
+  [Key in keyof McpSetupMessages as `mcpSetup_${Key}`]: string;
+};
+
+export interface Messages extends McpSetupTranslations {
   agentsColumnName: string;
   agentsColumnClient: string;
   agentsColumnNode: string;
   agentsColumnLastMessage: string;
   agentsColumnIncoming: string;
   agentsColumnOutgoing: string;
+  agentsColumnMessages: string;
   agentsColumnActions: string;
   agentsChatAria: string;
   agentsDeleteAria: string;

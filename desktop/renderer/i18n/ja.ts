@@ -1,6 +1,53 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  agentsColumnMessages: 'メッセージ',
+  mcpSetup_tabsLabel: 'MCPクライアント',
+  mcpSetup_userControl:
+    'ボタンでアプリケーションを接続します。「適用」をクリックした後にのみ設定が変更されます。',
+  mcpSetup_configureCursor: 'Cursorを設定',
+  mcpSetup_configureOpencode: 'OpenCodeを設定',
+  mcpSetup_configureCodex: 'Codexを設定',
+  mcpSetup_cursorTitle: 'Cursorを設定',
+  mcpSetup_opencodeTitle: 'OpenCodeを設定',
+  mcpSetup_codexTitle: 'Codexを設定',
+  mcpSetup_cursorDescription:
+    'CursorをNCF Agent Interconnectに接続します。選択したファイルに接続設定を追加します。',
+  mcpSetup_opencodeDescription:
+    'OpenCode v1をNCF Agent Interconnectに接続します。接続設定を追加し、付属の連携機能を有効にします。OpenCode v2はサポートされていません。',
+  mcpSetup_codexDescription:
+    'CodexをNCF Agent Interconnectに接続します。選択したインスタンスまたはプロファイルに接続設定を追加します。',
+  mcpSetup_pathLabel: '設定ファイルのパス',
+  mcpSetup_browse: 'ファイルを選択…',
+  mcpSetup_knownPaths: 'その他の場所',
+  mcpSetup_pathHint:
+    'このアプリケーションが使用するファイルを選択してください。ファイルが存在しない場合は「適用」をクリックすると作成されます。',
+  mcpSetup_checking: '設定を確認中…',
+  mcpSetup_ready: '適用の準備完了',
+  mcpSetup_create: '接続設定が追加されます。',
+  mcpSetup_update: '接続設定が更新され、バックアップが保存されます。',
+  mcpSetup_unchanged: 'これらの設定は既に存在します。変更は必要ありません。',
+  mcpSetup_configured: '設定あり',
+  'mcpSetup_not-configured': '未設定',
+  'mcpSetup_needs-update': '設定の更新が必要',
+  mcpSetup_missing: '未設定',
+  mcpSetup_unavailable: '設定を確認できませんでした',
+  mcpSetup_openFile: '設定ファイルを開く',
+  mcpSetup_backup: 'バックアップ',
+  mcpSetup_cancel: 'キャンセル',
+  mcpSetup_apply: '適用',
+  mcpSetup_close: '閉じる',
+  mcpSetup_applied: '設定を適用しました。',
+  mcpSetup_noChanges: '設定は既に存在します。変更はありません。',
+  mcpSetup_failed: '設定を適用できませんでした。',
+  mcpSetup_cursorNext: 'これらの設定を使用するには、CursorでMCPを再接続してください。',
+  mcpSetup_opencodeNext: 'これらの設定を使用するには、OpenCode v1を再起動してください。',
+  mcpSetup_codexNext:
+    'これらの設定を使用するには、選択したCodexインスタンスまたはプロファイルでMCPを再接続してください。',
+  mcpSetup_copyPrompt: '接続プロンプトをコピー',
+  mcpSetup_connect: 'クライアントでエージェントを接続',
+  mcpSetup_connectionPrompt: 'エージェント<任意の名前>として接続してください。',
+
   agentsColumnName: '名前',
   agentsColumnClient: 'クライアント',
   agentsColumnNode: 'ノード',
@@ -65,7 +112,7 @@ export const ja: Messages = {
   statInboxHint: 'エージェントが未受信',
   connectAgentsTitle: 'エージェントを接続',
   connectAgentsBody:
-    'クライアントを選択し、設定をコピーしてその MCP 設定に追加します。アプリはクライアント設定を変更しません。',
+    'ボタンでアプリケーションを接続します。「適用」をクリックした後にのみ設定が変更されます。',
   connectAgentsCta: 'MCP 設定を開く',
   connectPeerTitle: '別のコンピューターを接続',
   connectPeerBody:
@@ -133,7 +180,7 @@ export const ja: Messages = {
   networkConnected: '接続済み',
   networkWaiting: '接続待機中',
   mcpYouControl:
-    'セットアップはお客様が管理します。アプリは Cursor、OpenCode、Codex の設定を編集しません。',
+    'ボタンでアプリケーションを接続します。「適用」をクリックした後にのみ設定が変更されます。',
   mcpYourClient: 'クライアント',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

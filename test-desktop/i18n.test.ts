@@ -16,6 +16,8 @@ import { ru } from '../desktop/renderer/i18n/ru.js';
 import { tr } from '../desktop/renderer/i18n/tr.js';
 import { uk } from '../desktop/renderer/i18n/uk.js';
 import { zh } from '../desktop/renderer/i18n/zh.js';
+import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
+import { mcpSetupEnglish, type McpSetupMessages } from '../desktop/renderer/mcp-setup-messages.js';
 import {
   defaultLocale,
   loadLocale,
@@ -33,6 +35,45 @@ const memoryStorage = (initial: Record<string, string> = {}) => {
     setItem: (key: string, value: string) => void store.set(key, value),
   };
 };
+
+test('MCP setup adapter covers every source message in all 15 dictionaries', () => {
+  const keys = Object.keys(mcpSetupEnglish) as (keyof McpSetupMessages)[];
+  assert.deepEqual(mcpSetupMessages('en'), mcpSetupEnglish);
+  for (const locale of supportedLocales) {
+    const messages = mcpSetupMessages(locale);
+    assert.deepEqual(Object.keys(messages).sort(), [...keys].sort());
+    for (const key of keys) {
+      assert.ok(messages[key].trim(), locale + ': ' + key);
+      assert.equal(messages[key], t(locale, `mcpSetup_${key}`));
+    }
+    assert.equal(t(locale, 'connectAgentsBody'), messages.userControl);
+    assert.equal(t(locale, 'mcpYouControl'), messages.userControl);
+    assert.ok(messages.userControl.includes(messages.apply));
+    assert.ok(messages.opencodeDescription.includes('OpenCode v1'));
+    assert.ok(messages.opencodeDescription.includes('OpenCode v2'));
+    if (locale !== 'en')
+      for (const key of [
+        'userControl',
+        'pathLabel',
+        'apply',
+        'noChanges',
+        'opencodeDescription',
+        'copyPrompt',
+      ] as const)
+        assert.notEqual(
+          messages[key],
+          mcpSetupEnglish[key],
+          locale + ': unexpected English fallback for ' + key,
+        );
+  }
+});
+
+test('MCP setup adapter returns independent objects and preserves English fallback', () => {
+  assert.deepEqual(mcpSetupMessages('unknown' as Locale), mcpSetupEnglish);
+  const messages = mcpSetupMessages('ru');
+  messages.apply = 'Changed by caller';
+  assert.equal(mcpSetupMessages('ru').apply, 'Применить');
+});
 
 test('default locale is English', () => {
   assert.equal(defaultLocale, 'en');

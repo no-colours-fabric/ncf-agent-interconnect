@@ -1,6 +1,54 @@
 import type { Messages } from './messages.js';
 
 export const de: Messages = {
+  agentsColumnMessages: 'Nachrichten',
+  mcpSetup_tabsLabel: 'MCP-Client',
+  mcpSetup_userControl:
+    'Verbinden Sie Ihre Anwendung per Schaltfläche. Einstellungen ändern sich erst nach einem Klick auf „Anwenden“.',
+  mcpSetup_configureCursor: 'Cursor einrichten',
+  mcpSetup_configureOpencode: 'OpenCode einrichten',
+  mcpSetup_configureCodex: 'Codex einrichten',
+  mcpSetup_cursorTitle: 'Cursor einrichten',
+  mcpSetup_opencodeTitle: 'OpenCode einrichten',
+  mcpSetup_codexTitle: 'Codex einrichten',
+  mcpSetup_cursorDescription:
+    'Verbinden Sie Cursor mit NCF Agent Interconnect. Die Verbindungseinstellungen werden der ausgewählten Datei hinzugefügt.',
+  mcpSetup_opencodeDescription:
+    'Verbinden Sie OpenCode v1 mit NCF Agent Interconnect. Die Verbindungseinstellungen werden hinzugefügt und die mitgelieferte Integration aktiviert. OpenCode v2 wird nicht unterstützt.',
+  mcpSetup_codexDescription:
+    'Verbinden Sie Codex mit NCF Agent Interconnect. Die Verbindungseinstellungen werden der ausgewählten Instanz oder dem Profil hinzugefügt.',
+  mcpSetup_pathLabel: 'Pfad der Konfigurationsdatei',
+  mcpSetup_browse: 'Datei auswählen…',
+  mcpSetup_knownPaths: 'Weitere Speicherorte',
+  mcpSetup_pathHint:
+    'Wählen Sie die von dieser Anwendung verwendete Datei. Eine fehlende Datei wird beim Klick auf „Anwenden“ erstellt.',
+  mcpSetup_checking: 'Einstellungen werden geprüft…',
+  mcpSetup_ready: 'Bereit zum Anwenden',
+  mcpSetup_create: 'Die Verbindungseinstellungen werden hinzugefügt.',
+  mcpSetup_update:
+    'Die Verbindungseinstellungen werden aktualisiert. Eine Sicherung wird gespeichert.',
+  mcpSetup_unchanged: 'Diese Einstellungen sind bereits vorhanden. Keine Änderungen erforderlich.',
+  mcpSetup_configured: 'Einstellungen vorhanden',
+  'mcpSetup_not-configured': 'Nicht eingerichtet',
+  'mcpSetup_needs-update': 'Einstellungen müssen aktualisiert werden',
+  mcpSetup_missing: 'Nicht eingerichtet',
+  mcpSetup_unavailable: 'Einstellungen konnten nicht geprüft werden',
+  mcpSetup_openFile: 'Konfigurationsdatei öffnen',
+  mcpSetup_backup: 'Sicherung',
+  mcpSetup_cancel: 'Abbrechen',
+  mcpSetup_apply: 'Anwenden',
+  mcpSetup_close: 'Schließen',
+  mcpSetup_applied: 'Einrichtung angewendet.',
+  mcpSetup_noChanges: 'Einstellungen sind bereits vorhanden. Nichts wurde geändert.',
+  mcpSetup_failed: 'Einrichtung konnte nicht angewendet werden.',
+  mcpSetup_cursorNext: 'Verbinden Sie MCP in Cursor erneut, um diese Einstellungen zu verwenden.',
+  mcpSetup_opencodeNext: 'Starten Sie OpenCode v1 neu, um diese Einstellungen zu verwenden.',
+  mcpSetup_codexNext:
+    'Verbinden Sie MCP in der ausgewählten Codex-Instanz oder im Profil erneut, um diese Einstellungen zu verwenden.',
+  mcpSetup_copyPrompt: 'Verbindungsaufforderung kopieren',
+  mcpSetup_connect: 'Einen Agenten im Client verbinden',
+  mcpSetup_connectionPrompt: 'Verbinde dich als Agent <ein Name deiner Wahl>.',
+
   agentsColumnName: 'Name',
   agentsColumnClient: 'Client',
   agentsColumnNode: 'Knoten',
@@ -65,7 +113,7 @@ export const de: Messages = {
   statInboxHint: 'noch nicht von Agenten empfangen',
   connectAgentsTitle: 'Agenten verbinden',
   connectAgentsBody:
-    'Wählen Sie Ihren Client, kopieren Sie die Konfiguration und fügen Sie sie zu dessen MCP-Einstellungen hinzu. Die App ändert keine Client-Einstellungen.',
+    'Verbinden Sie Ihre Anwendung per Schaltfläche. Einstellungen ändern sich erst nach einem Klick auf „Anwenden“.',
   connectAgentsCta: 'MCP-Einrichtung öffnen',
   connectPeerTitle: 'Anderen Computer verbinden',
   connectPeerBody:
@@ -133,7 +181,7 @@ export const de: Messages = {
   networkConnected: 'Verbunden',
   networkWaiting: 'Warten auf Verbindung',
   mcpYouControl:
-    'Sie steuern die Einrichtung. Die App bearbeitet keine Konfigurationen von Cursor, OpenCode oder Codex.',
+    'Verbinden Sie Ihre Anwendung per Schaltfläche. Einstellungen ändern sich erst nach einem Klick auf „Anwenden“.',
   mcpYourClient: 'Ihr Client',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

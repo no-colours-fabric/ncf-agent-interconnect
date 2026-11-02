@@ -1,6 +1,55 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  agentsColumnMessages: 'Хабарламалар',
+  mcpSetup_tabsLabel: 'MCP клиенті',
+  mcpSetup_userControl:
+    'Қолданбаны батырма арқылы қосыңыз. Баптаулар «Қолдану» батырмасын басқаннан кейін ғана өзгереді.',
+  mcpSetup_configureCursor: 'Cursor баптау',
+  mcpSetup_configureOpencode: 'OpenCode баптау',
+  mcpSetup_configureCodex: 'Codex баптау',
+  mcpSetup_cursorTitle: 'Cursor баптау',
+  mcpSetup_opencodeTitle: 'OpenCode баптау',
+  mcpSetup_codexTitle: 'Codex баптау',
+  mcpSetup_cursorDescription:
+    'Cursor қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары таңдалған файлға қосылады.',
+  mcpSetup_opencodeDescription:
+    'OpenCode v1 қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары қосылып, жинақтағы интеграция іске қосылады. OpenCode v2 нұсқасына қолдау көрсетілмейді.',
+  mcpSetup_codexDescription:
+    'Codex қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары таңдалған данаға немесе профильге қосылады.',
+  mcpSetup_pathLabel: 'Конфигурация файлының жолы',
+  mcpSetup_browse: 'Файлды таңдау…',
+  mcpSetup_knownPaths: 'Басқа орындар',
+  mcpSetup_pathHint:
+    'Осы қолданба пайдаланатын файлды таңдаңыз. Жоқ файл «Қолдану» батырмасын басқанда жасалады.',
+  mcpSetup_checking: 'Баптаулар тексерілуде…',
+  mcpSetup_ready: 'Қолдануға дайын',
+  mcpSetup_create: 'Қосылу баптаулары қосылады.',
+  mcpSetup_update: 'Қосылу баптаулары жаңартылады. Сақтық көшірме сақталады.',
+  mcpSetup_unchanged: 'Бұл баптаулар бұрыннан бар. Өзгерістер қажет емес.',
+  mcpSetup_configured: 'Баптаулар бар',
+  'mcpSetup_not-configured': 'Бапталмаған',
+  'mcpSetup_needs-update': 'Баптауларды жаңарту қажет',
+  mcpSetup_missing: 'Бапталмаған',
+  mcpSetup_unavailable: 'Баптауларды тексеру мүмкін болмады',
+  mcpSetup_openFile: 'Конфигурация файлын ашу',
+  mcpSetup_backup: 'Сақтық көшірме',
+  mcpSetup_cancel: 'Бас тарту',
+  mcpSetup_apply: 'Қолдану',
+  mcpSetup_close: 'Жабу',
+  mcpSetup_applied: 'Баптаулар қолданылды.',
+  mcpSetup_noChanges: 'Баптаулар бұрыннан бар. Ештеңе өзгерген жоқ.',
+  mcpSetup_failed: 'Баптауларды қолдану мүмкін болмады.',
+  mcpSetup_cursorNext:
+    'Бұл баптауларды пайдалану үшін Cursor ішінде MCP қосылымын қайта орнатыңыз.',
+  mcpSetup_opencodeNext:
+    'Бұл баптауларды пайдалану үшін OpenCode v1 қолданбасын қайта іске қосыңыз.',
+  mcpSetup_codexNext:
+    'Бұл баптауларды пайдалану үшін таңдалған Codex данасында немесе профилінде MCP қосылымын қайта орнатыңыз.',
+  mcpSetup_copyPrompt: 'Қосылу сұрауын көшіру',
+  mcpSetup_connect: 'Клиентте агентті қосу',
+  mcpSetup_connectionPrompt: '<Өзіңіз таңдаған ат> атты агент ретінде қосыл.',
+
   agentsColumnName: 'Аты',
   agentsColumnClient: 'Клиент',
   agentsColumnNode: 'Түйін',
@@ -65,7 +114,7 @@ export const kk: Messages = {
   statInboxHint: 'агенттер әлі қабылдаған жоқ',
   connectAgentsTitle: 'Агенттерді қосу',
   connectAgentsBody:
-    'Клиентіңізді таңдаңыз, конфигурацияны көшіріп, оны оның MCP параметрлеріне қосыңыз. Қолданба клиент параметрлерін өзгертпейді.',
+    'Қолданбаны батырма арқылы қосыңыз. Баптаулар «Қолдану» батырмасын басқаннан кейін ғана өзгереді.',
   connectAgentsCta: 'MCP параметрлерін ашу',
   connectPeerTitle: 'Басқа компьютерді қосу',
   connectPeerBody:
@@ -133,7 +182,7 @@ export const kk: Messages = {
   networkConnected: 'Қосылған',
   networkWaiting: 'Байланыс күтілуде',
   mcpYouControl:
-    'Параметрлерді сіз басқарасыз. Қолданба Cursor, OpenCode немесе Codex конфигурацияларын өзгертпейді.',
+    'Қолданбаны батырма арқылы қосыңыз. Баптаулар «Қолдану» батырмасын басқаннан кейін ғана өзгереді.',
   mcpYourClient: 'Клиентіңіз',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

@@ -16,6 +16,8 @@ import {
 import ChatBubbleOutlined from '@mui/icons-material/ChatBubbleOutlined';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import Circle from '@mui/icons-material/Circle';
+import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
+import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined';
 import type { AgentRow } from './agents-table-model.js';
 import { t, type Locale } from './i18n/index.js';
 
@@ -60,8 +62,7 @@ export function AgentsTable({
             <TableCell>{labels.client}</TableCell>
             <TableCell>{labels.node}</TableCell>
             <TableCell>{labels.lastMessage}</TableCell>
-            <TableCell align="right">{labels.incoming}</TableCell>
-            <TableCell align="right">{labels.outgoing}</TableCell>
+            <TableCell align="right">{t(locale, 'agentsColumnMessages')}</TableCell>
             <TableCell align="right">{labels.actions}</TableCell>
           </TableRow>
         </TableHead>
@@ -95,8 +96,56 @@ export function AgentsTable({
               <TableCell>
                 {agent.lastMessageAt ? new Date(agent.lastMessageAt).toLocaleString(locale) : ''}
               </TableCell>
-              <TableCell align="right">{agent.incomingCount}</TableCell>
-              <TableCell align="right">{agent.outgoingCount}</TableCell>
+              <TableCell
+                align="right"
+                sx={{ whiteSpace: 'nowrap', fontVariantNumeric: 'tabular-nums' }}
+              >
+                {agent.messageCount !== undefined && (
+                  <Box
+                    component="span"
+                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}
+                  >
+                    {agent.messageCount}
+                    {agent.incomingCount !== undefined && agent.outgoingCount !== undefined && (
+                      <Box
+                        component="span"
+                        sx={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 0.5,
+                          color: 'text.secondary',
+                        }}
+                      >
+                        {'('}
+                        <Tooltip title={labels.incoming}>
+                          <Box
+                            component="span"
+                            role="img"
+                            aria-label={`${labels.incoming}: ${agent.incomingCount}`}
+                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}
+                          >
+                            <ArrowDownwardOutlined sx={{ fontSize: 15 }} />
+                            {agent.incomingCount}
+                          </Box>
+                        </Tooltip>
+                        {'/'}
+                        <Tooltip title={labels.outgoing}>
+                          <Box
+                            component="span"
+                            role="img"
+                            aria-label={`${labels.outgoing}: ${agent.outgoingCount}`}
+                            sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}
+                          >
+                            <ArrowUpwardOutlined sx={{ fontSize: 15 }} />
+                            {agent.outgoingCount}
+                          </Box>
+                        </Tooltip>
+                        {')'}
+                      </Box>
+                    )}
+                  </Box>
+                )}
+              </TableCell>
               <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                 <Tooltip title={labels.chat(agent.nickname)}>
                   <IconButton
@@ -123,7 +172,7 @@ export function AgentsTable({
           ))}
           {!rows.length && (
             <TableRow>
-              <TableCell colSpan={7} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
+              <TableCell colSpan={6} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
                 {t(locale, 'agentEmptyPrompt')}
               </TableCell>
             </TableRow>

@@ -1,6 +1,53 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  agentsColumnMessages: '메시지',
+  mcpSetup_tabsLabel: 'MCP 클라이언트',
+  mcpSetup_userControl:
+    '버튼으로 애플리케이션을 연결하세요. 설정은 ‘적용’을 클릭한 후에만 변경됩니다.',
+  mcpSetup_configureCursor: 'Cursor 설정',
+  mcpSetup_configureOpencode: 'OpenCode 설정',
+  mcpSetup_configureCodex: 'Codex 설정',
+  mcpSetup_cursorTitle: 'Cursor 설정',
+  mcpSetup_opencodeTitle: 'OpenCode 설정',
+  mcpSetup_codexTitle: 'Codex 설정',
+  mcpSetup_cursorDescription:
+    'Cursor를 NCF Agent Interconnect에 연결하세요. 선택한 파일에 연결 설정이 추가됩니다.',
+  mcpSetup_opencodeDescription:
+    'OpenCode v1을 NCF Agent Interconnect에 연결하세요. 연결 설정이 추가되고 포함된 통합 기능이 활성화됩니다. OpenCode v2는 지원하지 않습니다.',
+  mcpSetup_codexDescription:
+    'Codex를 NCF Agent Interconnect에 연결하세요. 선택한 인스턴스 또는 프로필에 연결 설정이 추가됩니다.',
+  mcpSetup_pathLabel: '설정 파일 경로',
+  mcpSetup_browse: '파일 선택…',
+  mcpSetup_knownPaths: '다른 위치',
+  mcpSetup_pathHint:
+    '이 애플리케이션에서 사용하는 파일을 선택하세요. 파일이 없으면 ‘적용’을 클릭할 때 생성됩니다.',
+  mcpSetup_checking: '설정 확인 중…',
+  mcpSetup_ready: '적용 준비 완료',
+  mcpSetup_create: '연결 설정이 추가됩니다.',
+  mcpSetup_update: '연결 설정이 업데이트되고 백업이 저장됩니다.',
+  mcpSetup_unchanged: '이 설정이 이미 있습니다. 변경할 필요가 없습니다.',
+  mcpSetup_configured: '설정 있음',
+  'mcpSetup_not-configured': '설정되지 않음',
+  'mcpSetup_needs-update': '설정 업데이트 필요',
+  mcpSetup_missing: '설정되지 않음',
+  mcpSetup_unavailable: '설정을 확인할 수 없습니다',
+  mcpSetup_openFile: '설정 파일 열기',
+  mcpSetup_backup: '백업',
+  mcpSetup_cancel: '취소',
+  mcpSetup_apply: '적용',
+  mcpSetup_close: '닫기',
+  mcpSetup_applied: '설정이 적용되었습니다.',
+  mcpSetup_noChanges: '설정이 이미 있습니다. 변경 사항이 없습니다.',
+  mcpSetup_failed: '설정을 적용할 수 없습니다.',
+  mcpSetup_cursorNext: '이 설정을 사용하려면 Cursor에서 MCP를 다시 연결하세요.',
+  mcpSetup_opencodeNext: '이 설정을 사용하려면 OpenCode v1을 다시 시작하세요.',
+  mcpSetup_codexNext:
+    '이 설정을 사용하려면 선택한 Codex 인스턴스 또는 프로필에서 MCP를 다시 연결하세요.',
+  mcpSetup_copyPrompt: '연결 프롬프트 복사',
+  mcpSetup_connect: '클라이언트에서 에이전트 연결',
+  mcpSetup_connectionPrompt: '에이전트 <원하는 이름>으로 연결해 주세요.',
+
   agentsColumnName: '이름',
   agentsColumnClient: '클라이언트',
   agentsColumnNode: '노드',
@@ -65,7 +112,7 @@ export const ko: Messages = {
   statInboxHint: '아직 에이전트가 수신하지 않음',
   connectAgentsTitle: '에이전트 연결',
   connectAgentsBody:
-    '클라이언트를 선택하고 구성을 복사한 후 해당 MCP 설정에 추가하세요. 앱은 클라이언트 설정을 변경하지 않습니다.',
+    '버튼으로 애플리케이션을 연결하세요. 설정은 ‘적용’을 클릭한 후에만 변경됩니다.',
   connectAgentsCta: 'MCP 설정 열기',
   connectPeerTitle: '다른 컴퓨터 연결',
   connectPeerBody: '원격 노드의 IP 또는 URL과 해당 사용자가 제공한 액세스 코드를 입력하세요.',
@@ -130,8 +177,7 @@ export const ko: Messages = {
   networkIncoming: '수신 연결',
   networkConnected: '연결됨',
   networkWaiting: '연결 대기 중',
-  mcpYouControl:
-    '설정은 사용자가 관리합니다. 앱은 Cursor, OpenCode 또는 Codex 구성을 편집하지 않습니다.',
+  mcpYouControl: '버튼으로 애플리케이션을 연결하세요. 설정은 ‘적용’을 클릭한 후에만 변경됩니다.',
   mcpYourClient: '클라이언트',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

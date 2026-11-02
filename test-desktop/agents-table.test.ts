@@ -84,6 +84,36 @@ const labels: AgentsTableLabels = {
   remoteRemoval: 'Delete on remote node',
 };
 
+test('one message column distinguishes measured zeros from unknown directional and remote counts', () => {
+  const snapshot = fixture();
+  const render = () =>
+    renderToStaticMarkup(
+      createElement(AgentsTable, {
+        rows: agentRows(snapshot),
+        labels,
+        locale: 'en',
+        nodeName: () => 'Machine',
+        onChat: () => {},
+        onDelete: () => {},
+      }),
+    );
+  const messageCells = (html: string) =>
+    [...html.matchAll(/<tr\b[^>]*data-testid="agent-row"[^>]*>([\s\S]*?)<\/tr>/g)].map((row) => {
+      const cells = [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)];
+      return cells[3][1]
+        .replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '')
+        .replace(/<[^>]*>/g, '')
+        .replace(/\s/g, '');
+    });
+  assert.deepEqual(messageCells(render()).sort(), ['', '5(3/2)']);
+  snapshot.agents[0].messageCount = 0;
+  snapshot.agents[0].incomingCount = 0;
+  snapshot.agents[0].outgoingCount = 0;
+  assert.deepEqual(messageCells(render()).sort(), ['', '0(0/0)']);
+  snapshot.agents[0].incomingCount = undefined;
+  assert.deepEqual(messageCells(render()).sort(), ['', '0']);
+});
+
 test('same Unicode name on different nodes keeps separate rows and only confirmed availability gets an icon', () => {
   const snapshot = fixture();
   const rows = agentRows(snapshot);
@@ -93,6 +123,7 @@ test('same Unicode name on different nodes keeps separate rows and only confirme
   const remote = rows.find((row) => !row.local)!;
   assert.equal(remote.online, false);
   assert.equal(remote.incomingCount, undefined);
+  assert.equal(remote.messageCount, undefined);
   assert.equal(remote.outgoingCount, undefined);
   assert.equal(remote.lastMessageAt, undefined);
   assert.equal(remote.client, undefined);
@@ -112,6 +143,13 @@ test('same Unicode name on different nodes keeps separate rows and only confirme
   assert.ok(!html.includes('Client availability unknown'));
   assert.ok(!html.includes('Offline'));
   assert.ok(html.includes('disabled=""'));
+  assert.ok(html.includes('>Messages</th>'));
+  assert.ok(!html.includes('>In</th>'));
+  assert.ok(!html.includes('>Out</th>'));
+  assert.ok(html.includes('aria-label="In: 3"'));
+  assert.ok(html.includes('aria-label="Out: 2"'));
+  assert.ok(html.includes('data-testid="ArrowDownwardOutlinedIcon"'));
+  assert.ok(html.includes('data-testid="ArrowUpwardOutlinedIcon"'));
   snapshot.running = false;
   assert.ok(agentRows(snapshot).every((row) => !row.online));
   snapshot.running = true;

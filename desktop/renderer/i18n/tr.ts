@@ -1,6 +1,53 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  agentsColumnMessages: 'Mesajlar',
+  mcpSetup_tabsLabel: 'MCP istemcisi',
+  mcpSetup_userControl:
+    'Uygulamanızı bir düğmeyle bağlayın. Ayarlar yalnızca “Uygula” düğmesine tıkladıktan sonra değişir.',
+  mcpSetup_configureCursor: 'Cursor uygulamasını yapılandır',
+  mcpSetup_configureOpencode: 'OpenCode uygulamasını yapılandır',
+  mcpSetup_configureCodex: 'Codex uygulamasını yapılandır',
+  mcpSetup_cursorTitle: 'Cursor uygulamasını yapılandır',
+  mcpSetup_opencodeTitle: 'OpenCode uygulamasını yapılandır',
+  mcpSetup_codexTitle: 'Codex uygulamasını yapılandır',
+  mcpSetup_cursorDescription:
+    'Cursor uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları seçilen dosyaya eklenecektir.',
+  mcpSetup_opencodeDescription:
+    'OpenCode v1 uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları eklenecek ve paketle gelen entegrasyon etkinleştirilecektir. OpenCode v2 desteklenmez.',
+  mcpSetup_codexDescription:
+    'Codex uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları seçilen örneğe veya profile eklenecektir.',
+  mcpSetup_pathLabel: 'Yapılandırma dosyası yolu',
+  mcpSetup_browse: 'Dosya seç…',
+  mcpSetup_knownPaths: 'Diğer konumlar',
+  mcpSetup_pathHint:
+    'Bu uygulamanın kullandığı dosyayı seçin. Eksik dosya “Uygula” düğmesine tıkladığınızda oluşturulacaktır.',
+  mcpSetup_checking: 'Ayarlar kontrol ediliyor…',
+  mcpSetup_ready: 'Uygulamaya hazır',
+  mcpSetup_create: 'Bağlantı ayarları eklenecektir.',
+  mcpSetup_update: 'Bağlantı ayarları güncellenecektir. Bir yedek kaydedilecektir.',
+  mcpSetup_unchanged: 'Bu ayarlar zaten mevcut. Değişiklik gerekmiyor.',
+  mcpSetup_configured: 'Ayarlar mevcut',
+  'mcpSetup_not-configured': 'Yapılandırılmadı',
+  'mcpSetup_needs-update': 'Ayarların güncellenmesi gerekiyor',
+  mcpSetup_missing: 'Yapılandırılmadı',
+  mcpSetup_unavailable: 'Ayarlar kontrol edilemedi',
+  mcpSetup_openFile: 'Yapılandırma dosyasını aç',
+  mcpSetup_backup: 'Yedek',
+  mcpSetup_cancel: 'İptal',
+  mcpSetup_apply: 'Uygula',
+  mcpSetup_close: 'Kapat',
+  mcpSetup_applied: 'Yapılandırma uygulandı.',
+  mcpSetup_noChanges: 'Ayarlar zaten mevcut. Hiçbir şey değiştirilmedi.',
+  mcpSetup_failed: 'Yapılandırma uygulanamadı.',
+  mcpSetup_cursorNext: 'Bu ayarları kullanmak için Cursor içinde MCP bağlantısını yeniden kurun.',
+  mcpSetup_opencodeNext: 'Bu ayarları kullanmak için OpenCode v1 uygulamasını yeniden başlatın.',
+  mcpSetup_codexNext:
+    'Bu ayarları kullanmak için seçilen Codex örneğinde veya profilinde MCP bağlantısını yeniden kurun.',
+  mcpSetup_copyPrompt: 'Bağlantı istemini kopyala',
+  mcpSetup_connect: 'İstemcide bir ajan bağla',
+  mcpSetup_connectionPrompt: '<Seçtiğiniz bir ad> adlı ajan olarak bağlan.',
+
   agentsColumnName: 'Ad',
   agentsColumnClient: 'İstemci',
   agentsColumnNode: 'Düğüm',
@@ -65,7 +112,7 @@ export const tr: Messages = {
   statInboxHint: 'aracılar tarafından henüz alınmadı',
   connectAgentsTitle: 'Aracıları bağlama',
   connectAgentsBody:
-    'İstemcinizi seçin, yapılandırmayı kopyalayın ve MCP ayarlarına ekleyin. Uygulama istemci ayarlarını değiştirmez.',
+    'Uygulamanızı bir düğmeyle bağlayın. Ayarlar yalnızca “Uygula” düğmesine tıkladıktan sonra değişir.',
   connectAgentsCta: 'MCP ayarlarını aç',
   connectPeerTitle: 'Başka bir bilgisayar bağlama',
   connectPeerBody:
@@ -134,7 +181,7 @@ export const tr: Messages = {
   networkConnected: 'Bağlı',
   networkWaiting: 'Bağlantı bekleniyor',
   mcpYouControl:
-    'Kurulumu siz kontrol edersiniz. Uygulama Cursor, OpenCode veya Codex yapılandırmalarını düzenlemez.',
+    'Uygulamanızı bir düğmeyle bağlayın. Ayarlar yalnızca “Uygula” düğmesine tıkladıktan sonra değişir.',
   mcpYourClient: 'İstemciniz',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

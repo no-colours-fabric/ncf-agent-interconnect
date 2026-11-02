@@ -1,6 +1,53 @@
 import type { Messages } from './messages.js';
 
 export const en: Messages = {
+  agentsColumnMessages: 'Messages',
+  mcpSetup_tabsLabel: 'MCP client',
+  mcpSetup_userControl:
+    'Connect your application with a button. Settings change only after you click Apply.',
+  mcpSetup_configureCursor: 'Configure Cursor',
+  mcpSetup_configureOpencode: 'Configure OpenCode',
+  mcpSetup_configureCodex: 'Configure Codex',
+  mcpSetup_cursorTitle: 'Configure Cursor',
+  mcpSetup_opencodeTitle: 'Configure OpenCode',
+  mcpSetup_codexTitle: 'Configure Codex',
+  mcpSetup_cursorDescription:
+    'Connect Cursor to NCF Agent Interconnect. We will add the connection settings to the selected file.',
+  mcpSetup_opencodeDescription:
+    'Connect OpenCode v1 to NCF Agent Interconnect. We will add the connection settings and enable the included integration. OpenCode v2 is not supported.',
+  mcpSetup_codexDescription:
+    'Connect Codex to NCF Agent Interconnect. We will add the connection settings to the selected instance or profile.',
+  mcpSetup_pathLabel: 'Configuration file path',
+  mcpSetup_browse: 'Choose file…',
+  mcpSetup_knownPaths: 'Other locations',
+  mcpSetup_pathHint:
+    'Choose the file used by this application. A missing file will be created when you click Apply.',
+  mcpSetup_checking: 'Checking settings…',
+  mcpSetup_ready: 'Ready to apply',
+  mcpSetup_create: 'The connection settings will be added.',
+  mcpSetup_update: 'The connection settings will be updated. A backup will be saved.',
+  mcpSetup_unchanged: 'These settings are already present. No changes are needed.',
+  mcpSetup_configured: 'Settings are present',
+  'mcpSetup_not-configured': 'Not configured',
+  'mcpSetup_needs-update': 'Settings need updating',
+  mcpSetup_missing: 'Not configured',
+  mcpSetup_unavailable: 'Could not check settings',
+  mcpSetup_openFile: 'Open configuration file',
+  mcpSetup_backup: 'Backup',
+  mcpSetup_cancel: 'Cancel',
+  mcpSetup_apply: 'Apply',
+  mcpSetup_close: 'Close',
+  mcpSetup_applied: 'Setup applied.',
+  mcpSetup_noChanges: 'Settings are already present. Nothing was changed.',
+  mcpSetup_failed: 'Setup could not be applied.',
+  mcpSetup_cursorNext: 'Reconnect MCP in Cursor to use these settings.',
+  mcpSetup_opencodeNext: 'Restart OpenCode v1 to use these settings.',
+  mcpSetup_codexNext:
+    'Reconnect MCP in the selected Codex instance or profile to use these settings.',
+  mcpSetup_copyPrompt: 'Copy connection prompt',
+  mcpSetup_connect: 'Connect an agent in the client',
+  mcpSetup_connectionPrompt: 'Connect as agent <a name you choose>.',
+
   agentsColumnName: 'Name',
   agentsColumnClient: 'Client',
   agentsColumnNode: 'Node',
@@ -64,7 +111,7 @@ export const en: Messages = {
   statInboxHint: 'not received by agents',
   connectAgentsTitle: 'Connect agents',
   connectAgentsBody:
-    'Choose your client, copy the configuration and add it to its MCP settings. The app does not change client settings.',
+    'Connect your application with a button. Settings change only after you click Apply.',
   connectAgentsCta: 'Open MCP setup',
   connectPeerTitle: 'Connect another computer',
   connectPeerBody: 'Enter the remote node IP or URL and the access code provided by its user.',
@@ -130,7 +177,7 @@ export const en: Messages = {
   networkConnected: 'Connected',
   networkWaiting: 'Waiting for connection',
   mcpYouControl:
-    'You control setup. The app does not edit Cursor, OpenCode or Codex configurations.',
+    'Connect your application with a button. Settings change only after you click Apply.',
   mcpYourClient: 'Your client',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',

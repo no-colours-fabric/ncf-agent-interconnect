@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
+import { createUiEnvironment } from './ui-test-profile.mjs';
 
 // Synthetic renderer only: sends are held in memory without any node or real agent.
 const require = createRequire(import.meta.url);
@@ -99,8 +100,7 @@ contextBridge.exposeInMainWorld('interconnect',{
     main,
     `const{app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(path.join(temporary, 'profile'))});app.whenReady().then(()=>{const window=new BrowserWindow({width:1050,height:700,webPreferences:{preload:${JSON.stringify(preload)},contextIsolation:true,sandbox:true}});window.loadFile(${JSON.stringify(path.resolve('build/renderer/index.html'))});});app.on('window-all-closed',()=>app.quit());`,
   );
-  const env = { ...process.env };
-  delete env.ELECTRON_RUN_AS_NODE;
+  const env = await createUiEnvironment(path.join(temporary, 'clients'));
   application = await electron.launch({
     executablePath: require('electron'),
     args: [main],

@@ -7,6 +7,7 @@ export interface AgentRow {
   local: boolean;
   online: boolean;
   client?: string;
+  messageCount?: number;
   lastMessageAt?: string | null;
   incomingCount?: number;
   outgoingCount?: number;
@@ -29,6 +30,7 @@ export function agentRows(snapshot: Snapshot): AgentRow[] {
             nicknameKey(agent.nickname) === identity.key && agent.availability === 'online',
         ),
       client: identity.binding?.client,
+      messageCount: identity.messageCount,
       lastMessageAt: identity.lastMessageAt,
       incomingCount: identity.incomingCount,
       outgoingCount: identity.outgoingCount,
