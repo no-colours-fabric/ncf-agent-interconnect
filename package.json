@@ -24,6 +24,7 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
+    "@decimalturn/toml-patch": "3.3.2",
     "@emotion/react": "11.14.0",
     "@emotion/styled": "11.14.1",
     "@modelcontextprotocol/sdk": "1.32.2",

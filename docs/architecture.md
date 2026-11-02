@@ -14,6 +14,12 @@ TLS peers, the authenticated loopback MCP endpoint and adapter dispatch.
 `desktop/renderer` is React with Material UI. `desktop/integrations` contains the
 bundled OpenCode plugin; `desktop/shared` contains typed contracts.
 
+Client setup runs through the exact renderer/main-frame IPC boundary. Only the
+owner's Apply action may write a selected client configuration. Setup plans are
+bound to that window, expire, and recheck the file before writing. These operations
+are unavailable through MCP and remote peers. Startup status checks only read
+configuration; saved setup metadata contains client file paths, not credentials.
+
 ## Agent identity and ownership
 
 User-chosen, case-insensitive names identify agents. Each name has one active

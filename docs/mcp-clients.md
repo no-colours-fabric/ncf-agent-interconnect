@@ -1,36 +1,46 @@
 # MCP client setup
 
-Open **MCP setup** in NCF Agent Interconnect. It generates the local endpoint,
-authorization header and, where needed, plugin path for this installation.
-Copy the generated snippet rather than entering session IDs or internal ports.
+Open **MCP setup** in NCF Agent Interconnect and choose the Cursor, OpenCode or
+Codex tab. Each has its own Configure button and dialog.
 
-The app does not edit client configuration. Merge snippets into existing files
-and preserve unrelated servers and plugins. Configure each client or profile
-once; new chats do not require separate technical setup.
+Check the full configuration file path or use Choose file, which includes hidden
+files. The dialog explains the change without displaying configuration contents.
+Click Apply to add or update the NCF settings, or Cancel to leave the file unchanged.
+Matching settings are not rewritten; unrelated servers, plugins and settings are
+preserved. Updates create a private backup beside the existing file.
+
+After a successful Apply, the app remembers that client's file path. Startup
+checks read settings without repairing or changing them. The tab shows whether
+settings are present, missing, need updating or could not be checked. Its open-file
+icon opens the saved configuration using the system's default application. A
+status check does not prove that the client reloaded or connected.
+
+Configure each client or profile once; new chats do not require separate setup.
 
 ## Cursor
 
-Choose Cursor and merge the generated `ncf_agent_interconnect` entry into
-`mcpServers` in the global Cursor `mcp.json`. Reconnect the server in Cursor.
+Choose Cursor, open Configure Cursor and select its global `mcp.json`.
+Apply adds the `ncf_agent_interconnect` entry to `mcpServers`. Reconnect MCP in Cursor.
 Send, receive and history are available through tools. Standard MCP does not
 automatically wake an idle Cursor chat.
 
 ## OpenCode and frontends
 
-Choose OpenCode and merge both the `plugin` entry and the
-`mcp.ncf_agent_interconnect` entry into your OpenCode configuration. Use the
+Choose OpenCode and open Configure OpenCode. Apply adds both the `plugin` entry
+and `mcp.ncf_agent_interconnect` to the selected configuration. Use the
 configuration actually loaded by that instance, such as its global
 `opencode.json` or `opencode.jsonc`. Restart OpenCode after adding the plugin.
 
 The bundled plugin uses the OpenCode v1 plugin/SDK contract. It obtains the
 current session from the tool hook and delivers to that exact chat. Frontends
 must use that OpenCode instance and load its plugins. No frontend port, password
-or per-chat session configuration is required. OpenCode v2 is not claimed.
+or per-chat session configuration is required. OpenCode v2 configurations are
+rejected by this v1 setup dialog.
 
 ## Codex Desktop
 
-Choose Codex and add the generated `[mcp_servers.ncf_agent_interconnect]`
-section to the intended profile `config.toml`. Reconnect MCP in that profile.
+Choose Codex and open Configure Codex. Select the intended profile's `config.toml`;
+Apply adds or updates `[mcp_servers.ncf_agent_interconnect]`. Reconnect MCP in that profile.
 The adapter reads the current chat ID from MCP metadata and verifies the owner
 on an existing local desktop endpoint.
 
@@ -40,10 +50,10 @@ or ambiguous, the app reports the condition and does not select another chat.
 
 ## Other clients
 
-Use a compatible Streamable HTTP MCP client with the generated URL and bearer
-header. Standard tools provide exchange and history; automatic wake-up requires
-a client adapter.
+Existing compatible Streamable HTTP MCP clients continue to support exchange and
+history. This setup UI configures only Cursor, OpenCode v1 and Codex. Automatic
+wake-up requires a client adapter.
 
 In any configured chat, choose a name with `Connect as agent Researcher.` The
-Applications page shows the active binding and delivery capability. An occupied
+Applications page shows application totals and the latest known activity. An occupied
 name requires user-approved transfer before it moves to another chat.

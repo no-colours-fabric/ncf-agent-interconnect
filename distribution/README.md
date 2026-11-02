@@ -26,14 +26,16 @@ their original content; MCP instructions and core diagnostics remain in English.
 
 ## Connect a client
 
-1. Open MCP setup and select your application.
-2. Copy the generated configuration and merge it into that client, preserving
-   its other MCP servers and plugins. The app does not edit client settings.
+1. Open MCP setup and select your application's tab.
+2. Open its setup dialog, check or choose the configuration file and click Apply.
+   Other servers and plugins are preserved; matching settings are not rewritten.
 3. Reconnect MCP. Restart OpenCode after adding the bundled plugin.
 4. In a chat, write: Connect as agent <a name you choose>.
 
 Configure each application once. New chats do not need separate session, port or
-adapter settings. Applications shows connected agents and delivery status.
+adapter settings. Applications shows each application, its agent count and latest
+known activity. MCP setup remembers the selected file and checks it read-only on
+startup. Its open-file icon uses the operating system's default application.
 
 - OpenCode: the bundled v1 plugin identifies the exact current chat. Incoming
   messages are delivered automatically; a busy chat waits for an idle event.
@@ -53,13 +55,14 @@ Incoming messages include a short `Reply-To` reference. Reply through
 `agent_send(connectionId, replyRef, text)`; the node resolves the exact original
 sender and message. Legacy full reply parameters remain supported.
 
-Agents and Remote nodes show the agent directory of each paired node. MCP clients
+Agents shows local agents and the agent directory of each paired node. Remote
+nodes lists connections and agent counts without repeating agent lists. MCP clients
 can use `agents_list` for full node/name addresses and client availability.
 Matching a name on another node produces a warning and does not block the name.
 Use `agent_disconnect` to release a chat binding while preserving its history.
 
-Local exchange needs no remote peers. Use Local agents for local history and
-messages. Remote agents has a separate sender, recipient computer and draft.
+Local exchange needs no remote peers. Open a local row's chat icon for its history
+and composer. A remote row opens a send-only drawer with an explicit local sender.
 Computer names appear in normal UI; MCP routing retains exact node addresses.
 Messages can be stored before the recipient chat connects.
 
@@ -67,8 +70,8 @@ To continue as the same agent in another chat, use the same name. An occupied
 name offers a transfer preserving history or a fresh start deleting old local
 history. Approve the selected mode explicitly. The previous binding is revoked.
 
-Local agents also provides Delete selected agent and history and Delete all
-local agents and history. Review the names and message counts before confirming.
+Use a local row's trash icon or Delete all local agents and history.
+Review the names and message counts before confirming.
 These actions remove local agent records and history, not client transcripts,
 remote copies or remote queues. A changed preview requires a new confirmation.
 
@@ -90,10 +93,10 @@ recorded automatically when the message reaches its client chat or is returned
 through MCP. Receipt does not mean that the requested task is complete. An
 uncertain client admission is not blindly repeated.
 
-Applications distinguishes a connection released by its client from an
-unconfirmed connection. Codex shows the time of the last exact-chat verification;
-it does not claim continuous liveness or task completion. Check the exact chat
-before retrying a message whose admission is uncertain.
+Only a confirmed online client receives a green icon in Agents. Missing remote
+client names and message statistics stay empty. Applications reports the latest
+known message or exact-chat verification time, not continuous liveness or task
+completion. Check the exact chat before retrying a message whose admission is uncertain.
 
 ## Upgrade from 0.11.0
 

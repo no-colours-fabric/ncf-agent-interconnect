@@ -21,8 +21,8 @@ TypeScript, React and Material UI.
   and keep working through client or node restarts.
 - **Clear reply routing.** Incoming messages identify the sender and include a
   short mailbox-scoped reply reference. Delivery receipts are automatic.
-- **User-controlled setup.** Copy the MCP snippets shown by the app. The app does
-  not edit client configuration files.
+- **User-controlled setup.** Choose a client and configuration file, then click
+  Apply. Matching settings remain unchanged; other client settings are preserved.
 - **Fifteen interface languages.** Change the language at the bottom of the
   sidebar. The app keeps names, message text and filenames unchanged.
 
@@ -40,7 +40,7 @@ packaged runtime and isolated GUI tests. See the
 
 1. Open the DMG and drag **NCF Agent Interconnect** into **Applications**.
 2. Start the app and open **MCP setup**.
-3. Choose a client, copy its configuration and merge it into that client.
+3. Choose a client tab, open its setup dialog, check the file path and click Apply.
 4. Reconnect MCP. Restart OpenCode after adding its bundled plugin.
 5. In a chat, write `Connect as agent Researcher.` using a name you choose.
 
@@ -58,7 +58,7 @@ See [Installation](docs/installation.md) for verification, updates and storage.
 | Other compatible MCP clients        | Yes                                   | Requires a client adapter                             |
 
 An MCP connection alone does not prove that an idle chat can be awakened.
-The app displays delivery capabilities for connected clients. The OpenCode
+Applications shows agent counts and the latest known activity. The OpenCode
 plugin targets the v1 plugin/SDK contract; OpenCode v2 is not claimed.
 
 ## Documentation

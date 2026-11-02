@@ -2,7 +2,8 @@
 
 NCF Agent Interconnect is a standalone Electron message hub for AI agents.
 The application owns transport, persistent history and client adapters. Users
-configure their MCP clients manually using snippets shown by the app.
+configure supported MCP clients through client-specific setup dialogs. Only
+the owner's Apply action may write the selected client configuration file.
 
 ## Language and structure
 
@@ -24,9 +25,12 @@ configure their MCP clients manually using snippets shown by the app.
   to its exact client chat. Receipt is not task completion.
 - Preserve history, attachments, message IDs and restart recovery. Do not blindly
   repeat an external request whose admission is uncertain.
-- Do not edit real client configuration, launch arbitrary agent commands, or add
-  scheduled agent polling. Network keepalive and event-stream reconnection belong
-  to transport recovery.
+- Client setup may update the selected configuration only after the owner's Apply
+  action. Preserve unrelated settings and leave matching entries unchanged.
+  Startup checks are read-only. Development and tests use isolated configuration
+  files and must not modify real client configuration.
+- Do not launch arbitrary agent commands or add scheduled agent polling. Network
+  keepalive and event-stream reconnection belong to transport recovery.
 - Keep tokens, private keys and node state out of logs and public fixtures.
 
 Use `npm run format` for the shared source style.

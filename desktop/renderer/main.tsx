@@ -3,6 +3,9 @@ import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { AgentsPage } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
+import { McpSetup } from './McpSetup.js';
+import { mcpSetupMessages } from './i18n/mcp-setup.js';
+import type { McpSetupClient } from '../shared/mcp-setup.js';
 import {
   ThemeProvider,
   createTheme,
@@ -35,7 +38,7 @@ import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import AddOutlined from '@mui/icons-material/AddOutlined';
-import { nicknameKey, type Snapshot, type McpInstructions } from '../shared/contracts.js';
+import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import {
   isLocale,
   loadLocale,
@@ -97,8 +100,7 @@ function App(): React.JSX.Element {
   const [address, setAddress] = useState(''),
     [access, setAccess] = useState(''),
     [ownCode, setOwnCode] = useState<{ code: string; expiresAt: string } | null>(null);
-  const [client, setClient] = useState('cursor'),
-    [instructions, setInstructions] = useState<McpInstructions | null>(null);
+  const [client, setClient] = useState<McpSetupClient>('cursor');
   const [nodeLabel, setNodeLabel] = useState(''),
     [listenHost, setListenHost] = useState('');
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
@@ -153,12 +155,6 @@ function App(): React.JSX.Element {
       setListenHost(snapshot.listenHost);
     }
   }, [snapshot?.nodeLabel, snapshot?.listenHost, snapshot?.agents.length]);
-  useEffect(() => {
-    if (page === 'mcp')
-      void call<McpInstructions>('instructions', { client })
-        .then(setInstructions)
-        .catch((e) => setError((e as Error).message));
-  }, [page, client, snapshot?.mcpUrl]);
   useEffect(() => {
     if (page === 'settings')
       void call<typeof login>('loginState')
@@ -527,66 +523,12 @@ function App(): React.JSX.Element {
             </Stack>
           )}
           {page === 'mcp' && (
-            <Stack spacing={2.5}>
-              <Alert severity="info">{t(locale, 'mcpYouControl')}</Alert>
-              <Paper sx={{ p: 3 }}>
-                <TextField
-                  select
-                  label={t(locale, 'mcpYourClient')}
-                  value={client}
-                  onChange={(e) => setClient(e.target.value)}
-                  sx={{ minWidth: 230 }}
-                >
-                  <MenuItem value="cursor">{t(locale, 'mcpClientCursor')}</MenuItem>
-                  <MenuItem value="opencode">{t(locale, 'mcpClientOpencode')}</MenuItem>
-                  <MenuItem value="codex">{t(locale, 'mcpClientCodex')}</MenuItem>
-                </TextField>
-                {instructions && (
-                  <>
-                    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-                      {t(locale, 'mcpStep1')}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {instructions.location}
-                    </Typography>
-                    <Typography sx={{ mb: 2 }}>{instructions.text}</Typography>
-                    <Box
-                      component="pre"
-                      sx={{
-                        m: 0,
-                        p: 2,
-                        bgcolor: '#f0f4f6',
-                        borderRadius: 2,
-                        whiteSpace: 'pre-wrap',
-                        overflowWrap: 'anywhere',
-                        fontSize: 13,
-                      }}
-                    >
-                      {instructions.configuration}
-                    </Box>
-                    <Button
-                      startIcon={<ContentCopyOutlined />}
-                      onClick={() => copy(instructions.configuration)}
-                    >
-                      {t(locale, 'btnCopyConfig')}
-                    </Button>
-                    <Typography variant="h6" sx={{ mt: 3, mb: 1 }}>
-                      {t(locale, 'mcpStep2')}
-                    </Typography>
-                    <Typography sx={{ whiteSpace: 'pre-wrap' }}>
-                      {instructions.testPrompt}
-                    </Typography>
-                    <Button
-                      startIcon={<ContentCopyOutlined />}
-                      onClick={() => copy(instructions.testPrompt)}
-                    >
-                      {t(locale, 'btnCopyPrompt')}
-                    </Button>
-                  </>
-                )}
-              </Paper>
-              <Typography color="text.secondary">{t(locale, 'mcpFooter')}</Typography>
-            </Stack>
+            <McpSetup
+              client={client}
+              onClientChange={setClient}
+              invoke={call}
+              messages={mcpSetupMessages(locale)}
+            />
           )}
           {page === 'clients' && (
             <ApplicationConnections

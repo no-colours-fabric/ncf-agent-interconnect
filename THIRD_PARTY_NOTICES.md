@@ -5,7 +5,7 @@ their own licenses and copyright notices.
 
 The application uses Electron and Chromium, React and React DOM, Material UI,
 Emotion, the Model Context Protocol TypeScript SDK, Zod, ws, selfsigned,
-fast-srp-hap (MIT) and jsonc-parser. The locked versions are recorded in
+fast-srp-hap (MIT), jsonc-parser and @decimalturn/toml-patch (MIT). The locked versions are recorded in
 `package-lock.json`.
 
 Packaged applications include Electron and Chromium license documents under

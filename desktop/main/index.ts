@@ -15,6 +15,8 @@ import { mkdir, copyFile, appendFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { NodeService } from '../core/service.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
+import { createMcpSetupHandler } from './mcp-setup-ipc.js';
+import type { McpInstructions } from '../shared/contracts.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataArg = process.argv.indexOf('--data-dir');
@@ -168,6 +170,14 @@ function showWindow(tab?: string): void {
   void window.loadFile(path.join(directory, '../renderer/index.html'), { hash: tab ?? '' });
 }
 function setupIpc(): void {
+  const mcpSetup = createMcpSetupHandler({
+    instructions: async (client) =>
+      (await service!.userCall('instructions', { client })) as McpInstructions,
+    dialog,
+    window: () => window,
+    stateDirectory: app.getPath('userData'),
+    openPath: (filename) => shell.openPath(filename),
+  });
   ipcMain.handle('interconnect:call', async (event, method: unknown, raw: unknown) => {
     if (
       !window ||
@@ -177,6 +187,8 @@ function setupIpc(): void {
     )
       throw new Error('Invalid operation source');
     if (!service) throw new Error('The node is not running');
+    const setupResult = await mcpSetup(method, raw, String(event.sender.id));
+    if (setupResult.handled) return setupResult.result;
     if (method === 'appVersion') return app.getVersion();
     if (method === 'copy') {
       const { text } = z.object({ text: z.string().max(100000) }).parse(raw);

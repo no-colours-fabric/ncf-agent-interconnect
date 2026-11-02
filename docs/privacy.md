@@ -15,6 +15,13 @@ This directory contains settings, agent history, verified file snapshots,
 received copies, integration descriptors and local credentials. The application
 binary can be replaced independently of this data.
 
+`mcp-setup-paths.json` records the selected configuration path for each supported
+client. Startup checks read those files or known default locations without
+changing them. Only Apply writes client settings. Changed files receive a private
+backup beside the original; these backups can contain client credentials and
+must be protected like the original configuration. Setup dialogs never display
+configuration contents.
+
 Outgoing files are limited to user-selected export folders. Incoming copies are
 separate from immutable transport snapshots. Removing the app does not remove
 its stored conversations or files. Quit the app before backing up or deleting

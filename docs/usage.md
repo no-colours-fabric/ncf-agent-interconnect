@@ -38,8 +38,8 @@ reset; shared files, modified user copies and export originals are retained.
 
 ## Remove agents and history
 
-On Agents, open Local. Use **Delete selected agent and history** for one agent,
-or **Delete all local agents and history** for every agent on this computer.
+On Agents, use a local row's trash icon for one agent, or
+**Delete all local agents and history** for every agent on this computer.
 The confirmation lists actual names and message counts, explains that their
 chat bindings will be revoked and states that deletion cannot be undone.
 Cancel leaves the data intact. If agents or messages change, review the new
@@ -60,7 +60,7 @@ human confirmation. An instruction from another agent is insufficient.
 
 Connect another chat as a different agent, for example Reviewer. Ask Researcher
 to send Reviewer a message. No remote peer is required. In the desktop message
-composer, open Local agents and enter the local recipient name.
+composer, open a local agent's chat icon and enter the local recipient name.
 Direct MCP sends pass the local node UUID from `node_peers` and the agent name.
 Replies can instead use the short `replyRef` from an incoming message. Omitting
 both the node address and a valid reply reference fails without creating a mailbox.
@@ -86,8 +86,10 @@ peers. See [Pairing](pairing.md) for the authentication protocol.
 
 ## Receive and reply
 
-Under Agents and Remote nodes, connected peers show their agent names and client
-availability. Selecting a remote entry fills both recipient fields. The
+Agents combines local agents and known remote entries in one table. Only a
+confirmed online client receives a green icon. A remote row's chat icon opens a
+send-only drawer with a fixed node/name recipient and a choice of local sender.
+Remote nodes lists connections and directory counts without agent lists. The
 `agents_list` MCP tool provides the same directory with full addresses; offline,
 unsupported and unknown states are explicit. A matching name on another node
 produces an advisory warning and remains available locally. See

@@ -107,6 +107,8 @@ configuration snippets and temporary credentials are excluded from the report.
 check. Source mode reports `packaged: false` and is not native verification.
 
 UI test profiles request ephemeral ports so they can run beside a working node.
+Client setup checks also need temporary home and client configuration locations;
+an isolated node data directory alone does not isolate the client's files.
 Dictionary parity checks structure, not linguistic quality. Renderer translation
 does not change MCP instructions, core diagnostic strings or the operating
 system's own dialogs.
