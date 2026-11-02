@@ -34,6 +34,8 @@ export const de: Messages = {
   mcpSetup_missing: 'Nicht eingerichtet',
   mcpSetup_unavailable: 'Einstellungen konnten nicht geprüft werden',
   mcpSetup_openFile: 'Konfigurationsdatei öffnen',
+  mcpSetup_openFileMissing:
+    'Wenden Sie zuerst die Einrichtung an, um diese Datei zu erstellen. Danach können Sie sie öffnen.',
   mcpSetup_backup: 'Sicherung',
   mcpSetup_cancel: 'Abbrechen',
   mcpSetup_apply: 'Anwenden',

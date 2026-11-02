@@ -33,6 +33,8 @@ export const ru: Messages = {
   mcpSetup_missing: 'Не настроено',
   mcpSetup_unavailable: 'Не удалось проверить настройки',
   mcpSetup_openFile: 'Открыть файл конфигурации',
+  mcpSetup_openFileMissing:
+    'Сначала примените настройку, чтобы создать файл. После этого его можно открыть.',
   mcpSetup_backup: 'Резервная копия',
   mcpSetup_cancel: 'Отмена',
   mcpSetup_apply: 'Применить',

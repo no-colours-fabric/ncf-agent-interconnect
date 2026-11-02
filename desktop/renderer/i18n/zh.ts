@@ -31,6 +31,7 @@ export const zh: Messages = {
   mcpSetup_missing: '尚未配置',
   mcpSetup_unavailable: '无法检查设置',
   mcpSetup_openFile: '打开配置文件',
+  mcpSetup_openFileMissing: '请先应用设置以创建此文件，然后再打开它。',
   mcpSetup_backup: '备份',
   mcpSetup_cancel: '取消',
   mcpSetup_apply: '应用',

@@ -33,6 +33,8 @@ export const es: Messages = {
   mcpSetup_missing: 'Sin configurar',
   mcpSetup_unavailable: 'No se pudieron comprobar los ajustes',
   mcpSetup_openFile: 'Abrir archivo de configuración',
+  mcpSetup_openFileMissing:
+    'Primero aplica la configuración para crear este archivo. Después podrás abrirlo.',
   mcpSetup_backup: 'Copia de seguridad',
   mcpSetup_cancel: 'Cancelar',
   mcpSetup_apply: 'Aplicar',

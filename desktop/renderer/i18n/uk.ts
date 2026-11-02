@@ -33,6 +33,8 @@ export const uk: Messages = {
   mcpSetup_missing: 'Не налаштовано',
   mcpSetup_unavailable: 'Не вдалося перевірити налаштування',
   mcpSetup_openFile: 'Відкрити файл конфігурації',
+  mcpSetup_openFileMissing:
+    'Спочатку застосуйте налаштування, щоб створити файл. Після цього його можна відкрити.',
   mcpSetup_backup: 'Резервна копія',
   mcpSetup_cancel: 'Скасувати',
   mcpSetup_apply: 'Застосувати',

@@ -33,6 +33,7 @@ export const ko: Messages = {
   mcpSetup_missing: '설정되지 않음',
   mcpSetup_unavailable: '설정을 확인할 수 없습니다',
   mcpSetup_openFile: '설정 파일 열기',
+  mcpSetup_openFileMissing: '먼저 설정을 적용하여 이 파일을 만든 다음 여세요.',
   mcpSetup_backup: '백업',
   mcpSetup_cancel: '취소',
   mcpSetup_apply: '적용',

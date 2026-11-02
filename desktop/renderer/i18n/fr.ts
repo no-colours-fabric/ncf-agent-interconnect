@@ -33,6 +33,8 @@ export const fr: Messages = {
   mcpSetup_missing: 'Non configuré',
   mcpSetup_unavailable: 'Impossible de vérifier les réglages',
   mcpSetup_openFile: 'Ouvrir le fichier de configuration',
+  mcpSetup_openFileMissing:
+    'Appliquez d’abord la configuration pour créer ce fichier, puis ouvrez-le.',
   mcpSetup_backup: 'Sauvegarde',
   mcpSetup_cancel: 'Annuler',
   mcpSetup_apply: 'Appliquer',

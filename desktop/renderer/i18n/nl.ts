@@ -33,6 +33,8 @@ export const nl: Messages = {
   mcpSetup_missing: 'Niet ingesteld',
   mcpSetup_unavailable: 'Instellingen konden niet worden gecontroleerd',
   mcpSetup_openFile: 'Configuratiebestand openen',
+  mcpSetup_openFileMissing:
+    'Pas eerst de instellingen toe om dit bestand aan te maken. Daarna kunt u het openen.',
   mcpSetup_backup: 'Back-up',
   mcpSetup_cancel: 'Annuleren',
   mcpSetup_apply: 'Toepassen',

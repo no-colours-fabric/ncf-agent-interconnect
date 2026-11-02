@@ -33,6 +33,8 @@ export const tr: Messages = {
   mcpSetup_missing: 'Yapılandırılmadı',
   mcpSetup_unavailable: 'Ayarlar kontrol edilemedi',
   mcpSetup_openFile: 'Yapılandırma dosyasını aç',
+  mcpSetup_openFileMissing:
+    'Önce bu dosyayı oluşturmak için ayarları uygulayın, ardından dosyayı açın.',
   mcpSetup_backup: 'Yedek',
   mcpSetup_cancel: 'İptal',
   mcpSetup_apply: 'Uygula',

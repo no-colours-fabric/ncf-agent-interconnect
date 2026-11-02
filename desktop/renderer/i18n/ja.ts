@@ -33,6 +33,7 @@ export const ja: Messages = {
   mcpSetup_missing: '未設定',
   mcpSetup_unavailable: '設定を確認できませんでした',
   mcpSetup_openFile: '設定ファイルを開く',
+  mcpSetup_openFileMissing: '先に設定を適用してこのファイルを作成すると、開けるようになります。',
   mcpSetup_backup: 'バックアップ',
   mcpSetup_cancel: 'キャンセル',
   mcpSetup_apply: '適用',

@@ -33,6 +33,8 @@ export const kk: Messages = {
   mcpSetup_missing: 'Бапталмаған',
   mcpSetup_unavailable: 'Баптауларды тексеру мүмкін болмады',
   mcpSetup_openFile: 'Конфигурация файлын ашу',
+  mcpSetup_openFileMissing:
+    'Алдымен файлды жасау үшін баптауды қолданыңыз. Содан кейін оны ашуға болады.',
   mcpSetup_backup: 'Сақтық көшірме',
   mcpSetup_cancel: 'Бас тарту',
   mcpSetup_apply: 'Қолдану',

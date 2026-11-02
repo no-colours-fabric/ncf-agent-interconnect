@@ -34,6 +34,8 @@ export const ptBR: Messages = {
   mcpSetup_missing: 'Não configurado',
   mcpSetup_unavailable: 'Não foi possível verificar as configurações',
   mcpSetup_openFile: 'Abrir arquivo de configuração',
+  mcpSetup_openFileMissing:
+    'Aplique a configuração primeiro para criar este arquivo. Depois, será possível abri-lo.',
   mcpSetup_backup: 'Cópia de segurança',
   mcpSetup_cancel: 'Cancelar',
   mcpSetup_apply: 'Aplicar',

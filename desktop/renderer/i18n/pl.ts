@@ -34,6 +34,8 @@ export const pl: Messages = {
   mcpSetup_missing: 'Nie skonfigurowano',
   mcpSetup_unavailable: 'Nie udało się sprawdzić ustawień',
   mcpSetup_openFile: 'Otwórz plik konfiguracji',
+  mcpSetup_openFileMissing:
+    'Najpierw zastosuj konfigurację, aby utworzyć ten plik. Następnie możesz go otworzyć.',
   mcpSetup_backup: 'Kopia zapasowa',
   mcpSetup_cancel: 'Anuluj',
   mcpSetup_apply: 'Zastosuj',
