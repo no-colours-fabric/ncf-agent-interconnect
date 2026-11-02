@@ -13,7 +13,7 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import ChatBubbleOutlined from '@mui/icons-material/ChatBubbleOutlined';
+import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import Circle from '@mui/icons-material/Circle';
 import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
@@ -152,7 +152,7 @@ export function AgentsTable({
                     aria-label={labels.chat(agent.nickname)}
                     onClick={() => onChat(agent)}
                   >
-                    <ChatBubbleOutlined fontSize="small" />
+                    <ChatBubbleOutlineOutlined fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title={agent.local ? labels.remove(agent.nickname) : labels.remoteRemoval}>
