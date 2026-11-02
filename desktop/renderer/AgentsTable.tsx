@@ -13,8 +13,8 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import ChatBubbleOutline from '@mui/icons-material/ChatBubbleOutline';
-import DeleteOutline from '@mui/icons-material/DeleteOutline';
+import ChatBubbleOutlined from '@mui/icons-material/ChatBubbleOutlined';
+import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import Circle from '@mui/icons-material/Circle';
 import type { AgentRow } from './agents-table-model.js';
 import { t, type Locale } from './i18n/index.js';
@@ -103,7 +103,7 @@ export function AgentsTable({
                     aria-label={labels.chat(agent.nickname)}
                     onClick={() => onChat(agent)}
                   >
-                    <ChatBubbleOutline fontSize="small" />
+                    <ChatBubbleOutlined fontSize="small" />
                   </IconButton>
                 </Tooltip>
                 <Tooltip title={agent.local ? labels.remove(agent.nickname) : labels.remoteRemoval}>
@@ -114,7 +114,7 @@ export function AgentsTable({
                       aria-label={labels.remove(agent.nickname)}
                       onClick={() => onDelete(agent)}
                     >
-                      <DeleteOutline fontSize="small" />
+                      <DeleteOutlined fontSize="small" />
                     </IconButton>
                   </Box>
                 </Tooltip>

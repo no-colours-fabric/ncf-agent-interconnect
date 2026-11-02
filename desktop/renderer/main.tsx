@@ -34,6 +34,7 @@ import CableOutlined from '@mui/icons-material/CableOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
+import AddOutlined from '@mui/icons-material/AddOutlined';
 import { nicknameKey, type Snapshot, type McpInstructions } from '../shared/contracts.js';
 import {
   isLocale,
