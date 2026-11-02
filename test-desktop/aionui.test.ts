@@ -70,7 +70,11 @@ test('AionUi binds the native exact chat, preserves Unicode, attachments, IDs an
     'private-account-fixture',
   ])
     assert.ok(!exposed.includes(value));
-  assert.equal((await stat(path.join(f.directory, 'aionui-credentials.json'))).mode & 0o777, 0o600);
+  const credentials = await stat(path.join(f.directory, 'aionui-credentials.json'));
+  assert.ok(credentials.isFile());
+  // Windows stat.mode does not describe NTFS DACLs.
+  if (process.platform !== 'win32') assert.equal(credentials.mode & 0o777, 0o600);
+  else t.diagnostic('Windows credential DACL privacy requires separate evidence.');
   const settings = await readFile(path.join(f.directory, 'settings.json'), 'utf8');
   assert.ok(!settings.includes(f.session));
   assert.ok(!settings.includes(f.runtimeToken));
