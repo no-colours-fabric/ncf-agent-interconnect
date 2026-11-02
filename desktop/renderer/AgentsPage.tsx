@@ -63,6 +63,18 @@ export function AgentsPage({
   // Edits and chat resets replace the draft even when the text repeats.
   const setText = (value: string) => setDraft({ text: value });
   const [sending, setSending] = useState(false);
+  const [sendErrors, setSendErrors] = useState<
+    Record<string, { message: string; from: string; to: string }>
+  >({});
+  const chatKey = chat ? chat.id + ':' + (agentCacheKey(chat.identity) ?? 'remote') : '';
+  const sendError = sendErrors[chatKey];
+  const clearSendError = (key: string) =>
+    setSendErrors((current) => {
+      if (!current[key]) return current;
+      const remaining = { ...current };
+      delete remaining[key];
+      return remaining;
+    });
   const selected = chat?.local
     ? snapshot.agents.find((agent) => agent.key === chat.identity?.key)
     : undefined;
@@ -238,6 +250,14 @@ export function AgentsPage({
             )}
             <Box data-testid="agent-chat-compose" sx={{ p: 2.5, borderTop: '1px solid #e2e7ec' }}>
               <Stack spacing={1.5}>
+                {sendError && (
+                  <Alert severity="error" onClose={() => clearSendError(chatKey)}>
+                    <Typography variant="caption" component="div">
+                      {sendError.from} → {sendError.to}
+                    </Typography>
+                    {sendError.message}
+                  </Alert>
+                )}
                 {chat.local ? (
                   <>
                     <Typography variant="caption" color="text.secondary">
@@ -292,16 +312,33 @@ export function AgentsPage({
                         onClick={() => {
                           if (!source) return;
                           const sentDraft = draft;
+                          const sentChatKey = chatKey;
+                          const recipientNickname = chat.local ? recipient.trim() : chat.nickname;
+                          clearSendError(sentChatKey);
                           setSending(true);
                           void run(async () => {
-                            await call('send', {
-                              nickname: source.nickname,
-                              sourceIncarnation: source.incarnation,
-                              recipientNode: chat.nodeId,
-                              recipientNickname: chat.local ? recipient.trim() : chat.nickname,
-                              text: sentDraft.text,
-                            });
-                            setDraft((current) => (current === sentDraft ? { text: '' } : current));
+                            try {
+                              await call('send', {
+                                nickname: source.nickname,
+                                sourceIncarnation: source.incarnation,
+                                recipientNode: chat.nodeId,
+                                recipientNickname,
+                                text: sentDraft.text,
+                              });
+                              setDraft((current) =>
+                                current === sentDraft ? { text: '' } : current,
+                              );
+                            } catch (error) {
+                              setSendErrors((current) => ({
+                                ...current,
+                                [sentChatKey]: {
+                                  message: error instanceof Error ? error.message : String(error),
+                                  from: source.nickname,
+                                  to: recipientNickname,
+                                },
+                              }));
+                              throw error;
+                            }
                           }).finally(() => setSending(false));
                         }}
                         sx={{

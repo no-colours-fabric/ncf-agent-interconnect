@@ -146,7 +146,18 @@ contextBridge.exposeInMainWorld('interconnect',{
 
   await begin('Failed send retains draft');
   await complete('Failed send retains draft', false);
-  await page.getByRole('alert').filter({ hasText: 'Synthetic send rejected' }).waitFor();
+  const failure = () =>
+    page.getByRole('dialog').getByRole('alert').filter({ hasText: 'Synthetic send rejected' });
+  await failure().waitFor();
+  assert.ok((await failure().innerText()).includes(second + ' → Target'));
+  assert.equal(await message().inputValue(), 'Failed send retains draft');
+  assert.equal(await invoke('fixturePending'), false);
+  await close();
+  await open(first);
+  assert.equal(await failure().count(), 0);
+  await close();
+  await open(second);
+  await failure().waitFor();
   const calls = await invoke('fixtureCalls');
   assert.equal(calls.length, 7);
   assert.deepEqual(
@@ -163,6 +174,8 @@ contextBridge.exposeInMainWorld('interconnect',{
       reopenedChatDraftPreserved: true,
       switchedChatDraftPreserved: true,
       failedSendDraftPreserved: true,
+      failedSendAccessibleInChat: true,
+      failureKeptWithOriginatingChat: true,
       sends: calls.length,
       syntheticOnly: true,
       errors,

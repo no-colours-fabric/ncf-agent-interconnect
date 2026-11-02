@@ -1,24 +1,26 @@
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, realpath, writeFile } from 'node:fs/promises';
 import { randomBytes, randomUUID } from 'node:crypto';
 import path from 'node:path';
 
 export async function createUiEnvironment(clientHome) {
+  await mkdir(clientHome, { recursive: true, mode: 0o700 });
+  const canonicalHome = await realpath(clientHome);
   const environment = {
     ...process.env,
-    HOME: clientHome,
-    USERPROFILE: clientHome,
-    CODEX_HOME: path.join(clientHome, '.codex'),
-    XDG_CONFIG_HOME: path.join(clientHome, '.config'),
-    OPENCODE_CONFIG: path.join(clientHome, '.config', 'opencode', 'opencode.json'),
-    OPENCODE_CONFIG_DIR: path.join(clientHome, '.config', 'opencode'),
-    APPDATA: path.join(clientHome, 'AppData', 'Roaming'),
-    LOCALAPPDATA: path.join(clientHome, 'AppData', 'Local'),
+    HOME: canonicalHome,
+    USERPROFILE: canonicalHome,
+    CODEX_HOME: path.join(canonicalHome, '.codex'),
+    XDG_CONFIG_HOME: path.join(canonicalHome, '.config'),
+    OPENCODE_CONFIG: path.join(canonicalHome, '.config', 'opencode', 'opencode.json'),
+    OPENCODE_CONFIG_DIR: path.join(canonicalHome, '.config', 'opencode'),
+    APPDATA: path.join(canonicalHome, 'AppData', 'Roaming'),
+    LOCALAPPDATA: path.join(canonicalHome, 'AppData', 'Local'),
   };
   delete environment.ELECTRON_RUN_AS_NODE;
   delete environment.OPENCODE_CONFIG_CONTENT;
   await Promise.all(
     [
-      clientHome,
+      canonicalHome,
       environment.CODEX_HOME,
       environment.OPENCODE_CONFIG_DIR,
       environment.APPDATA,

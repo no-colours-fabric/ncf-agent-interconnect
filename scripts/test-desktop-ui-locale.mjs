@@ -25,6 +25,7 @@ const cases = [
 ];
 const setupLabels = {
   en: {
+    chatClose: 'Close chat',
     configureCursor: 'Configure Cursor',
     configureOpencode: 'Configure OpenCode',
     configureCodex: 'Configure Codex',
@@ -38,6 +39,7 @@ const setupLabels = {
     missing: 'Not configured',
   },
   ru: {
+    chatClose: 'Закрыть чат',
     configureCursor: 'Настроить Cursor',
     configureOpencode: 'Настроить OpenCode',
     configureCodex: 'Настроить Codex',
@@ -51,6 +53,7 @@ const setupLabels = {
     missing: 'Не настроено',
   },
   de: {
+    chatClose: 'Chat schließen',
     configureCursor: 'Cursor einrichten',
     configureOpencode: 'OpenCode einrichten',
     configureCodex: 'Codex einrichten',
@@ -64,6 +67,7 @@ const setupLabels = {
     missing: 'Nicht eingerichtet',
   },
   fr: {
+    chatClose: 'Fermer le chat',
     configureCursor: 'Configurer Cursor',
     configureOpencode: 'Configurer OpenCode',
     configureCodex: 'Configurer Codex',
@@ -77,6 +81,7 @@ const setupLabels = {
     missing: 'Non configuré',
   },
   es: {
+    chatClose: 'Cerrar chat',
     configureCursor: 'Configurar Cursor',
     configureOpencode: 'Configurar OpenCode',
     configureCodex: 'Configurar Codex',
@@ -90,6 +95,7 @@ const setupLabels = {
     missing: 'Sin configurar',
   },
   it: {
+    chatClose: 'Chiudi chat',
     configureCursor: 'Configura Cursor',
     configureOpencode: 'Configura OpenCode',
     configureCodex: 'Configura Codex',
@@ -103,6 +109,7 @@ const setupLabels = {
     missing: 'Non configurato',
   },
   ja: {
+    chatClose: 'チャットを閉じる',
     configureCursor: 'Cursorを設定',
     configureOpencode: 'OpenCodeを設定',
     configureCodex: 'Codexを設定',
@@ -116,6 +123,7 @@ const setupLabels = {
     missing: '未設定',
   },
   kk: {
+    chatClose: 'Чатты жабу',
     configureCursor: 'Cursor баптау',
     configureOpencode: 'OpenCode баптау',
     configureCodex: 'Codex баптау',
@@ -129,6 +137,7 @@ const setupLabels = {
     missing: 'Бапталмаған',
   },
   ko: {
+    chatClose: '채팅 닫기',
     configureCursor: 'Cursor 설정',
     configureOpencode: 'OpenCode 설정',
     configureCodex: 'Codex 설정',
@@ -141,6 +150,7 @@ const setupLabels = {
     missing: '설정되지 않음',
   },
   nl: {
+    chatClose: 'Chat sluiten',
     configureCursor: 'Cursor instellen',
     configureOpencode: 'OpenCode instellen',
     configureCodex: 'Codex instellen',
@@ -154,6 +164,7 @@ const setupLabels = {
     missing: 'Niet ingesteld',
   },
   pl: {
+    chatClose: 'Zamknij czat',
     configureCursor: 'Skonfiguruj Cursor',
     configureOpencode: 'Skonfiguruj OpenCode',
     configureCodex: 'Skonfiguruj Codex',
@@ -167,6 +178,7 @@ const setupLabels = {
     missing: 'Nie skonfigurowano',
   },
   'pt-BR': {
+    chatClose: 'Fechar chat',
     configureCursor: 'Configurar Cursor',
     configureOpencode: 'Configurar OpenCode',
     configureCodex: 'Configurar Codex',
@@ -180,6 +192,7 @@ const setupLabels = {
     missing: 'Não configurado',
   },
   tr: {
+    chatClose: 'Sohbeti kapat',
     configureCursor: 'Cursor uygulamasını yapılandır',
     configureOpencode: 'OpenCode uygulamasını yapılandır',
     configureCodex: 'Codex uygulamasını yapılandır',
@@ -193,6 +206,7 @@ const setupLabels = {
     missing: 'Yapılandırılmadı',
   },
   uk: {
+    chatClose: 'Закрити чат',
     configureCursor: 'Налаштувати Cursor',
     configureOpencode: 'Налаштувати OpenCode',
     configureCodex: 'Налаштувати Codex',
@@ -206,6 +220,7 @@ const setupLabels = {
     missing: 'Не налаштовано',
   },
   'zh-CN': {
+    chatClose: '关闭聊天',
     configureCursor: '配置 Cursor',
     configureOpencode: '配置 OpenCode',
     configureCodex: '配置 Codex',
@@ -268,6 +283,11 @@ async function capture(name) {
   await page.mouse.move(1, 1);
   await page.screenshot({ path: filename });
   screenshots.push(filename);
+}
+async function closeChat(locale) {
+  const drawer = page.getByRole('dialog', { name: agentName, exact: true });
+  await drawer.getByRole('button', { name: setupLabels[locale].chatClose, exact: true }).click();
+  await drawer.waitFor({ state: 'detached' });
 }
 async function checkMcpSetup(locale) {
   const expected = setupLabels[locale];
@@ -351,11 +371,7 @@ try {
   await page.getByText(message, { exact: true }).waitFor();
   const historyBefore = await invoke('history', { nickname: agentName });
   assert.equal(historyBefore.messages.length, 1);
-  await page
-    .getByRole('dialog')
-    .getByRole('button')
-    .filter({ has: page.locator('[data-testid="CloseOutlinedIcon"]') })
-    .click();
+  await closeChat('en');
   await navigate('mcp');
   await checkMcpSetup('en');
   const results = [];
@@ -390,14 +406,10 @@ try {
           .getByRole('button')
           .first()
           .click();
-        assert.equal(await page.getByText(message, { exact: true }).isVisible(), true);
+        await page.getByText(message, { exact: true }).waitFor();
         assert.ok((await page.getByRole('dialog').textContent()).includes(targetName));
         await capture(locale + '-agents');
-        await page
-          .getByRole('dialog')
-          .getByRole('button')
-          .filter({ has: page.locator('[data-testid="CloseOutlinedIcon"]') })
-          .click();
+        await closeChat(locale);
       }
       if (name === 'mcp') {
         await checkMcpSetup(locale);

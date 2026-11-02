@@ -198,7 +198,11 @@ try {
     assert.ok(!result.isError);
   };
   await receive();
-  await page.getByText('Received by agent', { exact: true }).waitFor();
+  await page
+    .getByTestId('chat-message')
+    .filter({ has: page.getByTestId('message-text').filter({ hasText: 'Full incoming message' }) })
+    .getByText(/Received by agent$/)
+    .waitFor();
   assert.equal(
     (await page.evaluate(() => window.interconnect.invoke('snapshot'))).agents.find(
       (agent) => agent.nickname === 'Interface check',
