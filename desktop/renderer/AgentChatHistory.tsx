@@ -18,6 +18,22 @@ import { t, type Locale } from './i18n/index.js';
 
 const messageKey = (message: Message | undefined) =>
   message ? message.envelope.id + ':' + message.direction : '';
+function scrollPosition(element: HTMLDivElement) {
+  const viewport = element.getBoundingClientRect();
+  const anchor = [...element.querySelectorAll<HTMLElement>('[data-message-key]')].find((item) => {
+    const bounds = item.getBoundingClientRect();
+    return bounds.bottom > viewport.top && bounds.top < viewport.bottom;
+  });
+  return {
+    anchor: anchor
+      ? {
+          key: anchor.dataset.messageKey,
+          offset: anchor.getBoundingClientRect().top - viewport.top,
+        }
+      : null,
+    atBottom: element.scrollHeight - element.scrollTop - element.clientHeight < 64,
+  };
+}
 const messageStateKey = {
   queued: 'msgStateQueued',
   received: 'msgStateReceived',
@@ -45,24 +61,25 @@ export function AgentChatHistory({
   nodeName: (id: string) => string;
 }): React.JSX.Element {
   const scroll = useRef<HTMLDivElement>(null);
-  const previous = useRef({ first: '', last: '', height: 0, top: 0, atBottom: true });
+  const previous = useRef<ReturnType<typeof scrollPosition> | null>(null);
   useLayoutEffect(() => {
     const element = scroll.current;
     if (!element) return;
     const old = previous.current;
-    const first = messageKey(messages[0]);
-    const last = messageKey(messages.at(-1));
-    if (!old.first || old.atBottom) element.scrollTop = element.scrollHeight;
-    else if (first !== old.first && messages.some((message) => messageKey(message) === old.first))
-      element.scrollTop = old.top + element.scrollHeight - old.height;
-    previous.current = {
-      first,
-      last,
-      height: element.scrollHeight,
-      top: element.scrollTop,
-      atBottom: element.scrollHeight - element.scrollTop - element.clientHeight < 64,
-    };
-  }, [messages, hasMore, loading]);
+    if (!old || old.atBottom) element.scrollTop = element.scrollHeight;
+    else if (old.anchor) {
+      // Anchor a visible row through prepends and loading-indicator layout changes.
+      const anchor = [...element.querySelectorAll<HTMLElement>('[data-message-key]')].find(
+        (item) => item.dataset.messageKey === old.anchor?.key,
+      );
+      if (anchor)
+        element.scrollTop +=
+          anchor.getBoundingClientRect().top -
+          element.getBoundingClientRect().top -
+          old.anchor.offset;
+    }
+    previous.current = scrollPosition(element);
+  }, [messages, hasMore, loading, locale]);
 
   return (
     <Box
@@ -71,12 +88,7 @@ export function AgentChatHistory({
       onScroll={() => {
         const element = scroll.current;
         if (!element) return;
-        previous.current = {
-          ...previous.current,
-          height: element.scrollHeight,
-          top: element.scrollTop,
-          atBottom: element.scrollHeight - element.scrollTop - element.clientHeight < 64,
-        };
+        previous.current = scrollPosition(element);
         if (element.scrollTop < 64 && hasMore && !loading) loadMore();
       }}
       sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowAnchor: 'none', bgcolor: '#f4f7f8' }}
@@ -96,6 +108,7 @@ export function AgentChatHistory({
             <Stack
               key={messageKey(message)}
               data-testid="chat-message"
+              data-message-key={messageKey(message)}
               data-direction={direction}
               data-sequence={message.sequence}
               direction={outgoing ? 'row-reverse' : 'row'}
