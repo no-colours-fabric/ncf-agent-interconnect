@@ -14,9 +14,10 @@ import {
   type PairIdentity,
   type PairedIdentity,
 } from '../desktop/core/pairing.js';
-import { NodeService } from '../desktop/core/service.js';
 import { SettingsFile } from '../desktop/core/settings.js';
 import type { Peer } from '../desktop/shared/contracts.js';
+import { pairingTest, bidirectionalGates, type PairRequestTarget } from './pairing-harness.js';
+import { pairingNode as node } from './pairing-node-fixture.js';
 
 const certs = await Promise.all(
   [1, 2, 3].map(() =>
@@ -34,13 +35,6 @@ const identities: PairIdentity[] = certs.map((cert, i) => ({
 }));
 const [hostIdentity, clientIdentity, otherIdentity] = identities;
 const noop = async () => {};
-function barrier() {
-  let release!: () => void;
-  const promise = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  return { promise, release };
-}
 const changed = (value: string) => (value[0] === 'a' ? 'b' : 'a') + value.slice(1);
 type StartResult = Awaited<ReturnType<PairingHost['handle']>> & {
   sessionId: string;
@@ -311,30 +305,33 @@ test('tampered proofs, MAC reflection and cross-session substitution are rejecte
   assert.throws(() => prepared.client.finish({ mac: changed(receipt.mac) }), /incorrect/);
 });
 
-test('identical concurrent confirmation commits once; changed confirmation never repeats admission', async () => {
-  const { host, code } = fixture();
-  const { client, confirm } = await prepare(host, code);
-  let admissions = 0,
-    release!: () => void;
-  const barrier = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const admit = async () => {
-    admissions++;
-    await barrier;
-  };
-  const first = host.handle(confirm, admit),
-    duplicate = host.handle(confirm, admit);
-  assert.equal(admissions, 1);
-  release();
-  const receipts = await Promise.all([first, duplicate]);
-  assert.deepEqual(receipts[0], receipts[1]);
-  client.finish(receipts[0]);
-  host.createCode();
-  assert.deepEqual(await host.handle(confirm, admit), receipts[0]);
-  await assert.rejects(host.handle({ ...confirm, mac: changed(confirm.mac) }, admit), /incorrect/);
-  assert.equal(admissions, 1);
-});
+pairingTest(
+  'identical concurrent confirmation commits once; changed confirmation never repeats admission',
+  async (t, harness) => {
+    const { host, code } = fixture();
+    const { client, confirm } = await prepare(host, code);
+    let admissions = 0;
+    const writeGate = harness.barrier();
+    const admit = async () => {
+      admissions++;
+      await writeGate.promise;
+    };
+    const first = harness.watch(host.handle(confirm, admit)),
+      duplicate = harness.watch(host.handle(confirm, admit));
+    assert.equal(admissions, 1);
+    writeGate.release();
+    const receipts = await Promise.all([first, duplicate]);
+    assert.deepEqual(receipts[0], receipts[1]);
+    client.finish(receipts[0]);
+    host.createCode();
+    assert.deepEqual(await host.handle(confirm, admit), receipts[0]);
+    await assert.rejects(
+      host.handle({ ...confirm, mac: changed(confirm.mac) }, admit),
+      /incorrect/,
+    );
+    assert.equal(admissions, 1);
+  },
+);
 
 test('two valid claimers race for one atomic claim; failed persistence can be retried safely', async () => {
   const { host, code } = fixture();
@@ -384,34 +381,37 @@ test('server restart forgets recovery sessions and never repeats a committed adm
   assert.equal(saved, 1);
 });
 
-test('reset during durable admission preserves uncertainty and cannot resurrect receipts', async () => {
-  const { host, code } = fixture();
-  const { confirm } = await prepare(host, code);
-  const entered = barrier(),
-    resume = barrier();
-  let writes = 0;
-  const pending = host.handle(confirm, async (_identity, beforeWrite) => {
-    beforeWrite();
-    entered.release();
-    await resume.promise;
-    writes++;
-  });
-  const rejected = assert.rejects(pending, /confirmation is uncertain/);
-  await entered.promise;
-  host.reset();
-  resume.release();
-  await rejected;
-  assert.equal(writes, 1);
-  await assert.rejects(host.handle(confirm, noop), /expired or unavailable/);
-  host.createCode();
-  await assert.rejects(host.handle(confirm, noop), /session expired/);
-});
+pairingTest(
+  'reset during durable admission preserves uncertainty and cannot resurrect receipts',
+  async (t, harness) => {
+    const { host, code } = fixture();
+    const { confirm } = await prepare(host, code);
+    const entered = harness.barrier(),
+      resume = harness.barrier();
+    let writes = 0;
+    const pending = host.handle(confirm, async (_identity, beforeWrite) => {
+      beforeWrite();
+      entered.release();
+      await resume.promise;
+      writes++;
+    });
+    const rejected = harness.watch(assert.rejects(pending, /confirmation is uncertain/));
+    await entered.promise;
+    host.reset();
+    resume.release();
+    await rejected;
+    assert.equal(writes, 1);
+    await assert.rejects(host.handle(confirm, noop), /expired or unavailable/);
+    host.createCode();
+    await assert.rejects(host.handle(confirm, noop), /session expired/);
+  },
+);
 
-test('reset cancels queued admission before its write guard', async () => {
+pairingTest('reset cancels queued admission before its write guard', async (t, harness) => {
   const { host, code } = fixture();
   const { confirm } = await prepare(host, code);
-  const entered = barrier(),
-    resume = barrier();
+  const entered = harness.barrier(),
+    resume = harness.barrier();
   let writes = 0;
   const pending = host.handle(confirm, async (_identity, beforeWrite) => {
     entered.release();
@@ -419,7 +419,7 @@ test('reset cancels queued admission before its write guard', async () => {
     beforeWrite();
     writes++;
   });
-  const rejected = assert.rejects(pending, /canceled before saving/);
+  const rejected = harness.watch(assert.rejects(pending, /canceled before saving/));
   await entered.promise;
   host.reset();
   resume.release();
@@ -427,40 +427,46 @@ test('reset cancels queued admission before its write guard', async () => {
   assert.equal(writes, 0);
 });
 
-test('new code cancels queued writes but retains receipts of writes already begun', async () => {
-  for (const writeBegun of [false, true]) {
-    const { host, code } = fixture();
-    const { confirm } = await prepare(host, code);
-    const entered = barrier(),
-      resume = barrier();
-    let writes = 0;
-    const pending = host.handle(confirm, async (_identity, beforeWrite) => {
-      if (writeBegun) beforeWrite();
-      entered.release();
-      await resume.promise;
-      if (!writeBegun) beforeWrite();
-      writes++;
-    });
-    const checked = writeBegun ? pending : assert.rejects(pending, /canceled before saving/);
-    await entered.promise;
-    const next = host.createCode().code;
-    const duplicate = host.handle(confirm, async () => {
-      assert.fail('duplicate admission');
-    });
-    const duplicateChecked = writeBegun
-      ? duplicate
-      : assert.rejects(duplicate, /canceled before saving/);
-    resume.release();
-    const receipt = await checked;
-    const duplicateReceipt = await duplicateChecked;
-    assert.equal(writes, writeBegun ? 1 : 0);
-    if (writeBegun) {
-      assert.deepEqual(duplicateReceipt, receipt);
-      assert.deepEqual(await host.handle(confirm, noop), receipt);
-    } else await assert.rejects(host.handle(confirm, noop), /session expired/);
-    await prepare(host, next);
-  }
-});
+pairingTest(
+  'new code cancels queued writes but retains receipts of writes already begun',
+  async (t, harness) => {
+    for (const writeBegun of [false, true]) {
+      const { host, code } = fixture();
+      const { confirm } = await prepare(host, code);
+      const entered = harness.barrier(),
+        resume = harness.barrier();
+      let writes = 0;
+      const pending = host.handle(confirm, async (_identity, beforeWrite) => {
+        if (writeBegun) beforeWrite();
+        entered.release();
+        await resume.promise;
+        if (!writeBegun) beforeWrite();
+        writes++;
+      });
+      const checked = harness.watch(
+        writeBegun ? pending : assert.rejects(pending, /canceled before saving/),
+      );
+      await entered.promise;
+      const next = host.createCode().code;
+      const duplicate = host.handle(confirm, async () => {
+        assert.fail('duplicate admission');
+      });
+      const duplicateChecked = writeBegun
+        ? duplicate
+        : assert.rejects(duplicate, /canceled before saving/);
+      harness.watch(duplicateChecked);
+      resume.release();
+      const receipt = await checked;
+      const duplicateReceipt = await duplicateChecked;
+      assert.equal(writes, writeBegun ? 1 : 0);
+      if (writeBegun) {
+        assert.deepEqual(duplicateReceipt, receipt);
+        assert.deepEqual(await host.handle(confirm, noop), receipt);
+      } else await assert.rejects(host.handle(confirm, noop), /session expired/);
+      await prepare(host, next);
+    }
+  },
+);
 
 async function settings(t: test.TestContext): Promise<SettingsFile> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-pair-settings-'));
@@ -521,43 +527,31 @@ test('validation and write failures preserve old settings; the queue recovers an
   assert.equal(file.value.peers.length, 2);
 });
 
-test('the queued write guard runs before file creation and preserves previous settings on cancellation', async (t) => {
-  const file = await settings(t);
-  const before = await readFile(file.filename, 'utf8');
-  const queue = barrier();
-  (file as unknown as { saving: Promise<void> }).saving = queue.promise;
-  let allowed = true;
-  const pending = file.savePeers(
-    () => [peer(clientIdentity)],
-    () => {
-      if (!allowed) throw new Error('Isolated canceled write');
-    },
-  );
-  const rejected = assert.rejects(pending, /canceled write/);
-  allowed = false;
-  queue.release();
-  await rejected;
-  assert.equal(file.value.peers.length, 0);
-  assert.equal(await readFile(file.filename, 'utf8'), before);
-  await file.savePeers(() => [peer(clientIdentity)]);
-  assert.equal(file.value.peers.length, 1);
-});
+pairingTest(
+  'the queued write guard runs before file creation and preserves previous settings on cancellation',
+  async (t, harness) => {
+    const file = await settings(t);
+    const before = await readFile(file.filename, 'utf8');
+    const queue = harness.barrier();
+    (file as unknown as { saving: Promise<void> }).saving = queue.promise;
+    let allowed = true;
+    const pending = file.savePeers(
+      () => [peer(clientIdentity)],
+      () => {
+        if (!allowed) throw new Error('Isolated canceled write');
+      },
+    );
+    const rejected = harness.watch(assert.rejects(pending, /canceled write/));
+    allowed = false;
+    queue.release();
+    await rejected;
+    assert.equal(file.value.peers.length, 0);
+    assert.equal(await readFile(file.filename, 'utf8'), before);
+    await file.savePeers(() => [peer(clientIdentity)]);
+    assert.equal(file.value.peers.length, 1);
+  },
+);
 
-async function node(t: test.TestContext, nodeId?: string): Promise<NodeService> {
-  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-pair-node-'));
-  const file = new SettingsFile(directory);
-  await file.load();
-  if (nodeId) file.value.nodeId = nodeId;
-  file.value.peerPort = 0;
-  await file.save();
-  const service = new NodeService(file.directory);
-  await service.open();
-  t.after(async () => {
-    await service.close();
-    await rm(directory, { recursive: true, force: true });
-  });
-  return service;
-}
 async function until(check: () => unknown): Promise<void> {
   const deadline = Date.now() + 5000;
   while (!check()) {
@@ -676,178 +670,192 @@ test('a throwing post-commit reconnect cannot release the claim or repeat admiss
   await assert.rejects(a.network.join(b.snapshot().peerUrl, code), /already been used/);
 });
 
-test('server stop during a durable confirm cannot restore receipts or run post-commit reconnect', async (t) => {
-  const a = await node(t),
-    b = await node(t);
-  const entered = barrier(),
-    resume = barrier();
-  const save = b.settings.savePeers.bind(b.settings);
-  b.settings.savePeers = async (update, beforeWrite) => {
-    await save(update, beforeWrite);
-    entered.release();
-    await resume.promise;
-  };
-  let reconnects = 0;
-  b.network.reconnectPeer = () => {
-    reconnects++;
-  };
-  const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  const rejected = assert.rejects(joining, /confirmation is uncertain/);
-  await entered.promise;
-  const stopping = b.stop();
-  await until(() => (b.network as unknown as { stopped: boolean }).stopped);
-  resume.release();
-  await Promise.all([rejected, stopping]);
-  assert.equal(b.settings.value.peers.length, 1);
-  assert.equal(a.settings.value.peers.length, 0);
-  assert.equal(reconnects, 0);
-});
-
-test('client stop prevents queued local writes and reports completed local writes as uncertain', async (t) => {
-  for (const writeBegun of [false, true]) {
+pairingTest(
+  'server stop during a durable confirm cannot restore receipts or run post-commit reconnect',
+  async (t, harness) => {
     const a = await node(t),
       b = await node(t);
-    const entered = barrier(),
-      resume = barrier();
-    const save = a.settings.savePeers.bind(a.settings);
-    a.settings.savePeers = async (update, beforeWrite) => {
-      if (writeBegun) await save(update, beforeWrite);
+    const entered = harness.barrier(),
+      resume = harness.barrier();
+    const save = b.settings.savePeers.bind(b.settings);
+    harness.restore(() => {
+      b.settings.savePeers = save;
+    });
+    b.settings.savePeers = async (update, beforeWrite) => {
+      await save(update, beforeWrite);
       entered.release();
       await resume.promise;
-      if (!writeBegun) await save(update, beforeWrite);
     };
+    const originalReconnect = b.network.reconnectPeer;
+    harness.restore(() => {
+      b.network.reconnectPeer = originalReconnect;
+    });
     let reconnects = 0;
-    a.network.reconnectPeer = () => {
+    b.network.reconnectPeer = () => {
       reconnects++;
     };
     const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-    const rejected = assert.rejects(
-      joining,
-      writeBegun ? /confirmation is uncertain/ : /could not save/,
-    );
+    const rejected = harness.watch(assert.rejects(joining, /confirmation is uncertain/));
     await entered.promise;
-    await a.stop();
+    const stopping = b.stop();
+    await until(() => (b.network as unknown as { stopped: boolean }).stopped);
     resume.release();
-    await rejected;
-    assert.equal(a.settings.value.peers.length, writeBegun ? 1 : 0);
+    await Promise.all([rejected, stopping]);
     assert.equal(b.settings.value.peers.length, 1);
+    assert.equal(a.settings.value.peers.length, 0);
     assert.equal(reconnects, 0);
-  }
-});
+  },
+);
 
-test('simultaneous bidirectional pairing fails safely before writes and preserves the working binding', async (t) => {
-  const a = await node(t),
-    b = await node(t);
-  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
-  const oldA = structuredClone(a.settings.value.peers),
-    oldB = structuredClone(b.settings.value.peers);
-  const proving = barrier(),
-    responses = barrier();
-  let proveCount = 0,
-    responseCount = 0;
-  for (const service of [a, b]) {
-    const network = service.network as unknown as {
+pairingTest(
+  'client stop prevents queued local writes and reports completed local writes as uncertain',
+  async (t, harness) => {
+    for (const writeBegun of [false, true]) {
+      const a = await node(t),
+        b = await node(t);
+      const entered = harness.barrier(),
+        resume = harness.barrier();
+      const save = a.settings.savePeers.bind(a.settings);
+      harness.restore(() => {
+        a.settings.savePeers = save;
+      });
+      a.settings.savePeers = async (update, beforeWrite) => {
+        if (writeBegun) await save(update, beforeWrite);
+        entered.release();
+        await resume.promise;
+        if (!writeBegun) await save(update, beforeWrite);
+      };
+      const originalReconnect = a.network.reconnectPeer;
+      harness.restore(() => {
+        a.network.reconnectPeer = originalReconnect;
+      });
+      let reconnects = 0;
+      a.network.reconnectPeer = () => {
+        reconnects++;
+      };
+      const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+      const rejected = assert.rejects(
+        joining,
+        writeBegun ? /confirmation is uncertain/ : /could not save/,
+      );
+      harness.watch(rejected);
+      await entered.promise;
+      await a.stop();
+      resume.release();
+      await rejected;
+      assert.equal(a.settings.value.peers.length, writeBegun ? 1 : 0);
+      assert.equal(b.settings.value.peers.length, 1);
+      assert.equal(reconnects, 0);
+    }
+  },
+);
+
+pairingTest(
+  'simultaneous bidirectional pairing fails safely before writes and preserves the working binding',
+  async (t, harness) => {
+    const a = await node(t),
+      b = await node(t);
+    await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+    const oldA = structuredClone(a.settings.value.peers),
+      oldB = structuredClone(b.settings.value.peers);
+    bidirectionalGates(harness, [a.network, b.network] as unknown as PairRequestTarget[]);
+    const codeA = a.network.accessCode().code,
+      codeB = b.network.accessCode().code;
+    const results = await Promise.allSettled([
+      harness.watch(a.network.join(b.snapshot().peerUrl, codeB), /being paired/),
+      harness.watch(b.network.join(a.snapshot().peerUrl, codeA), /being paired/),
+    ]);
+    assert.equal(results.filter((result) => result.status === 'fulfilled').length, 0);
+    for (const result of results)
+      if (result.status === 'rejected') assert.match(result.reason.message, /being paired/);
+    assert.deepEqual(a.settings.value.peers, oldA);
+    assert.deepEqual(b.settings.value.peers, oldB);
+    assert.equal(a.snapshot().peers[0].connected, true);
+    assert.equal(b.snapshot().peers[0].connected, true);
+    await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
+  },
+);
+
+pairingTest(
+  'overlapping outgoing re-pair cannot overwrite a binding while an older acknowledgement is delayed',
+  async (t, harness) => {
+    const a = await node(t),
+      b = await node(t);
+    await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    const oldA = structuredClone(a.settings.value.peers);
+    const entered = harness.barrier(),
+      resume = harness.barrier();
+    const network = a.network as unknown as {
       pairRequest: (...args: unknown[]) => Promise<unknown>;
     };
     const original = network.pairRequest.bind(network);
+    let delayed = false;
+    harness.restore(() => {
+      network.pairRequest = original;
+    });
     network.pairRequest = async (...args) => {
-      const phase = (args[1] as { phase: string }).phase;
-      if (phase === 'prove') {
-        if (++proveCount === 2) proving.release();
-        await proving.promise;
+      const response = await original(...args);
+      if ((args[1] as { phase: string }).phase === 'confirm' && !delayed) {
+        delayed = true;
+        entered.release();
+        await resume.promise;
       }
-      try {
-        return await original(...args);
-      } finally {
-        if (phase === 'confirm') {
-          if (++responseCount === 2) responses.release();
-          await responses.promise;
-        }
-      }
+      return response;
     };
-  }
-  const codeA = a.network.accessCode().code,
-    codeB = b.network.accessCode().code;
-  const results = await Promise.allSettled([
-    a.network.join(b.snapshot().peerUrl, codeB),
-    b.network.join(a.snapshot().peerUrl, codeA),
-  ]);
-  assert.equal(results.filter((result) => result.status === 'fulfilled').length, 0);
-  for (const result of results)
-    if (result.status === 'rejected') assert.match(result.reason.message, /being paired/);
-  assert.deepEqual(a.settings.value.peers, oldA);
-  assert.deepEqual(b.settings.value.peers, oldB);
-  assert.equal(a.snapshot().peers[0].connected, true);
-  assert.equal(b.snapshot().peers[0].connected, true);
-  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
-});
+    const first = harness.watch(a.network.join(b.snapshot().peerUrl, b.network.accessCode().code));
+    await entered.promise;
+    const committed = structuredClone(b.settings.value.peers);
+    await assert.rejects(
+      a.network.join(b.snapshot().peerUrl, b.network.accessCode().code),
+      /being paired/,
+    );
+    assert.deepEqual(a.settings.value.peers, oldA);
+    assert.deepEqual(b.settings.value.peers, committed);
+    resume.release();
+    await first;
+    assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
+    await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
+  },
+);
 
-test('overlapping outgoing re-pair cannot overwrite a binding while an older acknowledgement is delayed', async (t) => {
-  const a = await node(t),
-    b = await node(t);
-  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  const oldA = structuredClone(a.settings.value.peers);
-  const entered = barrier(),
-    resume = barrier();
-  const network = a.network as unknown as { pairRequest: (...args: unknown[]) => Promise<unknown> };
-  const original = network.pairRequest.bind(network);
-  let delayed = false;
-  network.pairRequest = async (...args) => {
-    const response = await original(...args);
-    if ((args[1] as { phase: string }).phase === 'confirm' && !delayed) {
-      delayed = true;
-      entered.release();
-      await resume.promise;
-    }
-    return response;
-  };
-  const first = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  await entered.promise;
-  const committed = structuredClone(b.settings.value.peers);
-  await assert.rejects(
-    a.network.join(b.snapshot().peerUrl, b.network.accessCode().code),
-    /being paired/,
-  );
-  assert.deepEqual(a.settings.value.peers, oldA);
-  assert.deepEqual(b.settings.value.peers, committed);
-  resume.release();
-  await first;
-  assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
-  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
-});
-
-test('a late acknowledgement after client restart cannot overwrite a newer committed authorization', async (t) => {
-  const a = await node(t),
-    b = await node(t);
-  const entered = barrier(),
-    resume = barrier();
-  const oldNetwork = a.network as unknown as {
-    pairRequest: (...args: unknown[]) => Promise<unknown>;
-  };
-  const original = oldNetwork.pairRequest.bind(oldNetwork);
-  oldNetwork.pairRequest = async (...args) => {
-    const response = await original(...args);
-    if ((args[1] as { phase: string }).phase === 'confirm') {
-      entered.release();
-      await resume.promise;
-    }
-    return response;
-  };
-  const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  const rejected = assert.rejects(joining, /could not save/);
-  await entered.promise;
-  await a.stop();
-  await a.start();
-  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
-  const current = structuredClone(a.settings.value.peers);
-  resume.release();
-  await rejected;
-  assert.deepEqual(a.settings.value.peers, current);
-  assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
-});
+pairingTest(
+  'a late acknowledgement after client restart cannot overwrite a newer committed authorization',
+  async (t, harness) => {
+    const a = await node(t),
+      b = await node(t);
+    const entered = harness.barrier(),
+      resume = harness.barrier();
+    const oldNetwork = a.network as unknown as {
+      pairRequest: (...args: unknown[]) => Promise<unknown>;
+    };
+    const original = oldNetwork.pairRequest.bind(oldNetwork);
+    harness.restore(() => {
+      oldNetwork.pairRequest = original;
+    });
+    oldNetwork.pairRequest = async (...args) => {
+      const response = await original(...args);
+      if ((args[1] as { phase: string }).phase === 'confirm') {
+        entered.release();
+        await resume.promise;
+      }
+      return response;
+    };
+    const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    const rejected = harness.watch(assert.rejects(joining, /could not save/));
+    await entered.promise;
+    await a.stop();
+    await a.start();
+    await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    const current = structuredClone(a.settings.value.peers);
+    resume.release();
+    await rejected;
+    assert.deepEqual(a.settings.value.peers, current);
+    assert.equal(a.settings.value.peers[0].secret, b.settings.value.peers[0].secret);
+  },
+);
 
 test('restart after server commit reports uncertainty and a fresh explicit pairing recovers', async (t) => {
   const a = await node(t),
