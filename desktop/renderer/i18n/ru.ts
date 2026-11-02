@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  agentsColumnName: 'Имя',
+  agentsColumnClient: 'Клиент',
+  agentsColumnNode: 'Узел',
+  agentsColumnLastMessage: 'Последнее сообщение',
+  agentsColumnIncoming: 'Входящие',
+  agentsColumnOutgoing: 'Исходящие',
+  agentsColumnActions: 'Действия',
+  agentsChatAria: 'Открыть чат с {name}',
+  agentsDeleteAria: 'Удалить {name} и переписку',
+  agentsRemoteDeleteHelp: 'Управление этим агентом доступно на его удалённом узле.',
+  chatClose: 'Закрыть чат',
+  chatRemoteNoHistory: 'История сообщений хранится на удалённом узле.',
+  networkColumnName: 'Узел',
+  networkColumnAddress: 'Адрес подключения',
+  networkColumnAgents: 'Агенты',
+  networkColumnUpdated: 'Обновлено',
+  networkColumnStatus: 'Статус',
+  clientsLastActivity: 'Последняя активность',
+  clientsApplicationsIntro: 'Приложения, подключённые к этому узлу.',
+
   clearSelectedAgent: 'Удалить выбранного агента и переписку',
   clearAllLocalAgents: 'Удалить всех локальных агентов и переписку',
   clearAgentTitle: 'Удаление агента и переписки',

@@ -94,13 +94,23 @@ try {
   await expectLanguage('en', 'Overview', 'Settings');
   await invoke('registerAgent', { nickname: agentName });
   await navigate('agents');
-  await page.getByText(agentName, { exact: true }).first().click();
+  await page
+    .getByTestId('agent-row')
+    .filter({ hasText: agentName })
+    .getByRole('button')
+    .first()
+    .click();
   await page.getByRole('textbox', { name: 'Recipient agent name', exact: true }).fill(targetName);
   await page.getByRole('textbox', { name: 'Message from the user', exact: true }).fill(message);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await page.getByText(message, { exact: true }).waitFor();
   const historyBefore = await invoke('history', { nickname: agentName });
   assert.equal(historyBefore.messages.length, 1);
+  await page
+    .getByRole('dialog')
+    .getByRole('button')
+    .filter({ has: page.locator('[data-testid="CloseOutlinedIcon"]') })
+    .click();
   await navigate('mcp');
   await page.locator('pre').waitFor();
   const configuration = await page.locator('pre').textContent();
@@ -130,10 +140,20 @@ try {
           .evaluate((element) => element.scrollWidth <= element.clientWidth),
       );
       if (name === 'agents') {
-        await page.getByText(agentName, { exact: true }).first().click();
+        await page
+          .getByTestId('agent-row')
+          .filter({ hasText: agentName })
+          .getByRole('button')
+          .first()
+          .click();
         assert.equal(await page.getByText(message, { exact: true }).isVisible(), true);
-        assert.ok((await page.locator('main').textContent()).includes(targetName));
+        assert.ok((await page.getByRole('dialog').textContent()).includes(targetName));
         await capture(locale + '-agents');
+        await page
+          .getByRole('dialog')
+          .getByRole('button')
+          .filter({ has: page.locator('[data-testid="CloseOutlinedIcon"]') })
+          .click();
       }
       if (name === 'mcp') {
         await page.locator('pre').waitFor();

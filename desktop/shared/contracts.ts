@@ -123,6 +123,14 @@ export interface AgentIdentity {
   binding: Binding | null;
   messageCount: number;
   unread: number;
+  incomingCount?: number;
+  outgoingCount?: number;
+  lastMessageAt?: string | null;
+}
+export interface ChatHistoryPage {
+  messages: Message[];
+  nextCursor: number;
+  hasMore: boolean;
 }
 export interface SystemEvent {
   id: number;

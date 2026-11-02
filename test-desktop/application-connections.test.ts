@@ -2,207 +2,80 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ApplicationConnections } from '../desktop/renderer/application-connections.js';
+import {
+  ApplicationConnections,
+  applicationActivity,
+} from '../desktop/renderer/application-connections.js';
 import type { AdapterState, AgentIdentity } from '../desktop/shared/contracts.js';
 import { t } from '../desktop/renderer/i18n/index.js';
 
-function profile(id: string, error: string | null): AdapterState {
-  return {
-    id,
-    label: 'Example connection',
-    kind: 'codex-desktop',
-    state: error ? 'error' : 'ready',
-    error,
-    capabilities: {
-      wakeIdle: !error,
-      receiveActive: !error,
-      nativeDisplay: false,
-      exactSession: !error,
-    },
-  };
-}
+const profile = (id: string): AdapterState => ({
+  id,
+  label: 'Private connection',
+  kind: 'codex-desktop',
+  state: 'uncertain',
+  error: 'Private diagnostic',
+  capabilities: { wakeIdle: false, receiveActive: false, nativeDisplay: false, exactSession: true },
+});
+const agent = (nickname: string, adapterId: string): AgentIdentity => ({
+  key: nickname.toLowerCase(),
+  nickname,
+  binding: { adapterId, client: 'Example', connectionId: nickname, chatId: 'exact', generation: 1 },
+  messageCount: 0,
+  unread: 0,
+});
 
-function agent(nickname: string, adapterId: string): AgentIdentity {
-  return {
-    key: nickname.toLowerCase(),
-    nickname,
-    binding: {
-      adapterId,
-      client: 'Example',
-      connectionId: nickname,
-      chatId: 'exact',
-      generation: 1,
-    },
-    messageCount: 0,
-    unread: 0,
+test('applications show one row per application, total agents and no agent or connection listings', () => {
+  const snapshot = {
+    adapters: [profile('first'), profile('second')],
+    agents: [agent('Альфа 漢字', 'first'), agent('Другой', 'second')],
   };
-}
-
-function render(adapters: AdapterState[], agents: AgentIdentity[] = []) {
-  return renderToStaticMarkup(
+  const html = renderToStaticMarkup(
     createElement(ApplicationConnections, {
-      snapshot: { adapters, agents },
+      snapshot,
       locale: 'ru',
-      onSetup: () => {
-        assert.fail('rendering must not initiate an external action');
-      },
+      onSetup: () => assert.fail('render must not trigger setup'),
     }),
   );
-}
+  assert.equal((html.match(/data-testid="application-/g) ?? []).length, 3);
+  assert.ok(html.includes(t('ru', 'clientsLastActivity')));
+  assert.ok(html.includes(t('ru', 'clientsKindCodex')));
+  assert.ok(html.includes('>2</td>'));
+  for (const value of [
+    'Альфа 漢字',
+    'Другой',
+    'Private connection',
+    'Private diagnostic',
+    '<details',
+    t('ru', 'clientsColumnStatus'),
+    t('ru', 'clientsNeedsReview'),
+  ])
+    assert.ok(!html.includes(value), value);
+  assert.equal((html.match(/<button/g) ?? []).length, 3);
+});
 
-const rowsWithDetails = (html: string) =>
-  [...html.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/g)]
-    .map((match) => match[0])
-    .filter((row) => row.includes('<details'));
-
-test('one connection row groups its agents and retains the correct diagnostic association', () => {
-  const html = render(
-    [
-      profile('first-connection', 'first diagnostic'),
-      profile('second-connection', 'second diagnostic'),
-    ],
-    [
-      agent('Альфа 漢字', 'first-connection'),
-      agent('İsim', 'first-connection'),
-      agent('Другой', 'second-connection'),
-    ],
+test('last activity is the latest observed message or exact-chat verification, including failed profiles', () => {
+  const first = profile('first');
+  first.lastOwnerVerifiedAt = '2026-11-01T10:00:00.000Z';
+  const owner = { ...agent('Owner', 'first'), lastMessageAt: '2026-11-01T11:00:00.000Z' };
+  const snapshot = { adapters: [first], agents: [owner] };
+  assert.equal(applicationActivity('codex-desktop', snapshot), owner.lastMessageAt);
+  first.lastOwnerVerifiedAt = '2026-11-01T12:00:00.000Z';
+  assert.equal(applicationActivity('codex-desktop', snapshot), first.lastOwnerVerifiedAt);
+  const html = renderToStaticMarkup(
+    createElement(ApplicationConnections, { snapshot, locale: 'en', onSetup: () => {} }),
   );
-  const rows = rowsWithDetails(html);
-  assert.equal(rows.length, 2);
-  assert.ok(rows[0].includes('Альфа 漢字') && rows[0].includes('İsim'));
-  assert.ok(rows[0].includes('first diagnostic'));
-  assert.ok(!rows[0].includes('second diagnostic'));
-  assert.ok(rows[1].includes('Другой') && rows[1].includes('second diagnostic'));
-  assert.ok(!rows[1].includes('first diagnostic'));
-  assert.ok(html.includes('scope="row"'));
-  assert.ok(html.includes(t('ru', 'clientsColumnAction')));
+  assert.ok(html.includes(new Date(first.lastOwnerVerifiedAt).toLocaleString('en')));
+  assert.ok(!html.includes(t('en', 'clientsConnected')));
 });
 
-test('technical identifiers and messages stay in closed accessible details and are escaped', () => {
-  const id = 'connection-technical-marker',
-    error = '<script>invalid()</script>& diagnostic',
-    html = render([profile(id, error)], [agent('Проверка <&>', id)]),
-    details = [...html.matchAll(/<details\b[\s\S]*?<\/details>/g)].map((match) => match[0]),
-    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  assert.equal(details.length, 1);
-  assert.ok(details[0].includes(id));
-  assert.ok(details[0].includes('&lt;script&gt;invalid()&lt;/script&gt;&amp; diagnostic'));
-  assert.ok(!html.includes('<script>'));
-  assert.ok(!visible.includes(id));
-  assert.ok(!visible.includes('diagnostic'));
-  assert.ok(!/<details\b[^>]*\bopen(?:\s|=|>)/.test(details[0]));
-  assert.ok(details[0].includes('<summary'));
-  assert.ok(details[0].includes('aria-label='));
-  assert.ok(html.includes('Проверка &lt;&amp;&gt;'));
-});
-
-test('an unavailable saved connection remains visible without a global red alert', () => {
-  const html = render([profile('unused-connection', 'fetch failed')]),
-    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  assert.equal(rowsWithDetails(html).length, 1);
-  assert.ok(visible.includes(t('ru', 'clientsNoBoundAgent')));
-  assert.ok(visible.includes(t('ru', 'clientsUnboundImpact')));
-  assert.ok(visible.includes(t('ru', 'clientsUseSavedAction')));
-  assert.ok(!visible.includes('unused-connection'));
-  assert.ok(!visible.includes('fetch failed'));
-  assert.ok(!html.includes('role="alert"'));
-});
-
-test('uncertain admission is explained separately and does not expose a resend action', () => {
-  const connection = {
-      ...profile('uncertain', 'Codex IPC: request timed out'),
-      state: 'uncertain' as const,
-    },
-    html = render([connection], [agent('Проверка', connection.id)]),
-    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  assert.ok(visible.includes(t('ru', 'clientsUncertainImpact')));
-  assert.ok(visible.includes(t('ru', 'clientsCheckBeforeRetry')));
-  const buttons = [...html.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)].map((match) => match[0]);
-  assert.equal(buttons.length, 3);
-  assert.ok(buttons.every((button) => button.includes(t('ru', 'clientsCta'))));
-});
-
-test('a released bound connection explains the preserved binding without a warning action', () => {
-  const connection = {
-      ...profile('released-connection', 'OpenCode is disconnected'),
-      state: 'error' as const,
-      released: true,
-    },
-    html = render([connection], [agent('Завершён', connection.id)]),
-    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  assert.ok(visible.includes(t('ru', 'clientsReleased')));
-  assert.ok(visible.includes(t('ru', 'clientsReleasedImpact')));
-  assert.ok(visible.includes(t('ru', 'clientsReleasedAction')));
-  assert.ok(!visible.includes(t('ru', 'clientsCheckExactChat')));
-  assert.ok(!visible.includes('role="alert"'));
-});
-
-test('a bound not-confirmed connection warns only about delivery impact, without a root-cause claim', () => {
-  const connection = profile('not-confirmed', 'fetch failed'),
-    html = render([connection], [agent('Симба', connection.id)]),
-    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  assert.ok(visible.includes(t('ru', 'clientsNotConfirmed')));
-  assert.ok(visible.includes(t('ru', 'clientsUnavailableImpact')));
-  assert.ok(visible.includes(t('ru', 'clientsCheckExactChat')));
-  assert.ok(!visible.includes(t('ru', 'clientsPaused')));
-});
-
-test('a verified Codex connection shows last-verified status, readable time and the historical stamp in details', () => {
-  const connection = {
-      ...profile('verified-connection', null),
-      state: 'ready' as const,
-      lastOwnerVerifiedAt: '2026-11-01T10:00:00.000Z',
-    },
-    html = render([connection], [agent('Ожидает', connection.id)]),
-    visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  assert.ok(visible.includes(t('ru', 'clientsLastVerified')));
-  assert.ok(visible.includes(t('ru', 'clientsLastVerifiedImpact')));
-  assert.ok(!visible.includes(t('ru', 'clientsAuto')));
-  assert.ok(!visible.includes(t('ru', 'clientsConnected')));
-  // The readable local time is part of the ordinary row, not only details.
-  const localTime = new Date(connection.lastOwnerVerifiedAt).toLocaleString('ru');
-  assert.ok(visible.includes(localTime));
-  const details = [...html.matchAll(/<details\b[\s\S]*?<\/details>/g)].map((match) => match[0]);
-  assert.ok(details[0].includes(t('ru', 'clientsLastVerified')));
-  assert.ok(details[0].includes(localTime));
-});
-
-const releasedUncertainOpenCode = (): AdapterState => ({
-  id: 'released-uncertain',
-  label: 'OpenCode',
-  kind: 'opencode-http',
-  state: 'uncertain',
-  error: 'The OpenCode event stream was closed',
-  released: true,
-  capabilities: {
-    wakeIdle: true,
-    receiveActive: false,
-    nativeDisplay: false,
-    exactSession: true,
-  },
-});
-
-test('a bound released+uncertain OpenCode profile stays a single warning issue row in ApplicationConnections', () => {
-  const html = render(
-    [releasedUncertainOpenCode()],
-    [agent('Завершён-но-неподтверждён', 'released-uncertain')],
-  );
-  const visible = html.replace(/<details\b[\s\S]*?<\/details>/g, '');
-  // Warning row: check before retry, never released without retry.
-  assert.ok(visible.includes(t('ru', 'clientsNeedsReview')));
-  assert.ok(visible.includes(t('ru', 'clientsUncertainImpact')));
-  assert.ok(visible.includes(t('ru', 'clientsCheckBeforeRetry')));
-  // Issued as a single warning issue chip.
-  assert.ok(html.includes(t('ru', 'clientsConnectionIssues', { count: 1 })));
-  assert.ok(html.includes('role="alert"') === false);
-  const alertChips = [...html.matchAll(/class="[^"]*MuiChip-colorWarning[^"]*"/g)];
-  assert.ok(alertChips.length >= 1);
-});
-
-test('an unbound released+uncertain OpenCode profile still keeps the warning issue chip', () => {
-  const html = render([releasedUncertainOpenCode()]);
-  assert.ok(html.includes(t('ru', 'clientsNoBoundAgent')));
-  assert.ok(html.includes(t('ru', 'clientsNeedsReview')));
-  assert.ok(html.includes(t('ru', 'clientsCheckBeforeRetry')));
-  assert.ok(html.includes(t('ru', 'clientsConnectionIssues', { count: 1 })));
+test('missing activity stays unknown and unrelated or invalid observations cannot fabricate it', () => {
+  const first = profile('first');
+  first.lastOwnerVerifiedAt = 'invalid';
+  const snapshot = {
+    adapters: [first],
+    agents: [{ ...agent('Other', 'other'), lastMessageAt: '2026-11-01T13:00:00.000Z' }],
+  };
+  assert.equal(applicationActivity('codex-desktop', snapshot), null);
+  assert.equal(applicationActivity('manual', snapshot), null);
 });

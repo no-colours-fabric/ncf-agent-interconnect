@@ -70,7 +70,7 @@ try {
   await page.getByRole('button', { name: 'Add agent' }).click();
   await page.getByRole('textbox', { name: 'Agent name' }).fill('Interface check');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
-  await page.getByText('History is available; no active chat', { exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Open chat with Interface check', exact: true }).click();
   const access = await page.evaluate(() => window.interconnect.invoke('accessCode'));
   const settings = JSON.parse(await readFile(path.join(temp, 'desktop/settings.json'), 'utf8'));
   assert.equal((await page.evaluate(() => window.interconnect.invoke('snapshot'))).peers.length, 0);
@@ -82,11 +82,13 @@ try {
     .fill('A local message with no remote connections.');
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
   await page.getByText('A local message with no remote connections.', { exact: true }).waitFor();
-  await page.getByRole('button', { name: /^Local recipient/ }).click();
+  await page.getByRole('button', { name: 'Close chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Open chat with Local recipient', exact: true }).click();
   await page.getByText('A local message with no remote connections.', { exact: true }).waitFor();
-  await page.getByText('Incoming message', { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('chat-message').getAttribute('data-direction'), 'in');
   assert.equal((await page.evaluate(() => window.interconnect.invoke('snapshot'))).peers.length, 0);
-  await page.getByRole('button', { name: /^Interface check/ }).click();
+  await page.getByRole('button', { name: 'Close chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Open chat with Interface check', exact: true }).click();
   remote = new NodeService(path.join(temp, 'remote'));
   await remote.open();
   await remote.network.join(`wss://127.0.0.1:${settings.peerPort}/peer`, access.code);
@@ -116,35 +118,9 @@ try {
   await page.getByRole('button', { name: `Open ${attachmentName}`, exact: true }).waitFor();
   assert.equal(await page.evaluate(() => window.injected), undefined);
   assert.equal(await page.locator('a[href="https://untrusted.invalid"]').count(), 0);
-  const messageCount = await page.getByText(/^Messages: \d+$/).innerText();
-  await page.evaluate((attachmentName) => {
-    window.__reselectedHistoryMissing = false;
-    window.__historyObserver = new MutationObserver(() => {
-      if (
-        !document.body.textContent.includes('Full incoming message') ||
-        !Array.from(document.querySelectorAll('button')).some(
-          (button) => button.getAttribute('aria-label') === 'Open ' + attachmentName,
-        ) ||
-        !Array.from(document.querySelectorAll('button')).some(
-          (button) => button.getAttribute('aria-label') === 'Save ' + attachmentName,
-        )
-      )
-        window.__reselectedHistoryMissing = true;
-    });
-    window.__historyObserver.observe(document.body, { childList: true, subtree: true });
-  }, attachmentName);
-  await page.getByRole('button', { name: /^Interface check/ }).click();
-  const historyDisappeared = await page.evaluate(async () => {
-    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    window.__historyObserver.disconnect();
-    return window.__reselectedHistoryMissing;
-  });
-  assert.equal(
-    historyDisappeared,
-    false,
-    'reselecting the current agent must preserve its history',
-  );
-  assert.equal(await page.getByText('Full incoming message', { exact: false }).isVisible(), true);
+  await page.getByRole('button', { name: 'Close chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Open chat with Interface check', exact: true }).click();
+  await page.getByText('Full incoming message', { exact: false }).waitFor();
   assert.equal(
     await page.getByRole('button', { name: `Open ${attachmentName}`, exact: true }).count(),
     1,
@@ -153,7 +129,6 @@ try {
     await page.getByRole('button', { name: `Save ${attachmentName}`, exact: true }).count(),
     1,
   );
-  assert.equal(await page.getByText(/^Messages: \d+$/).innerText(), messageCount);
   const saved = path.join(temp, 'saved.txt');
   await application.evaluate(
     ({ dialog, shell }, { saved }) => {
@@ -207,6 +182,42 @@ try {
     ).unread,
     0,
   );
+  await page.evaluate(async () => {
+    const snapshot = await window.interconnect.invoke('snapshot');
+    for (let index = 0; index < 205; index++)
+      await window.interconnect.invoke('send', {
+        nickname: 'Interface check',
+        recipientNode: snapshot.nodeId,
+        recipientNickname: 'Local recipient',
+        text: 'Paging message ' + index,
+      });
+  });
+  await page.getByRole('button', { name: 'Close chat', exact: true }).click();
+  await page.getByRole('button', { name: 'Open chat with Interface check', exact: true }).click();
+  await page.getByText('Paging message 204', { exact: true }).waitFor();
+  const history = page.getByTestId('agent-chat-history');
+  assert.equal(await page.getByTestId('chat-message').count(), 100);
+  assert.ok(
+    await history.evaluate(
+      (element) => element.scrollHeight - element.scrollTop - element.clientHeight < 3,
+    ),
+  );
+  await history.evaluate((element) => {
+    element.scrollTop = 0;
+  });
+  await until(async () => (await page.getByTestId('chat-message').count()) === 200);
+  assert.ok(
+    await history.evaluate(
+      (element) =>
+        element.scrollTop > 0 &&
+        element.scrollHeight - element.scrollTop - element.clientHeight > 100,
+    ),
+  );
+  await page.getByRole('button', { name: 'Load more messages', exact: true }).click();
+  await page.getByText('Full incoming message', { exact: false }).waitFor();
+  await history.evaluate((element) => {
+    element.scrollTop = element.scrollHeight;
+  });
   await page.screenshot({ path: 'release/preview-agents.png' });
   await application.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close());
   assert.equal(
@@ -240,7 +251,8 @@ try {
       attachmentOpenBoundary: true,
       attachmentSaved: true,
       externalTextEscaped: true,
-      selectedHistoryPreserved: true,
+      drawerHistoryAndAttachmentsPreserved: true,
+      newestFirstPaginationAndScrollAnchor: true,
       literalAttachmentNamePreserved: true,
       realClientConfigsUnchanged: true,
       screenshots: ['release/preview-overview.png', 'release/preview-agents.png'],

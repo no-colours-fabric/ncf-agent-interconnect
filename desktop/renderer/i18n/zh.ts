@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  agentsColumnName: '名称',
+  agentsColumnClient: '客户端',
+  agentsColumnNode: '节点',
+  agentsColumnLastMessage: '最新消息',
+  agentsColumnIncoming: '接收',
+  agentsColumnOutgoing: '发送',
+  agentsColumnActions: '操作',
+  agentsChatAria: '打开与 {name} 的聊天',
+  agentsDeleteAria: '删除 {name} 及历史记录',
+  agentsRemoteDeleteHelp: '请在远程节点上管理此代理。',
+  chatClose: '关闭聊天',
+  chatRemoteNoHistory: '消息历史记录保存在远程节点上。',
+  networkColumnName: '节点',
+  networkColumnAddress: '连接地址',
+  networkColumnAgents: '代理',
+  networkColumnUpdated: '更新时间',
+  networkColumnStatus: '状态',
+  clientsLastActivity: '最近活动',
+  clientsApplicationsIntro: '连接到此节点的应用程序。',
+
   clearSelectedAgent: '删除所选代理及历史记录',
   clearAllLocalAgents: '删除所有本地代理及历史记录',
   clearAgentTitle: '删除代理及历史记录',

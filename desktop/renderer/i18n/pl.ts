@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  agentsColumnName: 'Nazwa',
+  agentsColumnClient: 'Klient',
+  agentsColumnNode: 'Węzeł',
+  agentsColumnLastMessage: 'Ostatnia wiadomość',
+  agentsColumnIncoming: 'Przychodzące',
+  agentsColumnOutgoing: 'Wychodzące',
+  agentsColumnActions: 'Działania',
+  agentsChatAria: 'Otwórz czat z {name}',
+  agentsDeleteAria: 'Usuń {name} i historię',
+  agentsRemoteDeleteHelp: 'Zarządzaj tym agentem na jego zdalnym węźle.',
+  chatClose: 'Zamknij czat',
+  chatRemoteNoHistory: 'Historia wiadomości jest przechowywana na zdalnym węźle.',
+  networkColumnName: 'Węzeł',
+  networkColumnAddress: 'Adres połączenia',
+  networkColumnAgents: 'Agenci',
+  networkColumnUpdated: 'Zaktualizowano',
+  networkColumnStatus: 'Stan',
+  clientsLastActivity: 'Ostatnia aktywność',
+  clientsApplicationsIntro: 'Aplikacje połączone z tym węzłem.',
+
   clearSelectedAgent: 'Usuń wybranego agenta i historię',
   clearAllLocalAgents: 'Usuń wszystkich lokalnych agentów i historie',
   clearAgentTitle: 'Usuń agenta i historię',

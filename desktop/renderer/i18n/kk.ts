@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  agentsColumnName: 'Аты',
+  agentsColumnClient: 'Клиент',
+  agentsColumnNode: 'Түйін',
+  agentsColumnLastMessage: 'Соңғы хабарлама',
+  agentsColumnIncoming: 'Кіріс',
+  agentsColumnOutgoing: 'Шығыс',
+  agentsColumnActions: 'Әрекеттер',
+  agentsChatAria: '{name} агентімен чатты ашу',
+  agentsDeleteAria: '{name} және тарихын жою',
+  agentsRemoteDeleteHelp: 'Бұл агентті қашықтағы түйінінде басқарыңыз.',
+  chatClose: 'Чатты жабу',
+  chatRemoteNoHistory: 'Хабарламалар тарихы қашықтағы түйінде сақталады.',
+  networkColumnName: 'Түйін',
+  networkColumnAddress: 'Қосылу мекенжайы',
+  networkColumnAgents: 'Агенттер',
+  networkColumnUpdated: 'Жаңартылды',
+  networkColumnStatus: 'Күйі',
+  clientsLastActivity: 'Соңғы белсенділік',
+  clientsApplicationsIntro: 'Осы түйінге қосылған қолданбалар.',
+
   clearSelectedAgent: 'Таңдалған агент пен хат алмасуды жою',
   clearAllLocalAgents: 'Барлық жергілікті агенттер мен хат алмасуды жою',
   clearAgentTitle: 'Агент пен хат алмасуды жою',

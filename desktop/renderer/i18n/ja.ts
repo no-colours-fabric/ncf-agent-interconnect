@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  agentsColumnName: '名前',
+  agentsColumnClient: 'クライアント',
+  agentsColumnNode: 'ノード',
+  agentsColumnLastMessage: '最新メッセージ',
+  agentsColumnIncoming: '受信',
+  agentsColumnOutgoing: '送信',
+  agentsColumnActions: '操作',
+  agentsChatAria: '{name} とのチャットを開く',
+  agentsDeleteAria: '{name} と履歴を削除',
+  agentsRemoteDeleteHelp: 'このエージェントはリモートノードで管理してください。',
+  chatClose: 'チャットを閉じる',
+  chatRemoteNoHistory: 'メッセージ履歴はリモートノードに保存されます。',
+  networkColumnName: 'ノード',
+  networkColumnAddress: '接続先アドレス',
+  networkColumnAgents: 'エージェント',
+  networkColumnUpdated: '更新日時',
+  networkColumnStatus: '状態',
+  clientsLastActivity: '最終アクティビティ',
+  clientsApplicationsIntro: 'このノードに接続されたアプリケーション。',
+
   clearSelectedAgent: '選択したエージェントと履歴を削除',
   clearAllLocalAgents: 'すべてのローカルエージェントと履歴を削除',
   clearAgentTitle: 'エージェントと履歴を削除',

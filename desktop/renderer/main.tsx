@@ -1,12 +1,8 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
-import { CompactPeerDirectory } from './CompactPeerDirectory.js';
-import { AgentClearControls } from './AgentClearControls.js';
-import { invalidatedAgent } from './agent-clear-model.js';
-import { AgentHistory } from './AgentHistory.js';
-import { useAgentHistory } from './useAgentHistory.js';
-import { draftNicknameKey, remoteConversation } from './agent-history.js';
+import { AgentsPage } from './AgentsPage.js';
+import { RemoteNodesTable } from './RemoteNodesTable.js';
 import {
   ThemeProvider,
   createTheme,
@@ -15,10 +11,7 @@ import {
   Stack,
   Typography,
   Button,
-  IconButton,
   Paper,
-  Chip,
-  Divider,
   List,
   ListItemButton,
   ListItemIcon,
@@ -33,8 +26,6 @@ import {
   MenuItem,
   FormControlLabel,
   Switch,
-  Tabs,
-  Tab,
   CircularProgress,
 } from '@mui/material';
 import HubOutlined from '@mui/icons-material/HubOutlined';
@@ -43,17 +34,7 @@ import CableOutlined from '@mui/icons-material/CableOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
-import AddOutlined from '@mui/icons-material/AddOutlined';
-import SendOutlined from '@mui/icons-material/SendOutlined';
-import {
-  nicknameKey,
-  type Snapshot,
-  type McpInstructions,
-  type AgentDirectory,
-  type AgentIdentity,
-  type AgentClearInput,
-  type AgentClearResponse,
-} from '../shared/contracts.js';
+import { nicknameKey, type Snapshot, type McpInstructions } from '../shared/contracts.js';
 import {
   isLocale,
   loadLocale,
@@ -103,112 +84,13 @@ const navigation: {
 ];
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
 
-function DirectoryList({
-  directories,
-  choose,
-  locale,
-  selectedNode,
-  selectedNickname,
-  nodeName,
-}: {
-  nodeName: (id: string) => string;
-  selectedNode?: string;
-  selectedNickname?: string;
-  directories: AgentDirectory[];
-  choose: (node: string, nickname: string) => void;
-  locale: Locale;
-}): React.JSX.Element {
-  return (
-    <Stack spacing={1.5}>
-      {directories.map((directory) => (
-        <Box key={directory.nodeId} data-testid={'directory-' + directory.nodeId}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-            <Typography
-              variant="body2"
-              sx={{ fontWeight: 650, overflowWrap: 'anywhere', minWidth: 0 }}
-            >
-              {nodeName(directory.nodeId)}
-            </Typography>
-            <Chip
-              size="small"
-              color={directory.state === 'ready' ? 'success' : 'default'}
-              label={
-                {
-                  ready: t(locale, 'directoryReady'),
-                  syncing: t(locale, 'directorySyncing'),
-                  unsupported: t(locale, 'directoryUnsupported'),
-                  offline: t(locale, 'directoryOffline'),
-                }[directory.state]
-              }
-            />
-          </Stack>
-          {directory.updatedAt && (
-            <Typography variant="caption" color="text.secondary">
-              {t(locale, 'directoryUpdated', { time: time(directory.updatedAt, locale) })}
-            </Typography>
-          )}
-          <List dense disablePadding>
-            {directory.agents.map((agent) => (
-              <ListItemButton
-                key={agent.nickname}
-                selected={
-                  directory.nodeId === selectedNode &&
-                  !!selectedNickname &&
-                  nicknameKey(agent.nickname) === draftNicknameKey(selectedNickname)
-                }
-                aria-pressed={
-                  directory.nodeId === selectedNode &&
-                  !!selectedNickname &&
-                  nicknameKey(agent.nickname) === draftNicknameKey(selectedNickname)
-                }
-                onClick={() => choose(directory.nodeId, agent.nickname)}
-              >
-                <ListItemText
-                  primary={agent.nickname}
-                  secondary={
-                    agent.availability === 'online'
-                      ? t(locale, 'directoryOnline')
-                      : t(locale, 'directoryUnknown')
-                  }
-                />
-              </ListItemButton>
-            ))}
-          </List>
-          {directory.state === 'ready' && !directory.agents.length && (
-            <Typography variant="caption" color="text.secondary">
-              {t(locale, 'directoryNoAgents')}
-            </Typography>
-          )}
-          {directory.state === 'unsupported' && (
-            <Typography variant="caption" color="text.secondary">
-              {t(locale, 'directoryPeerOld')}
-            </Typography>
-          )}
-          {directory.truncated && (
-            <Alert severity="warning">
-              {t(locale, 'directoryTruncated', {
-                count: directory.agents.length,
-                total: directory.total,
-              })}
-            </Alert>
-          )}
-        </Box>
-      ))}
-    </Stack>
-  );
-}
-
 function App(): React.JSX.Element {
   const [resolveNodeLabels] = useState(createNodeLabelResolver);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [page, setPage] = useState<Page>((location.hash.slice(1) as Page) || 'overview');
   const [error, setError] = useState(''),
     [notice, setNotice] = useState('');
-  const [agentsTab, setAgentsTab] = useState<'local' | 'remote'>('local');
-  const [selected, setSelected] = useState(''),
-    [historySize, setHistorySize] = useState(100);
-  const [remoteSender, setRemoteSender] = useState(''),
-    [remoteHistorySize, setRemoteHistorySize] = useState(100);
+  const [appVersion, setAppVersion] = useState('');
   const [nicknameDialog, setNicknameDialog] = useState(false),
     [nickname, setNickname] = useState('');
   const [address, setAddress] = useState(''),
@@ -219,11 +101,6 @@ function App(): React.JSX.Element {
   const [nodeLabel, setNodeLabel] = useState(''),
     [listenHost, setListenHost] = useState('');
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
-  const [recipientNick, setRecipientNick] = useState(''),
-    [text, setText] = useState('');
-  const [remoteNode, setRemoteNode] = useState(''),
-    [remoteNickname, setRemoteNickname] = useState(''),
-    [remoteText, setRemoteText] = useState('');
   const [busy, setBusy] = useState(false);
   const [locale, setLocale] = useState<Locale>(() => loadLocale(() => window.localStorage));
   useEffect(() => {
@@ -234,11 +111,6 @@ function App(): React.JSX.Element {
       window.interconnect.invoke<T>(method, params),
     [],
   );
-  const clearAgents = useCallback(
-    (input: AgentClearInput) => call<AgentClearResponse>('clearAgents', input),
-    [call],
-  );
-  const previousAgents = useRef<AgentIdentity[]>([]);
   const snapshotRequest = useRef(0);
   const run = async (work: () => Promise<unknown>, success = '') => {
     setBusy(true);
@@ -262,6 +134,9 @@ function App(): React.JSX.Element {
   }, [call]);
   useEffect(() => {
     void refresh();
+    void call<string>('appVersion')
+      .then(setAppVersion)
+      .catch((e: Error) => setError(e.message));
     const off = window.interconnect.onChange(() => {
       void refresh();
     });
@@ -277,38 +152,6 @@ function App(): React.JSX.Element {
       setListenHost(snapshot.listenHost);
     }
   }, [snapshot?.nodeLabel, snapshot?.listenHost, snapshot?.agents.length]);
-  useEffect(() => {
-    if (!snapshot) return;
-    const changed = previousAgents.current !== snapshot.agents;
-    if (invalidatedAgent(previousAgents.current, snapshot.agents, selected)) {
-      setSelected('');
-      setHistorySize(100);
-      setText('');
-      setRecipientNick('');
-    } else if (!selected && changed && snapshot.agents.length)
-      setSelected(snapshot.agents[0].nickname);
-    if (invalidatedAgent(previousAgents.current, snapshot.agents, remoteSender)) {
-      setRemoteSender('');
-      setRemoteHistorySize(100);
-      setRemoteText('');
-    }
-    previousAgents.current = snapshot.agents;
-  }, [snapshot, selected, remoteSender]);
-  const { messages, hasMore } = useAgentHistory({
-    owner: selected,
-    snapshot,
-    historySize,
-    active: page === 'agents' && agentsTab === 'local',
-    onError: setError,
-  });
-  const remoteHistory = useAgentHistory({
-    owner: remoteSender,
-    snapshot,
-    historySize: remoteHistorySize,
-    active: page === 'agents' && agentsTab === 'remote',
-    address: remoteNode + ':' + remoteNickname,
-    onError: setError,
-  });
   useEffect(() => {
     if (page === 'mcp')
       void call<McpInstructions>('instructions', { client })
@@ -330,15 +173,6 @@ function App(): React.JSX.Element {
       </Stack>
     );
   const nodeName = resolveNodeLabels(snapshot, locale);
-  const selectedAgent = snapshot.agents.find((c) => c.nickname === selected);
-  const chooseRemoteAgent = (nodeId: string, agent: string) => {
-    if (nodeId !== remoteNode || nicknameKey(agent) !== draftNicknameKey(remoteNickname))
-      setRemoteHistorySize(100);
-    setRemoteNode(nodeId);
-    setRemoteNickname(agent);
-    setAgentsTab('remote');
-    setPage('agents');
-  };
   const nameConflicts = (() => {
     try {
       const key = nicknameKey(nickname.trim());
@@ -379,7 +213,7 @@ function App(): React.JSX.Element {
           <Box>
             <Typography sx={{ fontWeight: 750 }}>NCF Agent Interconnect</Typography>
             <Typography variant="caption" sx={{ color: '#aac0cb' }}>
-              {t(locale, 'appSubtitle')}
+              {appVersion ? `v${appVersion}` : ''}
             </Typography>
           </Box>
         </Stack>
@@ -405,28 +239,7 @@ function App(): React.JSX.Element {
             </ListItemButton>
           ))}
         </List>
-        <Box sx={{ bgcolor: '#203f4c', borderRadius: 2, p: 1.5 }}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: snapshot.running ? '#83d3ad' : '#f0b57c',
-              }}
-            />
-            <Typography variant="body2">
-              {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
-            </Typography>
-          </Stack>
-          <Typography
-            variant="caption"
-            sx={{ display: 'block', mt: 0.6, color: '#b9d1da', overflowWrap: 'anywhere' }}
-          >
-            {snapshot.nodeLabel}
-          </Typography>
-        </Box>
-        <Box sx={{ mt: 1.5, px: 0.5 }}>
+        <Box sx={{ px: 0.5 }}>
           <TextField
             data-testid="interface-language"
             select
@@ -454,6 +267,30 @@ function App(): React.JSX.Element {
               </MenuItem>
             ))}
           </TextField>
+        </Box>
+        <Box
+          data-testid="sidebar-node-status"
+          sx={{ bgcolor: '#203f4c', borderRadius: 2, p: 1.5, mt: 1.5 }}
+        >
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: snapshot.running ? '#83d3ad' : '#f0b57c',
+              }}
+            />
+            <Typography variant="body2">
+              {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
+            </Typography>
+          </Stack>
+          <Typography
+            variant="caption"
+            sx={{ display: 'block', mt: 0.6, color: '#b9d1da', overflowWrap: 'anywhere' }}
+          >
+            {snapshot.nodeLabel}
+          </Typography>
         </Box>
       </Box>
       <Box component="main" sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
@@ -487,12 +324,6 @@ function App(): React.JSX.Element {
             </Typography>
           </Box>
           <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <Chip
-              size="small"
-              color={snapshot.running ? 'success' : 'default'}
-              variant="outlined"
-              label={snapshot.running ? t(locale, 'chipRunning') : t(locale, 'chipStopped')}
-            />
             <Button
               data-testid="node-toggle"
               size="small"
@@ -569,396 +400,33 @@ function App(): React.JSX.Element {
             </Stack>
           )}
           {page === 'agents' && (
-            <Paper
-              sx={{
-                display: 'flex',
-                flexDirection: 'column',
-                minHeight: 550,
-                height: 'calc(100vh - 185px)',
-                overflow: 'hidden',
+            <AgentsPage
+              snapshot={snapshot}
+              locale={locale}
+              nodeName={nodeName}
+              call={call}
+              run={run}
+              onError={setError}
+              onAdd={() => setNicknameDialog(true)}
+              onCleared={(result, names) => {
+                const removed = new Set(names.map(nicknameKey));
+                setSnapshot((current) =>
+                  current
+                    ? {
+                        ...current,
+                        agents:
+                          result.scope === 'all'
+                            ? []
+                            : current.agents.filter((agent) => !removed.has(agent.key)),
+                      }
+                    : current,
+                );
+                setNotice(
+                  t(locale, result.scope === 'all' ? 'clearAllCompleted' : 'clearCompleted'),
+                );
+                void refresh();
               }}
-            >
-              <Tabs
-                value={agentsTab}
-                onChange={(_, value: 'local' | 'remote') => setAgentsTab(value)}
-                aria-label={t(locale, 'agentsTitle')}
-                sx={{ borderBottom: '1px solid #e2e7ec', flexShrink: 0 }}
-              >
-                <Tab
-                  value="local"
-                  id="agents-tab-local"
-                  aria-controls="agents-panel-local"
-                  data-testid="agents-tab-local"
-                  label={t(locale, 'agentsLocalTitle')}
-                />
-                <Tab
-                  value="remote"
-                  id="agents-tab-remote"
-                  aria-controls="agents-panel-remote"
-                  data-testid="agents-tab-remote"
-                  label={t(locale, 'agentsRemoteTitle')}
-                />
-              </Tabs>
-              {agentsTab === 'local' && (
-                <AgentClearControls
-                  agents={snapshot.agents}
-                  selected={selected}
-                  locale={locale}
-                  invoke={clearAgents}
-                  onCleared={(result, names) => {
-                    const removed = new Set(names.map(nicknameKey));
-                    setSnapshot((current) =>
-                      current
-                        ? {
-                            ...current,
-                            agents:
-                              result.scope === 'all'
-                                ? []
-                                : current.agents.filter((agent) => !removed.has(agent.key)),
-                          }
-                        : current,
-                    );
-                    setSelected('');
-                    setHistorySize(100);
-                    setText('');
-                    setRecipientNick('');
-                    if (result.scope === 'all') {
-                      setRemoteSender('');
-                      setRemoteHistorySize(100);
-                      setRemoteText('');
-                    }
-                    setNotice(
-                      t(locale, result.scope === 'all' ? 'clearAllCompleted' : 'clearCompleted'),
-                    );
-                    void refresh();
-                  }}
-                />
-              )}
-              <Box
-                role="tabpanel"
-                id="agents-panel-local"
-                aria-labelledby="agents-tab-local"
-                data-testid="agents-panel-local"
-                hidden={agentsTab !== 'local'}
-                sx={{ display: agentsTab === 'local' ? 'flex' : 'none', flex: 1, minHeight: 0 }}
-              >
-                <Box
-                  sx={{
-                    width: 240,
-                    borderRight: '1px solid #e2e7ec',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    flexShrink: 0,
-                  }}
-                >
-                  <Stack
-                    direction="row"
-                    sx={{ p: 2, justifyContent: 'space-between', alignItems: 'center' }}
-                  >
-                    <Typography sx={{ fontWeight: 650 }}>{t(locale, 'agentsTitle')}</Typography>
-                    <IconButton
-                      size="small"
-                      aria-label={t(locale, 'ariaAddAgent')}
-                      onClick={() => setNicknameDialog(true)}
-                    >
-                      <AddOutlined />
-                    </IconButton>
-                  </Stack>
-                  <Divider />
-                  <List sx={{ overflow: 'auto' }}>
-                    {snapshot.agents.map((c) => (
-                      <ListItemButton
-                        key={c.key}
-                        data-testid={'local-agent-' + c.key}
-                        selected={c.nickname === selected}
-                        onClick={() => {
-                          if (c.nickname === selected) return;
-                          setHistorySize(100);
-                          setSelected(c.nickname);
-                        }}
-                      >
-                        <ListItemText
-                          primary={c.nickname}
-                          secondary={
-                            c.binding
-                              ? t(locale, 'agentListClient', { client: c.binding.client })
-                              : t(locale, 'agentNoChat')
-                          }
-                        />
-                        {!!c.unread && <Chip size="small" color="primary" label={c.unread} />}
-                      </ListItemButton>
-                    ))}
-                  </List>
-                  {!snapshot.agents.length && (
-                    <Typography color="text.secondary" variant="body2" sx={{ p: 2 }}>
-                      {t(locale, 'agentEmptyPrompt')}
-                    </Typography>
-                  )}
-                </Box>
-                <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                  {selected ? (
-                    <>
-                      <Stack
-                        direction="row"
-                        sx={{
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          p: 2,
-                          borderBottom: '1px solid #e2e7ec',
-                        }}
-                      >
-                        <Box>
-                          <Typography sx={{ fontWeight: 650 }}>{selected}</Typography>
-                          <Typography color="text.secondary" variant="caption">
-                            {selectedAgent?.binding
-                              ? t(locale, 'agentListClient', {
-                                  client: selectedAgent.binding.client,
-                                })
-                              : t(locale, 'agentHistoryNoChat')}
-                          </Typography>
-                        </Box>
-                        <Chip
-                          size="small"
-                          variant="outlined"
-                          label={t(locale, 'agentMessages', {
-                            count: selectedAgent?.messageCount ?? 0,
-                          })}
-                        />
-                      </Stack>
-                      <AgentHistory
-                        nodeName={nodeName}
-                        messages={messages}
-                        hasMore={hasMore}
-                        loadMore={() => setHistorySize((size) => size + 100)}
-                        locale={locale}
-                        run={run}
-                        call={call}
-                      />
-                      <Box sx={{ borderTop: '1px solid #e2e7ec', p: 2 }}>
-                        <Stack direction="row" spacing={1} sx={{ mb: 1 }}>
-                          <TextField
-                            label={t(locale, 'composeRecipientAgent')}
-                            value={recipientNick}
-                            onChange={(e) => setRecipientNick(e.target.value)}
-                            fullWidth
-                          />
-                        </Stack>
-                        <Stack direction="row" spacing={1}>
-                          <TextField
-                            label={t(locale, 'composeMessage')}
-                            multiline
-                            maxRows={4}
-                            fullWidth
-                            value={text}
-                            onChange={(e) => setText(e.target.value)}
-                          />
-                          <Button
-                            variant="contained"
-                            aria-label={t(locale, 'composeSend')}
-                            disabled={busy || !text.trim() || !recipientNick.trim()}
-                            onClick={() =>
-                              run(async () => {
-                                await call('send', {
-                                  nickname: selected,
-                                  sourceIncarnation: selectedAgent?.incarnation,
-                                  recipientNode: snapshot.nodeId,
-                                  recipientNickname: recipientNick,
-                                  text,
-                                });
-                                setText('');
-                              })
-                            }
-                          >
-                            <SendOutlined />
-                          </Button>
-                        </Stack>
-                      </Box>
-                    </>
-                  ) : (
-                    <Stack
-                      spacing={2}
-                      sx={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}
-                    >
-                      <ForumOutlined sx={{ fontSize: 40, color: 'text.secondary' }} />
-                      <Typography color="text.secondary">{t(locale, 'agentsSelect')}</Typography>
-                    </Stack>
-                  )}
-                </Box>
-              </Box>
-              {agentsTab === 'remote' && (
-                <Box
-                  role="tabpanel"
-                  id="agents-panel-remote"
-                  aria-labelledby="agents-tab-remote"
-                  data-testid="agents-panel-remote"
-                  sx={{ display: 'flex', flex: 1, minHeight: 0 }}
-                >
-                  <Box
-                    sx={{
-                      width: 260,
-                      flexShrink: 0,
-                      p: 2,
-                      borderRight: '1px solid #e2e7ec',
-                      overflow: 'auto',
-                    }}
-                  >
-                    <Typography sx={{ fontWeight: 650, mb: 2 }}>
-                      {t(locale, 'agentsRemoteTitle')}
-                    </Typography>
-                    <DirectoryList
-                      directories={snapshot.directories.filter((directory) => !directory.local)}
-                      choose={chooseRemoteAgent}
-                      locale={locale}
-                      nodeName={nodeName}
-                      selectedNode={remoteNode}
-                      selectedNickname={remoteNickname}
-                    />
-                    {!snapshot.peers.length && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                        {t(locale, 'connectPeerBody')}
-                      </Typography>
-                    )}
-                    <Button sx={{ mt: 2 }} onClick={() => setPage('network')}>
-                      {t(locale, 'connectPeerCta')}
-                    </Button>
-                  </Box>
-                  <Box sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-                    <Box sx={{ p: 2, borderBottom: '1px solid #e2e7ec' }}>
-                      <TextField
-                        select
-                        fullWidth
-                        data-testid="remote-sender"
-                        label={t(locale, 'composeSenderAgent')}
-                        value={remoteSender}
-                        onChange={(e) => {
-                          if (e.target.value === remoteSender) return;
-                          setRemoteSender(e.target.value);
-                          setRemoteHistorySize(100);
-                        }}
-                      >
-                        {snapshot.agents.map((agent) => (
-                          <MenuItem key={agent.key} value={agent.nickname}>
-                            {agent.nickname}
-                          </MenuItem>
-                        ))}
-                      </TextField>
-                      {remoteNickname && (
-                        <Typography sx={{ mt: 1, fontWeight: 650, overflowWrap: 'anywhere' }}>
-                          {remoteNickname}
-                        </Typography>
-                      )}
-                      {remoteNode && (
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{ display: 'block', overflowWrap: 'anywhere' }}
-                        >
-                          {nodeName(remoteNode)}
-                        </Typography>
-                      )}
-                    </Box>
-                    <AgentHistory
-                      nodeName={nodeName}
-                      messages={remoteConversation(
-                        remoteHistory.messages,
-                        remoteNode,
-                        remoteNickname,
-                      )}
-                      hasMore={remoteHistory.hasMore}
-                      loadMore={() => setRemoteHistorySize((size) => size + 100)}
-                      locale={locale}
-                      run={run}
-                      call={call}
-                    />
-                    <Box sx={{ p: 2, borderTop: '1px solid #e2e7ec' }}>
-                      <Stack spacing={1}>
-                        <Stack direction={{ xs: 'column', md: 'row' }} spacing={1}>
-                          <TextField
-                            select
-                            fullWidth
-                            data-testid="remote-recipient-node"
-                            sx={{
-                              '& .MuiSelect-select': {
-                                whiteSpace: 'normal',
-                                overflowWrap: 'anywhere',
-                              },
-                            }}
-                            label={t(locale, 'composeRecipientNode')}
-                            value={
-                              snapshot.peers.some((peer) => peer.id === remoteNode)
-                                ? remoteNode
-                                : ''
-                            }
-                            onChange={(e) => {
-                              if (e.target.value === remoteNode) return;
-                              setRemoteNode(e.target.value);
-                              setRemoteNickname('');
-                              setRemoteHistorySize(100);
-                            }}
-                          >
-                            {snapshot.peers.map((peer) => (
-                              <MenuItem
-                                key={peer.id}
-                                value={peer.id}
-                                sx={{ whiteSpace: 'normal', overflowWrap: 'anywhere' }}
-                              >
-                                {nodeName(peer.id)}
-                              </MenuItem>
-                            ))}
-                          </TextField>
-                          <TextField
-                            fullWidth
-                            label={t(locale, 'composeRecipientAgent')}
-                            value={remoteNickname}
-                            onChange={(e) => {
-                              setRemoteNickname(e.target.value);
-                              setRemoteHistorySize(100);
-                            }}
-                          />
-                        </Stack>
-                        <Stack direction="row" spacing={1}>
-                          <TextField
-                            label={t(locale, 'composeMessage')}
-                            multiline
-                            maxRows={4}
-                            fullWidth
-                            value={remoteText}
-                            onChange={(e) => setRemoteText(e.target.value)}
-                          />
-                          <Button
-                            variant="contained"
-                            aria-label={t(locale, 'composeSend')}
-                            disabled={
-                              busy ||
-                              !remoteText.trim() ||
-                              !snapshot.agents.some((agent) => agent.nickname === remoteSender) ||
-                              !snapshot.peers.some((peer) => peer.id === remoteNode) ||
-                              !remoteNickname.trim()
-                            }
-                            onClick={() =>
-                              run(async () => {
-                                await call('send', {
-                                  nickname: remoteSender,
-                                  sourceIncarnation: snapshot.agents.find(
-                                    (agent) => agent.nickname === remoteSender,
-                                  )?.incarnation,
-                                  recipientNode: remoteNode,
-                                  recipientNickname: remoteNickname,
-                                  text: remoteText,
-                                });
-                                setRemoteText('');
-                              })
-                            }
-                          >
-                            <SendOutlined />
-                          </Button>
-                        </Stack>
-                      </Stack>
-                    </Box>
-                  </Box>
-                </Box>
-              )}
-            </Paper>
+            />
           )}
           {page === 'network' && (
             <Stack spacing={3}>
@@ -1054,47 +522,7 @@ function App(): React.JSX.Element {
                   </Box>
                 </Stack>
               </Paper>
-              {snapshot.peers.map((p) => (
-                <Paper key={p.id} data-testid={'peer-' + p.id} sx={{ p: 2 }}>
-                  <Stack
-                    direction="row"
-                    sx={{ justifyContent: 'space-between', gap: 1, flexWrap: 'wrap' }}
-                  >
-                    <Box sx={{ minWidth: 0, flex: 1 }}>
-                      <Typography sx={{ fontWeight: 650, overflowWrap: 'anywhere' }}>
-                        {nodeName(p.id)}
-                      </Typography>
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ overflowWrap: 'anywhere' }}
-                      >
-                        {p.address || t(locale, 'networkIncoming')}
-                      </Typography>
-                    </Box>
-                    <Chip
-                      color={p.connected ? 'success' : 'default'}
-                      label={
-                        p.connected ? t(locale, 'networkConnected') : t(locale, 'networkWaiting')
-                      }
-                    />
-                  </Stack>
-                  {p.error && (
-                    <Alert severity="error" sx={{ mt: 2 }}>
-                      {p.error}
-                    </Alert>
-                  )}
-                  <Box sx={{ mt: 1.5, pt: 1, borderTop: '1px solid #e2e7ec' }}>
-                    <CompactPeerDirectory
-                      directories={snapshot.directories.filter(
-                        (directory) => directory.nodeId === p.id,
-                      )}
-                      choose={chooseRemoteAgent}
-                      locale={locale}
-                    />
-                  </Box>
-                </Paper>
-              ))}
+              <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
             </Stack>
           )}
           {page === 'mcp' && (
@@ -1332,8 +760,7 @@ function App(): React.JSX.Element {
             disabled={!nickname.trim() || busy}
             onClick={() =>
               run(async () => {
-                const result = await call<{ nickname: string }>('registerAgent', { nickname });
-                setSelected(result.nickname);
+                await call('registerAgent', { nickname });
                 setNickname('');
                 setNicknameDialog(false);
                 setPage('agents');

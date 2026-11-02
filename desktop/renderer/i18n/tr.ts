@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  agentsColumnName: 'Ad',
+  agentsColumnClient: 'İstemci',
+  agentsColumnNode: 'Düğüm',
+  agentsColumnLastMessage: 'Son mesaj',
+  agentsColumnIncoming: 'Gelen',
+  agentsColumnOutgoing: 'Giden',
+  agentsColumnActions: 'İşlemler',
+  agentsChatAria: '{name} ile sohbeti aç',
+  agentsDeleteAria: '{name} ve geçmişini sil',
+  agentsRemoteDeleteHelp: 'Bu ajanı uzak düğümünde yönetin.',
+  chatClose: 'Sohbeti kapat',
+  chatRemoteNoHistory: 'Mesaj geçmişi uzak düğümde saklanır.',
+  networkColumnName: 'Düğüm',
+  networkColumnAddress: 'Bağlantı adresi',
+  networkColumnAgents: 'Ajanlar',
+  networkColumnUpdated: 'Güncellendi',
+  networkColumnStatus: 'Durum',
+  clientsLastActivity: 'Son etkinlik',
+  clientsApplicationsIntro: 'Bu düğüme bağlı uygulamalar.',
+
   clearSelectedAgent: 'Seçili aracıyı ve geçmişi sil',
   clearAllLocalAgents: 'Tüm yerel aracıları ve geçmişleri sil',
   clearAgentTitle: 'Aracıyı ve geçmişi sil',

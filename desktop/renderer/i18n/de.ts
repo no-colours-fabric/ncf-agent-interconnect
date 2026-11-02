@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const de: Messages = {
+  agentsColumnName: 'Name',
+  agentsColumnClient: 'Client',
+  agentsColumnNode: 'Knoten',
+  agentsColumnLastMessage: 'Letzte Nachricht',
+  agentsColumnIncoming: 'Ein',
+  agentsColumnOutgoing: 'Aus',
+  agentsColumnActions: 'Aktionen',
+  agentsChatAria: 'Chat mit {name} öffnen',
+  agentsDeleteAria: '{name} und Verlauf löschen',
+  agentsRemoteDeleteHelp: 'Diesen Agenten auf seinem entfernten Knoten verwalten.',
+  chatClose: 'Chat schließen',
+  chatRemoteNoHistory: 'Der Nachrichtenverlauf wird auf dem entfernten Knoten gespeichert.',
+  networkColumnName: 'Knoten',
+  networkColumnAddress: 'Verbindungsadresse',
+  networkColumnAgents: 'Agenten',
+  networkColumnUpdated: 'Aktualisiert',
+  networkColumnStatus: 'Status',
+  clientsLastActivity: 'Letzte Aktivität',
+  clientsApplicationsIntro: 'Mit diesem Knoten verbundene Anwendungen.',
+
   clearSelectedAgent: 'Ausgewählten Agenten und Verlauf löschen',
   clearAllLocalAgents: 'Alle lokalen Agenten und Verläufe löschen',
   clearAgentTitle: 'Agent und Verlauf löschen',

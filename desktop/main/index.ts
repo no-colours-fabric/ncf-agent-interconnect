@@ -177,6 +177,7 @@ function setupIpc(): void {
     )
       throw new Error('Invalid operation source');
     if (!service) throw new Error('The node is not running');
+    if (method === 'appVersion') return app.getVersion();
     if (method === 'copy') {
       const { text } = z.object({ text: z.string().max(100000) }).parse(raw);
       clipboard.writeText(text);
@@ -225,6 +226,7 @@ function setupIpc(): void {
       ![
         'snapshot',
         'history',
+        'chatHistory',
         'instructions',
         'accessCode',
         'connectPeer',

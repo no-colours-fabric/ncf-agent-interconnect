@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  agentsColumnName: '이름',
+  agentsColumnClient: '클라이언트',
+  agentsColumnNode: '노드',
+  agentsColumnLastMessage: '최근 메시지',
+  agentsColumnIncoming: '수신',
+  agentsColumnOutgoing: '발신',
+  agentsColumnActions: '작업',
+  agentsChatAria: '{name} 채팅 열기',
+  agentsDeleteAria: '{name} 및 기록 삭제',
+  agentsRemoteDeleteHelp: '이 에이전트는 원격 노드에서 관리하세요.',
+  chatClose: '채팅 닫기',
+  chatRemoteNoHistory: '메시지 기록은 원격 노드에 저장됩니다.',
+  networkColumnName: '노드',
+  networkColumnAddress: '연결 주소',
+  networkColumnAgents: '에이전트',
+  networkColumnUpdated: '업데이트 시간',
+  networkColumnStatus: '상태',
+  clientsLastActivity: '최근 활동',
+  clientsApplicationsIntro: '이 노드에 연결된 애플리케이션입니다.',
+
   clearSelectedAgent: '선택한 에이전트 및 기록 삭제',
   clearAllLocalAgents: '모든 로컬 에이전트 및 기록 삭제',
   clearAgentTitle: '에이전트 및 기록 삭제',

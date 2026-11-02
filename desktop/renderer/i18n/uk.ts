@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const uk: Messages = {
+  agentsColumnName: 'Ім’я',
+  agentsColumnClient: 'Клієнт',
+  agentsColumnNode: 'Вузол',
+  agentsColumnLastMessage: 'Останнє повідомлення',
+  agentsColumnIncoming: 'Вхідні',
+  agentsColumnOutgoing: 'Вихідні',
+  agentsColumnActions: 'Дії',
+  agentsChatAria: 'Відкрити чат з {name}',
+  agentsDeleteAria: 'Видалити {name} та листування',
+  agentsRemoteDeleteHelp: 'Керуйте цим агентом на його віддаленому вузлі.',
+  chatClose: 'Закрити чат',
+  chatRemoteNoHistory: 'Історія повідомлень зберігається на віддаленому вузлі.',
+  networkColumnName: 'Вузол',
+  networkColumnAddress: 'Адреса підключення',
+  networkColumnAgents: 'Агенти',
+  networkColumnUpdated: 'Оновлено',
+  networkColumnStatus: 'Стан',
+  clientsLastActivity: 'Остання активність',
+  clientsApplicationsIntro: 'Застосунки, підключені до цього вузла.',
+
   clearSelectedAgent: 'Видалити вибраного агента й листування',
   clearAllLocalAgents: 'Видалити всіх локальних агентів і листування',
   clearAgentTitle: 'Видалення агента й листування',

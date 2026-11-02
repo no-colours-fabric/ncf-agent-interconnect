@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  agentsColumnName: 'Nome',
+  agentsColumnClient: 'Cliente',
+  agentsColumnNode: 'Nó',
+  agentsColumnLastMessage: 'Última mensagem',
+  agentsColumnIncoming: 'Entrada',
+  agentsColumnOutgoing: 'Saída',
+  agentsColumnActions: 'Ações',
+  agentsChatAria: 'Abrir chat com {name}',
+  agentsDeleteAria: 'Excluir {name} e o histórico',
+  agentsRemoteDeleteHelp: 'Gerencie este agente no nó remoto dele.',
+  chatClose: 'Fechar chat',
+  chatRemoteNoHistory: 'O histórico de mensagens fica armazenado no nó remoto.',
+  networkColumnName: 'Nó',
+  networkColumnAddress: 'Endereço de conexão',
+  networkColumnAgents: 'Agentes',
+  networkColumnUpdated: 'Atualizado',
+  networkColumnStatus: 'Status',
+  clientsLastActivity: 'Última atividade',
+  clientsApplicationsIntro: 'Aplicativos conectados a este nó.',
+
   clearSelectedAgent: 'Excluir agente selecionado e histórico',
   clearAllLocalAgents: 'Excluir todos os agentes locais e históricos',
   clearAgentTitle: 'Excluir agente e histórico',

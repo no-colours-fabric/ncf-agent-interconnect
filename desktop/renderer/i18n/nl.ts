@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  agentsColumnName: 'Naam',
+  agentsColumnClient: 'Client',
+  agentsColumnNode: 'Knooppunt',
+  agentsColumnLastMessage: 'Laatste bericht',
+  agentsColumnIncoming: 'In',
+  agentsColumnOutgoing: 'Uit',
+  agentsColumnActions: 'Acties',
+  agentsChatAria: 'Chat met {name} openen',
+  agentsDeleteAria: '{name} en geschiedenis verwijderen',
+  agentsRemoteDeleteHelp: 'Beheer deze agent op het externe knooppunt.',
+  chatClose: 'Chat sluiten',
+  chatRemoteNoHistory: 'De berichtgeschiedenis wordt op het externe knooppunt bewaard.',
+  networkColumnName: 'Knooppunt',
+  networkColumnAddress: 'Verbindingsadres',
+  networkColumnAgents: 'Agenten',
+  networkColumnUpdated: 'Bijgewerkt',
+  networkColumnStatus: 'Status',
+  clientsLastActivity: 'Laatste activiteit',
+  clientsApplicationsIntro: 'Toepassingen die met dit knooppunt zijn verbonden.',
+
   clearSelectedAgent: 'Geselecteerde agent en geschiedenis verwijderen',
   clearAllLocalAgents: 'Alle lokale agenten en geschiedenissen verwijderen',
   clearAgentTitle: 'Agent en geschiedenis verwijderen',

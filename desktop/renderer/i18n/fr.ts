@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const fr: Messages = {
+  agentsColumnName: 'Nom',
+  agentsColumnClient: 'Client',
+  agentsColumnNode: 'Nœud',
+  agentsColumnLastMessage: 'Dernier message',
+  agentsColumnIncoming: 'Entrants',
+  agentsColumnOutgoing: 'Sortants',
+  agentsColumnActions: 'Actions',
+  agentsChatAria: 'Ouvrir le chat avec {name}',
+  agentsDeleteAria: 'Supprimer {name} et son historique',
+  agentsRemoteDeleteHelp: 'Gérez cet agent sur son nœud distant.',
+  chatClose: 'Fermer le chat',
+  chatRemoteNoHistory: 'L’historique des messages est conservé sur le nœud distant.',
+  networkColumnName: 'Nœud',
+  networkColumnAddress: 'Adresse de connexion',
+  networkColumnAgents: 'Agents',
+  networkColumnUpdated: 'Mise à jour',
+  networkColumnStatus: 'État',
+  clientsLastActivity: 'Dernière activité',
+  clientsApplicationsIntro: 'Applications connectées à ce nœud.',
+
   clearSelectedAgent: 'Supprimer l’agent sélectionné et son historique',
   clearAllLocalAgents: 'Supprimer tous les agents locaux et leurs historiques',
   clearAgentTitle: 'Supprimer l’agent et son historique',

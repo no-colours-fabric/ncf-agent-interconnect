@@ -100,11 +100,14 @@ try {
   const page = await application.firstWindow();
   page.on('pageerror', (error) => pageErrors.push(error.message));
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
-  await page.getByTestId('local-agent-ui alpha ж').click();
-  await page.getByTestId('clear-selected-agent').waitFor();
+  await page
+    .getByRole('button', { name: 'Delete ' + firstName + ' and history', exact: true })
+    .waitFor();
   await mkdir('release', { recursive: true });
   await page.screenshot({ path: 'release/clear-agents-en.png', animations: 'disabled' });
-  await page.getByTestId('clear-selected-agent').click();
+  await page
+    .getByRole('button', { name: 'Delete ' + firstName + ' and history', exact: true })
+    .click();
   let dialog = page.getByRole('dialog');
   await dialog.getByText(firstName + ': 1 messages', { exact: true }).waitFor();
   assert.equal(
@@ -114,16 +117,21 @@ try {
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.equal((await snapshot(page)).agents.length, 2);
   checks.push('Cancel preserves both local records');
-  await page.getByTestId('clear-selected-agent').click();
+  await page
+    .getByRole('button', { name: 'Delete ' + firstName + ' and history', exact: true })
+    .click();
   await dialog.getByRole('button', { name: 'Delete agent and history', exact: true }).click();
   await until(async () => (await snapshot(page)).agents.length === 1);
   assert.equal((await snapshot(page)).agents[0].nickname, secondName);
-  await page.getByTestId('local-agent-ui beta 漢字').click();
+  await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
   await page.getByText('Original processed history', { exact: true }).waitFor();
   checks.push('Selected deletion preserves the other processed mailbox');
+  await page.getByRole('button', { name: 'Close chat', exact: true }).click();
 
   // New input invalidates the exact preview; a stale confirm cannot delete it.
-  await page.getByTestId('clear-selected-agent').click();
+  await page
+    .getByRole('button', { name: 'Delete ' + secondName + ' and history', exact: true })
+    .click();
   await dialog.getByText(secondName + ': 1 messages', { exact: true }).waitFor();
   const current = await snapshot(page);
   await invoke(page, 'send', {
@@ -151,6 +159,7 @@ try {
     assert.ok(!response.isError);
     return response.structuredContent;
   };
+  await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
   await page
     .getByRole('textbox', { name: 'Message from the user', exact: true })
     .fill('Draft belonging to the deleted incarnation');
@@ -163,7 +172,7 @@ try {
   });
   await until(async () => (await snapshot(page)).agents.length === 0);
   await invoke(page, 'registerAgent', { nickname: secondName });
-  await page.getByTestId('local-agent-ui beta 漢字').click();
+  await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
   await until(
     async () =>
       (await page
@@ -187,6 +196,7 @@ try {
   assert.equal(rejected, true);
   checks.push('External MCP clear and same-name recreation invalidate UI history and draft');
 
+  await page.getByRole('button', { name: 'Close chat', exact: true }).click();
   await invoke(page, 'registerAgent', { nickname: firstName });
   const beforeAll = await snapshot(page);
   await page.getByTestId('interface-language').click();
@@ -217,7 +227,7 @@ try {
     'The user export survives local history deletion.\n',
   );
   await until(() => page.getByTestId('clear-all-local-agents').isDisabled());
-  assert.equal(await page.locator('[data-testid^="local-agent-"]').count(), 0);
+  assert.equal(await page.locator(`[data-agent-id^="${settings.nodeId}:"]`).count(), 0);
   checks.push('All-local deletion preserves peer, adapters, remote record and user export');
   await noOverflow(page);
   assert.deepEqual(pageErrors, []);

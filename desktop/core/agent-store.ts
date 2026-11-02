@@ -13,6 +13,7 @@ import {
   type Envelope,
   type Message,
   type MessageState,
+  type ChatHistoryPage,
   type SystemEvent,
   type NicknameConflict,
 } from '../shared/contracts.js';
@@ -518,7 +519,12 @@ export class AgentStore {
     return (
       this.db
         .prepare(
-          `SELECT c.*,COUNT(m.id) AS message_count,SUM(CASE WHEN m.direction='in' AND m.state='ready' THEN 1 ELSE 0 END) AS unread FROM agents c LEFT JOIN messages m ON m.local_key=c.key GROUP BY c.key ORDER BY c.nickname`,
+          `SELECT c.*,COUNT(m.id) AS message_count,
+           SUM(CASE WHEN m.direction='in' AND m.state='ready' THEN 1 ELSE 0 END) AS unread,
+           SUM(CASE WHEN m.direction='in' THEN 1 ELSE 0 END) AS incoming_count,
+           SUM(CASE WHEN m.direction='out' THEN 1 ELSE 0 END) AS outgoing_count,
+           MAX(json_extract(m.envelope,'$.createdAt')) AS last_message_at
+           FROM agents c LEFT JOIN messages m ON m.local_key=c.key GROUP BY c.key ORDER BY c.nickname`,
         )
         .all() as Row[]
     ).map((r) => ({
@@ -528,6 +534,9 @@ export class AgentStore {
       binding: r.binding ? (JSON.parse(String(r.binding)) as Binding) : null,
       messageCount: Number(r.message_count),
       unread: Number(r.unread ?? 0),
+      incomingCount: Number(r.incoming_count ?? 0),
+      outgoingCount: Number(r.outgoing_count ?? 0),
+      lastMessageAt: r.last_message_at ? String(r.last_message_at) : null,
     }));
   }
   disconnect(connectionId: string): void {
@@ -652,6 +661,25 @@ export class AgentStore {
     return {
       messages,
       nextCursor: messages.at(-1)?.sequence ?? after,
+      hasMore: rows.length > limit,
+    };
+  }
+  chatHistory(key: string, before?: number, limit = 100): ChatHistoryPage {
+    const rows = this.db
+      .prepare(
+        `SELECT m.*,t.cursor AS sequence FROM timeline t JOIN messages m
+         ON m.id=t.message_id AND m.direction=t.direction
+         WHERE m.local_key=? ${before === undefined ? '' : 'AND t.cursor<?'}
+         ORDER BY t.cursor DESC LIMIT ?`,
+      )
+      .all(...(before === undefined ? [key, limit + 1] : [key, before, limit + 1])) as Row[];
+    const messages = rows
+      .slice(0, limit)
+      .reverse()
+      .map((row) => this.message(row));
+    return {
+      messages,
+      nextCursor: messages[0]?.sequence ?? before ?? 0,
       hasMore: rows.length > limit,
     };
   }

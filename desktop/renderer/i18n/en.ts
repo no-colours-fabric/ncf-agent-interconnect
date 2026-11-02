@@ -1,6 +1,26 @@
 import type { Messages } from './messages.js';
 
 export const en: Messages = {
+  agentsColumnName: 'Name',
+  agentsColumnClient: 'Client',
+  agentsColumnNode: 'Node',
+  agentsColumnLastMessage: 'Last message',
+  agentsColumnIncoming: 'In',
+  agentsColumnOutgoing: 'Out',
+  agentsColumnActions: 'Actions',
+  agentsChatAria: 'Open chat with {name}',
+  agentsDeleteAria: 'Delete {name} and history',
+  agentsRemoteDeleteHelp: 'Manage this agent on its remote node.',
+  chatClose: 'Close chat',
+  chatRemoteNoHistory: 'Message history is stored on the remote node.',
+  networkColumnName: 'Node',
+  networkColumnAddress: 'Connection address',
+  networkColumnAgents: 'Agents',
+  networkColumnUpdated: 'Updated',
+  networkColumnStatus: 'Status',
+  clientsLastActivity: 'Last activity',
+  clientsApplicationsIntro: 'Applications connected to this node.',
+
   clearSelectedAgent: 'Delete selected agent and history',
   clearAllLocalAgents: 'Delete all local agents and history',
   clearAgentTitle: 'Delete agent and history',

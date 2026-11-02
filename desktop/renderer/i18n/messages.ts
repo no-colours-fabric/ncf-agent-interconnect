@@ -1,4 +1,24 @@
 export interface Messages {
+  agentsColumnName: string;
+  agentsColumnClient: string;
+  agentsColumnNode: string;
+  agentsColumnLastMessage: string;
+  agentsColumnIncoming: string;
+  agentsColumnOutgoing: string;
+  agentsColumnActions: string;
+  agentsChatAria: string;
+  agentsDeleteAria: string;
+  agentsRemoteDeleteHelp: string;
+  chatClose: string;
+  chatRemoteNoHistory: string;
+  networkColumnName: string;
+  networkColumnAddress: string;
+  networkColumnAgents: string;
+  networkColumnUpdated: string;
+  networkColumnStatus: string;
+  clientsLastActivity: string;
+  clientsApplicationsIntro: string;
+
   clearSelectedAgent: string;
   clearAllLocalAgents: string;
   clearAgentTitle: string;

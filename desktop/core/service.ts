@@ -1130,6 +1130,20 @@ export class NodeService extends EventEmitter {
         channel: 'interface',
         session: context.requesterSession ?? 'local-interface',
       });
+    if (method === 'chatHistory') {
+      const { nickname, incarnation, before, limit } = z
+        .object({
+          nickname: nicknameSchema,
+          incarnation: z.uuid().optional(),
+          before: z.number().int().positive().optional(),
+          limit: z.number().int().min(1).max(200).default(100),
+        })
+        .strict()
+        .parse(raw);
+      if (incarnation && this.store.sourceStamp(nickname).incarnation !== incarnation)
+        throw new Error('The selected agent changed');
+      return this.store.chatHistory(nicknameKey(nickname), before, limit);
+    }
     if (method === 'history') {
       const { nickname, after, limit, incarnation } = z
         .object({
