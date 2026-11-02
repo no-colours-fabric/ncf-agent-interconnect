@@ -127,9 +127,19 @@ function ClientSetupDialog({
         fullWidth
         maxWidth="sm"
         aria-labelledby={'mcp-setup-title-' + client}
+        slotProps={{
+          paper: {
+            sx: {
+              height:
+                client === 'opencode'
+                  ? 'min(660px, calc(100dvh - 64px))'
+                  : 'min(520px, calc(100dvh - 64px))',
+            },
+          },
+        }}
       >
         <DialogTitle id={'mcp-setup-title-' + client}>{m[k.title]}</DialogTitle>
-        <DialogContent>
+        <DialogContent sx={{ scrollbarGutter: 'stable' }}>
           <Stack spacing={2} sx={{ pt: 1 }}>
             <Typography>{m[k.description]}</Typography>
             {state.files.map((file) => {
@@ -177,9 +187,11 @@ function ClientSetupDialog({
                       ))}
                     </Box>
                   )}
-                  {checked && !state.result && (
-                    <Typography variant="body2">{m[checked.action]}</Typography>
-                  )}
+                  <Box sx={{ minHeight: '3em' }}>
+                    {checked && !state.result && (
+                      <Typography variant="body2">{m[checked.action]}</Typography>
+                    )}
+                  </Box>
                 </Stack>
               );
             })}
@@ -213,15 +225,25 @@ function ClientSetupDialog({
                 {state.result.status !== 'failed' && <Typography>{m[k.next]}</Typography>}
               </>
             )}
-            {state.busy && (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }} role="status">
-                <CircularProgress size={20} />
-                <Typography>{m.checking}</Typography>
-              </Stack>
-            )}
           </Stack>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ minHeight: 56, gap: 1, flexShrink: 0 }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{ flex: 1, minWidth: 0, height: 24, alignItems: 'center' }}
+            role="status"
+            aria-live="polite"
+            data-testid="mcp-setup-progress"
+            data-busy={state.busy ? 'true' : 'false'}
+          >
+            <Box sx={{ width: 20, height: 20, flexShrink: 0 }}>
+              {state.busy && <CircularProgress size={20} />}
+            </Box>
+            <Typography variant="body2" noWrap>
+              {state.busy ? m.checking : ''}
+            </Typography>
+          </Stack>
           <Button disabled={state.busy} onClick={() => flow.cancel()}>
             {state.result ? m.close : m.cancel}
           </Button>
