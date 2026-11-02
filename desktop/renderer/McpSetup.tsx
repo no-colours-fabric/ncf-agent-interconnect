@@ -81,6 +81,11 @@ function ClientSetupDialog({
   const k = keys[client];
   const status = state.status;
   const canOpen = !!status?.files[0]?.path && status.state !== 'missing';
+  const openHint = !status
+    ? m.checking
+    : status.state === 'missing'
+      ? m.openFileMissing
+      : m.openFile;
   return (
     <>
       <Stack spacing={2.5} sx={{ p: { xs: 2, sm: 3 } }}>
@@ -170,19 +175,30 @@ function ClientSetupDialog({
                   {m.checking}
                 </Typography>
               )}
+              {status?.state === 'missing' && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mt: 1 }}
+                >
+                  {m.openFileMissing}
+                </Typography>
+              )}
             </Box>
-            {canOpen && (
-              <Tooltip title={m.openFile}>
+            <Tooltip title={openHint}>
+              <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
                 <IconButton
                   size="small"
+                  color="primary"
                   aria-label={m.openFile}
+                  disabled={!canOpen}
+                  data-testid="mcp-open-file"
                   onClick={() => void flow.openFile()}
-                  sx={{ flexShrink: 0 }}
                 >
                   <OpenInNewOutlined fontSize="small" />
                 </IconButton>
-              </Tooltip>
-            )}
+              </Box>
+            </Tooltip>
           </Stack>
         </Box>
         <Stack

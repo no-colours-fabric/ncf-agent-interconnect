@@ -30,6 +30,7 @@ export const mcpSetupEnglish = {
   missing: 'Not configured',
   unavailable: 'Could not check settings',
   openFile: 'Open configuration file',
+  openFileMissing: 'Apply setup first to create this file, then open it.',
   backup: 'Backup',
   cancel: 'Cancel',
   apply: 'Apply',
