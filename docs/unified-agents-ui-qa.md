@@ -2,6 +2,8 @@
 
 The Agents page uses one table for local mailboxes and known remote directory entries. Rows keep the full node ID and normalized nickname internally. Only a ready directory reporting `online` produces a green availability icon. Unknown values remain empty; remote directories do not publish client names or message statistics.
 
+One Messages column shows the total followed by incoming/outgoing counts with direction icons. A missing breakdown stays absent; known zero values remain visible. Failed sends display an accessible error inside their original chat drawer and preserve the draft.
+
 A row's chat button opens a right drawer. Local history loads the latest 100 messages in timeline order, scrolls to the bottom and loads older messages at the top. Reading history does not acknowledge delivery. Existing attachment open/save boundaries, agent incarnation checks and deletion previews remain in force. Remote drawers select an explicit local sender and contain only the send form; remote history and remote deletion are unavailable on the local node.
 
 The Remote nodes page lists node name, connection address, agent count, directory update time and connection status. It contains no agent list. Applications show one row per supported application category, total bound agents and the latest known message or exact-chat verification time. A missing activity timestamp stays empty. The sidebar displays the Electron application version and puts language selection above the final node status; the header has no duplicate status chip.
