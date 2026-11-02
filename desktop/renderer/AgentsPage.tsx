@@ -58,7 +58,10 @@ export function AgentsPage({
   const [historySize, setHistorySize] = useState(100);
   const [recipient, setRecipient] = useState('');
   const [sender, setSender] = useState('');
-  const [text, setText] = useState('');
+  const [draft, setDraft] = useState({ text: '' });
+  const text = draft.text;
+  // Edits and chat resets replace the draft even when the text repeats.
+  const setText = (value: string) => setDraft({ text: value });
   const [sending, setSending] = useState(false);
   const selected = chat?.local
     ? snapshot.agents.find((agent) => agent.key === chat.identity?.key)
@@ -243,7 +246,10 @@ export function AgentsPage({
                     <TextField
                       label={t(locale, 'composeRecipientAgent')}
                       value={recipient}
-                      onChange={(event) => setRecipient(event.target.value)}
+                      onChange={(event) => {
+                        setRecipient(event.target.value);
+                        setText(text);
+                      }}
                       fullWidth
                     />
                   </>
@@ -252,7 +258,10 @@ export function AgentsPage({
                     select
                     label={t(locale, 'composeSenderAgent')}
                     value={source ? sender : ''}
-                    onChange={(event) => setSender(event.target.value)}
+                    onChange={(event) => {
+                      setSender(event.target.value);
+                      setText(text);
+                    }}
                     fullWidth
                   >
                     {snapshot.agents.map((agent) => (
@@ -282,6 +291,7 @@ export function AgentsPage({
                         }
                         onClick={() => {
                           if (!source) return;
+                          const sentDraft = draft;
                           setSending(true);
                           void run(async () => {
                             await call('send', {
@@ -289,9 +299,9 @@ export function AgentsPage({
                               sourceIncarnation: source.incarnation,
                               recipientNode: chat.nodeId,
                               recipientNickname: chat.local ? recipient.trim() : chat.nickname,
-                              text,
+                              text: sentDraft.text,
                             });
-                            setText('');
+                            setDraft((current) => (current === sentDraft ? { text: '' } : current));
                           }).finally(() => setSending(false));
                         }}
                         sx={{

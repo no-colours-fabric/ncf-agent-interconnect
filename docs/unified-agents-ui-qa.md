@@ -12,6 +12,7 @@ The Remote nodes page lists node name, connection address, agent count, director
 - `test-desktop/agents-table.test.ts`: Unicode identities on distinct nodes, confirmed availability, unknown values and node counts without agent lists.
 - `test-desktop/application-connections.test.ts`: application totals, observed activity and absence of agent/profile lists and availability claims.
 - `npm run test:ui`: isolated local/TLS exchange, exact attachment access, history reopening, reverse pagination and scroll position.
+- `node scripts/test-desktop-ui-chat-drafts.mjs`: synthetic delayed sends covering an unchanged draft, text edits (including editing back to the same text), recipient changes, closing/reopening the same chat, switching chats with an identical body and failed sends. Send completion clears only the exact submitted draft.
 - `node scripts/test-desktop-ui-unified-agents.mjs`: synthetic renderer covering the unified table, duplicate machine names and exact remote recipients, reverse pagination, scroll preservation, avatars, attachments, incarnation invalidation, EN/RU layouts, node/application tables and sidebar order. The old agents-tabs, compact-peers, client-status and node-labels script names delegate to this replacement suite.
 - `node --experimental-sqlite scripts/test-desktop-ui-agent-clear.mjs`: deletion cancel/confirm, stale preview, external reset, preserved peers/adapters and user exports.
 - `node scripts/test-desktop-ui-locale.mjs`: all supported locales, literal user content, configuration preservation and storage failures.
