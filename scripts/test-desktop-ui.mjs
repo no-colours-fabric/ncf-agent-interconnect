@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import assert from 'node:assert/strict';
 import { createUiEnvironment, createUiProfile, uiClientConfigPaths } from './ui-test-profile.mjs';
+import { verifyChatHistoryPagination } from './ui-chat-history-smoke.mjs';
 import { NodeService } from '../build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
@@ -246,24 +247,22 @@ try {
   await page.getByRole('button', { name: 'Open chat with Interface check', exact: true }).click();
   await page.getByText('Paging message 204', { exact: true }).waitFor();
   const history = page.getByTestId('agent-chat-history');
-  assert.equal(await page.getByTestId('chat-message').count(), 100);
-  assert.ok(
-    await history.evaluate(
-      (element) => element.scrollHeight - element.scrollTop - element.clientHeight < 3,
-    ),
+  const pagination = await verifyChatHistoryPagination(
+    page,
+    [
+      'A local message with no remote connections.',
+      text,
+      ...Array.from({ length: 205 }, (_, index) => 'Paging message ' + index),
+    ],
+    async () => {
+      await page.getByRole('button', { name: 'Close chat', exact: true }).click();
+      await page.getByRole('dialog').waitFor({ state: 'detached' });
+      await page
+        .getByRole('button', { name: 'Open chat with Interface check', exact: true })
+        .click();
+      await page.getByText('Paging message 204', { exact: true }).waitFor();
+    },
   );
-  await history.evaluate((element) => {
-    element.scrollTop = 0;
-  });
-  await until(async () => (await page.getByTestId('chat-message').count()) === 200);
-  assert.ok(
-    await history.evaluate(
-      (element) =>
-        element.scrollTop > 0 &&
-        element.scrollHeight - element.scrollTop - element.clientHeight > 100,
-    ),
-  );
-  await page.getByRole('button', { name: 'Load more messages', exact: true }).click();
   await page.getByText('Full incoming message', { exact: false }).waitFor();
   await history.evaluate((element) => {
     element.scrollTop = element.scrollHeight;
@@ -309,6 +308,7 @@ try {
       externalTextEscaped: true,
       drawerHistoryAndAttachmentsPreserved: true,
       newestFirstPaginationAndScrollAnchor: true,
+      pagination,
       literalAttachmentNamePreserved: true,
       isolatedClientConfigsUnchangedWithoutApply: true,
       screenshots: ['release/preview-overview.png', 'release/preview-agents.png'],
