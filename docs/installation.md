@@ -6,11 +6,13 @@ install a binary release.
 
 ## Verify a download
 
-Download `SHA256SUMS` with the package. On macOS, run
+GitHub displays a SHA-256 digest beside each uploaded release asset. On macOS, run
 `shasum -a 256 NCF-Agent-Interconnect-<version>-mac-arm64.dmg` and compare the
-result with the manifest. On Windows, use
+result with that digest. On Windows, use
 `Get-FileHash .\NCF-Agent-Interconnect-<version>-win-x64.exe -Algorithm SHA256`.
 Use the actual filename and architecture from the release.
+Only the latest release keeps downloadable installers; older tags retain the
+corresponding source. The existing 0.13.0 macOS package is Apple Silicon-only.
 
 ## macOS
 

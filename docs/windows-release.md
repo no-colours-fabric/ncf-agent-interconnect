@@ -1,8 +1,9 @@
 # Build and verify on Windows
 
-Windows x64 packages are built and checked natively with installed-runtime and
-isolated packaged GUI tests. Interactive installation/uninstallation and Start at
-login require the manual checks below. Packages are unsigned.
+Windows x64 packages are built natively. For a routine release, run the packaged
+runtime check and one isolated packaged smoke. The extended manual cases below
+are for affected installer/runtime changes or a concrete failure, not every
+release. Packages are unsigned. Follow the [short release cycle](binary-release.md).
 
 Build from the same source revision and version as the matching macOS release.
 Use a Windows machine with Node.js 22.12
@@ -19,18 +20,20 @@ npm run build:release -- --win
 ```
 
 The release command checks types, runs core tests, builds the app, creates the
-installer and ZIP, generates checksums and verifies the packaged runtime. Keep
+installer, generates local checksums and verifies the packaged runtime. If the
+same source already passed its shared checks, add `--skip-source-checks` to avoid
+repeating the type/core test pass. Keep
 its terminal output locally for diagnosis. `release/verification.json` records
 the version, platform, architecture and installed-runtime checks.
 
-## Native smoke checks
+## Extended native checks (when affected)
 
 1. Install the generated EXE under a regular user account. Check the application
    name, English UI, tray menu and selected installation directory.
 2. Start the installed app from a directory unrelated to the source checkout.
    Confirm it does not require Node.js, npm or source files.
-3. Configure a test MCP client using the generated snippet. Use a disposable
-   profile rather than replacing a working client configuration.
+3. Configure a test MCP client through its setup dialog and explicit Apply. Use
+   a disposable profile rather than replacing a working client configuration.
 4. Connect two differently named agents and exchange local messages with no
    remote peers. Check receipt counters and persistent history.
 5. Exchange a file with spaces and non-ASCII characters in its name. Open and
@@ -56,8 +59,9 @@ data and synthetic messages; it does not contact live agents.
 
 ## Return a build
 
-Provide the generated installer and ZIP, `SHA256SUMS`, `verification.json`, the
-source revision, Windows version/architecture and a concise report of completed
-smoke checks. Do not include the app-data directory, pairing codes, tokens,
-private keys or real message history. Do not label the platform verified until
-the native checks have completed successfully.
+Upload only the current EXE installer. Keep any generated ZIP, checksums,
+verification report and logs locally. Send the coordinator a short status with
+the source revision and any failure or material limitation; do not create an
+extra public acceptance packet. Never include app data, pairing codes, tokens,
+private keys or real message history. After the combined release is published,
+remove older uploaded assets while preserving tags and release descriptions.

@@ -50,3 +50,29 @@ not contact live agents or change their state. Build release packages natively
 on their target operating system with `npm run build:release -- --mac` or
 `npm run build:release -- --win`. A successful cross-platform source check is not
 a native platform verification. Report verification limits accurately.
+
+## Routine releases
+
+- Keep the release cycle short: one shared source check/test pass, one native
+  package build and one packaged smoke per available native test platform,
+  then publish.
+  Reuse successful checks for unchanged source and dependencies. Do not repeat
+  the full suite before and inside the release builder.
+- Run additional locale, history, attachment, adapter and installer checks only
+  for affected changes or a concrete failure. After a test-harness correction,
+  rerun its failed check on the same binary; do not rebuild unchanged software.
+- Publish three installers: macOS Apple Silicon DMG, macOS Intel DMG and
+  Windows x64 EXE. No Universal package. Intel packaging is a future requirement;
+  do not change the existing 0.13.0 distributions for it. Run native acceptance
+  on the available Apple Silicon Mac and Windows machine. An Intel runtime test
+  is not required and must not block publication; state that it was not run.
+- Do not upload ZIP alternatives, reports, checksum manifests, screenshots or
+  README copies as routine release assets. Keep diagnostics locally and put
+  short changes and material limitations in the release description.
+- After the new release is published with all required installers, remove
+  uploaded assets from older releases. Keep their Git tags, source history and
+  release descriptions. Never remove the last available installers before the
+  replacement is published successfully.
+- Check the final version, platform filenames and upload completion once.
+  Repeat digest/download inspections only for a transfer error or a concrete
+  integrity concern. Do not add repeated status checks or approval rounds.

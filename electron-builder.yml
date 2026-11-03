@@ -34,12 +34,10 @@ mac:
   icon: build/assets/icon.png
   target:
     - dmg
-    - zip
 win:
   icon: build/assets/icon.png
   target:
     - nsis
-    - zip
 nsis:
   oneClick: false
   perMachine: false

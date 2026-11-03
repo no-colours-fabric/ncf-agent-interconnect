@@ -25,7 +25,7 @@ jobs:
         run: npm run build:release -- --mac
       - name: Verify macOS signature
         run: codesign --verify --deep --strict 'release/mac-arm64/NCF Agent Interconnect.app'
-      - name: Publish tagged release
+      - name: Stage installer in a tagged draft
         if: github.ref_type == 'tag'
         env:
           GH_TOKEN: ${{ github.token }}
@@ -33,7 +33,6 @@ jobs:
         run: |
           gh release create "$GITHUB_REF_NAME" \
             release/NCF-Agent-Interconnect-*-mac-arm64.dmg \
-            release/NCF-Agent-Interconnect-*-mac-arm64.zip \
-            release/SHA256SUMS release/verification.json release/README.md \
+            --draft \
             --verify-tag --title "NCF Agent Interconnect $GITHUB_REF_NAME" \
             --notes-file distribution/release-notes.md

@@ -6,7 +6,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 const root = fileURLToPath(new URL('..', import.meta.url)),
-  args = process.argv.slice(2);
+  rawArgs = process.argv.slice(2),
+  skipSourceChecks = rawArgs.includes('--skip-source-checks'),
+  args = rawArgs.filter((arg) => arg !== '--skip-source-checks');
 for (const [flag, platform] of [
   ['--mac', 'darwin'],
   ['--win', 'win32'],
@@ -31,7 +33,11 @@ function run(script, argv) {
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
-for (const task of ['prepare:runtime', 'typecheck', 'test:desktop', 'build'])
+for (const task of [
+  'prepare:runtime',
+  ...(skipSourceChecks ? [] : ['typecheck', 'test:desktop']),
+  'build',
+])
   run(npm, ['run', task]);
 run(npm, ['exec', '--offline', '--no', '--', 'electron-builder', '--publish', 'never', ...args]);
 const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
