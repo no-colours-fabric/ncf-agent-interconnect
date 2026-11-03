@@ -30,6 +30,7 @@ import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
 import { AionUiSessions } from './aionui-sessions.js';
+import { ClaudeSessions, helperCallSchema } from './claude-sessions.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
@@ -42,6 +43,7 @@ export class NodeService extends EventEmitter {
   readonly settings: SettingsFile;
   readonly adapters: AdapterRegistry;
   readonly aionui: AionUiSessions;
+  readonly claude: ClaudeSessions;
   readonly contexts = new ClientContexts(this);
   private readonly presence: AgentPresence;
   running = false;
@@ -110,7 +112,9 @@ export class NodeService extends EventEmitter {
     super();
     this.settings = new SettingsFile(directory);
     this.aionui = new AionUiSessions(directory);
-    this.adapters = new AdapterRegistry(this.aionui);
+    this.claude = new ClaudeSessions(directory);
+    this.adapters = new AdapterRegistry(this.aionui, this.claude);
+    this.claude.on('problem', (message: string) => this.problem(message));
     this.aionui.on('change', () => this.emit('change'));
     this.presence = new AgentPresence(
       () => this.refreshPresence(),
@@ -139,6 +143,7 @@ export class NodeService extends EventEmitter {
   async open(): Promise<void> {
     await this.settings.load();
     await this.aionui.load();
+    await this.claude.load();
     this.store = new AgentStore(this.directory);
     this.files = new FileStore(this.directory, this.settings.value.exportRoots);
     await this.files.init();
@@ -228,12 +233,10 @@ export class NodeService extends EventEmitter {
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),
       agents: this.store.list().map((agent) => {
-        if (
-          !agent.binding ||
-          this.settings.value.adapters.find((a) => a.id === agent.binding!.adapterId)?.kind !==
-            'aionui'
-        )
-          return agent;
+        const kind = this.settings.value.adapters.find(
+          (a) => a.id === agent.binding?.adapterId,
+        )?.kind;
+        if (!agent.binding || (kind !== 'aionui' && kind !== 'claude-code')) return agent;
         return {
           ...agent,
           binding: { ...agent.binding, chatId: '[private]', connectionId: '[private]' },
@@ -263,7 +266,7 @@ export class NodeService extends EventEmitter {
       input.adapterId ?? this.settings.value.adapters.find((a) => a.kind === 'manual')!.id;
     const profile = this.settings.value.adapters.find((a) => a.id === adapterId);
     if (
-      (['opencode-http', 'aionui'].includes(profile?.kind ?? '') &&
+      (['opencode-http', 'aionui', 'claude-code'].includes(profile?.kind ?? '') &&
         input.chatId !== profile?.sessionId) ||
       (profile?.kind === 'codex-desktop' && input.chatId !== profile.threadId)
     )
@@ -287,7 +290,8 @@ export class NodeService extends EventEmitter {
             prior.sessionId === profile.sessionId) ||
           (profile.kind === 'aionui' &&
             prior.aionConnectionId === profile.aionConnectionId &&
-            prior.sessionId === profile.sessionId))
+            prior.sessionId === profile.sessionId) ||
+          (profile.kind === 'claude-code' && prior.sessionId === profile.sessionId))
       )
         throw new Error('A fresh start requires another exact chat');
     }
@@ -529,7 +533,16 @@ export class NodeService extends EventEmitter {
         await this.aionui.verify(profile.aionConnectionId);
         if (this.adapters.get(profile.id).status().state !== 'ready')
           throw new Error('The AionUi realtime connection is unavailable.');
+      } else if (context.client === 'Claude Code') {
+        if (host.client !== 'Claude Code')
+          throw new Error('The Claude Code context belongs to another client.');
+        if (this.adapters.get(context.adapterId).status().state === 'error')
+          throw new Error('This Claude Code chat is not connected through the NCF plugin.');
       }
+    } else if (host.client === 'Claude Code') {
+      throw new Error(
+        'The NCF Claude Code plugin did not confirm this chat. Restart Claude Code after setup.',
+      );
     } else if (/codex/i.test(host.client)) {
       let metadata = host.meta?.['x-codex-turn-metadata'];
       if (typeof metadata === 'string') {
@@ -599,8 +612,20 @@ export class NodeService extends EventEmitter {
       )
         input.connectionId = existing.connectionId;
     }
-    const result = this.connect({ ...input, ...context }),
-      automatic = this.adapters.get(context.adapterId).status().capabilities.wakeIdle;
+    const result = this.connect({ ...input, ...context });
+    if (context.client === 'Claude Code') {
+      const confirmed = this.adapters.get(context.adapterId).status().state === 'ready';
+      return {
+        ...result,
+        delivery: {
+          automatic: confirmed,
+          description: confirmed
+            ? 'Incoming messages are announced in this chat by the NCF channel and received automatically with agent_read. This integration is experimental.'
+            : 'The NCF channel announces incoming messages only when Claude Code was started with its development channel enabled. Until an announcement is confirmed, receive messages with agent_read. This integration is experimental.',
+        },
+      };
+    }
+    const automatic = this.adapters.get(context.adapterId).status().capabilities.wakeIdle;
     return {
       ...result,
       delivery: {
@@ -610,6 +635,51 @@ export class NodeService extends EventEmitter {
           : 'This client uses standard MCP. Automatic wake-up is not supported; history is available in the app and through MCP.',
       },
     };
+  }
+  /** Verifies a Claude Code helper call before the helper forwards it to MCP. */
+  async claudeCall(raw: unknown): Promise<{ contextToken?: string }> {
+    if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
+    const input = helperCallSchema.parse(raw);
+    const { helper, session } = this.claude.correlate(input);
+    if (input.connectionId) {
+      const agent = this.store
+        .list()
+        .find((value) => value.binding?.connectionId === input.connectionId);
+      const profile = this.settings.value.adapters.find(
+        (value) => value.id === agent?.binding?.adapterId,
+      );
+      if (profile?.kind === 'claude-code') {
+        if (profile.sessionId !== session)
+          throw new Error('This connection belongs to another Claude Code chat.');
+        if (input.tool === 'agent_read' && helper.outstanding.has(input.connectionId))
+          this.claude.confirm(helper);
+      }
+    }
+    if (input.tool !== 'agent_connect') return {};
+    const work = this.adapterSetup.then(async () => {
+      let profile = this.settings.value.adapters.find(
+        (value) => value.kind === 'claude-code' && value.sessionId === session,
+      );
+      if (!profile) {
+        profile = {
+          id: randomUUID(),
+          label: 'Claude Code',
+          kind: 'claude-code',
+          sessionId: session,
+        };
+        await this.installAdapter(profile);
+      }
+      return this.contexts.issue({
+        client: 'Claude Code',
+        chatId: session,
+        adapterId: profile.id,
+      });
+    });
+    this.adapterSetup = work.then(
+      () => {},
+      () => {},
+    );
+    return { contextToken: await work };
   }
   async connectCodex(
     args: Partial<ConnectInput> & { nickname: string; client: string },
@@ -679,7 +749,9 @@ export class NodeService extends EventEmitter {
   async read(connectionId: string, after = 0, limit = 50, unread = false): Promise<unknown> {
     return this.fileOperation(async () => {
       const owner = this.store.assertOwner(connectionId),
-        page = this.store.history(owner.key, after, limit, unread);
+        adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
+      adapter?.beforeRead?.(connectionId);
+      const page = this.store.history(owner.key, after, limit, unread);
       const prepared = await allFileResults(
         page.messages.map(async (row) => ({
           ...row,
@@ -716,6 +788,10 @@ export class NodeService extends EventEmitter {
             this.store.get(message.envelope.id, message.direction)?.state ?? state,
           ),
         }));
+      adapter?.afterRead?.(
+        connectionId,
+        this.store.history(owner.key, 0, 1, true).messages.length > 0,
+      );
       return { ...page, messages };
     });
   }
@@ -1370,6 +1446,7 @@ export class NodeService extends EventEmitter {
     await this.network.close();
     await this.receiving;
     await Promise.all([...this.jobs]);
+    await this.claude.close();
     await this.mcp.close();
     this.emit('change');
   }

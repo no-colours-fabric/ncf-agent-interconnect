@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
+import { helperHelloSchema, type ClaudeHelper } from './claude-sessions.js';
 
 export function createAgentMcp(
   service: NodeService,
@@ -121,7 +122,7 @@ export function createAgentMcp(
         .uuid()
         .optional()
         .describe(
-          'Integration-owned one-use current-chat context. The installed OpenCode or AionUi integration injects this automatically; otherwise omit.',
+          'Integration-owned one-use current-chat context. The installed OpenCode, AionUi or Claude Code integration injects this automatically; otherwise omit.',
         ),
     },
     false,
@@ -328,8 +329,15 @@ export class McpEndpoint {
       reject(401, 'Unauthorized');
       return;
     }
+    if (req.url === '/integrations/claude/helper' && req.method === 'POST') {
+      await this.claudeHelper(req, res, reject);
+      return;
+    }
     if (
       [
+        '/integrations/claude/session',
+        '/integrations/claude/hook',
+        '/integrations/claude/call',
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
@@ -347,12 +355,22 @@ export class McpEndpoint {
         chunks.push(Buffer.from(chunk));
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+      if (req.url!.startsWith('/integrations/claude/') && !this.service.integrationsReady) {
+        reject(503, 'The node is not ready to accept connections');
+        return;
+      }
       const result =
-        req.url === '/integrations/aionui/context'
-          ? await this.service.contexts.registerAionUi(body)
-          : req.url!.endsWith('/release')
-            ? await this.service.contexts.releaseOpenCode(body)
-            : await this.service.contexts.registerOpenCode(body);
+        req.url === '/integrations/claude/session'
+          ? this.service.claude.helperSession(body)
+          : req.url === '/integrations/claude/hook'
+            ? this.service.claude.hook(body)
+            : req.url === '/integrations/claude/call'
+              ? await this.service.claudeCall(body)
+              : req.url === '/integrations/aionui/context'
+                ? await this.service.contexts.registerAionUi(body)
+                : req.url!.endsWith('/release')
+                  ? await this.service.contexts.releaseOpenCode(body)
+                  : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;
@@ -427,6 +445,43 @@ export class McpEndpoint {
       this.service.touchClientSession(session.key);
     }
     await session.transport.handleRequest(req, res);
+  }
+  /** One ndjson stream per live Claude Code helper; it carries wakes and keepalives only. */
+  private async claudeHelper(
+    req: IncomingMessage,
+    res: ServerResponse,
+    reject: (status: number, error: string) => void,
+  ): Promise<void> {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > 16384) {
+        reject(413, 'Request too large');
+        return;
+      }
+      chunks.push(Buffer.from(chunk));
+    }
+    if (!this.service.integrationsReady) {
+      reject(503, 'The node is not ready to accept connections');
+      return;
+    }
+    const body = helperHelloSchema.parse(JSON.parse(Buffer.concat(chunks).toString()));
+    res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' });
+    res.socket?.setKeepAlive(true, 15000);
+    let helper: ClaudeHelper | undefined;
+    const closed = () => {
+      if (helper) this.service.claude.detach(helper);
+    };
+    res.once('close', closed);
+    try {
+      helper = this.service.claude.attach(body, {
+        write: (line) => res.write(line),
+        end: () => res.end(),
+      });
+    } catch {
+      res.end(JSON.stringify({ type: 'error' }) + '\n');
+    }
   }
   notify(event: unknown): void {
     for (const { mcp } of this.sessions.values())

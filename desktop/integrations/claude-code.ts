@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 
 /** Plugin, marketplace and server keys; Claude Code derives tool names from them. */
@@ -36,4 +37,24 @@ export function wakeNotification(nickname: string) {
       meta: { agent: nickname },
     },
   };
+}
+
+const canonical = (value: unknown): unknown =>
+  Array.isArray(value)
+    ? value.map(canonical)
+    : value && typeof value === 'object'
+      ? Object.fromEntries(
+          Object.keys(value)
+            .sort()
+            .map((key) => [key, canonical((value as Record<string, unknown>)[key])]),
+        )
+      : value;
+/**
+ * The PreToolUse hook and the helper hash the same tool input independently.
+ * Equal hashes correlate one Claude Code tool call with one stdio transport.
+ */
+export function canonicalInputHash(input: unknown): string {
+  return createHash('sha256')
+    .update(JSON.stringify(canonical(input ?? {})))
+    .digest('hex');
 }

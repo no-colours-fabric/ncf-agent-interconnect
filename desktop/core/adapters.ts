@@ -8,6 +8,8 @@ import type {
 } from '../shared/contracts.js';
 import { AionUiAdapter } from './aionui-adapter.js';
 import type { AionUiSessions } from './aionui-sessions.js';
+import { ClaudeCodeAdapter } from './claude-adapter.js';
+import type { ClaudeSessions } from './claude-sessions.js';
 import { CodexDesktopAdapter } from './codex-adapter.js';
 
 // 'offered' means only that a wake signal was written; it is never a receipt.
@@ -64,6 +66,9 @@ export interface AgentAdapter {
   readonly wakeOnly?: boolean;
   /** Whether an earlier offer still stands in the current transport lifecycle. */
   offerCurrent?(messageId: string): boolean;
+  /** Wake-only adapters observe agent_read to coalesce and renew their signals. */
+  beforeRead?(connectionId: string): void;
+  afterRead?(connectionId: string, remaining: boolean): void;
 }
 const capabilities = {
   wakeIdle: false,
@@ -319,7 +324,10 @@ export class OpenCodeAdapter implements AgentAdapter {
 
 export class AdapterRegistry extends EventEmitter {
   private adapters = new Map<string, AgentAdapter>();
-  constructor(private readonly aionui?: AionUiSessions) {
+  constructor(
+    private readonly aionui?: AionUiSessions,
+    private readonly claude?: ClaudeSessions,
+  ) {
     super();
   }
   async configure(profiles: AdapterProfile[]): Promise<void> {
@@ -341,7 +349,9 @@ export class AdapterRegistry extends EventEmitter {
           ? new CodexDesktopAdapter(profile, changed)
           : profile.kind === 'aionui'
             ? new AionUiAdapter(profile, this.aionui!, changed, idle)
-            : new OpenCodeAdapter(profile, changed, idle);
+            : profile.kind === 'claude-code'
+              ? new ClaudeCodeAdapter(profile, this.claude!, changed, idle)
+              : new OpenCodeAdapter(profile, changed, idle);
     this.adapters.set(profile.id, adapter);
     await adapter.start();
   }

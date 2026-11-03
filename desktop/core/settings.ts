@@ -10,7 +10,7 @@ export const adapterSchema = z
   .object({
     id: z.uuid(),
     label: z.string().min(1).max(120),
-    kind: z.enum(['manual', 'opencode-http', 'codex-desktop', 'aionui']),
+    kind: z.enum(['manual', 'opencode-http', 'codex-desktop', 'aionui', 'claude-code']),
     aionConnectionId: z.uuid().optional(),
     baseUrl: z.url().optional(),
     sessionId: z.string().max(200).optional(),
@@ -29,6 +29,12 @@ export const adapterSchema = z
       ctx.addIssue({
         code: 'custom',
         message: 'The AionUi integration did not provide the current chat',
+      });
+    if (profile.kind === 'claude-code' && !z.uuid().safeParse(profile.sessionId).success)
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The Claude Code integration did not provide the current chat',
+        path: ['sessionId'],
       });
     if (profile.kind === 'codex-desktop' && !profile.threadId)
       ctx.addIssue({

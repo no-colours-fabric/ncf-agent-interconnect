@@ -200,6 +200,15 @@ export class ClientContexts {
     this.setup = work.catch(() => {});
     return work;
   }
+  /** A one-use ticket for context that the node has already verified itself. */
+  issue(context: ClientContext): string {
+    const now = Date.now();
+    for (const [key, value] of this.tickets) if (value.expires < now) this.tickets.delete(key);
+    if (this.tickets.size >= 512) this.tickets.delete(this.tickets.keys().next().value!);
+    const contextToken = randomUUID();
+    this.tickets.set(contextToken, { context, expires: now + 60000 });
+    return contextToken;
+  }
   consume(token: string): ClientContext {
     const ticket = this.tickets.get(token);
     this.tickets.delete(token);
