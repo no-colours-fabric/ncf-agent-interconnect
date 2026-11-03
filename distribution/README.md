@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.12.0
+# NCF Agent Interconnect 0.13.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
