@@ -96,6 +96,9 @@ export class AgentStore {
       CREATE TABLE IF NOT EXISTS dispatches (message_id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, state TEXT NOT NULL, error TEXT);
       UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching';
       UPDATE system_events SET dispatch_state='uncertain' WHERE dispatch_state='dispatching';
+      -- A wake signal carries no content: an interrupted offer is stale, not uncertain.
+      UPDATE dispatches SET state='offered',error=NULL WHERE state='offering';
+      UPDATE system_events SET dispatch_state='pending' WHERE dispatch_state='offering';
       PRAGMA user_version=3;`);
         if (version === 1)
           this.db.exec("ALTER TABLE transfers ADD COLUMN mode TEXT NOT NULL DEFAULT 'transfer'");

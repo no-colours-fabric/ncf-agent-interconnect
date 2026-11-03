@@ -1054,7 +1054,7 @@ export class NodeService extends EventEmitter {
       if (this.dispatching.has(key) || !adapter.status().capabilities.wakeIdle) continue;
       this.dispatching.add(key);
       const job = (async () => {
-        this.store.systemDispatch(event.id, 'dispatching');
+        this.store.systemDispatch(event.id, adapter.wakeOnly ? 'offering' : 'dispatching');
         try {
           const result = await adapter.deliver({
             nickname: event.nickname,
@@ -1064,7 +1064,11 @@ export class NodeService extends EventEmitter {
           });
           this.store.systemDispatch(event.id, result.state, result.error ?? null);
         } catch (e) {
-          this.store.systemDispatch(event.id, 'uncertain', (e as Error).message);
+          this.store.systemDispatch(
+            event.id,
+            adapter.wakeOnly ? 'failed' : 'uncertain',
+            (e as Error).message,
+          );
         } finally {
           this.dispatching.delete(key);
           this.emit('change');
@@ -1085,17 +1089,23 @@ export class NodeService extends EventEmitter {
         return (
           !previous ||
           previous.connectionId !== binding.connectionId ||
-          ['waiting', 'failed', 'admitted'].includes(previous.state)
+          ['waiting', 'failed', 'admitted'].includes(previous.state) ||
+          (previous.state === 'offered' && !adapter.offerCurrent?.(message.envelope.id))
         );
       });
       if (!row) continue;
       this.dispatching.add(dispatchKey);
       const job = (async () => {
         let admitted = false,
+          offered = false,
           submitting = false;
         try {
           this.store.assertOwner(binding.connectionId);
-          this.store.dispatch(row.envelope.id, binding.connectionId, 'dispatching');
+          this.store.dispatch(
+            row.envelope.id,
+            binding.connectionId,
+            adapter.wakeOnly ? 'offering' : 'dispatching',
+          );
           const files = await this.fileOperation(() =>
             allFileResults(
               row.envelope.attachments.map(async (file) => ({
@@ -1127,27 +1137,33 @@ export class NodeService extends EventEmitter {
               }
             },
           });
+          if (result.state === 'admitted' && adapter.wakeOnly)
+            throw new Error('A wake-only adapter cannot record message receipt');
           if (result.state === 'admitted') {
             await this.recordDelivery(binding.connectionId, [row.envelope.id]);
             admitted = true;
-          } else
-            this.store.dispatch(
-              row.envelope.id,
-              binding.connectionId,
-              result.state,
-              result.error ?? null,
-            );
+          } else {
+            // A concurrent agent_read may already have recorded receipt; keep it.
+            if (!adapter.wakeOnly || this.store.get(row.envelope.id, 'in')?.state === 'ready')
+              this.store.dispatch(
+                row.envelope.id,
+                binding.connectionId,
+                result.state,
+                result.error ?? null,
+              );
+            offered = result.state === 'offered';
+          }
         } catch (e) {
           this.store.dispatch(
             row.envelope.id,
             binding.connectionId,
-            submitting ? 'uncertain' : 'failed',
+            submitting && !adapter.wakeOnly ? 'uncertain' : 'failed',
             (e as Error).message,
           );
         } finally {
           this.dispatching.delete(dispatchKey);
           this.emit('change');
-          if (admitted) this.drainAdapters();
+          if (admitted || offered) this.drainAdapters();
         }
       })();
       this.jobs.add(job);

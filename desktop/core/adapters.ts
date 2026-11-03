@@ -10,8 +10,9 @@ import { AionUiAdapter } from './aionui-adapter.js';
 import type { AionUiSessions } from './aionui-sessions.js';
 import { CodexDesktopAdapter } from './codex-adapter.js';
 
+// 'offered' means only that a wake signal was written; it is never a receipt.
 export type Admission = {
-  state: 'admitted' | 'waiting' | 'failed' | 'uncertain' | 'revoked';
+  state: 'admitted' | 'offered' | 'waiting' | 'failed' | 'uncertain' | 'revoked';
   error?: string;
 };
 export interface AgentMessageInput {
@@ -59,6 +60,10 @@ export interface AgentAdapter {
   start(): Promise<void>;
   deliver(input: EventInput): Promise<Admission>;
   stop(): Promise<void>;
+  /** Wake-only adapters signal waiting messages; content arrives through agent_read. */
+  readonly wakeOnly?: boolean;
+  /** Whether an earlier offer still stands in the current transport lifecycle. */
+  offerCurrent?(messageId: string): boolean;
 }
 const capabilities = {
   wakeIdle: false,
