@@ -94,7 +94,8 @@ try {
     `
     import React from 'react';
     import { createRoot } from 'react-dom/client';
-    import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
+    import { ThemeProvider, CssBaseline } from '@mui/material';
+    import { theme } from ${JSON.stringify('/@fs/' + path.join(root, 'desktop/renderer/theme.ts'))};
     import { McpSetup } from ${JSON.stringify('/@fs/' + path.join(root, 'desktop/renderer/McpSetup.tsx'))};
     const invoke = async (method, params = {}) => {
       const response = await fetch('/setup', { method: 'POST', body: JSON.stringify({ method, params }) });
@@ -105,7 +106,7 @@ try {
     window.interconnect={onChange:()=>()=>{}};
     function App() {
       const [client, setClient] = React.useState('cursor');
-      return <ThemeProvider theme={createTheme()}><CssBaseline /><McpSetup client={client} onClientChange={setClient}
+      return <ThemeProvider theme={theme}><CssBaseline /><McpSetup client={client} onClientChange={setClient}
         invoke={invoke} /></ThemeProvider>;
     }
     createRoot(document.getElementById('root')).render(<App />);
