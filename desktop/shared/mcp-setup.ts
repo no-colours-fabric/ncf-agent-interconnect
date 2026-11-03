@@ -1,4 +1,7 @@
-export const mcpSetupClients = ['cursor', 'opencode', 'codex', 'aionui'] as const;
+export const mcpSetupClients = ['cursor', 'opencode', 'codex', 'aionui', 'claude'] as const;
+/** Channels in the research preview need this explicit, per-launch opt-in by the owner. */
+export const claudeLaunchCommand =
+  'claude --dangerously-load-development-channels plugin:ncf-agent-interconnect@ncf-agent-interconnect';
 export type McpSetupClient = (typeof mcpSetupClients)[number];
 export type McpSetupApplication = McpSetupClient;
 export type McpSetupFormat = 'jsonc' | 'toml';

@@ -70,6 +70,14 @@ export const mcpSetupEnglish = {
   cursorNext: 'Reconnect MCP in Cursor to use these settings.',
   opencodeNext: 'Restart OpenCode v1 to use these settings.',
   codexNext: 'Reconnect MCP in the selected Codex instance or profile to use these settings.',
+  configureClaude: 'Configure Claude Code',
+  claudeTitle: 'Configure Claude Code',
+  claudeDescription:
+    'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables the NCF plugin published by this app in the selected user settings file and allows agent_read without a prompt, so announced messages are received and marked as received automatically. Other permission decisions stay yours. Channels are a Claude Code research preview.',
+  claudeNext:
+    'Start Claude Code with the command below, then connect an agent. Saved settings do not confirm that the channel is active.',
+  claudeLaunch: 'Start Claude Code with the NCF channel',
+  copyLaunch: 'Copy launch command',
   copyPrompt: 'Copy connection prompt',
   connect: 'Connect an agent in the client',
   connectionPrompt: 'Connect as agent <a name you choose>.',

@@ -14,6 +14,7 @@ const schema = z
         aionui: filenameSchema.optional(),
         opencode: filenameSchema.optional(),
         codex: filenameSchema.optional(),
+        claude: filenameSchema.optional(),
       })
       .strict(),
   })

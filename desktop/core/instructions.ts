@@ -1,4 +1,6 @@
 import type { McpInstructions } from '../shared/contracts.js';
+import { claudePlugin, claudeToolPrefix } from '../integrations/claude-code.js';
+import { claudeLaunchCommand } from '../shared/mcp-setup.js';
 
 export function mcpInstructions(
   url: string,
@@ -6,8 +8,32 @@ export function mcpInstructions(
   client: string,
   openCodePlugin: string,
   aionConfiguration?: string,
+  claudeMarketplace?: string,
 ): McpInstructions {
   const testPrompt = 'Connect as agent <a name you choose>.';
+  if (client === 'claude') {
+    if (!claudeMarketplace) throw new Error('The Claude Code plugin is unavailable.');
+    return {
+      client,
+      location: 'Claude Code user settings — ~/.claude/settings.json',
+      text: 'Apply enables the NCF plugin from the marketplace published by this app and allows agent_read without a prompt, so announced messages are received and their receipt is recorded automatically. Other permissions stay yours. Start Claude Code with the command below so the NCF channel can announce messages.',
+      configuration: JSON.stringify(
+        {
+          extraKnownMarketplaces: {
+            [claudePlugin.marketplace]: {
+              source: { source: 'directory', path: claudeMarketplace },
+            },
+          },
+          enabledPlugins: { [claudePlugin.name + '@' + claudePlugin.marketplace]: true },
+          permissions: { allow: [claudeToolPrefix + 'agent_read'] },
+        },
+        null,
+        2,
+      ),
+      testPrompt,
+      launchCommand: claudeLaunchCommand,
+    };
+  }
   if (client === 'aionui') {
     if (!aionConfiguration) throw new Error('The AionUi bridge configuration is unavailable.');
     return {

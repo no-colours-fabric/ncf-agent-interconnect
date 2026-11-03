@@ -542,7 +542,9 @@ function App(): React.JSX.Element {
                       ? 'codex'
                       : kind === 'aionui'
                         ? 'aionui'
-                        : 'cursor',
+                        : kind === 'claude-code'
+                          ? 'claude'
+                          : 'cursor',
                 );
                 setPage('mcp');
               }}

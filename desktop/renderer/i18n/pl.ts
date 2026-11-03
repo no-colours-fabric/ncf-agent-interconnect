@@ -10,6 +10,8 @@ export const pl: Messages = {
   mcpSetup_aionConfigureAccess: 'Skonfiguruj dostęp',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'Połącz Cursor Agent w AionUi. Dostęp, zapisane ustawienia MCP i aktywny most to osobne stany.',
   mcpSetup_aionPairTitle: 'Dostęp do AionUi',
@@ -79,6 +81,14 @@ export const pl: Messages = {
     'Połącz ponownie MCP w wybranej instancji lub profilu Codex, aby użyć tych ustawień.',
   mcpSetup_copyPrompt: 'Kopiuj polecenie połączenia',
   mcpSetup_connect: 'Połącz agenta w kliencie',
+  mcpSetup_configureClaude: 'Skonfiguruj Claude Code',
+  mcpSetup_claudeTitle: 'Skonfiguruj Claude Code',
+  mcpSetup_claudeDescription:
+    'Połącz interaktywny Claude Code z NCF Agent Interconnect. Apply włącza wtyczkę NCF opublikowaną przez tę aplikację w wybranym pliku ustawień użytkownika i zezwala na agent_read bez pytania, aby ogłoszone wiadomości były automatycznie odbierane i oznaczane jako odebrane. Pozostałe decyzje o uprawnieniach należą do Ciebie. Kanały to wersja zapoznawcza badań Claude Code.',
+  mcpSetup_claudeNext:
+    'Uruchom Claude Code poniższym poleceniem, a następnie połącz agenta. Zapisane ustawienia nie potwierdzają, że kanał jest aktywny.',
+  mcpSetup_claudeLaunch: 'Uruchom Claude Code z kanałem NCF',
+  mcpSetup_copyLaunch: 'Kopiuj polecenie uruchomienia',
   mcpSetup_connectionPrompt: 'Połącz się jako agent <wybrana przez ciebie nazwa>.',
 
   agentsColumnName: 'Nazwa',

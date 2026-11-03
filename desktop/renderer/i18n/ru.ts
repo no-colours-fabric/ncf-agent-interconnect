@@ -10,6 +10,8 @@ export const ru: Messages = {
   mcpSetup_aionConfigureAccess: 'Настроить доступ',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'Подключение Cursor Agent внутри AionUi. Доступ, сохранённые настройки MCP и работающий мост — отдельные состояния.',
   mcpSetup_aionPairTitle: 'Доступ к AionUi',
@@ -78,6 +80,14 @@ export const ru: Messages = {
     'Переподключите MCP в выбранном экземпляре или профиле Codex, чтобы использовать эти настройки.',
   mcpSetup_copyPrompt: 'Скопировать запрос подключения',
   mcpSetup_connect: 'Подключить агента в клиенте',
+  mcpSetup_configureClaude: 'Настроить Claude Code',
+  mcpSetup_claudeTitle: 'Настроить Claude Code',
+  mcpSetup_claudeDescription:
+    'Подключите интерактивный Claude Code к NCF Agent Interconnect. Apply включает плагин NCF, опубликованный этим приложением, в выбранном файле пользовательских настроек и разрешает agent_read без запроса, чтобы объявленные сообщения принимались и автоматически отмечались как полученные. Остальные решения о разрешениях остаются за вами. Каналы — исследовательская предварительная версия Claude Code.',
+  mcpSetup_claudeNext:
+    'Запустите Claude Code командой ниже, затем подключите агента. Сохранённые настройки не подтверждают, что канал активен.',
+  mcpSetup_claudeLaunch: 'Запуск Claude Code с каналом NCF',
+  mcpSetup_copyLaunch: 'Копировать команду запуска',
   mcpSetup_connectionPrompt: 'Подключись как агент <выбранное вами имя>.',
 
   agentsColumnName: 'Имя',

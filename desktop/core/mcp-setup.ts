@@ -86,17 +86,24 @@ export class McpSetupService {
       this.env.XDG_CONFIG_HOME && path.isAbsolute(this.env.XDG_CONFIG_HOME)
         ? this.env.XDG_CONFIG_HOME
         : path.join(this.home, '.config');
+    // Claude Code keeps user settings in settings.json; its ~/.claude.json is never edited.
+    const claudeHome =
+      this.env.CLAUDE_CONFIG_DIR && path.isAbsolute(this.env.CLAUDE_CONFIG_DIR)
+        ? this.env.CLAUDE_CONFIG_DIR
+        : path.join(this.home, '.claude');
     const candidates =
-      client === 'cursor' || client === 'aionui'
-        ? [path.join(this.home, '.cursor', 'mcp.json')]
-        : client === 'codex'
-          ? [path.join(codexHome, 'config.toml')]
-          : [
-              ...(this.env.OPENCODE_CONFIG ? [this.env.OPENCODE_CONFIG] : []),
-              ...['opencode.json', 'opencode.jsonc'].map((name) =>
-                path.join(configHome, 'opencode', name),
-              ),
-            ];
+      client === 'claude'
+        ? [path.join(claudeHome, 'settings.json')]
+        : client === 'cursor' || client === 'aionui'
+          ? [path.join(this.home, '.cursor', 'mcp.json')]
+          : client === 'codex'
+            ? [path.join(codexHome, 'config.toml')]
+            : [
+                ...(this.env.OPENCODE_CONFIG ? [this.env.OPENCODE_CONFIG] : []),
+                ...['opencode.json', 'opencode.jsonc'].map((name) =>
+                  path.join(configHome, 'opencode', name),
+                ),
+              ];
     const paths = [
       ...new Set([...(remembered ? [remembered] : []), ...candidates.filter(path.isAbsolute)]),
     ];
@@ -192,9 +199,14 @@ export class McpSetupService {
     if (targets.length !== 1 || targets[0].id !== 'configuration')
       throw new SetupError('Select the configuration file for this client');
     const candidate = this.resolvePath(targets[0].path);
-    const extensions = client === 'codex' ? ['.toml'] : ['.json', '.jsonc'];
+    const extensions =
+      client === 'codex' ? ['.toml'] : client === 'claude' ? ['.json'] : ['.json', '.jsonc'];
     if (!extensions.includes(path.extname(candidate).toLowerCase()))
       throw new SetupError(`Select a ${extensions.join(' or ')} configuration file`);
+    if (client === 'claude' && path.basename(candidate).toLowerCase() === '.claude.json')
+      throw new SetupError(
+        'Select the Claude Code settings.json file; ~/.claude.json is managed by Claude Code',
+      );
     const filename = await this.canonicalPath(candidate);
     const source = await this.readSource(filename);
     const instructions = await this.options.instructions(client);

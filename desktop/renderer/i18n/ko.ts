@@ -10,6 +10,8 @@ export const ko: Messages = {
   mcpSetup_aionConfigureAccess: '접근 설정',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'AionUi 안에서 Cursor Agent를 연결합니다. 접근, 저장된 MCP 설정, 활성 브리지는 별도 상태입니다.',
   mcpSetup_aionPairTitle: 'AionUi 접근',
@@ -77,6 +79,14 @@ export const ko: Messages = {
     '이 설정을 사용하려면 선택한 Codex 인스턴스 또는 프로필에서 MCP를 다시 연결하세요.',
   mcpSetup_copyPrompt: '연결 프롬프트 복사',
   mcpSetup_connect: '클라이언트에서 에이전트 연결',
+  mcpSetup_configureClaude: 'Claude Code 설정',
+  mcpSetup_claudeTitle: 'Claude Code 설정',
+  mcpSetup_claudeDescription:
+    '대화형 Claude Code를 NCF Agent Interconnect에 연결합니다. Apply는 선택한 사용자 설정 파일에서 이 앱이 게시한 NCF 플러그인을 활성화하고 agent_read를 묻지 않고 허용하여, 알림된 메시지가 자동으로 수신되고 수신됨으로 표시되도록 합니다. 다른 권한 결정은 계속 사용자에게 있습니다. 채널은 Claude Code의 연구 프리뷰입니다.',
+  mcpSetup_claudeNext:
+    '아래 명령으로 Claude Code를 시작한 다음 에이전트를 연결하세요. 저장된 설정이 채널이 활성 상태임을 확인하지는 않습니다.',
+  mcpSetup_claudeLaunch: 'NCF 채널과 함께 Claude Code 시작',
+  mcpSetup_copyLaunch: '시작 명령 복사',
   mcpSetup_connectionPrompt: '에이전트 <원하는 이름>으로 연결해 주세요.',
 
   agentsColumnName: '이름',

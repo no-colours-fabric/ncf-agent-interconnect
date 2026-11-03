@@ -1304,6 +1304,7 @@ export class NodeService extends EventEmitter {
       client,
       pathToFileURL(this.openCodePlugin).href,
       aionConfiguration,
+      this.claudePluginRoot,
     );
   }
   async userCall(

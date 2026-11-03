@@ -203,7 +203,7 @@ async function launch() {
   page.on('pageerror', (error) => pageErrors.push(error));
   await page.getByRole('button', { name: 'MCP setup', exact: true }).click();
   await page.getByRole('tab', { name: 'Cursor', exact: true }).waitFor();
-  assert.equal(await page.getByRole('tab').count(), 4);
+  assert.equal(await page.getByRole('tab').count(), 5);
   // The sidebar language selector is outside the MCP setup card.
   const setupCard = page.getByRole('tabpanel').locator('..');
   assert.equal(await setupCard.getByRole('combobox').count(), 0);

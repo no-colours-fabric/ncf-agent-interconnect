@@ -215,6 +215,8 @@ export interface McpInstructions {
   text: string;
   configuration: string;
   testPrompt: string;
+  /** A command the owner runs to start the client, when the integration needs one. */
+  launchCommand?: string;
 }
 export interface DesktopBridge {
   invoke<T = unknown>(method: string, params?: unknown): Promise<T>;

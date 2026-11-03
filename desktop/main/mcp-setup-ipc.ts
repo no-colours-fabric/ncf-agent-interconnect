@@ -62,12 +62,17 @@ export function createMcpSetupHandler(
             opencode: 'OpenCode v1',
             codex: 'Codex',
             aionui: 'Cursor Agent in AionUi',
+            claude: 'Claude Code',
           }[client] +
           ' configuration',
         defaultPath,
         properties: ['openFile', 'showHiddenFiles'],
         filters: [
-          { name: 'Configuration', extensions: client === 'codex' ? ['toml'] : ['json', 'jsonc'] },
+          {
+            name: 'Configuration',
+            extensions:
+              client === 'codex' ? ['toml'] : client === 'claude' ? ['json'] : ['json', 'jsonc'],
+          },
           { name: 'All files', extensions: ['*'] },
         ],
       });
