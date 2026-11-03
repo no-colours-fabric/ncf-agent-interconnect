@@ -200,6 +200,10 @@ try {
   const configured = await fingerprint();
   assert.equal((await invoke('aionUiStatus')).bridgeConnected, false);
   await setup
+    .getByTestId('aionui-bridge-status')
+    .getByText('Bridge not connected to a verified chat', { exact: true })
+    .waitFor();
+  await setup
     .getByTestId('mcp-settings-status')
     .getByText('Settings are present', { exact: true })
     .waitFor();
@@ -257,7 +261,13 @@ try {
         (proof) => proof.accepted && !proof.hasCoreJwt && proof.hasFrontendCookie,
       ),
   );
-  await until(async () => (await invoke('aionUiStatus')).bridgeConnected);
+  // The already-open page must react to the real binding event without a
+  // status read, refresh, tab switch or other action from the test.
+  await setup
+    .getByTestId('aionui-bridge-status')
+    .getByText('Bridge connected to a verified chat', { exact: true })
+    .waitFor();
+  assert.equal((await invoke('aionUiStatus')).bridgeConnected, true);
   const settings = JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8'));
   const snapshot = await invoke('snapshot');
   sender = new Client({ name: 'synthetic-sender', version: 'fixture' });
@@ -301,6 +311,15 @@ try {
   ])
     assert.ok(!body.includes(value));
 
+  await bridge.close();
+  bridge = undefined;
+  await setup
+    .getByTestId('aionui-bridge-status')
+    .getByText('Bridge not connected to a verified chat', { exact: true })
+    .waitFor();
+  assert.equal((await invoke('aionUiStatus')).bridgeConnected, false);
+  assert.equal((await invoke('aionUiStatus')).state, 'paired');
+
   await page.screenshot({ path: path.join(root, 'release/aionui-setup.png'), fullPage: true });
   await setup.getByRole('button', { name: 'Disconnect', exact: true }).click();
   await setup.getByText('Access ended', { exact: true }).waitFor();
@@ -322,6 +341,7 @@ try {
       generatedElectronNodeBridge: true,
       exactSyntheticChatDelivery: true,
       automaticReceipt: true,
+      visibleBridgeStatusReactsToBindingAndDisconnect: true,
       durableOwnerDisconnect: true,
       clientFilesChangedOnlyOnApply: true,
       authorizationDialogGeometryStable: true,
