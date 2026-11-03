@@ -1,5 +1,27 @@
 # Changelog
 
+## 0.13.0 — 2026-11-03
+
+- Add AionUi integration for its Cursor Agent backend using owner-approved
+  loopback WebUI pairing and a bundled MCP bridge bound to the exact account
+  and conversation. Busy chats resume delivery from native completion events;
+  uncertain external requests are not replayed automatically.
+- Add separate authorization, MCP setup and live-bridge states in all fifteen
+  interface languages. Only Apply updates the selected Cursor configuration;
+  matching entries and unrelated settings remain unchanged.
+- Forward current AionUi runtime context through Cursor environment references
+  without saving its values. Reject missing, invalid or unresolved context
+  before chat registration, and keep diagnostics free of credentials.
+- Make pairing persistence atomic, cancel pending owner approval safely, and
+  verify runtime proof through the paired WebUI rather than a caller-chosen
+  endpoint. Include the AionUi setup guide with the packaged application.
+- Bound synthetic pairing and AionUi fixture teardown, preserve original test
+  failures and verify visible bridge status on both supported platforms.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+Claude Code integration is reserved for a separate release. Native verification
+and vendor-integration limits are recorded in the accompanying platform reports.
+
 ## 0.12.0 — 2026-11-02
 
 - Combine local and known remote agents in one table with confirmed online
