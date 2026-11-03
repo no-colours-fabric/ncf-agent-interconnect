@@ -105,3 +105,95 @@ test('bridge never substitutes missing host context with a guessed or recent cha
     /requires the current AionUi agent runtime/,
   );
 });
+
+test('bridge context diagnostics distinguish missing and invalid fields without exposing values', () => {
+  const valid = {
+    AIONUI_BASE_URL: 'http://127.0.0.1:1',
+    AIONUI_USER_ID: 'synthetic-private-user',
+    AIONUI_CONVERSATION_ID: 'synthetic-private-chat',
+    AIONUI_RUNTIME_TOKEN: 'synthetic-private-runtime-token',
+  };
+  const prefix = 'This MCP integration requires the current AionUi agent runtime. ';
+  const suffix = ' Restart the agent in AionUi after setup.';
+  assert.deepEqual(aionRuntimeContext(valid), {
+    baseUrl: valid.AIONUI_BASE_URL,
+    userId: valid.AIONUI_USER_ID,
+    sessionId: valid.AIONUI_CONVERSATION_ID,
+    runtimeToken: valid.AIONUI_RUNTIME_TOKEN,
+  });
+  const fields = Object.keys(valid) as (keyof typeof valid)[];
+  assert.throws(() => aionRuntimeContext({}), {
+    message: prefix + `Missing fields: ${fields.join(', ')}.` + suffix,
+  });
+  for (const field of fields) {
+    const missing: NodeJS.ProcessEnv = { ...valid };
+    delete missing[field];
+    assert.throws(() => aionRuntimeContext(missing), {
+      message: prefix + `Missing fields: ${field}.` + suffix,
+    });
+    assert.throws(() => aionRuntimeContext({ ...valid, [field]: '' }), {
+      message: prefix + `Invalid fields: ${field}.` + suffix,
+    });
+  }
+  for (const [field, value] of [
+    ['AIONUI_BASE_URL', 'synthetic-private-invalid-url'],
+    ['AIONUI_USER_ID', 'synthetic-private-user'.repeat(201)],
+    ['AIONUI_CONVERSATION_ID', 'synthetic-private-chat'.repeat(201)],
+    ['AIONUI_RUNTIME_TOKEN', 'synthetic-private-runtime-token'.repeat(8193)],
+  ])
+    assert.throws(() => aionRuntimeContext({ ...valid, [field]: value }), {
+      message: prefix + `Invalid fields: ${field}.` + suffix,
+    });
+});
+
+test('stdio context rejection returns only missing and invalid field names through MCP', async (t) => {
+  const f = await aionFixture(t);
+  const service = await temporaryNode(f.scope, 'ncf-aionui-context-diagnostic-');
+  const client = new Client({ name: 'fixture-AionUi-diagnostic', version: 'fixture' });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [
+      '--import',
+      'tsx',
+      fileURLToPath(new URL('../desktop/integrations/aionui.ts', import.meta.url)),
+      '--node-file',
+      path.join(service.directory, 'Integrations', 'node.json'),
+    ],
+    env: {
+      ...getDefaultEnvironment(),
+      AIONUI_BASE_URL: 'synthetic-private-invalid-url',
+      AIONUI_USER_ID: 'synthetic-private-user',
+      AIONUI_CONVERSATION_ID: 'synthetic-private-chat',
+    },
+    stderr: 'pipe',
+  });
+  const childExited = ownStdio(f.scope, client, transport);
+  let stderr = '';
+  transport.stderr?.on('data', (chunk) => {
+    stderr += chunk.toString();
+  });
+  f.scope.file({
+    label: 'stdio context diagnostic output assertions',
+    close: async () => {
+      assert.ok(!stderr.includes('synthetic-private-'));
+      assert.ok(childExited(), 'The owned diagnostic helper must exit before removing test data');
+    },
+  });
+  await f.scope.start('stdio diagnostic MCP connect', () => client.connect(transport));
+  const result = await client.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: 'Fixture' },
+  });
+  assert.equal(result.isError, true);
+  assert.deepEqual(result.content, [
+    {
+      type: 'text',
+      text:
+        'This MCP integration requires the current AionUi agent runtime. ' +
+        'Missing fields: AIONUI_RUNTIME_TOKEN. Invalid fields: AIONUI_BASE_URL. ' +
+        'Restart the agent in AionUi after setup.',
+    },
+  ]);
+  assert.equal(service.store.list().length, 0);
+  assert.equal(f.posts.length, 0);
+});

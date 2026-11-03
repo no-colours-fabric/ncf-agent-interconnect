@@ -24,16 +24,37 @@ const contextSchema = z
   })
   .strict();
 export function aionRuntimeContext(env: NodeJS.ProcessEnv): z.infer<typeof contextSchema> {
-  const context = contextSchema.safeParse({
+  const values = {
     baseUrl: env.AIONUI_BASE_URL,
     userId: env.AIONUI_USER_ID,
     sessionId: env.AIONUI_CONVERSATION_ID,
     runtimeToken: env.AIONUI_RUNTIME_TOKEN,
-  });
-  if (!context.success)
+  };
+  const context = contextSchema.safeParse(values);
+  if (!context.success) {
+    const fields = {
+      baseUrl: 'AIONUI_BASE_URL',
+      userId: 'AIONUI_USER_ID',
+      sessionId: 'AIONUI_CONVERSATION_ID',
+      runtimeToken: 'AIONUI_RUNTIME_TOKEN',
+    } as const;
+    const missing: string[] = [];
+    const invalid: string[] = [];
+    for (const field of Object.keys(fields) as (keyof typeof fields)[]) {
+      if (values[field] === undefined) missing.push(fields[field]);
+      else if (!contextSchema.shape[field].safeParse(values[field]).success)
+        invalid.push(fields[field]);
+    }
+    const details = [
+      missing.length ? `Missing fields: ${missing.join(', ')}.` : '',
+      invalid.length ? `Invalid fields: ${invalid.join(', ')}.` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
     throw new Error(
-      'This MCP integration requires the current AionUi agent runtime. Restart the agent in AionUi after setup.',
+      `This MCP integration requires the current AionUi agent runtime. ${details} Restart the agent in AionUi after setup.`,
     );
+  }
   return context.data;
 }
 /** Stdio MCP owns the host-provided context; no session IDs are requested from the model. */
