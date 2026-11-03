@@ -6,6 +6,7 @@ import { createTheme, type CSSObject } from '@mui/material/styles';
 // Material direction follows the approved concept and unslop by Damir Sokolovsky
 // (@heydamir), CC BY 4.0: https://github.com/heydamir/unslop.
 export const contentWidth = 1200;
+const inputLineHeight = 20 / 13;
 
 const darkTokens = {
   background: '#171819',
@@ -256,7 +257,7 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
   controlBorder: '#89765a55',
   overlayBorder: '#a8947255',
   paperHighlight: '#fff7e7b8',
-  inputBottomBorder: '#fff8ecb3',
+  inputBottomBorder: '#fff8ec66',
   inputHoverBorder: '#74604380',
   controlHoverBorder: '#806c4c88',
   paletteHover: 'rgba(110,91,65,0.055)',
@@ -269,11 +270,11 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
   softBorder: 'rgba(120,102,75,0.16)',
   softBorderHighlight: 'rgba(255,249,237,0.66)',
   insetBorder: 'rgba(120,102,75,0.24)',
-  insetBorderHighlight: 'rgba(255,249,237,0.8)',
+  insetBorderHighlight: 'rgba(255,249,237,0.4)',
   glassBorder: 'rgba(120,102,75,0.25)',
-  insetShadow: 'inset 0 1px 3px rgba(111,91,59,0.13), 0 1px 0 rgba(255,249,237,0.54)',
-  inputShadow: 'inset 0 1px 3px #6f5b3b21, 0 1px 0 #fff9ed8a',
-  inputFocusShadow: 'inset 0 1px 3px #6f5b3b21, 0 0 0 2px #3b67581f',
+  insetShadow: 'inset 0 1px 3px rgba(111,91,59,0.18), 0 1px 0 rgba(255,249,237,0.16)',
+  inputShadow: 'inset 0 1px 3px #6f5b3b2e, 0 1px 0 #fff9ed29',
+  inputFocusShadow: 'inset 0 1px 3px #6f5b3b2e, 0 0 0 2px #3b67581f',
   glassShadow: 'inset 0 1px 0 rgba(255,249,237,0.7), 0 12px 36px rgba(99,80,49,0.13)',
   selectedShadow: 'inset 0 1px 0 #fff9edb3, 0 1px 1px #67553b2b',
   selectedGlow: '0 0 6px #3b67581c',
@@ -615,6 +616,8 @@ export function createAppTheme(mode: 'dark' | 'light') {
         styleOverrides: {
           root: {
             color: designTokens.text,
+            fontSize: 13,
+            lineHeight: inputLineHeight,
             borderRadius: 8,
             backgroundColor: designTokens.insetSurface,
             backgroundImage: designTokens.insetGradient,
@@ -636,12 +639,13 @@ export function createAppTheme(mode: 'dark' | 'light') {
             borderBottomColor: designTokens.inputBottomBorder,
           },
           input: {
-            fontSize: 13,
-            padding: '10px 12px',
+            fontSize: 'inherit',
+            padding: '12px 14px',
+            '&:not(textarea)': { height: `${inputLineHeight}em` },
             '&::placeholder': { color: designTokens.muted, opacity: 1 },
             '&.Mui-disabled': { WebkitTextFillColor: designTokens.disabledText },
           },
-          multiline: { padding: '10px 12px' },
+          multiline: { padding: '12px 14px' },
         },
       },
       MuiTextField: { defaultProps: { size: 'small' } },
@@ -653,13 +657,21 @@ export function createAppTheme(mode: 'dark' | 'light') {
             '&.Mui-focused': { color: designTokens.accent },
             '&.Mui-error': { color: designTokens.error },
           },
+          outlined: {
+            lineHeight: inputLineHeight,
+            transform: 'translate(14px, 12px) scale(1)',
+            '&.MuiInputLabel-shrink': { transform: 'translate(14px, -7.5px) scale(0.75)' },
+          },
         },
       },
       MuiFormHelperText: {
         styleOverrides: { root: { color: designTokens.muted, fontSize: 12, lineHeight: 1.5 } },
       },
       MuiSelect: {
-        styleOverrides: { icon: { color: designTokens.secondary }, select: { minHeight: '1.5em' } },
+        styleOverrides: {
+          icon: { color: designTokens.secondary },
+          select: { minHeight: `${inputLineHeight}em` },
+        },
       },
       MuiListItemButton: {
         styleOverrides: {
