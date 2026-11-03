@@ -15,12 +15,15 @@ import { z } from 'zod';
 const descriptorSchema = z
   .object({ url: z.url(), token: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
+// Cursor leaves an unresolved environment reference as literal text.
+const resolvedRuntimeValue = (value: string) =>
+  !/\$\{(?:env:)?[A-Za-z_][A-Za-z0-9_]*(?::-[^}]*)?\}/.test(value);
 const contextSchema = z
   .object({
-    baseUrl: z.url(),
-    userId: z.string().min(1).max(200),
-    sessionId: z.string().min(1).max(200),
-    runtimeToken: z.string().min(1).max(8192),
+    baseUrl: z.url().refine(resolvedRuntimeValue),
+    userId: z.string().min(1).max(200).refine(resolvedRuntimeValue),
+    sessionId: z.string().min(1).max(200).refine(resolvedRuntimeValue),
+    runtimeToken: z.string().min(1).max(8192).refine(resolvedRuntimeValue),
   })
   .strict();
 export function aionRuntimeContext(env: NodeJS.ProcessEnv): z.infer<typeof contextSchema> {

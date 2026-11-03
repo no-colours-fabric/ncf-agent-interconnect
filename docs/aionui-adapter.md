@@ -25,6 +25,8 @@ not yet have a verified setup API or file workflow and are not offered as ready.
    install the bundled AionUi bridge in the selected Cursor MCP configuration.
    Matching settings stay byte-for-byte unchanged; other servers/settings are
    preserved. Updates create a private backup and remember the selected path.
+   An older bridge entry without runtime environment references needs this
+   explicit Apply action again; startup does not repair it automatically.
 5. This replaces an existing NCF entry in that global Cursor file. It also
    affects Cursor outside AionUi: those chats cannot use this AionUi-only bridge.
    To preserve another integration, select the configuration of a separate
@@ -48,8 +50,22 @@ because an MCP session expired; inspect history before deciding what to send.
 
 ## Behaviour
 
-The bridge reads the current chat and user context inherited from its AionUi
-agent host. Runtime proof is requested only through the owner-paired WebUI:
+The generated Cursor entry contains literal `${env:AIONUI_BASE_URL}`,
+`${env:AIONUI_USER_ID}`, `${env:AIONUI_CONVERSATION_ID}` and
+`${env:AIONUI_RUNTIME_TOKEN}` references. Cursor resolves them from its current
+AionUi ACP process when starting the MCP helper. This explicit mapping is
+required because the stdio transport does not inherit arbitrary environment
+variables. NCF does not resolve these references or write their values into the
+configuration or its backups. No token, account or chat identifier is requested
+from the user. Cursor documents this mechanism under
+[config interpolation](https://cursor.com/docs/mcp#config-interpolation).
+
+Outside AionUi, missing variables can remain unresolved literal references.
+The helper rejects these, including a partially unresolved context, before
+requesting runtime proof. It reports only missing or invalid field names, never
+their values. There is no fallback to another process, account or chat.
+
+Runtime proof is requested only through the owner-paired WebUI:
 its frontend cookie passes the WebUI gate, and native runtime headers reach
 that WebUI's own Core. The request excludes Core session/refresh cookies and
 Authorization, forcing Core to verify the runtime token instead of accepting
@@ -128,6 +144,23 @@ a forged loopback proof server is never contacted; a valid native token reaches
 the paired WebUI's distinct Core without a Core JWT; controlled rename failures
 leave no newly active authorization and successful retries match saved state.
 
+`test-desktop/aionui-cursor-env.test.ts` exercises the generated entry across a
+stdio environment whitelist into the real helper, including the old entry's
+failure, exact-chat admission and fully or partially unresolved references.
+It also checks owner Apply, replacement confirmation, backups, unrelated
+settings, matching no-op bytes and separate Cursor/AionUi statuses.
+
+Run it with `node --experimental-sqlite --import tsx --test
+test-desktop/aionui-cursor-env.test.ts`. By default it uses the documented
+interpolation contract and MCP SDK whitelist. To inspect a reviewed installed
+Cursor CLI bundle, set `NCF_CURSOR_CLI_BUNDLE` to its absolute `index.js` path
+before running the same test. That mode evaluates the bundle's exact pure
+resolver and whitelist functions in an isolated VM with synthetic context;
+it does not execute the CLI launcher. The reviewed build is
+`2026.10.22-27dcf5f` for macOS Apple Silicon and Windows x64. Other bundle
+fingerprints require a source review rather than silently using a substitute.
+This is a loader compatibility check, not live ACP or installed NCF acceptance.
+
 ## Supported platform gates
 
 The release targets are macOS Apple Silicon and Windows x64. Both use the
@@ -153,6 +186,6 @@ The real AionUi → Cursor Agent → MCP-helper environment chain remains a sepa
 vendor integration gate on both platforms. A backend may filter inherited
 variables; a configured RunAsNode override does not prove that the four AionUi
 context variables survived. Never persist the runtime token in the client file
-or fall back to another chat. The synthetic spawn check injects per-chat host
-context and does not establish this vendor chain. No Windows installed AionUi
+or fall back to another chat. The synthetic loader check supplies per-chat ACP
+context and does not establish this complete vendor chain. No Windows installed AionUi
 helper, real account-switch or native release package PASS is claimed here.
