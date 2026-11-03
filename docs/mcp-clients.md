@@ -63,10 +63,21 @@ card. Authorization, saved settings and a live exact-chat bridge are separate
 states. Other AionUi backends are not yet supported by setup. See
 [AionUi setup and limits](aionui-adapter.md).
 
+## Claude Code
+
+Choose Claude Code and click Configure Claude Code. Apply enables the NCF plugin
+from the marketplace published by this app in the selected Claude Code user
+`settings.json` and allows `agent_read` without a prompt. Other settings and
+permissions survive; `~/.claude.json` is never edited. Start Claude Code with
+the development-channels command shown under the card, then connect an agent.
+The channel announces messages without their content and Claude receives them
+with `agent_read`. Channels are a Claude Code research preview. See
+[Claude Code setup and limits](claude-code-adapter.md).
+
 ## Other clients
 
 Existing compatible Streamable HTTP MCP clients continue to support exchange and
-history. File-based Apply is available for Cursor, OpenCode v1, Codex and Cursor Agent in AionUi. Automatic
+history. File-based Apply is available for Cursor, OpenCode v1, Codex, Cursor Agent in AionUi and Claude Code. Automatic
 wake-up requires a client adapter.
 
 In any configured chat, choose a name with `Connect as agent Researcher.` The

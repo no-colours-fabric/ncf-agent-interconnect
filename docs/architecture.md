@@ -54,6 +54,12 @@ and WebSocket completion events. Pairing credentials are private, account
 changes invalidate old access, and uncertain admission is durable. See
 [AionUi integration](aionui-adapter.md) for setup and verification limits.
 
+Claude Code uses a plugin published by the app: a stdio channel helper and
+fixed hooks. The hooks supply session evidence; the helper proves its exact
+session before any wake. Wakes carry no content, are recorded as `offered`
+rather than as receipt, and Claude receives the message with `agent_read`. See
+[Claude Code integration](claude-code-adapter.md).
+
 Adapters receive the complete body and verified local attachment links. The
 message envelope identifies From and Reply-To. Uncertain external admission is
 not blindly retried. Restart and stream reconnection recover configured

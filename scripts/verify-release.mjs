@@ -33,6 +33,7 @@ const executable = fileURLToPath(
 );
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 assert.ok(entries.includes('/build/integrations/opencode.js'));
+assert.ok(entries.includes('/build/integrations/claude-code.js'));
 assert.ok(entries.includes('/build/core/client-contexts.js'));
 assert.ok(entries.includes('/node_modules/fast-srp-hap/LICENSE'));
 assert.ok(!entries.includes('/build/core/store.js'));
@@ -141,6 +142,81 @@ try {
     throw new Error(
       'Installed package verification: ' + (result.stderr || result.stdout).slice(-4000),
     );
+  // The Claude Code plugin runs the installed executable directly against its own archive entry.
+  const claudeWorker = path.join(extracted, 'verify-installed-claude.mjs');
+  await writeFile(
+    claudeWorker,
+    `
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+import { z } from 'zod';
+import { NodeService } from './build/core/service.js';
+import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
+const helper = process.env.NCF_INSTALLED_CLAUDE_HELPER;
+const directory = path.resolve('../isolated-claude-data'), service = new NodeService(directory);
+const nodeFile = path.join(directory, 'Integrations', 'node.json');
+const prefix = 'mcp__plugin_ncf-agent-interconnect_ncf__';
+const session = randomUUID();
+let client;
+const hook = (input) => {
+  const result = spawnSync(process.execPath, [helper, '--hook', '--node-file', nodeFile], {
+    input: JSON.stringify(input), env: { ...getDefaultEnvironment(), ELECTRON_RUN_AS_NODE: '1' },
+    encoding: 'utf8', timeout: 15000, windowsHide: true,
+  });
+  assert.equal(result.status, 0); assert.equal(result.stdout, '');
+};
+try {
+  assert.ok(process.versions.electron, 'Use the runtime shipped in the package');
+  await service.open();
+  const plugin = JSON.parse(await readFile(path.join(directory, 'Integrations/claude-code/plugin/.claude-plugin/plugin.json'), 'utf8'));
+  assert.equal(plugin.mcpServers.ncf.command, process.execPath);
+  assert.deepEqual(plugin.mcpServers.ncf.env, { ELECTRON_RUN_AS_NODE: '1' });
+  const hooks = JSON.parse(await readFile(path.join(directory, 'Integrations/claude-code/plugin/hooks/hooks.json'), 'utf8')).hooks;
+  const command = hooks.SessionStart[0].hooks[0];
+  assert.ok(process.platform === 'win32' ? command.command.includes(process.execPath.replaceAll("'", "''")) : command.args[1] === process.execPath);
+  hook({ hook_event_name: 'SessionStart', session_id: session, source: 'startup' });
+  const wakes = [];
+  client = new Client({ name: 'claude-code', version: 'package-check' });
+  client.setNotificationHandler(z.object({ method: z.literal('notifications/claude/channel'), params: z.object({ content: z.string(), meta: z.record(z.string(), z.string()).optional() }) }), async (n) => { wakes.push(n.params); });
+  await client.connect(new StdioClientTransport({ command: process.execPath, args: [helper, '--node-file', nodeFile], env: { ...getDefaultEnvironment(), ELECTRON_RUN_AS_NODE: '1', CLAUDE_CODE_SESSION_ID: session }, stderr: 'pipe' }));
+  const tools = await client.listTools();
+  assert.ok(tools.tools.some((tool) => tool.name === 'session_event'));
+  const args = { nickname: 'Пакет 漢字' };
+  hook({ hook_event_name: 'PreToolUse', session_id: session, tool_name: prefix + 'agent_connect', tool_input: args });
+  const connected = await client.callTool({ name: 'agent_connect', arguments: args });
+  assert.equal(connected.isError, undefined, JSON.stringify(connected.content));
+  const sender = service.connect({ nickname: 'Package sender', client: 'MCP' });
+  const sent = await service.send({ connectionId: sender.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Пакет 漢字', text: 'Packaged Claude wake' });
+  const deadline = Date.now() + 10000;
+  while (!wakes.length) { if (Date.now() > deadline) throw new Error('No packaged channel wake'); await new Promise((resolve) => setTimeout(resolve, 20)); }
+  assert.ok(!wakes[0].content.includes('Packaged Claude wake'));
+  assert.equal(service.store.get(sent.id, 'in').state, 'ready');
+  console.log(JSON.stringify({ claudeHelperFromArchive: true, claudeHooksExitQuietly: true, claudeChannelWake: true, claudeReceiptWithoutRead: false, liveClaudeCodeContacted: false }));
+} finally {
+  await client?.close(); await service.close();
+}
+`,
+  );
+  const claude = spawnSync(executable, [claudeWorker], {
+    cwd: extracted,
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: '1',
+      NCF_INSTALLED_CLAUDE_HELPER: path.join(archive, 'build', 'integrations', 'claude-code.js'),
+    },
+    encoding: 'utf8',
+    timeout: 60000,
+    windowsHide: true,
+  });
+  if (claude.error) throw claude.error;
+  if (claude.status !== 0)
+    throw new Error(
+      'Installed Claude Code verification: ' + (claude.stderr || claude.stdout).slice(-4000),
+    );
   const git = spawnSync('git', ['rev-parse', 'HEAD'], {
     cwd: fileURLToPath(new URL('..', import.meta.url)),
     encoding: 'utf8',
@@ -166,6 +242,7 @@ try {
     arch: process.arch,
     verifiedAt: new Date().toISOString(),
     ...JSON.parse(result.stdout.trim().split('\n').at(-1)),
+    ...JSON.parse(claude.stdout.trim().split('\n').at(-1)),
   };
   await writeFile(new URL('verification.json', release), JSON.stringify(report, null, 2) + '\n');
   console.log(JSON.stringify(report));

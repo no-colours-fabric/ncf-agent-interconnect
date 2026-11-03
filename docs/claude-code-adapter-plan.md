@@ -56,7 +56,8 @@ Each step is one or more topical commits on a linear series without merges.
 
    Tests cover Apply, Cancel, no-op, unrelated preservation and IPC.
 
-7. **Renderer and localization.** This step adds:
+7. **Renderer and localization.** Committed together with step 6, because
+   the new setup client does not type-check without its tab. This step adds:
    - a Claude Code tab and dialog;
    - application status and Applications→MCP navigation;
    - strings in all 15 dictionaries;

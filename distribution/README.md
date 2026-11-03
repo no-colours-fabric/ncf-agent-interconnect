@@ -92,6 +92,15 @@ and use the connection command. No session IDs or JSON configuration are entered
 Authorization, saved settings and a connected bridge are distinct states.
 See the included `guides/AionUi.md` for instructions and verification limits.
 
+## Claude Code
+
+Open Applications → Claude Code and configure it with the owner-operated file
+dialog and Apply. This enables the bundled NCF plugin in the selected Claude
+Code user settings and allows `agent_read` without a prompt. Start Claude Code
+with the launch command shown under the card and accept its development-channel
+warning, then use the connection command. Channels are a Claude Code research
+preview. See the included `guides/ClaudeCode.md` for limits.
+
 ## History and attachments
 
 Agents shows complete message text, participants and attachments. Open or save
