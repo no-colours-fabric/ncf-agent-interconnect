@@ -410,7 +410,6 @@ export const theme = createTheme({
           borderRadius: 16,
           minWidth: 0,
           margin: 24,
-          maxWidth: 'calc(100% - 48px)',
           maxHeight: 'calc(100% - 48px)',
           boxShadow: '0 28px 80px #0008, inset 0 1px 0 #ffffff08',
         },
@@ -575,7 +574,19 @@ export const theme = createTheme({
         track: { backgroundColor: '#6e7479' },
       },
     },
+    MuiSnackbarContent: {
+      styleOverrides: {
+        root: {
+          color: designTokens.text,
+          backgroundColor: '#242628',
+          backgroundImage: designTokens.surfaceGradient,
+        },
+      },
+    },
     MuiTooltip: {
+      defaultProps: {
+        slotProps: { popper: { popperOptions: { strategy: 'fixed' } } },
+      },
       styleOverrides: {
         tooltip: {
           color: designTokens.text,
