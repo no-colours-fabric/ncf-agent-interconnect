@@ -5,8 +5,9 @@ import path from 'node:path';
 import { z } from 'zod';
 import { atomicJson } from './settings.js';
 
-/** Qualified tool-name prefix of the plugin server; see desktop/integrations/claude-code.ts. */
-export const claudeToolPrefix = 'mcp__plugin_ncf-agent-interconnect_ncf__';
+import { claudeToolPrefix } from '../integrations/claude-code.js';
+
+export { claudeToolPrefix };
 
 const sessionId = z.uuid();
 const secret = z.string().regex(/^[a-f0-9]{64}$/);

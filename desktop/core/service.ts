@@ -31,6 +31,11 @@ import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
 import { AionUiSessions } from './aionui-sessions.js';
 import { ClaudeSessions, helperCallSchema } from './claude-sessions.js';
+import {
+  claudePluginFiles,
+  publishClaudePlugin,
+  type ClaudePluginRuntime,
+} from './claude-plugin.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
@@ -139,6 +144,27 @@ export class NodeService extends EventEmitter {
       url: this.snapshot().mcpUrl,
       token: this.settings.value.localToken,
     });
+    await publishClaudePlugin(this.claudePluginRoot, claudePluginFiles(await this.claudeRuntime()));
+  }
+  get claudePluginRoot(): string {
+    return path.join(this.directory, 'Integrations', 'claude-code');
+  }
+  async claudeRuntime(): Promise<ClaudePluginRuntime> {
+    const manifest = JSON.parse(
+      await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+    return {
+      execPath: process.execPath,
+      // Source checks run the TypeScript entry; packages run plain JavaScript.
+      runtimeArgs:
+        this.integrationExtension === 'ts' ? ['--import', import.meta.resolve('tsx')] : [],
+      script: fileURLToPath(
+        new URL('../integrations/claude-code.' + this.integrationExtension, import.meta.url),
+      ),
+      nodeFile: path.join(this.directory, 'Integrations', 'node.json'),
+      platform: process.platform,
+      version: manifest.version,
+    };
   }
   async open(): Promise<void> {
     await this.settings.load();
