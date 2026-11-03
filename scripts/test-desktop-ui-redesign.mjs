@@ -196,6 +196,21 @@ async function settled() {
     ),
   );
 }
+async function resizeWindow(size) {
+  const window = await application.browserWindow(page);
+  await window.evaluate((window, size) => window.setContentSize(size.width, size.height), size);
+  await page.waitForFunction(
+    ({ width, height }) => innerWidth === width && innerHeight === height,
+    size,
+  );
+  const native = await window.evaluate((window) => window.getContentBounds());
+  const renderer = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
+  assert.equal(page.viewportSize(), null, 'Use native window resizing without viewport emulation');
+  assert.equal(native.width, size.width, 'Native content width');
+  assert.equal(native.height, size.height, 'Native content height');
+  assert.deepEqual(renderer, size, 'Renderer must match native content bounds');
+  return { native, renderer };
+}
 async function assertContained(locator, label) {
   const box = await bounds(locator, label);
   const viewport = await page.evaluate(() => ({ width: innerWidth, height: innerHeight }));
@@ -295,7 +310,7 @@ contextBridge.exposeInMainWorld('interconnect',{
   );
   await writeFile(
     main,
-    `const{app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(path.join(temporary, 'profile'))});app.whenReady().then(()=>{const window=new BrowserWindow({width:1440,height:900,webPreferences:{preload:${JSON.stringify(preload)},contextIsolation:true,sandbox:true}});window.loadFile(${JSON.stringify(path.join(root, 'build/renderer/index.html'))});});app.on('window-all-closed',()=>app.quit());`,
+    `const{app,BrowserWindow}=require('electron');app.setPath('userData',${JSON.stringify(path.join(temporary, 'profile'))});app.whenReady().then(()=>{const window=new BrowserWindow({width:1440,height:900,enableLargerThanScreen:true,webPreferences:{preload:${JSON.stringify(preload)},contextIsolation:true,sandbox:true}});window.loadFile(${JSON.stringify(path.join(root, 'build/renderer/index.html'))});});app.on('window-all-closed',()=>app.quit());`,
     { mode: 0o600 },
   );
   application = await electron.launch({
@@ -314,7 +329,7 @@ contextBridge.exposeInMainWorld('interconnect',{
     { width: 1440, height: 900 },
     { width: 2560, height: 1100 },
   ]) {
-    await page.setViewportSize(viewport);
+    const windowSize = await resizeWindow(viewport);
     for (const screen of ['overview', 'agents', 'network', 'mcp', 'clients', 'settings']) {
       await page.getByTestId('nav-' + screen).click();
       await settled();
@@ -424,9 +439,15 @@ contextBridge.exposeInMainWorld('interconnect',{
         assert.equal(await page.getByTestId('applications-table').locator('tbody tr').count(), 4);
       await capture(screen, viewport.width);
     }
-    results.push({ ...viewport, screens: 6, drawerAtWindowEdge: true, composerVisible: true });
+    results.push({
+      ...viewport,
+      windowSize,
+      screens: 6,
+      drawerAtWindowEdge: true,
+      composerVisible: true,
+    });
   }
-  await page.setViewportSize({ width: 900, height: 620 });
+  await resizeWindow({ width: 900, height: 620 });
   for (const [locale, label] of [
     ['ru', 'Русский'],
     ['de', 'Deutsch'],
