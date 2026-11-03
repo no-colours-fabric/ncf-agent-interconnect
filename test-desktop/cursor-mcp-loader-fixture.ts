@@ -39,11 +39,18 @@ export async function cursorMcpFixtureLoader() {
   // Optional vendor evidence uses exact pure functions, never its launcher or CLI entry point.
   const bytes = await readFile(filename);
   const hash = createHash('sha256').update(bytes).digest('hex');
-  const supported = new Set([
-    '943765eeedb4fe5d4ab6d95fc839c3eaf0c070e734577409badb9dea5b0ed293',
-    'd6794834b28f88f328e4090a2c3480bc8fa7c43afe6f6d96a937148a3fc45735',
+  const reviewed = new Map([
+    [
+      '943765eeedb4fe5d4ab6d95fc839c3eaf0c070e734577409badb9dea5b0ed293',
+      { defaultsStart: 'const Ja=[', defaultsEnd: 'class Pa{', defaults: 'Ta', process: 'ka' },
+    ],
+    [
+      'd6794834b28f88f328e4090a2c3480bc8fa7c43afe6f6d96a937148a3fc45735',
+      { defaultsStart: 'const To=[', defaultsEnd: 'class Ro{', defaults: 'Po', process: 'Jo' },
+    ],
   ]);
-  if (!supported.has(hash)) throw new Error('The Cursor fixture bundle requires a source review.');
+  const symbols = reviewed.get(hash);
+  if (!symbols) throw new Error('The Cursor fixture bundle requires a source review.');
   const source = bytes.toString('utf8');
   const moduleStart = source.indexOf('"../mcp-agent-exec/dist/index.js"(t,e,r)');
   const moduleEnd = source.indexOf('},"../', moduleStart + 50);
@@ -51,8 +58,8 @@ export async function cursorMcpFixtureLoader() {
   const module = source.slice(moduleStart, moduleEnd);
   const resolverStart = module.indexOf('const ut=');
   const resolverEnd = module.indexOf('function ft(', resolverStart);
-  const defaultsStart = module.indexOf('const Ja=[');
-  const defaultsEnd = module.indexOf('class Pa{', defaultsStart);
+  const defaultsStart = module.indexOf(symbols.defaultsStart);
+  const defaultsEnd = module.indexOf(symbols.defaultsEnd, defaultsStart);
   if ([resolverStart, resolverEnd, defaultsStart, defaultsEnd].some((offset) => offset < 0))
     throw new Error('The reviewed Cursor pure functions were not found.');
   const functions =
@@ -63,8 +70,8 @@ export async function cursorMcpFixtureLoader() {
       const result: string = vm.runInNewContext(
         functions +
           '; const resolved=mt(entry, name=>ambient[name]);' +
-          'JSON.stringify({...resolved,env:{...Ta(),...resolved.env}})',
-        { entry, ambient, ka: { env: ambient }, process: { env: ambient } },
+          `JSON.stringify({...resolved,env:{...${symbols.defaults}(),...resolved.env}})`,
+        { entry, ambient, [symbols.process]: { env: ambient }, process: { env: ambient } },
         { timeout: 1000 },
       );
       return JSON.parse(result);
