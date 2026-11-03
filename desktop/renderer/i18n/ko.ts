@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  settingsAppearance: '화면 모양',
+  settingsDarkTheme: '어두운 테마',
+  settingsThemeGraphite: '그라파이트',
+  settingsThemeSand: '밝은 모래색',
+
   mcpSetup_aionBridgeDisconnected: '브리지가 검증된 채팅에 연결되지 않음',
 
   mcpSetup_aionBridgeConnected: '브리지가 검증된 채팅에 연결됨',

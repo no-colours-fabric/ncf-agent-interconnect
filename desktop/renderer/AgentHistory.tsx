@@ -4,7 +4,7 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
-import { surfaceSx } from './theme.js';
+import { designTokens, surfaceSx } from './theme.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
 const messageStateKey = (
@@ -45,11 +45,14 @@ export function AgentHistory({
             p: 2,
             width: '84%',
             alignSelf: m.direction === 'out' ? 'flex-end' : 'flex-start',
-            backgroundColor: m.direction === 'out' ? '#383d3d' : '#303235',
+            backgroundColor:
+              m.direction === 'out'
+                ? designTokens.chatOutgoingBackground
+                : designTokens.chatIncomingBackground,
             backgroundImage:
               m.direction === 'out'
-                ? 'linear-gradient(135deg, #424646, #333838)'
-                : 'linear-gradient(135deg, #37393c, #2c2e31)',
+                ? designTokens.chatOutgoingGradient
+                : designTokens.chatIncomingGradient,
             borderRadius: m.direction === 'out' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
           }}
         >

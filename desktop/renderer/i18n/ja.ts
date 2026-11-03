@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  settingsAppearance: '外観',
+  settingsDarkTheme: 'ダークテーマ',
+  settingsThemeGraphite: 'グラファイト',
+  settingsThemeSand: 'ライトサンド',
+
   mcpSetup_aionBridgeDisconnected: 'ブリッジは検証済みチャットに未接続',
 
   mcpSetup_aionBridgeConnected: 'ブリッジは検証済みチャットに接続済み',

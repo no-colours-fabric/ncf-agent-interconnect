@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  settingsAppearance: 'Безендіру',
+  settingsDarkTheme: 'Қараңғы тақырып',
+  settingsThemeGraphite: 'Графит',
+  settingsThemeSand: 'Ашық құм түсті',
+
   mcpSetup_aionBridgeDisconnected: 'Көпір тексерілген чатқа қосылмаған',
 
   mcpSetup_aionBridgeConnected: 'Көпір тексерілген чатқа қосылған',

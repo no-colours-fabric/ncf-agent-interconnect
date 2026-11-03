@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  settingsAppearance: 'Görünüm',
+  settingsDarkTheme: 'Koyu tema',
+  settingsThemeGraphite: 'Grafit',
+  settingsThemeSand: 'Açık kum',
+
   mcpSetup_aionBridgeDisconnected: 'Köprü doğrulanmış sohbete bağlı değil',
 
   mcpSetup_aionBridgeConnected: 'Köprü doğrulanmış sohbete bağlı',

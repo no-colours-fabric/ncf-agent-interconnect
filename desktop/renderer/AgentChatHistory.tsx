@@ -132,12 +132,18 @@ export function AgentChatHistory({
                   p: 2,
                   maxWidth: '84%',
                   minWidth: 0,
-                  backgroundColor: outgoing ? '#383d3d' : '#303235',
+                  backgroundColor: outgoing
+                    ? designTokens.chatOutgoingBackground
+                    : designTokens.chatIncomingBackground,
                   backgroundImage: outgoing
-                    ? 'linear-gradient(135deg, #424646, #333838)'
-                    : 'linear-gradient(135deg, #37393c, #2c2e31)',
-                  borderColor: outgoing ? '#a5b7b119' : '#ffffff13',
-                  borderTopColor: outgoing ? '#c7d5d329' : '#ffffff20',
+                    ? designTokens.chatOutgoingGradient
+                    : designTokens.chatIncomingGradient,
+                  borderColor: outgoing
+                    ? designTokens.chatOutgoingBorder
+                    : designTokens.chatIncomingBorder,
+                  borderTopColor: outgoing
+                    ? designTokens.chatOutgoingBorderHighlight
+                    : designTokens.chatIncomingBorderHighlight,
                   borderRadius: outgoing ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
                 }}
               >

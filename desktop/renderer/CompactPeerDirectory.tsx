@@ -56,7 +56,8 @@ export function CompactPeerDirectory({
                     px: 1,
                     py: 0.75,
                     minHeight: 36,
-                    borderBottom: '1px solid #e2e7ec',
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
                     '&:hover, &.Mui-focusVisible': { bgcolor: 'action.hover' },
                     '&.Mui-focusVisible': {
                       outline: '2px solid',

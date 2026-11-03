@@ -7,20 +7,156 @@ import { createTheme, type CSSObject } from '@mui/material/styles';
 // (@heydamir), CC BY 4.0: https://github.com/heydamir/unslop.
 export const contentWidth = 1200;
 
-export const designTokens = {
+const darkTokens = {
   background: '#171819',
   text: '#ededee',
   secondary: '#b1b3b7',
-  muted: '#8d9096',
+  muted: '#909399',
   accent: '#9dc8bb',
+  accentHover: '#badcd1',
+  accentContrast: '#17231e',
+  primary: '#e5e7e9',
+  primaryDark: '#cfd2d4',
+  primaryText: '#222426',
+  primaryHoverText: '#1c1e20',
+  primaryButtonBackground: '#dfe1e3',
+  primaryButtonHoverBackground: '#eceeef',
+  primaryButtonBorder: '#f4f4f5',
+  primaryButtonHoverBorder: '#fff',
+  primaryButtonGradient: 'linear-gradient(#eeeeef, #cfd2d4)',
+  primaryButtonHoverGradient: 'linear-gradient(#fff, #e0e3e5)',
+  primaryButtonShadow: 'inset 0 1px 0 #fff, 0 1px 2px #0004',
+  primaryControlShadow: 'inset 0 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.18)',
+  secondaryButtonBackground: '#2e3032',
+  secondaryButtonHoverBackground: '#393b3d',
+  secondaryButtonGradient: 'linear-gradient(#36383a, #2a2c2e)',
+  secondaryButtonHoverGradient: 'linear-gradient(#404245, #303235)',
+  secondaryButtonShadow: 'inset 0 1px 0 #ffffff0c, 0 1px 2px #0004',
+  error: '#d6a0a5',
+  errorContrast: '#2a181b',
+  errorBorder: '#e3b4b8',
+  errorHover: '#e4b3b7',
+  errorHoverBorder: '#edc7ca',
+  errorButtonBackground: '#e2b4b8',
+  errorButtonGradient: 'linear-gradient(#e2b4b8, #c48f95)',
+  errorButtonHoverGradient: 'linear-gradient(#edc7ca, #d5a0a6)',
+  errorButtonShadow: 'inset 0 1px 0 #ffffff35, 0 2px 4px #0003',
+  errorHoverSurface: '#d6a0a50c',
+  errorAlertBackground: '#33262a',
+  errorAlertText: '#edc4c7',
+  errorAlertBorder: '#d6a0a524',
+  errorOutlineBorder: '#d6a0a535',
+  errorOutlineHoverBorder: '#d6a0a566',
+  warning: '#d2bb91',
+  warningContrast: '#282115',
+  warningAlertBackground: '#302c24',
+  warningAlertText: '#ded0b7',
+  warningAlertBorder: '#d2bb9124',
+  info: '#afc2ce',
+  infoContrast: '#17212a',
+  infoAlertBackground: '#252d32',
+  infoAlertText: '#cfdae0',
+  infoAlertBorder: '#afc2ce24',
+  successAlertBackground: '#26322e',
+  successAlertText: '#c4d9d1',
+  successAlertBorder: '#9dc8bb24',
+  surface: '#242628',
+  softSurface: '#202224',
+  insetSurface: '#191b1d',
+  glassSurface: '#2b2d2f',
+  glassFallbackGradient: 'linear-gradient(145deg, #353739, #252729)',
+  disabledText: '#777c82',
+  disabledBackground: '#27292b',
+  iconDisabled: '#62676d',
+  selectedBackground: '#2d2f31',
+  tableHeadBackground: '#292b2d',
+  tooltipBackground: '#343638',
+  tooltipText: '#ededee',
+  avatarBackground: '#383b3d',
+  avatarText: '#c0c4c6',
+  avatarGradient: 'linear-gradient(#45484b, #313437)',
+  avatarBorder: '#ffffff15',
+  avatarShadow: 'inset 0 1px 0 #ffffff0d',
+  switchThumb: '#b4b8bd',
+  switchTrack: '#6e7479',
+  scrollbars: '#53575c #1d1f21',
+  selection: '#9dc8bb40',
+  linkDecoration: '#9dc8bb66',
+  accentHoverSurface: '#9dc8bb0a',
+  subtleHover: '#ffffff03',
+  actionHover: '#ffffff05',
+  navigationHover: '#ffffff06',
+  iconHover: '#ffffff07',
+  subtleBorder: '#ffffff0a',
+  dividerBorder: '#ffffff0b',
+  disabledBorder: '#ffffff0c',
+  paperOutline: '#ffffff10',
+  selectedHover: '#ffffff12',
+  chipBorder: '#ffffff14',
+  selectedBorder: '#ffffff16',
+  inputBorder: '#ffffff17',
+  controlBorder: '#ffffff18',
+  overlayBorder: '#ffffff1a',
+  paperHighlight: '#ffffff20',
+  inputBottomBorder: '#ffffff24',
+  inputHoverBorder: '#ffffff2d',
+  controlHoverBorder: '#ffffff30',
+  paletteHover: 'rgba(255,255,255,0.035)',
+  paletteSelected: 'rgba(255,255,255,0.075)',
+  paletteFocus: 'rgba(157,200,187,0.12)',
+  paletteDisabledBackground: 'rgba(255,255,255,0.055)',
   border: 'rgba(255,255,255,0.09)',
   borderHighlight: 'rgba(255,255,255,0.16)',
+  surfaceBorderHighlight: 'rgba(255,255,255,0.125)',
+  softBorder: 'rgba(255,255,255,0.05)',
+  softBorderHighlight: 'rgba(255,255,255,0.08)',
+  insetBorder: 'rgba(255,255,255,0.07)',
+  insetBorderHighlight: 'rgba(255,255,255,0.14)',
+  glassBorder: 'rgba(255,255,255,0.095)',
+  insetShadow: 'inset 0 1px 3px rgba(0,0,0,0.36), 0 1px 0 rgba(255,255,255,0.012)',
+  inputShadow: 'inset 0 1px 3px #0006, 0 1px 0 #ffffff03',
+  inputFocusShadow: 'inset 0 1px 3px #0006, 0 0 0 2px #9dc8bb14',
+  glassShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 36px rgba(0,0,0,0.25)',
+  selectedShadow: 'inset 0 1px 0 #ffffff10, 0 1px 1px #0008',
+  selectedGlow: '0 0 8px #9dc8bb30',
+  tabGlow: '0 0 8px #9dc8bb25',
+  tabShadow: 'inset 0 1px 0 #ffffff09',
+  chipShadow: 'inset 0 1px 0 #ffffff04',
+  tableHeadBorder: '#101213',
+  tableHeadShadow: '0 1px 0 #ffffff07',
+  tableHeadGradient: 'linear-gradient(#ffffff02, #00000009)',
+  drawerShadow: '-20px 0 60px #0005, inset 1px 0 0 #ffffff08',
+  backdrop: '#08090a80',
+  dialogShadow: '0 28px 80px #0008, inset 0 1px 0 #ffffff08',
+  dialogTitleBorder: '#ffffff0d',
+  dialogActionsBackground: '#10121426',
+  dividerShadow: '0 -1px 0 #0004',
+  tooltipShadow: '0 4px 12px #0005',
+  sidebarBorder: '#090a0b',
+  sidebarShadow: 'inset -1px 0 0 #ffffff0b',
+  headerBorder: '#0008',
+  headerShadow: '0 1px 0 #ffffff09',
+  headerGradient: 'linear-gradient(110deg, #ffffff03, transparent)',
+  headerBackground: '#1c1e20e6',
+  composerBackground: '#1b1d1f66',
+  chatIncomingBackground: '#303235',
+  chatIncomingGradient: 'linear-gradient(135deg, #37393c, #2c2e31)',
+  chatIncomingBorder: '#ffffff13',
+  chatIncomingBorderHighlight: '#ffffff20',
+  chatOutgoingBackground: '#383d3d',
+  chatOutgoingGradient: 'linear-gradient(135deg, #424646, #333838)',
+  chatOutgoingBorder: '#a5b7b119',
+  chatOutgoingBorderHighlight: '#c7d5d329',
   backgroundGradient:
     'radial-gradient(ellipse at 5% 1%, #4a4c4e88, transparent 34%), radial-gradient(ellipse at 100% 72%, #3c414333, transparent 55%), linear-gradient(122deg, #161718 20%, #202122 68%, #171819)',
+  shellBackgroundGradient:
+    'radial-gradient(ellipse at 5% 0%, #4a4c4e55, transparent 34%), radial-gradient(ellipse at 100% 72%, #3c414333, transparent 55%), linear-gradient(122deg, #161718 20%, #202122 68%, #171819)',
   surfaceGradient: 'linear-gradient(135deg, #2b2d2f, #202224 48%, #242628)',
   softGradient: 'linear-gradient(120deg, #242628, #1e2022)',
   insetGradient: 'linear-gradient(#151718, #1c1e20)',
   activeGradient: 'linear-gradient(#36383a, #292b2c)',
+  activeHoverGradient: 'linear-gradient(#3d3f41, #2e3032)',
+  tabActiveGradient: 'linear-gradient(#343638, #282a2c)',
   sidebarGradient: 'linear-gradient(150deg, #313334c4, #1a1b1cd9 55%, #17191ac9)',
   glassGradient: 'linear-gradient(145deg, #393b3dc4, #232527c4)',
   surfaceShadow:
@@ -29,44 +165,209 @@ export const designTokens = {
   statusGlow: '0 0 8px rgba(157,200,187,0.36)',
 } as const;
 
+const lightTokens: Record<keyof typeof darkTokens, string> = {
+  background: '#ece5d9',
+  text: '#29261f',
+  secondary: '#615b50',
+  muted: '#625a4e',
+  accent: '#365f50',
+  accentHover: '#294e41',
+  accentContrast: '#f2f1e7',
+  primary: '#464238',
+  primaryDark: '#343128',
+  primaryText: '#f4eee4',
+  primaryHoverText: '#fff8ee',
+  primaryButtonBackground: '#444137',
+  primaryButtonHoverBackground: '#37342c',
+  primaryButtonBorder: '#39352c',
+  primaryButtonHoverBorder: '#28251e',
+  primaryButtonGradient: 'linear-gradient(#514d43, #37342d)',
+  primaryButtonHoverGradient: 'linear-gradient(#464238, #2f2c25)',
+  primaryButtonShadow: 'inset 0 1px 0 #ffffff20, 0 1px 2px #51422b24',
+  primaryControlShadow: 'inset 0 1px 0 #ffffff20, 0 2px 4px #51422b20',
+  secondaryButtonBackground: '#e4d9c8',
+  secondaryButtonHoverBackground: '#eee5d8',
+  secondaryButtonGradient: 'linear-gradient(#f2eadf, #e2d6c6)',
+  secondaryButtonHoverGradient: 'linear-gradient(#f7f0e7, #e7dcca)',
+  secondaryButtonShadow: 'inset 0 1px 0 #fff9edb3, 0 1px 2px #76624424',
+  error: '#97434e',
+  errorContrast: '#fff3ec',
+  errorBorder: '#9c4a52',
+  errorHover: '#873b45',
+  errorHoverBorder: '#813943',
+  errorButtonBackground: '#97434e',
+  errorButtonGradient: 'linear-gradient(#97434e, #7f3742)',
+  errorButtonHoverGradient: 'linear-gradient(#91414c, #75313b)',
+  errorButtonShadow: 'inset 0 1px 0 #ffffff2b, 0 2px 4px #74424b24',
+  errorHoverSurface: '#9f4c550d',
+  errorAlertBackground: '#efded8',
+  errorAlertText: '#7b3741',
+  errorAlertBorder: '#a34c5540',
+  errorOutlineBorder: '#9f4c5559',
+  errorOutlineHoverBorder: '#9f4c5580',
+  warning: '#8b6529',
+  warningContrast: '#fff2d6',
+  warningAlertBackground: '#eee0c1',
+  warningAlertText: '#685126',
+  warningAlertBorder: '#b4946040',
+  info: '#405f71',
+  infoContrast: '#f3f2e9',
+  infoAlertBackground: '#e1e7e5',
+  infoAlertText: '#355060',
+  infoAlertBorder: '#65839240',
+  successAlertBackground: '#e1e7d8',
+  successAlertText: '#315344',
+  successAlertBorder: '#69887540',
+  surface: '#f1e9dd',
+  softSurface: '#e7decf',
+  insetSurface: '#e5dbcc',
+  glassSurface: '#e7ddcf',
+  glassFallbackGradient: 'linear-gradient(145deg, #f4ebdf, #e3d7c6)',
+  disabledText: '#8c8273',
+  disabledBackground: '#ded3c2',
+  iconDisabled: '#a59885',
+  selectedBackground: '#dfd3c0',
+  tableHeadBackground: '#e4d9c8',
+  tooltipBackground: '#50493e',
+  tooltipText: '#f4eee4',
+  avatarBackground: '#e2d7c6',
+  avatarText: '#625848',
+  avatarGradient: 'linear-gradient(#f0e7da, #d9cdba)',
+  avatarBorder: '#b6a58b66',
+  avatarShadow: 'inset 0 1px 0 #fff9eea6',
+  switchThumb: '#7e705b',
+  switchTrack: '#a99b83',
+  scrollbars: '#a99a80 #e6ddcf',
+  selection: '#3b675833',
+  linkDecoration: '#3b675866',
+  accentHoverSurface: '#3b67580d',
+  subtleHover: '#6e5b4108',
+  actionHover: '#6e5b410c',
+  navigationHover: '#6e5b410d',
+  iconHover: '#6e5b4112',
+  subtleBorder: '#78684f24',
+  dividerBorder: '#83735b29',
+  disabledBorder: '#80705a2b',
+  paperOutline: '#7b695036',
+  selectedHover: '#6e5b4124',
+  chipBorder: '#907e6140',
+  selectedBorder: '#8e7b5f55',
+  inputBorder: '#89765a55',
+  controlBorder: '#89765a55',
+  overlayBorder: '#a8947255',
+  paperHighlight: '#fff7e7b8',
+  inputBottomBorder: '#fff8ecb3',
+  inputHoverBorder: '#74604380',
+  controlHoverBorder: '#806c4c88',
+  paletteHover: 'rgba(110,91,65,0.055)',
+  paletteSelected: 'rgba(110,91,65,0.10)',
+  paletteFocus: 'rgba(59,103,88,0.14)',
+  paletteDisabledBackground: 'rgba(110,91,65,0.085)',
+  border: 'rgba(120,102,75,0.21)',
+  borderHighlight: 'rgba(255,249,237,0.82)',
+  surfaceBorderHighlight: 'rgba(255,249,237,0.8)',
+  softBorder: 'rgba(120,102,75,0.16)',
+  softBorderHighlight: 'rgba(255,249,237,0.66)',
+  insetBorder: 'rgba(120,102,75,0.24)',
+  insetBorderHighlight: 'rgba(255,249,237,0.8)',
+  glassBorder: 'rgba(120,102,75,0.25)',
+  insetShadow: 'inset 0 1px 3px rgba(111,91,59,0.13), 0 1px 0 rgba(255,249,237,0.54)',
+  inputShadow: 'inset 0 1px 3px #6f5b3b21, 0 1px 0 #fff9ed8a',
+  inputFocusShadow: 'inset 0 1px 3px #6f5b3b21, 0 0 0 2px #3b67581f',
+  glassShadow: 'inset 0 1px 0 rgba(255,249,237,0.7), 0 12px 36px rgba(99,80,49,0.13)',
+  selectedShadow: 'inset 0 1px 0 #fff9edb3, 0 1px 1px #67553b2b',
+  selectedGlow: '0 0 6px #3b67581c',
+  tabGlow: '0 0 6px #3b675818',
+  tabShadow: 'inset 0 1px 0 #fff9edb3',
+  chipShadow: 'inset 0 1px 0 #fff9ed66',
+  tableHeadBorder: '#b9aa914d',
+  tableHeadShadow: '0 1px 0 #fff9ed8a',
+  tableHeadGradient: 'linear-gradient(#fff9ed1a, #76624409)',
+  drawerShadow: '-20px 0 60px #5b472626, inset 1px 0 0 #fff9ed99',
+  backdrop: '#4b42374d',
+  dialogShadow: '0 28px 80px #5b472633, inset 0 1px 0 #fff9ed99',
+  dialogTitleBorder: '#8f7c5e33',
+  dialogActionsBackground: '#cbb99b26',
+  dividerShadow: '0 -1px 0 #fff9ed66',
+  tooltipShadow: '0 4px 12px #5b472633',
+  sidebarBorder: '#a8977b66',
+  sidebarShadow: 'inset -1px 0 0 #fff9ed99',
+  headerBorder: '#92846c47',
+  headerShadow: '0 1px 0 #fff9ed99',
+  headerGradient: 'linear-gradient(110deg, #fff9ed33, transparent)',
+  headerBackground: '#ece3d6e6',
+  composerBackground: '#dfd3c080',
+  chatIncomingBackground: '#e7dccb',
+  chatIncomingGradient: 'linear-gradient(135deg, #eee5d7, #e1d4c1)',
+  chatIncomingBorder: '#8c7d6540',
+  chatIncomingBorderHighlight: '#fff4e7cc',
+  chatOutgoingBackground: '#dae3d5',
+  chatOutgoingGradient: 'linear-gradient(135deg, #e5eadf, #d2decd)',
+  chatOutgoingBorder: '#6c887b4d',
+  chatOutgoingBorderHighlight: '#f4faf2c9',
+  backgroundGradient:
+    'radial-gradient(ellipse at 5% 1%, #c9bca688, transparent 34%), radial-gradient(ellipse at 100% 72%, #cbbca333, transparent 55%), linear-gradient(122deg, #e9dfd0 20%, #f1eadf 68%, #e8dfd1)',
+  shellBackgroundGradient:
+    'radial-gradient(ellipse at 5% 0%, #c9bca655, transparent 34%), radial-gradient(ellipse at 100% 72%, #cbbca333, transparent 55%), linear-gradient(122deg, #e9dfd0 20%, #f1eadf 68%, #e8dfd1)',
+  surfaceGradient: 'linear-gradient(135deg, #f4eee4, #e8dfd1 48%, #eee4d6)',
+  softGradient: 'linear-gradient(120deg, #eee5d8, #e2d8c9)',
+  insetGradient: 'linear-gradient(#ddd2c0, #eee4d7)',
+  activeGradient: 'linear-gradient(#eadfce, #d9ccb8)',
+  activeHoverGradient: 'linear-gradient(#eee5d6, #dfd3bf)',
+  tabActiveGradient: 'linear-gradient(#ebdfcd, #dfd1bb)',
+  sidebarGradient: 'linear-gradient(150deg, #dfd3c0c4, #ece3d6d9 55%, #ded2bfc9)',
+  glassGradient: 'linear-gradient(145deg, #f5ede0d6, #e8ddcdd6)',
+  surfaceShadow:
+    'inset 0 1px 0 rgba(255,249,237,0.45), inset 1px 0 0 rgba(255,249,237,0.22), 0 1px 2px rgba(99,80,49,0.12)',
+  focusRing: '0 0 0 2px #ece5d9, 0 0 0 4px #3b6758',
+  statusGlow: '0 0 6px rgba(59,103,88,0.18)',
+};
+
+type DesignTokens = { readonly [Key in keyof typeof darkTokens]: string };
+const variableName = (name: string) =>
+  `--ncf-${name.replace(/[A-Z]/g, (letter) => '-' + letter.toLowerCase())}`;
+export const designTokens = Object.fromEntries(
+  Object.entries(darkTokens).map(([name, value]) => [name, `var(${variableName(name)}, ${value})`]),
+) as DesignTokens;
+
 export function surfaceSx(kind: 'default' | 'soft' | 'glass' | 'inset' = 'default'): CSSObject {
   const base: CSSObject = {
     minWidth: 0,
-    backgroundColor: '#242628',
+    backgroundColor: designTokens.surface,
     backgroundImage: designTokens.surfaceGradient,
     border: `1px solid ${designTokens.border}`,
-    borderTopColor: 'rgba(255,255,255,0.125)',
+    borderTopColor: designTokens.surfaceBorderHighlight,
     borderRadius: '12px',
     boxShadow: designTokens.surfaceShadow,
   };
   if (kind === 'soft') {
     return {
       ...base,
-      backgroundColor: '#202224',
+      backgroundColor: designTokens.softSurface,
       backgroundImage: designTokens.softGradient,
-      borderColor: 'rgba(255,255,255,0.05)',
-      borderTopColor: 'rgba(255,255,255,0.08)',
+      borderColor: designTokens.softBorder,
+      borderTopColor: designTokens.softBorderHighlight,
     };
   }
   if (kind === 'inset') {
     return {
       ...base,
-      backgroundColor: '#191b1d',
+      backgroundColor: designTokens.insetSurface,
       backgroundImage: designTokens.insetGradient,
-      borderColor: 'rgba(255,255,255,0.07)',
-      borderBottomColor: 'rgba(255,255,255,0.14)',
+      borderColor: designTokens.insetBorder,
+      borderBottomColor: designTokens.insetBorderHighlight,
       borderRadius: '8px',
-      boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.36), 0 1px 0 rgba(255,255,255,0.012)',
+      boxShadow: designTokens.insetShadow,
     };
   }
   if (kind === 'glass') {
     return {
       ...base,
-      backgroundColor: '#2b2d2f',
-      backgroundImage: 'linear-gradient(145deg, #353739, #252729)',
-      borderColor: 'rgba(255,255,255,0.095)',
+      backgroundColor: designTokens.glassSurface,
+      backgroundImage: designTokens.glassFallbackGradient,
+      borderColor: designTokens.glassBorder,
       borderTopColor: designTokens.borderHighlight,
-      boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.04), 0 12px 36px rgba(0,0,0,0.25)',
+      boxShadow: designTokens.glassShadow,
       '@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px)))': {
         backgroundColor: 'transparent',
         backgroundImage: designTokens.glassGradient,
@@ -78,536 +379,584 @@ export function surfaceSx(kind: 'default' | 'soft' | 'glass' | 'inset' = 'defaul
   return base;
 }
 
-export const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: { main: '#e5e7e9', dark: '#cfd2d4', contrastText: '#222426' },
-    secondary: { main: designTokens.accent, contrastText: '#17231e' },
-    success: { main: designTokens.accent, contrastText: '#17231e' },
-    error: { main: '#d6a0a5', contrastText: '#2a181b' },
-    warning: { main: '#d2bb91', contrastText: '#282115' },
-    info: { main: '#afc2ce', contrastText: '#17212a' },
-    background: { default: designTokens.background, paper: '#242628' },
-    text: {
-      primary: designTokens.text,
-      secondary: designTokens.secondary,
-      disabled: designTokens.muted,
+export function createAppTheme(mode: 'dark' | 'light') {
+  const c = mode === 'light' ? lightTokens : darkTokens;
+  return createTheme({
+    palette: {
+      mode,
+      primary: { main: c.primary, dark: c.primaryDark, contrastText: c.primaryText },
+      secondary: { main: c.accent, contrastText: c.accentContrast },
+      success: { main: c.accent, contrastText: c.accentContrast },
+      error: { main: c.error, contrastText: c.errorContrast },
+      warning: { main: c.warning, contrastText: c.warningContrast },
+      info: { main: c.info, contrastText: c.infoContrast },
+      background: { default: c.background, paper: c.surface },
+      text: { primary: c.text, secondary: c.secondary, disabled: c.muted },
+      divider: c.insetBorder,
+      action: {
+        active: c.secondary,
+        hover: c.paletteHover,
+        selected: c.paletteSelected,
+        focus: c.paletteFocus,
+        disabled: c.disabledText,
+        disabledBackground: c.paletteDisabledBackground,
+      },
     },
-    divider: 'rgba(255,255,255,0.07)',
-    action: {
-      active: designTokens.secondary,
-      hover: 'rgba(255,255,255,0.035)',
-      selected: 'rgba(255,255,255,0.075)',
-      focus: 'rgba(157,200,187,0.12)',
-      disabled: '#777c82',
-      disabledBackground: 'rgba(255,255,255,0.055)',
+    shape: { borderRadius: 8 },
+    spacing: 8,
+    typography: {
+      fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
+      fontSize: 14,
+      fontWeightLight: 400,
+      fontWeightRegular: 400,
+      fontWeightMedium: 500,
+      fontWeightBold: 500,
+      h1: { fontSize: 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.6px' },
+      h2: { fontSize: 28, fontWeight: 500, lineHeight: 1.25, letterSpacing: '-0.5px' },
+      h3: { fontSize: 26, fontWeight: 500, lineHeight: 1.25, letterSpacing: '-0.5px' },
+      h4: { fontSize: 26, fontWeight: 500, lineHeight: 1.25, letterSpacing: '-0.5px' },
+      h5: { fontSize: 22, fontWeight: 500, lineHeight: 1.35, letterSpacing: 0 },
+      h6: { fontSize: 18, fontWeight: 500, lineHeight: 1.35, letterSpacing: 0 },
+      subtitle1: { fontSize: 15, fontWeight: 500, lineHeight: 1.5 },
+      subtitle2: { fontSize: 14, fontWeight: 500, lineHeight: 1.5 },
+      body1: { fontSize: 14, fontWeight: 400, lineHeight: 1.6 },
+      body2: { fontSize: 13, fontWeight: 400, lineHeight: 1.6 },
+      caption: { fontSize: 12, fontWeight: 400, lineHeight: 1.5, letterSpacing: 0 },
+      overline: {
+        fontSize: 11,
+        fontWeight: 400,
+        lineHeight: 1.6,
+        textTransform: 'none',
+        letterSpacing: 0,
+      },
+      button: { fontSize: 13, fontWeight: 400, lineHeight: 1.4, textTransform: 'none' },
     },
-  },
-  shape: { borderRadius: 8 },
-  spacing: 8,
-  typography: {
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-    fontSize: 14,
-    fontWeightLight: 400,
-    fontWeightRegular: 400,
-    fontWeightMedium: 500,
-    fontWeightBold: 500,
-    h1: { fontSize: 32, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.6px' },
-    h2: { fontSize: 28, fontWeight: 500, lineHeight: 1.25, letterSpacing: '-0.5px' },
-    h3: { fontSize: 26, fontWeight: 500, lineHeight: 1.25, letterSpacing: '-0.5px' },
-    h4: { fontSize: 26, fontWeight: 500, lineHeight: 1.25, letterSpacing: '-0.5px' },
-    h5: { fontSize: 22, fontWeight: 500, lineHeight: 1.35, letterSpacing: 0 },
-    h6: { fontSize: 18, fontWeight: 500, lineHeight: 1.35, letterSpacing: 0 },
-    subtitle1: { fontSize: 15, fontWeight: 500, lineHeight: 1.5 },
-    subtitle2: { fontSize: 14, fontWeight: 500, lineHeight: 1.5 },
-    body1: { fontSize: 14, fontWeight: 400, lineHeight: 1.6 },
-    body2: { fontSize: 13, fontWeight: 400, lineHeight: 1.6 },
-    caption: { fontSize: 12, fontWeight: 400, lineHeight: 1.5, letterSpacing: 0 },
-    overline: {
-      fontSize: 11,
-      fontWeight: 400,
-      lineHeight: 1.6,
-      textTransform: 'none',
-      letterSpacing: 0,
+    transitions: {
+      easing: { easeOut: 'cubic-bezier(0.22, 1, 0.36, 1)' },
+      duration: { shortest: 120, shorter: 140, short: 180, standard: 220 },
     },
-    button: { fontSize: 13, fontWeight: 400, lineHeight: 1.4, textTransform: 'none' },
-  },
-  transitions: {
-    easing: { easeOut: 'cubic-bezier(0.22, 1, 0.36, 1)' },
-    duration: { shortest: 120, shorter: 140, short: 180, standard: 220 },
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        html: { colorScheme: 'dark' },
-        body: {
-          backgroundColor: designTokens.background,
-          backgroundImage: designTokens.backgroundGradient,
-          backgroundAttachment: 'fixed',
-        },
-        '*': { scrollbarWidth: 'thin', scrollbarColor: '#53575c #1d1f21' },
-        '::selection': { backgroundColor: '#9dc8bb40' },
-        code: {
-          fontFamily: '"SFMono-Regular",Consolas,"Liberation Mono",monospace',
-          fontVariantNumeric: 'tabular-nums',
-        },
-        '@media (prefers-reduced-transparency: reduce)': {
-          '.MuiDrawer-paper, .MuiDialog-paper': {
-            backgroundColor: '#2b2d2f',
-            backgroundImage: 'linear-gradient(145deg, #353739, #252729)',
-            backdropFilter: 'none',
-            WebkitBackdropFilter: 'none',
+    components: {
+      MuiCssBaseline: {
+        styleOverrides: {
+          ':root': Object.fromEntries(
+            Object.entries(c).map(([name, value]) => [variableName(name), value]),
+          ),
+          html: { colorScheme: mode },
+          body: {
+            backgroundColor: designTokens.background,
+            backgroundImage: designTokens.backgroundGradient,
+            backgroundAttachment: 'fixed',
+          },
+          '*': { scrollbarWidth: 'thin', scrollbarColor: designTokens.scrollbars },
+          '::selection': { backgroundColor: designTokens.selection },
+          code: {
+            fontFamily: '"SFMono-Regular",Consolas,"Liberation Mono",monospace',
+            fontVariantNumeric: 'tabular-nums',
+          },
+          '@media (prefers-reduced-transparency: reduce)': {
+            '.MuiDrawer-paper, .MuiDialog-paper': {
+              backgroundColor: designTokens.glassSurface,
+              backgroundImage: designTokens.glassFallbackGradient,
+              backdropFilter: 'none',
+              WebkitBackdropFilter: 'none',
+            },
           },
         },
       },
-    },
-    MuiButtonBase: {
-      styleOverrides: {
-        root: {
-          '&.Mui-focusVisible': { outline: `2px solid ${designTokens.accent}`, outlineOffset: 3 },
+      MuiButtonBase: {
+        styleOverrides: {
+          root: {
+            '&.Mui-focusVisible': { outline: `2px solid ${designTokens.accent}`, outlineOffset: 3 },
+          },
         },
       },
-    },
-    MuiButton: {
-      defaultProps: { disableElevation: true },
-      styleOverrides: {
-        root: {
-          minHeight: 36,
-          minWidth: 0,
-          padding: '8px 14px',
-          borderRadius: 8,
-          whiteSpace: 'nowrap',
-          flexShrink: 0,
-          fontWeight: 400,
-          transition: 'background-color 140ms, border-color 140ms, box-shadow 140ms',
-        },
-        sizeSmall: { minHeight: 30, padding: '5px 10px', fontSize: 12 },
-        startIcon: { marginRight: 8, '& > :nth-of-type(1)': { fontSize: 18 } },
-        endIcon: { marginLeft: 8, '& > :nth-of-type(1)': { fontSize: 18 } },
-        contained: {
-          border: '1px solid #f4f4f5',
-          color: '#222426',
-          backgroundColor: '#dfe1e3',
-          backgroundImage: 'linear-gradient(#eeeeef, #cfd2d4)',
-          boxShadow: 'inset 0 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.18)',
-          '&:hover': {
-            color: '#1c1e20',
-            borderColor: '#fff',
-            backgroundColor: '#eceeef',
-            backgroundImage: 'linear-gradient(#fff, #e0e3e5)',
-            boxShadow: 'inset 0 1px 0 #fff, 0 2px 4px rgba(0,0,0,0.18)',
+      MuiButton: {
+        defaultProps: { disableElevation: true },
+        styleOverrides: {
+          root: {
+            minHeight: 36,
+            minWidth: 0,
+            padding: '8px 14px',
+            borderRadius: 8,
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+            fontWeight: 400,
+            transition: 'background-color 140ms, border-color 140ms, box-shadow 140ms',
           },
-          '&.Mui-disabled': {
-            color: '#777c82',
-            borderColor: '#ffffff0c',
-            backgroundColor: '#27292b',
-            backgroundImage: 'none',
-            boxShadow: 'none',
-          },
-          '&.MuiButton-colorError': {
-            color: '#2a181b',
-            borderColor: '#e3b4b8',
-            backgroundColor: '#d6a0a5',
-            backgroundImage: 'linear-gradient(#e2b4b8, #c48f95)',
-            boxShadow: 'inset 0 1px 0 #ffffff35, 0 2px 4px #0003',
+          sizeSmall: { minHeight: 30, padding: '5px 10px', fontSize: 12 },
+          startIcon: { marginRight: 8, '& > :nth-of-type(1)': { fontSize: 18 } },
+          endIcon: { marginLeft: 8, '& > :nth-of-type(1)': { fontSize: 18 } },
+          contained: {
+            border: `1px solid ${designTokens.primaryButtonBorder}`,
+            color: designTokens.primaryText,
+            backgroundColor: designTokens.primaryButtonBackground,
+            backgroundImage: designTokens.primaryButtonGradient,
+            boxShadow: designTokens.primaryControlShadow,
             '&:hover': {
-              color: '#2a181b',
-              borderColor: '#edc7ca',
-              backgroundColor: '#e2b4b8',
-              backgroundImage: 'linear-gradient(#edc7ca, #d5a0a6)',
+              color: designTokens.primaryHoverText,
+              borderColor: designTokens.primaryButtonHoverBorder,
+              backgroundColor: designTokens.primaryButtonHoverBackground,
+              backgroundImage: designTokens.primaryButtonHoverGradient,
+              boxShadow: designTokens.primaryControlShadow,
             },
             '&.Mui-disabled': {
-              color: '#777c82',
-              borderColor: '#ffffff0c',
-              backgroundColor: '#27292b',
+              color: designTokens.disabledText,
+              borderColor: designTokens.disabledBorder,
+              backgroundColor: designTokens.disabledBackground,
               backgroundImage: 'none',
               boxShadow: 'none',
             },
+            '&.MuiButton-colorError': {
+              color: designTokens.errorContrast,
+              borderColor: designTokens.errorBorder,
+              backgroundColor: designTokens.error,
+              backgroundImage: designTokens.errorButtonGradient,
+              boxShadow: designTokens.errorButtonShadow,
+              '&:hover': {
+                color: designTokens.errorContrast,
+                borderColor: designTokens.errorHoverBorder,
+                backgroundColor: designTokens.errorButtonBackground,
+                backgroundImage: designTokens.errorButtonHoverGradient,
+              },
+              '&.Mui-disabled': {
+                color: designTokens.disabledText,
+                borderColor: designTokens.disabledBorder,
+                backgroundColor: designTokens.disabledBackground,
+                backgroundImage: 'none',
+                boxShadow: 'none',
+              },
+            },
+          },
+          outlined: {
+            color: designTokens.text,
+            borderColor: designTokens.controlBorder,
+            backgroundColor: designTokens.secondaryButtonBackground,
+            backgroundImage: designTokens.secondaryButtonGradient,
+            boxShadow: designTokens.secondaryButtonShadow,
+            '&:hover': {
+              borderColor: designTokens.controlHoverBorder,
+              backgroundColor: designTokens.secondaryButtonHoverBackground,
+              backgroundImage: designTokens.secondaryButtonHoverGradient,
+            },
+            '&.Mui-disabled': {
+              color: designTokens.disabledText,
+              backgroundColor: designTokens.softSurface,
+              backgroundImage: 'none',
+              borderColor: designTokens.subtleBorder,
+              boxShadow: 'none',
+            },
+            '&.MuiButton-colorError': {
+              color: designTokens.error,
+              borderColor: designTokens.errorOutlineBorder,
+              '&:hover': {
+                color: designTokens.errorHover,
+                borderColor: designTokens.errorOutlineHoverBorder,
+              },
+              '&.Mui-disabled': {
+                color: designTokens.disabledText,
+                borderColor: designTokens.subtleBorder,
+              },
+            },
+          },
+          text: {
+            color: designTokens.secondary,
+            '&:hover': { color: designTokens.text, backgroundColor: designTokens.actionHover },
+            '&.MuiButton-colorError': {
+              color: designTokens.error,
+              '&:hover': {
+                color: designTokens.errorHover,
+                backgroundColor: designTokens.errorHoverSurface,
+              },
+            },
+            '&.Mui-disabled': { color: designTokens.disabledText },
           },
         },
-        outlined: {
-          color: designTokens.text,
-          borderColor: '#ffffff18',
-          backgroundColor: '#2e3032',
-          backgroundImage: 'linear-gradient(#36383a, #2a2c2e)',
-          boxShadow: 'inset 0 1px 0 #ffffff0c, 0 1px 2px #0004',
-          '&:hover': {
-            borderColor: '#ffffff30',
-            backgroundColor: '#393b3d',
-            backgroundImage: 'linear-gradient(#404245, #303235)',
+      },
+      MuiIconButton: {
+        styleOverrides: {
+          root: {
+            color: designTokens.secondary,
+            borderRadius: 8,
+            padding: 8,
+            '&:hover': { color: designTokens.text, backgroundColor: designTokens.iconHover },
+            '&.MuiIconButton-colorSecondary': {
+              color: designTokens.accent,
+              '&:hover': {
+                color: designTokens.accentHover,
+                backgroundColor: designTokens.accentHoverSurface,
+              },
+              '&.Mui-disabled': { color: designTokens.iconDisabled },
+            },
+            '&.MuiIconButton-colorError': {
+              color: designTokens.error,
+              '&:hover': {
+                color: designTokens.errorHover,
+                backgroundColor: designTokens.errorHoverSurface,
+              },
+              '&.Mui-disabled': { color: designTokens.iconDisabled },
+            },
+            '&.Mui-disabled': { color: designTokens.iconDisabled },
           },
-          '&.Mui-disabled': {
-            color: '#777c82',
-            backgroundColor: '#202224',
+          sizeSmall: { padding: 6, '& .MuiSvgIcon-root': { fontSize: 18 } },
+        },
+      },
+      MuiPaper: {
+        defaultProps: { elevation: 0 },
+        styleOverrides: {
+          root: surfaceSx(),
+          rounded: { borderRadius: 12 },
+          outlined: {
+            borderColor: designTokens.paperOutline,
+            borderTopColor: designTokens.paperHighlight,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            color: designTokens.text,
+            borderRadius: 8,
+            backgroundColor: designTokens.insetSurface,
+            backgroundImage: designTokens.insetGradient,
+            boxShadow: designTokens.inputShadow,
+            '&:hover .MuiOutlinedInput-notchedOutline': {
+              borderColor: designTokens.inputHoverBorder,
+            },
+            '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+              borderColor: designTokens.accent,
+              borderWidth: 1,
+            },
+            '&.Mui-focused': { boxShadow: designTokens.inputFocusShadow },
+            '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: designTokens.error },
+            '&.Mui-disabled': { color: designTokens.disabledText, backgroundImage: 'none' },
+            '& textarea.MuiOutlinedInput-input': { padding: 0 },
+          },
+          notchedOutline: {
+            borderColor: designTokens.inputBorder,
+            borderBottomColor: designTokens.inputBottomBorder,
+          },
+          input: {
+            fontSize: 13,
+            padding: '10px 12px',
+            '&::placeholder': { color: designTokens.muted, opacity: 1 },
+            '&.Mui-disabled': { WebkitTextFillColor: designTokens.disabledText },
+          },
+          multiline: { padding: '10px 12px' },
+        },
+      },
+      MuiTextField: { defaultProps: { size: 'small' } },
+      MuiInputLabel: {
+        styleOverrides: {
+          root: {
+            color: designTokens.secondary,
+            fontSize: 13,
+            '&.Mui-focused': { color: designTokens.accent },
+            '&.Mui-error': { color: designTokens.error },
+          },
+        },
+      },
+      MuiFormHelperText: {
+        styleOverrides: { root: { color: designTokens.muted, fontSize: 12, lineHeight: 1.5 } },
+      },
+      MuiSelect: {
+        styleOverrides: { icon: { color: designTokens.secondary }, select: { minHeight: '1.5em' } },
+      },
+      MuiListItemButton: {
+        styleOverrides: {
+          root: {
+            minHeight: 36,
+            padding: '8px 10px',
+            borderRadius: 8,
+            border: '1px solid transparent',
+            color: designTokens.secondary,
+            position: 'relative',
+            '&:hover': { color: designTokens.text, backgroundColor: designTokens.navigationHover },
+            '&.Mui-selected': {
+              color: designTokens.text,
+              borderColor: designTokens.selectedBorder,
+              backgroundColor: designTokens.selectedBackground,
+              backgroundImage: designTokens.activeGradient,
+              boxShadow: designTokens.selectedShadow,
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                left: 0,
+                width: 2,
+                height: 14,
+                borderRadius: 2,
+                backgroundColor: designTokens.accent,
+                boxShadow: designTokens.selectedGlow,
+              },
+            },
+            '&.Mui-selected:hover': {
+              backgroundColor: designTokens.tooltipBackground,
+              backgroundImage: designTokens.activeHoverGradient,
+            },
+          },
+        },
+      },
+      MuiListItemIcon: {
+        styleOverrides: {
+          root: { color: 'inherit', minWidth: 30, '& .MuiSvgIcon-root': { fontSize: 18 } },
+        },
+      },
+      MuiListItemText: { styleOverrides: { primary: { fontSize: 13 }, root: { margin: 0 } } },
+      MuiMenuItem: {
+        styleOverrides: {
+          root: {
+            minHeight: 36,
+            fontSize: 13,
+            borderRadius: 6,
+            margin: '2px 4px',
+            '&.Mui-selected': { backgroundColor: designTokens.disabledBorder },
+            '&.Mui-selected:hover': { backgroundColor: designTokens.selectedHover },
+          },
+        },
+      },
+      MuiMenu: { styleOverrides: { paper: { ...surfaceSx('glass'), borderRadius: 10 } } },
+      MuiPopover: { styleOverrides: { paper: { ...surfaceSx('glass'), borderRadius: 10 } } },
+      MuiDrawer: {
+        styleOverrides: {
+          paper: {
+            ...surfaceSx('glass'),
+            borderRadius: 0,
+            borderLeftColor: designTokens.overlayBorder,
+            boxShadow: designTokens.drawerShadow,
+          },
+        },
+      },
+      MuiBackdrop: {
+        styleOverrides: {
+          root: { backgroundColor: designTokens.backdrop, backdropFilter: 'blur(1.5px)' },
+        },
+      },
+      MuiDialog: {
+        styleOverrides: {
+          paper: {
+            ...surfaceSx('glass'),
+            borderRadius: 16,
+            minWidth: 0,
+            margin: 24,
+            maxHeight: 'calc(100% - 48px)',
+            boxShadow: designTokens.dialogShadow,
+          },
+        },
+      },
+      MuiDialogTitle: {
+        styleOverrides: {
+          root: {
+            padding: 24,
+            fontSize: 20,
+            fontWeight: 500,
+            borderBottom: `1px solid ${designTokens.dialogTitleBorder}`,
+            flexShrink: 0,
+            overflowWrap: 'anywhere',
+          },
+        },
+      },
+      MuiDialogContent: {
+        styleOverrides: {
+          root: {
+            padding: 24,
+            minWidth: 0,
+            scrollbarGutter: 'stable',
+            '&:first-of-type': { paddingTop: 24 },
+          },
+        },
+      },
+      MuiDialogActions: {
+        defaultProps: { disableSpacing: true },
+        styleOverrides: {
+          root: {
+            padding: '16px 24px',
+            borderTop: `1px solid ${designTokens.disabledBorder}`,
+            backgroundColor: designTokens.dialogActionsBackground,
+            flexShrink: 0,
+            gap: 8,
+          },
+        },
+      },
+      MuiTableContainer: { styleOverrides: { root: { borderRadius: 10 } } },
+      MuiTableCell: {
+        styleOverrides: {
+          root: { padding: '12px 16px', borderBottomColor: designTokens.iconHover, fontSize: 13 },
+          head: {
+            color: designTokens.muted,
+            fontWeight: 400,
+            fontSize: 12,
+            backgroundColor: designTokens.tableHeadBackground,
+            backgroundImage: designTokens.tableHeadGradient,
+            borderBottomColor: designTokens.tableHeadBorder,
+            boxShadow: designTokens.tableHeadShadow,
+          },
+          sizeSmall: { padding: '8px 12px' },
+        },
+      },
+      MuiTableRow: {
+        styleOverrides: {
+          root: {
+            '&.MuiTableRow-hover:hover': { backgroundColor: designTokens.subtleHover },
+            '&:last-child > td, &:last-child > th[scope="row"]': { borderBottom: 0 },
+          },
+        },
+      },
+      MuiTabs: {
+        styleOverrides: {
+          root: { minHeight: 44, borderBottom: `1px solid ${designTokens.disabledBorder}` },
+          indicator: {
+            height: 1,
+            backgroundColor: designTokens.accent,
+            boxShadow: designTokens.tabGlow,
+          },
+          list: { gap: 4 },
+        },
+      },
+      MuiTab: {
+        styleOverrides: {
+          root: {
+            minHeight: 40,
+            minWidth: 0,
+            padding: '9px 20px',
+            borderRadius: 8,
+            fontSize: 13,
+            fontWeight: 400,
+            textTransform: 'none',
+            color: designTokens.muted,
+            '&.Mui-selected': {
+              color: designTokens.text,
+              backgroundColor: designTokens.glassSurface,
+              backgroundImage: designTokens.tabActiveGradient,
+              boxShadow: designTokens.tabShadow,
+            },
+          },
+        },
+      },
+      MuiChip: {
+        defaultProps: { size: 'small' },
+        styleOverrides: {
+          root: { borderRadius: 6, height: 26, fontSize: 12, fontWeight: 400 },
+          colorDefault: {
+            color: designTokens.secondary,
+            borderColor: designTokens.chipBorder,
+            backgroundColor: designTokens.insetSurface,
+            boxShadow: designTokens.chipShadow,
+          },
+          label: { paddingLeft: 8, paddingRight: 8 },
+        },
+      },
+      MuiAvatar: {
+        styleOverrides: {
+          root: {
+            width: 36,
+            height: 36,
+            borderRadius: 10,
+            fontSize: 14,
+            fontWeight: 400,
+            color: designTokens.avatarText,
+            border: `1px solid ${designTokens.avatarBorder}`,
+            backgroundColor: designTokens.avatarBackground,
+            backgroundImage: designTokens.avatarGradient,
+            boxShadow: designTokens.avatarShadow,
+          },
+        },
+      },
+      MuiAlert: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+            fontSize: 13,
+            lineHeight: 1.6,
+            border: '1px solid transparent',
             backgroundImage: 'none',
-            borderColor: '#ffffff0a',
-            boxShadow: 'none',
+            variants: [
+              {
+                props: { variant: 'standard', severity: 'error' },
+                style: {
+                  color: designTokens.errorAlertText,
+                  backgroundColor: designTokens.errorAlertBackground,
+                  borderColor: designTokens.errorAlertBorder,
+                },
+              },
+              {
+                props: { variant: 'standard', severity: 'warning' },
+                style: {
+                  color: designTokens.warningAlertText,
+                  backgroundColor: designTokens.warningAlertBackground,
+                  borderColor: designTokens.warningAlertBorder,
+                },
+              },
+              {
+                props: { variant: 'standard', severity: 'info' },
+                style: {
+                  color: designTokens.infoAlertText,
+                  backgroundColor: designTokens.infoAlertBackground,
+                  borderColor: designTokens.infoAlertBorder,
+                },
+              },
+              {
+                props: { variant: 'standard', severity: 'success' },
+                style: {
+                  color: designTokens.successAlertText,
+                  backgroundColor: designTokens.successAlertBackground,
+                  borderColor: designTokens.successAlertBorder,
+                },
+              },
+            ],
           },
-          '&.MuiButton-colorError': {
-            color: '#d6a0a5',
-            borderColor: '#d6a0a535',
-            '&:hover': { color: '#e4b3b7', borderColor: '#d6a0a566' },
-            '&.Mui-disabled': { color: '#777c82', borderColor: '#ffffff0a' },
-          },
-        },
-        text: {
-          color: designTokens.secondary,
-          '&:hover': { color: designTokens.text, backgroundColor: '#ffffff05' },
-          '&.MuiButton-colorError': {
-            color: '#d6a0a5',
-            '&:hover': { color: '#e4b3b7', backgroundColor: '#d6a0a50c' },
-          },
-          '&.Mui-disabled': { color: '#777c82' },
         },
       },
-    },
-    MuiIconButton: {
-      styleOverrides: {
-        root: {
-          color: designTokens.secondary,
-          borderRadius: 8,
-          padding: 8,
-          '&:hover': { color: designTokens.text, backgroundColor: '#ffffff07' },
-          '&.MuiIconButton-colorSecondary': {
+      MuiDivider: {
+        styleOverrides: {
+          root: { borderColor: designTokens.dividerBorder, boxShadow: designTokens.dividerShadow },
+        },
+      },
+      MuiSwitch: {
+        styleOverrides: {
+          switchBase: {
+            color: designTokens.switchThumb,
+            '&.Mui-checked': { color: designTokens.accent },
+            '&.Mui-checked + .MuiSwitch-track': { backgroundColor: designTokens.accent },
+          },
+          track: { backgroundColor: designTokens.switchTrack },
+        },
+      },
+      MuiSnackbarContent: {
+        styleOverrides: {
+          root: {
+            color: designTokens.text,
+            backgroundColor: designTokens.surface,
+            backgroundImage: designTokens.surfaceGradient,
+          },
+        },
+      },
+      MuiTooltip: {
+        defaultProps: {
+          slotProps: { popper: { popperOptions: { strategy: 'fixed' } } },
+        },
+        styleOverrides: {
+          tooltip: {
+            color: designTokens.tooltipText,
+            backgroundColor: designTokens.tooltipBackground,
+            border: `1px solid ${designTokens.overlayBorder}`,
+            borderRadius: 6,
+            fontSize: 12,
+            lineHeight: 1.5,
+            boxShadow: designTokens.tooltipShadow,
+          },
+          arrow: { color: designTokens.tooltipBackground },
+        },
+      },
+      MuiLink: {
+        styleOverrides: {
+          root: {
             color: designTokens.accent,
-            '&:hover': { color: '#badcd1', backgroundColor: '#9dc8bb0a' },
-            '&.Mui-disabled': { color: '#62676d' },
-          },
-          '&.MuiIconButton-colorError': {
-            color: '#d6a0a5',
-            '&:hover': { color: '#e4b3b7', backgroundColor: '#d6a0a50c' },
-            '&.Mui-disabled': { color: '#62676d' },
-          },
-          '&.Mui-disabled': { color: '#62676d' },
-        },
-        sizeSmall: { padding: 6, '& .MuiSvgIcon-root': { fontSize: 18 } },
-      },
-    },
-    MuiPaper: {
-      defaultProps: { elevation: 0 },
-      styleOverrides: {
-        root: surfaceSx(),
-        rounded: { borderRadius: 12 },
-        outlined: { borderColor: '#ffffff10', borderTopColor: '#ffffff20' },
-      },
-    },
-    MuiOutlinedInput: {
-      styleOverrides: {
-        root: {
-          color: designTokens.text,
-          borderRadius: 8,
-          backgroundColor: '#191b1d',
-          backgroundImage: designTokens.insetGradient,
-          boxShadow: 'inset 0 1px 3px #0006, 0 1px 0 #ffffff03',
-          '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#ffffff2d' },
-          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: designTokens.accent,
-            borderWidth: 1,
-          },
-          '&.Mui-focused': { boxShadow: 'inset 0 1px 3px #0006, 0 0 0 2px #9dc8bb14' },
-          '&.Mui-error .MuiOutlinedInput-notchedOutline': { borderColor: '#d6a0a5' },
-          '&.Mui-disabled': { color: '#777c82', backgroundImage: 'none' },
-          '& textarea.MuiOutlinedInput-input': { padding: 0 },
-        },
-        notchedOutline: { borderColor: '#ffffff17', borderBottomColor: '#ffffff24' },
-        input: {
-          fontSize: 13,
-          padding: '10px 12px',
-          '&::placeholder': { color: '#8d9096', opacity: 1 },
-          '&.Mui-disabled': { WebkitTextFillColor: '#777c82' },
-        },
-        multiline: { padding: '10px 12px' },
-      },
-    },
-    MuiTextField: { defaultProps: { size: 'small' } },
-    MuiInputLabel: {
-      styleOverrides: {
-        root: {
-          color: designTokens.secondary,
-          fontSize: 13,
-          '&.Mui-focused': { color: designTokens.accent },
-          '&.Mui-error': { color: '#d6a0a5' },
-        },
-      },
-    },
-    MuiFormHelperText: {
-      styleOverrides: { root: { color: designTokens.muted, fontSize: 12, lineHeight: 1.5 } },
-    },
-    MuiSelect: {
-      styleOverrides: { icon: { color: designTokens.secondary }, select: { minHeight: '1.5em' } },
-    },
-    MuiListItemButton: {
-      styleOverrides: {
-        root: {
-          minHeight: 36,
-          padding: '8px 10px',
-          borderRadius: 8,
-          border: '1px solid transparent',
-          color: designTokens.secondary,
-          position: 'relative',
-          '&:hover': { color: designTokens.text, backgroundColor: '#ffffff06' },
-          '&.Mui-selected': {
-            color: designTokens.text,
-            borderColor: '#ffffff16',
-            backgroundColor: '#2d2f31',
-            backgroundImage: designTokens.activeGradient,
-            boxShadow: 'inset 0 1px 0 #ffffff10, 0 1px 1px #0008',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              left: 0,
-              width: 2,
-              height: 14,
-              borderRadius: 2,
-              backgroundColor: designTokens.accent,
-              boxShadow: '0 0 8px #9dc8bb30',
-            },
-          },
-          '&.Mui-selected:hover': {
-            backgroundColor: '#343638',
-            backgroundImage: 'linear-gradient(#3d3f41, #2e3032)',
+            textDecorationColor: designTokens.linkDecoration,
+            '&:focus-visible': { outline: `2px solid ${designTokens.accent}`, outlineOffset: 3 },
           },
         },
       },
     },
-    MuiListItemIcon: {
-      styleOverrides: {
-        root: { color: 'inherit', minWidth: 30, '& .MuiSvgIcon-root': { fontSize: 18 } },
-      },
-    },
-    MuiListItemText: { styleOverrides: { primary: { fontSize: 13 }, root: { margin: 0 } } },
-    MuiMenuItem: {
-      styleOverrides: {
-        root: {
-          minHeight: 36,
-          fontSize: 13,
-          borderRadius: 6,
-          margin: '2px 4px',
-          '&.Mui-selected': { backgroundColor: '#ffffff0c' },
-          '&.Mui-selected:hover': { backgroundColor: '#ffffff12' },
-        },
-      },
-    },
-    MuiMenu: { styleOverrides: { paper: { ...surfaceSx('glass'), borderRadius: 10 } } },
-    MuiPopover: { styleOverrides: { paper: { ...surfaceSx('glass'), borderRadius: 10 } } },
-    MuiDrawer: {
-      styleOverrides: {
-        paper: {
-          ...surfaceSx('glass'),
-          borderRadius: 0,
-          borderLeftColor: '#ffffff1a',
-          boxShadow: '-20px 0 60px #0005, inset 1px 0 0 #ffffff08',
-        },
-      },
-    },
-    MuiBackdrop: {
-      styleOverrides: { root: { backgroundColor: '#08090a80', backdropFilter: 'blur(1.5px)' } },
-    },
-    MuiDialog: {
-      styleOverrides: {
-        paper: {
-          ...surfaceSx('glass'),
-          borderRadius: 16,
-          minWidth: 0,
-          margin: 24,
-          maxHeight: 'calc(100% - 48px)',
-          boxShadow: '0 28px 80px #0008, inset 0 1px 0 #ffffff08',
-        },
-      },
-    },
-    MuiDialogTitle: {
-      styleOverrides: {
-        root: {
-          padding: 24,
-          fontSize: 20,
-          fontWeight: 500,
-          borderBottom: '1px solid #ffffff0d',
-          flexShrink: 0,
-          overflowWrap: 'anywhere',
-        },
-      },
-    },
-    MuiDialogContent: {
-      styleOverrides: {
-        root: {
-          padding: 24,
-          minWidth: 0,
-          scrollbarGutter: 'stable',
-          '&:first-of-type': { paddingTop: 24 },
-        },
-      },
-    },
-    MuiDialogActions: {
-      defaultProps: { disableSpacing: true },
-      styleOverrides: {
-        root: {
-          padding: '16px 24px',
-          borderTop: '1px solid #ffffff0c',
-          backgroundColor: '#10121426',
-          flexShrink: 0,
-          gap: 8,
-        },
-      },
-    },
-    MuiTableContainer: { styleOverrides: { root: { borderRadius: 10 } } },
-    MuiTableCell: {
-      styleOverrides: {
-        root: { padding: '12px 16px', borderBottomColor: '#ffffff07', fontSize: 13 },
-        head: {
-          color: designTokens.muted,
-          fontWeight: 400,
-          fontSize: 12,
-          backgroundColor: '#292b2d',
-          backgroundImage: 'linear-gradient(#ffffff02, #00000009)',
-          borderBottomColor: '#101213',
-          boxShadow: '0 1px 0 #ffffff07',
-        },
-        sizeSmall: { padding: '8px 12px' },
-      },
-    },
-    MuiTableRow: {
-      styleOverrides: {
-        root: {
-          '&.MuiTableRow-hover:hover': { backgroundColor: '#ffffff03' },
-          '&:last-child > td, &:last-child > th[scope="row"]': { borderBottom: 0 },
-        },
-      },
-    },
-    MuiTabs: {
-      styleOverrides: {
-        root: { minHeight: 44, borderBottom: '1px solid #ffffff0c' },
-        indicator: {
-          height: 1,
-          backgroundColor: designTokens.accent,
-          boxShadow: '0 0 8px #9dc8bb25',
-        },
-        list: { gap: 4 },
-      },
-    },
-    MuiTab: {
-      styleOverrides: {
-        root: {
-          minHeight: 40,
-          minWidth: 0,
-          padding: '9px 20px',
-          borderRadius: 8,
-          fontSize: 13,
-          fontWeight: 400,
-          textTransform: 'none',
-          color: designTokens.muted,
-          '&.Mui-selected': {
-            color: designTokens.text,
-            backgroundColor: '#2b2d2f',
-            backgroundImage: 'linear-gradient(#343638, #282a2c)',
-            boxShadow: 'inset 0 1px 0 #ffffff09',
-          },
-        },
-      },
-    },
-    MuiChip: {
-      defaultProps: { size: 'small' },
-      styleOverrides: {
-        root: { borderRadius: 6, height: 26, fontSize: 12, fontWeight: 400 },
-        colorDefault: {
-          color: designTokens.secondary,
-          borderColor: '#ffffff14',
-          backgroundColor: '#191b1d',
-          boxShadow: 'inset 0 1px 0 #ffffff04',
-        },
-        label: { paddingLeft: 8, paddingRight: 8 },
-      },
-    },
-    MuiAvatar: {
-      styleOverrides: {
-        root: {
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          fontSize: 14,
-          fontWeight: 400,
-          color: '#c0c4c6',
-          border: '1px solid #ffffff15',
-          backgroundColor: '#383b3d',
-          backgroundImage: 'linear-gradient(#45484b, #313437)',
-          boxShadow: 'inset 0 1px 0 #ffffff0d',
-        },
-      },
-    },
-    MuiAlert: {
-      styleOverrides: {
-        root: {
-          borderRadius: 8,
-          fontSize: 13,
-          lineHeight: 1.6,
-          border: '1px solid transparent',
-          variants: [
-            {
-              props: { variant: 'standard', severity: 'error' },
-              style: { color: '#edc4c7', backgroundColor: '#33262a', borderColor: '#d6a0a524' },
-            },
-            {
-              props: { variant: 'standard', severity: 'warning' },
-              style: { color: '#ded0b7', backgroundColor: '#302c24', borderColor: '#d2bb9124' },
-            },
-            {
-              props: { variant: 'standard', severity: 'info' },
-              style: { color: '#cfdae0', backgroundColor: '#252d32', borderColor: '#afc2ce24' },
-            },
-            {
-              props: { variant: 'standard', severity: 'success' },
-              style: { color: '#c4d9d1', backgroundColor: '#26322e', borderColor: '#9dc8bb24' },
-            },
-          ],
-        },
-      },
-    },
-    MuiDivider: {
-      styleOverrides: { root: { borderColor: '#ffffff0b', boxShadow: '0 -1px 0 #0004' } },
-    },
-    MuiSwitch: {
-      styleOverrides: {
-        switchBase: {
-          color: '#b4b8bd',
-          '&.Mui-checked': { color: designTokens.accent },
-          '&.Mui-checked + .MuiSwitch-track': { backgroundColor: designTokens.accent },
-        },
-        track: { backgroundColor: '#6e7479' },
-      },
-    },
-    MuiSnackbarContent: {
-      styleOverrides: {
-        root: {
-          color: designTokens.text,
-          backgroundColor: '#242628',
-          backgroundImage: designTokens.surfaceGradient,
-        },
-      },
-    },
-    MuiTooltip: {
-      defaultProps: {
-        slotProps: { popper: { popperOptions: { strategy: 'fixed' } } },
-      },
-      styleOverrides: {
-        tooltip: {
-          color: designTokens.text,
-          backgroundColor: '#343638',
-          border: '1px solid #ffffff1a',
-          borderRadius: 6,
-          fontSize: 12,
-          lineHeight: 1.5,
-          boxShadow: '0 4px 12px #0005',
-        },
-        arrow: { color: '#343638' },
-      },
-    },
-    MuiLink: {
-      styleOverrides: {
-        root: {
-          color: designTokens.accent,
-          textDecorationColor: '#9dc8bb66',
-          '&:focus-visible': { outline: `2px solid ${designTokens.accent}`, outlineOffset: 3 },
-        },
-      },
-    },
-  },
-});
+  });
+}
+
+export const theme = createAppTheme('dark');

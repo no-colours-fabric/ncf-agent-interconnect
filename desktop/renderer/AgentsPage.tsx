@@ -209,8 +209,8 @@ export function AgentsPage({
                 alignItems: 'center',
                 p: { xs: 2, sm: 3 },
                 flexShrink: 0,
-                borderBottom: '1px solid #0006',
-                boxShadow: '0 1px 0 #ffffff09',
+                borderBottom: `1px solid ${designTokens.headerBorder}`,
+                boxShadow: designTokens.headerShadow,
               }}
             >
               <Avatar>
@@ -265,7 +265,7 @@ export function AgentsPage({
                 overflowY: 'auto',
                 borderTop: '1px solid',
                 borderColor: 'divider',
-                bgcolor: '#1b1d1f66',
+                bgcolor: designTokens.composerBackground,
               }}
             >
               <Stack spacing={1.5}>
@@ -364,13 +364,13 @@ export function AgentsPage({
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
                           borderRadius: '8px',
-                          border: '1px solid #ffffff30',
-                          backgroundImage: 'linear-gradient(#eeeeef, #cfd2d4)',
-                          boxShadow: 'inset 0 1px 0 #fff, 0 1px 2px #0004',
+                          border: `1px solid ${designTokens.primaryButtonBorder}`,
+                          backgroundImage: designTokens.primaryButtonGradient,
+                          boxShadow: designTokens.primaryButtonShadow,
                           '&:hover': { bgcolor: 'primary.dark' },
                           '&.Mui-disabled': {
                             color: 'text.disabled',
-                            bgcolor: '#27292b',
+                            bgcolor: designTokens.disabledBackground,
                             backgroundImage: 'none',
                             borderColor: designTokens.border,
                             boxShadow: 'none',

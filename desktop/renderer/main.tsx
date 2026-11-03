@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { AgentsPage } from './AgentsPage.js';
@@ -32,11 +32,18 @@ import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
 import { ApplicationConnections } from './application-connections.js';
 import { AppShell, type Page } from './AppShell.js';
-import { theme, surfaceSx } from './theme.js';
+import { createAppTheme, surfaceSx } from './theme.js';
+import { loadThemeMode, persistThemeMode, type ThemeMode } from './theme-preference.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
 
-function App(): React.JSX.Element {
+function App({
+  themeMode,
+  onThemeChange,
+}: {
+  themeMode: ThemeMode;
+  onThemeChange: (mode: ThemeMode) => void;
+}): React.JSX.Element {
   const [resolveNodeLabels] = useState(createNodeLabelResolver);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
     [page, setPage] = useState<Page>((location.hash.slice(1) as Page) || 'overview');
@@ -422,6 +429,23 @@ function App(): React.JSX.Element {
           >
             <Stack spacing={3}>
               <Paper sx={{ p: 3 }}>
+                <Typography variant="h6" sx={{ mb: 1 }}>
+                  {t(locale, 'settingsAppearance')}
+                </Typography>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={themeMode === 'dark'}
+                      onChange={(_, checked) => onThemeChange(checked ? 'dark' : 'light')}
+                    />
+                  }
+                  label={t(locale, 'settingsDarkTheme')}
+                />
+                <Typography variant="body2" color="text.secondary">
+                  {t(locale, themeMode === 'dark' ? 'settingsThemeGraphite' : 'settingsThemeSand')}
+                </Typography>
+              </Paper>
+              <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   {t(locale, 'settingsNodeTitle')}
                 </Typography>
@@ -601,9 +625,21 @@ function App(): React.JSX.Element {
     </>
   );
 }
-createRoot(document.getElementById('root')!).render(
-  <ThemeProvider theme={theme}>
-    <CssBaseline />
-    <App />
-  </ThemeProvider>,
-);
+function ThemedApp(): React.JSX.Element {
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() =>
+    loadThemeMode(() => window.localStorage),
+  );
+  const theme = useMemo(() => createAppTheme(themeMode), [themeMode]);
+  const changeTheme = useCallback((mode: ThemeMode) => {
+    setThemeMode(mode);
+    persistThemeMode(() => window.localStorage, mode);
+  }, []);
+  return (
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <App themeMode={themeMode} onThemeChange={changeTheme} />
+    </ThemeProvider>
+  );
+}
+
+createRoot(document.getElementById('root')!).render(<ThemedApp />);

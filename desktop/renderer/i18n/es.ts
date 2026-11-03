@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const es: Messages = {
+  settingsAppearance: 'Apariencia',
+  settingsDarkTheme: 'Tema oscuro',
+  settingsThemeGraphite: 'Grafito',
+  settingsThemeSand: 'Arena clara',
+
   mcpSetup_aionBridgeDisconnected: 'Puente sin conexión a un chat verificado',
 
   mcpSetup_aionBridgeConnected: 'Puente conectado a un chat verificado',

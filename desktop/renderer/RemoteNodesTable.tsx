@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import type { Snapshot } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
+import { designTokens } from './theme.js';
 
 export function RemoteNodesTable({
   snapshot,
@@ -79,7 +80,7 @@ export function RemoteNodesTable({
                           flexShrink: 0,
                           borderRadius: '50%',
                           bgcolor: peer.connected ? 'success.main' : 'text.disabled',
-                          boxShadow: peer.connected ? '0 0 8px #9dc8bb40' : 'none',
+                          boxShadow: peer.connected ? designTokens.statusGlow : 'none',
                         }}
                       />
                       <Typography

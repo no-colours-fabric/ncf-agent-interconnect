@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  settingsAppearance: 'Оформление',
+  settingsDarkTheme: 'Тёмная тема',
+  settingsThemeGraphite: 'Графитовая',
+  settingsThemeSand: 'Светло-песочная',
+
   mcpSetup_aionBridgeDisconnected: 'Мост не подключён к проверенному чату',
 
   mcpSetup_aionBridgeConnected: 'Мост подключён к проверенному чату',

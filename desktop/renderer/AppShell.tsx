@@ -18,7 +18,7 @@ import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import type { Snapshot } from '../shared/contracts.js';
 import { localeLabel, supportedLocales, t, type Locale } from './i18n/index.js';
-import { contentWidth } from './theme.js';
+import { contentWidth, designTokens } from './theme.js';
 
 export type Page = 'overview' | 'agents' | 'network' | 'mcp' | 'clients' | 'settings';
 export const navigation: {
@@ -62,8 +62,7 @@ export function AppShell({
         display: 'flex',
         height: '100vh',
         overflow: 'hidden',
-        background:
-          'radial-gradient(ellipse at 5% 0%, #4a4c4e55, transparent 34%), radial-gradient(ellipse at 100% 72%, #3c414333, transparent 55%), linear-gradient(122deg, #161718 20%, #202122 68%, #171819)',
+        background: designTokens.shellBackgroundGradient,
       }}
     >
       <Box
@@ -75,10 +74,10 @@ export function AppShell({
           flexDirection: 'column',
           p: 1.5,
           py: 2.5,
-          background: 'linear-gradient(150deg, #313334c4, #1a1b1cd9 55%, #17191ac9)',
+          background: designTokens.sidebarGradient,
           backdropFilter: 'blur(24px)',
-          borderRight: '1px solid #090a0b',
-          boxShadow: 'inset -1px 0 0 #ffffff0b',
+          borderRight: `1px solid ${designTokens.sidebarBorder}`,
+          boxShadow: designTokens.sidebarShadow,
           overflowY: 'auto',
         }}
       >
@@ -146,7 +145,7 @@ export function AppShell({
                 flexShrink: 0,
                 borderRadius: '50%',
                 bgcolor: snapshot.running ? 'success.main' : 'warning.main',
-                boxShadow: snapshot.running ? '0 0 8px #9dc8bb60' : 'none',
+                boxShadow: snapshot.running ? designTokens.statusGlow : 'none',
               }}
             />
             <Typography variant="caption" color="text.secondary">
@@ -171,10 +170,10 @@ export function AppShell({
             zIndex: 1,
             px: { xs: 3, lg: 4 },
             py: 3,
-            borderBottom: '1px solid #0008',
-            boxShadow: '0 1px 0 #ffffff09',
-            background: 'linear-gradient(110deg, #ffffff03, transparent)',
-            backgroundColor: '#1c1e20e6',
+            borderBottom: `1px solid ${designTokens.headerBorder}`,
+            boxShadow: designTokens.headerShadow,
+            background: designTokens.headerGradient,
+            backgroundColor: designTokens.headerBackground,
             backdropFilter: 'blur(24px)',
           }}
         >

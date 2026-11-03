@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  settingsAppearance: 'Wygląd',
+  settingsDarkTheme: 'Ciemny motyw',
+  settingsThemeGraphite: 'Grafitowy',
+  settingsThemeSand: 'Jasny piaskowy',
+
   mcpSetup_aionBridgeDisconnected: 'Most niepołączony ze zweryfikowanym czatem',
 
   mcpSetup_aionBridgeConnected: 'Most połączony ze zweryfikowanym czatem',

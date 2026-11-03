@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  settingsAppearance: '外观',
+  settingsDarkTheme: '深色主题',
+  settingsThemeGraphite: '石墨色',
+  settingsThemeSand: '浅沙色',
+
   mcpSetup_aionBridgeDisconnected: '桥接未连接到已验证的聊天',
 
   mcpSetup_aionBridgeConnected: '桥接已连接到已验证的聊天',

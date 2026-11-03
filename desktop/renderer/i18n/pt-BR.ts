@@ -1,6 +1,11 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  settingsAppearance: 'Aparência',
+  settingsDarkTheme: 'Tema escuro',
+  settingsThemeGraphite: 'Grafite',
+  settingsThemeSand: 'Areia clara',
+
   mcpSetup_aionBridgeDisconnected: 'Ponte não conectada a um chat verificado',
 
   mcpSetup_aionBridgeConnected: 'Ponte conectada a um chat verificado',
