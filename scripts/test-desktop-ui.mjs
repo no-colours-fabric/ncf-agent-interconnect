@@ -298,7 +298,7 @@ try {
   console.log(
     JSON.stringify({
       aionUiReadOnlySetup: true,
-      mcpTabs: 4,
+      mcpTabs: 5,
       electron: '45.1.0',
       renderer: 'React + MUI 9.5.0',
       liveTlsMessage: sent.id,

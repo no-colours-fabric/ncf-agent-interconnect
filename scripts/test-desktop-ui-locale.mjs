@@ -512,7 +512,7 @@ try {
     results.push({
       locale,
       aionUiSetupLocalized: true,
-      mcpTabs: 4,
+      mcpTabs: 5,
       pages: 6,
       htmlLang: true,
       headerControlsVisible: true,

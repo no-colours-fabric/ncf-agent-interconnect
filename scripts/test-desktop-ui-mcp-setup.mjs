@@ -64,6 +64,13 @@ const clients = [
     name: 'custom-profile.config.toml',
     scope: 'mcp_servers',
   },
+  {
+    id: 'claude',
+    label: 'Claude Code',
+    defaultFile: path.join(clientHome, '.claude', 'settings.json'),
+    name: 'settings.json',
+    scope: null,
+  },
 ].map((client) => ({
   ...client,
   selectedFile: path.join(temporary, 'selected configurations', 'профиль 漢字', client.name),
@@ -183,6 +190,7 @@ async function launch() {
     XDG_CACHE_HOME: path.join(temporary, 'xdg-cache'),
     XDG_STATE_HOME: path.join(temporary, 'xdg-state'),
     CODEX_HOME: codexHome,
+    CLAUDE_CONFIG_DIR: path.join(clientHome, '.claude'),
     OPENCODE_CONFIG: openCodeConfig,
     OPENCODE_CONFIG_DIR: path.join(configHome, 'opencode'),
   };
@@ -308,27 +316,44 @@ try {
     await assertNoConfigurationUi();
     const text = await readFile(client.selectedFile, 'utf8');
     const config = client.id === 'codex' ? parseToml(text) : parseJson(text);
-    const server = config[client.scope].ncf_agent_interconnect;
-    const snapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
     const settings = JSON.parse(await readFile(path.join(nodeData, 'settings.json'), 'utf8'));
-    assert.ok(
-      server.url === snapshot.mcpUrl,
-      'The selected file must reference this isolated node',
-    );
-    const headers = client.id === 'codex' ? server.http_headers : server.headers;
-    assert.ok(
-      headers.Authorization === 'Bearer ' + settings.localToken,
-      'The selected file must contain this isolated node credential',
-    );
-    if (client.id === 'codex') assert.equal(config.model, 'fixture-keep-codex');
-    else assert.equal(config.fixture, 'keep-' + client.id);
-    if (client.id === 'opencode') {
-      assert.deepEqual(config.plugin, [
-        'fixture-keep-plugin',
-        pathToFileURL(path.join(nodeData, 'Integrations', 'opencode.js')).href,
+    if (client.id === 'claude') {
+      // The plugin is published by the isolated node; no endpoint or token enters Claude settings.
+      assert.ok(
+        pathsEqual(
+          config.extraKnownMarketplaces['ncf-agent-interconnect'].source.path,
+          path.join(nodeData, 'Integrations', 'claude-code'),
+        ),
+      );
+      assert.equal(config.enabledPlugins['ncf-agent-interconnect@ncf-agent-interconnect'], true);
+      assert.deepEqual(config.permissions.allow, [
+        'mcp__plugin_ncf-agent-interconnect_ncf__agent_read',
       ]);
-      assert.equal(server.oauth, false);
-      assert.equal(server.enabled, true);
+      assert.ok(!text.includes(settings.localToken));
+      assert.equal(config.fixture, 'keep-claude');
+    }
+    const server = client.scope ? config[client.scope].ncf_agent_interconnect : undefined;
+    const snapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
+    if (server) {
+      assert.ok(
+        server.url === snapshot.mcpUrl,
+        'The selected file must reference this isolated node',
+      );
+      const headers = client.id === 'codex' ? server.http_headers : server.headers;
+      assert.ok(
+        headers.Authorization === 'Bearer ' + settings.localToken,
+        'The selected file must contain this isolated node credential',
+      );
+      if (client.id === 'codex') assert.equal(config.model, 'fixture-keep-codex');
+      else assert.equal(config.fixture, 'keep-' + client.id);
+      if (client.id === 'opencode') {
+        assert.deepEqual(config.plugin, [
+          'fixture-keep-plugin',
+          pathToFileURL(path.join(nodeData, 'Integrations', 'opencode.js')).href,
+        ]);
+        assert.equal(server.oauth, false);
+        assert.equal(server.enabled, true);
+      }
     }
     await dialog.getByRole('button', { name: 'Close', exact: true }).click();
     await page
@@ -411,8 +436,8 @@ try {
   console.log(
     JSON.stringify({
       electronRendererIpcSetup: true,
-      clientTabs: 4,
-      fileSetupTabs: 4,
+      clientTabs: 5,
+      fileSetupTabs: 5,
       aionUiOwnerSetup: true,
       cancelExistingAndMissingFiles: true,
       applyUsesSelectedFile: true,
