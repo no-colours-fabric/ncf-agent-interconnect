@@ -8,17 +8,12 @@ import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import type { McpSetupApplication } from '../shared/mcp-setup.js';
 import {
   ThemeProvider,
-  createTheme,
   CssBaseline,
   Box,
   Stack,
   Typography,
   Button,
   Paper,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
   TextField,
   Alert,
   Snackbar,
@@ -31,61 +26,14 @@ import {
   Switch,
   CircularProgress,
 } from '@mui/material';
-import HubOutlined from '@mui/icons-material/HubOutlined';
-import ForumOutlined from '@mui/icons-material/ForumOutlined';
-import CableOutlined from '@mui/icons-material/CableOutlined';
-import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
-import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
-import {
-  isLocale,
-  loadLocale,
-  localeLabel,
-  persistLocale,
-  supportedLocales,
-  t,
-  type Locale,
-} from './i18n/index.js';
+import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
 import { ApplicationConnections } from './application-connections.js';
+import { AppShell, type Page } from './AppShell.js';
+import { theme, surfaceSx } from './theme.js';
 
-const theme = createTheme({
-  palette: {
-    primary: { main: '#176b62' },
-    secondary: { main: '#305d87' },
-    background: { default: '#f4f6f8', paper: '#ffffff' },
-    text: { primary: '#172b3a', secondary: '#607280' },
-  },
-  shape: { borderRadius: 12 },
-  typography: {
-    fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif',
-    h4: { fontWeight: 700, letterSpacing: '-0.6px' },
-    h6: { fontWeight: 650 },
-    button: { textTransform: 'none', fontWeight: 600 },
-  },
-  components: {
-    MuiButton: { defaultProps: { disableElevation: true } },
-    MuiPaper: {
-      defaultProps: { elevation: 0 },
-      styleOverrides: { root: { border: '1px solid #e2e7ec' } },
-    },
-    MuiTextField: { defaultProps: { size: 'small' } },
-  },
-});
-type Page = 'overview' | 'agents' | 'network' | 'mcp' | 'clients' | 'settings';
-const navigation: {
-  id: Page;
-  tKey: 'navOverview' | 'navAgents' | 'navNetwork' | 'navMcp' | 'navClients' | 'navSettings';
-  icon: React.ReactNode;
-}[] = [
-  { id: 'overview', tKey: 'navOverview', icon: <HubOutlined /> },
-  { id: 'agents', tKey: 'navAgents', icon: <ForumOutlined /> },
-  { id: 'network', tKey: 'navNetwork', icon: <CableOutlined /> },
-  { id: 'mcp', tKey: 'navMcp', icon: <ExtensionOutlined /> },
-  { id: 'clients', tKey: 'navClients', icon: <ExtensionOutlined /> },
-  { id: 'settings', tKey: 'navSettings', icon: <SettingsOutlined /> },
-];
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
 
 function App(): React.JSX.Element {
@@ -185,249 +133,163 @@ function App(): React.JSX.Element {
     }
   })();
   const copy = (value: string) => run(() => call('copy', { text: value }), t(locale, 'copied'));
-  const title = navigation.find((n) => n.id === page)?.tKey ?? 'navOverview';
   const changeLocale = (next: unknown) => {
     if (!isLocale(next)) return;
     setLocale(next);
     persistLocale(() => window.localStorage, next);
   };
   return (
-    <Box sx={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-      <Box
-        component="aside"
-        sx={{
-          width: 240,
-          flexShrink: 0,
-          bgcolor: '#142c39',
-          color: '#fff',
-          display: 'flex',
-          flexDirection: 'column',
-          p: 2,
+    <>
+      <AppShell
+        snapshot={snapshot}
+        locale={locale}
+        page={page}
+        appVersion={appVersion}
+        busy={busy}
+        onNavigate={setPage}
+        onLocaleChange={changeLocale}
+        onToggle={() => {
+          void run(() => call(snapshot.running ? 'stop' : 'start'));
         }}
       >
-        <Stack direction="row" spacing={1.3} sx={{ alignItems: 'center', px: 1, pt: 2, pb: 4 }}>
-          <HubOutlined sx={{ color: '#76c9bc', fontSize: 32 }} />
-          <Box>
-            <Typography sx={{ fontWeight: 750 }}>NCF Agent Interconnect</Typography>
-            <Typography variant="caption" sx={{ color: '#aac0cb' }}>
-              {appVersion ? `v${appVersion}` : ''}
-            </Typography>
-          </Box>
-        </Stack>
-        <List sx={{ flex: 1 }}>
-          {navigation.map((n) => (
-            <ListItemButton
-              key={n.id}
-              data-testid={`nav-${n.id}`}
-              selected={page === n.id}
-              onClick={() => setPage(n.id)}
-              sx={{
-                borderRadius: 2,
-                mb: 0.6,
-                '&.Mui-selected': { bgcolor: '#284956' },
-                '&.Mui-selected:hover': { bgcolor: '#315562' },
-              }}
-            >
-              <ListItemIcon sx={{ color: '#b9d1da', minWidth: 38 }}>{n.icon}</ListItemIcon>
-              <ListItemText
-                primary={t(locale, n.tKey)}
-                slotProps={{ primary: { sx: { fontSize: 14 } } }}
-              />
-            </ListItemButton>
-          ))}
-        </List>
-        <Box sx={{ px: 0.5 }}>
-          <TextField
-            data-testid="interface-language"
-            select
-            size="small"
-            label={t(locale, 'localeTitle')}
-            value={locale}
-            onChange={(e) => changeLocale(e.target.value)}
-            slotProps={{
-              inputLabel: { sx: { color: '#aac0cb' } },
-              select: {
-                sx: {
-                  color: '#fff',
-                  '.MuiSelect-icon': { color: '#b9d1da' },
-                  '& .MuiOutlinedInput-notchedOutline': { borderColor: '#3a5a66' },
-                  '&:hover .MuiOutlinedInput-notchedOutline': { borderColor: '#4a6b78' },
-                  '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: '#76c9bc' },
-                },
-              },
-            }}
-            fullWidth
-          >
-            {supportedLocales.map((option) => (
-              <MenuItem key={option} value={option}>
-                {localeLabel(option)}
-              </MenuItem>
-            ))}
-          </TextField>
-        </Box>
-        <Box
-          data-testid="sidebar-node-status"
-          sx={{ bgcolor: '#203f4c', borderRadius: 2, p: 1.5, mt: 1.5 }}
-        >
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        {page === 'overview' && (
+          <Stack spacing={3}>
             <Box
               sx={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                bgcolor: snapshot.running ? '#83d3ad' : '#f0b57c',
+                display: 'grid',
+                gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))' },
+                gap: 2,
               }}
-            />
-            <Typography variant="body2">
-              {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
-            </Typography>
-          </Stack>
-          <Typography
-            variant="caption"
-            sx={{ display: 'block', mt: 0.6, color: '#b9d1da', overflowWrap: 'anywhere' }}
-          >
-            {snapshot.nodeLabel}
-          </Typography>
-        </Box>
-      </Box>
-      <Box component="main" sx={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-        <Stack
-          component="header"
-          direction="row"
-          sx={{
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 2,
-            px: 4,
-            py: 2.7,
-            bgcolor: 'background.paper',
-            borderBottom: '1px solid #e2e7ec',
-          }}
-        >
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="overline"
-              color="text.secondary"
-              sx={{ letterSpacing: 1.3, display: 'block', overflowWrap: 'anywhere' }}
             >
-              {t(locale, 'headerPrefix', { node: snapshot.nodeLabel })}
-            </Typography>
-            <Typography
-              data-testid="page-title"
-              variant="h4"
-              sx={{ fontSize: 26, overflowWrap: 'anywhere' }}
+              {[
+                {
+                  label: t(locale, 'statRemoteNodes'),
+                  value: `${snapshot.peers.filter((p) => p.connected).length} / ${snapshot.peers.length}`,
+                  hint: t(locale, 'statRemoteNodesHint'),
+                },
+                {
+                  label: t(locale, 'statAgents'),
+                  value: snapshot.agents.length,
+                  hint: t(locale, 'statAgentsHint'),
+                },
+                {
+                  label: t(locale, 'statInbox'),
+                  value: snapshot.agents.reduce((s, c) => s + c.unread, 0),
+                  hint: t(locale, 'statInboxHint'),
+                },
+              ].map((item) => (
+                <Paper key={item.label} sx={{ p: 2.5, minWidth: 0 }}>
+                  <Typography color="text.secondary" variant="body2">
+                    {item.label}
+                  </Typography>
+                  <Typography
+                    variant="h4"
+                    sx={{ my: 1.5, fontSize: 40, fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {item.value}
+                  </Typography>
+                  <Typography color="text.secondary" variant="caption">
+                    {item.hint}
+                  </Typography>
+                </Paper>
+              ))}
+            </Box>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                '@media (min-width: 1000px)': { gridTemplateColumns: '1.45fr 1fr' },
+                gap: 2,
+              }}
             >
-              {t(locale, title)}
-            </Typography>
-          </Box>
-          <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
-            <Button
-              data-testid="node-toggle"
-              size="small"
-              variant="outlined"
-              disabled={busy}
-              onClick={() => run(() => call(snapshot.running ? 'stop' : 'start'))}
-            >
-              {snapshot.running ? t(locale, 'btnStop') : t(locale, 'btnStart')}
-            </Button>
-          </Stack>
-        </Stack>
-        <Box sx={{ flex: 1, overflow: 'auto', px: 4, py: 3 }}>
-          {page === 'overview' && (
-            <Stack spacing={3}>
-              <Typography color="text.secondary">{t(locale, 'overviewIntro')}</Typography>
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 2 }}>
-                {[
-                  {
-                    label: t(locale, 'statRemoteNodes'),
-                    value: `${snapshot.peers.filter((p) => p.connected).length} / ${snapshot.peers.length}`,
-                    hint: t(locale, 'statRemoteNodesHint'),
-                  },
-                  {
-                    label: t(locale, 'statAgents'),
-                    value: snapshot.agents.length,
-                    hint: t(locale, 'statAgentsHint'),
-                  },
-                  {
-                    label: t(locale, 'statInbox'),
-                    value: snapshot.agents.reduce((s, c) => s + c.unread, 0),
-                    hint: t(locale, 'statInboxHint'),
-                  },
-                ].map((item) => (
-                  <Paper key={item.label} sx={{ p: 2.5 }}>
-                    <Typography color="text.secondary" variant="body2">
-                      {item.label}
-                    </Typography>
-                    <Typography variant="h4" sx={{ my: 1 }}>
-                      {item.value}
-                    </Typography>
-                    <Typography color="text.secondary" variant="caption">
-                      {item.hint}
-                    </Typography>
-                  </Paper>
-                ))}
-              </Box>
-              <Paper sx={{ p: 3 }}>
+              <Paper
+                sx={{
+                  p: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  minHeight: 228,
+                }}
+              >
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'connectAgentsTitle')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
                   {t(locale, 'connectAgentsBody')}
                 </Typography>
-                <Button variant="contained" onClick={() => setPage('mcp')}>
+                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => setPage('mcp')}>
                   {t(locale, 'connectAgentsCta')}
                 </Button>
               </Paper>
-              <Paper sx={{ p: 3 }}>
+              <Paper
+                sx={{
+                  ...surfaceSx('soft'),
+                  p: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  minHeight: 228,
+                }}
+              >
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'connectPeerTitle')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
                   {t(locale, 'connectPeerBody')}
                 </Typography>
-                <Button variant="outlined" onClick={() => setPage('network')}>
+                <Button sx={{ mt: 'auto' }} variant="outlined" onClick={() => setPage('network')}>
                   {t(locale, 'connectPeerCta')}
                 </Button>
               </Paper>
-              {snapshot.errors.map((e, i) => (
-                <Alert key={i} severity="error">
-                  {e}
-                </Alert>
-              ))}
-            </Stack>
-          )}
-          {page === 'agents' && (
-            <AgentsPage
-              snapshot={snapshot}
-              locale={locale}
-              nodeName={nodeName}
-              call={call}
-              run={run}
-              onError={setError}
-              onAdd={() => setNicknameDialog(true)}
-              onCleared={(result, names) => {
-                const removed = new Set(names.map(nicknameKey));
-                setSnapshot((current) =>
-                  current
-                    ? {
-                        ...current,
-                        agents:
-                          result.scope === 'all'
-                            ? []
-                            : current.agents.filter((agent) => !removed.has(agent.key)),
-                      }
-                    : current,
-                );
-                setNotice(
-                  t(locale, result.scope === 'all' ? 'clearAllCompleted' : 'clearCompleted'),
-                );
-                void refresh();
+            </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
+              {t(locale, 'overviewIntro')}
+            </Typography>
+            {snapshot.errors.map((e, i) => (
+              <Alert key={i} severity="error">
+                {e}
+              </Alert>
+            ))}
+          </Stack>
+        )}
+        {page === 'agents' && (
+          <AgentsPage
+            snapshot={snapshot}
+            locale={locale}
+            nodeName={nodeName}
+            call={call}
+            run={run}
+            onError={setError}
+            onAdd={() => setNicknameDialog(true)}
+            onCleared={(result, names) => {
+              const removed = new Set(names.map(nicknameKey));
+              setSnapshot((current) =>
+                current
+                  ? {
+                      ...current,
+                      agents:
+                        result.scope === 'all'
+                          ? []
+                          : current.agents.filter((agent) => !removed.has(agent.key)),
+                    }
+                  : current,
+              );
+              setNotice(t(locale, result.scope === 'all' ? 'clearAllCompleted' : 'clearCompleted'));
+              void refresh();
+            }}
+          />
+        )}
+        {page === 'network' && (
+          <Stack spacing={3}>
+            <Box
+              data-testid="network-forms"
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+                gap: 2.5,
               }}
-            />
-          )}
-          {page === 'network' && (
-            <Stack spacing={3}>
-              <Paper sx={{ p: 3 }}>
+            >
+              <Paper sx={{ ...surfaceSx('soft'), p: 3, minWidth: 0 }}>
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'networkThisNode')}
                 </Typography>
@@ -519,36 +381,45 @@ function App(): React.JSX.Element {
                   </Box>
                 </Stack>
               </Paper>
-              <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
-            </Stack>
-          )}
-          {page === 'mcp' && (
-            <McpSetup
-              client={client}
-              onClientChange={setClient}
-              invoke={call}
-              messages={mcpSetupMessages(locale)}
-            />
-          )}
-          {page === 'clients' && (
-            <ApplicationConnections
-              snapshot={snapshot}
-              locale={locale}
-              onSetup={(kind) => {
-                setClient(
-                  kind === 'opencode-http'
-                    ? 'opencode'
-                    : kind === 'codex-desktop'
-                      ? 'codex'
-                      : kind === 'aionui'
-                        ? 'aionui'
-                        : 'cursor',
-                );
-                setPage('mcp');
-              }}
-            />
-          )}
-          {page === 'settings' && (
+            </Box>
+            <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
+          </Stack>
+        )}
+        {page === 'mcp' && (
+          <McpSetup
+            client={client}
+            onClientChange={setClient}
+            invoke={call}
+            messages={mcpSetupMessages(locale)}
+          />
+        )}
+        {page === 'clients' && (
+          <ApplicationConnections
+            snapshot={snapshot}
+            locale={locale}
+            onSetup={(kind) => {
+              setClient(
+                kind === 'opencode-http'
+                  ? 'opencode'
+                  : kind === 'codex-desktop'
+                    ? 'codex'
+                    : kind === 'aionui'
+                      ? 'aionui'
+                      : 'cursor',
+              );
+              setPage('mcp');
+            }}
+          />
+        )}
+        {page === 'settings' && (
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.5fr) minmax(0, 1fr)' },
+              alignItems: 'start',
+              gap: 3,
+            }}
+          >
             <Stack spacing={3}>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
@@ -636,35 +507,35 @@ function App(): React.JSX.Element {
                   {t(locale, 'btnAddFolder')}
                 </Button>
               </Paper>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsDiagnostics')}
-                </Typography>
-                <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                  {t(locale, 'settingsNodeId', { id: snapshot.nodeId })}
-                </Typography>
-                <Typography variant="body2">
-                  {t(locale, 'settingsMcp', { url: snapshot.mcpUrl })}
-                </Typography>
-                <Typography variant="body2">
-                  {t(locale, 'settingsListening', { url: snapshot.peerUrl })}
-                </Typography>
-                {snapshot.errors.length ? (
-                  snapshot.errors.map((e, i) => (
-                    <Alert severity="error" key={i} sx={{ mt: 1 }}>
-                      {e}
-                    </Alert>
-                  ))
-                ) : (
-                  <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-                    {t(locale, 'settingsNoErrors')}
-                  </Typography>
-                )}
-              </Paper>
             </Stack>
-          )}
-        </Box>
-      </Box>
+            <Paper sx={{ ...surfaceSx('glass'), p: 3, minWidth: 0 }}>
+              <Typography variant="h6" sx={{ mb: 2 }}>
+                {t(locale, 'settingsDiagnostics')}
+              </Typography>
+              <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                {t(locale, 'settingsNodeId', { id: snapshot.nodeId })}
+              </Typography>
+              <Typography variant="body2" sx={{ overflowWrap: 'anywhere', mt: 2 }}>
+                {t(locale, 'settingsMcp', { url: snapshot.mcpUrl })}
+              </Typography>
+              <Typography variant="body2" sx={{ overflowWrap: 'anywhere', mt: 2 }}>
+                {t(locale, 'settingsListening', { url: snapshot.peerUrl })}
+              </Typography>
+              {snapshot.errors.length ? (
+                snapshot.errors.map((e, i) => (
+                  <Alert severity="error" key={i} sx={{ mt: 1 }}>
+                    {e}
+                  </Alert>
+                ))
+              ) : (
+                <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
+                  {t(locale, 'settingsNoErrors')}
+                </Typography>
+              )}
+            </Paper>
+          </Box>
+        )}
+      </AppShell>
       <Dialog
         open={nicknameDialog}
         onClose={() => setNicknameDialog(false)}
@@ -727,7 +598,7 @@ function App(): React.JSX.Element {
         onClose={() => setNotice('')}
         message={notice}
       />
-    </Box>
+    </>
   );
 }
 createRoot(document.getElementById('root')!).render(

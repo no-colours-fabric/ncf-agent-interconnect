@@ -33,6 +33,7 @@ import { agentRows, type AgentRow } from './agents-table-model.js';
 import { AgentChatHistory } from './AgentChatHistory.js';
 import { useChatHistory } from './useChatHistory.js';
 import { t, type Locale } from './i18n/index.js';
+import { designTokens } from './theme.js';
 
 export function AgentsPage({
   snapshot,
@@ -132,7 +133,7 @@ export function AgentsPage({
         direction="row"
         spacing={1}
         useFlexGap
-        sx={{ justifyContent: 'space-between', flexWrap: 'wrap' }}
+        sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}
       >
         <Button variant="contained" startIcon={<AddOutlined />} onClick={onAdd}>
           {t(locale, 'ariaAddAgent')}
@@ -190,9 +191,10 @@ export function AgentsPage({
             'aria-modal': true,
             'aria-labelledby': 'agent-chat-title',
             sx: {
-              width: { xs: '100%', sm: 580 },
+              width: { xs: '100%', sm: 720 },
               maxWidth: '100vw',
               display: 'flex',
+              flexDirection: 'column',
               overflow: 'hidden',
             },
           },
@@ -203,9 +205,15 @@ export function AgentsPage({
             <Stack
               direction="row"
               spacing={1.5}
-              sx={{ alignItems: 'center', p: 2.5, borderBottom: '1px solid #e2e7ec' }}
+              sx={{
+                alignItems: 'center',
+                p: { xs: 2, sm: 3 },
+                flexShrink: 0,
+                borderBottom: '1px solid #0006',
+                boxShadow: '0 1px 0 #ffffff09',
+              }}
             >
-              <Avatar sx={{ bgcolor: 'primary.main' }}>
+              <Avatar>
                 {Array.from(chat.nickname).slice(0, 2).join('').toLocaleUpperCase(locale)}
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -242,13 +250,24 @@ export function AgentsPage({
                 nodeName={nodeName}
               />
             ) : (
-              <Box sx={{ flex: 1, p: 2.5, bgcolor: '#f4f7f8' }}>
+              <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 3 }}>
                 <Typography variant="body2" color="text.secondary">
                   {t(locale, 'chatRemoteNoHistory')}
                 </Typography>
               </Box>
             )}
-            <Box data-testid="agent-chat-compose" sx={{ p: 2.5, borderTop: '1px solid #e2e7ec' }}>
+            <Box
+              data-testid="agent-chat-compose"
+              sx={{
+                p: { xs: 2, sm: 3 },
+                flexShrink: 0,
+                maxHeight: '55%',
+                overflowY: 'auto',
+                borderTop: '1px solid',
+                borderColor: 'divider',
+                bgcolor: '#1b1d1f66',
+              }}
+            >
               <Stack spacing={1.5}>
                 {sendError && (
                   <Alert severity="error" onClose={() => clearSendError(chatKey)}>
@@ -344,8 +363,18 @@ export function AgentsPage({
                         sx={{
                           bgcolor: 'primary.main',
                           color: 'primary.contrastText',
-                          borderRadius: 2,
+                          borderRadius: '8px',
+                          border: '1px solid #ffffff30',
+                          backgroundImage: 'linear-gradient(#eeeeef, #cfd2d4)',
+                          boxShadow: 'inset 0 1px 0 #fff, 0 1px 2px #0004',
                           '&:hover': { bgcolor: 'primary.dark' },
+                          '&.Mui-disabled': {
+                            color: 'text.disabled',
+                            bgcolor: '#27292b',
+                            backgroundImage: 'none',
+                            borderColor: designTokens.border,
+                            boxShadow: 'none',
+                          },
                         }}
                       >
                         <SendOutlined />

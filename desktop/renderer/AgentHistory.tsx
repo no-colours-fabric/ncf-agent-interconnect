@@ -4,6 +4,7 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
+import { surfaceSx } from './theme.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
 const messageStateKey = (
@@ -36,23 +37,28 @@ export function AgentHistory({
   nodeName: (id: string) => string;
 }): React.JSX.Element {
   return (
-    <Stack spacing={2} sx={{ flex: 1, overflow: 'auto', p: 2.5, bgcolor: '#f8fafb' }}>
+    <Stack spacing={3} sx={{ flex: 1, minHeight: 0, overflow: 'auto', p: 3 }}>
       {messages.map((m) => (
         <Paper
           key={m.envelope.id + m.direction}
           sx={{
             p: 2,
-            ml: m.direction === 'out' ? 4 : 0,
-            mr: m.direction === 'in' ? 4 : 0,
-            borderLeft: `3px solid ${m.direction === 'in' ? '#91b9d3' : '#72b7a9'}`,
+            width: '84%',
+            alignSelf: m.direction === 'out' ? 'flex-end' : 'flex-start',
+            backgroundColor: m.direction === 'out' ? '#383d3d' : '#303235',
+            backgroundImage:
+              m.direction === 'out'
+                ? 'linear-gradient(135deg, #424646, #333838)'
+                : 'linear-gradient(135deg, #37393c, #2c2e31)',
+            borderRadius: m.direction === 'out' ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
           }}
         >
           <Stack
             direction="row"
             spacing={1}
-            sx={{ justifyContent: 'space-between', alignItems: 'center' }}
+            sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
           >
-            <Typography variant="body2" sx={{ fontWeight: 700 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500, overflowWrap: 'anywhere' }}>
               {m.envelope.fromNickname} → {m.envelope.toNickname}
             </Typography>
             <Chip
@@ -93,8 +99,8 @@ export function AgentHistory({
               spacing={1}
               sx={{
                 alignItems: 'center',
-                bgcolor: '#eff3f5',
-                borderRadius: 1.5,
+                ...surfaceSx('inset'),
+                borderRadius: '8px',
                 px: 1.5,
                 py: 0.5,
                 mt: 1.5,
@@ -138,7 +144,11 @@ export function AgentHistory({
               </Tooltip>
             </Stack>
           ))}
-          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+          <Typography
+            variant="caption"
+            color={m.state === 'received' ? 'success.main' : 'text.secondary'}
+            sx={{ display: 'block', mt: 1 }}
+          >
             {t(locale, messageStateKey(m.state))}
           </Typography>
           {m.error && (

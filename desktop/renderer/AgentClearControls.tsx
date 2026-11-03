@@ -39,7 +39,14 @@ export function AgentClearControls({
     <>
       <Stack
         direction="row"
-        sx={{ flexWrap: 'wrap', gap: 1, p: 1.5, flexShrink: 0, borderBottom: '1px solid #e2e7ec' }}
+        sx={{
+          flexWrap: 'wrap',
+          gap: 1,
+          p: 1.5,
+          flexShrink: 0,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
       >
         <Button
           color="error"
@@ -49,7 +56,7 @@ export function AgentClearControls({
           onClick={() => {
             void flow.begin({ scope: 'agent', nickname: selected });
           }}
-          sx={{ whiteSpace: 'normal', textAlign: 'left' }}
+          sx={{ whiteSpace: 'nowrap', textAlign: 'left' }}
         >
           {t(locale, 'clearSelectedAgent')}
         </Button>
@@ -61,7 +68,7 @@ export function AgentClearControls({
           onClick={() => {
             void flow.begin({ scope: 'all' });
           }}
-          sx={{ whiteSpace: 'normal', textAlign: 'left' }}
+          sx={{ whiteSpace: 'nowrap', textAlign: 'left' }}
         >
           {t(locale, 'clearAllLocalAgents')}
         </Button>
@@ -93,7 +100,7 @@ export function AgentClearControls({
                   onCleared(result, state.preview?.targets.map((target) => target.nickname) ?? []);
               });
             }}
-            sx={{ whiteSpace: 'normal' }}
+            sx={{ whiteSpace: 'nowrap' }}
           >
             {t(locale, all ? 'clearAllAgentsConfirm' : 'clearAgentConfirm')}
           </Button>

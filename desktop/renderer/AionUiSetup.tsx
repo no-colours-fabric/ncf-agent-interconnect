@@ -17,6 +17,7 @@ import {
 import type { AionUiApplicationState } from '../shared/aionui.js';
 import type { McpSetupInvoke } from '../shared/mcp-setup.js';
 import type { McpSetupMessages } from './mcp-setup-messages.js';
+import { designTokens, surfaceSx } from './theme.js';
 
 export function AionUiAuthorization({
   invoke,
@@ -88,12 +89,17 @@ export function AionUiAuthorization({
   };
   return (
     <Stack spacing={2}>
-      <Paper variant="outlined" sx={{ p: 2 }} data-testid="aionui-authorization">
-        <Stack spacing={1.5}>
+      <Paper
+        variant="outlined"
+        sx={{ ...surfaceSx('soft'), p: 3 }}
+        data-testid="aionui-authorization"
+      >
+        <Stack spacing={2}>
           <Stack
             direction="row"
             spacing={2}
-            sx={{ alignItems: 'center', justifyContent: 'space-between' }}
+            useFlexGap
+            sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
           >
             <Typography variant="subtitle2" component="h3">
               {m.aionPairTitle}
@@ -111,9 +117,31 @@ export function AionUiAuthorization({
               }
               color={status?.state === 'paired' ? 'success' : 'default'}
               data-testid="aionui-authorization-status"
+              variant="outlined"
+              icon={
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    bgcolor: status?.state === 'paired' ? 'success.main' : 'text.disabled',
+                    boxShadow: status?.state === 'paired' ? designTokens.statusGlow : 'none',
+                  }}
+                />
+              }
+              sx={{
+                maxWidth: '100%',
+                border: 0,
+                color: status?.state === 'paired' ? 'success.main' : 'text.secondary',
+                backgroundColor: 'transparent',
+                boxShadow: 'none',
+                '& .MuiChip-icon': { ml: 0, mr: 1 },
+                '& .MuiChip-label': { pl: 0, pr: 0 },
+              }}
             />
           </Stack>
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
             {m.aionPairHelp}
           </Typography>
           {status?.state === 'paired' && (
@@ -121,10 +149,14 @@ export function AionUiAuthorization({
               {status.url}
             </Typography>
           )}
-          <Typography variant="body2" data-testid="aionui-bridge-status">
+          <Typography
+            variant="body2"
+            color={status?.bridgeConnected ? 'success.main' : 'text.secondary'}
+            data-testid="aionui-bridge-status"
+          >
             {status?.bridgeConnected ? m.aionBridgeConnected : m.aionBridgeDisconnected}
           </Typography>
-          <Stack direction="row" spacing={1}>
+          <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
             <Button
               variant="outlined"
               data-testid="aionui-configure-access"
@@ -163,7 +195,15 @@ export function AionUiAuthorization({
         fullWidth
         maxWidth="sm"
         aria-labelledby="aionui-access-title"
-        slotProps={{ paper: { sx: { height: 'min(520px, calc(100dvh - 64px))' } } }}
+        slotProps={{
+          paper: {
+            sx: {
+              width: 640,
+              maxWidth: 'calc(100% - 48px)',
+              height: 'min(520px, calc(100dvh - 64px))',
+            },
+          },
+        }}
       >
         <DialogTitle id="aionui-access-title">{m.aionPairTitle}</DialogTitle>
         <DialogContent sx={{ scrollbarGutter: 'stable' }}>

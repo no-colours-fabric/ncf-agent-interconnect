@@ -31,6 +31,7 @@ import {
 } from '../shared/mcp-setup.js';
 import { McpSetupFlow } from './mcp-setup-model.js';
 import { mcpSetupEnglish, type McpSetupMessages } from './mcp-setup-messages.js';
+import { designTokens, surfaceSx } from './theme.js';
 
 import { AionUiAuthorization } from './AionUiSetup.js';
 
@@ -103,144 +104,153 @@ function ClientSetupDialog({
   return (
     <>
       <Stack
-        spacing={2.5}
-        sx={{ p: { xs: 2, sm: 3 } }}
+        spacing={3}
+        sx={{ pt: 3 }}
         data-testid={client === 'aionui' ? 'aionui-setup' : undefined}
       >
         <Stack
-          direction={{ xs: 'column', sm: 'row' }}
+          direction="row"
           spacing={2}
-          sx={{ alignItems: 'flex-start', justifyContent: 'space-between' }}
+          useFlexGap
+          sx={{ alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap' }}
         >
-          <Stack direction="row" spacing={2} sx={{ minWidth: 0 }}>
-            <Box
-              sx={{
-                width: 44,
-                height: 44,
-                flexShrink: 0,
-                display: 'grid',
-                placeItems: 'center',
-                borderRadius: 1,
-                bgcolor: 'action.hover',
-                color: 'primary.main',
-              }}
-            >
-              <ExtensionOutlined />
-            </Box>
-            <Box sx={{ minWidth: 0 }}>
-              <Typography variant="h6" component="h2">
+          <Box sx={{ minWidth: 0, flex: '1 1 280px' }}>
+            <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+              <ExtensionOutlined sx={{ fontSize: 22, color: 'text.secondary' }} />
+              <Typography variant="h5" component="h2">
                 {labels[client]}
               </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ mt: 0.5, maxWidth: 620, lineHeight: 1.6 }}
-              >
-                {client === 'aionui' ? m.aionDescription : m[k.description]}
-              </Typography>
-            </Box>
-          </Stack>
-          {status ? (
-            <Chip
-              color={status.state === 'configured' ? 'success' : 'default'}
-              variant="outlined"
-              size="small"
-              label={m[status.state]}
-              data-testid="mcp-settings-status"
-              sx={{ flexShrink: 0, mt: { sm: 0.5 } }}
-            />
-          ) : (
-            <Typography variant="body2">{m.checking}</Typography>
-          )}
+            </Stack>
+          </Box>
+          <Chip
+            variant="outlined"
+            size="small"
+            label={status ? m[status.state] : m.checking}
+            icon={
+              <Box
+                component="span"
+                sx={{
+                  width: 6,
+                  height: 6,
+                  borderRadius: '50%',
+                  bgcolor: status?.state === 'configured' ? 'success.main' : 'text.disabled',
+                  boxShadow: status?.state === 'configured' ? designTokens.statusGlow : 'none',
+                }}
+              />
+            }
+            data-testid={status ? 'mcp-settings-status' : undefined}
+            sx={{
+              flexShrink: 0,
+              maxWidth: '100%',
+              color: status?.state === 'configured' ? 'success.main' : 'text.secondary',
+              border: 0,
+              bgcolor: 'transparent',
+              boxShadow: 'none',
+              '& .MuiChip-icon': { ml: 0, mr: 1 },
+              '& .MuiChip-label': { pl: 0, pr: 0 },
+            }}
+          />
         </Stack>
-        {before}
-        <Box
-          sx={{ border: 1, borderColor: 'divider', borderRadius: 1, bgcolor: 'action.hover', p: 2 }}
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ maxWidth: '76ch', lineHeight: 1.65 }}
         >
-          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-            <DescriptionOutlined
-              sx={{ mt: 0.25, color: 'text.secondary', fontSize: 20, flexShrink: 0 }}
-            />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 0.5 }}
-              >
-                {m.pathLabel}
-              </Typography>
-              {status?.files.map((file) => (
-                <Box key={file.id}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                      fontSize: 13,
-                      lineHeight: 1.7,
-                      overflowWrap: 'anywhere',
-                    }}
-                  >
-                    {file.path}
-                  </Typography>
-                  {file.error && (
-                    <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                      {file.error}
-                    </Typography>
-                  )}
-                </Box>
-              ))}
-              {!status && (
-                <Typography variant="body2" color="text.secondary">
-                  {m.checking}
-                </Typography>
-              )}
-              {status?.state === 'missing' && (
+          {client === 'aionui' ? m.aionDescription : m[k.description]}
+        </Typography>
+        {before}
+        <Paper sx={{ p: 3 }}>
+          <Box sx={{ ...surfaceSx('inset'), p: 1.75 }}>
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+              <DescriptionOutlined
+                sx={{ mt: 0.25, color: 'text.secondary', fontSize: 20, flexShrink: 0 }}
+              />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography
                   variant="caption"
                   color="text.secondary"
-                  sx={{ display: 'block', mt: 1 }}
+                  sx={{ display: 'block', mb: 0.5 }}
                 >
-                  {m.openFileMissing}
+                  {m.pathLabel}
                 </Typography>
-              )}
-            </Box>
-            <Tooltip title={openHint}>
-              <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
-                <IconButton
-                  size="small"
-                  color="primary"
-                  aria-label={m.openFile}
-                  disabled={!canOpen}
-                  data-testid="mcp-open-file"
-                  onClick={() => void flow.openFile()}
-                >
-                  <OpenInNewOutlined fontSize="small" />
-                </IconButton>
+                {status?.files.map((file) => (
+                  <Box key={file.id}>
+                    <Typography
+                      variant="body2"
+                      sx={{
+                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                        fontSize: 13,
+                        lineHeight: 1.7,
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
+                      {file.path}
+                    </Typography>
+                    {file.error && (
+                      <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                        {file.error}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+                {!status && (
+                  <Typography variant="body2" color="text.secondary">
+                    {m.checking}
+                  </Typography>
+                )}
+                {status?.state === 'missing' && (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ display: 'block', mt: 1 }}
+                  >
+                    {m.openFileMissing}
+                  </Typography>
+                )}
               </Box>
-            </Tooltip>
-          </Stack>
-        </Box>
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ alignItems: { xs: 'flex-start', sm: 'center' }, justifyContent: 'space-between' }}
-        >
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ maxWidth: 580, lineHeight: 1.6 }}
+              <Tooltip title={openHint}>
+                <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+                  <IconButton
+                    size="small"
+                    color="secondary"
+                    aria-label={m.openFile}
+                    disabled={!canOpen}
+                    data-testid="mcp-open-file"
+                    onClick={() => void flow.openFile()}
+                  >
+                    <OpenInNewOutlined fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Tooltip>
+            </Stack>
+          </Box>
+          <Box
+            sx={{
+              mt: 2.5,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: 2.5,
+            }}
           >
-            {m.userControl}
-          </Typography>
-          <Button
-            variant="contained"
-            onClick={() => void flow.begin()}
-            data-testid={'mcp-configure-' + client}
-            sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-          >
-            {m[k.button]}
-          </Button>
-        </Stack>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ flex: '1 1 280px', maxWidth: '52ch', lineHeight: 1.65, fontSize: 12 }}
+            >
+              {m.userControl}
+            </Typography>
+            <Button
+              variant="contained"
+              onClick={() => void flow.begin()}
+              data-testid={'mcp-configure-' + client}
+              sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+            >
+              {m[k.button]}
+            </Button>
+          </Box>
+        </Paper>
         {state.error && !state.open && <Alert severity="error">{state.error}</Alert>}
       </Stack>
       <Dialog
@@ -252,6 +262,8 @@ function ClientSetupDialog({
         slotProps={{
           paper: {
             sx: {
+              width: 640,
+              maxWidth: 'calc(100% - 48px)',
               height:
                 client === 'opencode'
                   ? 'min(660px, calc(100dvh - 64px))'
@@ -292,20 +304,31 @@ function ClientSetupDialog({
                     <Box>
                       <Typography variant="caption">{m.knownPaths}</Typography>
                       {file.alternatives.map((location) => (
-                        <Button
-                          key={location}
-                          size="small"
-                          disabled={state.busy}
-                          onClick={() => flow.setPath(file.id, location)}
-                          sx={{
-                            display: 'block',
-                            textAlign: 'left',
-                            overflowWrap: 'anywhere',
-                            maxWidth: '100%',
-                          }}
-                        >
-                          {location}
-                        </Button>
+                        <Tooltip key={location} title={location}>
+                          <Box component="span" sx={{ display: 'block', minWidth: 0 }}>
+                            <Button
+                              size="small"
+                              disabled={state.busy}
+                              onClick={() => flow.setPath(file.id, location)}
+                              sx={{
+                                display: 'flex',
+                                justifyContent: 'flex-start',
+                                maxWidth: '100%',
+                                width: '100%',
+                                overflow: 'hidden',
+                              }}
+                            >
+                              <Typography
+                                component="span"
+                                variant="caption"
+                                noWrap
+                                sx={{ fontFamily: 'monospace', color: 'secondary.main' }}
+                              >
+                                {location}
+                              </Typography>
+                            </Button>
+                          </Box>
+                        </Tooltip>
                       ))}
                     </Box>
                   )}
@@ -420,7 +443,7 @@ export function McpSetup({
   }[client];
   const [copyError, setCopyError] = React.useState('');
   return (
-    <Paper sx={{ maxWidth: 1080, overflow: 'hidden' }}>
+    <Box sx={{ minWidth: 0 }}>
       <Tabs
         value={client}
         onChange={(_event, value: McpSetupApplication) => {
@@ -430,7 +453,7 @@ export function McpSetup({
         aria-label={m.tabsLabel}
         variant="scrollable"
         scrollButtons="auto"
-        sx={{ px: { xs: 2, sm: 3 }, minHeight: 56, borderBottom: 1, borderColor: 'divider' }}
+        sx={{ minHeight: 52, pb: 1.5 }}
       >
         {mcpSetupClients.map((item) => (
           <Tab
@@ -449,8 +472,8 @@ export function McpSetup({
         spacing={0}
       >
         <SetupDialog key={client} invoke={invoke} messages={m} />
-        <Divider />
-        <Stack spacing={1.5} sx={{ p: { xs: 2, sm: 3 } }}>
+        <Divider sx={{ mt: 3 }} />
+        <Stack spacing={2} sx={{ pt: 3 }}>
           <Typography variant="subtitle2" component="h3">
             {m.connect}
           </Typography>
@@ -459,12 +482,12 @@ export function McpSetup({
               component="code"
               sx={{
                 minWidth: 0,
-                px: 1.25,
-                py: 0.75,
-                borderRadius: 0.5,
-                bgcolor: 'action.hover',
+                ...surfaceSx('inset'),
+                flex: 1,
+                px: 1.75,
+                py: 1.25,
                 fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                fontSize: 14,
+                fontSize: 13,
                 lineHeight: 1.6,
                 overflowWrap: 'anywhere',
               }}
@@ -489,6 +512,6 @@ export function McpSetup({
           {copyError && <Alert severity="error">{copyError}</Alert>}
         </Stack>
       </Stack>
-    </Paper>
+    </Box>
   );
 }

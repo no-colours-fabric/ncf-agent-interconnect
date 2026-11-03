@@ -15,6 +15,7 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
+import { designTokens, surfaceSx } from './theme.js';
 
 const messageKey = (message: Message | undefined) =>
   message ? message.envelope.id + ':' + message.direction : '';
@@ -91,9 +92,9 @@ export function AgentChatHistory({
         previous.current = scrollPosition(element);
         if (element.scrollTop < 64 && hasMore && !loading) loadMore();
       }}
-      sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowAnchor: 'none', bgcolor: '#f4f7f8' }}
+      sx={{ flex: 1, minHeight: 0, overflowY: 'auto', overflowAnchor: 'none' }}
     >
-      <Stack spacing={2} sx={{ p: 2.5, minHeight: '100%', boxSizing: 'border-box' }}>
+      <Stack spacing={3} sx={{ p: { xs: 2, sm: 3 }, minHeight: '100%', boxSizing: 'border-box' }}>
         {hasMore && (
           <Button disabled={loading} onClick={loadMore} sx={{ alignSelf: 'center' }}>
             {loading ? <CircularProgress size={20} /> : t(locale, 'msgLoadMore')}
@@ -113,7 +114,7 @@ export function AgentChatHistory({
               data-sequence={message.sequence}
               direction={outgoing ? 'row-reverse' : 'row'}
               spacing={1}
-              sx={{ alignItems: 'flex-end' }}
+              sx={{ alignItems: 'flex-end', width: '100%' }}
             >
               <Avatar
                 aria-label={envelope.fromNickname}
@@ -121,21 +122,33 @@ export function AgentChatHistory({
                   width: 32,
                   height: 32,
                   fontSize: 13,
-                  bgcolor: outgoing ? '#176b62' : '#305d87',
+                  flexShrink: 0,
                 }}
               >
                 {Array.from(envelope.fromNickname).slice(0, 2).join('').toLocaleUpperCase(locale)}
               </Avatar>
               <Paper
                 sx={{
-                  p: 1.5,
-                  maxWidth: 'calc(100% - 60px)',
+                  p: 2,
+                  maxWidth: '84%',
                   minWidth: 0,
-                  bgcolor: outgoing ? '#e1f0eb' : 'background.paper',
-                  borderRadius: outgoing ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+                  backgroundColor: outgoing ? '#383d3d' : '#303235',
+                  backgroundImage: outgoing
+                    ? 'linear-gradient(135deg, #424646, #333838)'
+                    : 'linear-gradient(135deg, #37393c, #2c2e31)',
+                  borderColor: outgoing ? '#a5b7b119' : '#ffffff13',
+                  borderTopColor: outgoing ? '#c7d5d329' : '#ffffff20',
+                  borderRadius: outgoing ? '12px 12px 4px 12px' : '12px 12px 12px 4px',
                 }}
               >
-                <Typography variant="caption" sx={{ fontWeight: 700, overflowWrap: 'anywhere' }}>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mb: 0.75, textAlign: outgoing ? 'right' : 'left' }}
+                >
+                  {t(locale, outgoing ? 'msgOutgoing' : 'msgIncoming')}
+                </Typography>
+                <Typography variant="caption" sx={{ fontWeight: 500, overflowWrap: 'anywhere' }}>
                   {envelope.fromNickname} → {envelope.toNickname}
                 </Typography>
                 <Typography
@@ -155,8 +168,8 @@ export function AgentChatHistory({
                   sx={{
                     whiteSpace: 'pre-wrap',
                     overflowWrap: 'anywhere',
-                    mt: 0.75,
-                    lineHeight: 1.6,
+                    mt: 1.25,
+                    lineHeight: 1.65,
                   }}
                 >
                   {envelope.text}
@@ -168,9 +181,9 @@ export function AgentChatHistory({
                     spacing={0.5}
                     sx={{
                       alignItems: 'center',
-                      bgcolor: 'rgba(0,0,0,0.035)',
-                      borderRadius: 1,
-                      p: 0.5,
+                      ...surfaceSx('inset'),
+                      borderRadius: '8px',
+                      p: 0.75,
                       mt: 1,
                     }}
                   >
@@ -213,10 +226,26 @@ export function AgentChatHistory({
                 ))}
                 <Typography
                   variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mt: 1, textAlign: 'right' }}
+                  color={state === 'received' ? 'success.main' : 'text.secondary'}
+                  sx={{ display: 'block', mt: 1.5, textAlign: 'right' }}
                 >
                   {new Date(envelope.createdAt).toLocaleString(locale)} ·{' '}
+                  {state === 'received' && (
+                    <Box
+                      component="span"
+                      aria-hidden="true"
+                      sx={{
+                        display: 'inline-block',
+                        width: 5,
+                        height: 5,
+                        borderRadius: '50%',
+                        verticalAlign: 'middle',
+                        mr: 0.75,
+                        bgcolor: 'success.main',
+                        boxShadow: designTokens.statusGlow,
+                      }}
+                    />
+                  )}
                   {t(locale, messageStateKey[state])}
                 </Typography>
                 {error && (

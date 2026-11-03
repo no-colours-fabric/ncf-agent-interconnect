@@ -20,6 +20,7 @@ import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
 import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined';
 import type { AgentRow } from './agents-table-model.js';
 import { t, type Locale } from './i18n/index.js';
+import { designTokens } from './theme.js';
 
 export interface AgentsTableLabels {
   name: string;
@@ -54,7 +55,12 @@ export function AgentsTable({
       <Table
         data-testid="agents-table"
         aria-label={t(locale, 'agentsTitle')}
-        sx={{ minWidth: 720, '& td, & th': { overflowWrap: 'anywhere' } }}
+        size="small"
+        sx={{
+          minWidth: 680,
+          '& td, & th': { overflowWrap: 'anywhere', verticalAlign: 'middle' },
+          '& thead th': { whiteSpace: 'nowrap' },
+        }}
       >
         <TableHead>
           <TableRow>
@@ -69,7 +75,11 @@ export function AgentsTable({
         <TableBody>
           {rows.map((agent) => (
             <TableRow key={agent.id} data-testid="agent-row" data-agent-id={agent.id} hover>
-              <TableCell component="th" scope="row">
+              <TableCell
+                component="th"
+                scope="row"
+                sx={{ whiteSpace: 'nowrap', overflowWrap: 'normal' }}
+              >
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   {agent.online && (
                     <Tooltip title={t(locale, 'directoryOnline')}>
@@ -77,23 +87,32 @@ export function AgentsTable({
                         data-testid="agent-online"
                         role="img"
                         aria-label={t(locale, 'directoryOnline')}
-                        sx={{ color: 'success.main', fontSize: 10, flexShrink: 0 }}
+                        sx={{
+                          color: 'success.main',
+                          fontSize: 6,
+                          flexShrink: 0,
+                          filter: `drop-shadow(${designTokens.statusGlow})`,
+                        }}
                       />
                     </Tooltip>
                   )}
-                  <Typography variant="body2" sx={{ fontWeight: 650 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {agent.nickname}
                   </Typography>
                 </Stack>
               </TableCell>
-              <TableCell>{agent.client}</TableCell>
+              <TableCell sx={{ whiteSpace: 'nowrap', overflowWrap: 'normal' }}>
+                {agent.client}
+              </TableCell>
               <TableCell>
-                <Typography variant="body2">{nodeName(agent.nodeId)}</Typography>
+                <Typography variant="body2" sx={{ fontSize: 12 }}>
+                  {nodeName(agent.nodeId)}
+                </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}
                 </Typography>
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'normal' }}>
                 {agent.lastMessageAt ? new Date(agent.lastMessageAt).toLocaleString(locale) : ''}
               </TableCell>
               <TableCell
@@ -103,7 +122,12 @@ export function AgentsTable({
                 {agent.messageCount !== undefined && (
                   <Box
                     component="span"
-                    sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.75 }}
+                    sx={{
+                      display: 'inline-flex',
+                      flexDirection: 'column',
+                      alignItems: 'flex-end',
+                      gap: 0.25,
+                    }}
                   >
                     {agent.messageCount}
                     {agent.incomingCount !== undefined && agent.outgoingCount !== undefined && (
@@ -114,6 +138,7 @@ export function AgentsTable({
                           alignItems: 'center',
                           gap: 0.5,
                           color: 'text.secondary',
+                          fontSize: 12,
                         }}
                       >
                         {'('}
@@ -149,6 +174,7 @@ export function AgentsTable({
               <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
                 <Tooltip title={labels.chat(agent.nickname)}>
                   <IconButton
+                    size="small"
                     aria-label={labels.chat(agent.nickname)}
                     onClick={() => onChat(agent)}
                   >
@@ -158,6 +184,7 @@ export function AgentsTable({
                 <Tooltip title={agent.local ? labels.remove(agent.nickname) : labels.remoteRemoval}>
                   <Box component="span">
                     <IconButton
+                      size="small"
                       color="error"
                       disabled={!agent.local}
                       aria-label={labels.remove(agent.nickname)}
