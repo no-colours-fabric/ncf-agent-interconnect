@@ -159,7 +159,7 @@ function ClientSetupDialog({
           {client === 'aionui' ? m.aionDescription : m[k.description]}
         </Typography>
         {before}
-        <Paper sx={{ p: 3 }}>
+        <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
           <Box sx={{ ...surfaceSx('inset'), p: 1.75 }}>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
               <DescriptionOutlined

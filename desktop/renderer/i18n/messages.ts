@@ -5,6 +5,12 @@ type McpSetupTranslations = {
 };
 
 export interface Messages extends McpSetupTranslations {
+  settingsThemeLightLabel: string;
+  settingsThemeDarkLabel: string;
+  settingsDiagnosticNode: string;
+  settingsDiagnosticMcp: string;
+  settingsDiagnosticListening: string;
+
   settingsAppearance: string;
   settingsDarkTheme: string;
   settingsThemeGraphite: string;

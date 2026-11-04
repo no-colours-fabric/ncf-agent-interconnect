@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  settingsThemeLightLabel: 'Jasny',
+  settingsThemeDarkLabel: 'Ciemny',
+  settingsDiagnosticNode: 'Węzeł',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: 'Nasłuchiwanie',
+
   settingsAppearance: 'Wygląd',
   settingsDarkTheme: 'Ciemny motyw',
   settingsThemeGraphite: 'Grafitowy',

@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  settingsThemeLightLabel: 'Claro',
+  settingsThemeDarkLabel: 'Escuro',
+  settingsDiagnosticNode: 'Nó',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: 'Escuta',
+
   settingsAppearance: 'Aparência',
   settingsDarkTheme: 'Tema escuro',
   settingsThemeGraphite: 'Grafite',

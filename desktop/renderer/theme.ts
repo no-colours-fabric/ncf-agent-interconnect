@@ -73,6 +73,11 @@ const darkTokens = {
   tableHeadBackground: '#292b2d',
   tooltipBackground: '#343638',
   tooltipText: '#ededee',
+  snackbarBackground: '#e5e7e9',
+  snackbarText: '#222426',
+  snackbarBorder: '#b7bcc1',
+  snackbarError: '#8f3343',
+  snackbarHover: 'rgba(34,36,38,0.08)',
   avatarBackground: '#383b3d',
   avatarText: '#c0c4c6',
   avatarGradient: 'linear-gradient(#45484b, #313437)',
@@ -109,6 +114,7 @@ const darkTokens = {
   border: 'rgba(255,255,255,0.09)',
   borderHighlight: 'rgba(255,255,255,0.16)',
   surfaceBorderHighlight: 'rgba(255,255,255,0.125)',
+  raisedBorderHighlight: 'rgba(255,255,255,0.125)',
   softBorder: 'rgba(255,255,255,0.05)',
   softBorderHighlight: 'rgba(255,255,255,0.08)',
   insetBorder: 'rgba(255,255,255,0.07)',
@@ -153,14 +159,18 @@ const darkTokens = {
   shellBackgroundGradient:
     'radial-gradient(ellipse at 5% 0%, #4a4c4e55, transparent 34%), radial-gradient(ellipse at 100% 72%, #3c414333, transparent 55%), linear-gradient(122deg, #161718 20%, #202122 68%, #171819)',
   surfaceGradient: 'linear-gradient(135deg, #2b2d2f, #202224 48%, #242628)',
+  raisedGradient: 'linear-gradient(135deg, #2b2d2f, #202224 48%, #242628)',
   softGradient: 'linear-gradient(120deg, #242628, #1e2022)',
   insetGradient: 'linear-gradient(#151718, #1c1e20)',
+  inputGradient: 'linear-gradient(#151718, #1c1e20)',
   activeGradient: 'linear-gradient(#36383a, #292b2c)',
   activeHoverGradient: 'linear-gradient(#3d3f41, #2e3032)',
   tabActiveGradient: 'linear-gradient(#343638, #282a2c)',
   sidebarGradient: 'linear-gradient(150deg, #313334c4, #1a1b1cd9 55%, #17191ac9)',
   glassGradient: 'linear-gradient(145deg, #393b3dc4, #232527c4)',
   surfaceShadow:
+    'inset 0 1px 0 rgba(255,255,255,0.025), inset 1px 0 0 rgba(255,255,255,0.012), 0 1px 2px rgba(0,0,0,0.32)',
+  raisedShadow:
     'inset 0 1px 0 rgba(255,255,255,0.025), inset 1px 0 0 rgba(255,255,255,0.012), 0 1px 2px rgba(0,0,0,0.32)',
   focusRing: '0 0 0 2px #171819, 0 0 0 4px #9dc8bb',
   statusGlow: '0 0 8px rgba(157,200,187,0.36)',
@@ -231,6 +241,11 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
   tableHeadBackground: '#e4d9c8',
   tooltipBackground: '#50493e',
   tooltipText: '#f4eee4',
+  snackbarBackground: '#343128',
+  snackbarText: '#f4eee4',
+  snackbarBorder: '#514d43',
+  snackbarError: '#e4aeb4',
+  snackbarHover: 'rgba(244,238,228,0.10)',
   avatarBackground: '#e2d7c6',
   avatarText: '#625848',
   avatarGradient: 'linear-gradient(#f0e7da, #d9cdba)',
@@ -257,7 +272,7 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
   controlBorder: '#89765a55',
   overlayBorder: '#a8947255',
   paperHighlight: '#fff7e7b8',
-  inputBottomBorder: '#fff8ec66',
+  inputBottomBorder: '#fff8ec47',
   inputHoverBorder: '#74604380',
   controlHoverBorder: '#806c4c88',
   paletteHover: 'rgba(110,91,65,0.055)',
@@ -266,15 +281,16 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
   paletteDisabledBackground: 'rgba(110,91,65,0.085)',
   border: 'rgba(120,102,75,0.21)',
   borderHighlight: 'rgba(255,249,237,0.82)',
-  surfaceBorderHighlight: 'rgba(255,249,237,0.8)',
+  surfaceBorderHighlight: 'rgba(255,249,237,0.5)',
+  raisedBorderHighlight: 'rgba(255,249,237,0.8)',
   softBorder: 'rgba(120,102,75,0.16)',
   softBorderHighlight: 'rgba(255,249,237,0.66)',
   insetBorder: 'rgba(120,102,75,0.24)',
   insetBorderHighlight: 'rgba(255,249,237,0.4)',
   glassBorder: 'rgba(120,102,75,0.25)',
   insetShadow: 'inset 0 1px 3px rgba(111,91,59,0.18), 0 1px 0 rgba(255,249,237,0.16)',
-  inputShadow: 'inset 0 1px 3px #6f5b3b2e, 0 1px 0 #fff9ed29',
-  inputFocusShadow: 'inset 0 1px 3px #6f5b3b2e, 0 0 0 2px #3b67581f',
+  inputShadow: 'inset 0 1px 3px #6f5b3b24, 0 1px 0 #fff9ed14',
+  inputFocusShadow: 'inset 0 1px 3px #6f5b3b24, 0 0 0 2px #3b67581f',
   glassShadow: 'inset 0 1px 0 rgba(255,249,237,0.7), 0 12px 36px rgba(99,80,49,0.13)',
   selectedShadow: 'inset 0 1px 0 #fff9edb3, 0 1px 1px #67553b2b',
   selectedGlow: '0 0 6px #3b67581c',
@@ -310,15 +326,19 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
     'radial-gradient(ellipse at 5% 1%, #c9bca688, transparent 34%), radial-gradient(ellipse at 100% 72%, #cbbca333, transparent 55%), linear-gradient(122deg, #e9dfd0 20%, #f1eadf 68%, #e8dfd1)',
   shellBackgroundGradient:
     'radial-gradient(ellipse at 5% 0%, #c9bca655, transparent 34%), radial-gradient(ellipse at 100% 72%, #cbbca333, transparent 55%), linear-gradient(122deg, #e9dfd0 20%, #f1eadf 68%, #e8dfd1)',
-  surfaceGradient: 'linear-gradient(135deg, #f4eee4, #e8dfd1 48%, #eee4d6)',
+  surfaceGradient: 'linear-gradient(135deg, #efe7db, #e9e0d3 48%, #ede3d6)',
+  raisedGradient: 'linear-gradient(135deg, #f4eee4, #e8dfd1 48%, #eee4d6)',
   softGradient: 'linear-gradient(120deg, #eee5d8, #e2d8c9)',
   insetGradient: 'linear-gradient(#ddd2c0, #eee4d7)',
+  inputGradient: 'linear-gradient(#e2d8c8, #eae0d2)',
   activeGradient: 'linear-gradient(#eadfce, #d9ccb8)',
   activeHoverGradient: 'linear-gradient(#eee5d6, #dfd3bf)',
   tabActiveGradient: 'linear-gradient(#ebdfcd, #dfd1bb)',
   sidebarGradient: 'linear-gradient(150deg, #dfd3c0c4, #ece3d6d9 55%, #ded2bfc9)',
   glassGradient: 'linear-gradient(145deg, #f5ede0d6, #e8ddcdd6)',
   surfaceShadow:
+    'inset 0 1px 0 rgba(255,249,237,0.2), inset 1px 0 0 rgba(255,249,237,0.1), 0 1px 2px rgba(99,80,49,0.07)',
+  raisedShadow:
     'inset 0 1px 0 rgba(255,249,237,0.45), inset 1px 0 0 rgba(255,249,237,0.22), 0 1px 2px rgba(99,80,49,0.12)',
   focusRing: '0 0 0 2px #ece5d9, 0 0 0 4px #3b6758',
   statusGlow: '0 0 6px rgba(59,103,88,0.18)',
@@ -331,7 +351,9 @@ export const designTokens = Object.fromEntries(
   Object.entries(darkTokens).map(([name, value]) => [name, `var(${variableName(name)}, ${value})`]),
 ) as DesignTokens;
 
-export function surfaceSx(kind: 'default' | 'soft' | 'glass' | 'inset' = 'default'): CSSObject {
+export function surfaceSx(
+  kind: 'default' | 'raised' | 'soft' | 'glass' | 'inset' = 'default',
+): CSSObject {
   const base: CSSObject = {
     minWidth: 0,
     backgroundColor: designTokens.surface,
@@ -341,6 +363,14 @@ export function surfaceSx(kind: 'default' | 'soft' | 'glass' | 'inset' = 'defaul
     borderRadius: '12px',
     boxShadow: designTokens.surfaceShadow,
   };
+  if (kind === 'raised') {
+    return {
+      ...base,
+      backgroundImage: designTokens.raisedGradient,
+      borderTopColor: designTokens.raisedBorderHighlight,
+      boxShadow: designTokens.raisedShadow,
+    };
+  }
   if (kind === 'soft') {
     return {
       ...base,
@@ -348,6 +378,7 @@ export function surfaceSx(kind: 'default' | 'soft' | 'glass' | 'inset' = 'defaul
       backgroundImage: designTokens.softGradient,
       borderColor: designTokens.softBorder,
       borderTopColor: designTokens.softBorderHighlight,
+      boxShadow: designTokens.raisedShadow,
     };
   }
   if (kind === 'inset') {
@@ -613,6 +644,7 @@ export function createAppTheme(mode: 'dark' | 'light') {
         },
       },
       MuiOutlinedInput: {
+        defaultProps: { notched: false },
         styleOverrides: {
           root: {
             color: designTokens.text,
@@ -620,7 +652,7 @@ export function createAppTheme(mode: 'dark' | 'light') {
             lineHeight: inputLineHeight,
             borderRadius: 8,
             backgroundColor: designTokens.insetSurface,
-            backgroundImage: designTokens.insetGradient,
+            backgroundImage: designTokens.inputGradient,
             boxShadow: designTokens.inputShadow,
             '&:hover .MuiOutlinedInput-notchedOutline': {
               borderColor: designTokens.inputHoverBorder,
@@ -635,8 +667,10 @@ export function createAppTheme(mode: 'dark' | 'light') {
             '& textarea.MuiOutlinedInput-input': { padding: 0 },
           },
           notchedOutline: {
+            top: 0,
             borderColor: designTokens.inputBorder,
             borderBottomColor: designTokens.inputBottomBorder,
+            '& legend': { display: 'none' },
           },
           input: {
             fontSize: 'inherit',
@@ -650,6 +684,7 @@ export function createAppTheme(mode: 'dark' | 'light') {
       },
       MuiTextField: { defaultProps: { size: 'small' } },
       MuiInputLabel: {
+        defaultProps: { shrink: true, disableAnimation: true },
         styleOverrides: {
           root: {
             color: designTokens.secondary,
@@ -658,9 +693,18 @@ export function createAppTheme(mode: 'dark' | 'light') {
             '&.Mui-error': { color: designTokens.error },
           },
           outlined: {
+            position: 'static',
+            marginBottom: 8,
             lineHeight: inputLineHeight,
-            transform: 'translate(14px, 12px) scale(1)',
-            '&.MuiInputLabel-shrink': { transform: 'translate(14px, -7.5px) scale(0.75)' },
+            maxWidth: '100%',
+            whiteSpace: 'normal',
+            overflow: 'visible',
+            overflowWrap: 'anywhere',
+            textOverflow: 'clip',
+            pointerEvents: 'auto',
+            transition: 'none',
+            transform: 'none',
+            '&.MuiInputLabel-shrink': { transform: 'none', maxWidth: '100%' },
           },
         },
       },
@@ -880,6 +924,7 @@ export function createAppTheme(mode: 'dark' | 'light') {
             lineHeight: 1.6,
             border: '1px solid transparent',
             backgroundImage: 'none',
+            boxShadow: designTokens.raisedShadow,
             variants: [
               {
                 props: { variant: 'standard', severity: 'error' },
@@ -935,9 +980,38 @@ export function createAppTheme(mode: 'dark' | 'light') {
       MuiSnackbarContent: {
         styleOverrides: {
           root: {
-            color: designTokens.text,
-            backgroundColor: designTokens.surface,
-            backgroundImage: designTokens.surfaceGradient,
+            color: designTokens.snackbarText,
+            backgroundColor: designTokens.snackbarBackground,
+            backgroundImage: 'none',
+            boxShadow: 'none',
+            border: `1px solid ${designTokens.snackbarBorder}`,
+            borderTopColor: designTokens.snackbarBorder,
+            borderRadius: 8,
+          },
+        },
+      },
+      MuiSnackbar: {
+        styleOverrides: {
+          root: {
+            '& .MuiAlert-root': {
+              color: designTokens.snackbarText,
+              backgroundColor: designTokens.snackbarBackground,
+              backgroundImage: 'none',
+              boxShadow: 'none',
+              border: `1px solid ${designTokens.snackbarBorder}`,
+              borderTopColor: designTokens.snackbarBorder,
+              borderRadius: 8,
+              '& .MuiAlert-icon': { color: designTokens.snackbarText, opacity: 1 },
+              '&.MuiAlert-colorError .MuiAlert-icon': { color: designTokens.snackbarError },
+              '& .MuiAlert-action .MuiIconButton-root': {
+                color: designTokens.snackbarText,
+                '&:hover': {
+                  color: designTokens.snackbarText,
+                  backgroundColor: designTokens.snackbarHover,
+                },
+                '&.Mui-focusVisible': { outlineColor: designTokens.snackbarText },
+              },
+            },
           },
         },
       },

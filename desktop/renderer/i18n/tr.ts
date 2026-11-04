@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  settingsThemeLightLabel: 'Açık',
+  settingsThemeDarkLabel: 'Koyu',
+  settingsDiagnosticNode: 'Düğüm',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: 'Dinleme adresi',
+
   settingsAppearance: 'Görünüm',
   settingsDarkTheme: 'Koyu tema',
   settingsThemeGraphite: 'Grafit',

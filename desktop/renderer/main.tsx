@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Divider,
   MenuItem,
   FormControlLabel,
   Switch,
@@ -28,11 +29,13 @@ import {
 } from '@mui/material';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import AddOutlined from '@mui/icons-material/AddOutlined';
+import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
+import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
 import { ApplicationConnections } from './application-connections.js';
 import { AppShell, type Page } from './AppShell.js';
-import { createAppTheme, surfaceSx } from './theme.js';
+import { createAppTheme, designTokens, surfaceSx } from './theme.js';
 import { loadThemeMode, persistThemeMode, type ThemeMode } from './theme-preference.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
@@ -211,6 +214,7 @@ function App({
             >
               <Paper
                 sx={{
+                  ...surfaceSx('raised'),
                   p: 3,
                   display: 'flex',
                   flexDirection: 'column',
@@ -337,7 +341,7 @@ function App({
                   </Box>
                 )}
               </Paper>
-              <Paper sx={{ p: 3 }}>
+              <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
                   {t(locale, 'networkConnectTitle')}
                 </Typography>
@@ -432,18 +436,45 @@ function App({
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'settingsAppearance')}
                 </Typography>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={themeMode === 'dark'}
-                      onChange={(_, checked) => onThemeChange(checked ? 'dark' : 'light')}
-                    />
-                  }
-                  label={t(locale, 'settingsDarkTheme')}
-                />
-                <Typography variant="body2" color="text.secondary">
-                  {t(locale, themeMode === 'dark' ? 'settingsThemeGraphite' : 'settingsThemeSand')}
-                </Typography>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: 'center',
+                      color: themeMode === 'light' ? 'text.primary' : 'text.secondary',
+                    }}
+                  >
+                    <LightModeOutlined aria-hidden="true" sx={{ fontSize: 18 }} />
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'nowrap', fontWeight: themeMode === 'light' ? 500 : 400 }}
+                    >
+                      {t(locale, 'settingsThemeLightLabel')}
+                    </Typography>
+                  </Stack>
+                  <Switch
+                    checked={themeMode === 'dark'}
+                    onChange={(_, checked) => onThemeChange(checked ? 'dark' : 'light')}
+                    slotProps={{ input: { 'aria-label': t(locale, 'settingsDarkTheme') } }}
+                  />
+                  <Stack
+                    direction="row"
+                    spacing={1}
+                    sx={{
+                      alignItems: 'center',
+                      color: themeMode === 'dark' ? 'text.primary' : 'text.secondary',
+                    }}
+                  >
+                    <DarkModeOutlined aria-hidden="true" sx={{ fontSize: 18 }} />
+                    <Typography
+                      variant="body2"
+                      sx={{ whiteSpace: 'nowrap', fontWeight: themeMode === 'dark' ? 500 : 400 }}
+                    >
+                      {t(locale, 'settingsThemeDarkLabel')}
+                    </Typography>
+                  </Stack>
+                </Stack>
               </Paper>
               <Paper sx={{ p: 3 }}>
                 <Typography variant="h6" sx={{ mb: 2 }}>
@@ -536,15 +567,29 @@ function App({
               <Typography variant="h6" sx={{ mb: 2 }}>
                 {t(locale, 'settingsDiagnostics')}
               </Typography>
-              <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                {t(locale, 'settingsNodeId', { id: snapshot.nodeId })}
-              </Typography>
-              <Typography variant="body2" sx={{ overflowWrap: 'anywhere', mt: 2 }}>
-                {t(locale, 'settingsMcp', { url: snapshot.mcpUrl })}
-              </Typography>
-              <Typography variant="body2" sx={{ overflowWrap: 'anywhere', mt: 2 }}>
-                {t(locale, 'settingsListening', { url: snapshot.peerUrl })}
-              </Typography>
+              <Stack component="dl" spacing={2} sx={{ m: 0 }}>
+                {(
+                  [
+                    ['settingsDiagnosticNode', snapshot.nodeId],
+                    ['settingsDiagnosticMcp', snapshot.mcpUrl],
+                    ['settingsDiagnosticListening', snapshot.peerUrl],
+                  ] as const
+                ).map(([label, value]) => (
+                  <Box key={label}>
+                    <Typography component="dt" variant="caption" color="text.secondary">
+                      {t(locale, label)}
+                    </Typography>
+                    <Typography
+                      component="dd"
+                      variant="body2"
+                      sx={{ m: 0, mt: 0.5, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
+                    >
+                      {value}
+                    </Typography>
+                  </Box>
+                ))}
+              </Stack>
+              <Divider sx={{ my: 2 }} />
               {snapshot.errors.length ? (
                 snapshot.errors.map((e, i) => (
                   <Alert severity="error" key={i} sx={{ mt: 1 }}>
@@ -552,9 +597,22 @@ function App({
                   </Alert>
                 ))
               ) : (
-                <Typography variant="body2" color="success.main" sx={{ mt: 1 }}>
-                  {t(locale, 'settingsNoErrors')}
-                </Typography>
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                  <Box
+                    aria-hidden="true"
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      flexShrink: 0,
+                      bgcolor: 'success.main',
+                      boxShadow: designTokens.statusGlow,
+                    }}
+                  />
+                  <Typography variant="body2" color="success.main">
+                    {t(locale, 'settingsNoErrors')}
+                  </Typography>
+                </Stack>
               )}
             </Paper>
           </Box>

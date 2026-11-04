@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  settingsThemeLightLabel: '밝게',
+  settingsThemeDarkLabel: '어둡게',
+  settingsDiagnosticNode: '노드',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: '수신 주소',
+
   settingsAppearance: '화면 모양',
   settingsDarkTheme: '어두운 테마',
   settingsThemeGraphite: '그라파이트',

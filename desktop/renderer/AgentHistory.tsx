@@ -45,6 +45,8 @@ export function AgentHistory({
             p: 2,
             width: '84%',
             alignSelf: m.direction === 'out' ? 'flex-end' : 'flex-start',
+            boxShadow: designTokens.raisedShadow,
+            borderTopColor: designTokens.raisedBorderHighlight,
             backgroundColor:
               m.direction === 'out'
                 ? designTokens.chatOutgoingBackground

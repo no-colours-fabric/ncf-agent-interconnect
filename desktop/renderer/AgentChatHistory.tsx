@@ -132,6 +132,7 @@ export function AgentChatHistory({
                   p: 2,
                   maxWidth: '84%',
                   minWidth: 0,
+                  boxShadow: designTokens.raisedShadow,
                   backgroundColor: outgoing
                     ? designTokens.chatOutgoingBackground
                     : designTokens.chatIncomingBackground,

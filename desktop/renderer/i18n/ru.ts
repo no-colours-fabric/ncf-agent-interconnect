@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  settingsThemeLightLabel: 'Светлая',
+  settingsThemeDarkLabel: 'Тёмная',
+  settingsDiagnosticNode: 'Узел',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: 'Адрес прослушивания',
+
   settingsAppearance: 'Оформление',
   settingsDarkTheme: 'Тёмная тема',
   settingsThemeGraphite: 'Графитовая',

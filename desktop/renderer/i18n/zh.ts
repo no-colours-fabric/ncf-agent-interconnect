@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  settingsThemeLightLabel: '浅色',
+  settingsThemeDarkLabel: '深色',
+  settingsDiagnosticNode: '节点',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: '监听地址',
+
   settingsAppearance: '外观',
   settingsDarkTheme: '深色主题',
   settingsThemeGraphite: '石墨色',

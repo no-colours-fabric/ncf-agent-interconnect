@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  settingsThemeLightLabel: 'Ашық',
+  settingsThemeDarkLabel: 'Қараңғы',
+  settingsDiagnosticNode: 'Түйін',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: 'Тыңдау мекенжайы',
+
   settingsAppearance: 'Безендіру',
   settingsDarkTheme: 'Қараңғы тақырып',
   settingsThemeGraphite: 'Графит',

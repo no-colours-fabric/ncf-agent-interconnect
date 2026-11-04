@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  settingsThemeLightLabel: 'ライト',
+  settingsThemeDarkLabel: 'ダーク',
+  settingsDiagnosticNode: 'ノード',
+  settingsDiagnosticMcp: 'MCP',
+  settingsDiagnosticListening: '待受アドレス',
+
   settingsAppearance: '外観',
   settingsDarkTheme: 'ダークテーマ',
   settingsThemeGraphite: 'グラファイト',
