@@ -209,6 +209,11 @@ try {
   await page
     .getByText('Message 420: sample attachments for opening and saving.', { exact: true })
     .waitFor();
+  const toggle = page.getByTestId('agent-chat-compose-toggle');
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+  await toggle.click();
+  await frames(page);
+  assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
   const history = page.getByTestId('agent-chat-history');
   assert.equal(await page.getByTestId('chat-message').count(), 100);
   assert.ok(
@@ -308,6 +313,7 @@ try {
     await page
       .getByText('Message 420: sample attachments for opening and saving.', { exact: true })
       .waitFor();
+    await page.getByTestId('agent-chat-compose-toggle').click();
     await page.getByTestId('agent-chat-history').evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });

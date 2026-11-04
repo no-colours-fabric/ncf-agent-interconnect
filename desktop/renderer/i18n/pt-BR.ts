@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  clientsManualConnections: 'MCP manual (todas as conexões manuais)',
+  chatNewMessage: 'Nova mensagem',
+  chatOpenComposer: 'Escrever mensagem',
+  chatCloseComposer: 'Fechar painel de mensagem',
   settingsThemeLightLabel: 'Claro',
   settingsThemeDarkLabel: 'Escuro',
   settingsDiagnosticNode: 'Nó',
@@ -135,7 +139,7 @@ export const ptBR: Messages = {
   navOverview: 'Visão geral',
   navAgents: 'Agentes',
   navNetwork: 'Nós remotos',
-  navMcp: 'Configuração do MCP',
+  navMcp: 'Aplicativos e MCP',
   navClients: 'Aplicativos',
   navSettings: 'Configurações',
   nodeRunning: 'Nó em execução',

@@ -105,8 +105,8 @@ try {
       method,
       params,
     });
-  await page.getByTestId('nav-clients').click();
-  await page.getByTestId('application-aionui').getByRole('button').click();
+  await page.getByTestId('nav-mcp').click();
+  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
   const setup = page.getByTestId('aionui-setup');
   await setup.getByText('Not paired', { exact: true }).waitFor();
   assert.equal((await invoke('aionUiStatus')).state, 'not-paired');

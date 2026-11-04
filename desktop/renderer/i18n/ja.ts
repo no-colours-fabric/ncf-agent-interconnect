@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  clientsManualConnections: '手動 MCP（すべての手動接続）',
+  chatNewMessage: '新しいメッセージ',
+  chatOpenComposer: 'メッセージを作成',
+  chatCloseComposer: 'メッセージパネルを閉じる',
   settingsThemeLightLabel: 'ライト',
   settingsThemeDarkLabel: 'ダーク',
   settingsDiagnosticNode: 'ノード',
@@ -133,7 +137,7 @@ export const ja: Messages = {
   navOverview: '概要',
   navAgents: 'エージェント',
   navNetwork: 'リモートノード',
-  navMcp: 'MCP 設定',
+  navMcp: 'アプリと MCP',
   navClients: 'アプリケーション',
   navSettings: '設定',
   nodeRunning: 'ノード実行中',

@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { AgentsPage } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
-import { McpSetup } from './McpSetup.js';
+import { McpSetup, McpSetupStatusIcon } from './McpSetup.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import type { McpSetupApplication } from '../shared/mcp-setup.js';
 import {
@@ -33,12 +33,15 @@ import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
-import { ApplicationConnections } from './application-connections.js';
+import { useMcpSetupStatuses } from './mcp-setup-status.js';
+import { mcpSetupClients } from '../shared/mcp-setup.js';
 import { AppShell, type Page } from './AppShell.js';
 import { createAppTheme, designTokens, surfaceSx } from './theme.js';
 import { loadThemeMode, persistThemeMode, type ThemeMode } from './theme-preference.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
+const appLabels = { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex', aionui: 'AionUi' };
+const normalizePage = (value: string): Page => (value === 'clients' ? 'mcp' : (value as Page));
 
 function App({
   themeMode,
@@ -49,7 +52,7 @@ function App({
 }): React.JSX.Element {
   const [resolveNodeLabels] = useState(createNodeLabelResolver);
   const [snapshot, setSnapshot] = useState<Snapshot | null>(null),
-    [page, setPage] = useState<Page>((location.hash.slice(1) as Page) || 'overview');
+    [page, setPage] = useState<Page>(normalizePage(location.hash.slice(1)) || 'overview');
   const [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const [appVersion, setAppVersion] = useState('');
@@ -72,6 +75,7 @@ function App({
       window.interconnect.invoke<T>(method, params),
     [],
   );
+  const setupStatuses = useMcpSetupStatuses(call);
   const snapshotRequest = useRef(0);
   const run = async (work: () => Promise<unknown>, success = '') => {
     setBusy(true);
@@ -101,7 +105,7 @@ function App({
     const off = window.interconnect.onChange(() => {
       void refresh();
     });
-    const nav = window.interconnect.onNavigate((tab) => setPage(tab as Page));
+    const nav = window.interconnect.onNavigate((tab) => setPage(normalizePage(tab)));
     return () => {
       off();
       nav();
@@ -253,6 +257,57 @@ function App({
                 </Button>
               </Paper>
             </Box>
+            <Paper data-testid="overview-applications" sx={{ p: 2.5 }}>
+              <Typography variant="h6" sx={{ mb: 1.5 }}>
+                {t(locale, 'navClients')}
+              </Typography>
+              <Box
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, minmax(0, 1fr))',
+                    xl: 'repeat(4, minmax(0, 1fr))',
+                  },
+                  gap: 1,
+                }}
+              >
+                {mcpSetupClients.map((application) => {
+                  const status = setupStatuses.statuses[application];
+                  const statusError = setupStatuses.errors[application];
+                  const messages = mcpSetupMessages(locale);
+                  return (
+                    <Button
+                      key={application}
+                      data-testid={'overview-application-' + application}
+                      onClick={() => {
+                        setClient(application);
+                        setPage('mcp');
+                      }}
+                      sx={{ justifyContent: 'flex-start', gap: 1.25, px: 1, py: 1, minWidth: 0 }}
+                    >
+                      <McpSetupStatusIcon status={status} error={statusError} messages={messages} />
+                      <Box component="span" sx={{ textAlign: 'left', minWidth: 0 }}>
+                        <Typography component="span" variant="body2" sx={{ display: 'block' }}>
+                          {appLabels[application]}
+                        </Typography>
+                        <Typography
+                          component="span"
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: 'block' }}
+                        >
+                          {statusError
+                            ? messages.unavailable
+                            : status
+                              ? messages[status.state]
+                              : messages.checking}
+                        </Typography>
+                      </Box>
+                    </Button>
+                  );
+                })}
+              </Box>
+            </Paper>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
               {t(locale, 'overviewIntro')}
             </Typography>
@@ -402,24 +457,9 @@ function App({
             onClientChange={setClient}
             invoke={call}
             messages={mcpSetupMessages(locale)}
-          />
-        )}
-        {page === 'clients' && (
-          <ApplicationConnections
             snapshot={snapshot}
             locale={locale}
-            onSetup={(kind) => {
-              setClient(
-                kind === 'opencode-http'
-                  ? 'opencode'
-                  : kind === 'codex-desktop'
-                    ? 'codex'
-                    : kind === 'aionui'
-                      ? 'aionui'
-                      : 'cursor',
-              );
-              setPage('mcp');
-            }}
+            setupStatuses={setupStatuses}
           />
         )}
         {page === 'settings' && (

@@ -183,6 +183,32 @@ async function capture(name, width) {
   await page.screenshot({ path: filename, animations: 'disabled' });
   screenshots.push(filename);
 }
+async function verifyApplicationSummaries() {
+  assert.equal(await page.getByTestId('nav-clients').count(), 0);
+  let total = 0;
+  for (const [client, kind] of [
+    ['Cursor', 'manual'],
+    ['OpenCode', 'opencode-http'],
+    ['Codex', 'codex-desktop'],
+    ['AionUi', 'aionui'],
+  ]) {
+    await page.getByRole('tab', { name: client, exact: true }).click();
+    const summary = page.getByTestId('application-' + kind);
+    await summary.waitFor();
+    const expected = agents.filter((agent) => agent.fixtureAdapterKind === kind).length;
+    assert.equal(
+      await summary.getByTestId('application-agent-count').innerText(),
+      String(expected),
+    );
+    assert.equal(
+      await summary.getByTestId('application-last-activity').innerText(),
+      expected ? await page.evaluate((stamp) => new Date(stamp).toLocaleString('en'), stamp) : '',
+    );
+    total += expected;
+  }
+  assert.equal(total, agents.length, 'All application agent counts survive the navigation merge');
+  await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
+}
 async function settled() {
   await page.evaluate(
     () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
@@ -330,7 +356,7 @@ contextBridge.exposeInMainWorld('interconnect',{
     { width: 2560, height: 1100 },
   ]) {
     const windowSize = await resizeWindow(viewport);
-    for (const screen of ['overview', 'agents', 'network', 'mcp', 'clients', 'settings']) {
+    for (const screen of ['overview', 'agents', 'network', 'mcp', 'settings']) {
       await page.getByTestId('nav-' + screen).click();
       await settled();
       const content = await assertLayout(screen);
@@ -338,6 +364,13 @@ contextBridge.exposeInMainWorld('interconnect',{
         const table = page.getByTestId('agents-table');
         assert.equal(await page.getByRole('dialog').count(), 0, 'Agents must open without chat');
         assert.equal(await table.getByRole('columnheader').count(), 6);
+        assert.equal(
+          await table.locator('thead th').count(),
+          7,
+          'Includes the unnamed node-kind column',
+        );
+        assert.equal(await table.locator('thead th').nth(2).innerText(), '');
+        assert.equal(await table.getByTestId('agent-node-kind').count(), 6);
         assert.equal(await page.getByTestId('agent-row').count(), 6);
         const owner = page.locator(`[data-agent-id="${local}:${researcher.toLowerCase()}"]`);
         assert.equal(await owner.getByRole('img', { name: 'In: 12', exact: true }).count(), 1);
@@ -378,6 +411,11 @@ contextBridge.exposeInMainWorld('interconnect',{
           Math.abs(drawer.x + drawer.width - viewport.width) < 1.5,
           'Drawer must align with window right edge: ' + JSON.stringify({ drawer, viewport }),
         );
+        const toggle = dialog.getByTestId('agent-chat-compose-toggle');
+        assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+        await toggle.click();
+        await settled();
+        assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
         await assertContained(page.getByTestId('agent-chat-compose'), 'Chat composer');
         await assertContained(
           dialog.getByRole('button', { name: 'Send message', exact: true }),
@@ -419,6 +457,7 @@ contextBridge.exposeInMainWorld('interconnect',{
       }
       if (screen === 'mcp') {
         assert.equal(await page.getByRole('tab').count(), 4);
+        await verifyApplicationSummaries();
         await page.getByTestId('mcp-settings-status').waitFor();
         await capture('mcp', viewport.width);
         await page.getByTestId('mcp-configure-cursor').click();
@@ -435,14 +474,13 @@ contextBridge.exposeInMainWorld('interconnect',{
         await dialog.waitFor({ state: 'detached' });
         continue;
       }
-      if (screen === 'clients')
-        assert.equal(await page.getByTestId('applications-table').locator('tbody tr').count(), 4);
       await capture(screen, viewport.width);
     }
     results.push({
       ...viewport,
       windowSize,
-      screens: 6,
+      screens: 5,
+      applicationSummariesInMcp: 4,
       drawerAtWindowEdge: true,
       composerVisible: true,
     });

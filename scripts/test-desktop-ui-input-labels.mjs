@@ -1001,6 +1001,11 @@ rejected.push(method);throw Error('Rejected layout fixture IPC '+method);
       Math.abs(drawer.width - 720) < 1 && Math.abs(drawer.right - 900) < 1,
       'Chat drawer must remain 720px wide and anchored to the right edge',
     );
+    const toggle = chat.getByTestId('agent-chat-compose-toggle');
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    await toggle.click();
+    await settle();
+    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     const compose = chat.getByTestId('agent-chat-compose');
     const recipient = chat.getByRole('textbox', { name: 'Recipient agent name', exact: true });
     const draft = chat.getByRole('textbox', { name: 'Message from the user', exact: true });

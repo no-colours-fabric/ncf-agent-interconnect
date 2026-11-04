@@ -5,6 +5,10 @@ type McpSetupTranslations = {
 };
 
 export interface Messages extends McpSetupTranslations {
+  clientsManualConnections: string;
+  chatNewMessage: string;
+  chatOpenComposer: string;
+  chatCloseComposer: string;
   settingsThemeLightLabel: string;
   settingsThemeDarkLabel: string;
   settingsDiagnosticNode: string;

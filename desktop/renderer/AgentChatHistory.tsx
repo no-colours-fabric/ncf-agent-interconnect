@@ -51,6 +51,7 @@ export function AgentChatHistory({
   run,
   call,
   nodeName,
+  layoutKey,
 }: {
   messages: Message[];
   hasMore: boolean;
@@ -60,27 +61,34 @@ export function AgentChatHistory({
   run: (work: () => Promise<unknown>) => Promise<void>;
   call: (method: string, params: unknown) => Promise<unknown>;
   nodeName: (id: string) => string;
+  layoutKey?: boolean;
 }): React.JSX.Element {
   const scroll = useRef<HTMLDivElement>(null);
   const previous = useRef<ReturnType<typeof scrollPosition> | null>(null);
   useLayoutEffect(() => {
     const element = scroll.current;
     if (!element) return;
-    const old = previous.current;
-    if (!old || old.atBottom) element.scrollTop = element.scrollHeight;
-    else if (old.anchor) {
-      // Anchor a visible row through prepends and loading-indicator layout changes.
-      const anchor = [...element.querySelectorAll<HTMLElement>('[data-message-key]')].find(
-        (item) => item.dataset.messageKey === old.anchor?.key,
-      );
-      if (anchor)
-        element.scrollTop +=
-          anchor.getBoundingClientRect().top -
-          element.getBoundingClientRect().top -
-          old.anchor.offset;
-    }
-    previous.current = scrollPosition(element);
-  }, [messages, hasMore, loading, locale]);
+    const reconcile = () => {
+      const old = previous.current;
+      if (!old || old.atBottom) element.scrollTop = element.scrollHeight;
+      else if (old.anchor) {
+        // Keep the pre-layout position through content and viewport size changes.
+        const anchor = [...element.querySelectorAll<HTMLElement>('[data-message-key]')].find(
+          (item) => item.dataset.messageKey === old.anchor?.key,
+        );
+        if (anchor)
+          element.scrollTop +=
+            anchor.getBoundingClientRect().top -
+            element.getBoundingClientRect().top -
+            old.anchor.offset;
+      }
+      previous.current = scrollPosition(element);
+    };
+    reconcile();
+    const observer = new ResizeObserver(reconcile);
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [messages, hasMore, loading, locale, layoutKey]);
 
   return (
     <Box

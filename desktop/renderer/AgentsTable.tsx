@@ -18,6 +18,8 @@ import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import Circle from '@mui/icons-material/Circle';
 import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
 import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined';
+import ComputerOutlined from '@mui/icons-material/ComputerOutlined';
+import PublicOutlined from '@mui/icons-material/PublicOutlined';
 import type { AgentRow } from './agents-table-model.js';
 import { t, type Locale } from './i18n/index.js';
 import { designTokens } from './theme.js';
@@ -66,6 +68,7 @@ export function AgentsTable({
           <TableRow>
             <TableCell>{labels.name}</TableCell>
             <TableCell>{labels.client}</TableCell>
+            <TableCell aria-hidden="true" sx={{ width: 36, px: 1 }} />
             <TableCell>{labels.node}</TableCell>
             <TableCell>{labels.lastMessage}</TableCell>
             <TableCell align="right">{t(locale, 'agentsColumnMessages')}</TableCell>
@@ -104,12 +107,26 @@ export function AgentsTable({
               <TableCell sx={{ whiteSpace: 'nowrap', overflowWrap: 'normal' }}>
                 {agent.client}
               </TableCell>
+              <TableCell sx={{ width: 36, px: 1 }}>
+                <Tooltip title={t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}>
+                  <Box
+                    component="span"
+                    role="img"
+                    aria-label={t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}
+                    data-testid="agent-node-kind"
+                    sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary' }}
+                  >
+                    {agent.local ? (
+                      <ComputerOutlined sx={{ fontSize: 18 }} />
+                    ) : (
+                      <PublicOutlined sx={{ fontSize: 18 }} />
+                    )}
+                  </Box>
+                </Tooltip>
+              </TableCell>
               <TableCell>
                 <Typography variant="body2" sx={{ fontSize: 12 }}>
                   {nodeName(agent.nodeId)}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}
                 </Typography>
               </TableCell>
               <TableCell sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'normal' }}>
@@ -141,7 +158,6 @@ export function AgentsTable({
                           fontSize: 12,
                         }}
                       >
-                        {'('}
                         <Tooltip title={labels.incoming}>
                           <Box
                             component="span"
@@ -153,7 +169,6 @@ export function AgentsTable({
                             {agent.incomingCount}
                           </Box>
                         </Tooltip>
-                        {'/'}
                         <Tooltip title={labels.outgoing}>
                           <Box
                             component="span"
@@ -165,7 +180,6 @@ export function AgentsTable({
                             {agent.outgoingCount}
                           </Box>
                         </Tooltip>
-                        {')'}
                       </Box>
                     )}
                   </Box>
@@ -199,7 +213,7 @@ export function AgentsTable({
           ))}
           {!rows.length && (
             <TableRow>
-              <TableCell colSpan={6} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
+              <TableCell colSpan={7} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
                 {t(locale, 'agentEmptyPrompt')}
               </TableCell>
             </TableRow>

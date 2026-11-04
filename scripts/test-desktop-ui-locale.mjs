@@ -349,22 +349,53 @@ async function closeChat(locale) {
   await drawer.getByRole('button', { name: setupLabels[locale].chatClose, exact: true }).click();
   await drawer.waitFor({ state: 'detached' });
 }
+async function checkApplicationSummary(kind, locale) {
+  const current = await invoke('snapshot');
+  const profiles = current.adapters.filter((profile) => profile.kind === kind);
+  const ids = new Set(profiles.map((profile) => profile.id));
+  const agents = current.agents.filter(
+    (agent) => agent.binding && ids.has(agent.binding.adapterId),
+  );
+  const dates = [
+    ...agents.map((agent) => agent.lastMessageAt),
+    ...profiles.map((profile) => profile.lastOwnerVerifiedAt),
+  ].filter((value) => value && Number.isFinite(Date.parse(value)));
+  const activity = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+  const summary = page.getByTestId('application-' + kind);
+  await summary.waitFor();
+  assert.equal(
+    await summary.getByTestId('application-agent-count').innerText(),
+    String(agents.length),
+  );
+  assert.equal(
+    await summary.getByTestId('application-last-activity').innerText(),
+    activity
+      ? await page.evaluate(
+          ([date, locale]) => new Date(date).toLocaleString(locale),
+          [activity, locale],
+        )
+      : '',
+  );
+}
 async function checkMcpSetup(locale) {
   const expected = setupLabels[locale];
+  assert.equal(await page.getByTestId('nav-clients').count(), 0);
   assert.equal(await page.getByRole('tab').count(), 4);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
   await page.getByText(expected.userControl, { exact: true }).waitFor();
-  for (const [client, label, configure] of [
-    ['cursor', 'Cursor', expected.configureCursor],
-    ['opencode', 'OpenCode', expected.configureOpencode],
-    ['codex', 'Codex', expected.configureCodex],
+  for (const [client, label, configure, kind] of [
+    ['cursor', 'Cursor', expected.configureCursor, 'manual'],
+    ['opencode', 'OpenCode', expected.configureOpencode, 'opencode-http'],
+    ['codex', 'Codex', expected.configureCodex, 'codex-desktop'],
   ]) {
     await page.getByRole('tab', { name: label, exact: true }).click();
+    await checkApplicationSummary(kind, locale);
     assert.equal(await page.getByTestId('mcp-configure-' + client).innerText(), configure);
     await page.getByTestId('mcp-settings-status').filter({ hasText: expected.missing }).waitFor();
   }
   await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
+  await checkApplicationSummary('aionui', locale);
   const aionSetup = page.getByTestId('aionui-setup');
   await aionSetup.getByText(expected.aionNotPaired, { exact: true }).waitFor();
   await page.getByTestId('aionui-configure-access').click();
@@ -442,6 +473,7 @@ try {
     .getByRole('button')
     .first()
     .click();
+  await page.getByTestId('agent-chat-compose-toggle').click();
   await page.getByRole('textbox', { name: 'Recipient agent name', exact: true }).fill(targetName);
   await page.getByRole('textbox', { name: 'Message from the user', exact: true }).fill(message);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();
@@ -462,7 +494,7 @@ try {
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.ok((await page.locator('body').textContent()).includes(nodeLabel));
     await capture(locale + '-overview');
-    for (const name of ['agents', 'network', 'mcp', 'clients', 'settings']) {
+    for (const name of ['agents', 'network', 'mcp', 'settings']) {
       await navigate(name);
       await page.getByTestId('page-title').waitFor();
       const toggleBounds = await page.getByTestId('node-toggle').boundingBox();
@@ -497,7 +529,8 @@ try {
       locale,
       aionUiSetupLocalized: true,
       mcpTabs: 4,
-      pages: 6,
+      pages: 5,
+      applicationSummariesInMcp: 4,
       htmlLang: true,
       headerControlsVisible: true,
       headerControlBounds: await page.getByTestId('node-toggle').boundingBox(),

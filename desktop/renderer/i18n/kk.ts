@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  clientsManualConnections: 'Қолмен MCP (барлық қолмен қосылымдар)',
+  chatNewMessage: 'Жаңа хабарлама',
+  chatOpenComposer: 'Хабарлама жазу',
+  chatCloseComposer: 'Хабарлама панелін жабу',
   settingsThemeLightLabel: 'Ашық',
   settingsThemeDarkLabel: 'Қараңғы',
   settingsDiagnosticNode: 'Түйін',
@@ -135,7 +139,7 @@ export const kk: Messages = {
   navOverview: 'Шолу',
   navAgents: 'Агенттер',
   navNetwork: 'Қашықтағы тораптар',
-  navMcp: 'MCP параметрлері',
+  navMcp: 'Қолданбалар және MCP',
   navClients: 'Қолданбалар',
   navSettings: 'Параметрлер',
   nodeRunning: 'Торап жұмыс істеп тұр',

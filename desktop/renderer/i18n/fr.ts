@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const fr: Messages = {
+  clientsManualConnections: 'MCP manuel (toutes les connexions manuelles)',
+  chatNewMessage: 'Nouveau message',
+  chatOpenComposer: 'Rédiger un message',
+  chatCloseComposer: 'Fermer le panneau de rédaction',
   settingsThemeLightLabel: 'Clair',
   settingsThemeDarkLabel: 'Sombre',
   settingsDiagnosticNode: 'Nœud',
@@ -134,7 +138,7 @@ export const fr: Messages = {
   navOverview: 'Aperçu',
   navAgents: 'Agents',
   navNetwork: 'Nœuds distants',
-  navMcp: 'Configuration MCP',
+  navMcp: 'Applications et MCP',
   navClients: 'Applications',
   navSettings: 'Réglages',
   nodeRunning: 'Nœud en cours d’exécution',

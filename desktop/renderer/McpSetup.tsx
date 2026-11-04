@@ -23,15 +23,25 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
 import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
+import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined';
+import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined';
+import SyncProblemOutlined from '@mui/icons-material/SyncProblemOutlined';
+import ErrorOutlineOutlined from '@mui/icons-material/ErrorOutlineOutlined';
+import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined';
 import {
   mcpSetupClients,
   type McpSetupClient,
   type McpSetupInvoke,
   type McpSetupApplication,
+  type McpSetupStatus,
 } from '../shared/mcp-setup.js';
+import type { Snapshot } from '../shared/contracts.js';
 import { McpSetupFlow } from './mcp-setup-model.js';
 import { mcpSetupEnglish, type McpSetupMessages } from './mcp-setup-messages.js';
 import { designTokens, surfaceSx } from './theme.js';
+import { ClientApplicationSummary } from './application-connections.js';
+import { useMcpSetupStatuses, type McpSetupStatuses } from './mcp-setup-status.js';
+import type { Locale } from './i18n/index.js';
 
 import { AionUiAuthorization } from './AionUiSetup.js';
 
@@ -65,6 +75,9 @@ const keys = {
 interface DialogProps {
   invoke: McpSetupInvoke;
   messages: McpSetupMessages;
+  summary?: React.ReactNode;
+  onApplied?: () => Promise<void>;
+  check?: { status?: McpSetupStatus; error?: string };
 }
 
 function ClientSetupDialog({
@@ -72,6 +85,9 @@ function ClientSetupDialog({
   invoke,
   messages: m,
   before,
+  summary,
+  onApplied,
+  check,
 }: DialogProps & { client: McpSetupClient; before?: React.ReactNode }): React.JSX.Element {
   const flow = useMemo(() => new McpSetupFlow(client, invoke), [client, invoke]);
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
@@ -95,12 +111,19 @@ function ClientSetupDialog({
   }, [flow, state]);
   const k = keys[client];
   const status = state.status;
-  const canOpen = !!status?.files[0]?.path && status.state !== 'missing';
-  const openHint = !status
+  const shownState = check ? (check.error ? 'unavailable' : check.status?.state) : status?.state;
+  const canOpen =
+    !!status?.files[0]?.path &&
+    !!shownState &&
+    shownState !== 'missing' &&
+    shownState !== 'unavailable';
+  const openHint = !shownState
     ? m.checking
-    : status.state === 'missing'
+    : shownState === 'missing'
       ? m.openFileMissing
-      : m.openFile;
+      : shownState === 'unavailable'
+        ? m.unavailable
+        : m.openFile;
   return (
     <>
       <Stack
@@ -125,7 +148,7 @@ function ClientSetupDialog({
           <Chip
             variant="outlined"
             size="small"
-            label={status ? m[status.state] : m.checking}
+            label={shownState ? m[shownState] : m.checking}
             icon={
               <Box
                 component="span"
@@ -133,16 +156,16 @@ function ClientSetupDialog({
                   width: 6,
                   height: 6,
                   borderRadius: '50%',
-                  bgcolor: status?.state === 'configured' ? 'success.main' : 'text.disabled',
-                  boxShadow: status?.state === 'configured' ? designTokens.statusGlow : 'none',
+                  bgcolor: shownState === 'configured' ? 'success.main' : 'text.disabled',
+                  boxShadow: shownState === 'configured' ? designTokens.statusGlow : 'none',
                 }}
               />
             }
-            data-testid={status ? 'mcp-settings-status' : undefined}
+            data-testid={shownState ? 'mcp-settings-status' : undefined}
             sx={{
               flexShrink: 0,
               maxWidth: '100%',
-              color: status?.state === 'configured' ? 'success.main' : 'text.secondary',
+              color: shownState === 'configured' ? 'success.main' : 'text.secondary',
               border: 0,
               bgcolor: 'transparent',
               boxShadow: 'none',
@@ -158,6 +181,7 @@ function ClientSetupDialog({
         >
           {client === 'aionui' ? m.aionDescription : m[k.description]}
         </Typography>
+        {summary}
         {before}
         <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
           <Box sx={{ ...surfaceSx('inset'), p: 1.75 }}>
@@ -397,7 +421,11 @@ function ClientSetupDialog({
               data-testid="mcp-apply"
               variant="contained"
               disabled={state.busy || !state.preview}
-              onClick={() => void flow.apply()}
+              onClick={() =>
+                void flow.apply().then(() => {
+                  void onApplied?.();
+                })
+              }
             >
               {m.apply}
             </Button>
@@ -423,16 +451,66 @@ function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
   );
 }
 
+export function McpSetupStatusIcon({
+  status,
+  error,
+  messages: m,
+}: {
+  status?: McpSetupStatus;
+  error?: string;
+  messages: McpSetupMessages;
+}): React.JSX.Element {
+  const state = error ? 'unavailable' : status?.state;
+  const Icon =
+    state === 'configured'
+      ? CheckCircleOutlineOutlined
+      : state === 'needs-update'
+        ? SyncProblemOutlined
+        : state === 'unavailable'
+          ? ErrorOutlineOutlined
+          : state
+            ? RemoveCircleOutlineOutlined
+            : HelpOutlineOutlined;
+  return (
+    <Tooltip title={state ? m[state] : m.checking}>
+      <Box
+        component="span"
+        data-mcp-state={state ?? 'unknown'}
+        aria-hidden="true"
+        sx={{
+          display: 'inline-flex',
+          color:
+            state === 'configured'
+              ? 'success.main'
+              : state === 'needs-update'
+                ? 'warning.main'
+                : state === 'unavailable'
+                  ? 'error.main'
+                  : 'text.disabled',
+        }}
+      >
+        <Icon sx={{ fontSize: 18 }} />
+      </Box>
+    </Tooltip>
+  );
+}
+
 export function McpSetup({
   client,
   onClientChange,
   invoke,
   messages,
+  snapshot,
+  locale = 'en',
+  setupStatuses,
 }: {
   client: McpSetupApplication;
   onClientChange: (client: McpSetupApplication) => void;
   invoke: McpSetupInvoke;
   messages?: Partial<McpSetupMessages>;
+  snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
+  locale?: Locale;
+  setupStatuses?: McpSetupStatuses;
 }): React.JSX.Element {
   const m = { ...mcpSetupEnglish, ...messages };
   const SetupDialog = {
@@ -442,6 +520,12 @@ export function McpSetup({
     aionui: AionUiSetupDialog,
   }[client];
   const [copyError, setCopyError] = React.useState('');
+  const ownStatuses = useMcpSetupStatuses(invoke, !setupStatuses);
+  const checks = setupStatuses ?? ownStatuses;
+  const refreshShared = setupStatuses?.refreshAll;
+  useEffect(() => {
+    if (refreshShared) void refreshShared();
+  }, [refreshShared]);
   return (
     <Box sx={{ minWidth: 0 }}>
       <Tabs
@@ -449,6 +533,7 @@ export function McpSetup({
         onChange={(_event, value: McpSetupApplication) => {
           setCopyError('');
           onClientChange(value);
+          void checks.refreshAll();
         }}
         aria-label={m.tabsLabel}
         variant="scrollable"
@@ -460,6 +545,22 @@ export function McpSetup({
             key={item}
             value={item}
             label={labels[item]}
+            icon={
+              <McpSetupStatusIcon
+                status={checks.statuses[item]}
+                error={checks.errors[item]}
+                messages={m}
+              />
+            }
+            iconPosition="end"
+            sx={{ gap: 1 }}
+            aria-description={
+              checks.errors[item]
+                ? m.unavailable
+                : checks.statuses[item]
+                  ? m[checks.statuses[item].state]
+                  : m.checking
+            }
             id={'mcp-tab-' + item}
             aria-controls={'mcp-panel-' + item}
           />
@@ -471,7 +572,29 @@ export function McpSetup({
         aria-labelledby={'mcp-tab-' + client}
         spacing={0}
       >
-        <SetupDialog key={client} invoke={invoke} messages={m} />
+        <SetupDialog
+          key={client}
+          invoke={invoke}
+          messages={m}
+          onApplied={() => checks.refreshAll(true)}
+          check={{ status: checks.statuses[client], error: checks.errors[client] }}
+          summary={
+            snapshot &&
+            client !== 'cursor' && (
+              <ClientApplicationSummary
+                snapshot={snapshot}
+                locale={locale}
+                kind={
+                  client === 'opencode'
+                    ? 'opencode-http'
+                    : client === 'codex'
+                      ? 'codex-desktop'
+                      : 'aionui'
+                }
+              />
+            )
+          }
+        />
         <Divider sx={{ mt: 3 }} />
         <Stack spacing={2} sx={{ pt: 3 }}>
           <Typography variant="subtitle2" component="h3">
@@ -512,6 +635,11 @@ export function McpSetup({
           {copyError && <Alert severity="error">{copyError}</Alert>}
         </Stack>
       </Stack>
+      {snapshot && (
+        <Box sx={{ mt: 3 }}>
+          <ClientApplicationSummary snapshot={snapshot} locale={locale} kind="manual" />
+        </Box>
+      )}
     </Box>
   );
 }

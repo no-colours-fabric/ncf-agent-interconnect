@@ -30,7 +30,6 @@ export const navigation: {
   { id: 'agents', tKey: 'navAgents', icon: <ForumOutlined /> },
   { id: 'network', tKey: 'navNetwork', icon: <CableOutlined /> },
   { id: 'mcp', tKey: 'navMcp', icon: <ExtensionOutlined /> },
-  { id: 'clients', tKey: 'navClients', icon: <ExtensionOutlined /> },
   { id: 'settings', tKey: 'navSettings', icon: <SettingsOutlined /> },
 ];
 
@@ -81,12 +80,7 @@ export function AppShell({
           overflowY: 'auto',
         }}
       >
-        <Stack
-          direction="row"
-          spacing={1.5}
-          sx={{ alignItems: 'flex-start', px: 1.5, pt: 1, pb: 4 }}
-        >
-          <HubOutlined sx={{ color: 'success.main', fontSize: 20, mt: 0.5 }} />
+        <Stack sx={{ px: 1.5, pt: 1, pb: 4 }}>
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontSize: 17, fontWeight: 500, lineHeight: 1.35 }}>
               NCF Agent

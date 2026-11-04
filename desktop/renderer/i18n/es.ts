@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const es: Messages = {
+  clientsManualConnections: 'MCP manual (todas las conexiones manuales)',
+  chatNewMessage: 'Nuevo mensaje',
+  chatOpenComposer: 'Escribir un mensaje',
+  chatCloseComposer: 'Cerrar el panel del mensaje',
   settingsThemeLightLabel: 'Claro',
   settingsThemeDarkLabel: 'Oscuro',
   settingsDiagnosticNode: 'Nodo',
@@ -134,7 +138,7 @@ export const es: Messages = {
   navOverview: 'Resumen',
   navAgents: 'Agentes',
   navNetwork: 'Nodos remotos',
-  navMcp: 'Configuración de MCP',
+  navMcp: 'Aplicaciones y MCP',
   navClients: 'Aplicaciones',
   navSettings: 'Ajustes',
   nodeRunning: 'Nodo en ejecución',

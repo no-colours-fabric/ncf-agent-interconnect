@@ -17,10 +17,12 @@ import {
   Typography,
 } from '@mui/material';
 import AddOutlined from '@mui/icons-material/AddOutlined';
+import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import SendOutlined from '@mui/icons-material/SendOutlined';
 import {
   nicknameKey,
+  nicknameSchema,
   type AgentClearInput,
   type AgentClearResponse,
   type AgentClearResult,
@@ -57,18 +59,23 @@ export function AgentsPage({
   const rows = agentRows(snapshot);
   const [chat, setChat] = useState<AgentRow | null>(null);
   const [historySize, setHistorySize] = useState(100);
-  const [recipient, setRecipient] = useState('');
-  const [sender, setSender] = useState('');
-  const [draft, setDraft] = useState({ text: '' });
-  const text = draft.text;
-  // Edits and chat resets replace the draft even when the text repeats.
-  const setText = (value: string) => setDraft({ text: value });
-  const [sending, setSending] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [routes, setRoutes] = useState<Record<string, { recipient: string; sender: string }>>({});
+  const [drafts, setDrafts] = useState<Record<string, { text: string }>>({});
+  const [sending, setSending] = useState<Record<string, boolean>>({});
   const [sendErrors, setSendErrors] = useState<
     Record<string, { message: string; from: string; to: string }>
   >({});
   const chatKey = chat ? chat.id + ':' + (agentCacheKey(chat.identity) ?? 'remote') : '';
-  const sendError = sendErrors[chatKey];
+  const recipient = routes[chatKey]?.recipient ?? '';
+  const sender = routes[chatKey]?.sender ?? '';
+  const setRoute = (change: Partial<{ recipient: string; sender: string }>) => {
+    retainDraft();
+    setRoutes((current) => ({
+      ...current,
+      [chatKey]: { recipient, sender, ...change },
+    }));
+  };
   const clearSendError = (key: string) =>
     setSendErrors((current) => {
       if (!current[key]) return current;
@@ -82,6 +89,30 @@ export function AgentsPage({
   const source = chat?.local
     ? selected
     : snapshot.agents.find((agent) => agentCacheKey(agent) === sender);
+  const destination = chat?.local ? recipient.trim() : (chat?.nickname ?? '');
+  const destinationIdentity = nicknameSchema.safeParse(destination);
+  const addressKey = JSON.stringify([
+    chatKey,
+    agentCacheKey(source) ?? sender,
+    chat?.nodeId,
+    destinationIdentity.success
+      ? ['nickname', nicknameKey(destinationIdentity.data)]
+      : ['draft', destination],
+  ]);
+  const draft = drafts[addressKey];
+  const text = draft?.text ?? '';
+  // Each edit replaces the revision, including an edit back to the same text.
+  const setText = (value: string) => {
+    setDrafts((current) => ({ ...current, [addressKey]: { text: value } }));
+  };
+  const retainDraft = () => {
+    setDrafts((current) =>
+      current[addressKey]
+        ? { ...current, [addressKey]: { text: current[addressKey].text } }
+        : current,
+    );
+  };
+  const sendError = sendErrors[addressKey];
   const current = rows.find((row) => row.id === chat?.id) ?? chat;
   const validChat =
     !!chat &&
@@ -91,14 +122,8 @@ export function AgentsPage({
   useEffect(() => {
     if (chat && !validChat) {
       setChat(null);
-      setText('');
-      setRecipient('');
     }
-    if (sender && !snapshot.agents.some((agent) => agentCacheKey(agent) === sender)) {
-      setSender('');
-      setText('');
-    }
-  }, [snapshot, chat, validChat, sender]);
+  }, [chat, validChat]);
   const history = useChatHistory({
     owner: validChat && chat?.local ? chat.nickname : '',
     snapshot,
@@ -117,16 +142,186 @@ export function AgentsPage({
   useEffect(() => () => clear.cancel(), [clear]);
   const all = deletion.input?.scope === 'all';
   const openChat = (agent: AgentRow) => {
+    retainDraft();
     setHistorySize(100);
     setChat(agent);
-    setRecipient('');
-    setText('');
+    setComposerOpen(false);
   };
   const closeChat = () => {
+    retainDraft();
     setChat(null);
-    setText('');
-    setRecipient('');
+    setComposerOpen(false);
   };
+  const sendMessage = () => {
+    if (!chat || !source || !draft) return;
+    const sentDraft = draft;
+    const sentAddressKey = addressKey;
+    const recipientNickname = chat.local ? recipient.trim() : chat.nickname;
+    clearSendError(sentAddressKey);
+    setSending((current) => ({ ...current, [sentAddressKey]: true }));
+    void run(async () => {
+      try {
+        await call('send', {
+          nickname: source.nickname,
+          sourceIncarnation: source.incarnation,
+          recipientNode: chat.nodeId,
+          recipientNickname,
+          text: sentDraft.text,
+        });
+        setDrafts((current) =>
+          current[sentAddressKey] === sentDraft
+            ? { ...current, [sentAddressKey]: { text: '' } }
+            : current,
+        );
+      } catch (error) {
+        setSendErrors((current) => ({
+          ...current,
+          [sentAddressKey]: {
+            message: error instanceof Error ? error.message : String(error),
+            from: source.nickname,
+            to: recipientNickname,
+          },
+        }));
+        throw error;
+      }
+    }).finally(() => setSending((current) => ({ ...current, [sentAddressKey]: false })));
+  };
+  const sendErrorAlert = sendError && (
+    <Alert severity="error" onClose={() => clearSendError(addressKey)}>
+      <Typography variant="caption" component="div">
+        {sendError.from} → {sendError.to}
+      </Typography>
+      {sendError.message}
+    </Alert>
+  );
+  const chatHeader = chat && current && (
+    <Stack
+      direction="row"
+      spacing={1.5}
+      data-testid="agent-chat-header"
+      sx={{
+        alignItems: 'center',
+        px: 2,
+        py: 1.5,
+        flexShrink: 0,
+        borderBottom: `1px solid ${designTokens.headerBorder}`,
+        boxShadow: designTokens.headerShadow,
+      }}
+    >
+      <Avatar sx={{ width: 32, height: 32, fontSize: 13 }}>
+        {Array.from(chat.nickname).slice(0, 2).join('').toLocaleUpperCase(locale)}
+      </Avatar>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Typography
+          id="agent-chat-title"
+          component="h2"
+          sx={{ fontSize: 16, fontWeight: 500, overflowWrap: 'anywhere' }}
+        >
+          {chat.nickname}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: 'block', overflowWrap: 'anywhere' }}
+        >
+          {nodeName(chat.nodeId)}
+          {current.client ? ' · ' + current.client : ''}
+        </Typography>
+      </Box>
+      <Tooltip title={t(locale, 'chatClose')}>
+        <IconButton aria-label={t(locale, 'chatClose')} onClick={closeChat}>
+          <CloseOutlined />
+        </IconButton>
+      </Tooltip>
+    </Stack>
+  );
+  const composer = chat && (
+    <Box
+      id="agent-chat-compose-panel"
+      data-testid="agent-chat-compose"
+      sx={{
+        px: chat.local ? 2 : 0,
+        pb: chat.local ? 2 : 0,
+        flexShrink: chat.local ? 1 : 0,
+        minHeight: 0,
+        overflowY: chat.local ? 'auto' : undefined,
+      }}
+    >
+      <Stack spacing={1.5}>
+        {sendErrorAlert}
+        {chat.local ? (
+          <>
+            <TextField
+              label={t(locale, 'composeRecipientAgent')}
+              value={recipient}
+              onChange={(event) => setRoute({ recipient: event.target.value })}
+              fullWidth
+            />
+          </>
+        ) : (
+          <TextField
+            select
+            label={t(locale, 'composeSenderAgent')}
+            value={source ? sender : ''}
+            onChange={(event) => setRoute({ sender: event.target.value })}
+            fullWidth
+          >
+            {snapshot.agents.map((agent) => (
+              <MenuItem key={agentCacheKey(agent)} value={agentCacheKey(agent)!}>
+                {agent.nickname}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
+          <TextField
+            label={t(locale, 'composeMessage')}
+            multiline
+            minRows={2}
+            maxRows={4}
+            fullWidth
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+          <Tooltip title={t(locale, 'composeSend')}>
+            <span>
+              <IconButton
+                color="primary"
+                aria-label={t(locale, 'composeSend')}
+                disabled={
+                  !!sending[addressKey] ||
+                  !source ||
+                  !text.trim() ||
+                  (chat.local && !recipient.trim())
+                }
+                onClick={sendMessage}
+                sx={{
+                  width: 44,
+                  height: 44,
+                  bgcolor: 'primary.main',
+                  color: 'primary.contrastText',
+                  borderRadius: '8px',
+                  border: `1px solid ${designTokens.primaryButtonBorder}`,
+                  backgroundImage: designTokens.primaryButtonGradient,
+                  boxShadow: designTokens.primaryButtonShadow,
+                  '&:hover': { bgcolor: 'primary.dark' },
+                  '&.Mui-disabled': {
+                    color: 'text.disabled',
+                    bgcolor: designTokens.disabledBackground,
+                    backgroundImage: 'none',
+                    borderColor: designTokens.border,
+                    boxShadow: 'none',
+                  },
+                }}
+              >
+                <SendOutlined />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+      </Stack>
+    </Box>
+  );
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
       <Stack
@@ -183,7 +378,7 @@ export function AgentsPage({
         ))}
       <Drawer
         anchor="right"
-        open={validChat}
+        open={validChat && !!chat?.local}
         onClose={closeChat}
         slotProps={{
           paper: {
@@ -200,193 +395,94 @@ export function AgentsPage({
           },
         }}
       >
-        {chat && current && validChat && (
+        {chat?.local && validChat && (
           <>
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{
-                alignItems: 'center',
-                p: { xs: 2, sm: 3 },
-                flexShrink: 0,
-                borderBottom: `1px solid ${designTokens.headerBorder}`,
-                boxShadow: designTokens.headerShadow,
+            {chatHeader}
+            <AgentChatHistory
+              key={agentCacheKey(selected)}
+              layoutKey={composerOpen}
+              messages={history.messages}
+              hasMore={history.hasMore}
+              loading={history.loading}
+              loadMore={() => {
+                if (!history.loading) setHistorySize((size) => size + 100);
               }}
-            >
-              <Avatar>
-                {Array.from(chat.nickname).slice(0, 2).join('').toLocaleUpperCase(locale)}
-              </Avatar>
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography id="agent-chat-title" variant="h6" sx={{ overflowWrap: 'anywhere' }}>
-                  {chat.nickname}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', overflowWrap: 'anywhere' }}
-                >
-                  {nodeName(chat.nodeId)}
-                  {current.client ? ' · ' + current.client : ''}
-                </Typography>
-              </Box>
-              <Tooltip title={t(locale, 'chatClose')}>
-                <IconButton aria-label={t(locale, 'chatClose')} onClick={closeChat}>
-                  <CloseOutlined />
-                </IconButton>
-              </Tooltip>
-            </Stack>
-            {chat.local ? (
-              <AgentChatHistory
-                key={agentCacheKey(selected)}
-                messages={history.messages}
-                hasMore={history.hasMore}
-                loading={history.loading}
-                loadMore={() => {
-                  if (!history.loading) setHistorySize((size) => size + 100);
-                }}
-                locale={locale}
-                run={run}
-                call={call}
-                nodeName={nodeName}
-              />
-            ) : (
-              <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 3 }}>
-                <Typography variant="body2" color="text.secondary">
-                  {t(locale, 'chatRemoteNoHistory')}
-                </Typography>
-              </Box>
+              locale={locale}
+              run={run}
+              call={call}
+              nodeName={nodeName}
+            />
+            {sendError && !composerOpen && (
+              <Box sx={{ px: 2, py: 1, flexShrink: 0 }}>{sendErrorAlert}</Box>
             )}
             <Box
-              data-testid="agent-chat-compose"
+              data-testid="agent-chat-compose-section"
               sx={{
-                p: { xs: 2, sm: 3 },
                 flexShrink: 0,
-                maxHeight: '55%',
-                overflowY: 'auto',
+                minHeight: 0,
+                maxHeight: '60%',
+                display: 'flex',
+                flexDirection: 'column',
                 borderTop: '1px solid',
                 borderColor: 'divider',
                 bgcolor: designTokens.composerBackground,
               }}
             >
-              <Stack spacing={1.5}>
-                {sendError && (
-                  <Alert severity="error" onClose={() => clearSendError(chatKey)}>
-                    <Typography variant="caption" component="div">
-                      {sendError.from} → {sendError.to}
-                    </Typography>
-                    {sendError.message}
-                  </Alert>
-                )}
-                {chat.local ? (
-                  <>
-                    <Typography variant="caption" color="text.secondary">
-                      {t(locale, 'composeSenderAgent')}: {chat.nickname}
-                    </Typography>
-                    <TextField
-                      label={t(locale, 'composeRecipientAgent')}
-                      value={recipient}
-                      onChange={(event) => {
-                        setRecipient(event.target.value);
-                        setText(text);
-                      }}
-                      fullWidth
-                    />
-                  </>
-                ) : (
-                  <TextField
-                    select
-                    label={t(locale, 'composeSenderAgent')}
-                    value={source ? sender : ''}
-                    onChange={(event) => {
-                      setSender(event.target.value);
-                      setText(text);
-                    }}
-                    fullWidth
+              <Stack
+                data-testid="agent-chat-compose-header"
+                direction="row"
+                spacing={1.5}
+                sx={{ alignItems: 'center', flexShrink: 0, px: 2, py: 0.5 }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 500, flexShrink: 0 }}>
+                  {t(locale, 'chatNewMessage')}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ flex: 1, textAlign: 'right', overflowWrap: 'anywhere' }}
+                >
+                  {composerOpen ? `${t(locale, 'composeSenderAgent')}: ${chat.nickname}` : ''}
+                </Typography>
+                <Tooltip title={t(locale, composerOpen ? 'chatCloseComposer' : 'chatOpenComposer')}>
+                  <IconButton
+                    color={composerOpen ? 'secondary' : 'default'}
+                    aria-label={t(locale, composerOpen ? 'chatCloseComposer' : 'chatOpenComposer')}
+                    aria-expanded={composerOpen}
+                    aria-controls="agent-chat-compose-panel"
+                    data-testid="agent-chat-compose-toggle"
+                    onClick={() => setComposerOpen((open) => !open)}
                   >
-                    {snapshot.agents.map((agent) => (
-                      <MenuItem key={agentCacheKey(agent)} value={agentCacheKey(agent)!}>
-                        {agent.nickname}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )}
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
-                  <TextField
-                    label={t(locale, 'composeMessage')}
-                    multiline
-                    minRows={2}
-                    maxRows={6}
-                    fullWidth
-                    value={text}
-                    onChange={(event) => setText(event.target.value)}
-                  />
-                  <Tooltip title={t(locale, 'composeSend')}>
-                    <span>
-                      <IconButton
-                        color="primary"
-                        aria-label={t(locale, 'composeSend')}
-                        disabled={
-                          sending || !source || !text.trim() || (chat.local && !recipient.trim())
-                        }
-                        onClick={() => {
-                          if (!source) return;
-                          const sentDraft = draft;
-                          const sentChatKey = chatKey;
-                          const recipientNickname = chat.local ? recipient.trim() : chat.nickname;
-                          clearSendError(sentChatKey);
-                          setSending(true);
-                          void run(async () => {
-                            try {
-                              await call('send', {
-                                nickname: source.nickname,
-                                sourceIncarnation: source.incarnation,
-                                recipientNode: chat.nodeId,
-                                recipientNickname,
-                                text: sentDraft.text,
-                              });
-                              setDraft((current) =>
-                                current === sentDraft ? { text: '' } : current,
-                              );
-                            } catch (error) {
-                              setSendErrors((current) => ({
-                                ...current,
-                                [sentChatKey]: {
-                                  message: error instanceof Error ? error.message : String(error),
-                                  from: source.nickname,
-                                  to: recipientNickname,
-                                },
-                              }));
-                              throw error;
-                            }
-                          }).finally(() => setSending(false));
-                        }}
-                        sx={{
-                          bgcolor: 'primary.main',
-                          color: 'primary.contrastText',
-                          borderRadius: '8px',
-                          border: `1px solid ${designTokens.primaryButtonBorder}`,
-                          backgroundImage: designTokens.primaryButtonGradient,
-                          boxShadow: designTokens.primaryButtonShadow,
-                          '&:hover': { bgcolor: 'primary.dark' },
-                          '&.Mui-disabled': {
-                            color: 'text.disabled',
-                            bgcolor: designTokens.disabledBackground,
-                            backgroundImage: 'none',
-                            borderColor: designTokens.border,
-                            boxShadow: 'none',
-                          },
-                        }}
-                      >
-                        <SendOutlined />
-                      </IconButton>
-                    </span>
-                  </Tooltip>
-                </Stack>
+                    {composerOpen ? <CloseOutlined /> : <ChatBubbleOutlineOutlined />}
+                  </IconButton>
+                </Tooltip>
               </Stack>
+              {composerOpen && composer}
             </Box>
           </>
         )}
       </Drawer>
+      <Dialog
+        open={validChat && !!chat && !chat.local}
+        onClose={closeChat}
+        fullWidth
+        maxWidth="sm"
+        aria-labelledby="agent-chat-title"
+        data-testid="remote-agent-compose-dialog"
+        slotProps={{ paper: { sx: { overflow: 'hidden' } } }}
+      >
+        {chat && !chat.local && validChat && (
+          <>
+            {chatHeader}
+            <DialogContent sx={{ p: 2, '&:first-of-type': { pt: 2 } }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                {t(locale, 'chatRemoteNoHistory')}
+              </Typography>
+              {composer}
+            </DialogContent>
+          </>
+        )}
+      </Dialog>
       <Dialog
         open={deletion.open}
         onClose={() => clear.cancel()}

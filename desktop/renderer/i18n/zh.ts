@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  clientsManualConnections: '手动 MCP（所有手动连接）',
+  chatNewMessage: '新消息',
+  chatOpenComposer: '撰写消息',
+  chatCloseComposer: '收起消息面板',
   settingsThemeLightLabel: '浅色',
   settingsThemeDarkLabel: '深色',
   settingsDiagnosticNode: '节点',
@@ -128,7 +132,7 @@ export const zh: Messages = {
   navOverview: '概览',
   navAgents: '智能体',
   navNetwork: '远程节点',
-  navMcp: 'MCP 设置',
+  navMcp: '应用与 MCP',
   navClients: '应用程序',
   navSettings: '设置',
   nodeRunning: '节点运行中',

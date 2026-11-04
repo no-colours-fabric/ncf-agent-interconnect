@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  clientsManualConnections: 'Manuel MCP (tüm manuel bağlantılar)',
+  chatNewMessage: 'Yeni mesaj',
+  chatOpenComposer: 'Mesaj yaz',
+  chatCloseComposer: 'Mesaj panelini kapat',
   settingsThemeLightLabel: 'Açık',
   settingsThemeDarkLabel: 'Koyu',
   settingsDiagnosticNode: 'Düğüm',
@@ -134,7 +138,7 @@ export const tr: Messages = {
   navOverview: 'Genel Bakış',
   navAgents: 'Aracılar',
   navNetwork: 'Uzak düğümler',
-  navMcp: 'MCP ayarları',
+  navMcp: 'Uygulamalar ve MCP',
   navClients: 'Uygulamalar',
   navSettings: 'Ayarlar',
   nodeRunning: 'Düğüm çalışıyor',

@@ -100,16 +100,16 @@ test('one message column distinguishes measured zeros from unknown directional a
   const messageCells = (html: string) =>
     [...html.matchAll(/<tr\b[^>]*data-testid="agent-row"[^>]*>([\s\S]*?)<\/tr>/g)].map((row) => {
       const cells = [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)];
-      return cells[3][1]
+      return cells[4][1]
         .replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '')
         .replace(/<[^>]*>/g, '')
         .replace(/\s/g, '');
     });
-  assert.deepEqual(messageCells(render()).sort(), ['', '5(3/2)']);
+  assert.deepEqual(messageCells(render()).sort(), ['', '532']);
   snapshot.agents[0].messageCount = 0;
   snapshot.agents[0].incomingCount = 0;
   snapshot.agents[0].outgoingCount = 0;
-  assert.deepEqual(messageCells(render()).sort(), ['', '0(0/0)']);
+  assert.deepEqual(messageCells(render()).sort(), ['', '000']);
   snapshot.agents[0].incomingCount = undefined;
   assert.deepEqual(messageCells(render()).sort(), ['', '0']);
 });
@@ -139,6 +139,8 @@ test('same Unicode name on different nodes keeps separate rows and only confirme
   );
   assert.equal((html.match(/data-testid="agent-online"/g) ?? []).length, 1);
   assert.equal((html.match(/data-testid="agent-row"/g) ?? []).length, 2);
+  assert.equal((html.match(/data-testid="agent-node-kind"/g) ?? []).length, 2);
+  assert.ok(html.includes('aria-label="Remote agents"'));
   assert.ok(html.includes('Агент &lt;&amp;&gt;'));
   assert.ok(!html.includes('Client availability unknown'));
   assert.ok(!html.includes('Offline'));

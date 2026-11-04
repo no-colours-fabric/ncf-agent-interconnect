@@ -45,8 +45,10 @@ const invoke = (method, params = {}) =>
 const message = () => page.getByRole('textbox', { name: 'Message from the user', exact: true });
 const recipient = () => page.getByRole('textbox', { name: 'Recipient agent name', exact: true });
 const send = () => page.getByRole('button', { name: 'Send message', exact: true });
-const open = (nickname) =>
-  page.getByRole('button', { name: 'Open chat with ' + nickname, exact: true }).click();
+async function open(nickname) {
+  await page.getByRole('button', { name: 'Open chat with ' + nickname, exact: true }).click();
+  await page.getByRole('button', { name: 'Compose message', exact: true }).click();
+}
 async function close() {
   await page.getByRole('button', { name: 'Close chat', exact: true }).click();
   await page.getByRole('dialog').waitFor({ state: 'detached' });
@@ -80,6 +82,7 @@ contextBridge.exposeInMainWorld('interconnect',{
  invoke:async(method,params)=>{
   if(method==='snapshot')return snapshot;
   if(method==='appVersion')return 'draft-fixture';
+  if(method==='mcpSetupStatus')return {client:params.client,remembered:false,state:'missing',files:[]};
   if(method==='chatHistory')return{messages:[],nextCursor:0,hasMore:false};
   if(method==='send'){
    if(pending)throw Error('A fixture send is already pending');calls.push(params);
@@ -127,12 +130,19 @@ contextBridge.exposeInMainWorld('interconnect',{
 
   await begin('Recipient changed');
   await recipient().fill('Other target');
-  await complete('Recipient changed');
+  assert.equal(await message().inputValue(), '', 'A different address has an independent draft');
+  await message().fill('Other address draft');
+  await complete('Other address draft');
+  await recipient().fill('Target');
+  assert.equal(await message().inputValue(), 'Recipient changed');
+  await recipient().fill('Other target');
+  assert.equal(await message().inputValue(), 'Other address draft');
 
   await begin('Reopened draft with identical text');
   await close();
   await open(first);
   await recipient().fill('Target');
+  assert.equal(await message().inputValue(), 'Reopened draft with identical text');
   await message().fill('Reopened draft with identical text');
   await complete('Reopened draft with identical text');
 
@@ -142,14 +152,18 @@ contextBridge.exposeInMainWorld('interconnect',{
   await recipient().fill('Target');
   await message().fill('Same body in another chat');
   await complete('Same body in another chat');
-  assert.equal(await page.getByRole('dialog').getByRole('heading').innerText(), second);
+  assert.equal(await page.locator('#agent-chat-title').innerText(), second);
 
   await begin('Failed send retains draft');
-  await complete('Failed send retains draft', false);
+  await page.getByTestId('agent-chat-compose-toggle').click();
+  assert.equal(await message().count(), 0);
+  await invoke('fixtureFinishSend', { success: false });
   const failure = () =>
     page.getByRole('dialog').getByRole('alert').filter({ hasText: 'Synthetic send rejected' });
   await failure().waitFor();
   assert.ok((await failure().innerText()).includes(second + ' → Target'));
+  await page.getByTestId('agent-chat-compose-toggle').click();
+  await failure().waitFor();
   assert.equal(await message().inputValue(), 'Failed send retains draft');
   assert.equal(await invoke('fixturePending'), false);
   await close();
@@ -175,6 +189,7 @@ contextBridge.exposeInMainWorld('interconnect',{
       switchedChatDraftPreserved: true,
       failedSendDraftPreserved: true,
       failedSendAccessibleInChat: true,
+      failedSendAccessibleWithComposerClosed: true,
       failureKeptWithOriginatingChat: true,
       sends: calls.length,
       syntheticOnly: true,

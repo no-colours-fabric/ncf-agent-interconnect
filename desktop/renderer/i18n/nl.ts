@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  clientsManualConnections: 'Handmatige MCP (alle handmatige verbindingen)',
+  chatNewMessage: 'Nieuw bericht',
+  chatOpenComposer: 'Bericht schrijven',
+  chatCloseComposer: 'Berichtenpaneel sluiten',
   settingsThemeLightLabel: 'Licht',
   settingsThemeDarkLabel: 'Donker',
   settingsDiagnosticNode: 'Knooppunt',
@@ -134,7 +138,7 @@ export const nl: Messages = {
   navOverview: 'Overzicht',
   navAgents: 'Agents',
   navNetwork: 'Externe knooppunten',
-  navMcp: 'MCP-instellingen',
+  navMcp: 'Toepassingen en MCP',
   navClients: 'Toepassingen',
   navSettings: 'Instellingen',
   nodeRunning: 'Knooppunt actief',

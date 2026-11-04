@@ -175,6 +175,32 @@ async function capture(name, width) {
   await page.screenshot({ path: filename, animations: 'disabled' });
   screenshots.push(filename);
 }
+async function verifyApplicationSummaries() {
+  assert.equal(await page.getByTestId('nav-clients').count(), 0);
+  let total = 0;
+  for (const [client, kind] of [
+    ['Cursor', 'manual'],
+    ['OpenCode', 'opencode-http'],
+    ['Codex', 'codex-desktop'],
+    ['AionUi', 'aionui'],
+  ]) {
+    await page.getByRole('tab', { name: client, exact: true }).click();
+    const summary = page.getByTestId('application-' + kind);
+    await summary.waitFor();
+    const expected = agents.filter((agent) => agent.fixtureAdapterKind === kind).length;
+    assert.equal(
+      await summary.getByTestId('application-agent-count').innerText(),
+      String(expected),
+    );
+    assert.equal(
+      await summary.getByTestId('application-last-activity').innerText(),
+      expected ? await page.evaluate((stamp) => new Date(stamp).toLocaleString('en'), stamp) : '',
+    );
+    total += expected;
+  }
+  assert.equal(total, agents.length, 'All application agent counts survive the navigation merge');
+  await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
+}
 async function settled() {
   await page.evaluate(
     () => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
@@ -548,7 +574,7 @@ contextBridge.exposeInMainWorld('interconnect',{
     for (const mode of ['dark', 'light']) {
       await resize(1440, 900);
       await chooseMode(mode);
-      for (const screen of ['overview', 'agents', 'network', 'mcp', 'clients', 'settings']) {
+      for (const screen of ['overview', 'agents', 'network', 'mcp', 'settings']) {
         await page.getByTestId('nav-' + screen).click();
         await settled();
         const content = await bounds(page.getByTestId('page-content'), 'page content');
@@ -559,9 +585,15 @@ contextBridge.exposeInMainWorld('interconnect',{
         );
         // The header is translucent; geometry and screenshots cover it without a numeric claim.
         await capture(mode + '-' + screen, 1440);
+        if (screen === 'mcp') await verifyApplicationSummaries();
         if (screen === 'agents') {
           const owner = page.locator(`[data-agent-id="${local}:${researcher.toLowerCase()}"]`);
           assert.equal(await page.getByTestId('agents-table').getByRole('columnheader').count(), 6);
+          assert.equal(await page.getByTestId('agents-table').locator('thead th').count(), 7);
+          assert.equal(
+            await page.getByTestId('agents-table').getByTestId('agent-node-kind').count(),
+            6,
+          );
           await measuredContrast(owner.locator('th'), mode + ' agent name');
           await measuredContrast(
             owner
@@ -579,6 +611,11 @@ contextBridge.exposeInMainWorld('interconnect',{
           const box = await bounds(dialog, 'chat');
           assert.ok(Math.abs(box.x + box.width - 1440) < 1.5);
           await measuredContrast(dialog.getByTestId('message-text').first(), mode + ' chat bubble');
+          const toggle = dialog.getByTestId('agent-chat-compose-toggle');
+          assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+          await toggle.click();
+          await settled();
+          assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
           const recipient = dialog.getByRole('textbox', {
             name: 'Recipient agent name',
             exact: true,
@@ -708,7 +745,8 @@ contextBridge.exposeInMainWorld('interconnect',{
           }
         : {
             themes: 2,
-            sixPagesPerTheme: true,
+            fivePagesPerTheme: true,
+            applicationSummariesInMcp: 4,
             settingsDraftSurvives: true,
             themeNoIpc: true,
             reloadPersistence: true,

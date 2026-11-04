@@ -1,5 +1,6 @@
 import type React from 'react';
 import {
+  Box,
   Button,
   Paper,
   Stack,
@@ -14,6 +15,7 @@ import {
 import type { AdapterProfile, Snapshot } from '../shared/contracts.js';
 import { applicationStatus } from './application-status.js';
 import { t, type Locale } from './i18n/index.js';
+import { surfaceSx } from './theme.js';
 
 interface Props {
   snapshot: Pick<Snapshot, 'adapters' | 'agents'>;
@@ -31,6 +33,62 @@ export function applicationActivity(
     ...connections.map(({ profile }) => profile.lastOwnerVerifiedAt),
   ].filter((value): value is string => !!value && Number.isFinite(Date.parse(value)));
   return dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
+}
+
+export function ClientApplicationSummary({
+  kind,
+  snapshot,
+  locale,
+}: Pick<Props, 'snapshot' | 'locale'> & {
+  kind: AdapterProfile['kind'];
+}): React.JSX.Element {
+  const { agents } = applicationStatus(kind, snapshot);
+  const activity = applicationActivity(kind, snapshot);
+  return (
+    <Paper sx={{ ...surfaceSx('soft'), p: 2 }} data-testid={'application-' + kind}>
+      <Stack spacing={1.5}>
+        <Typography variant="subtitle2">
+          {t(
+            locale,
+            kind === 'opencode-http'
+              ? 'clientsKindOpencode'
+              : kind === 'codex-desktop'
+                ? 'clientsKindCodex'
+                : kind === 'aionui'
+                  ? 'clientsKindAionui'
+                  : 'clientsManualConnections',
+          )}
+        </Typography>
+        <Box
+          component="dl"
+          sx={{ display: 'flex', flexWrap: 'wrap', columnGap: 4, rowGap: 1.5, m: 0 }}
+        >
+          {[
+            { id: 'application-agent-count', label: t(locale, 'statAgents'), value: agents.length },
+            {
+              id: 'application-last-activity',
+              label: t(locale, 'clientsLastActivity'),
+              value: activity ? new Date(activity).toLocaleString(locale) : '',
+            },
+          ].map(({ id, label, value }) => (
+            <Box key={id}>
+              <Typography component="dt" variant="caption" color="text.secondary">
+                {label}
+              </Typography>
+              <Typography
+                component="dd"
+                variant="body2"
+                data-testid={id}
+                sx={{ m: 0, minHeight: '1.5em' }}
+              >
+                {value}
+              </Typography>
+            </Box>
+          ))}
+        </Box>
+      </Stack>
+    </Paper>
+  );
 }
 
 export function ApplicationConnections({ snapshot, locale, onSetup }: Props): React.JSX.Element {

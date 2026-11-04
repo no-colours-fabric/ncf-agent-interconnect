@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  clientsManualConnections: '수동 MCP (모든 수동 연결)',
+  chatNewMessage: '새 메시지',
+  chatOpenComposer: '메시지 작성',
+  chatCloseComposer: '메시지 패널 닫기',
   settingsThemeLightLabel: '밝게',
   settingsThemeDarkLabel: '어둡게',
   settingsDiagnosticNode: '노드',
@@ -133,7 +137,7 @@ export const ko: Messages = {
   navOverview: '개요',
   navAgents: '에이전트',
   navNetwork: '원격 노드',
-  navMcp: 'MCP 설정',
+  navMcp: '애플리케이션 및 MCP',
   navClients: '애플리케이션',
   navSettings: '설정',
   nodeRunning: '노드 실행 중',

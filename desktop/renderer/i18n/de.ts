@@ -1,6 +1,10 @@
 import type { Messages } from './messages.js';
 
 export const de: Messages = {
+  clientsManualConnections: 'Manuelles MCP (alle manuellen Verbindungen)',
+  chatNewMessage: 'Neue Nachricht',
+  chatOpenComposer: 'Nachricht verfassen',
+  chatCloseComposer: 'Nachrichtenbereich schließen',
   settingsThemeLightLabel: 'Hell',
   settingsThemeDarkLabel: 'Dunkel',
   settingsDiagnosticNode: 'Knoten',
@@ -135,7 +139,7 @@ export const de: Messages = {
   navOverview: 'Übersicht',
   navAgents: 'Agenten',
   navNetwork: 'Remote-Knoten',
-  navMcp: 'MCP-Einrichtung',
+  navMcp: 'Anwendungen und MCP',
   navClients: 'Anwendungen',
   navSettings: 'Einstellungen',
   nodeRunning: 'Knoten läuft',

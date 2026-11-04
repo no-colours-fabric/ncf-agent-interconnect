@@ -159,6 +159,7 @@ try {
     return response.structuredContent;
   };
   await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
+  await page.getByTestId('agent-chat-compose-toggle').click();
   await page
     .getByRole('textbox', { name: 'Message from the user', exact: true })
     .fill('Draft belonging to the deleted incarnation');
@@ -172,6 +173,7 @@ try {
   await until(async () => (await snapshot(page)).agents.length === 0);
   await invoke(page, 'registerAgent', { nickname: secondName });
   await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
+  await page.getByTestId('agent-chat-compose-toggle').click();
   await until(
     async () =>
       (await page

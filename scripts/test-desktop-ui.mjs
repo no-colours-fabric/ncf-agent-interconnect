@@ -57,7 +57,7 @@ try {
   await page.getByText('Connect agents', { exact: true }).waitFor();
   await mkdir('release', { recursive: true });
   await page.screenshot({ path: 'release/preview-overview.png' });
-  await page.getByRole('button', { name: 'MCP setup', exact: true }).click();
+  await page.getByTestId('nav-mcp').click();
   assert.equal(await page.getByRole('tab').count(), 4);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   for (const [client, label] of [
@@ -108,9 +108,36 @@ try {
     before,
     'AionUi instructions must not write client configuration',
   );
-  await page.getByRole('button', { name: 'Applications', exact: true }).click();
-  await page.getByText('OpenCode and its frontends', { exact: true }).waitFor();
-  await page.getByText('Codex Desktop', { exact: true }).waitFor();
+  assert.equal(await page.getByTestId('nav-clients').count(), 0);
+  const applicationSnapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
+  for (const [label, kind, title] of [
+    ['Cursor', 'manual', 'Cursor and other MCP clients'],
+    ['OpenCode', 'opencode-http', 'OpenCode and its frontends'],
+    ['Codex', 'codex-desktop', 'Codex Desktop'],
+    ['AionUi', 'aionui', 'AionUi'],
+  ]) {
+    await page.getByRole('tab', { name: label, exact: true }).click();
+    const summary = page.getByTestId('application-' + kind);
+    await summary.getByText(title, { exact: true }).waitFor();
+    const profiles = applicationSnapshot.adapters.filter((profile) => profile.kind === kind);
+    const ids = new Set(profiles.map((profile) => profile.id));
+    const agents = applicationSnapshot.agents.filter(
+      (agent) => agent.binding && ids.has(agent.binding.adapterId),
+    );
+    const dates = [
+      ...agents.map((agent) => agent.lastMessageAt),
+      ...profiles.map((profile) => profile.lastOwnerVerifiedAt),
+    ].filter((value) => value && Number.isFinite(Date.parse(value)));
+    const activity = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
+    assert.equal(
+      await summary.getByTestId('application-agent-count').innerText(),
+      String(agents.length),
+    );
+    assert.equal(
+      await summary.getByTestId('application-last-activity').innerText(),
+      activity ? await page.evaluate((date) => new Date(date).toLocaleString('en'), activity) : '',
+    );
+  }
   assert.equal(await page.getByRole('button', { name: 'Add adapter', exact: true }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: /Exact.*(ID|UUID)/ }).count(), 0);
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
@@ -121,6 +148,7 @@ try {
   const access = await page.evaluate(() => window.interconnect.invoke('accessCode'));
   const settings = JSON.parse(await readFile(path.join(temp, 'desktop/settings.json'), 'utf8'));
   assert.equal((await page.evaluate(() => window.interconnect.invoke('snapshot'))).peers.length, 0);
+  await page.getByTestId('agent-chat-compose-toggle').click();
   await page
     .getByRole('textbox', { name: 'Recipient agent name', exact: true })
     .fill('Local recipient');

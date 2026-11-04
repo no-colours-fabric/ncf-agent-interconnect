@@ -210,7 +210,7 @@ contextBridge.exposeInMainWorld('interconnect', {
   await page.getByText('v0.11.1-fixture', { exact: true }).waitFor();
   assert.equal(await page.getByRole('tab').count(), 0);
   assert.equal(await page.getByTestId('agent-row').count(), 4);
-  assert.equal(await page.getByTestId('agents-table').getByRole('columnheader').count(), 6);
+  assert.equal(await page.getByTestId('agents-table').locator('thead th').count(), 7);
   await page.getByRole('columnheader', { name: 'Messages', exact: true }).waitFor();
   assert.equal(
     await exactRow(local, agent.nickname)
@@ -234,8 +234,8 @@ contextBridge.exposeInMainWorld('interconnect', {
       .isDisabled(),
     true,
   );
-  const firstName = await exactRow(first, 'Same agent').locator('td').nth(1).innerText();
-  const secondName = await exactRow(second, 'Same agent').locator('td').nth(1).innerText();
+  const firstName = await exactRow(first, 'Same agent').locator('td').nth(2).innerText();
+  const secondName = await exactRow(second, 'Same agent').locator('td').nth(2).innerText();
   assert.notEqual(firstName, secondName);
   const languageBounds = await page.getByTestId('interface-language').boundingBox();
   const statusBounds = await page.getByTestId('sidebar-node-status').boundingBox();
@@ -299,6 +299,7 @@ contextBridge.exposeInMainWorld('interconnect', {
   for (const id of [local, first, second, unsupported, offline, agent.incarnation])
     assert.ok(!ordinaryText.includes(id));
   await capture('chat-en');
+  await page.getByTestId('agent-chat-compose-toggle').click();
   await page
     .getByRole('textbox', { name: 'Recipient agent name', exact: true })
     .fill('Local recipient');
@@ -346,21 +347,28 @@ contextBridge.exposeInMainWorld('interconnect', {
   assert.ok(!(await page.getByTestId('remote-nodes-table').innerText()).includes('Same agent'));
   assert.equal(await page.getByTestId('remote-nodes-table').getByRole('button').count(), 0);
   await capture('network-en');
-  await page.getByTestId('nav-clients').click();
-  assert.equal(await page.getByTestId('applications-table').locator('tbody tr').count(), 4);
-  assert.ok(!(await page.getByTestId('applications-table').innerText()).includes(agent.nickname));
-  assert.ok(
-    !(await page.getByTestId('applications-table').innerText()).includes('Private diagnostic'),
-  );
-  const aionRow = page.getByTestId('application-aionui');
-  assert.ok((await aionRow.innerText()).includes('AionUi'));
-  await aionRow.getByRole('button').click();
+  await page.getByTestId('nav-mcp').click();
+  for (const [tab, kind, count] of [
+    ['Cursor', 'manual', 0],
+    ['OpenCode', 'opencode-http', 0],
+    ['Codex', 'codex-desktop', 1],
+    ['AionUi', 'aionui', 0],
+  ]) {
+    await page.getByRole('tab', { name: tab, exact: true }).click();
+    const summary = page.getByTestId('application-' + kind);
+    const text = await summary.innerText();
+    assert.ok(!text.includes(agent.nickname));
+    assert.ok(!text.includes('Private diagnostic'));
+    assert.equal(
+      await summary.locator('[data-testid="application-agent-count"]').innerText(),
+      String(count),
+    );
+  }
   await page.getByTestId('aionui-setup').getByText('Not paired', { exact: true }).waitFor();
   assert.equal(
     await page.getByRole('tab', { name: 'AionUi', exact: true }).getAttribute('aria-selected'),
     'true',
   );
-  await page.getByTestId('nav-clients').click();
   await capture('applications-en');
   await page.getByTestId('interface-language').getByRole('combobox').click();
   await page.getByRole('option', { name: 'Русский', exact: true }).click();
@@ -370,6 +378,7 @@ contextBridge.exposeInMainWorld('interconnect', {
     .getByRole('button', { name: 'Открыть чат с ' + agent.nickname, exact: true })
     .click();
   await page.getByText(literal, { exact: true }).waitFor();
+  await page.getByTestId('agent-chat-compose-toggle').click();
   await page
     .getByRole('textbox', { name: 'Сообщение от пользователя', exact: true })
     .fill('Stale draft');
@@ -378,6 +387,7 @@ contextBridge.exposeInMainWorld('interconnect', {
   await exactRow(local, agent.nickname)
     .getByRole('button', { name: 'Открыть чат с ' + agent.nickname, exact: true })
     .click();
+  await page.getByTestId('agent-chat-compose-toggle').click();
   assert.equal(
     await page
       .getByRole('textbox', { name: 'Сообщение от пользователя', exact: true })
