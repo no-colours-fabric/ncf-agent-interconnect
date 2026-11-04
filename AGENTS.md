@@ -86,3 +86,10 @@ a native platform verification. Report verification limits accurately.
 - Check the final version, platform filenames and upload completion once.
   Repeat digest/download inspections only for a transfer error or a concrete
   integrity concern. Do not add repeated status checks or approval rounds.
+- After publication, remove completed task/release worktrees and their temporary
+  local and origin `codex/*` branches. Check integration by ancestry or patch
+  equivalence, including cherry-picked changes. Preserve `main`, release tags,
+  unfinished work, uncommitted data and directories required by running previews.
+  Retain necessary standalone QA history in a compact local bundle before removing
+  its branches. Keep private profiles outside disposable worktrees, and record any
+  cleanup exceptions. Coordinate cleanup across the native build machines.

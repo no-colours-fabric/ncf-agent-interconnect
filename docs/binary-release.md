@@ -32,6 +32,15 @@ reuse completed checks when the relevant source and dependencies are unchanged.
    assets from older releases. Preserve Git tags, source history and release
    descriptions. The release-retention workflow performs this cleanup after a
    non-prerelease becomes Latest. Keep the previous installers until their replacements are live.
+6. Remove completed task/release worktrees and their temporary local and origin
+   `codex/*` branches on the participating machines. Check ancestry or patch
+   equivalence for cherry-picked changes; a different commit ID alone does not
+   mean the change is unfinished. Preserve `main`, release tags, unfinished work,
+   uncommitted files and directories needed by running previews, including their
+   dependency targets. Keep private profiles outside disposable worktrees. Retain
+   necessary standalone QA commits in one compact local bundle before deleting
+   their branches, and record the remaining exceptions. Do not create another
+   release or rerun product tests for documentation-only cleanup rules.
 
 Publish three installers: macOS Apple Silicon DMG, macOS Intel DMG and Windows
 x64 EXE. `--mac` builds both DMGs in one pass; `--arm64` or `--x64` selects one.
