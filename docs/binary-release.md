@@ -18,7 +18,7 @@ reuse completed checks when the relevant source and dependencies are unchanged.
    ```
 
    The flag skips only the duplicate type/core test pass. The native build and
-   packaged-runtime verification still run. Without it, the builder also runs
+   packaged-runtime verification still run on the host architecture. Without it, the builder also runs
    its own source checks; do not run those checks separately beforehand.
 
 3. Run one packaged smoke on each available native test platform. Add feature-specific tests
@@ -30,17 +30,17 @@ reuse completed checks when the relevant source and dependencies are unchanged.
    error or a concrete integrity concern.
 5. After successful publication with all required installers, remove uploaded
    assets from older releases. Preserve Git tags, source history and release
-   descriptions. Keep the previous installers until their replacements are live.
+   descriptions. The release-retention workflow performs this cleanup after a
+   non-prerelease becomes Latest. Keep the previous installers until their replacements are live.
 
 Publish three installers: macOS Apple Silicon DMG, macOS Intel DMG and Windows
-x64 EXE. Use separate macOS packages, not a Universal package. Run native
-acceptance on the available Apple Silicon Mac and Windows machine. There is no
-Intel test machine: an Intel runtime test is not required and must not block
-publication. State briefly that the Intel package was not run on Intel hardware.
-The current builder uses the host architecture; this policy records the future
-Intel packaging requirement without implementing it or changing the existing
-Apple Silicon-only 0.13.0 release. ZIP alternatives are outside the routine
-publication set and are not built by default.
+x64 EXE. `--mac` builds both DMGs in one pass; `--arm64` or `--x64` selects one.
+The non-host macOS architecture uses an official matching Electron download;
+the host runtime is never substituted. Its package layout and Mach-O architecture
+are checked without executing it. Run the packaged smoke on the available
+Apple Silicon Mac and Windows machine. There is no Intel test machine: Intel
+runtime execution is not a release gate and is reported as untested.
+ZIP alternatives are not built or published by default.
 
 `SHA256SUMS`, `verification.json`, logs and any acceptance reports stay local.
 Do not upload separate README copies, screenshots or diagnostic archives. GitHub

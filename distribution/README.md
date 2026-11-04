@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.13.0
+# NCF Agent Interconnect 0.14.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -7,13 +7,11 @@ npm are not required for installation.
 ## Install
 
 macOS: open the DMG and drag NCF Agent Interconnect into Applications.
-For a ZIP package, extract the app and move it into Applications.
-Requires macOS 13 or later and Apple Silicon. The build is ad-hoc signed and is
-not notarized by Apple.
+Choose the Apple Silicon (arm64) or Intel (x64) DMG. Requires macOS 13 or
+later. The build is ad-hoc signed without Apple notarization. The Intel package
+was not run on Intel hardware.
 
-Windows x64: use the native Windows installer or extract the Windows ZIP into a
-permanent folder. Windows packages are unsigned. See the repository build guide
-for completed checks and manual installation smoke checks.
+Windows x64: use the Windows installer. Packages are unsigned.
 
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional

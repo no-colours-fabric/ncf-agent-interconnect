@@ -1,5 +1,5 @@
 import { spawnSync } from 'node:child_process';
-import { readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
 import { createReadStream } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
@@ -16,8 +16,14 @@ for (const [flag, platform] of [
 ])
   if (args.includes(flag) && process.platform !== platform)
     throw new Error(`Build ${flag} on ${platform}: the package contains the target OS runtime.`);
-for (const arch of ['arm64', 'x64'])
-  if (args.includes('--' + arch) && process.arch !== arch)
+const requestedArchitectures = ['arm64', 'x64'].filter((arch) => args.includes('--' + arch));
+const architectures = requestedArchitectures.length
+  ? requestedArchitectures
+  : process.platform === 'darwin'
+    ? ['arm64', 'x64']
+    : [process.arch];
+for (const arch of architectures)
+  if (process.platform !== 'darwin' && process.arch !== arch)
     throw new Error(
       'This builder uses the verified runtime for the current architecture: ' + process.arch,
     );
@@ -39,7 +45,30 @@ for (const task of [
   'build',
 ])
   run(npm, ['run', task]);
-run(npm, ['exec', '--offline', '--no', '--', 'electron-builder', '--publish', 'never', ...args]);
+for (const arch of architectures) {
+  const builderArgs = args.filter((arg) => !['--arm64', '--x64'].includes(arg));
+  if (arch !== process.arch) {
+    const config = path.join(root, '.local', `electron-${process.platform}-${arch}.json`);
+    await mkdir(path.dirname(config), { recursive: true });
+    await writeFile(
+      config,
+      JSON.stringify({ extends: path.join(root, 'electron-builder.yml'), electronDist: null }),
+    );
+    builderArgs.push('--config', config);
+  }
+  run(npm, [
+    'exec',
+    '--offline',
+    '--no',
+    '--',
+    'electron-builder',
+    '--publish',
+    'never',
+    ...builderArgs,
+    '--' + arch,
+  ]);
+  run(path.join(root, 'scripts', 'verify-release.mjs'), ['--arch=' + arch]);
+}
 const pkg = JSON.parse(await readFile(path.join(root, 'package.json'), 'utf8'));
 const artifactPrefix = pkg.productName.replaceAll(' ', '-') + '-' + pkg.version + '-';
 const artifacts = (await readdir(path.join(root, 'release'))).filter(
@@ -52,5 +81,4 @@ for (const name of artifacts.sort()) {
   checksums.push(hash.digest('hex') + '  ' + name);
 }
 await writeFile(path.join(root, 'release', 'SHA256SUMS'), checksums.join('\n') + '\n');
-run(path.join(root, 'scripts', 'verify-release.mjs'), []);
-console.log('User packages, README and SHA256SUMS: ' + path.join(root, 'release'));
+console.log('Installers and local verification files: ' + path.join(root, 'release'));

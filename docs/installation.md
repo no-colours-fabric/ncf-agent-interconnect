@@ -12,13 +12,12 @@ result with that digest. On Windows, use
 `Get-FileHash .\NCF-Agent-Interconnect-<version>-win-x64.exe -Algorithm SHA256`.
 Use the actual filename and architecture from the release.
 Only the latest release keeps downloadable installers; older tags retain the
-corresponding source. The existing 0.13.0 macOS package is Apple Silicon-only.
+corresponding source. Choose the arm64 DMG for Apple Silicon or the x64 DMG for Intel.
 
 ## macOS
 
-The Apple Silicon package requires macOS 13 or later. Open its DMG and drag
-NCF Agent Interconnect into Applications. For a ZIP, extract the application
-first. Start the app, then follow [MCP client setup](mcp-clients.md).
+The macOS packages require macOS 13 or later. Open the matching DMG and drag
+NCF Agent Interconnect into Applications. Start the app, then follow [MCP client setup](mcp-clients.md).
 
 Current macOS packages have an ad-hoc signature and are not notarized by Apple.
 Verify the checksum and review the release information before first launch.
@@ -27,8 +26,7 @@ Apple documents its app-opening controls in
 
 ## Windows
 
-Use a natively built Windows installer or extract the matching Windows ZIP into
-a permanent folder. Native build and validation instructions are in
+Use the Windows x64 installer. Native build and validation instructions are in
 [Windows builds](windows-release.md). Do not treat a source build on another
 operating system as Windows verification.
 

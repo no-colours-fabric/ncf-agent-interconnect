@@ -35,6 +35,16 @@ the owner's Apply action may write the selected client configuration file.
 
 Use `npm run format` for the shared source style.
 
+## Interface conventions
+
+- Outlined controls use permanent, unscaled labels above the complete border.
+  Empty, focused and filled states do not move the label. Ordinary single-line
+  inputs are 44 px high; preserve multiline rows/autosize and larger code fields.
+- Keep dark/light selection in the renderer profile and retain unsaved form
+  state when changing the theme. Use the shared semantic materials and tokens.
+- Notifications use a flat inverse surface with a uniform border, without
+  gradients, highlights or shadows. Preserve accessible roles and close actions.
+
 ## Validation
 
 ```sh
@@ -62,8 +72,8 @@ a native platform verification. Report verification limits accurately.
   for affected changes or a concrete failure. After a test-harness correction,
   rerun its failed check on the same binary; do not rebuild unchanged software.
 - Publish three installers: macOS Apple Silicon DMG, macOS Intel DMG and
-  Windows x64 EXE. No Universal package. Intel packaging is a future requirement;
-  do not change the existing 0.13.0 distributions for it. Run native acceptance
+  Windows x64 EXE. No Universal package. Build both macOS architectures on macOS
+  with matching Electron runtimes. Run native acceptance
   on the available Apple Silicon Mac and Windows machine. An Intel runtime test
   is not required and must not block publication; state that it was not run.
 - Do not upload ZIP alternatives, reports, checksum manifests, screenshots or

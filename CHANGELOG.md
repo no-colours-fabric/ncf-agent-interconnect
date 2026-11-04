@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.14.0 — 2026-11-04
+
+- Redesign the interface with a graphite Material UI theme, bounded content
+  columns, full-width node tables and an independent chat drawer.
+- Add a persistent light sand theme, static field labels, larger inputs and
+  compact Settings controls and diagnostics in all fifteen languages.
+- Fix dialog sizing, tooltip overflow and notification contrast; use flat
+  inverse notifications and quieter light surfaces.
+- Publish separate Apple Silicon and Intel DMGs and a Windows x64 installer.
+  Intel runtime execution was not tested.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
 ## 0.13.0 — 2026-11-03
 
 - Add AionUi integration for its Cursor Agent backend using owner-approved

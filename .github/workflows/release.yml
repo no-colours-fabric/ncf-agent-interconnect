@@ -32,7 +32,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release create "$GITHUB_REF_NAME" \
-            release/NCF-Agent-Interconnect-*-mac-arm64.dmg \
+            release/NCF-Agent-Interconnect-*-mac-*.dmg \
             --draft \
             --verify-tag --title "NCF Agent Interconnect $GITHUB_REF_NAME" \
             --notes-file distribution/release-notes.md

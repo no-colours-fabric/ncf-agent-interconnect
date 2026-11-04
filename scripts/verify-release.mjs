@@ -6,12 +6,14 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 
 const pkg = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
+const targetArch = process.argv.find((arg) => arg.startsWith('--arch='))?.slice(7) ?? process.arch;
+assert.ok(['arm64', 'x64'].includes(targetArch), 'Supported package architecture');
 const release = new URL('../release/', import.meta.url),
   base = new URL(
     process.platform === 'darwin'
-      ? `mac-${process.arch}/NCF Agent Interconnect.app/Contents/`
+      ? `${targetArch === 'x64' ? 'mac' : 'mac-' + targetArch}/NCF Agent Interconnect.app/Contents/`
       : process.platform === 'win32'
-        ? process.arch === 'arm64'
+        ? targetArch === 'arm64'
           ? 'win-arm64-unpacked/'
           : 'win-unpacked/'
         : 'linux-unpacked/',
@@ -33,11 +35,59 @@ const executable = fileURLToPath(
 );
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 assert.ok(entries.includes('/build/integrations/opencode.js'));
+assert.ok(entries.includes('/build/integrations/aionui.js'));
+assert.ok(entries.includes('/build/main/preload.cjs'));
+assert.ok(entries.includes('/build/renderer/index.html'));
 assert.ok(entries.includes('/build/core/client-contexts.js'));
 assert.ok(entries.includes('/node_modules/fast-srp-hap/LICENSE'));
 assert.ok(!entries.includes('/build/core/store.js'));
 assert.ok(!entries.some((entry) => /^\/(src|test-desktop|\.local)\//.test(entry)));
 assert.equal(JSON.parse(asar.extractFile(archive, 'package.json').toString()).version, pkg.version);
+async function sourceRevision() {
+  const git = spawnSync('git', ['rev-parse', 'HEAD'], {
+    cwd: fileURLToPath(new URL('..', import.meta.url)),
+    encoding: 'utf8',
+    windowsHide: true,
+  });
+  const archived = (await readFile(new URL('../SOURCE_REVISION', import.meta.url), 'utf8')).trim();
+  const revision =
+    process.env.GITHUB_SHA ??
+    process.env.NCF_SOURCE_REVISION ??
+    (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(archived)
+      ? archived
+      : git.status === 0
+        ? git.stdout.trim()
+        : null);
+  if (revision && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(revision))
+    throw new Error('Invalid source revision');
+  return revision;
+}
+if (process.platform === 'darwin') {
+  const architecture = spawnSync('lipo', ['-archs', executable], { encoding: 'utf8' });
+  if (architecture.error) throw architecture.error;
+  assert.equal(architecture.status, 0, 'Read packaged Mach-O architecture');
+  assert.equal(architecture.stdout.trim(), targetArch === 'x64' ? 'x86_64' : 'arm64');
+}
+if (targetArch !== process.arch) {
+  assert.equal(process.platform, 'darwin', 'Cross-architecture packaging is supported on macOS');
+  const report = {
+    version: pkg.version,
+    sourceRevision: await sourceRevision(),
+    platform: process.platform,
+    arch: targetArch,
+    hostArch: process.arch,
+    packageLayout: true,
+    executableArchitecture: true,
+    runtimeExecuted: false,
+    note: 'Packaged on macOS; this architecture was not run on target hardware.',
+  };
+  await writeFile(
+    new URL(`verification-${targetArch}.json`, release),
+    JSON.stringify(report, null, 2) + '\n',
+  );
+  console.log(JSON.stringify(report));
+  process.exit(0);
+}
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'interconnect-package-'));
 try {
   const extracted = path.join(temporary, 'application');
@@ -141,27 +191,9 @@ try {
     throw new Error(
       'Installed package verification: ' + (result.stderr || result.stdout).slice(-4000),
     );
-  const git = spawnSync('git', ['rev-parse', 'HEAD'], {
-    cwd: fileURLToPath(new URL('..', import.meta.url)),
-    encoding: 'utf8',
-    windowsHide: true,
-  });
-  const archivedRevision = (
-    await readFile(new URL('../SOURCE_REVISION', import.meta.url), 'utf8')
-  ).trim();
-  const sourceRevision =
-    process.env.GITHUB_SHA ??
-    process.env.NCF_SOURCE_REVISION ??
-    (/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(archivedRevision)
-      ? archivedRevision
-      : git.status === 0
-        ? git.stdout.trim()
-        : null);
-  if (sourceRevision && !/^(?:[a-f0-9]{40}|[a-f0-9]{64})$/i.test(sourceRevision))
-    throw new Error('Invalid source revision');
   const report = {
     version: pkg.version,
-    sourceRevision,
+    sourceRevision: await sourceRevision(),
     platform: process.platform,
     arch: process.arch,
     verifiedAt: new Date().toISOString(),
