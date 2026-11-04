@@ -33,7 +33,8 @@ reuse completed checks when the relevant source and dependencies are unchanged.
    descriptions. The release-retention workflow performs this cleanup after a
    non-prerelease becomes Latest. Keep the previous installers until their replacements are live.
 6. Remove completed task/release worktrees and their temporary local and origin
-   `codex/*` branches on the participating machines. Check ancestry or patch
+   `codex/*` branches on the participating machines, including detached worktrees
+   and temporary publisher/staging repositories. Check ancestry or patch
    equivalence for cherry-picked changes; a different commit ID alone does not
    mean the change is unfinished. Preserve `main`, release tags, unfinished work,
    uncommitted files and directories needed by running previews, including their

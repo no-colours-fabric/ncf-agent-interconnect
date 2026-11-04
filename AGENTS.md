@@ -87,7 +87,8 @@ a native platform verification. Report verification limits accurately.
   Repeat digest/download inspections only for a transfer error or a concrete
   integrity concern. Do not add repeated status checks or approval rounds.
 - After publication, remove completed task/release worktrees and their temporary
-  local and origin `codex/*` branches. Check integration by ancestry or patch
+  local and origin `codex/*` branches. Include detached worktrees and temporary
+  publisher/staging repositories in this inventory. Check integration by ancestry or patch
   equivalence, including cherry-picked changes. Preserve `main`, release tags,
   unfinished work, uncommitted data and directories required by running previews.
   Retain necessary standalone QA history in a compact local bundle before removing
