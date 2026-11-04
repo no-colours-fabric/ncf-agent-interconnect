@@ -59,6 +59,15 @@ data and synthetic messages; it does not contact live agents.
 
 ## Return a build
 
+Starting with the next release after 0.14.0, copy the completed EXE to the primary
+repository checkout's `release\<version>\` before publication or removal of the
+build worktree. For example, the existing Windows checkout uses
+`D:\dev\ncf-agent-interconnect\release\<version>\`. The owner manages these version
+directories; do not delete, replace or prune them during automated cleanup.
+Clean temporary build/evidence archives such as `.local/windows-evidence-archive`
+after retaining the installer and any necessary compact QA history. Keep private
+profiles and backups separate from temporary build data.
+
 Upload only the current EXE installer. Keep any generated ZIP, checksums,
 verification report and logs locally. Send the coordinator a short status with
 the source revision and any failure or material limitation; do not create an

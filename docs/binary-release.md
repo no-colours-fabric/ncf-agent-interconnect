@@ -27,7 +27,9 @@ reuse completed checks when the relevant source and dependencies are unchanged.
 4. Upload only the current installers, check version, filenames and upload
    completion once, then publish. Keep the description to changes and material
    limitations. Do not repeat server-digest or download checks without a transfer
-   error or a concrete integrity concern.
+   error or a concrete integrity concern. Before publication and worktree cleanup,
+   retain the installers in the primary checkout's `release/<version>/` as described
+   below.
 5. After successful publication with all required installers, remove uploaded
    assets from older releases. Preserve Git tags, source history and release
    descriptions. The release-retention workflow performs this cleanup after a
@@ -51,6 +53,29 @@ are checked without executing it. Run the packaged smoke on the available
 Apple Silicon Mac and Windows machine. There is no Intel test machine: Intel
 runtime execution is not a release gate and is reported as untested.
 ZIP alternatives are not built or published by default.
+
+## Local installer retention
+
+Starting with the next release after 0.14.0, each native build machine keeps the
+installers it builds in its primary repository checkout under `release/<version>/`.
+On the coordinator's Mac, the directory is
+`/Users/a.prokopenko/dev/agent-interconnect-mcp/release/<version>/`. Windows uses
+`<primary-repository>\release\<version>\`; future Linux builds use the equivalent
+repository-root directory when that platform is supported.
+
+Copy the completed DMG/EXE installers out of disposable release worktrees before
+publication or cleanup. Keep the platform/architecture in each installer filename.
+These persistent version directories contain the distributions and remain ignored
+by Git. The owner manages their retention: agents, scripts and release cleanup
+must not delete, replace or prune their contents.
+
+Temporary staging/build/evidence directories, including
+`.local/windows-evidence-archive`, are cleaned after the installers have been
+retained. Keep only necessary compact QA history or private backups outside those
+temporary directories; do not accumulate duplicate installer archives there.
+Never apply recursive temporary-directory cleanup to the primary `release/`
+directory. This rule does not enable Linux packaging or require rebuilding or
+downloading previous releases.
 
 `SHA256SUMS`, `verification.json`, logs and any acceptance reports stay local.
 Do not upload separate README copies, screenshots or diagnostic archives. GitHub

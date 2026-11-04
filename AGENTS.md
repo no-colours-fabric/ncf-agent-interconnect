@@ -79,6 +79,16 @@ a native platform verification. Report verification limits accurately.
 - Do not upload ZIP alternatives, reports, checksum manifests, screenshots or
   README copies as routine release assets. Keep diagnostics locally and put
   short changes and material limitations in the release description.
+- Starting with the next release, retain built installers in the primary
+  repository checkout's `release/<version>/` on each native build machine.
+  On this Mac, use `/Users/a.prokopenko/dev/agent-interconnect-mcp/release/<version>/`;
+  use the corresponding repository-root directory on Windows and, when supported,
+  Linux. Copy installers out of disposable worktrees before removing them. These
+  version directories are owner-managed: never automatically delete or replace
+  their contents, and exclude them from release/worktree cleanup. Clean temporary
+  build/evidence archives such as `.local/windows-evidence-archive` after retaining
+  the installers and any necessary compact QA history. Do not add Linux packaging
+  as part of this retention rule.
 - After the new release is published with all required installers, remove
   uploaded assets from older releases. Keep their Git tags, source history and
   release descriptions. Never remove the last available installers before the
