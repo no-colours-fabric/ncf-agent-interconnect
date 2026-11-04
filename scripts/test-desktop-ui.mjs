@@ -110,14 +110,7 @@ try {
   );
   assert.equal(await page.getByTestId('nav-clients').count(), 0);
   const applicationSnapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
-  for (const [label, kind, title] of [
-    ['Cursor', 'manual', 'Cursor and other MCP clients'],
-    ['OpenCode', 'opencode-http', 'OpenCode and its frontends'],
-    ['Codex', 'codex-desktop', 'Codex Desktop'],
-    ['AionUi', 'aionui', 'AionUi'],
-  ]) {
-    await page.getByRole('tab', { name: label, exact: true }).click();
-    const summary = page.getByTestId('application-' + kind);
+  const verifyApplicationSummary = async (summary, kind, title) => {
     await summary.getByText(title, { exact: true }).waitFor();
     const profiles = applicationSnapshot.adapters.filter((profile) => profile.kind === kind);
     const ids = new Set(profiles.map((profile) => profile.id));
@@ -137,7 +130,24 @@ try {
       await summary.getByTestId('application-last-activity').innerText(),
       activity ? await page.evaluate((date) => new Date(date).toLocaleString('en'), activity) : '',
     );
+  };
+  for (const [label, kind, title] of [
+    ['OpenCode', 'opencode-http', 'OpenCode and its frontends'],
+    ['Codex', 'codex-desktop', 'Codex Desktop'],
+    ['AionUi', 'aionui', 'AionUi'],
+  ]) {
+    await page.getByRole('tab', { name: label, exact: true }).click();
+    const summary = page.getByRole('tabpanel').getByTestId('application-' + kind);
+    await verifyApplicationSummary(summary, kind, title);
   }
+  const manualSummary = page.getByTestId('application-manual');
+  assert.equal(await manualSummary.count(), 1);
+  assert.equal(
+    await manualSummary.evaluate((element) => element.closest('[role="tabpanel"]') === null),
+    true,
+    'The shared manual summary must be outside every client tabpanel',
+  );
+  await verifyApplicationSummary(manualSummary, 'manual', 'Manual MCP (all manual connections)');
   assert.equal(await page.getByRole('button', { name: 'Add adapter', exact: true }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: /Exact.*(ID|UUID)/ }).count(), 0);
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
