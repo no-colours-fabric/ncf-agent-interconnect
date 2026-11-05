@@ -64,6 +64,8 @@ const routesSchema = z
           .strict(),
       )
       .max(64),
+    /** Sessions with a SessionStart and no SessionEnd yet; survives node restarts. */
+    active: z.array(sessionId).max(256).optional(),
   })
   .strict();
 type Route = z.infer<typeof routesSchema>['routes'][number];
@@ -130,7 +132,10 @@ export class ClaudeSessions extends EventEmitter {
   }
   async load(): Promise<void> {
     try {
-      this.routes = routesSchema.parse(JSON.parse(await readFile(this.filename, 'utf8'))).routes;
+      const saved = routesSchema.parse(JSON.parse(await readFile(this.filename, 'utf8')));
+      this.routes = saved.routes;
+      // A helper reconnected while NCF was stopped can then prove its spawn session (P1).
+      for (const id of saved.active ?? []) this.session(id).active = true;
     } catch {
       // A missing or unreadable proof file only means that routes must be proven again.
       this.routes = [];
@@ -149,7 +154,12 @@ export class ClaudeSessions extends EventEmitter {
     // Keep proofs of helpers that are temporarily detached, for node or transport restarts.
     const detached = this.routes.filter((route) => !this.helpers.has(route.helperId));
     this.routes = [...routes, ...detached].slice(0, 64);
-    const data = { version: 1 as const, routes: this.routes };
+    const active = [...this.sessions.entries()]
+      .filter(([, record]) => record.active)
+      .sort((a, b) => b[1].seen - a[1].seen)
+      .slice(0, 256)
+      .map(([id]) => id);
+    const data = { version: 1 as const, routes: this.routes, active };
     this.persisting = this.persisting
       .then(() => atomicJson(this.filename, data))
       .catch(() => {
@@ -271,6 +281,7 @@ export class ClaudeSessions extends EventEmitter {
     if (input.event === 'SessionStart') {
       record.active = true;
       record.starts = Math.min(record.starts + 1, 8);
+      void this.persist();
     } else if (input.event === 'SessionEnd') {
       record.active = false;
       record.starts = 0;

@@ -111,7 +111,7 @@ the old route before a new one is admitted.
 | NCF restarts while Claude Code runs        | The helper reconnects its event stream with backoff and proves its route again with its in-memory secret and session generation. Stale offers are re-sent once. No user or model action is needed.                                                                               |
 | Claude Code starts with `--resume <id>`    | The helper environment and the `SessionStart` command hook name the same session, so the route is proven before the first prompt. After `--continue`, or `--resume` without an ID, the environment can hold the startup ID; the route is then proven at the first NCF tool call. |
 | `/clear` or `/resume` in a running process | `SessionEnd` and the session events block the old route. The new chat does not inherit the agent name; moving it requires the owner-approved transfer. Resuming the original chat restores its route.                                                                            |
-| The stdio helper exits                     | Claude Code marks the server failed. Use **Reconnect** in `/mcp`. Messages stay queued; the new helper is proven again before any wake. NCF never starts Claude Code itself.                                                                                                     |
+| The stdio helper exits                     | Claude Code marks the server failed. Use **Reconnect** in `/mcp`. Messages stay queued. The new helper is proven again from its spawn session and the persisted active-session list before any wake, without a prompt or tool call. NCF never starts Claude Code itself.         |
 
 ## Verification limits
 

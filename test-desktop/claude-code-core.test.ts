@@ -313,3 +313,36 @@ test('Node restart with a live helper restores the proven route and re-offers st
   await until(() => reconnected.wakes().length === 1);
   await reconnected.detach();
 });
+
+test('A helper reconnected after a node restart proves a still-active chat without a new hook; an ended chat stays fenced', async (t) => {
+  const f = await claudeFixture(t);
+  const [s1, s2] = [randomUUID(), randomUUID()];
+  const a = new FakeHelper(f, s1),
+    b = new FakeHelper(f, s2);
+  for (const [helper, session] of [
+    [a, s1],
+    [b, s2],
+  ] as const) {
+    await f.hook('SessionStart', session, { source: 'startup' });
+    await helper.attach();
+  }
+  await f.connect(a, s1, 'Боб');
+  await f.connect(b, s2, 'Ева');
+  await f.hook('SessionEnd', s2, { reason: 'prompt_input_exit' });
+  await a.detach();
+  await b.detach();
+  await f.restart();
+  // /mcp Reconnect spawns new helper processes with new secrets (on-site T16 path).
+  const reconnected = new FakeHelper(f, s1);
+  const ended = new FakeHelper(f, s2);
+  await reconnected.attach();
+  await ended.attach();
+  await sendTo(f, 'Боб', 'После reconnect');
+  const late = await sendTo(f, 'Ева', 'Завершённому чату');
+  await until(() => reconnected.wakes().length === 1);
+  await until(() => f.service.store.dispatchState(late.id)?.state === 'waiting');
+  await settle();
+  assert.deepEqual(ended.wakes(), []);
+  await reconnected.detach();
+  await ended.detach();
+});

@@ -44,7 +44,9 @@ A helper is the route of session S only after one of these proofs:
 
 - **P1 (launch / reconnect).** The E1 value equals S, and the node has an
   active S from E2: a SessionStart was seen and no SessionEnd since. No other
-  live helper may claim S.
+  live helper may claim S. The active-session list is persisted with the route proofs,
+  so a helper reconnected after a node restart, for example through `/mcp`
+  Reconnect, proves its chat without a new hook.
 - **P2 (switch).** E3 reports S on the helper's transport, and E2 has a
   matching unconsumed SessionStart for S.
 - **P3 (tool call).** See D4.
