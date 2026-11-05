@@ -669,7 +669,7 @@ export class NodeService extends EventEmitter {
     };
   }
   /** Verifies a Claude Code helper call before the helper forwards it to MCP. */
-  async claudeCall(raw: unknown): Promise<{ contextToken?: string }> {
+  async claudeCall(raw: unknown): Promise<{ contextToken?: string; callToken: string }> {
     if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
     const input = helperCallSchema.parse(raw);
     const { helper, session, lease } = await this.claude.correlate(input);
@@ -689,7 +689,8 @@ export class NodeService extends EventEmitter {
           this.claude.confirm(helper);
       }
     }
-    if (input.tool !== 'agent_connect') return {};
+    if (input.tool !== 'agent_connect')
+      return { callToken: this.claude.issueCall(lease, input.tool, input.inputHash) };
     const work = this.adapterSetup.then(async () => {
       if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
       await this.claude.validateCurrent(lease);
@@ -724,7 +725,8 @@ export class NodeService extends EventEmitter {
       () => {},
       () => {},
     );
-    return { contextToken: await work };
+    const contextToken = await work;
+    return { contextToken, callToken: this.claude.issueCall(lease, input.tool, input.inputHash) };
   }
   async connectCodex(
     args: Partial<ConnectInput> & { nickname: string; client: string },

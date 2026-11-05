@@ -80,6 +80,14 @@ hash. Equal arguments never select another chat. Missing, foreign, replayed or
 expired proofs fail closed. Model lifecycle tools have no authority;
 `session_event` is not exposed or generated as a hook.
 
+A separate private call permit keeps the same full node authority across
+awaited MCP connection work and result handling. The node checks raw arguments
+at admission and the actual server request/session scope immediately before
+execution and result release. Replacing a helper or introducing an ambiguous
+route rejects an old permit even when the native session nonce is unchanged.
+Loss of authority after admission withholds content without undoing or
+automatically replaying an operation that may already have taken effect.
+
 The hook does not change permission decisions. Auto mode may reject an updated
 MCP input and is **NOT_TESTED** for this correction; no automatic permission
 grant is used as a workaround. See the

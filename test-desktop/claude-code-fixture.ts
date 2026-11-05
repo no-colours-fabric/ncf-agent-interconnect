@@ -7,7 +7,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { NodeService } from '../desktop/core/service.js';
 import { claudeToolPrefix } from '../desktop/core/claude-sessions.js';
-import { canonicalInputHash } from '../desktop/integrations/claude-code.js';
+import { canonicalInputHash, claudeCallMetaKey } from '../desktop/integrations/claude-code.js';
 import { readNativeLease, updateNativeLease } from '../desktop/integrations/claude-native-lease.js';
 
 export { canonicalInputHash };
@@ -235,10 +235,15 @@ export async function claudeFixture(t: test.TestContext): Promise<ClaudeFixture>
       const proof = await f.preTool(session, 'agent_connect', args);
       const verified = await helper.verify('agent_connect', args, proof);
       if (verified.status !== 200) throw new Error(String(verified.body.error));
+      if (typeof verified.body.callToken !== 'string')
+        throw new Error('The native helper did not receive a call permit');
+      if (typeof verified.body.contextToken !== 'string')
+        throw new Error('The native helper did not receive a connection ticket');
       const client = await f.mcp();
       const result = await client.callTool({
         name: 'agent_connect',
         arguments: { ...args, contextToken: verified.body.contextToken },
+        _meta: { [claudeCallMetaKey]: verified.body.callToken },
       });
       if (result.isError) throw new Error(JSON.stringify(result.content));
       return result.structuredContent as Record<string, any>;

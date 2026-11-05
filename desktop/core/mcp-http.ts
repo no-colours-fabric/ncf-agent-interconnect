@@ -12,6 +12,7 @@ import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
 import { helperHelloSchema, type ClaudeHelper } from './claude-sessions.js';
+import { canonicalInputHash, claudeCallMetaKey } from '../integrations/claude-code.js';
 
 export function createAgentMcp(
   service: NodeService,
@@ -40,16 +41,32 @@ export function createAgentMcp(
     readOnlyHint: boolean,
     handler: (
       args: z.infer<z.ZodObject<T>>,
-      extra: { _meta?: Record<string, unknown> },
+      extra: { _meta?: Record<string, unknown>; requestId?: string | number },
     ) => unknown | Promise<unknown>,
     destructiveHint = false,
   ): void {
     const callback = async (
       args: z.infer<z.ZodObject<T>>,
-      extra: { _meta?: Record<string, unknown> },
+      extra: { _meta?: Record<string, unknown>; requestId?: string | number },
     ): Promise<CallToolResult> => {
       try {
+        const currentCall = () => {
+          const client = mcp.server.getClientVersion()?.name;
+          const permit = extra._meta?.[claudeCallMetaKey];
+          if (client !== 'Claude Code' && permit === undefined) return;
+          if (
+            client !== 'Claude Code' ||
+            typeof permit !== 'string' ||
+            extra.requestId === undefined
+          )
+            throw new Error('The Claude Code call admission is unavailable.');
+          service.claude.assertCall(permit, name, sessionKey, extra.requestId);
+        };
+        // This synchronous check is the final admission boundary. No await
+        // separates it from handler invocation or the result-release check.
+        currentCall();
         const result = await handler(args as z.infer<z.ZodObject<T>>, extra);
+        currentCall();
         touch();
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result) }],
@@ -337,6 +354,7 @@ export class McpEndpoint {
       [
         '/integrations/claude/hook',
         '/integrations/claude/call',
+        '/integrations/claude/call/validate',
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
@@ -363,11 +381,13 @@ export class McpEndpoint {
           ? await this.service.claude.hook(body)
           : req.url === '/integrations/claude/call'
             ? await this.service.claudeCall(body)
-            : req.url === '/integrations/aionui/context'
-              ? await this.service.contexts.registerAionUi(body)
-              : req.url!.endsWith('/release')
-                ? await this.service.contexts.releaseOpenCode(body)
-                : await this.service.contexts.registerOpenCode(body);
+            : req.url === '/integrations/claude/call/validate'
+              ? await this.service.claude.validateCall(body)
+              : req.url === '/integrations/aionui/context'
+                ? await this.service.contexts.registerAionUi(body)
+                : req.url!.endsWith('/release')
+                  ? await this.service.contexts.releaseOpenCode(body)
+                  : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;
@@ -426,6 +446,36 @@ export class McpEndpoint {
       if (sessionId) {
         session.lastActivity = Date.now();
         this.service.touchClientSession(session.key);
+      }
+      const call = body as {
+        method?: unknown;
+        id?: unknown;
+        params?: { name?: unknown; arguments?: unknown; _meta?: Record<string, unknown> };
+      };
+      if (Array.isArray(body) && session.mcp.server.getClientVersion()?.name === 'Claude Code')
+        throw new Error('Claude Code calls require individual request admission.');
+      if (call?.method === 'tools/call') {
+        const client = session.mcp.server.getClientVersion()?.name;
+        const permit = call.params?._meta?.[claudeCallMetaKey];
+        if (client === 'Claude Code' || permit !== undefined) {
+          if (
+            client !== 'Claude Code' ||
+            typeof permit !== 'string' ||
+            typeof call.params?.name !== 'string' ||
+            (typeof call.id !== 'string' && typeof call.id !== 'number')
+          )
+            throw new Error('The Claude Code call admission is unavailable.');
+          // Hash the actual wire arguments before the SDK supplies Zod defaults.
+          // The admission binds server-owned request/session identity; _meta
+          // contributes only the opaque capability, never a claimed identity.
+          this.service.claude.admitCall(
+            permit,
+            call.params.name,
+            canonicalInputHash(call.params.arguments ?? {}),
+            session.key,
+            call.id,
+          );
+        }
       }
       await session.transport.handleRequest(req, res, body);
       const current = this.sessions.get(session.transport.sessionId ?? '');

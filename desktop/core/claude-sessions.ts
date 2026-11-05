@@ -101,6 +101,23 @@ interface ToolProof {
   hash: string;
   expires: number;
 }
+interface CallPermit {
+  lease: ClaudeProofLease;
+  tool: string;
+  hash: string;
+  expires: number;
+  state: 'issued' | 'admitted';
+  sessionKey?: string;
+  requestId?: string | number;
+}
+const callValidationSchema = z
+  .object({
+    helperId: z.uuid(),
+    secret,
+    callToken: z.uuid(),
+    phase: z.enum(['forward', 'return']),
+  })
+  .strict();
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const same = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
@@ -113,6 +130,7 @@ export class ClaudeSessions extends EventEmitter {
   private holders = new Map<string, Holder>();
   private routes: Route[] = [];
   private proofs = new Map<string, ToolProof>();
+  private calls = new Map<string, CallPermit>();
   private persisting: Promise<boolean> = Promise.resolve(true);
   private unavailable = false;
   private readonly filename: string;
@@ -120,7 +138,11 @@ export class ClaudeSessions extends EventEmitter {
   private heartbeat?: NodeJS.Timeout;
   constructor(
     directory: string,
-    private readonly options: { now?: () => number; toolLifetime?: number } = {},
+    private readonly options: {
+      now?: () => number;
+      toolLifetime?: number;
+      callLifetime?: number;
+    } = {},
   ) {
     super();
     this.filename = path.join(directory, 'claude-routes.json');
@@ -182,6 +204,19 @@ export class ClaudeSessions extends EventEmitter {
     this.routes = this.routes.filter((route) => route.helperId !== helper.id);
     for (const [token, proof] of this.proofs)
       if (proof.lease.helperId === helper.id) this.proofs.delete(token);
+    this.invalidateCalls(helper.id);
+  }
+  private invalidateCalls(helperId: string): void {
+    for (const [token, permit] of this.calls)
+      if (permit.lease.helperId === helperId) this.calls.delete(token);
+  }
+  private invalidateAmbiguousCalls(session: string): void {
+    const helpers = [...this.helpers.values()].filter(
+      (helper) => helper.proven === session && this.nativeCurrent(helper),
+    );
+    if (helpers.length < 2) return;
+    for (const [token, permit] of this.calls)
+      if (permit.lease.session === session) this.calls.delete(token);
   }
   private nativeCurrent(helper: ClaudeHelper, allowPublishing = false): boolean {
     if (
@@ -234,6 +269,104 @@ export class ClaudeSessions extends EventEmitter {
     )
       throw unproven();
   }
+  validateCurrentSync(lease: ClaudeProofLease): void {
+    if (!this.matches(lease)) throw unproven();
+  }
+  /** A private permit for one exact server request, separate from connection tickets. */
+  issueCall(lease: ClaudeProofLease, tool: string, inputHash: string): string {
+    const name = z.string().min(1).max(128).parse(tool);
+    const integrity = hash.parse(inputHash);
+    this.validateCurrentSync(lease);
+    const now = this.now();
+    for (const [token, permit] of this.calls)
+      if (permit.expires <= now || !this.matches(permit.lease)) this.calls.delete(token);
+    if (this.calls.size >= 512) throw unproven();
+    const callToken = randomUUID();
+    this.calls.set(callToken, {
+      lease: Object.freeze({ ...lease }),
+      tool: name,
+      hash: integrity,
+      expires: now + (this.options.callLifetime ?? 60000),
+      state: 'issued',
+    });
+    return callToken;
+  }
+  private assertPermitCurrent(callToken: string, permit: CallPermit): void {
+    if (
+      this.calls.get(callToken) !== permit ||
+      permit.expires <= this.now() ||
+      !this.matches(permit.lease)
+    ) {
+      if (this.calls.get(callToken) === permit) this.calls.delete(callToken);
+      throw unproven();
+    }
+  }
+  async validateCall(raw: unknown): Promise<{ valid: true }> {
+    const input = callValidationSchema.parse(raw);
+    const helper = this.authenticate(input.helperId, input.secret);
+    const permit = this.calls.get(input.callToken);
+    if (!permit || permit.lease.helperId !== helper.id) throw unproven();
+    this.assertPermitCurrent(input.callToken, permit);
+    if (permit.state !== (input.phase === 'forward' ? 'issued' : 'admitted')) throw unproven();
+    try {
+      await this.validateCurrent(permit.lease);
+    } catch {
+      if (this.calls.get(input.callToken) === permit) this.calls.delete(input.callToken);
+      throw unproven();
+    }
+    this.assertPermitCurrent(input.callToken, permit);
+    if (permit.state !== (input.phase === 'forward' ? 'issued' : 'admitted')) throw unproven();
+    return { valid: true };
+  }
+  /** Linearize admission before the handler's first asynchronous operation. */
+  admitCall(
+    callToken: string,
+    tool: string,
+    inputHash: string,
+    sessionKey: string,
+    requestId: string | number,
+  ): void {
+    const permit = this.calls.get(callToken);
+    if (
+      !permit ||
+      permit.state !== 'issued' ||
+      permit.tool !== tool ||
+      !same(permit.hash, inputHash) ||
+      !this.requestIdentity(sessionKey, requestId)
+    )
+      throw unproven();
+    this.assertPermitCurrent(callToken, permit);
+    permit.sessionKey = sessionKey;
+    permit.requestId = requestId;
+    permit.state = 'admitted';
+  }
+  private requestIdentity(sessionKey: string, requestId: string | number): boolean {
+    return (
+      typeof sessionKey === 'string' &&
+      sessionKey.length > 0 &&
+      ((typeof requestId === 'string' && requestId.length > 0) ||
+        (typeof requestId === 'number' && Number.isFinite(requestId)))
+    );
+  }
+  /** Check the admitted server-owned request immediately before and after its handler. */
+  assertCall(
+    callToken: string,
+    tool: string,
+    sessionKey: string,
+    requestId: string | number,
+  ): void {
+    const permit = this.calls.get(callToken);
+    if (
+      !permit ||
+      permit.state !== 'admitted' ||
+      permit.tool !== tool ||
+      permit.sessionKey !== sessionKey ||
+      permit.requestId !== requestId ||
+      !this.requestIdentity(sessionKey, requestId)
+    )
+      throw unproven();
+    this.assertPermitCurrent(callToken, permit);
+  }
   private async bootstrap(helper: ClaudeHelper, expectedNonce?: string | null): Promise<boolean> {
     if (
       this.unavailable ||
@@ -283,6 +416,7 @@ export class ClaudeSessions extends EventEmitter {
           '\n',
       );
     helper.publishing = false;
+    this.invalidateAmbiguousCalls(helper.spawnSession);
     return true;
   }
   async attach(raw: unknown, writer: HelperWriter): Promise<ClaudeHelper> {
@@ -302,7 +436,10 @@ export class ClaudeSessions extends EventEmitter {
           holder.nativeLeaseNonce !== hello.nativeLeaseNonce))
     )
       throw unproven();
-    previous?.writer.end();
+    if (previous) {
+      this.invalidateCalls(previous.id);
+      previous.writer.end();
+    }
     const helper: ClaudeHelper = {
       id: hello.helperId,
       secretHash,
@@ -341,6 +478,7 @@ export class ClaudeSessions extends EventEmitter {
     helper.outstanding.clear();
     for (const [token, proof] of this.proofs)
       if (proof.lease.helperId === helper.id) this.proofs.delete(token);
+    this.invalidateCalls(helper.id);
     this.emit('change');
   }
   /** Model-visible lifecycle calls have no authority, including revocation authority. */
@@ -452,6 +590,7 @@ export class ClaudeSessions extends EventEmitter {
       helper.writer.end();
     }
     this.proofs.clear();
+    this.calls.clear();
     await this.persisting;
   }
 }

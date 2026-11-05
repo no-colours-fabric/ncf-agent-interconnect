@@ -18,7 +18,7 @@ import { claudePluginFiles, publishClaudePlugin } from '../desktop/core/claude-p
 import { claudeToolPrefix, startClaudeBridge } from '../desktop/integrations/claude-code.js';
 import { readNativeLease } from '../desktop/integrations/claude-native-lease.js';
 import { until } from './aionui-fixture.js';
-import { claudeFixture, type ClaudeFixture } from './claude-code-fixture.js';
+import { claudeFixture, FakeHelper, type ClaudeFixture } from './claude-code-fixture.js';
 
 const script = fileURLToPath(new URL('../desktop/integrations/claude-code.ts', import.meta.url));
 const tsx = import.meta.resolve('tsx');
@@ -342,72 +342,223 @@ test('Source helper and command-hook processes require native proofs, reject mod
   assert.equal(wakes.length, 1);
 });
 
-test('A source helper withholds a completed read result when its native lease is revoked in flight', async (t) => {
-  const f = await claudeFixture(t);
-  const session = randomUUID();
-  assertQuietHook(
-    await runHook(f.nodeFile, {
-      hook_event_name: 'SessionStart',
-      session_id: session,
-      source: 'startup',
-    }),
-  );
-  const { client, wakes } = await launchHelper(t, f, session);
-  const connect = await prepareCall(f.nodeFile, session, 'agent_connect', {
-    nickname: 'Получатель',
-  });
-  const connected = await client.callTool({ name: 'agent_connect', arguments: connect });
-  assert.equal(connected.isError, undefined);
-  const binding = (connected.structuredContent as { binding: { connectionId: string } }).binding;
-  const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
-  if (sender.status !== 'connected') throw new Error();
-  const body = 'REVOKED_NATIVE_BODY_' + randomUUID();
-  await f.service.send({
-    connectionId: sender.binding.connectionId,
-    recipientNode: f.service.settings.value.nodeId,
-    recipientNickname: 'Получатель',
-    text: body,
-  });
-  await until(() => wakes.length === 1);
-
-  let reached = false;
-  let release!: () => void;
-  const barrier = new Promise<void>((resolve) => (release = resolve));
-  const originalRead = f.service.read;
-  f.service.read = async (...args) => {
-    const result = await originalRead.apply(f.service, args);
-    reached = true;
-    await barrier;
-    return result;
-  };
-  try {
-    const read = await prepareCall(f.nodeFile, session, 'agent_read', {
-      connectionId: binding.connectionId,
-    });
-    const pending = client.callTool({ name: 'agent_read', arguments: read });
-    await until(() => reached);
+for (const invalidation of ['native-end', 'route-replacement'] as const)
+  test(`A source helper withholds a completed read result after ${invalidation} in flight`, async (t) => {
+    const f = await claudeFixture(t);
+    const session = randomUUID();
     assertQuietHook(
       await runHook(f.nodeFile, {
-        hook_event_name: 'SessionEnd',
+        hook_event_name: 'SessionStart',
         session_id: session,
-        reason: 'clear',
+        source: 'startup',
       }),
     );
-    release();
-    const result = await pending;
-    assert.equal(result.isError, true);
-    assert.ok(
-      !JSON.stringify(result).includes(body),
-      'Revoked native context must not receive the body',
-    );
-    // This is a helper privacy check; receipt semantics are covered separately.
-  } finally {
-    release();
-    f.service.read = originalRead;
-  }
-});
+    const { client, wakes } = await launchHelper(t, f, session);
+    const connect = await prepareCall(f.nodeFile, session, 'agent_connect', {
+      nickname: 'Получатель',
+    });
+    const connected = await client.callTool({ name: 'agent_connect', arguments: connect });
+    assert.equal(connected.isError, undefined);
+    const binding = (connected.structuredContent as { binding: { connectionId: string } }).binding;
+    const oldHelper = f.service.claude.route(session).helper;
+    assert.ok(oldHelper);
+    const nativeBefore = await readNativeLease(f.nodeFile, session);
+    let replacement: FakeHelper | undefined;
+    const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
+    if (sender.status !== 'connected') throw new Error();
+    const body = 'REVOKED_NATIVE_BODY_' + randomUUID();
+    await f.service.send({
+      connectionId: sender.binding.connectionId,
+      recipientNode: f.service.settings.value.nodeId,
+      recipientNickname: 'Получатель',
+      text: body,
+    });
+    await until(() => wakes.length === 1);
 
-test('A source helper does not forward a new tool call after native revocation during its node MCP reconnect', async (t) => {
+    let reached = false;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => (release = resolve));
+    const originalRead = f.service.read;
+    f.service.read = async (...args) => {
+      const result = await originalRead.apply(f.service, args);
+      reached = true;
+      await barrier;
+      return result;
+    };
+    try {
+      const read = await prepareCall(f.nodeFile, session, 'agent_read', {
+        connectionId: binding.connectionId,
+      });
+      const pending = client.callTool({ name: 'agent_read', arguments: read });
+      await until(() => reached);
+      if (invalidation === 'native-end') {
+        assertQuietHook(
+          await runHook(f.nodeFile, {
+            hook_event_name: 'SessionEnd',
+            session_id: session,
+            reason: 'clear',
+          }),
+        );
+      } else {
+        f.service.claude.detach(oldHelper);
+        replacement = new FakeHelper(f, session);
+        await replacement.attach();
+        const current = f.service.claude.route(session).helper;
+        assert.ok(current && current.id !== oldHelper.id);
+        const nativeAfter = await readNativeLease(f.nodeFile, session);
+        assert.ok(nativeAfter?.active && nativeAfter.nonce === nativeBefore?.nonce);
+      }
+      release();
+      const result = await pending;
+      assert.equal(result.isError, true);
+      assert.ok(
+        !JSON.stringify(result).includes(body),
+        'Revoked native context must not receive the body',
+      );
+      // This is a helper privacy check; receipt semantics are covered separately.
+    } finally {
+      release();
+      f.service.read = originalRead;
+      const cleanup = await Promise.allSettled([client.close(), replacement?.detach()]);
+      assert.ok(
+        cleanup.every((result) => result.status === 'fulfilled'),
+        'Source fixture cleanup failed',
+      );
+    }
+  });
+
+for (const invalidation of ['native-end', 'route-replacement'] as const)
+  test(`A source helper does not forward a new tool call after ${invalidation} during its node MCP reconnect`, async (t) => {
+    const f = await claudeFixture(t);
+    const session = randomUUID();
+    assertQuietHook(
+      await runHook(f.nodeFile, {
+        hook_event_name: 'SessionStart',
+        session_id: session,
+        source: 'startup',
+      }),
+    );
+    const originalFetch = globalThis.fetch;
+    const localMcp = f.url('/mcp').href;
+    let failStatus = false,
+      holdInitialize = false,
+      initializeWaiting = false,
+      forwardedPeers = 0,
+      failedStatus = 0;
+    let release!: () => void;
+    const barrier = new Promise<void>((resolve) => (release = resolve));
+    const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+    const client = new Client({ name: 'claude-code', version: 'fixture' });
+    let bridge: Awaited<ReturnType<typeof startClaudeBridge>> | undefined;
+    let replacement: FakeHelper | undefined;
+    let pending: ReturnType<Client['callTool']> | undefined;
+    globalThis.fetch = async (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+      if (url === localMcp && method === 'POST') {
+        const body =
+          typeof init?.body === 'string'
+            ? init.body
+            : input instanceof Request
+              ? await input.clone().text()
+              : '';
+        let message: { method?: string; params?: { name?: string } } | undefined;
+        try {
+          message = JSON.parse(body) as typeof message;
+        } catch {
+          // Only valid fixture JSON-RPC requests participate in the fault barrier.
+        }
+        if (
+          message?.method === 'tools/call' &&
+          message.params?.name === 'node_status' &&
+          failStatus
+        ) {
+          failStatus = false;
+          failedStatus++;
+          throw new Error('Synthetic fixture transport failure');
+        }
+        if (message?.method === 'initialize' && holdInitialize) {
+          holdInitialize = false;
+          initializeWaiting = true;
+          await barrier;
+        }
+        if (message?.method === 'tools/call' && message.params?.name === 'node_peers')
+          forwardedPeers++;
+      }
+      return originalFetch(input, init);
+    };
+    try {
+      bridge = await startClaudeBridge(
+        f.nodeFile,
+        { CLAUDE_CODE_SESSION_ID: session },
+        serverTransport,
+      );
+      await client.connect(clientTransport);
+      await until(() => !!f.service.claude.route(session).helper);
+      const connect = await prepareCall(f.nodeFile, session, 'agent_connect', {
+        nickname: 'Борис',
+      });
+      assert.equal(
+        (await client.callTool({ name: 'agent_connect', arguments: connect })).isError,
+        undefined,
+      );
+      const oldHelper = f.service.claude.route(session).helper;
+      assert.ok(oldHelper);
+      const nativeBefore = await readNativeLease(f.nodeFile, session);
+
+      // A failed read-only request makes the bridge reconnect its node MCP client.
+      failStatus = true;
+      const status = await prepareCall(f.nodeFile, session, 'node_status', {});
+      assert.equal(
+        (await client.callTool({ name: 'node_status', arguments: status })).isError,
+        true,
+      );
+      assert.equal(failedStatus, 1);
+      const peers = await prepareCall(f.nodeFile, session, 'node_peers', {});
+      holdInitialize = true;
+      pending = client.callTool({ name: 'node_peers', arguments: peers });
+      await until(() => initializeWaiting);
+      if (invalidation === 'native-end') {
+        assertQuietHook(
+          await runHook(f.nodeFile, {
+            hook_event_name: 'SessionEnd',
+            session_id: session,
+            reason: 'clear',
+          }),
+        );
+      } else {
+        f.service.claude.detach(oldHelper);
+        replacement = new FakeHelper(f, session);
+        await replacement.attach();
+        const current = f.service.claude.route(session).helper;
+        assert.ok(current && current.id !== oldHelper.id);
+        const nativeAfter = await readNativeLease(f.nodeFile, session);
+        assert.ok(nativeAfter?.active && nativeAfter.nonce === nativeBefore?.nonce);
+      }
+      release();
+      const result = await pending;
+      assert.equal(result.isError, true);
+      assert.equal(forwardedPeers, 0);
+    } finally {
+      release();
+      try {
+        const cleanup = await Promise.allSettled([
+          client.close(),
+          bridge?.close(),
+          replacement?.detach(),
+          pending?.catch(() => {}),
+        ]);
+        assert.ok(
+          cleanup.every((result) => result.status === 'fulfilled'),
+          'Source fixture cleanup failed',
+        );
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    }
+  });
+
+test('Actual node MCP admission rejects an ambiguous helper permit permanently before invoking the read handler', async (t) => {
   const f = await claudeFixture(t);
   const session = randomUUID();
   assertQuietHook(
@@ -418,50 +569,42 @@ test('A source helper does not forward a new tool call after native revocation d
     }),
   );
   const originalFetch = globalThis.fetch;
+  const originalRead = f.service.read;
   const localMcp = f.url('/mcp').href;
-  let failStatus = false,
-    holdInitialize = false,
-    initializeWaiting = false,
-    forwardedPeers = 0,
-    failedStatus = 0;
-  let release!: () => void;
-  const barrier = new Promise<void>((resolve) => (release = resolve));
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
   const client = new Client({ name: 'claude-code', version: 'fixture' });
   let bridge: Awaited<ReturnType<typeof startClaudeBridge>> | undefined;
+  let twin: FakeHelper | undefined;
   let pending: ReturnType<Client['callTool']> | undefined;
+  let holdRead = false,
+    readWaiting = false,
+    forwardedReads = 0,
+    invokedReads = 0;
+  let captured: { message: Record<string, any> } | undefined;
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => (release = resolve));
+  f.service.read = async (...args) => {
+    invokedReads++;
+    return originalRead.apply(f.service, args);
+  };
   globalThis.fetch = async (input, init) => {
-    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
-    const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
-    if (url === localMcp && method === 'POST') {
-      const body =
-        typeof init?.body === 'string'
-          ? init.body
-          : input instanceof Request
-            ? await input.clone().text()
-            : '';
-      let message: { method?: string; params?: { name?: string } } | undefined;
+    const request = new Request(input instanceof Request ? input.clone() : input, init);
+    if (request.url === localMcp && request.method === 'POST') {
+      let message: Record<string, any> | undefined;
       try {
-        message = JSON.parse(body) as typeof message;
+        message = (await request.clone().json()) as Record<string, any>;
       } catch {
-        // Only valid fixture JSON-RPC requests participate in the fault barrier.
+        // Only valid fixture JSON-RPC requests participate in the admission barrier.
       }
-      if (
-        message?.method === 'tools/call' &&
-        message.params?.name === 'node_status' &&
-        failStatus
-      ) {
-        failStatus = false;
-        failedStatus++;
-        throw new Error('Synthetic fixture transport failure');
+      if (message?.method === 'tools/call' && message.params?.name === 'agent_read') {
+        forwardedReads++;
+        if (holdRead) {
+          holdRead = false;
+          captured = { message };
+          readWaiting = true;
+          await barrier;
+        }
       }
-      if (message?.method === 'initialize' && holdInitialize) {
-        holdInitialize = false;
-        initializeWaiting = true;
-        await barrier;
-      }
-      if (message?.method === 'tools/call' && message.params?.name === 'node_peers')
-        forwardedPeers++;
     }
     return originalFetch(input, init);
   };
@@ -474,38 +617,66 @@ test('A source helper does not forward a new tool call after native revocation d
     await client.connect(clientTransport);
     await until(() => !!f.service.claude.route(session).helper);
     const connect = await prepareCall(f.nodeFile, session, 'agent_connect', { nickname: 'Борис' });
-    assert.equal(
-      (await client.callTool({ name: 'agent_connect', arguments: connect })).isError,
-      undefined,
-    );
-
-    // A failed read-only request makes the bridge reconnect its node MCP client.
-    failStatus = true;
-    const status = await prepareCall(f.nodeFile, session, 'node_status', {});
-    assert.equal((await client.callTool({ name: 'node_status', arguments: status })).isError, true);
-    assert.equal(failedStatus, 1);
-    const peers = await prepareCall(f.nodeFile, session, 'node_peers', {});
-    holdInitialize = true;
-    pending = client.callTool({ name: 'node_peers', arguments: peers });
-    await until(() => initializeWaiting);
-    assertQuietHook(
-      await runHook(f.nodeFile, {
-        hook_event_name: 'SessionEnd',
-        session_id: session,
-        reason: 'clear',
-      }),
-    );
+    const connected = await client.callTool({ name: 'agent_connect', arguments: connect });
+    assert.equal(connected.isError, undefined);
+    const binding = (connected.structuredContent as { binding: { connectionId: string } }).binding;
+    const oldHelper = f.service.claude.route(session).helper;
+    assert.ok(oldHelper);
+    const read = await prepareCall(f.nodeFile, session, 'agent_read', {
+      connectionId: binding.connectionId,
+    });
+    holdRead = true;
+    pending = client.callTool({ name: 'agent_read', arguments: read });
+    await until(() => readWaiting);
+    // Forward validation already passed; the request has not reached the node handler.
+    assert.equal(forwardedReads, 1);
+    assert.equal(invokedReads, 0);
+    twin = new FakeHelper(f, session);
+    await twin.attach();
+    await until(() => f.service.claude.route(session).ambiguous);
     release();
-    const result = await pending;
-    assert.equal(result.isError, true);
-    assert.equal(forwardedPeers, 0);
+    const rejected = await pending;
+    assert.equal(rejected.isError, true);
+    assert.equal(invokedReads, 0);
+
+    await twin.detach();
+    twin = undefined;
+    await until(() => f.service.claude.route(session).helper === oldHelper);
+    assert.ok(captured, 'The fixture must capture the actual MCP request');
+    // The bridge closes its old HTTP client after denial. A new live Claude Code
+    // MCP session distinguishes stale-permit rejection from an expired transport.
+    const replayClient = await f.mcp();
+    assert.ok((await replayClient.listTools()).tools.some((tool) => tool.name === 'agent_read'));
+    let replayRejected = false;
+    try {
+      const reply = await replayClient.callTool({
+        name: captured.message.params.name,
+        arguments: captured.message.params.arguments,
+        _meta: captured.message.params._meta,
+      });
+      replayRejected = reply.isError === true;
+    } catch {
+      replayRejected = true;
+    }
+    assert.ok(replayRejected, 'The rejected permit must not revive after ambiguity ends');
+    assert.ok((await replayClient.listTools()).tools.some((tool) => tool.name === 'agent_read'));
+    assert.equal(invokedReads, 0);
+    assert.equal(forwardedReads, 2);
   } finally {
     release();
     try {
-      await client.close();
-      await bridge?.close();
-      await pending?.catch(() => {});
+      const cleanup = await Promise.allSettled([
+        client.close(),
+        bridge?.close(),
+        twin?.detach(),
+        pending?.catch(() => {}),
+      ]);
+      assert.ok(
+        cleanup.every((result) => result.status === 'fulfilled'),
+        'Source fixture cleanup failed',
+      );
     } finally {
+      f.service.read = originalRead;
       globalThis.fetch = originalFetch;
     }
   }

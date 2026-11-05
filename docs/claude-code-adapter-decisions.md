@@ -76,6 +76,29 @@ adapter setup and immediately before the ticket is consumed into a binding.
 Missing, foreign, expired, replayed or old-incarnation proofs fail before route
 mutation, context-ticket issuance or forwarding.
 
+### Current-call authority across asynchronous work
+
+Preflight also issues a private current-call permit for every forwarded tool.
+The bridge revalidates the captured helper, epoch, session, generation, native
+incarnation and unique route after MCP connection/setup and before releasing a
+result. Checking only a still-active native nonce is insufficient: the node may
+have replaced the helper while that nonce remains unchanged.
+
+The bridge overwrites only its own private metadata capability. At the node,
+admission hashes the actual raw tool arguments before Zod defaults and reserves
+the permit once for the real server MCP-session key and JSON-RPC request ID.
+The callback synchronously checks that same request scope and full authority
+immediately before invoking its handler and after its awaited result. Neither
+identity comes from client metadata. Init, list and ping retain their original
+paths; other adapters do not use this private admission boundary.
+
+Validation before sending/returning does not consume admission again. A route
+replacement or ambiguity invalidates the affected permit; it cannot revive
+when the route becomes unique again. Admission is the authorization
+linearization point. Already admitted effects are not undone or replayed if
+authority is later lost: content is withheld and the outcome is reported as
+unconfirmed. This does not change receipt or ledger semantics.
+
 Official contract checked on 2026-11-05:
 [PreToolUse decision control](https://code.claude.com/docs/en/hooks#pretooluse-decision-control)
 documents updated input without a permission decision and replacement of the

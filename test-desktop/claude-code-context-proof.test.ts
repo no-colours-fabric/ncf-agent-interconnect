@@ -32,6 +32,7 @@ test('A native revocation while Claude adapter setup awaits prevents context-tic
   const result = await pending;
   assert.equal(result.status, 400);
   assert.equal(result.body.contextToken, undefined);
+  assert.equal(result.body.callToken, undefined);
   assert.ok(!f.service.store.list().some((agent) => agent.nickname === args.nickname));
   assert.equal(f.service.claude.route(session).helper, undefined);
 });
@@ -47,14 +48,17 @@ test('A native revocation after ticket issuance is rejected at connect consumpti
   const proof = await f.preTool(session, 'agent_connect', args);
   const verified = await helper.verify('agent_connect', args, proof);
   assert.equal(verified.status, 200);
+  assert.equal(typeof verified.body.contextToken, 'string');
+  assert.equal(typeof verified.body.callToken, 'string');
   await f.hook('SessionEnd', session, { reason: 'clear' });
-  const client = await f.mcp();
+  // Exercise ticket consumption rather than rejection by the separate MCP call-permit gate.
   for (let attempt = 0; attempt < 2; attempt++) {
-    const result = await client.callTool({
-      name: 'agent_connect',
-      arguments: { ...args, contextToken: verified.body.contextToken },
-    });
-    assert.equal(result.isError, true);
+    await assert.rejects(
+      f.service.connectAutomatic(
+        { ...args, contextToken: String(verified.body.contextToken) },
+        { client: 'Claude Code' },
+      ),
+    );
   }
   assert.ok(!f.service.store.list().some((agent) => agent.nickname === args.nickname));
 });
@@ -70,13 +74,15 @@ test('A context ticket cannot cross a helper transport epoch', async (t) => {
   const proof = await f.preTool(session, 'agent_connect', args);
   const verified = await helper.verify('agent_connect', args, proof);
   assert.equal(verified.status, 200);
+  assert.equal(typeof verified.body.contextToken, 'string');
+  assert.equal(typeof verified.body.callToken, 'string');
   await helper.detach();
   await helper.attach();
-  const client = await f.mcp();
-  const result = await client.callTool({
-    name: 'agent_connect',
-    arguments: { ...args, contextToken: verified.body.contextToken },
-  });
-  assert.equal(result.isError, true);
+  await assert.rejects(
+    f.service.connectAutomatic(
+      { ...args, contextToken: String(verified.body.contextToken) },
+      { client: 'Claude Code' },
+    ),
+  );
   assert.ok(!f.service.store.list().some((agent) => agent.nickname === args.nickname));
 });

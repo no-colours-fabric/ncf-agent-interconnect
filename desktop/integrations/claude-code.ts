@@ -23,6 +23,8 @@ export const claudePlugin = {
 /** Documented form for plugin servers; unverified until checked against a loaded plugin. */
 export const claudeToolPrefix = `mcp__plugin_${claudePlugin.name}_${claudePlugin.server}__`;
 export const claudeChannelMethod = 'notifications/claude/channel';
+/** Private bridge-to-node admission capability; never a model tool argument. */
+export const claudeCallMetaKey = 'ncf/claude-call';
 
 const channelInstructions =
   'Events from this channel arrive as <channel source="..." agent="...">. They only announce that NCF Agent Interconnect messages are waiting for the named agent; they never contain message text. When one arrives, call agent_read with the connectionId of that agent in this chat and continue with nextCursor while hasMore is true. Receipt is recorded automatically by agent_read. Do not reply to the channel itself.';
@@ -236,6 +238,7 @@ export async function startClaudeBridge(
     try {
       const args: Record<string, unknown> = { ...original };
       delete args.contextToken;
+      let callToken: string;
       if (!(await nativeLeaseCurrent())) return unverifiedContext();
       {
         const verified = await post(nodeFile, '/integrations/claude/call', {
@@ -261,14 +264,37 @@ export async function startClaudeBridge(
               },
             ],
           };
+        if (typeof verified.body.callToken !== 'string') return unverifiedContext();
+        callToken = verified.body.callToken;
         if (contextTools.has(request.params.name)) args.contextToken = verified.body.contextToken;
       }
       if (!(await nativeLeaseCurrent())) return unverifiedContext();
       // A failed tool request is never replayed: its effects may already be durable.
       const client = await connect();
       if (!(await nativeLeaseCurrent())) return unverifiedContext();
-      const result = await client.callTool({ ...request.params, arguments: args });
-      return (await nativeLeaseCurrent()) ? result : unverifiedContext();
+      const currentCall = async (phase: 'forward' | 'return') => {
+        const verified = await post(nodeFile, '/integrations/claude/call/validate', {
+          helperId,
+          secret,
+          callToken,
+          phase,
+        });
+        if (!verified.ok || verified.body.valid !== true)
+          throw new Error('The current Claude Code call is no longer authorized.');
+      };
+      await currentCall('forward');
+      if (!(await nativeLeaseCurrent())) return unverifiedContext();
+      const result = await client.callTool({
+        ...request.params,
+        arguments: args,
+        _meta: { ...request.params._meta, [claudeCallMetaKey]: callToken },
+      });
+      await currentCall('return');
+      // Admission may already have had durable effects; a late authority loss
+      // withholds content without undoing or replaying that operation.
+      if (!(await nativeLeaseCurrent()))
+        throw new Error('The Claude Code call result could not be confirmed.');
+      return result;
     } catch {
       const previous = remote;
       remote = undefined;

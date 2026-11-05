@@ -107,28 +107,30 @@ test('A tool proof is required, one-use and bound to the exact helper, tool and 
   const proof = await f.preTool(s1, 'agent_connect', args);
   const first = await a.verify('agent_connect', { ...args, contextToken: proof }, proof);
   assert.equal(first.status, 200);
+  assert.equal(typeof first.body.contextToken, 'string');
+  assert.equal(typeof first.body.callToken, 'string');
   const replay = await a.verify('agent_connect', args, proof);
   assert.equal(replay.status, 400);
 
-  // A model-supplied contextToken is not a node ticket.
-  const client = await f.mcp();
-  const forged = await client.callTool({
-    name: 'agent_connect',
-    arguments: { nickname: 'Боб', contextToken: randomUUID() },
-  });
-  assert.equal(forged.isError, true);
-  // The ticket is one-use as well.
+  // Check ticket consumption directly, independently of the MCP call-permit boundary.
+  await assert.rejects(
+    f.service.connectAutomatic(
+      { nickname: 'Боб', contextToken: randomUUID() },
+      { client: 'Claude Code' },
+    ),
+  );
   const ticket = String(first.body.contextToken);
-  const used = await client.callTool({
-    name: 'agent_connect',
-    arguments: { nickname: 'Боб', contextToken: ticket },
-  });
-  assert.equal(used.isError, undefined);
-  const again = await client.callTool({
-    name: 'agent_connect',
-    arguments: { nickname: 'Боб', contextToken: ticket },
-  });
-  assert.equal(again.isError, true);
+  const used = await f.service.connectAutomatic(
+    { nickname: 'Боб', contextToken: ticket },
+    { client: 'Claude Code' },
+  );
+  assert.equal(used.status, 'connected');
+  await assert.rejects(
+    f.service.connectAutomatic(
+      { nickname: 'Боб', contextToken: ticket },
+      { client: 'Claude Code' },
+    ),
+  );
 
   // Identical input does not grant another helper authority over this chat.
   const same = { nickname: 'Общий' };
@@ -137,9 +139,8 @@ test('A tool proof is required, one-use and bound to the exact helper, tool and 
   assert.equal((await a.verify('agent_connect', same, aProof)).status, 200);
   assert.equal((await b.verify('agent_connect', same, bProof)).status, 200);
 
-  // Without its node-issued context, a plain Claude Code MCP connect is refused.
-  const plain = await client.callTool({ name: 'agent_connect', arguments: { nickname: 'Ева' } });
-  assert.equal(plain.isError, true);
+  // The connection consumer refuses Claude Code without its node-issued context.
+  await assert.rejects(f.service.connectAutomatic({ nickname: 'Ева' }, { client: 'Claude Code' }));
   // An unknown helper secret cannot use a node-issued proof.
   const impostorProof = await f.preTool(s1, 'node_status', {});
   const impostor = await f.post('/integrations/claude/call', {
