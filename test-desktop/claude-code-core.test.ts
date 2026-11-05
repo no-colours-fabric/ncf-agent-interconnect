@@ -44,7 +44,8 @@ test('Two Claude Code chats in one folder and a second instance receive wakes on
   const alice = await f.connect(b, s2, 'Алиса 漢字');
   assert.equal(bob.status, 'connected');
   assert.equal(bob.delivery.automatic, false);
-  assert.match(bob.delivery.description, /development channel/);
+  assert.match(bob.delivery.description, /will be announced in this chat/);
+  assert.match(bob.delivery.description, /Do not poll/);
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'checking');
   // The snapshot hides Claude Code chat identifiers like other exact-chat integrations.
   const snapshotBinding = f.service.snapshot().agents.find((x) => x.nickname === 'Боб')!.binding!;

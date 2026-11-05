@@ -647,7 +647,7 @@ export class NodeService extends EventEmitter {
           automatic: confirmed,
           description: confirmed
             ? 'Incoming messages are announced in this chat by the NCF channel and received automatically with agent_read. This integration is experimental.'
-            : 'The NCF channel announces incoming messages only when Claude Code was started with its development channel enabled. Until an announcement is confirmed, receive messages with agent_read. This integration is experimental.',
+            : 'Incoming messages will be announced in this chat by the NCF channel. When an announcement arrives, call agent_read; receipt is then recorded automatically. Delivery is reported as confirmed after the first announced message is read. Do not poll. If no announcement ever arrives, Claude Code was started without the NCF development channel and messages stay queued. This integration is experimental.',
         },
       };
     }
