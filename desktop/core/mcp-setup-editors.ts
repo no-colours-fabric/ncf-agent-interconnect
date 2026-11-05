@@ -63,6 +63,17 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
   } catch {
     throw new Error('The configuration contains invalid JSON');
   }
+  // Claude Code rejects a settings file with comments or trailing commas and then
+  // ignores all of it, so such a file is refused instead of being edited.
+  const strict: ParseError[] = [];
+  parse(source.trim() ? source : '{}', strict, {
+    disallowComments: true,
+    allowTrailingComma: false,
+  });
+  if (strict.length)
+    throw new Error(
+      'Claude Code settings must be plain JSON without comments or trailing commas. Fix the file in Claude Code first.',
+    );
   const wanted = (key: string) => {
     const value = table(desired, key);
     const entries = Object.entries(value);

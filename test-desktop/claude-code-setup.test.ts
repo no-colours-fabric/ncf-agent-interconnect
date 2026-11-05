@@ -50,12 +50,12 @@ test('Claude Code settings gain the marketplace, enabled plugin and one exact al
   assert.equal(created.requiresReplacement, false);
 });
 
-test('Unrelated Claude Code settings, comments, BOM, CRLF and other permissions survive; matching settings stay byte-for-byte', () => {
+test('Unrelated Claude Code settings, BOM, CRLF and other permissions survive; matching settings stay byte-for-byte', () => {
   const source =
-    '﻿{\r\n  // user comment\r\n  "model": "fixture",\r\n  "permissions": {\r\n    "allow": ["Bash(npm test:*)"],\r\n    "deny": ["Read(./.env)"]\r\n  },\r\n  "enabledPlugins": { "other@team": true },\r\n  "extraKnownMarketplaces": { "team": { "source": { "source": "github", "repo": "a/b" } } },\r\n  "hooks": {}\r\n}\r\n';
+    '﻿{\r\n  "model": "fixture",\r\n  "permissions": {\r\n    "allow": ["Bash(npm test:*)"],\r\n    "deny": ["Read(./.env)"]\r\n  },\r\n  "enabledPlugins": { "other@team": true },\r\n  "extraKnownMarketplaces": { "team": { "source": { "source": "github", "repo": "a/b" } } },\r\n  "hooks": {}\r\n}\r\n';
   const result = edit(source);
   assert.ok(result.content.startsWith('﻿'));
-  assert.ok(result.content.includes('// user comment\r\n'));
+  assert.ok(result.content.startsWith('\uFEFF{\r\n  "model": "fixture",\r\n'));
   const parsed = parseJson(result.content.slice(1));
   assert.equal(parsed.model, 'fixture');
   assert.deepEqual(parsed.permissions.allow, ['Bash(npm test:*)', rule]);
@@ -104,6 +104,9 @@ test('A disabled plugin or another marketplace path needs replacement confirmati
     (error: Error) => !error.message.includes('secret-value'),
   );
   assert.throws(() => edit('{"enabledPlugins": []}'), /enabledPlugins/);
+  // Claude Code ignores a settings file with comments or trailing commas, so Apply refuses it.
+  for (const source of ['{\n  // comment\n  "model": "x"\n}\n', '{"model": "x",}'])
+    assert.throws(() => edit(source), /plain JSON without comments or trailing commas/);
 });
 
 async function fixture(t: test.TestContext, env: NodeJS.ProcessEnv = {}) {
