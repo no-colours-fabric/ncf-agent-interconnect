@@ -1,10 +1,12 @@
-## 0.14.0
+## 0.15.0
 
-- New graphite interface and optional light sand theme, with the choice saved.
-- Static labels above larger fields, compact appearance controls and clearer
-  diagnostics in all fifteen languages.
-- Correct dialog widths, tooltip overflow and flat, contrasting notifications.
-- Separate DMGs for Apple Silicon and Intel, plus a Windows x64 installer.
+- New application icon for macOS and Windows.
+- Applications & MCP combines setup and clearly labelled configuration,
+  authorization and delivery status; Overview puts applications below statistics.
+- Compact local chat with an animated message composer, separate remote-message
+  dialog and preserved drafts and history position.
+- Clearer agent origin and message counts, flat Send buttons and corrected
+  sticky-header layering in both themes and all fifteen languages.
 
 Quit the application before replacing it. Existing agents, history, attachments
 and client configuration are preserved; storage format 3 and peer protocol 2
