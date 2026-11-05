@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.14.0
+# NCF Agent Interconnect 0.15.0
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -24,16 +24,18 @@ their original content; MCP instructions and core diagnostics remain in English.
 
 ## Connect a client
 
-1. Open MCP setup and select your application's tab.
+1. Open Applications & MCP and select your application's tab.
 2. Open its setup dialog, check or choose the configuration file and click Apply.
    Other servers and plugins are preserved; matching settings are not rewritten.
 3. Reconnect MCP. Restart OpenCode after adding the bundled plugin.
 4. In a chat, write: Connect as agent <a name you choose>.
 
 Configure each application once. New chats do not need separate session, port or
-adapter settings. Applications shows each application, its agent count and latest
-known activity. MCP setup remembers the selected file and checks it read-only on
-startup. Its open-file icon uses the operating system's default application.
+adapter settings. Applications & MCP distinguishes saved settings, known delivery
+state and typed application metrics. Cursor-specific totals and activity remain
+Unknown because generic manual MCP connections cannot be attributed to Cursor.
+Setup remembers the selected file and checks it read-only on startup. Its
+open-file icon uses the operating system's default application.
 
 - OpenCode: the bundled v1 plugin identifies the exact current chat. Incoming
   messages are delivered automatically; a busy chat waits for an idle event.
@@ -60,7 +62,7 @@ Matching a name on another node produces a warning and does not block the name.
 Use `agent_disconnect` to release a chat binding while preserving its history.
 
 Local exchange needs no remote peers. Open a local row's chat icon for its history
-and composer. A remote row opens a send-only drawer with an explicit local sender.
+and expandable composer. A remote row opens a send-only dialog with an explicit local sender.
 Computer names appear in normal UI; MCP routing retains exact node addresses.
 Messages can be stored before the recipient chat connects.
 
@@ -82,7 +84,7 @@ for a new connection; previously paired nodes reconnect without another code.
 
 ## AionUi
 
-The supported setup is Cursor Agent inside AionUi. Open Applications → AionUi.
+The supported setup is Cursor Agent inside AionUi. Open Applications & MCP → AionUi.
 Configure access and approve it in AionUi, then separately configure Cursor
 Agent with the owner-operated file dialog and Apply. The dialog explains how
 replacing a global Cursor entry affects chats outside AionUi. Restart the agent
@@ -102,18 +104,27 @@ through MCP. Receipt does not mean that the requested task is complete. An
 uncertain client admission is not blindly repeated.
 
 Only a confirmed online client receives a green icon in Agents. Missing remote
-client names and message statistics stay empty. Applications reports the latest
+client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.14.0
+
+The application has a new icon, combined Applications & MCP page and compact
+chat controls. Local history uses a right-hand drawer with an animated composer;
+remote messages use a separate dialog. Drafts are retained while switching or
+closing these controls. Dark/light preferences and existing node data remain.
+Quit the app, replace it and reconnect MCP. Storage format 3 and peer protocol 2
+are unchanged.
 
 ## Upgrade from 0.11.1
 
 Agent names, bindings, history, paired routes and client connection settings remain
-compatible. Agents now uses a unified table and chat drawers. Open a local row's
+compatible. Agents uses a unified table and a local history drawer. Open a local row's
 chat icon for history, older messages and verified attachments; remote rows provide
-an explicitly addressed send form. Applications reports counts and known activity.
+an explicitly addressed send form. Typed application metrics report counts and known activity.
 
-MCP setup now provides client-specific tabs and dialogs. Startup checks only read
+Applications & MCP provides client-specific tabs and dialogs. Startup checks only read
 client files. Apply is required to create or update settings, and matching entries
 remain unchanged. The app remembers the selected configuration path; the open-file
 icon becomes available after that file exists. OpenCode setup supports v1 only.

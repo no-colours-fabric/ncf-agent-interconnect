@@ -6,6 +6,7 @@ import path from 'node:path';
 import assert from 'node:assert/strict';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { createUiEnvironment, createUiProfile } from './ui-test-profile.mjs';
 
 const require = createRequire(import.meta.url);
 const temporary = await mkdtemp(path.join(os.tmpdir(), 'ncf-preview-'));
@@ -13,26 +14,27 @@ let app;
 const clients = [];
 try {
   const packaged = process.env.INTERCONNECT_TEST_EXECUTABLE;
-  const launchEnv = { ...process.env, TZ: 'UTC' };
-  delete launchEnv.ELECTRON_RUN_AS_NODE;
+  const launchEnv = { ...(await createUiEnvironment(path.join(temporary, 'clients'))), TZ: 'UTC' };
+  const profile = path.join(temporary, 'desktop');
+  await createUiProfile(profile, 'Demo node');
   app = await electron.launch({
     executablePath: packaged ?? require('electron'),
-    args: [...(packaged ? [] : [process.cwd()]), '--data-dir', temporary],
+    args: [...(packaged ? [] : [process.cwd()]), '--data-dir', profile],
     cwd: temporary,
     env: launchEnv,
   });
   const page = await app.firstWindow();
-  await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].setSize(1440, 980));
-  await page.getByText('Connect agents', { exact: true }).waitFor();
-  await page.evaluate(() =>
-    window.interconnect.invoke('saveNode', { nodeLabel: 'Demo node', listenHost: '127.0.0.1' }),
+  await app.evaluate(({ BrowserWindow }) =>
+    BrowserWindow.getAllWindows()[0].setContentSize(1440, 900),
   );
-  const settings = JSON.parse(await readFile(path.join(temporary, 'settings.json'), 'utf8'));
+  await page.getByText('Connect agents', { exact: true }).waitFor();
+  const settings = JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8'));
+  const snapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
   const connect = async (nickname) => {
     const client = new Client({ name: 'MCP demo', version: '1' });
     clients.push(client);
     await client.connect(
-      new StreamableHTTPClientTransport(new URL(`http://127.0.0.1:${settings.mcpPort}/mcp`), {
+      new StreamableHTTPClientTransport(new URL(snapshot.mcpUrl), {
         requestInit: { headers: { authorization: 'Bearer ' + settings.localToken } },
       }),
     );
@@ -42,7 +44,7 @@ try {
   };
   const researcher = await connect('Researcher'),
     reviewer = await connect('Reviewer');
-  const file = path.join(temporary, 'Files', 'review-checklist.md');
+  const file = path.join(profile, 'Files', 'review-checklist.md');
   await writeFile(
     file,
     '# Review checklist\n\n- Local routing\n- File integrity\n- Restart recovery\n',
@@ -85,7 +87,7 @@ try {
   );
   await receive(researcher);
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
-  await page.getByRole('button', { name: /^Reviewer/ }).click();
+  await page.getByRole('button', { name: 'Open chat with Reviewer', exact: true }).click();
   await page
     .getByText(
       'Reviewed. Local messages work without remote peers, and the attachment matches its SHA-256 hash.',
@@ -93,6 +95,12 @@ try {
     )
     .waitFor();
   await page.getByRole('button', { name: 'Open review-checklist.md', exact: true }).waitFor();
+  await page.getByRole('button', { name: 'Compose message', exact: true }).click();
+  await page.locator('.MuiCollapse-entered [data-testid="agent-chat-compose"]').waitFor();
+  await page.getByRole('textbox', { name: 'Recipient agent name', exact: true }).fill('Researcher');
+  await page
+    .getByRole('textbox', { name: 'Message from the user', exact: true })
+    .fill('The review is complete. I will send the next results here.');
   assert.equal(
     (await page.evaluate(() => window.interconnect.invoke('snapshot'))).nodeLabel,
     'Demo node',

@@ -7,6 +7,9 @@ through MCP. Keep the conversation when an agent moves to another chat or client
 Manage connections and history from a tray application built with Electron,
 TypeScript, React and Material UI.
 
+The interface includes dark graphite and light sand themes, saved appearance and
+language preferences, and fifteen interface languages.
+
 ![NCF Agent Interconnect showing messages between two demonstration agents](docs/assets/app-preview.png)
 
 - **One node, multiple clients.** Share a local hub across supported applications
@@ -23,23 +26,34 @@ TypeScript, React and Material UI.
   short mailbox-scoped reply reference. Delivery receipts are automatic.
 - **User-controlled setup.** Choose a client and configuration file, then click
   Apply. Matching settings remain unchanged; other client settings are preserved.
+- **Configuration and delivery are separate.** Applications & MCP shows saved
+  settings, typed agent activity and known delivery state. AionUi authorization
+  and its live bridge have their own indicators. A configuration check alone
+  does not prove that a client is connected.
+- **Compact messaging.** Local chats have a history drawer and an expandable
+  composer. Remote messages use a separate dialog with an explicit sender.
+  Drafts and the history reading position survive composer changes.
 - **Fifteen interface languages.** Change the language at the bottom of the
   sidebar. The app keeps names, message text and filenames unchanged.
 
 ## Download
 
 **[Download for Apple Silicon Mac](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
+· **[Download for Intel Mac](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
 · **[Download for Windows x64](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
-· [Releases and checksums](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases)
+· [Release history](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases)
 
-The macOS package requires **macOS 13 or later** and **Apple Silicon**. Packages
-include the runtime; Node.js and source files are not needed to install them.
-The Windows x64 release includes a native installer and ZIP, checked with the
-packaged runtime and isolated GUI tests. See the
-[Windows build guide](docs/windows-release.md) for verification limits.
+Choose the **arm64 DMG** for Apple Silicon, **x64 DMG** for Intel Mac, or
+**Windows x64 EXE**. macOS requires **macOS 13 or later**. Installers include the
+runtime; Node.js, npm and source files are not required. Intel packages are built
+on macOS but are not run on Intel hardware. Linux packages are not currently
+published. Only installers are uploaded; GitHub also provides automatic source
+archives. Older releases retain their tags and notes after their installers are
+replaced by the latest release.
 
-1. Open the DMG and drag **NCF Agent Interconnect** into **Applications**.
-2. Start the app and open **MCP setup**.
+1. On macOS, open the DMG and drag **NCF Agent Interconnect** into **Applications**.
+   On Windows, run the EXE installer.
+2. Start the app and open **Applications & MCP**.
 3. Choose a client tab, open its setup dialog, check the file path and click Apply.
 4. Reconnect MCP. Restart OpenCode after adding its bundled plugin.
 5. In a chat, write `Connect as agent Researcher.` using a name you choose.
@@ -47,6 +61,9 @@ packaged runtime and isolated GUI tests. See the
 The macOS build has a local ad-hoc signature and is not notarized by Apple.
 Windows packages are unsigned.
 See [Installation](docs/installation.md) for verification, updates and storage.
+Quit the app from its tray menu before replacing it; closing the window keeps
+the node running. Existing agents, history, attachments and paired routes remain
+in the application's profile.
 
 ## Client support
 
@@ -55,11 +72,26 @@ See [Installation](docs/installation.md) for verification, updates and storage.
 | OpenCode with the bundled v1 plugin | Yes                                   | Yes; busy chats wait for an idle event                |
 | Codex Desktop                       | Yes                                   | Experimental, version-dependent local desktop adapter |
 | Cursor                              | Yes                                   | Not provided by standard MCP                          |
+| AionUi with Cursor Agent            | Yes, through the bundled bridge       | Exact-chat delivery after owner pairing and setup     |
 | Other compatible MCP clients        | Yes                                   | Requires a client adapter                             |
 
 An MCP connection alone does not prove that an idle chat can be awakened.
-Applications shows agent counts and the latest known activity. The OpenCode
-plugin targets the v1 plugin/SDK contract; OpenCode v2 is not claimed.
+Applications & MCP shows counts and latest known activity for typed integrations.
+Cursor-specific metrics remain Unknown because generic manual MCP connections
+cannot be attributed to Cursor. Saved settings, plugin execution, authorization
+and live delivery are distinct facts.
+
+The OpenCode plugin targets the v1 plugin/SDK contract; OpenCode v2 is not claimed.
+The AionUi setup supports **Cursor Agent inside AionUi**, with desktop pairing on
+IPv4 loopback. It installs a different NCF entry in the selected global Cursor
+configuration and explains the impact on Cursor chats outside AionUi before
+Apply. Other AionUi backends, remote/password WebUI modes and real account-switch
+acceptance are not claimed. See the [AionUi guide](docs/aionui-adapter.md).
+Claude Code integration is reserved for a future release.
+
+Receipt confirms that a message was returned through MCP or admitted to its exact
+client chat; it does not confirm task completion. An uncertain client admission
+is retained without an automatic replay to another chat.
 
 ## Documentation
 
@@ -69,7 +101,8 @@ plugin targets the v1 plugin/SDK contract; OpenCode v2 is not claimed.
 | [User guide](docs/usage.md)               | Agents, local exchange, pairing, files and reply routing |
 | [Pairing](docs/pairing.md)                | Short access codes, authentication and recovery          |
 | [Agent presence](docs/agent-presence.md)  | Remote directories, client availability and discovery    |
-| [MCP client setup](docs/mcp-clients.md)   | Cursor, OpenCode and Codex setup                         |
+| [MCP client setup](docs/mcp-clients.md)   | Cursor, OpenCode, Codex and AionUi setup                 |
+| [AionUi](docs/aionui-adapter.md)          | Owner pairing, Cursor Agent bridge and limits            |
 | [Privacy and storage](docs/privacy.md)    | Local data, credentials and client boundaries            |
 | [Architecture](docs/architecture.md)      | Core, adapters, transport and persistence                |
 | [Development](docs/development.md)        | Source setup, checks and test scopes                     |
@@ -95,16 +128,20 @@ npm test
 npm run app
 ```
 
-Build a native user package with:
+After the shared checks have passed, build a native user package with:
 
 ```sh
-npm run build:release -- --mac
+npm run build:release -- --mac --skip-source-checks
 # On Windows:
-npm run build:release -- --win
+npm run build:release -- --win --skip-source-checks
 ```
 
-The builder checks types, runs core tests, builds the app, packages its runtime,
-generates SHA-256 checksums and verifies the installed runtime in isolation.
+Build packages on their native operating system. macOS builds separate arm64 and
+x64 DMGs; Windows builds an x64 EXE. Without `--skip-source-checks`, the builder
+also runs type and core checks. The flag reuses the checks already completed
+above; package building and runtime verification still run. Keep checksums and
+diagnostic reports locally. Published installers are retained locally under
+`release/<version>/` on each build machine until the owner removes them.
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions.
 
 ## License
