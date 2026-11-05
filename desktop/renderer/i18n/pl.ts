@@ -51,6 +51,11 @@ export const pl: Messages = {
   mcpSetup_aionFailure:
     'Nie udało się skonfigurować. Sprawdź, czy WebUI AionUi działa, i potwierdź nowy kod.',
   mcpSetup_aionMcpTitle: 'MCP dla Cursor Agent',
+  mcpSetup_aionMcpOutdated: 'Ustawienia mostu AionUi wymagają aktualizacji',
+  mcpSetup_aionUpdateAction:
+    'Otwórz poniżej „Skonfiguruj Cursor Agent”, zastosuj aktualizację mostu, a następnie połącz ponownie Cursor Agent w AionUi.',
+  mcpSetup_aionRestartAction:
+    'Po zastosowaniu mostu użyj opcji „Połącz ponownie agenta” w odpowiedniej rozmowie AionUi, aby Cursor Agent ponownie wczytał ustawienia MCP.',
   mcpSetup_aionMcpHelp:
     'Zastosuj instaluje most AionUi w wybranym globalnym pliku Cursor i zastępuje istniejący wpis NCF. Wpływa to też na Cursor poza AionUi: te czaty nie mogą używać mostu. Użyj osobnego profilu, aby zachować inną integrację.',
   mcpSetup_aionNext:

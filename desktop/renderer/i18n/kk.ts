@@ -51,6 +51,11 @@ export const kk: Messages = {
   mcpSetup_aionNotPaired: 'Жұпталмаған',
   mcpSetup_aionFailure: 'Баптау аяқталмады. AionUi WebUI жұмысын тексеріп, жаңа кодты растаңыз.',
   mcpSetup_aionMcpTitle: 'Cursor Agent үшін MCP',
+  mcpSetup_aionMcpOutdated: 'AionUi көпірінің баптауларын жаңарту қажет',
+  mcpSetup_aionUpdateAction:
+    'Төмендегі «Cursor Agent баптау» түймесін ашып, көпір жаңартуын қолданыңыз, содан кейін AionUi ішіндегі Cursor Agent-ті қайта қосыңыз.',
+  mcpSetup_aionRestartAction:
+    'Көпірді қолданғаннан кейін Cursor Agent MCP баптауларын қайта жүктеуі үшін тиісті AionUi чатында «Агентті қайта қосу» пәрменін қолданыңыз.',
   mcpSetup_aionMcpHelp:
     'Қолдану таңдалған Cursor жаһандық файлына AionUi көпірін орнатып, бар NCF жазбасын ауыстырады. Бұл AionUi сыртындағы Cursor чатына да әсер етеді: олар көпірді қолдана алмайды. Басқа интеграцияны сақтау үшін бөлек профильді қолданыңыз.',
   mcpSetup_aionNext:

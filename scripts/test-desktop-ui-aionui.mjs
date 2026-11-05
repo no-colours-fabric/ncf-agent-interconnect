@@ -108,7 +108,13 @@ try {
   await page.getByTestId('nav-mcp').click();
   await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
   const setup = page.getByTestId('aionui-setup');
-  await setup.getByText('Not paired', { exact: true }).waitFor();
+  await setup.getByTestId('aionui-authorization-status').getByText('Not paired').waitFor();
+  assert.equal(
+    await setup.getByTestId('aionui-connection-steps').locator('.MuiStep-root').count(),
+    3,
+  );
+  await setup.getByText('AionUi bridge settings need updating', { exact: true }).first().waitFor();
+  assert.ok((await setup.innerText()).includes('apply the updated bridge'));
   assert.equal((await invoke('aionUiStatus')).state, 'not-paired');
   const instructions = await invoke('aionUiInstructions');
   assert.ok(!('configuration' in instructions));
@@ -176,6 +182,10 @@ try {
   });
   assert.ok((await dialog.innerText()).includes('replaces any existing NCF entry'));
   assert.ok((await dialog.innerText()).includes('Cursor outside AionUi'));
+  const warning = dialog.getByTestId('aionui-global-cursor-warning');
+  assert.ok((await warning.innerText()).includes(configs[0]));
+  await page.waitForTimeout(350);
+  await page.screenshot({ path: path.join(root, 'release/aionui-bridge-warning.png') });
   assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.deepEqual(await fingerprint(), before);
@@ -190,6 +200,7 @@ try {
   await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
   await dialog.getByText('Setup applied.', { exact: true }).waitFor();
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
   const applied = JSON.parse(await readFile(targetFile, 'utf8'));
   const configuration = applied.mcpServers.ncf_agent_interconnect;
   assert.equal(configuration.env.ELECTRON_RUN_AS_NODE, '1');
@@ -207,6 +218,11 @@ try {
     .getByTestId('mcp-settings-status')
     .getByText('Settings are present', { exact: true })
     .waitFor();
+  await setup.getByTestId('aionui-reconnect-next').waitFor();
+  assert.ok(
+    (await setup.getByTestId('aionui-reconnect-next').innerText()).includes('Reconnect agent'),
+  );
+  await page.screenshot({ path: path.join(root, 'release/aionui-connection-steps.png') });
 
   const rejected = await application.evaluate(async ({ BrowserWindow }) => {
     const other = new BrowserWindow({
@@ -322,7 +338,7 @@ try {
 
   await page.screenshot({ path: path.join(root, 'release/aionui-setup.png'), fullPage: true });
   await setup.getByRole('button', { name: 'Disconnect', exact: true }).click();
-  await setup.getByText('Access ended', { exact: true }).waitFor();
+  await setup.getByTestId('aionui-authorization-status').getByText('Access ended').waitFor();
   assert.equal((await invoke('aionUiStatus')).state, 'revoked');
   assert.equal(
     JSON.parse(await readFile(path.join(profile, 'aionui-credentials.json'), 'utf8')).revoked,

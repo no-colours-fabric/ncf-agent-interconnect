@@ -220,7 +220,9 @@ function ClientSetupDialog({
                   >
                     <McpSetupStatusIcon status={check?.status ?? status} messages={m} />
                     <Typography variant="body2" component="span" data-testid="mcp-settings-status">
-                      {m[shownState]}
+                      {client === 'aionui' && shownState === 'needs-update'
+                        ? m.aionMcpOutdated
+                        : m[shownState]}
                     </Typography>
                   </Stack>
                 </Box>
@@ -396,7 +398,7 @@ function ClientSetupDialog({
         <DialogTitle id={'mcp-setup-title-' + client}>{m[k.title]}</DialogTitle>
         <DialogContent sx={{ scrollbarGutter: 'stable' }}>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography>{m[k.description]}</Typography>
+            {client !== 'aionui' && <Typography>{m[k.description]}</Typography>}
             {state.files.map((file) => {
               const checked = state.preview?.files.find((item) => item.id === file.id);
               return (
@@ -412,6 +414,18 @@ function ClientSetupDialog({
                       htmlInput: { spellCheck: false, 'data-testid': 'mcp-path-' + file.id },
                     }}
                   />
+                  {client === 'aionui' && (
+                    <Alert severity="warning" data-testid="aionui-global-cursor-warning">
+                      <Typography variant="body2">{m.aionMcpHelp}</Typography>
+                      <Typography
+                        component="code"
+                        variant="body2"
+                        sx={{ display: 'block', mt: 1, overflowWrap: 'anywhere' }}
+                      >
+                        {m.pathLabel}: {file.path}
+                      </Typography>
+                    </Alert>
+                  )}
                   <Box>
                     <Button
                       variant="outlined"
@@ -547,6 +561,7 @@ function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
     <AionUiAuthorization
       invoke={props.invoke}
       messages={props.messages}
+      mcpState={props.check?.error ? 'unavailable' : props.check?.status?.state}
       renderContent={(authorization) => (
         <ClientSetupDialog {...props} client="aionui" before={authorization} />
       )}

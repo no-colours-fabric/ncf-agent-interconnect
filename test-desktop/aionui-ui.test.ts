@@ -28,6 +28,7 @@ test('AionUi has its own application row and owner pairing instructions in every
       }),
     );
     assert.ok(html.includes('data-testid="aionui-setup"'), locale);
+    assert.ok(html.includes('data-testid="aionui-connection-steps"'), locale);
     const tab = html.match(/<button\b[^>]*\bid="mcp-tab-aionui"[^>]*>/)?.[0] ?? '';
     assert.match(tab, /role="tab"/, locale);
     assert.match(tab, /aria-selected="true"/, locale);
@@ -41,8 +42,7 @@ test('AionUi has its own application row and owner pairing instructions in every
       assert.ok(html.includes(escaped(text)), `${locale}: ${text}`);
     assert.ok(!html.includes('data-testid="client-status-panel"'), locale);
     assert.ok(html.includes('data-testid="client-setup-description"'), locale);
-    for (const text of [messages.aionPairTitle, messages.aionPairHelp])
-      assert.ok(!html.includes(escaped(text)), `${locale}: closed owner dialog`);
+    assert.ok(!html.includes(escaped(messages.aionPairHelp)), `${locale}: closed owner dialog`);
     assert.ok(!html.includes('id="aionui-access-title"'), locale);
     assert.ok(!html.includes('data-testid="aionui-address"'), locale);
     assert.ok(!html.includes('data-testid="aionui-code"'), locale);

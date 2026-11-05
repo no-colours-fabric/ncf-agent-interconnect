@@ -51,6 +51,11 @@ export const en: Messages = {
   mcpSetup_aionFailure:
     'Could not complete setup. Check that AionUi WebUI is running and approve a fresh pairing code.',
   mcpSetup_aionMcpTitle: 'MCP for Cursor Agent',
+  mcpSetup_aionMcpOutdated: 'AionUi bridge settings need updating',
+  mcpSetup_aionUpdateAction:
+    'Use Configure Cursor Agent below, apply the updated bridge, then reconnect Cursor Agent in AionUi.',
+  mcpSetup_aionRestartAction:
+    'After applying the bridge, use Reconnect agent in the intended AionUi chat so Cursor Agent reloads MCP settings.',
   mcpSetup_aionMcpHelp:
     'Apply installs the AionUi bridge in the selected global Cursor file and replaces any existing NCF entry. This also affects Cursor outside AionUi: those chats cannot use this bridge. Use a separate profile to preserve another integration.',
   mcpSetup_aionNext:

@@ -51,6 +51,11 @@ export const tr: Messages = {
   mcpSetup_aionFailure:
     'Kurulum tamamlanamadı. AionUi WebUI çalıştığını kontrol edin ve yeni bir kodu onaylayın.',
   mcpSetup_aionMcpTitle: 'Cursor Agent için MCP',
+  mcpSetup_aionMcpOutdated: 'AionUi köprü ayarlarının güncellenmesi gerekiyor',
+  mcpSetup_aionUpdateAction:
+    "Aşağıdaki 'Cursor Agent yapılandır' seçeneğini açın, köprü güncellemesini uygulayın ve Cursor Agent'ı AionUi'de yeniden bağlayın.",
+  mcpSetup_aionRestartAction:
+    "Köprüyü uyguladıktan sonra Cursor Agent'ın MCP ayarlarını yeniden yüklemesi için ilgili AionUi sohbetinde 'Aracıyı yeniden bağla' seçeneğini kullanın.",
   mcpSetup_aionMcpHelp:
     'Uygula, seçilen genel Cursor dosyasına AionUi köprüsünü kurar ve mevcut NCF girdisini değiştirir. AionUi dışındaki Cursor da etkilenir: bu sohbetler köprüyü kullanamaz. Başka bir entegrasyonu korumak için ayrı profil kullanın.',
   mcpSetup_aionNext:

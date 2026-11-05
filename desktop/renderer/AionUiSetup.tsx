@@ -10,12 +10,16 @@ import {
   DialogContent,
   DialogTitle,
   Paper,
+  Step,
+  StepLabel,
+  Stepper,
   Stack,
   TextField,
   Typography,
 } from '@mui/material';
 import type { AionUiApplicationState } from '../shared/aionui.js';
 import type { McpSetupInvoke } from '../shared/mcp-setup.js';
+import type { McpSetupStatus } from '../shared/mcp-setup.js';
 import type { McpSetupMessages } from './mcp-setup-messages.js';
 import { designTokens, surfaceSx } from './theme.js';
 import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined';
@@ -26,10 +30,12 @@ export function AionUiAuthorization({
   invoke,
   messages: m,
   renderContent,
+  mcpState,
 }: {
   invoke: McpSetupInvoke;
   messages: McpSetupMessages;
   renderContent?: (content: React.ReactNode) => React.ReactNode;
+  mcpState?: McpSetupStatus['state'];
 }): React.JSX.Element {
   const [status, setStatus] = useState<AionUiApplicationState>();
   const [url, setUrl] = useState('http://127.0.0.1:25808');
@@ -107,6 +113,19 @@ export function AionUiAuthorization({
     : knownStatus.bridgeConnected
       ? CheckCircleOutlineOutlined
       : RemoveCircleOutlineOutlined;
+  const accessReady = knownStatus?.state === 'paired';
+  const mcpReady = mcpState === 'configured';
+  const bridgeReady = !!knownStatus?.bridgeConnected;
+  const activeStep =
+    !knownStatus || !mcpState || mcpState === 'unavailable'
+      ? -1
+      : !accessReady
+        ? 0
+        : !mcpReady
+          ? 1
+          : !bridgeReady
+            ? 2
+            : 3;
   const content = (
     <Box
       component={embedded ? 'div' : Paper}
@@ -202,6 +221,38 @@ export function AionUiAuthorization({
         {!embedded && (
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
             {m.aionPairHelp}
+          </Typography>
+        )}
+        <Stepper
+          nonLinear
+          alternativeLabel
+          activeStep={activeStep}
+          data-testid="aionui-connection-steps"
+          sx={{
+            maxWidth: 680,
+            py: 0.5,
+            '& .MuiStepLabel-label': { fontSize: 12, mt: 0.5 },
+            '& .MuiStepIcon-root': { fontSize: 20 },
+          }}
+        >
+          <Step completed={accessReady}>
+            <StepLabel>{m.statusAuthorization}</StepLabel>
+          </Step>
+          <Step completed={mcpReady}>
+            <StepLabel>{m.statusMcpConfig}</StepLabel>
+          </Step>
+          <Step completed={bridgeReady}>
+            <StepLabel>{m.statusLiveBridge}</StepLabel>
+          </Step>
+        </Stepper>
+        {mcpState === 'needs-update' && (
+          <Typography variant="body2" data-testid="aionui-update-next">
+            {m.aionUpdateAction}
+          </Typography>
+        )}
+        {mcpReady && accessReady && !bridgeReady && (
+          <Typography variant="body2" data-testid="aionui-reconnect-next">
+            {m.aionRestartAction}
           </Typography>
         )}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>

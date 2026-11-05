@@ -52,6 +52,11 @@ export const ru: Messages = {
   mcpSetup_aionFailure:
     'Настройка не завершена. Проверьте, что WebUI AionUi запущен, и подтвердите новый код сопряжения.',
   mcpSetup_aionMcpTitle: 'MCP для Cursor Agent',
+  mcpSetup_aionMcpOutdated: 'Настройки моста AionUi нужно обновить',
+  mcpSetup_aionUpdateAction:
+    'Ниже откройте «Настроить Cursor Agent», примените обновление моста и переподключите Cursor Agent в AionUi.',
+  mcpSetup_aionRestartAction:
+    'После применения моста нажмите «Переподключить агента» в нужной беседе AionUi, чтобы Cursor Agent загрузил настройки MCP.',
   mcpSetup_aionMcpHelp:
     'Применение установит мост AionUi в выбранный глобальный файл Cursor и заменит существующую запись NCF. Это затронет и Cursor вне AionUi: такие чаты не смогут использовать этот мост. Для сохранения другой интеграции используйте отдельный профиль.',
   mcpSetup_aionNext:

@@ -52,6 +52,11 @@ export const nl: Messages = {
   mcpSetup_aionFailure:
     'Instellen mislukt. Controleer of AionUi WebUI actief is en bevestig een nieuwe code.',
   mcpSetup_aionMcpTitle: 'MCP voor Cursor Agent',
+  mcpSetup_aionMcpOutdated: 'De AionUi-bruginstellingen moeten worden bijgewerkt',
+  mcpSetup_aionUpdateAction:
+    "Open hieronder 'Cursor Agent instellen', pas de brugupdate toe en verbind Cursor Agent opnieuw in AionUi.",
+  mcpSetup_aionRestartAction:
+    "Gebruik na het toepassen van de brug 'Agent opnieuw verbinden' in de bedoelde AionUi-chat, zodat Cursor Agent de MCP-instellingen opnieuw laadt.",
   mcpSetup_aionMcpHelp:
     'Toepassen installeert de AionUi-bridge in het gekozen globale Cursor-bestand en vervangt een bestaande NCF-vermelding. Dit raakt ook Cursor buiten AionUi: die chats kunnen deze bridge niet gebruiken. Gebruik een apart profiel om een andere integratie te behouden.',
   mcpSetup_aionNext:

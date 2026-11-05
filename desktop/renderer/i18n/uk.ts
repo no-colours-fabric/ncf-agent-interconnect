@@ -52,6 +52,11 @@ export const uk: Messages = {
   mcpSetup_aionFailure:
     'Налаштування не завершено. Перевірте роботу WebUI AionUi та підтвердьте новий код.',
   mcpSetup_aionMcpTitle: 'MCP для Cursor Agent',
+  mcpSetup_aionMcpOutdated: 'Налаштування мосту AionUi потрібно оновити',
+  mcpSetup_aionUpdateAction:
+    'Нижче відкрийте «Налаштувати Cursor Agent», застосуйте оновлення мосту та перепідключіть Cursor Agent в AionUi.',
+  mcpSetup_aionRestartAction:
+    'Після застосування мосту натисніть «Перепідключити агента» в потрібній розмові AionUi, щоб Cursor Agent повторно завантажив налаштування MCP.',
   mcpSetup_aionMcpHelp:
     'Застосування встановить міст AionUi у вибраний глобальний файл Cursor і замінить наявний запис NCF. Це також вплине на Cursor поза AionUi: такі чати не зможуть використовувати міст. Для збереження іншої інтеграції скористайтеся окремим профілем.',
   mcpSetup_aionNext:

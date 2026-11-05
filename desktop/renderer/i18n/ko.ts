@@ -50,6 +50,11 @@ export const ko: Messages = {
   mcpSetup_aionFailure:
     '설정을 완료할 수 없습니다. AionUi WebUI가 실행 중인지 확인하고 새 코드를 승인하세요.',
   mcpSetup_aionMcpTitle: 'Cursor Agent용 MCP',
+  mcpSetup_aionMcpOutdated: 'AionUi 브리지 설정을 업데이트해야 합니다',
+  mcpSetup_aionUpdateAction:
+    "아래에서 'Cursor Agent 설정'을 열고 브리지 업데이트를 적용한 뒤 AionUi에서 Cursor Agent를 다시 연결하세요.",
+  mcpSetup_aionRestartAction:
+    "브리지를 적용한 뒤 해당 AionUi 채팅에서 '에이전트 다시 연결'을 사용해 Cursor Agent가 MCP 설정을 다시 불러오게 하세요.",
   mcpSetup_aionMcpHelp:
     '적용하면 선택한 Cursor 전역 파일에 AionUi 브리지를 설정하고 기존 NCF 항목을 대체합니다. AionUi 외부 Cursor에도 영향을 주며 해당 채팅은 이 브리지를 사용할 수 없습니다. 다른 연동을 유지하려면 별도 프로필을 사용하세요.',
   mcpSetup_aionNext:
