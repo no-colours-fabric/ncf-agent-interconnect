@@ -16,7 +16,7 @@ export function mcpInstructions(
     return {
       client,
       location: 'Claude Code user settings — ~/.claude/settings.json',
-      text: 'Apply enables the NCF plugin from the marketplace published by this app and allows agent_read without a prompt, so announced messages are received and their receipt is recorded automatically. Other permissions stay yours. Start Claude Code with the command below so the NCF channel can announce messages.',
+      text: 'Apply enables the NCF plugin from the marketplace published by this app and allows agent_read without a prompt. Other permissions stay yours. Start Claude Code with the command below to permit experimental channel announcements. Automatic idle wake is not confirmed; messages remain available through agent_read even if no announcement arrives. A read does not prove automatic delivery. Do not poll.',
       configuration: JSON.stringify(
         {
           extraKnownMarketplaces: {

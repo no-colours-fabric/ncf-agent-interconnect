@@ -27,7 +27,7 @@ export const claudeChannelMethod = 'notifications/claude/channel';
 export const claudeCallMetaKey = 'ncf/claude-call';
 
 const channelInstructions =
-  'Events from this channel arrive as <channel source="..." agent="...">. They only announce that NCF Agent Interconnect messages are waiting for the named agent; they never contain message text. When one arrives, call agent_read with the connectionId of that agent in this chat and continue with nextCursor while hasMore is true. Receipt is recorded automatically by agent_read. Do not reply to the channel itself.';
+  'Channel wake delivery is experimental and unconfirmed. If an event from this channel arrives as <channel source="..." agent="...">, it only announces that NCF Agent Interconnect messages are waiting for the named agent; it never contains message text. Call agent_read with the connectionId of that agent in this chat and continue with nextCursor while hasMore is true. Messages remain available through agent_read without a channel event. A read does not establish automatic idle wake. Do not poll or reply to the channel itself.';
 
 /**
  * A stdio channel server. It declares the channel capability only; permission

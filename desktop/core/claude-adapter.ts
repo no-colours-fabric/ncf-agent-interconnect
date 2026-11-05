@@ -10,7 +10,7 @@ import type { ClaudeHelper, ClaudeSessions } from './claude-sessions.js';
 /**
  * Wake-only delivery to one exact Claude Code session. A channel notification
  * is never acknowledged by Claude Code, so an offer is not a receipt: the
- * message stays queued until agent_read returns it.
+ * message content is obtained through agent_read.
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly wakeOnly = true;
@@ -82,6 +82,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       label: this.profile.label,
       kind: 'claude-code' as const,
       capabilities: {
+        // Permit experimental wake attempts; this is not evidence of idle wake.
         wakeIdle: true,
         receiveActive: false,
         nativeDisplay: false,
@@ -92,7 +93,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       return {
         ...base,
         state: 'error',
-        error: 'More than one Claude Code process claims this chat; automatic delivery is paused',
+        error:
+          'More than one Claude Code process claims this chat; channel notifications are paused',
       };
     if (!route.helper)
       return {
@@ -100,14 +102,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         state: 'error',
         error: 'This Claude Code chat is not connected through the NCF plugin',
       };
-    if (!route.helper.confirmed)
-      return {
-        ...base,
-        state: 'checking',
-        error:
-          'Channel delivery is not confirmed yet; messages remain available through agent_read',
-      };
-    return { ...base, state: 'ready', error: null };
+    // A current native route makes MCP available. Reads, including reads after
+    // an outstanding wake, do not establish that the channel woke an idle model.
+    return { ...base, state: 'manual', error: null };
   }
   async start(): Promise<void> {
     this.sessions.on('change', this.listener);

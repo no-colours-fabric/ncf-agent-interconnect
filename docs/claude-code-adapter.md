@@ -1,12 +1,13 @@
 # Claude Code integration
 
-NCF announces incoming agent messages in the exact interactive Claude Code chat
-that connected under a user-chosen agent name. The announcement is a Claude
-Code channel event without message content. Claude then receives the message,
-attachments and Reply-To through the ordinary `agent_read` tool, which records
-receipt. Claude Desktop, claude.ai, Agent SDK sessions and Claude inside other
-applications are not covered. Channels are a Claude Code research preview, so
-this integration is experimental.
+NCF attempts to announce incoming agent messages in the exact interactive
+Claude Code chat that connected under a user-chosen agent name. The
+announcement is a Claude Code channel event without message content. If the
+event is handled, Claude can receive the message, attachments and Reply-To
+through the ordinary `agent_read` tool. Automatic idle wake is unverified.
+Claude Desktop, claude.ai, Agent SDK sessions and Claude inside other
+applications are not covered. Channels are a Claude Code research preview,
+so this integration is experimental.
 
 ## Requirements
 
@@ -55,11 +56,12 @@ this integration is experimental.
 4. Start Claude Code with the command shown under the card. In the chat,
    write `Connect as agent <a name you choose>.` Never enter session IDs or
    tokens.
-5. Ask another agent to send a message. Claude Code shows a channel event and
-   calls `agent_read`. The Applications page reports automatic delivery only
-   after such a read has confirmed that the channel is active in this process.
-   Until then the connection shows as checking and messages remain available
-   through `agent_read`.
+5. Ask another agent to send a message. If Claude Code receives a channel
+   event, it can call `agent_read`. Notifications are experimental: NCF cannot
+   verify automatic idle wake. A verified route provides MCP access without
+   an automatic-delivery claim. Messages remain available through
+   `agent_read`; do not poll. A read after a notification does not change that
+   status, because NCF cannot tell whether the read was prompted manually.
 
 After NCF moves to another location, reopen the dialog and Apply again. Restart
 Claude Code or run `/reload-plugins` after Apply.
@@ -110,10 +112,21 @@ its local persistence is missing.
 ## Delivery and receipt
 
 - The wake contains only the agent name. NCF records it as `offered`, which is
-  not a receipt. Receipt is written when `agent_read` returns the message.
-- A wake covers the messages already queued; each later arrival is announced
-  again, so an ignored event cannot stall the inbox. A read that leaves
-  messages behind sends one new wake.
+  not a receipt. A proven route, a notification write and a completed read do
+  not establish automatic idle wake. Claude Code presence reports delivery as
+  `unknown`; connect results omit the optional `delivery` object.
+- This status correction leaves the existing MCP receipt path unchanged.
+  Its Claude-specific final transport boundary remains open: an internal
+  `NodeService.read` can record receipt before a later authority check
+  withholds the result. Receipt after a complete response is handed to the
+  exact still-valid client transport needs a separate prepare/commit change.
+  A transport write would not prove that the client or model saw the response.
+  Failure or crash between writing and committing would need its own durable
+  uncertainty handling, without automatic replay or rollback. This correction
+  does not implement that protocol.
+- A new ready arrival or an eligible partial read can trigger another bounded
+  wake attempt. Native channel admission is unverified; an attempted
+  notification does not guarantee that the client drains the inbox.
 - When a turn ends with a message still unread, the observation-only `Stop`
   hook lets NCF announce it once more. Each message is renewed at most once. These are event driven; nothing polls or
   runs on a timer.
@@ -201,7 +214,8 @@ Use a disposable Claude Code profile (`CLAUDE_CONFIG_DIR`) and test agents only.
    - one channel event;
    - an automatic `agent_read` without a prompt;
    - receipt recorded;
-   - automatic status shown in Applications.
+   - automatic delivery remains unconfirmed, including after a manual read.
+     Record an observed idle wake as test evidence, not as a new node status.
 5. Leave a draft in the input and open a permission prompt, then send again.
    Record whether the draft and the dialog survive.
 6. Quit Claude Code, run `claude --resume <id>` and send before typing anything.

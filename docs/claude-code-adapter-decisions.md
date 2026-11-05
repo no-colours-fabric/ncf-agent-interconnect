@@ -147,13 +147,30 @@ channel event during a turn and defer it until the owner asks. Without a
 later event the message then stays unread. A timer is forbidden; the end of
 the turn is the documented host event that makes a renewal safe.
 
-## D7. Automatic status
+## D7. Unverified experimental delivery
 
-`delivery: automatic` is reported only after a wake in the current Claude
-process was followed by `agent_read` from the same proven session. Until then
-the adapter is `checking`: the route is proven, but channel registration is
-unconfirmed. Without the development-channels flag, wakes are dropped
-silently. Messages stay queued and no receipt is written.
+A valid exact Claude Code route reports `state: manual` with no connection
+error. This confirms MCP access, not automatic idle wake. `wakeIdle` remains
+enabled only to attempt experimental notifications; it is not proof of native
+channel admission. Claude Code presence reports delivery as `unknown`, and
+connect results omit the optional `delivery` object through an explicit
+Claude-only return before the generic capability fallback.
+
+Preflight does not confirm delivery. Missing, failed, empty or successful
+reads cannot promote this status: a read after an outstanding wake may have
+been prompted manually. Stored `confirmed` values are not authority for
+automatic delivery. No new vendor readiness signal is assumed, and agents
+must not poll.
+
+The existing message ledger and MCP receipt path are unchanged. The separate
+receipt boundary is still open when an internal read prepares and records a
+message but the bridge later withholds its result. A future Claude-private
+prepare/commit path would bind the returned page to the call, request,
+connection and helper incarnation, and commit only after the full response
+is handed to the exact still-valid transport. Local write completion would
+not prove client or model observation. Crash or failure between write and
+commit requires additional durable uncertainty handling; no ACK, automatic
+replay or rollback is added here.
 
 ## D8. Setup
 

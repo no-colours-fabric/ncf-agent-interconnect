@@ -48,10 +48,9 @@ test('Two Claude Code chats in one folder and a second instance receive wakes on
   const bob = await f.connect(a, s1, 'Боб');
   const alice = await f.connect(b, s2, 'Алиса 漢字');
   assert.equal(bob.status, 'connected');
-  assert.equal(bob.delivery.automatic, false);
-  assert.match(bob.delivery.description, /will be announced in this chat/);
-  assert.match(bob.delivery.description, /Do not poll/);
-  assert.equal(adapterOf(f, bob.binding.connectionId).state, 'checking');
+  assert.ok(!('delivery' in bob));
+  assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
+  assert.equal(adapterOf(f, bob.binding.connectionId).error, null);
   // The snapshot hides Claude Code chat identifiers like other exact-chat integrations.
   const snapshotBinding = f.service.snapshot().agents.find((x) => x.nickname === 'Боб')!.binding!;
   assert.equal(snapshotBinding.chatId, '[private]');
@@ -172,15 +171,16 @@ test('A dropped wake never records receipt; a queued backlog gets one wake and a
   // Claude Code may silently drop the event: nothing is received without agent_read.
   for (const id of ids) assert.equal(f.service.store.get(id, 'out')!.state, 'ready');
   assert.equal(f.service.snapshot().agents.find((x) => x.nickname === 'Боб')!.unread, 3);
-  assert.equal(adapterOf(f, bob.binding.connectionId).state, 'checking');
+  assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
 
   const read = { connectionId: bob.binding.connectionId, after: 0, limit: 1 };
   const proof = await f.preTool(s1, 'agent_read', read);
   assert.equal((await a.verify('agent_read', read, proof)).status, 200);
+  assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
   const page = (await f.service.read(read.connectionId, 0, 1, true)) as { hasMore: boolean };
   assert.equal(page.hasMore, true);
-  // A read that confirms a wake marks channel delivery as working for this process.
-  await until(() => adapterOf(f, bob.binding.connectionId).state === 'ready');
+  // A completed MCP read does not establish that an idle channel event caused it.
+  assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
   await until(() => a.wakes().length === 2);
   await settle();
   assert.equal(a.wakes().length, 2);
@@ -192,7 +192,7 @@ test('A dropped wake never records receipt; a queued backlog gets one wake and a
   await sendTo(f, 'Боб', '4');
   await until(() => a.wakes().length === 3);
   const directory = f.service.snapshot().directories[0].agents.find((x) => x.nickname === 'Боб');
-  assert.equal(directory?.delivery, 'automatic');
+  assert.equal(directory?.delivery, 'unknown');
 });
 
 test('An ignored wake does not stall later messages: each new arrival is announced again', async (t) => {

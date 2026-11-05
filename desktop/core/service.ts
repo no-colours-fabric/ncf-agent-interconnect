@@ -424,11 +424,12 @@ export class NodeService extends EventEmitter {
           {
             nickname: agent.nickname,
             availability: online ? ('online' as const) : ('unknown' as const),
-            delivery: !online
-              ? ('unknown' as const)
-              : automatic
-                ? ('automatic' as const)
-                : ('mcp' as const),
+            delivery:
+              adapter?.kind === 'claude-code' || !online
+                ? ('unknown' as const)
+                : automatic
+                  ? ('automatic' as const)
+                  : ('mcp' as const),
           },
         ];
       }),
@@ -671,18 +672,9 @@ export class NodeService extends EventEmitter {
         input.connectionId = existing.connectionId;
     }
     const result = this.connect({ ...input, ...context });
-    if (context.client === 'Claude Code') {
-      const confirmed = this.adapters.get(context.adapterId).status().state === 'ready';
-      return {
-        ...result,
-        delivery: {
-          automatic: confirmed,
-          description: confirmed
-            ? 'Incoming messages are announced in this chat by the NCF channel and received automatically with agent_read. This integration is experimental.'
-            : 'Incoming messages will be announced in this chat by the NCF channel. When an announcement arrives, call agent_read; receipt is then recorded automatically. Delivery is reported as confirmed after the first announced message is read. Do not poll. If no announcement ever arrives, Claude Code was started without the NCF development channel and messages stay queued. This integration is experimental.',
-        },
-      };
-    }
+    // Claude wake capability permits an experimental attempt, not an automatic
+    // delivery claim. In particular, do not fall through to that capability below.
+    if (context.client === 'Claude Code') return result;
     const automatic = this.adapters.get(context.adapterId).status().capabilities.wakeIdle;
     return {
       ...result,
@@ -698,7 +690,7 @@ export class NodeService extends EventEmitter {
   async claudeCall(raw: unknown): Promise<{ contextToken?: string; callToken: string }> {
     if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
     const input = helperCallSchema.parse(raw);
-    const { helper, session, lease } = await this.claude.correlate(input);
+    const { session, lease } = await this.claude.correlate(input);
     if (input.connectionId) {
       const agent = this.store
         .list()
@@ -711,8 +703,6 @@ export class NodeService extends EventEmitter {
       if (profile?.kind === 'claude-code') {
         if (profile.sessionId !== session)
           throw new Error('This connection belongs to another Claude Code chat.');
-        if (input.tool === 'agent_read' && helper.outstanding.has(input.connectionId))
-          this.claude.confirm(helper);
       }
     }
     if (input.tool !== 'agent_connect')
