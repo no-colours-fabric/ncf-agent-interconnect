@@ -268,6 +268,7 @@ export async function startClaudeBridge(
   let stream: AbortController | undefined;
   let retry: NodeJS.Timeout | undefined;
   let wake: () => void = () => {};
+  let epoch: string | undefined;
   const run = async () => {
     let delay = 1000;
     while (!closed) {
@@ -300,8 +301,18 @@ export async function startClaudeBridge(
           while ((end = buffer.indexOf('\n')) >= 0) {
             const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
             buffer = buffer.slice(end + 1);
-            if (line.type === 'ready') delay = 1000;
-            else if (line.type === 'wake' && typeof line.nickname === 'string')
+            if (line.type === 'ready') {
+              delay = 1000;
+              // A new node lifecycle no longer knows the old MCP session; reconnect
+              // before the next tool call instead of failing it.
+              if (epoch && epoch !== line.epoch) {
+                const previous = remote;
+                remote = undefined;
+                current = '';
+                await previous?.close().catch(() => {});
+              }
+              epoch = typeof line.epoch === 'string' ? line.epoch : undefined;
+            } else if (line.type === 'wake' && typeof line.nickname === 'string')
               await notify(wakeNotification(line.nickname));
             else if (line.type === 'notice' && typeof line.text === 'string')
               await notify({

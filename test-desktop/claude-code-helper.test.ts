@@ -280,4 +280,16 @@ test('A live helper reconnects after a node restart and receives the stale offer
   await f.restart();
   await until(() => wakes.length === 2, 15000);
   assert.equal(wakes[1].meta?.agent, 'Боб');
+  // The first read after the restart must reach the new node lifecycle (on-site T11 regression).
+  const agent = f.service.store.list().find((value) => value.nickname === 'Боб')!;
+  const read = { connectionId: agent.binding!.connectionId };
+  await runHook(nodeFile, {
+    hook_event_name: 'PreToolUse',
+    session_id: s1,
+    tool_name: claudeToolPrefix + 'agent_read',
+    tool_input: read,
+  });
+  const result = await client.callTool({ name: 'agent_read', arguments: read });
+  assert.equal(result.isError, undefined, JSON.stringify(result.content));
+  assert.match(JSON.stringify(result.structuredContent), /Через рестарт/);
 });
