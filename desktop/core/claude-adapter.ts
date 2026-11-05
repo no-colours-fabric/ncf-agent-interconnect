@@ -14,30 +14,44 @@ import type { ClaudeHelper, ClaudeSessions } from './claude-sessions.js';
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly wakeOnly = true;
-  private offers = new Map<string, { epoch: string; connectionId: string }>();
+  private offers = new Map<string, { lifecycleKey: string; connectionId: string }>();
   private stopped = false;
   private routed?: string;
-  private renewed = new Set<string>();
+  private renewed = new Map<string, { lifecycleKey: string; connectionId: string }>();
+  private revision = 0;
+  /** Selection eligibility changed without a mailbox or helper lifecycle change. */
+  get offerRevision(): number {
+    return this.revision;
+  }
   private readonly listener = () => this.observe();
   /**
    * After a turn ends, a message still offered in this lifecycle is announced
    * once more: the model may have seen the event mid-turn and deferred it.
-   * Each message is renewed at most once, so a model that keeps deferring
-   * cannot cause a loop.
+   * Each message is renewed at most once per binding and helper lifecycle,
+   * so a model that keeps deferring cannot cause a loop.
    */
   private readonly turnEnded = (session: string) => {
     if (session !== this.profile.sessionId) return;
     const helper = this.current().helper;
     if (!helper) return;
+    const lifecycleKey = this.lifecycle(helper);
     let renew = false;
     for (const [id, offer] of this.offers) {
-      if (offer.epoch !== helper.epoch || this.renewed.has(id)) continue;
-      this.renewed.add(id);
+      const renewal = this.renewed.get(id);
+      if (
+        offer.lifecycleKey !== lifecycleKey ||
+        (renewal?.lifecycleKey === lifecycleKey && renewal.connectionId === offer.connectionId)
+      )
+        continue;
+      this.renewed.set(id, { lifecycleKey, connectionId: offer.connectionId });
       this.offers.delete(id);
       helper.outstanding.delete(offer.connectionId);
       renew = true;
     }
-    if (renew) this.idle();
+    if (renew) {
+      this.revision++;
+      this.idle();
+    }
   };
   constructor(
     readonly profile: AdapterProfile,
@@ -49,12 +63,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     if (this.stopped || !this.profile.sessionId) return { ambiguous: false };
     return this.sessions.route(this.profile.sessionId);
   }
+  private lifecycle(helper: ClaudeHelper): string {
+    return [helper.id, helper.epoch, helper.generation, helper.nativeLeaseNonce].join(':');
+  }
   private observe(): void {
     const route = this.current();
-    const epoch = route.helper?.epoch;
-    if (epoch !== this.routed) {
-      this.routed = epoch;
-      if (epoch) this.idle();
+    const lifecycleKey = route.helper ? this.lifecycle(route.helper) : undefined;
+    if (lifecycleKey !== this.routed) {
+      this.routed = lifecycleKey;
+      if (lifecycleKey) this.idle();
     }
     this.changed();
   }
@@ -95,7 +112,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   async start(): Promise<void> {
     this.sessions.on('change', this.listener);
     this.sessions.on('turnEnded', this.turnEnded);
-    this.routed = this.current().helper?.epoch;
+    const helper = this.current().helper;
+    this.routed = helper ? this.lifecycle(helper) : undefined;
   }
   async deliver(input: EventInput): Promise<Admission> {
     const route = this.current();
@@ -107,6 +125,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
           : 'Claude Code is not connected',
       };
     const helper = route.helper;
+    const lifecycleKey = this.lifecycle(helper);
     if (input.isCurrent && !input.isCurrent()) return { state: 'revoked' };
     const key = input.binding.connectionId;
     // A wake covers messages already queued when it was sent. A later arrival
@@ -117,7 +136,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       covered !== undefined &&
       (input.sequence === undefined || input.sequence <= covered)
     ) {
-      this.offers.set(input.messageId, { epoch: helper.epoch, connectionId: key });
+      this.offers.set(input.messageId, { lifecycleKey, connectionId: key });
       return { state: 'offered' };
     }
     const sent = this.sessions.send(
@@ -132,12 +151,17 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         key,
         Math.max(covered ?? 0, input.backlogUntil ?? input.sequence ?? Number.MAX_SAFE_INTEGER),
       );
-    this.offers.set(input.messageId, { epoch: helper.epoch, connectionId: key });
+    this.offers.set(input.messageId, { lifecycleKey, connectionId: key });
     return { state: 'offered' };
   }
   offerCurrent(messageId: string): boolean {
     const offer = this.offers.get(messageId);
-    return !!offer && offer.epoch === this.current().helper?.epoch;
+    const helper = this.current().helper;
+    return !!offer && !!helper && offer.lifecycleKey === this.lifecycle(helper);
+  }
+  /** A newly ready message may predate the physical sequence covered by an earlier wake. */
+  messageReady(connectionId: string): void {
+    this.current().helper?.outstanding.delete(connectionId);
   }
   /** Called before agent_read queries the inbox, so later arrivals get a new wake. */
   beforeRead(connectionId: string): void {
@@ -145,11 +169,22 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   }
   /** A read that leaves ready messages offers once more; this is event driven, not polling. */
   afterRead(connectionId: string, remaining: boolean): void {
-    if (!remaining) return;
+    if (!remaining) {
+      for (const [id, offer] of this.offers)
+        if (offer.connectionId === connectionId) this.offers.delete(id);
+      for (const [id, renewal] of this.renewed)
+        if (renewal.connectionId === connectionId) this.renewed.delete(id);
+      return;
+    }
     const helper = this.current().helper;
     if (!helper) return;
+    let removed = false;
     for (const [id, offer] of this.offers)
-      if (offer.connectionId === connectionId) this.offers.delete(id);
+      if (offer.connectionId === connectionId) {
+        this.offers.delete(id);
+        removed = true;
+      }
+    if (removed) this.revision++;
     this.idle();
   }
   async stop(): Promise<void> {
@@ -157,6 +192,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     this.sessions.off('change', this.listener);
     this.sessions.off('turnEnded', this.turnEnded);
     this.offers.clear();
+    this.renewed.clear();
     this.changed();
   }
 }

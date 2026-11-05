@@ -19,12 +19,15 @@ import {
   type SendResult,
   type AgentDirectory,
   type NicknameConflict,
+  type Message,
+  type Binding,
 } from '../shared/contracts.js';
 import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { PeerNetwork, type Frame } from './peer.js';
-import { AdapterRegistry } from './adapters.js';
+import { AdapterRegistry, type AgentAdapter } from './adapters.js';
+import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
@@ -39,6 +42,21 @@ import {
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
+
+interface ClaudeDispatchSnapshot {
+  connectionId: string;
+  bindingGeneration: number;
+  adapterId: string;
+  adapter: AgentAdapter;
+  sessionId: string | undefined;
+  lifecycle: string;
+  revision: number;
+  backlogUntil: number;
+  finalCursor: number;
+  page: Message[];
+  index: number;
+  after: number;
+}
 
 export class NodeService extends EventEmitter {
   store!: AgentStore;
@@ -56,6 +74,7 @@ export class NodeService extends EventEmitter {
   private receiving: Promise<void> | null = null;
   private receiveAgain = false;
   private dispatching = new Set<string>();
+  private claudeDispatchSnapshots = new Map<string, ClaudeDispatchSnapshot>();
   private jobs = new Set<Promise<void>>();
   private fileJobs = new Set<Promise<unknown>>();
   private cleaningFiles: Promise<void> | null = null;
@@ -121,6 +140,11 @@ export class NodeService extends EventEmitter {
     this.claude = new ClaudeSessions(directory);
     this.adapters = new AdapterRegistry(this.aionui, this.claude);
     this.claude.on('problem', (message: string) => this.problem(message));
+    this.claude.on('change', () => {
+      for (const [key, snapshot] of this.claudeDispatchSnapshots)
+        if (snapshot.lifecycle !== this.claudeDispatchLifecycle(snapshot.sessionId))
+          this.claudeDispatchSnapshots.delete(key);
+    });
     this.aionui.on('change', () => this.emit('change'));
     this.presence = new AgentPresence(
       () => this.refreshPresence(),
@@ -380,6 +404,8 @@ export class NodeService extends EventEmitter {
   }
   disconnect(connectionId: string): { disconnected: true } {
     this.store.disconnect(connectionId);
+    for (const [key, snapshot] of this.claudeDispatchSnapshots)
+      if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
     this.refreshPresence();
     this.emit('change');
     return { disconnected: true };
@@ -847,6 +873,9 @@ export class NodeService extends EventEmitter {
   }
   private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
     const delivered = this.store.recordDelivery(connectionId, ids);
+    if (delivered.size)
+      for (const [key, snapshot] of this.claudeDispatchSnapshots)
+        if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
     await Promise.all(
       [...delivered].map(async (id) => {
         const row = this.store.get(id, 'in')!;
@@ -1163,6 +1192,20 @@ export class NodeService extends EventEmitter {
     return this.receiving;
   }
   private messageReady(envelope: Envelope): void {
+    const key = nicknameKey(envelope.toNickname);
+    const incoming = this.store.get(envelope.id, 'in');
+    if (
+      incoming?.state === 'ready' &&
+      incoming.envelope.toNode === this.settings.value.nodeId &&
+      nicknameKey(incoming.envelope.toNickname) === key
+    ) {
+      this.claudeDispatchSnapshots.delete(key);
+      const binding = this.store.list().find((identity) => identity.key === key)?.binding;
+      if (binding) {
+        const adapter = this.adapters.get(binding.adapterId);
+        if (adapter instanceof ClaudeCodeAdapter) adapter.messageReady(binding.connectionId);
+      }
+    }
     this.mcp.notify({
       source: 'application',
       type: 'message_ready',
@@ -1171,6 +1214,98 @@ export class NodeService extends EventEmitter {
     });
     this.emit('change');
     this.drainAdapters();
+  }
+  private claudeDispatchLifecycle(sessionId: string | undefined): string {
+    const helper = sessionId ? this.claude.route(sessionId).helper : undefined;
+    return JSON.stringify([
+      sessionId,
+      helper?.id,
+      helper?.epoch,
+      helper?.generation,
+      helper?.nativeLeaseNonce,
+    ]);
+  }
+  private claudeDispatchCandidate(
+    key: string,
+    binding: Binding,
+    adapter: AgentAdapter,
+    sessionId: string | undefined,
+    eligible: (message: Message) => boolean,
+  ): { row: Message; backlogUntil: number } | undefined {
+    const lifecycle = this.claudeDispatchLifecycle(sessionId);
+    const revision = adapter instanceof ClaudeCodeAdapter ? adapter.offerRevision : 0;
+    let snapshot = this.claudeDispatchSnapshots.get(key);
+    if (
+      !snapshot ||
+      snapshot.connectionId !== binding.connectionId ||
+      snapshot.bindingGeneration !== binding.generation ||
+      snapshot.adapterId !== binding.adapterId ||
+      snapshot.adapter !== adapter ||
+      snapshot.lifecycle !== lifecycle
+    ) {
+      let page = this.store.history(key, 0, 200, true);
+      if (!page.messages.length) {
+        this.claudeDispatchSnapshots.delete(key);
+        return;
+      }
+      snapshot = {
+        connectionId: binding.connectionId,
+        bindingGeneration: binding.generation,
+        adapterId: binding.adapterId,
+        adapter,
+        sessionId,
+        lifecycle,
+        revision,
+        backlogUntil: 0,
+        finalCursor: 0,
+        page: [],
+        index: 0,
+        after: 0,
+      };
+      let selected = false;
+      // Census the backlog once. Retain only the first eligible page for the
+      // dispatch sweep; later coalesced offers reuse the same maximum.
+      for (;;) {
+        for (const [index, message] of page.messages.entries()) {
+          const current = this.store.get(message.envelope.id, 'in');
+          if (current?.state !== 'ready') continue;
+          snapshot.backlogUntil = Math.max(snapshot.backlogUntil, current.sequence);
+          if (!selected && eligible(message)) {
+            selected = true;
+            snapshot.page = page.messages;
+            snapshot.index = index;
+            snapshot.after = page.nextCursor;
+          }
+        }
+        snapshot.finalCursor = page.nextCursor;
+        if (!page.hasMore) break;
+        page = this.store.history(key, page.nextCursor, 200, true);
+      }
+      if (!selected) snapshot.after = snapshot.finalCursor;
+      this.claudeDispatchSnapshots.set(key, snapshot);
+    } else if (snapshot.revision !== revision) {
+      snapshot.revision = revision;
+      snapshot.page = [];
+      snapshot.index = 0;
+      snapshot.after = 0;
+    }
+    for (;;) {
+      while (snapshot.index < snapshot.page.length) {
+        const row = snapshot.page[snapshot.index];
+        if (this.store.get(row.envelope.id, 'in')?.state === 'ready' && eligible(row))
+          return { row, backlogUntil: snapshot.backlogUntil };
+        snapshot.index++;
+      }
+      if (snapshot.after >= snapshot.finalCursor) return;
+      const page = this.store.history(key, snapshot.after, 200, true);
+      snapshot.page = page.messages.filter((message) => message.sequence <= snapshot.finalCursor);
+      snapshot.index = 0;
+      if (page.nextCursor <= snapshot.after) {
+        snapshot.after = snapshot.finalCursor;
+        return;
+      }
+      snapshot.after = Math.min(page.nextCursor, snapshot.finalCursor);
+    }
   }
   private drainAdapters(): void {
     if (!this.running) return;
@@ -1203,14 +1338,30 @@ export class NodeService extends EventEmitter {
       this.jobs.add(job);
       void job.finally(() => this.jobs.delete(job));
     }
-    for (const identity of this.store.list()) {
+    const identities = this.store.list();
+    const active = new Map(identities.map((identity) => [identity.key, identity.binding]));
+    for (const [key, snapshot] of this.claudeDispatchSnapshots) {
+      const binding = active.get(key);
+      if (
+        !binding ||
+        binding.connectionId !== snapshot.connectionId ||
+        binding.generation !== snapshot.bindingGeneration ||
+        binding.adapterId !== snapshot.adapterId ||
+        this.settings.value.adapters.find((profile) => profile.id === binding.adapterId)?.kind !==
+          'claude-code' ||
+        this.adapters.get(binding.adapterId) !== snapshot.adapter
+      )
+        this.claudeDispatchSnapshots.delete(key);
+    }
+    for (const identity of identities) {
       if (!identity.binding) continue;
       const binding = identity.binding,
         dispatchKey = identity.key + ':' + identity.binding.connectionId,
         adapter = this.adapters.get(binding.adapterId);
-      if (this.dispatching.has(dispatchKey) || !adapter.status().capabilities.wakeIdle) continue;
-      const ready = this.store.history(identity.key, 0, 200, true).messages;
-      const row = ready.find((message) => {
+      if (this.dispatching.has(dispatchKey)) continue;
+      const status = adapter.status();
+      if (!status.capabilities.wakeIdle) continue;
+      const eligible = (message: Message) => {
         const previous = this.store.dispatchState(message.envelope.id);
         return (
           !previous ||
@@ -1218,8 +1369,29 @@ export class NodeService extends EventEmitter {
           ['waiting', 'failed', 'admitted'].includes(previous.state) ||
           (previous.state === 'offered' && !adapter.offerCurrent?.(message.envelope.id))
         );
-      });
+      };
+      let ready: Message[] = [];
+      let selected: Message | undefined;
+      let claudeBacklogUntil: number | undefined;
+      if (status.kind === 'claude-code') {
+        const candidate = this.claudeDispatchCandidate(
+          identity.key,
+          binding,
+          adapter,
+          this.settings.value.adapters.find((profile) => profile.id === binding.adapterId)
+            ?.sessionId,
+          eligible,
+        );
+        selected = candidate?.row;
+        claudeBacklogUntil = candidate?.backlogUntil;
+      } else {
+        this.claudeDispatchSnapshots.delete(identity.key);
+        ready = this.store.history(identity.key, 0, 200, true).messages;
+        selected = ready.find(eligible);
+      }
+      const row = selected;
       if (!row) continue;
+      const snapshot = this.claudeDispatchSnapshots.get(identity.key);
       this.dispatching.add(dispatchKey);
       const job = (async () => {
         let admitted = false,
@@ -1249,9 +1421,11 @@ export class NodeService extends EventEmitter {
             messageId: row.envelope.id,
             replyRef: 'r' + this.store.get(row.envelope.id, 'in')!.sequence.toString(36),
             sequence: this.store.get(row.envelope.id, 'in')!.sequence,
-            backlogUntil: Math.max(
-              ...ready.map((message) => this.store.get(message.envelope.id, 'in')?.sequence ?? 0),
-            ),
+            backlogUntil:
+              claudeBacklogUntil ??
+              Math.max(
+                ...ready.map((message) => this.store.get(message.envelope.id, 'in')?.sequence ?? 0),
+              ),
             message: {
               fromNode: row.envelope.fromNode,
               fromNickname: row.envelope.fromNickname,
@@ -1267,6 +1441,21 @@ export class NodeService extends EventEmitter {
               }
             },
           });
+          if (
+            snapshot &&
+            this.claudeDispatchSnapshots.get(identity.key) !== snapshot &&
+            adapter instanceof ClaudeCodeAdapter
+          ) {
+            const current = this.store
+              .list()
+              .find((candidate) => candidate.key === identity.key)?.binding;
+            if (
+              current?.connectionId === binding.connectionId &&
+              current.generation === binding.generation &&
+              current.adapterId === binding.adapterId
+            )
+              adapter.messageReady(binding.connectionId);
+          }
           if (result.state === 'admitted' && adapter.wakeOnly)
             throw new Error('A wake-only adapter cannot record message receipt');
           if (result.state === 'admitted') {
@@ -1492,6 +1681,7 @@ export class NodeService extends EventEmitter {
   private async stopNow(): Promise<void> {
     if (!this.running) return;
     this.running = false;
+    this.claudeDispatchSnapshots.clear();
     clearTimeout(this.directoryPublish);
     this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
