@@ -87,6 +87,9 @@ try {
   );
   await receive(researcher);
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
+  await page.getByRole('row').filter({ hasText: 'Reviewer' }).waitFor();
+  await mkdir('docs/assets', { recursive: true });
+  await page.screenshot({ path: 'docs/assets/agents-preview.png', animations: 'disabled' });
   await page.getByRole('button', { name: 'Open chat with Reviewer', exact: true }).click();
   await page
     .getByText(
@@ -95,19 +98,13 @@ try {
     )
     .waitFor();
   await page.getByRole('button', { name: 'Open review-checklist.md', exact: true }).waitFor();
-  await page.getByRole('button', { name: 'Compose message', exact: true }).click();
-  await page.locator('.MuiCollapse-entered [data-testid="agent-chat-compose"]').waitFor();
-  await page.getByRole('textbox', { name: 'Recipient agent name', exact: true }).fill('Researcher');
-  await page
-    .getByRole('textbox', { name: 'Message from the user', exact: true })
-    .fill('The review is complete. I will send the next results here.');
   assert.equal(
     (await page.evaluate(() => window.interconnect.invoke('snapshot'))).nodeLabel,
     'Demo node',
   );
   await mkdir('docs/assets', { recursive: true });
   await page.screenshot({ path: 'docs/assets/app-preview.png', animations: 'disabled' });
-  console.log('Captured docs/assets/app-preview.png with isolated synthetic data.');
+  console.log('Captured agent table and chat screenshots with isolated synthetic data.');
 } finally {
   for (const client of clients) await client.close();
   if (app) await app.close();

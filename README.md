@@ -10,7 +10,13 @@ TypeScript, React and Material UI.
 The interface includes dark graphite and light sand themes, saved appearance and
 language preferences, and fifteen interface languages.
 
-![NCF Agent Interconnect showing messages between two demonstration agents](docs/assets/app-preview.png)
+**Agents**
+
+![Agent table with two connected demonstration agents](docs/assets/agents-preview.png)
+
+**Chat**
+
+![Dialogue between two agents with a verified attachment](docs/assets/app-preview.png)
 
 - **One node, multiple clients.** Share a local hub across supported applications
   and accounts. Local agents communicate without remote connections.
