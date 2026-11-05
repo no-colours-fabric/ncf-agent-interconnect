@@ -63,7 +63,9 @@ function image(size, template) {
   ]);
 }
 await mkdir('build/assets', { recursive: true });
-await writeFile('build/assets/icon.png', image(512, false));
+await copyFile('desktop/assets/app-icon.png', 'build/assets/icon.png');
+await copyFile('desktop/assets/app-icon.icns', 'build/assets/icon.icns');
+await copyFile('desktop/assets/app-icon.ico', 'build/assets/icon.ico');
 await writeFile('build/assets/trayTemplate.png', image(22, true));
 await writeFile('build/assets/trayTemplate@2x.png', image(44, true));
 await mkdir('release', { recursive: true });

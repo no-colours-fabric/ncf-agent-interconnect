@@ -31,11 +31,11 @@ mac:
     hardenedRuntime: false
   extendInfo:
     NSLocalNetworkUsageDescription: Exchange messages and files with nodes explicitly configured by the user.
-  icon: build/assets/icon.png
+  icon: build/assets/icon.icns
   target:
     - dmg
 win:
-  icon: build/assets/icon.png
+  icon: build/assets/icon.ico
   target:
     - nsis
 nsis:
