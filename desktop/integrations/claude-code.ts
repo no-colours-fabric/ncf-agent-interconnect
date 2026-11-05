@@ -345,8 +345,13 @@ export async function startClaudeBridge(
     stream?.abort();
     await remote?.close().catch(() => {});
   };
+  // Claude Code drops channel events sent before its MCP handshake completes, so
+  // the route is offered to the node only once the client is initialized.
+  let running: Promise<void> | undefined;
+  server.oninitialized = () => {
+    running ??= run();
+  };
   await server.connect(transport);
-  const running = run();
   return {
     helperId,
     close: async () => {

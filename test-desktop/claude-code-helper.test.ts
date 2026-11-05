@@ -303,3 +303,60 @@ test('A live helper reconnects after a node restart and receives the stale offer
   assert.equal(result.isError, undefined, JSON.stringify(result.content));
   assert.match(JSON.stringify(result.structuredContent), /Через рестарт/);
 });
+
+test('A reconnected helper offers its route only after the MCP handshake, so a pending wake is not lost', async (t) => {
+  const f = await claudeFixture(t);
+  const nodeFile = path.join(f.directory, 'Integrations', 'node.json');
+  const s1 = randomUUID();
+  await runHook(nodeFile, { hook_event_name: 'SessionStart', session_id: s1, source: 'startup' });
+  const first = await launchHelper(t, f, s1);
+  const args = { nickname: 'Боб' };
+  await runHook(nodeFile, {
+    hook_event_name: 'PreToolUse',
+    session_id: s1,
+    tool_name: claudeToolPrefix + 'agent_connect',
+    tool_input: args,
+  });
+  assert.equal(
+    (await first.client.callTool({ name: 'agent_connect', arguments: args })).isError,
+    undefined,
+  );
+  await first.client.close();
+  const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
+  if (sender.status !== 'connected') throw new Error();
+  const sent = await f.service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
+    recipientNickname: 'Боб',
+    text: 'Ждёт reconnect',
+  });
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  // On-site T16: /mcp Reconnect spawns a helper while a message is already queued.
+  const { startClaudeBridge } = await import('../desktop/integrations/claude-code.js');
+  const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
+  const [client, server] = InMemoryTransport.createLinkedPair();
+  const received: { method?: string }[] = [];
+  client.onmessage = (message) => received.push(message as { method?: string });
+  const bridge = await startClaudeBridge(nodeFile, { CLAUDE_CODE_SESSION_ID: s1 }, server);
+  t.after(() => bridge.close());
+  await client.start();
+  await client.send({
+    jsonrpc: '2.0',
+    id: 1,
+    method: 'initialize',
+    params: {
+      protocolVersion: '2025-06-18',
+      capabilities: {},
+      clientInfo: { name: 'claude-code', version: 'fixture' },
+    },
+  });
+  await new Promise((resolve) => setTimeout(resolve, 1500));
+  assert.ok(!received.some((message) => message.method === 'notifications/claude/channel'));
+  assert.equal(f.service.store.dispatchState(sent.id)?.state, 'waiting');
+  await client.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
+  await until(
+    () => received.some((message) => message.method === 'notifications/claude/channel'),
+    10000,
+  );
+  assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
+});
