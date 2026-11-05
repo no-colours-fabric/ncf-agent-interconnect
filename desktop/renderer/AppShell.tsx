@@ -161,7 +161,7 @@ export function AppShell({
           sx={{
             position: 'sticky',
             top: 0,
-            zIndex: 1,
+            zIndex: (theme) => theme.zIndex.appBar,
             px: { xs: 3, lg: 4 },
             py: 3,
             borderBottom: `1px solid ${designTokens.headerBorder}`,

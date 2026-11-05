@@ -1,6 +1,16 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  mcpSetup_statusTitle: 'ステータス',
+  mcpSetup_statusMcpConfig: 'MCP 設定',
+  mcpSetup_statusOpencodeConfig: 'MCP とプラグインの設定',
+  mcpSetup_statusOpencodeHint: '保存済みの設定を確認します。プラグインの稼働は確認しません。',
+  mcpSetup_statusUnknown: '不明',
+  mcpSetup_statusCursorMetricsHint:
+    'Cursor のエージェント数と最終アクティビティは個別に取得できません。',
+  mcpSetup_statusDelivery: 'エージェントへの配信',
+  mcpSetup_statusAuthorization: '認証',
+  mcpSetup_statusLiveBridge: '稼働中のブリッジ',
   clientsManualConnections: '手動 MCP（すべての手動接続）',
   chatNewMessage: '新しいメッセージ',
   chatOpenComposer: 'メッセージを作成',

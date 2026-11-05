@@ -1,3 +1,4 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
 import { mkdtemp, writeFile, rm } from 'node:fs/promises';
@@ -48,6 +49,7 @@ const send = () => page.getByRole('button', { name: 'Send message', exact: true 
 async function open(nickname) {
   await page.getByRole('button', { name: 'Open chat with ' + nickname, exact: true }).click();
   await page.getByRole('button', { name: 'Compose message', exact: true }).click();
+  await waitForComposerTransition(page);
 }
 async function close() {
   await page.getByRole('button', { name: 'Close chat', exact: true }).click();
@@ -157,12 +159,14 @@ contextBridge.exposeInMainWorld('interconnect',{
   await begin('Failed send retains draft');
   await page.getByTestId('agent-chat-compose-toggle').click();
   assert.equal(await message().count(), 0);
+  await waitForComposerTransition(page);
   await invoke('fixtureFinishSend', { success: false });
   const failure = () =>
     page.getByRole('dialog').getByRole('alert').filter({ hasText: 'Synthetic send rejected' });
   await failure().waitFor();
   assert.ok((await failure().innerText()).includes(second + ' → Target'));
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   await failure().waitFor();
   assert.equal(await message().inputValue(), 'Failed send retains draft');
   assert.equal(await invoke('fixturePending'), false);

@@ -1,4 +1,13 @@
 export const mcpSetupEnglish = {
+  statusTitle: 'Status',
+  statusMcpConfig: 'MCP settings',
+  statusOpencodeConfig: 'MCP and plugin settings',
+  statusOpencodeHint: 'This checks saved settings, not whether the plugin is running.',
+  statusUnknown: 'Unknown',
+  statusCursorMetricsHint: 'Agent totals and last activity are not reported separately for Cursor.',
+  statusDelivery: 'Agent delivery',
+  statusAuthorization: 'Authorization',
+  statusLiveBridge: 'Live bridge',
   aionBridgeDisconnected: 'Bridge not connected to a verified chat',
 
   aionBridgeConnected: 'Bridge connected to a verified chat',

@@ -1,3 +1,4 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:http';
@@ -212,6 +213,7 @@ try {
   const toggle = page.getByTestId('agent-chat-compose-toggle');
   assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
   await toggle.click();
+  await waitForComposerTransition(page);
   await frames(page);
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
   const history = page.getByTestId('agent-chat-history');
@@ -314,6 +316,7 @@ try {
       .getByText('Message 420: sample attachments for opening and saving.', { exact: true })
       .waitFor();
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
     await page.getByTestId('agent-chat-history').evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });

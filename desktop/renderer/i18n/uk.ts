@@ -1,6 +1,17 @@
 import type { Messages } from './messages.js';
 
 export const uk: Messages = {
+  mcpSetup_statusTitle: 'Статус',
+  mcpSetup_statusMcpConfig: 'Налаштування MCP',
+  mcpSetup_statusOpencodeConfig: 'Налаштування MCP і плагіна',
+  mcpSetup_statusOpencodeHint:
+    'Перевіряються збережені налаштування, а не робота плагіна в запущеному застосунку.',
+  mcpSetup_statusUnknown: 'Невідомо',
+  mcpSetup_statusCursorMetricsHint:
+    'Кількість агентів і остання активність недоступні окремо для Cursor.',
+  mcpSetup_statusDelivery: 'Доставлення повідомлень',
+  mcpSetup_statusAuthorization: 'Авторизація',
+  mcpSetup_statusLiveBridge: 'Активний міст',
   clientsManualConnections: 'Ручні підключення MCP (усі клієнти)',
   chatNewMessage: 'Нове повідомлення',
   chatOpenComposer: 'Написати повідомлення',

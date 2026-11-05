@@ -167,8 +167,9 @@ function App({
         }}
       >
         {page === 'overview' && (
-          <Stack spacing={3}>
+          <Stack spacing={3} data-testid="overview-sections">
             <Box
+              data-testid="overview-statistics"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))' },
@@ -207,55 +208,6 @@ function App({
                   </Typography>
                 </Paper>
               ))}
-            </Box>
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: '1fr',
-                '@media (min-width: 1000px)': { gridTemplateColumns: '1.45fr 1fr' },
-                gap: 2,
-              }}
-            >
-              <Paper
-                sx={{
-                  ...surfaceSx('raised'),
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  minHeight: 228,
-                }}
-              >
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'connectAgentsTitle')}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {t(locale, 'connectAgentsBody')}
-                </Typography>
-                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => setPage('mcp')}>
-                  {t(locale, 'connectAgentsCta')}
-                </Button>
-              </Paper>
-              <Paper
-                sx={{
-                  ...surfaceSx('soft'),
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  minHeight: 228,
-                }}
-              >
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'connectPeerTitle')}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {t(locale, 'connectPeerBody')}
-                </Typography>
-                <Button sx={{ mt: 'auto' }} variant="outlined" onClick={() => setPage('network')}>
-                  {t(locale, 'connectPeerCta')}
-                </Button>
-              </Paper>
             </Box>
             <Paper data-testid="overview-applications" sx={{ p: 2.5 }}>
               <Typography variant="h6" sx={{ mb: 1.5 }}>
@@ -308,6 +260,56 @@ function App({
                 })}
               </Box>
             </Paper>
+            <Box
+              data-testid="overview-connections"
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: '1fr',
+                '@media (min-width: 1000px)': { gridTemplateColumns: '1.45fr 1fr' },
+                gap: 2,
+              }}
+            >
+              <Paper
+                sx={{
+                  ...surfaceSx('raised'),
+                  p: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  minHeight: 228,
+                }}
+              >
+                <Typography variant="h6" sx={{ mb: 1 }}>
+                  {t(locale, 'connectAgentsTitle')}
+                </Typography>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>
+                  {t(locale, 'connectAgentsBody')}
+                </Typography>
+                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => setPage('mcp')}>
+                  {t(locale, 'connectAgentsCta')}
+                </Button>
+              </Paper>
+              <Paper
+                sx={{
+                  ...surfaceSx('soft'),
+                  p: 3,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'flex-start',
+                  minHeight: 228,
+                }}
+              >
+                <Typography variant="h6" sx={{ mb: 1 }}>
+                  {t(locale, 'connectPeerTitle')}
+                </Typography>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>
+                  {t(locale, 'connectPeerBody')}
+                </Typography>
+                <Button sx={{ mt: 'auto' }} variant="outlined" onClick={() => setPage('network')}>
+                  {t(locale, 'connectPeerCta')}
+                </Button>
+              </Paper>
+            </Box>
             <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
               {t(locale, 'overviewIntro')}
             </Typography>

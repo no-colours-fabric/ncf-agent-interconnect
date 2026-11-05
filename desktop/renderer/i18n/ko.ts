@@ -1,6 +1,15 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  mcpSetup_statusTitle: '상태',
+  mcpSetup_statusMcpConfig: 'MCP 설정',
+  mcpSetup_statusOpencodeConfig: 'MCP 및 플러그인 설정',
+  mcpSetup_statusOpencodeHint: '저장된 설정을 확인하며 플러그인의 실행 여부는 확인하지 않습니다.',
+  mcpSetup_statusUnknown: '알 수 없음',
+  mcpSetup_statusCursorMetricsHint: 'Cursor의 에이전트 수와 최근 활동은 별도로 집계되지 않습니다.',
+  mcpSetup_statusDelivery: '에이전트 메시지 전달',
+  mcpSetup_statusAuthorization: '인증',
+  mcpSetup_statusLiveBridge: '실시간 브리지',
   clientsManualConnections: '수동 MCP (모든 수동 연결)',
   chatNewMessage: '새 메시지',
   chatOpenComposer: '메시지 작성',

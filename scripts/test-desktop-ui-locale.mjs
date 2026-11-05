@@ -1,3 +1,5 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
+import { verifyClientStatusPanel } from './ui-client-status-assertions.mjs';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
 import { mkdtemp, rm, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -361,21 +363,13 @@ async function checkApplicationSummary(kind, locale) {
     ...profiles.map((profile) => profile.lastOwnerVerifiedAt),
   ].filter((value) => value && Number.isFinite(Date.parse(value)));
   const activity = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
-  const summary = page.getByTestId('application-' + kind);
-  await summary.waitFor();
-  assert.equal(
-    await summary.getByTestId('application-agent-count').innerText(),
-    String(agents.length),
-  );
-  assert.equal(
-    await summary.getByTestId('application-last-activity').innerText(),
-    activity
-      ? await page.evaluate(
-          ([date, locale]) => new Date(date).toLocaleString(locale),
-          [activity, locale],
-        )
-      : '',
-  );
+  await verifyClientStatusPanel(page, {
+    kind,
+    count: agents.length,
+    activity,
+    locale,
+    unknownLabel: null,
+  });
 }
 async function checkMcpSetup(locale) {
   const expected = setupLabels[locale];
@@ -474,6 +468,7 @@ try {
     .first()
     .click();
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   await page.getByRole('textbox', { name: 'Recipient agent name', exact: true }).fill(targetName);
   await page.getByRole('textbox', { name: 'Message from the user', exact: true }).fill(message);
   await page.getByRole('button', { name: 'Send message', exact: true }).click();

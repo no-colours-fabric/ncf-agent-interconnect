@@ -1,6 +1,15 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  mcpSetup_statusTitle: '状态',
+  mcpSetup_statusMcpConfig: 'MCP 设置',
+  mcpSetup_statusOpencodeConfig: 'MCP 与插件设置',
+  mcpSetup_statusOpencodeHint: '此处检查已保存的设置，不表示插件正在运行。',
+  mcpSetup_statusUnknown: '未知',
+  mcpSetup_statusCursorMetricsHint: 'Cursor 的代理数量与最近活动无法单独统计。',
+  mcpSetup_statusDelivery: '代理消息投递',
+  mcpSetup_statusAuthorization: '授权',
+  mcpSetup_statusLiveBridge: '实时桥接',
   clientsManualConnections: '手动 MCP（所有手动连接）',
   chatNewMessage: '新消息',
   chatOpenComposer: '撰写消息',

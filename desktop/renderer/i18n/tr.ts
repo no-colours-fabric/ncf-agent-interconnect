@@ -1,6 +1,16 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  mcpSetup_statusTitle: 'Durum',
+  mcpSetup_statusMcpConfig: 'MCP ayarları',
+  mcpSetup_statusOpencodeConfig: 'MCP ve eklenti ayarları',
+  mcpSetup_statusOpencodeHint: 'Kayıtlı ayarlar denetlenir; eklentinin çalıştığı doğrulanmaz.',
+  mcpSetup_statusUnknown: 'Bilinmiyor',
+  mcpSetup_statusCursorMetricsHint:
+    'Cursor için ajan sayısı ve son etkinlik ayrı olarak bildirilmez.',
+  mcpSetup_statusDelivery: 'Ajanlara teslim',
+  mcpSetup_statusAuthorization: 'Yetkilendirme',
+  mcpSetup_statusLiveBridge: 'Canlı köprü',
   clientsManualConnections: 'Manuel MCP (tüm manuel bağlantılar)',
   chatNewMessage: 'Yeni mesaj',
   chatOpenComposer: 'Mesaj yaz',

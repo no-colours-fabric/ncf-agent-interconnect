@@ -1,3 +1,5 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
+import { verifyClientStatusPanel } from './ui-client-status-assertions.mjs';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
 import { mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
@@ -300,6 +302,7 @@ contextBridge.exposeInMainWorld('interconnect', {
     assert.ok(!ordinaryText.includes(id));
   await capture('chat-en');
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   await page
     .getByRole('textbox', { name: 'Recipient agent name', exact: true })
     .fill('Local recipient');
@@ -355,14 +358,7 @@ contextBridge.exposeInMainWorld('interconnect', {
     ['AionUi', 'aionui', 0],
   ]) {
     await page.getByRole('tab', { name: tab, exact: true }).click();
-    const summary = page.getByTestId('application-' + kind);
-    const text = await summary.innerText();
-    assert.ok(!text.includes(agent.nickname));
-    assert.ok(!text.includes('Private diagnostic'));
-    assert.equal(
-      await summary.locator('[data-testid="application-agent-count"]').innerText(),
-      String(count),
-    );
+    await verifyClientStatusPanel(page, { kind, count, activity: count ? stamp : undefined });
   }
   await page.getByTestId('aionui-setup').getByText('Not paired', { exact: true }).waitFor();
   assert.equal(
@@ -379,6 +375,7 @@ contextBridge.exposeInMainWorld('interconnect', {
     .click();
   await page.getByText(literal, { exact: true }).waitFor();
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   await page
     .getByRole('textbox', { name: 'Сообщение от пользователя', exact: true })
     .fill('Stale draft');
@@ -388,6 +385,7 @@ contextBridge.exposeInMainWorld('interconnect', {
     .getByRole('button', { name: 'Открыть чат с ' + agent.nickname, exact: true })
     .click();
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   assert.equal(
     await page
       .getByRole('textbox', { name: 'Сообщение от пользователя', exact: true })

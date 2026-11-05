@@ -1,3 +1,5 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
+import { verifyClientStatusPanel } from './ui-client-status-assertions.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
@@ -599,6 +601,8 @@ contextBridge.exposeInMainWorld('interconnect',{
     await page.getByTestId('nav-agents').click();
     await openChat(owner);
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
+    await settled();
     await recipient().fill('Layout recipient');
     await message().fill('Two rows');
     const history = page.getByTestId('agent-chat-history');
@@ -620,14 +624,20 @@ contextBridge.exposeInMainWorld('interconnect',{
     );
     await message().fill('Collapsed failure draft');
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
+    await settled();
     await history.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
     await settled();
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
+    await settled();
     await invoke('fixtureHoldNextSend');
     await dialog().getByRole('button', { name: 'Send message', exact: true }).click();
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
+    await settled();
     await history.evaluate((element) => {
       element.scrollTop = element.scrollHeight;
     });
@@ -640,9 +650,13 @@ contextBridge.exposeInMainWorld('interconnect',{
       .filter({ hasText: 'Synthetic collapsed send rejected' })
       .waitFor();
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
+    await settled();
     await invoke('fixtureHoldNextSend');
     await dialog().getByRole('button', { name: 'Send message', exact: true }).click();
     await page.getByTestId('agent-chat-compose-toggle').click();
+    await waitForComposerTransition(page);
+    await settled();
     await history.evaluate((element) => {
       element.scrollTop = element.scrollHeight * 0.4;
     });
@@ -715,32 +729,7 @@ contextBridge.exposeInMainWorld('interconnect',{
           ['aionui', 'aionui', 0, null],
         ]) {
           await page.locator('#mcp-tab-' + client).click();
-          const panel = page.getByRole('tabpanel');
-          assert.equal(
-            await panel.getByTestId('application-manual').count(),
-            0,
-            'Manual MCP is not a Cursor-specific application',
-          );
-          if (kind) {
-            const summary = panel.getByTestId('application-' + kind);
-            await summary.waitFor();
-            const values = await summary.locator('dd').allTextContents();
-            assert.equal(values[0], String(count));
-            assert.equal(
-              values[1],
-              expectedActivity ? new Date(expectedActivity).toLocaleString('en') : '',
-            );
-            assert.ok(!(await summary.innerText()).includes(owner));
-            assert.ok(!(await summary.innerText()).includes(second));
-            assert.equal(await summary.locator('table').count(), 0);
-          }
-          const manual = page.getByTestId('application-manual');
-          assert.ok((await manual.innerText()).includes('Manual MCP (all manual connections)'));
-          assert.equal(await manual.getByTestId('application-agent-count').innerText(), '2');
-          assert.equal(
-            await manual.getByTestId('application-last-activity').innerText(),
-            new Date(stamp).toLocaleString('en'),
-          );
+          await verifyClientStatusPanel(page, { kind, count, activity: expectedActivity });
           assert.ok(await page.locator('#mcp-tab-' + client).getAttribute('aria-description'));
         }
         await page.locator('#mcp-tab-cursor').click();
@@ -794,6 +783,8 @@ contextBridge.exposeInMainWorld('interconnect',{
         );
         await capture(theme + '-' + width + '-chat-collapsed');
         await page.getByTestId('agent-chat-compose-toggle').click();
+        await waitForComposerTransition(page);
+        await settled();
         await recipient().fill('Local target');
         await message().fill('Draft ' + theme + width);
         await contained(composer(), 'Bottom composer');
@@ -821,6 +812,8 @@ contextBridge.exposeInMainWorld('interconnect',{
         assert.equal(await message().inputValue(), 'Draft ' + theme + width);
         await capture(theme + '-' + width + '-chat-expanded');
         await page.getByTestId('agent-chat-compose-toggle').click();
+        await waitForComposerTransition(page);
+        await settled();
         assert.equal(await composer().count(), 0);
         assert.ok(
           await history.evaluate(
@@ -829,6 +822,8 @@ contextBridge.exposeInMainWorld('interconnect',{
           'Closing composer follows latest when already at bottom',
         );
         await page.getByTestId('agent-chat-compose-toggle').click();
+        await waitForComposerTransition(page);
+        await settled();
         assert.equal(await message().inputValue(), 'Draft ' + theme + width);
         if (theme === 'dark' && width === 900) {
           await history.evaluate((element) => {
@@ -850,6 +845,8 @@ contextBridge.exposeInMainWorld('interconnect',{
         await openChat(owner);
         assert.equal(await composer().count(), 0);
         await page.getByTestId('agent-chat-compose-toggle').click();
+        await waitForComposerTransition(page);
+        await settled();
         assert.equal(await message().inputValue(), 'Draft ' + theme + width);
         await closeChat();
         const beforeRemoteHistory = (await invoke('fixtureCalls')).filter(

@@ -1,3 +1,4 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
@@ -160,6 +161,7 @@ try {
   };
   await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   await page
     .getByRole('textbox', { name: 'Message from the user', exact: true })
     .fill('Draft belonging to the deleted incarnation');
@@ -174,6 +176,7 @@ try {
   await invoke(page, 'registerAgent', { nickname: secondName });
   await page.getByRole('button', { name: 'Open chat with ' + secondName, exact: true }).click();
   await page.getByTestId('agent-chat-compose-toggle').click();
+  await waitForComposerTransition(page);
   await until(
     async () =>
       (await page

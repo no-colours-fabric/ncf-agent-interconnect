@@ -1,6 +1,17 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  mcpSetup_statusTitle: 'Күйі',
+  mcpSetup_statusMcpConfig: 'MCP баптаулары',
+  mcpSetup_statusOpencodeConfig: 'MCP және плагин баптаулары',
+  mcpSetup_statusOpencodeHint:
+    'Сақталған баптаулар тексеріледі, плагиннің жұмыс істеп тұрғаны расталмайды.',
+  mcpSetup_statusUnknown: 'Белгісіз',
+  mcpSetup_statusCursorMetricsHint:
+    'Cursor үшін агенттер саны мен соңғы белсенділік бөлек есептелмейді.',
+  mcpSetup_statusDelivery: 'Агенттерге жеткізу',
+  mcpSetup_statusAuthorization: 'Авторизация',
+  mcpSetup_statusLiveBridge: 'Белсенді көпір',
   clientsManualConnections: 'Қолмен MCP (барлық қолмен қосылымдар)',
   chatNewMessage: 'Жаңа хабарлама',
   chatOpenComposer: 'Хабарлама жазу',

@@ -1,9 +1,18 @@
-import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import {
   Alert,
   Avatar,
   Box,
   Button,
+  ButtonBase,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -15,6 +24,8 @@ import {
   TextField,
   Tooltip,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
@@ -56,10 +67,21 @@ export function AgentsPage({
   onAdd: () => void;
   onCleared: (result: AgentClearResult, names: string[]) => void;
 }): React.JSX.Element {
+  const theme = useTheme();
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const composeToggle = useRef<HTMLButtonElement>(null);
+  const composePanel = useRef<HTMLDivElement>(null);
+  const restoreComposeFocus = useRef(false);
   const rows = agentRows(snapshot);
   const [chat, setChat] = useState<AgentRow | null>(null);
   const [historySize, setHistorySize] = useState(100);
   const [composerOpen, setComposerOpen] = useState(false);
+  useLayoutEffect(() => {
+    if (restoreComposeFocus.current) {
+      restoreComposeFocus.current = false;
+      composeToggle.current?.focus({ preventScroll: true });
+    }
+  }, [composerOpen]);
   const [routes, setRoutes] = useState<Record<string, { recipient: string; sender: string }>>({});
   const [drafts, setDrafts] = useState<Record<string, { text: string }>>({});
   const [sending, setSending] = useState<Record<string, boolean>>({});
@@ -149,8 +171,16 @@ export function AgentsPage({
   };
   const closeChat = () => {
     retainDraft();
+    restoreComposeFocus.current = false;
     setChat(null);
     setComposerOpen(false);
+  };
+  const toggleComposer = () => {
+    restoreComposeFocus.current = true;
+    if (composerOpen) {
+      if (composePanel.current?.contains(document.activeElement)) composeToggle.current?.focus();
+    }
+    setComposerOpen((open) => !open);
   };
   const sendMessage = () => {
     if (!chat || !source || !draft) return;
@@ -244,6 +274,7 @@ export function AgentsPage({
         pb: chat.local ? 2 : 0,
         flexShrink: chat.local ? 1 : 0,
         minHeight: 0,
+        maxHeight: chat.local ? 'calc(60dvh - 44px)' : undefined,
         overflowY: chat.local ? 'auto' : undefined,
       }}
     >
@@ -301,15 +332,19 @@ export function AgentsPage({
                   bgcolor: 'primary.main',
                   color: 'primary.contrastText',
                   borderRadius: '8px',
-                  border: `1px solid ${designTokens.primaryButtonBorder}`,
-                  backgroundImage: designTokens.primaryButtonGradient,
-                  boxShadow: designTokens.primaryButtonShadow,
+                  border: 0,
+                  backgroundImage: 'none',
+                  boxShadow: 'none',
+                  outline: 'none',
                   '&:hover': { bgcolor: 'primary.dark' },
+                  '&.Mui-focusVisible': {
+                    outline: `2px solid ${designTokens.accent}`,
+                    outlineOffset: 3,
+                  },
                   '&.Mui-disabled': {
                     color: 'text.disabled',
                     bgcolor: designTokens.disabledBackground,
                     backgroundImage: 'none',
-                    borderColor: designTokens.border,
                     boxShadow: 'none',
                   },
                 }}
@@ -428,36 +463,79 @@ export function AgentsPage({
                 bgcolor: designTokens.composerBackground,
               }}
             >
-              <Stack
-                data-testid="agent-chat-compose-header"
-                direction="row"
-                spacing={1.5}
-                sx={{ alignItems: 'center', flexShrink: 0, px: 2, py: 0.5 }}
-              >
-                <Typography variant="body2" sx={{ fontWeight: 500, flexShrink: 0 }}>
-                  {t(locale, 'chatNewMessage')}
-                </Typography>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ flex: 1, textAlign: 'right', overflowWrap: 'anywhere' }}
-                >
-                  {composerOpen ? `${t(locale, 'composeSenderAgent')}: ${chat.nickname}` : ''}
-                </Typography>
-                <Tooltip title={t(locale, composerOpen ? 'chatCloseComposer' : 'chatOpenComposer')}>
-                  <IconButton
-                    color={composerOpen ? 'secondary' : 'default'}
-                    aria-label={t(locale, composerOpen ? 'chatCloseComposer' : 'chatOpenComposer')}
-                    aria-expanded={composerOpen}
-                    aria-controls="agent-chat-compose-panel"
-                    data-testid="agent-chat-compose-toggle"
-                    onClick={() => setComposerOpen((open) => !open)}
+              <Box data-testid="agent-chat-compose-header" sx={{ flexShrink: 0 }}>
+                {composerOpen ? (
+                  <Stack
+                    direction="row"
+                    spacing={1.5}
+                    sx={{ alignItems: 'center', height: 44, px: 2 }}
                   >
-                    {composerOpen ? <CloseOutlined /> : <ChatBubbleOutlineOutlined />}
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-              {composerOpen && composer}
+                    <Typography variant="body2" sx={{ fontWeight: 500, flexShrink: 0 }}>
+                      {t(locale, 'chatNewMessage')}
+                    </Typography>
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      noWrap
+                      sx={{ flex: 1, minWidth: 0, textAlign: 'right' }}
+                    >
+                      {t(locale, 'composeSenderAgent')}: {chat.nickname}
+                    </Typography>
+                    <Tooltip title={t(locale, 'chatCloseComposer')}>
+                      <IconButton
+                        ref={composeToggle}
+                        color="secondary"
+                        aria-label={t(locale, 'chatCloseComposer')}
+                        aria-expanded={true}
+                        aria-controls="agent-chat-compose-panel"
+                        data-testid="agent-chat-compose-toggle"
+                        onClick={toggleComposer}
+                      >
+                        <CloseOutlined />
+                      </IconButton>
+                    </Tooltip>
+                  </Stack>
+                ) : (
+                  <Tooltip title={t(locale, 'chatOpenComposer')}>
+                    <ButtonBase
+                      ref={composeToggle}
+                      aria-label={t(locale, 'chatOpenComposer')}
+                      aria-expanded={false}
+                      aria-controls="agent-chat-compose-panel"
+                      data-testid="agent-chat-compose-toggle"
+                      onClick={toggleComposer}
+                      sx={{
+                        display: 'flex',
+                        width: '100%',
+                        height: 44,
+                        px: 2,
+                        gap: 1.5,
+                        textAlign: 'left',
+                        color: 'text.primary',
+                        '&:hover': { bgcolor: designTokens.actionHover },
+                        '&.Mui-focusVisible': { outlineOffset: -3 },
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ fontWeight: 500, flex: 1 }}>
+                        {t(locale, 'chatNewMessage')}
+                      </Typography>
+                      <ChatBubbleOutlineOutlined sx={{ color: 'text.secondary', flexShrink: 0 }} />
+                    </ButtonBase>
+                  </Tooltip>
+                )}
+              </Box>
+              <Collapse
+                ref={composePanel}
+                in={composerOpen}
+                timeout={reducedMotion ? 0 : theme.transitions.duration.short}
+                easing={theme.transitions.easing.easeOut}
+                unmountOnExit
+                inert={!composerOpen}
+                aria-hidden={!composerOpen}
+                sx={{ minHeight: 0, flexShrink: 1 }}
+              >
+                {composer}
+              </Collapse>
             </Box>
           </>
         )}

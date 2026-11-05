@@ -1,3 +1,5 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
+import { verifyClientStatusPanel } from './ui-client-status-assertions.mjs';
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -177,7 +179,6 @@ async function capture(name, width) {
 }
 async function verifyApplicationSummaries() {
   assert.equal(await page.getByTestId('nav-clients').count(), 0);
-  let total = 0;
   for (const [client, kind] of [
     ['Cursor', 'manual'],
     ['OpenCode', 'opencode-http'],
@@ -185,20 +186,13 @@ async function verifyApplicationSummaries() {
     ['AionUi', 'aionui'],
   ]) {
     await page.getByRole('tab', { name: client, exact: true }).click();
-    const summary = page.getByTestId('application-' + kind);
-    await summary.waitFor();
     const expected = agents.filter((agent) => agent.fixtureAdapterKind === kind).length;
-    assert.equal(
-      await summary.getByTestId('application-agent-count').innerText(),
-      String(expected),
-    );
-    assert.equal(
-      await summary.getByTestId('application-last-activity').innerText(),
-      expected ? await page.evaluate((stamp) => new Date(stamp).toLocaleString('en'), stamp) : '',
-    );
-    total += expected;
+    await verifyClientStatusPanel(page, {
+      kind,
+      count: expected,
+      activity: expected ? stamp : undefined,
+    });
   }
-  assert.equal(total, agents.length, 'All application agent counts survive the navigation merge');
   await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
 }
 async function settled() {
@@ -614,6 +608,7 @@ contextBridge.exposeInMainWorld('interconnect',{
           const toggle = dialog.getByTestId('agent-chat-compose-toggle');
           assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
           await toggle.click();
+          await waitForComposerTransition(page);
           await settled();
           assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
           const recipient = dialog.getByRole('textbox', {

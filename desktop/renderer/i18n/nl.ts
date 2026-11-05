@@ -1,6 +1,17 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  mcpSetup_statusTitle: 'Status',
+  mcpSetup_statusMcpConfig: 'MCP-instellingen',
+  mcpSetup_statusOpencodeConfig: 'MCP- en plugininstellingen',
+  mcpSetup_statusOpencodeHint:
+    'Deze controle betreft opgeslagen instellingen, niet of de plugin actief is.',
+  mcpSetup_statusUnknown: 'Onbekend',
+  mcpSetup_statusCursorMetricsHint:
+    'Het aantal agents en de laatste activiteit worden niet afzonderlijk voor Cursor gemeld.',
+  mcpSetup_statusDelivery: 'Bezorging aan agents',
+  mcpSetup_statusAuthorization: 'Autorisatie',
+  mcpSetup_statusLiveBridge: 'Actieve brug',
   clientsManualConnections: 'Handmatige MCP (alle handmatige verbindingen)',
   chatNewMessage: 'Nieuw bericht',
   chatOpenComposer: 'Bericht schrijven',

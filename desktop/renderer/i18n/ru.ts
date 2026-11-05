@@ -1,6 +1,17 @@
 import type { Messages } from './messages.js';
 
 export const ru: Messages = {
+  mcpSetup_statusTitle: 'Статус',
+  mcpSetup_statusMcpConfig: 'Настройки MCP',
+  mcpSetup_statusOpencodeConfig: 'Настройки MCP и плагина',
+  mcpSetup_statusOpencodeHint:
+    'Проверяются сохранённые настройки, а не загрузка плагина в работающем приложении.',
+  mcpSetup_statusUnknown: 'Неизвестно',
+  mcpSetup_statusCursorMetricsHint:
+    'Количество агентов и последняя активность недоступны отдельно для Cursor.',
+  mcpSetup_statusDelivery: 'Доставка сообщений',
+  mcpSetup_statusAuthorization: 'Авторизация',
+  mcpSetup_statusLiveBridge: 'Активный мост',
   clientsManualConnections: 'Ручные подключения MCP (все клиенты)',
   chatNewMessage: 'Новое сообщение',
   chatOpenComposer: 'Написать сообщение',

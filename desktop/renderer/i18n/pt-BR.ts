@@ -1,6 +1,17 @@
 import type { Messages } from './messages.js';
 
 export const ptBR: Messages = {
+  mcpSetup_statusTitle: 'Status',
+  mcpSetup_statusMcpConfig: 'Configurações MCP',
+  mcpSetup_statusOpencodeConfig: 'Configurações MCP e do plugin',
+  mcpSetup_statusOpencodeHint:
+    'Esta verificação considera as configurações salvas, não se o plugin está em execução.',
+  mcpSetup_statusUnknown: 'Desconhecido',
+  mcpSetup_statusCursorMetricsHint:
+    'O total de agentes e a última atividade não são informados separadamente para o Cursor.',
+  mcpSetup_statusDelivery: 'Entrega aos agentes',
+  mcpSetup_statusAuthorization: 'Autorização',
+  mcpSetup_statusLiveBridge: 'Ponte ativa',
   clientsManualConnections: 'MCP manual (todas as conexões manuais)',
   chatNewMessage: 'Nova mensagem',
   chatOpenComposer: 'Escrever mensagem',

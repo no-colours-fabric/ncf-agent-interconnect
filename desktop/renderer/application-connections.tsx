@@ -12,9 +12,13 @@ import {
   TableRow,
   Typography,
 } from '@mui/material';
+import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined';
+import ErrorOutlineOutlined from '@mui/icons-material/ErrorOutlineOutlined';
+import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined';
 import type { AdapterProfile, Snapshot } from '../shared/contracts.js';
-import { applicationStatus } from './application-status.js';
+import { applicationStatus, type ConnectionSummary } from './application-status.js';
 import { t, type Locale } from './i18n/index.js';
+import type { Messages } from './i18n/messages.js';
 import { surfaceSx } from './theme.js';
 
 interface Props {
@@ -33,6 +37,103 @@ export function applicationActivity(
     ...connections.map(({ profile }) => profile.lastOwnerVerifiedAt),
   ].filter((value): value is string => !!value && Number.isFinite(Date.parse(value)));
   return dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0] ?? null;
+}
+
+const connectionLabels: Record<ConnectionSummary, keyof Messages> = {
+  none: 'clientsNoAgents',
+  manual: 'clientsReceiveMcp',
+  connected: 'clientsConnected',
+  partial: 'clientsPartiallyConnected',
+  released: 'clientsReleased',
+  notConfirmed: 'clientsNotConfirmed',
+  paused: 'clientsPaused',
+  verifiedAll: 'clientsVerifiedAll',
+  verifiedSome: 'clientsVerifiedSome',
+};
+
+export function ClientApplicationMetrics({
+  kind,
+  snapshot,
+  locale,
+  unknownLabel,
+  deliveryLabel,
+}: {
+  kind?: AdapterProfile['kind'];
+  snapshot?: Props['snapshot'];
+  locale: Locale;
+  unknownLabel: string;
+  deliveryLabel: string;
+}): React.JSX.Element {
+  const aggregate = kind && snapshot ? applicationStatus(kind, snapshot) : undefined;
+  const activity = kind && snapshot ? applicationActivity(kind, snapshot) : null;
+  const connection = aggregate?.summary;
+  const ConnectionIcon =
+    connection === 'connected'
+      ? CheckCircleOutlineOutlined
+      : connection === 'partial' || connection === 'paused'
+        ? ErrorOutlineOutlined
+        : HelpOutlineOutlined;
+  return (
+    <>
+      {[
+        {
+          id: 'application-agent-count',
+          label: t(locale, 'statAgents'),
+          value: aggregate ? aggregate.agents.length : unknownLabel,
+        },
+        {
+          id: 'application-last-activity',
+          label: t(locale, 'clientsLastActivity'),
+          value: activity ? new Date(activity).toLocaleString(locale) : unknownLabel,
+        },
+        ...(connection
+          ? [
+              {
+                id: 'application-delivery-status',
+                label: deliveryLabel,
+                value: t(locale, connectionLabels[connection]),
+              },
+            ]
+          : []),
+      ].map(({ id, label, value }) => (
+        <Box key={id} sx={{ minWidth: 0 }}>
+          <Typography component="dt" variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+            {label}
+          </Typography>
+          <Stack
+            component="dd"
+            direction="row"
+            spacing={1}
+            sx={{ m: 0, minHeight: '1.5em', alignItems: 'flex-start' }}
+          >
+            {id === 'application-delivery-status' && (
+              <ConnectionIcon
+                sx={{
+                  fontSize: 18,
+                  mt: '1px',
+                  color:
+                    connection === 'connected'
+                      ? 'success.main'
+                      : connection === 'partial' || connection === 'paused'
+                        ? 'warning.main'
+                        : 'text.secondary',
+                  flexShrink: 0,
+                }}
+              />
+            )}
+            <Typography
+              component="span"
+              variant="body2"
+              data-testid={id}
+              sx={{ overflowWrap: 'anywhere' }}
+            >
+              {value}
+            </Typography>
+          </Stack>
+        </Box>
+      ))}
+    </>
+  );
 }
 
 export function ClientApplicationSummary({

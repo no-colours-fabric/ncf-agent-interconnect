@@ -1,6 +1,16 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  mcpSetup_statusTitle: 'Stan',
+  mcpSetup_statusMcpConfig: 'Ustawienia MCP',
+  mcpSetup_statusOpencodeConfig: 'Ustawienia MCP i wtyczki',
+  mcpSetup_statusOpencodeHint: 'Sprawdzane są zapisane ustawienia, a nie działanie wtyczki.',
+  mcpSetup_statusUnknown: 'Nieznany',
+  mcpSetup_statusCursorMetricsHint:
+    'Liczba agentów i ostatnia aktywność nie są raportowane osobno dla Cursor.',
+  mcpSetup_statusDelivery: 'Dostarczanie agentom',
+  mcpSetup_statusAuthorization: 'Autoryzacja',
+  mcpSetup_statusLiveBridge: 'Aktywny most',
   clientsManualConnections: 'Ręczne MCP (wszystkie połączenia ręczne)',
   chatNewMessage: 'Nowa wiadomość',
   chatOpenComposer: 'Napisz wiadomość',

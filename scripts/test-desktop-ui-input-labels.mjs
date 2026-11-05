@@ -1,3 +1,4 @@
+import { waitForComposerTransition } from './ui-chat-composer.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -1004,6 +1005,7 @@ rejected.push(method);throw Error('Rejected layout fixture IPC '+method);
     const toggle = chat.getByTestId('agent-chat-compose-toggle');
     assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
     await toggle.click();
+    await waitForComposerTransition(chat);
     await settle();
     assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
     const compose = chat.getByTestId('agent-chat-compose');

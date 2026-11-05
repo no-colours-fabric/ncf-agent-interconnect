@@ -39,7 +39,7 @@ import type { Snapshot } from '../shared/contracts.js';
 import { McpSetupFlow } from './mcp-setup-model.js';
 import { mcpSetupEnglish, type McpSetupMessages } from './mcp-setup-messages.js';
 import { designTokens, surfaceSx } from './theme.js';
-import { ClientApplicationSummary } from './application-connections.js';
+import { ClientApplicationMetrics } from './application-connections.js';
 import { useMcpSetupStatuses, type McpSetupStatuses } from './mcp-setup-status.js';
 import type { Locale } from './i18n/index.js';
 
@@ -75,7 +75,8 @@ const keys = {
 interface DialogProps {
   invoke: McpSetupInvoke;
   messages: McpSetupMessages;
-  summary?: React.ReactNode;
+  snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
+  locale?: Locale;
   onApplied?: () => Promise<void>;
   check?: { status?: McpSetupStatus; error?: string };
 }
@@ -85,7 +86,8 @@ function ClientSetupDialog({
   invoke,
   messages: m,
   before,
-  summary,
+  snapshot,
+  locale = 'en',
   onApplied,
   check,
 }: DialogProps & { client: McpSetupClient; before?: React.ReactNode }): React.JSX.Element {
@@ -112,6 +114,7 @@ function ClientSetupDialog({
   const k = keys[client];
   const status = state.status;
   const shownState = check ? (check.error ? 'unavailable' : check.status?.state) : status?.state;
+  const hasConfiguration = shownState === 'configured' || shownState === 'needs-update';
   const canOpen =
     !!status?.files[0]?.path &&
     !!shownState &&
@@ -145,44 +148,135 @@ function ClientSetupDialog({
               </Typography>
             </Stack>
           </Box>
-          <Chip
-            variant="outlined"
-            size="small"
-            label={shownState ? m[shownState] : m.checking}
-            icon={
-              <Box
-                component="span"
-                sx={{
-                  width: 6,
-                  height: 6,
-                  borderRadius: '50%',
-                  bgcolor: shownState === 'configured' ? 'success.main' : 'text.disabled',
-                  boxShadow: shownState === 'configured' ? designTokens.statusGlow : 'none',
-                }}
-              />
-            }
-            data-testid={shownState ? 'mcp-settings-status' : undefined}
-            sx={{
-              flexShrink: 0,
-              maxWidth: '100%',
-              color: shownState === 'configured' ? 'success.main' : 'text.secondary',
-              border: 0,
-              bgcolor: 'transparent',
-              boxShadow: 'none',
-              '& .MuiChip-icon': { ml: 0, mr: 1 },
-              '& .MuiChip-label': { pl: 0, pr: 0 },
-            }}
-          />
+          {!hasConfiguration && (
+            <Chip
+              variant="outlined"
+              size="small"
+              label={shownState ? m[shownState] : m.checking}
+              icon={
+                <Box
+                  component="span"
+                  sx={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    bgcolor: 'text.disabled',
+                    boxShadow: 'none',
+                  }}
+                />
+              }
+              data-testid={shownState ? 'mcp-settings-status' : undefined}
+              sx={{
+                flexShrink: 0,
+                maxWidth: '100%',
+                color: 'text.secondary',
+                border: 0,
+                bgcolor: 'transparent',
+                boxShadow: 'none',
+                '& .MuiChip-icon': { ml: 0, mr: 1 },
+                '& .MuiChip-label': { pl: 0, pr: 0 },
+              }}
+            />
+          )}
         </Stack>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ maxWidth: '76ch', lineHeight: 1.65 }}
-        >
-          {client === 'aionui' ? m.aionDescription : m[k.description]}
-        </Typography>
-        {summary}
-        {before}
+        {hasConfiguration ? (
+          <Paper
+            sx={{ ...surfaceSx('soft'), p: 2.5 }}
+            data-testid="client-status-panel"
+            data-client={client}
+            data-status={shownState}
+          >
+            <Stack spacing={2}>
+              <Typography variant="subtitle2" component="h3">
+                {m.statusTitle}
+              </Typography>
+              <Box
+                component="dl"
+                sx={{
+                  display: 'grid',
+                  gridTemplateColumns: {
+                    xs: 'repeat(2, minmax(0, 1fr))',
+                    lg: 'repeat(4, minmax(0, 1fr))',
+                  },
+                  columnGap: 3,
+                  rowGap: 2,
+                  m: 0,
+                }}
+              >
+                <Box sx={{ minWidth: 0 }}>
+                  <Typography
+                    component="dt"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mb: 0.5 }}
+                  >
+                    {client === 'opencode' ? m.statusOpencodeConfig : m.statusMcpConfig}
+                  </Typography>
+                  <Stack
+                    component="dd"
+                    direction="row"
+                    spacing={1}
+                    sx={{ m: 0, alignItems: 'flex-start' }}
+                  >
+                    <McpSetupStatusIcon status={check?.status ?? status} messages={m} />
+                    <Typography variant="body2" component="span" data-testid="mcp-settings-status">
+                      {m[shownState]}
+                    </Typography>
+                  </Stack>
+                </Box>
+                <ClientApplicationMetrics
+                  kind={
+                    client === 'cursor'
+                      ? undefined
+                      : client === 'opencode'
+                        ? 'opencode-http'
+                        : client === 'codex'
+                          ? 'codex-desktop'
+                          : 'aionui'
+                  }
+                  snapshot={snapshot}
+                  locale={locale}
+                  unknownLabel={m.statusUnknown}
+                  deliveryLabel={m.statusDelivery}
+                />
+              </Box>
+              {client === 'opencode' && (
+                <Typography variant="caption" color="text.secondary">
+                  {m.statusOpencodeHint}
+                </Typography>
+              )}
+              {client === 'cursor' && (
+                <Typography variant="caption" color="text.secondary">
+                  {m.statusCursorMetricsHint}
+                </Typography>
+              )}
+              {before && (
+                <>
+                  <Divider />
+                  {before}
+                </>
+              )}
+            </Stack>
+          </Paper>
+        ) : (
+          <>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ maxWidth: '76ch', lineHeight: 1.65 }}
+              data-testid="client-setup-description"
+            >
+              {shownState === 'missing' || shownState === 'not-configured'
+                ? client === 'aionui'
+                  ? m.aionDescription
+                  : m[k.description]
+                : shownState === 'unavailable'
+                  ? m.unavailable
+                  : m.checking}
+            </Typography>
+            {before}
+          </>
+        )}
         <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
           <Box sx={{ ...surfaceSx('inset'), p: 1.75 }}>
             <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
@@ -276,6 +370,9 @@ function ClientSetupDialog({
           </Box>
         </Paper>
         {state.error && !state.open && <Alert severity="error">{state.error}</Alert>}
+        {check?.error && check.error !== state.error && (
+          <Alert severity="error">{check.error}</Alert>
+        )}
       </Stack>
       <Dialog
         open={state.open}
@@ -447,7 +544,13 @@ export function CodexSetupDialog(props: DialogProps): React.JSX.Element {
 
 function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
   return (
-    <ClientSetupDialog {...props} client="aionui" before={<AionUiAuthorization {...props} />} />
+    <AionUiAuthorization
+      invoke={props.invoke}
+      messages={props.messages}
+      renderContent={(authorization) => (
+        <ClientSetupDialog {...props} client="aionui" before={authorization} />
+      )}
+    />
   );
 }
 
@@ -578,22 +681,8 @@ export function McpSetup({
           messages={m}
           onApplied={() => checks.refreshAll(true)}
           check={{ status: checks.statuses[client], error: checks.errors[client] }}
-          summary={
-            snapshot &&
-            client !== 'cursor' && (
-              <ClientApplicationSummary
-                snapshot={snapshot}
-                locale={locale}
-                kind={
-                  client === 'opencode'
-                    ? 'opencode-http'
-                    : client === 'codex'
-                      ? 'codex-desktop'
-                      : 'aionui'
-                }
-              />
-            )
-          }
+          snapshot={snapshot}
+          locale={locale}
         />
         <Divider sx={{ mt: 3 }} />
         <Stack spacing={2} sx={{ pt: 3 }}>
@@ -635,11 +724,6 @@ export function McpSetup({
           {copyError && <Alert severity="error">{copyError}</Alert>}
         </Stack>
       </Stack>
-      {snapshot && (
-        <Box sx={{ mt: 3 }}>
-          <ClientApplicationSummary snapshot={snapshot} locale={locale} kind="manual" />
-        </Box>
-      )}
     </Box>
   );
 }
