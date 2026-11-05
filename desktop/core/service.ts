@@ -1224,6 +1224,10 @@ export class NodeService extends EventEmitter {
             binding,
             messageId: row.envelope.id,
             replyRef: 'r' + this.store.get(row.envelope.id, 'in')!.sequence.toString(36),
+            sequence: this.store.get(row.envelope.id, 'in')!.sequence,
+            backlogUntil: Math.max(
+              ...ready.map((message) => this.store.get(message.envelope.id, 'in')?.sequence ?? 0),
+            ),
             message: {
               fromNode: row.envelope.fromNode,
               fromNickname: row.envelope.fromNickname,

@@ -87,7 +87,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     const helper = route.helper;
     if (input.isCurrent && !input.isCurrent()) return { state: 'revoked' };
     const key = input.binding.connectionId;
-    if (!input.systemEvent && helper.outstanding.has(key)) {
+    // A wake covers messages already queued when it was sent. A later arrival
+    // gets its own wake, so an ignored or dropped event cannot stall the inbox.
+    const covered = helper.outstanding.get(key);
+    if (
+      !input.systemEvent &&
+      covered !== undefined &&
+      (input.sequence === undefined || input.sequence <= covered)
+    ) {
       this.offers.set(input.messageId, { epoch: helper.epoch, connectionId: key });
       return { state: 'offered' };
     }
@@ -98,7 +105,11 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         : { type: 'wake', nickname: input.nickname },
     );
     if (!sent) return { state: 'failed', error: 'The Claude Code helper disconnected' };
-    if (!input.systemEvent) helper.outstanding.add(key);
+    if (!input.systemEvent)
+      helper.outstanding.set(
+        key,
+        Math.max(covered ?? 0, input.backlogUntil ?? input.sequence ?? Number.MAX_SAFE_INTEGER),
+      );
     this.offers.set(input.messageId, { epoch: helper.epoch, connectionId: key });
     return { state: 'offered' };
   }

@@ -84,7 +84,8 @@ export interface ClaudeHelper {
   proven: string | null;
   /** A wake in this Claude process was followed by agent_read from the proven session. */
   confirmed: boolean;
-  outstanding: Set<string>;
+  /** Per connection: the newest mailbox sequence an unread wake already announced. */
+  outstanding: Map<string, number>;
 }
 interface SessionRecord {
   active: boolean;
@@ -221,7 +222,7 @@ export class ClaudeSessions extends EventEmitter {
       generation: hello.generation,
       proven: null,
       confirmed: false,
-      outstanding: new Set(),
+      outstanding: new Map(),
     };
     // P4: the same live helper, unchanged session generation, persisted proof.
     const route = this.routes.find((value) => value.helperId === hello.helperId);

@@ -138,15 +138,19 @@ test('Context without a hook record, a replayed record, another input and a conc
   assert.equal(impostor.status, 400);
 });
 
-test('A dropped wake never records receipt; coalescing sends one wake and a partial read renews it', async (t) => {
+test('A dropped wake never records receipt; a queued backlog gets one wake and a partial read renews it', async (t) => {
   const f = await claudeFixture(t);
   const s1 = randomUUID();
   const a = new FakeHelper(f, s1);
   await f.hook('SessionStart', s1, { source: 'startup' });
   await a.attach();
   const bob = await f.connect(a, s1, 'Боб');
+  // Messages queued while the helper transport is down form one backlog.
+  await a.detach();
+  await until(() => adapterOf(f, bob.binding.connectionId).state === 'error');
   const ids: string[] = [];
   for (const text of ['1', '2', '3']) ids.push((await sendTo(f, 'Боб', text)).id);
+  await a.attach();
   await until(() => ids.every((id) => f.service.store.dispatchState(id)?.state === 'offered'));
   await settle();
   assert.equal(a.wakes().length, 1);
@@ -174,6 +178,26 @@ test('A dropped wake never records receipt; coalescing sends one wake and a part
   await until(() => a.wakes().length === 3);
   const directory = f.service.snapshot().directories[0].agents.find((x) => x.nickname === 'Боб');
   assert.equal(directory?.delivery, 'automatic');
+});
+
+test('An ignored wake does not stall later messages: each new arrival is announced again', async (t) => {
+  const f = await claudeFixture(t);
+  const s1 = randomUUID();
+  const a = new FakeHelper(f, s1);
+  await f.hook('SessionStart', s1, { source: 'startup' });
+  await a.attach();
+  await f.connect(a, s1, 'Боб');
+  // The model sees the first wake but does not read (on-site T05 regression).
+  const first = await sendTo(f, 'Боб', 'Первое без чтения');
+  await until(() => a.wakes().length === 1);
+  const second = await sendTo(f, 'Боб', 'Второе позже');
+  await until(() => a.wakes().length === 2);
+  await settle();
+  assert.equal(a.wakes().length, 2);
+  for (const sent of [first, second]) {
+    assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
+    assert.equal(f.service.store.get(sent.id, 'in')!.state, 'ready');
+  }
 });
 
 test('A session switch fences the old route before a new context is admitted', async (t) => {

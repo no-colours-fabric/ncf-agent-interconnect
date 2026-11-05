@@ -93,7 +93,8 @@ the old route before a new one is admitted.
 
 - The wake contains only the agent name. NCF records it as `offered`, which is
   not a receipt. Receipt is written when `agent_read` returns the message.
-- One wake is sent per binding until the chat reads. A read that leaves
+- A wake covers the messages already queued; each later arrival is announced
+  again, so an ignored event cannot stall the inbox. A read that leaves
   messages behind sends one new wake. These are event driven; nothing polls or
   runs on a timer.
 - A wake interrupted by a restart is offered again; it never becomes

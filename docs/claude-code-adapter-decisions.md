@@ -101,10 +101,16 @@ P3, so the model never sees it.
 
 ## D6. Coalescing
 
-One outstanding wake per binding per helper lifecycle. `agent_read` on that
-connection clears the outstanding flag before it queries the inbox. A message
-that arrives during the read gets a new wake or is included in the read. A read
-that leaves ready messages triggers one new wake.
+A wake covers the messages already queued for the binding when it was sent,
+for example a backlog after a restart or transport loss. A message that
+arrives later gets its own wake. `agent_read` clears the outstanding wake
+before it queries the inbox, and a read that leaves ready messages triggers
+one new wake.
+
+On-site run ncfcc-20261105-r1 (T05) showed why later arrivals must not be
+coalesced. A model saw an event but did not read, and every later message
+was then folded into that ignored wake, so the idle chat was never woken
+again.
 
 ## D7. Automatic status
 

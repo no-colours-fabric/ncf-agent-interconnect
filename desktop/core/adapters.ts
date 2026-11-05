@@ -29,7 +29,14 @@ export type EventInput = {
   messageId: string;
   isCurrent?: () => boolean;
 } & (
-  | { message: AgentMessageInput; replyRef: string; systemEvent?: never }
+  | {
+      message: AgentMessageInput;
+      replyRef: string;
+      /** Mailbox order of this message and the newest message ready for the binding. */
+      sequence?: number;
+      backlogUntil?: number;
+      systemEvent?: never;
+    }
   | { systemEvent: SystemEvent; message?: never }
 );
 const markdownName = (text: string): string => text.replace(/[\\`*_{}\[\]<>#!|]/g, '\\$&');
