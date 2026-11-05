@@ -36,6 +36,8 @@ export const ko: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'AionUi 안에서 Cursor Agent를 연결합니다. 접근, 저장된 MCP 설정, 활성 브리지는 별도 상태입니다.',
+  mcpSetup_aionContinue: 'AionUi 설정을 계속하세요. 아래 단계를 따르세요.',
+  mcpSetup_aionAccessAction: '‘{action}’을 선택하고 페어링 안내를 따르세요.',
   mcpSetup_aionPairTitle: 'AionUi 접근',
   mcpSetup_aionPairHelp:
     '이 컴퓨터의 AionUi에서 WebUI를 활성화하고 주소와 코드를 입력한 뒤 AionUi에서 접근을 승인하세요.',
@@ -51,12 +53,11 @@ export const ko: Messages = {
     '설정을 완료할 수 없습니다. AionUi WebUI가 실행 중인지 확인하고 새 코드를 승인하세요.',
   mcpSetup_aionMcpTitle: 'Cursor Agent용 MCP',
   mcpSetup_aionMcpOutdated: 'AionUi 브리지 설정을 업데이트해야 합니다',
-  mcpSetup_aionUpdateAction:
-    "아래에서 'Cursor Agent 설정'을 열고 브리지 업데이트를 적용한 뒤 AionUi에서 Cursor Agent를 다시 연결하세요.",
+  mcpSetup_aionUpdateAction: '‘{action}’을 선택한 뒤 ‘적용’을 클릭하세요.',
   mcpSetup_aionRestartAction:
     '브리지를 적용한 뒤 해당 AionUi 채팅에서 Cursor Agent를 다시 연결해 MCP 설정을 다시 불러오세요.',
   mcpSetup_aionMcpHelp:
-    '적용하면 선택한 Cursor 전역 파일에 AionUi 브리지를 설정하고 기존 NCF 항목을 대체합니다. AionUi 외부 Cursor에도 영향을 주며 해당 채팅은 이 브리지를 사용할 수 없습니다. 다른 연동을 유지하려면 별도 프로필을 사용하세요.',
+    '이 Cursor 프로필의 현재 NCF 연결이 AionUi용으로 업데이트됩니다. Cursor를 별도로 사용하려면 다른 프로필을 사용하세요.',
   mcpSetup_aionNext:
     '적용 후 AionUi 안의 Cursor Agent를 재시작하고 아래 명령을 사용하세요. 저장된 설정은 활성 브리지를 확인하지 않습니다. 이 설정은 다른 AionUi 백엔드를 지원하지 않습니다.',
 

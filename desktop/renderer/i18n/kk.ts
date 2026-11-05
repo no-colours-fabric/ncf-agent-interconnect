@@ -38,6 +38,8 @@ export const kk: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'AionUi ішіндегі Cursor Agent қосу. Қол жеткізу, сақталған MCP баптаулары және белсенді көпір — бөлек күйлер.',
+  mcpSetup_aionContinue: 'AionUi баптауын жалғастырыңыз. Төмендегі қадамдарды орындаңыз.',
+  mcpSetup_aionAccessAction: '«{action}» тармағын таңдап, жұптастыру нұсқауларын орындаңыз.',
   mcpSetup_aionPairTitle: 'AionUi қол жеткізуі',
   mcpSetup_aionPairHelp:
     'Осы компьютердегі AionUi ішінде WebUI қосып, мекенжай мен кодты енгізіңіз, содан кейін AionUi ішінде қол жеткізуді растаңыз.',
@@ -52,12 +54,11 @@ export const kk: Messages = {
   mcpSetup_aionFailure: 'Баптау аяқталмады. AionUi WebUI жұмысын тексеріп, жаңа кодты растаңыз.',
   mcpSetup_aionMcpTitle: 'Cursor Agent үшін MCP',
   mcpSetup_aionMcpOutdated: 'AionUi көпірінің баптауларын жаңарту қажет',
-  mcpSetup_aionUpdateAction:
-    'Төмендегі «Cursor Agent баптау» түймесін ашып, көпір жаңартуын қолданыңыз, содан кейін AionUi ішіндегі Cursor Agent-ті қайта қосыңыз.',
+  mcpSetup_aionUpdateAction: '«{action}» тармағын таңдап, содан кейін «Қолдану» түймесін басыңыз.',
   mcpSetup_aionRestartAction:
     'Көпірді қолданғаннан кейін MCP баптауларын қайта жүктеу үшін тиісті AionUi чатында Cursor Agent-ті қайта қосыңыз.',
   mcpSetup_aionMcpHelp:
-    'Қолдану таңдалған Cursor жаһандық файлына AionUi көпірін орнатып, бар NCF жазбасын ауыстырады. Бұл AionUi сыртындағы Cursor чатына да әсер етеді: олар көпірді қолдана алмайды. Басқа интеграцияны сақтау үшін бөлек профильді қолданыңыз.',
+    'Осы Cursor профиліндегі ағымдағы NCF қосылымы AionUi үшін жаңартылады. Cursor-ды бөлек пайдалану үшін басқа профильді қолданыңыз.',
   mcpSetup_aionNext:
     'Қолданған соң AionUi ішіндегі Cursor Agent қайта іске қосып, төмендегі пәрменді пайдаланыңыз. Сақталған баптаулар белсенді көпірді растамайды. Бұл баптау басқа AionUi backend түрлерін қолдамайды.',
 

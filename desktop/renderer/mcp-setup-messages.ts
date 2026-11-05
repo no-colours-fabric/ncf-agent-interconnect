@@ -18,6 +18,8 @@ export const mcpSetupEnglish = {
 
   aionDescription:
     'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
+  aionContinue: 'Continue setting up AionUi. Follow the steps below.',
+  aionAccessAction: 'Open {action} and follow the pairing instructions.',
   aionPairTitle: 'Access to AionUi',
   aionPairHelp:
     'Enable WebUI in AionUi on this computer, enter its address and pairing code, then confirm access in AionUi.',
@@ -33,12 +35,11 @@ export const mcpSetupEnglish = {
     'Could not complete setup. Check that AionUi WebUI is running and approve a fresh pairing code.',
   aionMcpTitle: 'MCP for Cursor Agent',
   aionMcpOutdated: 'AionUi bridge settings need updating',
-  aionUpdateAction:
-    'Use Configure Cursor Agent below, apply the updated bridge, then reconnect Cursor Agent in AionUi.',
+  aionUpdateAction: 'Open {action}, then click Apply.',
   aionRestartAction:
     'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
   aionMcpHelp:
-    'Apply installs the AionUi bridge in the selected global Cursor file and replaces any existing NCF entry. This also affects Cursor outside AionUi: those chats cannot use this bridge. Use a separate profile to preserve another integration.',
+    'The current NCF connection in this Cursor profile will be updated for AionUi. To use Cursor separately, use another profile.',
   aionNext:
     'Restart Cursor Agent in AionUi after Apply, then connect using the command below. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
 

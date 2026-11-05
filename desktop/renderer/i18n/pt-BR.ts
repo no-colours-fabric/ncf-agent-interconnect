@@ -38,6 +38,8 @@ export const ptBR: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Conecte Cursor Agent no AionUi. Acesso, configurações MCP salvas e ponte ativa são estados separados.',
+  mcpSetup_aionContinue: 'Continue a configuração do AionUi. Siga as etapas abaixo.',
+  mcpSetup_aionAccessAction: 'Selecione «{action}» e siga as instruções de pareamento.',
   mcpSetup_aionPairTitle: 'Acesso ao AionUi',
   mcpSetup_aionPairHelp:
     'Ative o WebUI no AionUi neste computador, informe endereço e código e confirme o acesso no AionUi.',
@@ -53,12 +55,11 @@ export const ptBR: Messages = {
     'Não foi possível concluir. Verifique se o WebUI do AionUi está ativo e confirme um novo código.',
   mcpSetup_aionMcpTitle: 'MCP para Cursor Agent',
   mcpSetup_aionMcpOutdated: 'As configurações da ponte AionUi precisam ser atualizadas',
-  mcpSetup_aionUpdateAction:
-    'Abra «Configurar Cursor Agent» abaixo, aplique a atualização da ponte e reconecte o Cursor Agent no AionUi.',
+  mcpSetup_aionUpdateAction: 'Selecione «{action}» e depois clique em «Aplicar».',
   mcpSetup_aionRestartAction:
     'Após aplicar a ponte, reconecte o Cursor Agent na conversa desejada do AionUi para recarregar as configurações MCP.',
   mcpSetup_aionMcpHelp:
-    'Aplicar instala a ponte AionUi no arquivo global Cursor selecionado e substitui uma entrada NCF existente. Isso também afeta Cursor fora do AionUi: esses chats não podem usar a ponte. Use um perfil separado para preservar outra integração.',
+    'A conexão NCF atual deste perfil do Cursor será atualizada para o AionUi. Para usar o Cursor separadamente, use outro perfil.',
   mcpSetup_aionNext:
     'Reinicie Cursor Agent no AionUi após aplicar e use o comando abaixo. Configurações salvas não confirmam uma ponte ativa. Esta configuração não oferece suporte a outros backends AionUi.',
 

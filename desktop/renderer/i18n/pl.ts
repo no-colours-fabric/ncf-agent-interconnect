@@ -37,6 +37,8 @@ export const pl: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Połącz Cursor Agent w AionUi. Dostęp, zapisane ustawienia MCP i aktywny most to osobne stany.',
+  mcpSetup_aionContinue: 'Kontynuuj konfigurację AionUi. Wykonaj poniższe kroki.',
+  mcpSetup_aionAccessAction: 'Wybierz „{action}” i wykonaj instrukcje parowania.',
   mcpSetup_aionPairTitle: 'Dostęp do AionUi',
   mcpSetup_aionPairHelp:
     'Włącz WebUI w AionUi na tym komputerze, wpisz adres i kod, a następnie potwierdź dostęp w AionUi.',
@@ -52,12 +54,11 @@ export const pl: Messages = {
     'Nie udało się skonfigurować. Sprawdź, czy WebUI AionUi działa, i potwierdź nowy kod.',
   mcpSetup_aionMcpTitle: 'MCP dla Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Ustawienia mostu AionUi wymagają aktualizacji',
-  mcpSetup_aionUpdateAction:
-    'Otwórz poniżej „Skonfiguruj Cursor Agent”, zastosuj aktualizację mostu, a następnie połącz ponownie Cursor Agent w AionUi.',
+  mcpSetup_aionUpdateAction: 'Wybierz „{action}”, a następnie kliknij „Zastosuj”.',
   mcpSetup_aionRestartAction:
     'Po zastosowaniu mostu połącz ponownie Cursor Agent w odpowiedniej rozmowie AionUi, aby ponownie wczytać ustawienia MCP.',
   mcpSetup_aionMcpHelp:
-    'Zastosuj instaluje most AionUi w wybranym globalnym pliku Cursor i zastępuje istniejący wpis NCF. Wpływa to też na Cursor poza AionUi: te czaty nie mogą używać mostu. Użyj osobnego profilu, aby zachować inną integrację.',
+    'Bieżące połączenie NCF w tym profilu Cursor zostanie zaktualizowane dla AionUi. Aby używać Cursor osobno, wybierz inny profil.',
   mcpSetup_aionNext:
     'Po zastosowaniu uruchom ponownie Cursor Agent w AionUi i użyj polecenia poniżej. Zapisane ustawienia nie potwierdzają aktywnego mostu. Ta konfiguracja nie obsługuje innych backendów AionUi.',
 

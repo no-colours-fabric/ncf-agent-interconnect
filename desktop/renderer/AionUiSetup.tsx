@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Link,
   Paper,
   Step,
   StepLabel,
@@ -26,16 +27,48 @@ import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOu
 import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined';
 import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined';
 
+function InlineAction({
+  template,
+  label,
+  onClick,
+}: {
+  template: string;
+  label: string;
+  onClick: () => void;
+}): React.JSX.Element {
+  const [before, after = ''] = template.split('{action}');
+  return (
+    <Typography variant="body2" data-testid="aionui-step-hint">
+      {before}
+      <Link
+        component="button"
+        type="button"
+        aria-label={label}
+        onClick={onClick}
+        sx={{ fontSize: 'inherit' }}
+      >
+        {label}
+        <Box component="span" aria-hidden="true" sx={{ font: 'inherit', whiteSpace: 'nowrap' }}>
+          {' →'}
+        </Box>
+      </Link>
+      {after}
+    </Typography>
+  );
+}
+
 export function AionUiAuthorization({
   invoke,
   messages: m,
   renderContent,
   mcpState,
+  onConfigureMcp,
 }: {
   invoke: McpSetupInvoke;
   messages: McpSetupMessages;
-  renderContent?: (content: React.ReactNode) => React.ReactNode;
+  renderContent?: (content: React.ReactNode, complete: boolean) => React.ReactNode;
   mcpState?: McpSetupStatus['state'];
+  onConfigureMcp?: () => void;
 }): React.JSX.Element {
   const [status, setStatus] = useState<AionUiApplicationState>();
   const [url, setUrl] = useState('http://127.0.0.1:25808');
@@ -106,6 +139,13 @@ export function AionUiAuthorization({
       }
     }
   };
+  const openAccess = () => {
+    setUrl(status?.url ?? url);
+    setCode('');
+    setError(false);
+    setSuccess(false);
+    setOpen(true);
+  };
   const embedded = !!renderContent;
   const knownStatus = statusFailed ? undefined : status;
   const BridgeIcon = !knownStatus
@@ -116,6 +156,7 @@ export function AionUiAuthorization({
   const accessReady = knownStatus?.state === 'paired';
   const mcpReady = mcpState === 'configured';
   const bridgeReady = !!knownStatus?.bridgeConnected;
+  const complete = accessReady && mcpReady && bridgeReady;
   const activeStep =
     !knownStatus || !mcpState || mcpState === 'unavailable'
       ? -1
@@ -133,140 +174,148 @@ export function AionUiAuthorization({
       data-testid="aionui-authorization"
     >
       <Stack spacing={2}>
-        <Box
-          data-testid="aionui-status-facts"
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: embedded ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-            gap: 2,
-          }}
-        >
-          <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
-            <Typography variant={embedded ? 'caption' : 'subtitle2'} color="text.secondary">
-              {embedded ? m.statusAuthorization : m.aionPairTitle}
-            </Typography>
-            <Chip
-              size="small"
-              label={
-                !knownStatus
-                  ? statusFailed
-                    ? m.unavailable
-                    : m.checking
-                  : knownStatus.state === 'paired'
-                    ? m.aionPaired
-                    : knownStatus.state === 'revoked'
-                      ? m.aionRevoked
-                      : m.aionNotPaired
-              }
-              color={knownStatus?.state === 'paired' ? 'success' : 'default'}
-              data-testid="aionui-authorization-status"
-              variant="outlined"
-              icon={
-                <Box
-                  component="span"
-                  sx={{
-                    width: 6,
-                    height: 6,
-                    borderRadius: '50%',
-                    bgcolor: knownStatus?.state === 'paired' ? 'success.main' : 'text.disabled',
-                    boxShadow: knownStatus?.state === 'paired' ? designTokens.statusGlow : 'none',
-                  }}
-                />
-              }
-              sx={{
-                maxWidth: '100%',
-                border: 0,
-                color: knownStatus?.state === 'paired' ? 'success.main' : 'text.secondary',
-                backgroundColor: 'transparent',
-                boxShadow: 'none',
-                '& .MuiChip-icon': { ml: 0, mr: 1 },
-                '& .MuiChip-label': { pl: 0, pr: 0 },
-              }}
-            />
-            {status?.state === 'paired' && (
-              <Typography
-                variant="body2"
-                data-testid="aionui-authorization-url"
-                sx={{ overflowWrap: 'anywhere', maxWidth: '100%' }}
-              >
-                {status.url}
+        {(!embedded || complete) && (
+          <Box
+            data-testid="aionui-status-facts"
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: embedded ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+              gap: 2,
+            }}
+          >
+            <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
+              <Typography variant={embedded ? 'caption' : 'subtitle2'} color="text.secondary">
+                {embedded ? m.statusAuthorization : m.aionPairTitle}
               </Typography>
-            )}
-          </Stack>
-          <Stack spacing={0.5}>
-            <Typography variant="caption" color="text.secondary">
-              {m.statusLiveBridge}
-            </Typography>
-            <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
-              <BridgeIcon
+              <Chip
+                size="small"
+                label={
+                  !knownStatus
+                    ? statusFailed
+                      ? m.unavailable
+                      : m.checking
+                    : knownStatus.state === 'paired'
+                      ? m.aionPaired
+                      : knownStatus.state === 'revoked'
+                        ? m.aionRevoked
+                        : m.aionNotPaired
+                }
+                color={knownStatus?.state === 'paired' ? 'success' : 'default'}
+                data-testid="aionui-authorization-status"
+                variant="outlined"
+                icon={
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      bgcolor: knownStatus?.state === 'paired' ? 'success.main' : 'text.disabled',
+                      boxShadow: knownStatus?.state === 'paired' ? designTokens.statusGlow : 'none',
+                    }}
+                  />
+                }
                 sx={{
-                  fontSize: 18,
-                  mt: '1px',
-                  flexShrink: 0,
-                  color: knownStatus?.bridgeConnected ? 'success.main' : 'text.secondary',
+                  maxWidth: '100%',
+                  border: 0,
+                  color: knownStatus?.state === 'paired' ? 'success.main' : 'text.secondary',
+                  backgroundColor: 'transparent',
+                  boxShadow: 'none',
+                  '& .MuiChip-icon': { ml: 0, mr: 1 },
+                  '& .MuiChip-label': { pl: 0, pr: 0 },
                 }}
               />
-              <Typography variant="body2" data-testid="aionui-bridge-status">
-                {!knownStatus
-                  ? statusFailed
-                    ? m.unavailable
-                    : m.checking
-                  : knownStatus.bridgeConnected
-                    ? m.aionBridgeConnected
-                    : m.aionBridgeDisconnected}
-              </Typography>
+              {status?.state === 'paired' && (
+                <Typography
+                  variant="body2"
+                  data-testid="aionui-authorization-url"
+                  sx={{ overflowWrap: 'anywhere', maxWidth: '100%' }}
+                >
+                  {status.url}
+                </Typography>
+              )}
             </Stack>
-          </Stack>
-        </Box>
+            <Stack spacing={0.5}>
+              <Typography variant="caption" color="text.secondary">
+                {m.statusLiveBridge}
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
+                <BridgeIcon
+                  sx={{
+                    fontSize: 18,
+                    mt: '1px',
+                    flexShrink: 0,
+                    color: knownStatus?.bridgeConnected ? 'success.main' : 'text.secondary',
+                  }}
+                />
+                <Typography variant="body2" data-testid="aionui-bridge-status">
+                  {!knownStatus
+                    ? statusFailed
+                      ? m.unavailable
+                      : m.checking
+                    : knownStatus.bridgeConnected
+                      ? m.aionBridgeConnected
+                      : m.aionBridgeDisconnected}
+                </Typography>
+              </Stack>
+            </Stack>
+          </Box>
+        )}
         {!embedded && (
           <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
             {m.aionPairHelp}
           </Typography>
         )}
-        <Stepper
-          nonLinear
-          alternativeLabel
-          activeStep={activeStep}
-          data-testid="aionui-connection-steps"
-          sx={{
-            maxWidth: 680,
-            py: 0.5,
-            '& .MuiStepLabel-label': { fontSize: 12, mt: 0.5 },
-            '& .MuiStepIcon-root': { fontSize: 20 },
-          }}
-        >
-          <Step completed={accessReady}>
-            <StepLabel>{m.statusAuthorization}</StepLabel>
-          </Step>
-          <Step completed={mcpReady}>
-            <StepLabel>{m.statusMcpConfig}</StepLabel>
-          </Step>
-          <Step completed={bridgeReady}>
-            <StepLabel>{m.statusLiveBridge}</StepLabel>
-          </Step>
-        </Stepper>
-        {mcpState === 'needs-update' && (
-          <Typography variant="body2" data-testid="aionui-update-next">
-            {m.aionUpdateAction}
-          </Typography>
+        {!complete && (
+          <Stepper
+            nonLinear
+            alternativeLabel
+            activeStep={activeStep}
+            data-testid="aionui-connection-steps"
+            sx={{
+              maxWidth: 680,
+              py: 0.5,
+              '& .MuiStepLabel-label': { fontSize: 12, mt: 0.5 },
+              '& .MuiStepIcon-root': { fontSize: 20 },
+            }}
+          >
+            <Step completed={accessReady}>
+              <StepLabel>{m.statusAuthorization}</StepLabel>
+            </Step>
+            <Step completed={mcpReady}>
+              <StepLabel>{m.statusMcpConfig}</StepLabel>
+            </Step>
+            <Step completed={bridgeReady}>
+              <StepLabel>{m.statusLiveBridge}</StepLabel>
+            </Step>
+          </Stepper>
         )}
-        {mcpReady && accessReady && !bridgeReady && (
+        {!complete && activeStep === 0 && (
+          <InlineAction
+            template={m.aionAccessAction}
+            label={m.aionConfigureAccess}
+            onClick={openAccess}
+          />
+        )}
+        {!complete && activeStep === 1 && (
+          <InlineAction
+            template={m.aionUpdateAction}
+            label={m.aionConfigure}
+            onClick={() => onConfigureMcp?.()}
+          />
+        )}
+        {!complete && activeStep === 2 && (
           <Typography variant="body2" data-testid="aionui-reconnect-next">
             {m.aionRestartAction}
           </Typography>
         )}
+        {!complete && activeStep === -1 && (
+          <Typography variant="body2" data-testid="aionui-step-hint">
+            {statusFailed || mcpState === 'unavailable' ? m.unavailable : m.checking}
+          </Typography>
+        )}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          <Button
-            variant="outlined"
-            data-testid="aionui-configure-access"
-            onClick={() => {
-              setUrl(status?.url ?? url);
-              setCode('');
-              setError(false);
-              setSuccess(false);
-              setOpen(true);
-            }}
-          >
+          <Button variant="outlined" data-testid="aionui-configure-access" onClick={openAccess}>
             {m.aionConfigureAccess}
           </Button>
           {status?.state === 'paired' && (
@@ -292,7 +341,7 @@ export function AionUiAuthorization({
   return (
     <>
       {renderContent ? (
-        renderContent(content)
+        renderContent(content, complete)
       ) : (
         <Stack spacing={2}>
           {content}

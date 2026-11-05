@@ -38,6 +38,8 @@ export const ru: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Подключение Cursor Agent внутри AionUi. Доступ, сохранённые настройки MCP и работающий мост — отдельные состояния.',
+  mcpSetup_aionContinue: 'Продолжите настройку AionUi. Следуйте инструкциям ниже.',
+  mcpSetup_aionAccessAction: 'Нажмите «{action}» и следуйте инструкциям по сопряжению.',
   mcpSetup_aionPairTitle: 'Доступ к AionUi',
   mcpSetup_aionPairHelp:
     'Включите WebUI в AionUi на этом компьютере, введите его адрес и код сопряжения, затем подтвердите доступ в AionUi.',
@@ -53,12 +55,11 @@ export const ru: Messages = {
     'Настройка не завершена. Проверьте, что WebUI AionUi запущен, и подтвердите новый код сопряжения.',
   mcpSetup_aionMcpTitle: 'MCP для Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Настройки моста AionUi нужно обновить',
-  mcpSetup_aionUpdateAction:
-    'Ниже откройте «Настроить Cursor Agent», примените обновление моста и переподключите Cursor Agent в AionUi.',
+  mcpSetup_aionUpdateAction: 'Нажмите «{action}», затем «Применить».',
   mcpSetup_aionRestartAction:
     'После применения моста переподключите Cursor Agent в нужной беседе AionUi, чтобы он загрузил настройки MCP.',
   mcpSetup_aionMcpHelp:
-    'Применение установит мост AionUi в выбранный глобальный файл Cursor и заменит существующую запись NCF. Это затронет и Cursor вне AionUi: такие чаты не смогут использовать этот мост. Для сохранения другой интеграции используйте отдельный профиль.',
+    'Текущее подключение NCF в этом профиле Cursor будет обновлено для AionUi. Для отдельной работы в Cursor используйте другой профиль.',
   mcpSetup_aionNext:
     'После применения перезапустите Cursor Agent в AionUi и используйте команду ниже. Наличие настроек не подтверждает подключение моста. Другие backend AionUi этой настройкой не поддерживаются.',
 

@@ -79,6 +79,8 @@ interface DialogProps {
   locale?: Locale;
   onApplied?: () => Promise<void>;
   check?: { status?: McpSetupStatus; error?: string };
+  aionUiComplete?: boolean;
+  registerConfigureMcp?: (action: () => void) => void;
 }
 
 function ClientSetupDialog({
@@ -90,9 +92,14 @@ function ClientSetupDialog({
   locale = 'en',
   onApplied,
   check,
+  aionUiComplete,
+  registerConfigureMcp,
 }: DialogProps & { client: McpSetupClient; before?: React.ReactNode }): React.JSX.Element {
   const flow = useMemo(() => new McpSetupFlow(client, invoke), [client, invoke]);
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  useEffect(() => {
+    registerConfigureMcp?.(() => void flow.begin());
+  }, [flow, registerConfigureMcp]);
   useEffect(() => {
     void flow.refreshStatus();
     return () => flow.dispose();
@@ -148,7 +155,7 @@ function ClientSetupDialog({
               </Typography>
             </Stack>
           </Box>
-          {!hasConfiguration && (
+          {client !== 'aionui' && !hasConfiguration && (
             <Chip
               variant="outlined"
               size="small"
@@ -179,7 +186,21 @@ function ClientSetupDialog({
             />
           )}
         </Stack>
-        {hasConfiguration ? (
+        {client === 'aionui' ? (
+          <Paper
+            sx={{ ...surfaceSx('soft'), p: 2.5 }}
+            data-testid={aionUiComplete ? 'aionui-complete-panel' : 'aionui-setup-panel'}
+          >
+            <Stack spacing={2}>
+              {!aionUiComplete && (
+                <Typography variant="body2" data-testid="client-setup-description">
+                  {m.aionContinue}
+                </Typography>
+              )}
+              {before}
+            </Stack>
+          </Paper>
+        ) : hasConfiguration ? (
           <Paper
             sx={{ ...surfaceSx('soft'), p: 2.5 }}
             data-testid="client-status-panel"
@@ -220,9 +241,7 @@ function ClientSetupDialog({
                   >
                     <McpSetupStatusIcon status={check?.status ?? status} messages={m} />
                     <Typography variant="body2" component="span" data-testid="mcp-settings-status">
-                      {client === 'aionui' && shownState === 'needs-update'
-                        ? m.aionMcpOutdated
-                        : m[shownState]}
+                      {m[shownState]}
                     </Typography>
                   </Stack>
                 </Box>
@@ -269,9 +288,7 @@ function ClientSetupDialog({
               data-testid="client-setup-description"
             >
               {shownState === 'missing' || shownState === 'not-configured'
-                ? client === 'aionui'
-                  ? m.aionDescription
-                  : m[k.description]
+                ? m[k.description]
                 : shownState === 'unavailable'
                   ? m.unavailable
                   : m.checking}
@@ -415,15 +432,8 @@ function ClientSetupDialog({
                     }}
                   />
                   {client === 'aionui' && (
-                    <Alert severity="warning" data-testid="aionui-global-cursor-warning">
-                      <Typography variant="body2">{m.aionMcpHelp}</Typography>
-                      <Typography
-                        component="code"
-                        variant="body2"
-                        sx={{ display: 'block', mt: 1, overflowWrap: 'anywhere' }}
-                      >
-                        {m.pathLabel}: {file.path}
-                      </Typography>
+                    <Alert severity="info" data-testid="aionui-global-cursor-warning">
+                      {m.aionMcpHelp}
                     </Alert>
                   )}
                   <Box>
@@ -557,13 +567,24 @@ export function CodexSetupDialog(props: DialogProps): React.JSX.Element {
 }
 
 function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
+  const configureMcp = React.useRef<() => void>(() => {});
+  const registerConfigureMcp = React.useCallback((action: () => void) => {
+    configureMcp.current = action;
+  }, []);
   return (
     <AionUiAuthorization
       invoke={props.invoke}
       messages={props.messages}
       mcpState={props.check?.error ? 'unavailable' : props.check?.status?.state}
-      renderContent={(authorization) => (
-        <ClientSetupDialog {...props} client="aionui" before={authorization} />
+      onConfigureMcp={() => configureMcp.current()}
+      renderContent={(authorization, complete) => (
+        <ClientSetupDialog
+          {...props}
+          client="aionui"
+          before={authorization}
+          aionUiComplete={complete}
+          registerConfigureMcp={registerConfigureMcp}
+        />
       )}
     />
   );

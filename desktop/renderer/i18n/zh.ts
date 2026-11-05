@@ -36,6 +36,8 @@ export const zh: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     '连接 AionUi 内的 Cursor Agent。访问授权、已保存的 MCP 设置和活动桥接是独立状态。',
+  mcpSetup_aionContinue: '继续设置 AionUi。请按照以下步骤操作。',
+  mcpSetup_aionAccessAction: '选择“{action}”，然后按照配对说明操作。',
   mcpSetup_aionPairTitle: 'AionUi 访问授权',
   mcpSetup_aionPairHelp:
     '在此电脑的 AionUi 中启用 WebUI，输入地址与配对码，然后在 AionUi 中确认访问。',
@@ -50,12 +52,11 @@ export const zh: Messages = {
   mcpSetup_aionFailure: '无法完成设置。请检查 AionUi WebUI 是否运行并确认新的配对码。',
   mcpSetup_aionMcpTitle: 'Cursor Agent 的 MCP',
   mcpSetup_aionMcpOutdated: 'AionUi 桥接设置需要更新',
-  mcpSetup_aionUpdateAction:
-    '打开下方的“配置 Cursor Agent”，应用桥接更新，然后在 AionUi 中重新连接 Cursor Agent。',
+  mcpSetup_aionUpdateAction: '选择“{action}”，然后点击“应用”。',
   mcpSetup_aionRestartAction:
     '应用桥接后，在目标 AionUi 对话中重新连接 Cursor Agent，以重新加载 MCP 设置。',
   mcpSetup_aionMcpHelp:
-    '应用会在所选 Cursor 全局文件中安装 AionUi 桥接并替换现有 NCF 条目。这也会影响 AionUi 之外的 Cursor：那些聊天无法使用此桥接。要保留其他集成，请使用独立配置。',
+    '此 Cursor 配置文件中的现有 NCF 连接将更新为供 AionUi 使用。如需单独使用 Cursor，请使用其他配置文件。',
   mcpSetup_aionNext:
     '应用后请重启 AionUi 内的 Cursor Agent，再使用下面的命令。已保存设置不代表桥接已连接。此设置不支持其他 AionUi 后端。',
 

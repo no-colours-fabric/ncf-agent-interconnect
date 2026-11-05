@@ -38,6 +38,8 @@ export const nl: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Verbind Cursor Agent in AionUi. Toegang, opgeslagen MCP-instellingen en een actieve bridge zijn aparte toestanden.',
+  mcpSetup_aionContinue: 'Ga verder met het instellen van AionUi. Volg de stappen hieronder.',
+  mcpSetup_aionAccessAction: 'Kies ‘{action}’ en volg de koppelingsinstructies.',
   mcpSetup_aionPairTitle: 'Toegang tot AionUi',
   mcpSetup_aionPairHelp:
     'Schakel WebUI in AionUi op deze computer in, voer adres en koppelcode in en bevestig toegang in AionUi.',
@@ -53,12 +55,11 @@ export const nl: Messages = {
     'Instellen mislukt. Controleer of AionUi WebUI actief is en bevestig een nieuwe code.',
   mcpSetup_aionMcpTitle: 'MCP voor Cursor Agent',
   mcpSetup_aionMcpOutdated: 'De AionUi-bruginstellingen moeten worden bijgewerkt',
-  mcpSetup_aionUpdateAction:
-    "Open hieronder 'Cursor Agent instellen', pas de brugupdate toe en verbind Cursor Agent opnieuw in AionUi.",
+  mcpSetup_aionUpdateAction: 'Kies ‘{action}’ en klik daarna op ‘Toepassen’.',
   mcpSetup_aionRestartAction:
     'Verbind Cursor Agent na het toepassen van de brug opnieuw in de bedoelde AionUi-chat om de MCP-instellingen opnieuw te laden.',
   mcpSetup_aionMcpHelp:
-    'Toepassen installeert de AionUi-bridge in het gekozen globale Cursor-bestand en vervangt een bestaande NCF-vermelding. Dit raakt ook Cursor buiten AionUi: die chats kunnen deze bridge niet gebruiken. Gebruik een apart profiel om een andere integratie te behouden.',
+    'De huidige NCF-verbinding in dit Cursor-profiel wordt bijgewerkt voor AionUi. Gebruik een ander profiel om Cursor apart te gebruiken.',
   mcpSetup_aionNext:
     'Herstart Cursor Agent in AionUi na toepassen en gebruik het onderstaande commando. Opgeslagen instellingen bevestigen geen actieve bridge. Andere AionUi-backends worden niet ondersteund door deze instelling.',
 

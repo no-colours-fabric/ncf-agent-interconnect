@@ -37,6 +37,8 @@ export const tr: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'AionUi içinde Cursor Agent bağlayın. Erişim, kaydedilmiş MCP ayarları ve etkin köprü ayrı durumlardır.',
+  mcpSetup_aionContinue: 'AionUi kurulumuna devam edin. Aşağıdaki adımları izleyin.',
+  mcpSetup_aionAccessAction: '«{action}» seçeneğini seçin ve eşleştirme adımlarını izleyin.',
   mcpSetup_aionPairTitle: 'AionUi erişimi',
   mcpSetup_aionPairHelp:
     'Bu bilgisayarda AionUi WebUI özelliğini açın, adresi ve kodu girin, ardından AionUi içinde erişimi onaylayın.',
@@ -52,12 +54,11 @@ export const tr: Messages = {
     'Kurulum tamamlanamadı. AionUi WebUI çalıştığını kontrol edin ve yeni bir kodu onaylayın.',
   mcpSetup_aionMcpTitle: 'Cursor Agent için MCP',
   mcpSetup_aionMcpOutdated: 'AionUi köprü ayarlarının güncellenmesi gerekiyor',
-  mcpSetup_aionUpdateAction:
-    "Aşağıdaki 'Cursor Agent yapılandır' seçeneğini açın, köprü güncellemesini uygulayın ve Cursor Agent'ı AionUi'de yeniden bağlayın.",
+  mcpSetup_aionUpdateAction: '«{action}» seçeneğini seçip Uygula seçeneğine tıklayın.',
   mcpSetup_aionRestartAction:
     "Köprüyü uyguladıktan sonra MCP ayarlarını yeniden yüklemek için Cursor Agent'ı ilgili AionUi sohbetinde yeniden bağlayın.",
   mcpSetup_aionMcpHelp:
-    'Uygula, seçilen genel Cursor dosyasına AionUi köprüsünü kurar ve mevcut NCF girdisini değiştirir. AionUi dışındaki Cursor da etkilenir: bu sohbetler köprüyü kullanamaz. Başka bir entegrasyonu korumak için ayrı profil kullanın.',
+    'Bu Cursor profilindeki mevcut NCF bağlantısı AionUi için güncellenecek. Cursor uygulamasını ayrı kullanmak için başka bir profil seçin.',
   mcpSetup_aionNext:
     'Uyguladıktan sonra AionUi içindeki Cursor Agent uygulamasını yeniden başlatın ve aşağıdaki komutu kullanın. Kaydedilmiş ayarlar etkin köprüyü doğrulamaz. Bu kurulum diğer AionUi arka uçlarını desteklemez.',
 

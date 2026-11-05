@@ -38,6 +38,9 @@ export const de: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Cursor Agent in AionUi verbinden. Zugriff, gespeicherte MCP-Einstellungen und eine aktive Bridge sind getrennte Zustände.',
+  mcpSetup_aionContinue:
+    'Setzen Sie die Einrichtung von AionUi fort. Folgen Sie den Schritten unten.',
+  mcpSetup_aionAccessAction: 'Wählen Sie „{action}“ und folgen Sie den Anweisungen zum Koppeln.',
   mcpSetup_aionPairTitle: 'Zugriff auf AionUi',
   mcpSetup_aionPairHelp:
     'Aktivieren Sie WebUI in AionUi auf diesem Computer, geben Sie Adresse und Kopplungscode ein und bestätigen Sie den Zugriff in AionUi.',
@@ -53,12 +56,11 @@ export const de: Messages = {
     'Einrichtung fehlgeschlagen. Prüfen Sie, ob AionUi WebUI läuft, und bestätigen Sie einen neuen Kopplungscode.',
   mcpSetup_aionMcpTitle: 'MCP für Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Die Einstellungen der AionUi-Bridge müssen aktualisiert werden',
-  mcpSetup_aionUpdateAction:
-    'Öffnen Sie unten „Cursor Agent einrichten“, wenden Sie das Bridge-Update an und verbinden Sie Cursor Agent in AionUi erneut.',
+  mcpSetup_aionUpdateAction: 'Wählen Sie „{action}“ und klicken Sie dann auf „Anwenden“.',
   mcpSetup_aionRestartAction:
     'Verbinden Sie Cursor Agent nach dem Anwenden der Bridge im gewünschten AionUi-Chat erneut, damit die MCP-Einstellungen neu geladen werden.',
   mcpSetup_aionMcpHelp:
-    'Anwenden installiert die AionUi-Bridge in der gewählten globalen Cursor-Datei und ersetzt einen bestehenden NCF-Eintrag. Das betrifft auch Cursor außerhalb von AionUi: Diese Chats können die Bridge nicht nutzen. Verwenden Sie ein separates Profil, um eine andere Integration zu behalten.',
+    'Die aktuelle NCF-Verbindung in diesem Cursor-Profil wird für AionUi aktualisiert. Verwenden Sie für Cursor allein ein anderes Profil.',
   mcpSetup_aionNext:
     'Starten Sie Cursor Agent in AionUi nach dem Anwenden neu und verwenden Sie den Befehl unten. Gespeicherte Einstellungen bestätigen keine aktive Bridge. Andere AionUi-Backends werden von dieser Einrichtung nicht unterstützt.',
 

@@ -38,6 +38,8 @@ export const fr: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Connecter Cursor Agent dans AionUi. L’accès, les réglages MCP enregistrés et un pont actif sont des états distincts.',
+  mcpSetup_aionContinue: 'Poursuivez la configuration d’AionUi. Suivez les étapes ci-dessous.',
+  mcpSetup_aionAccessAction: 'Sélectionnez « {action} » et suivez les instructions d’association.',
   mcpSetup_aionPairTitle: 'Accès à AionUi',
   mcpSetup_aionPairHelp:
     'Activez WebUI dans AionUi sur cet ordinateur, saisissez son adresse et le code, puis confirmez l’accès dans AionUi.',
@@ -53,12 +55,11 @@ export const fr: Messages = {
     'Configuration impossible. Vérifiez que WebUI AionUi fonctionne et confirmez un nouveau code.',
   mcpSetup_aionMcpTitle: 'MCP pour Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Les réglages du pont AionUi doivent être mis à jour',
-  mcpSetup_aionUpdateAction:
-    'Ouvrez « Configurer Cursor Agent » ci-dessous, appliquez la mise à jour du pont, puis reconnectez Cursor Agent dans AionUi.',
+  mcpSetup_aionUpdateAction: 'Sélectionnez « {action} », puis cliquez sur « Appliquer ».',
   mcpSetup_aionRestartAction:
     'Après avoir appliqué le pont, reconnectez Cursor Agent dans le chat AionUi concerné pour recharger les réglages MCP.',
   mcpSetup_aionMcpHelp:
-    'Appliquer installe le pont AionUi dans le fichier global Cursor choisi et remplace l’entrée NCF existante. Cela affecte aussi Cursor hors AionUi : ces chats ne peuvent pas utiliser ce pont. Utilisez un profil distinct pour conserver une autre intégration.',
+    'La connexion NCF actuelle de ce profil Cursor sera mise à jour pour AionUi. Pour utiliser Cursor séparément, choisissez un autre profil.',
   mcpSetup_aionNext:
     'Redémarrez Cursor Agent dans AionUi après application, puis utilisez la commande ci-dessous. Des réglages enregistrés ne confirment pas un pont actif. Les autres moteurs AionUi ne sont pas pris en charge par cette configuration.',
 

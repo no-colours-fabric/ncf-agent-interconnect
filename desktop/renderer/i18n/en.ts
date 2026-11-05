@@ -37,6 +37,8 @@ export const en: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
+  mcpSetup_aionContinue: 'Continue setting up AionUi. Follow the steps below.',
+  mcpSetup_aionAccessAction: 'Select {action} and follow the pairing instructions.',
   mcpSetup_aionPairTitle: 'Access to AionUi',
   mcpSetup_aionPairHelp:
     'Enable WebUI in AionUi on this computer, enter its address and pairing code, then confirm access in AionUi.',
@@ -52,12 +54,11 @@ export const en: Messages = {
     'Could not complete setup. Check that AionUi WebUI is running and approve a fresh pairing code.',
   mcpSetup_aionMcpTitle: 'MCP for Cursor Agent',
   mcpSetup_aionMcpOutdated: 'AionUi bridge settings need updating',
-  mcpSetup_aionUpdateAction:
-    'Use Configure Cursor Agent below, apply the updated bridge, then reconnect Cursor Agent in AionUi.',
+  mcpSetup_aionUpdateAction: 'Select {action}, then click Apply.',
   mcpSetup_aionRestartAction:
     'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
   mcpSetup_aionMcpHelp:
-    'Apply installs the AionUi bridge in the selected global Cursor file and replaces any existing NCF entry. This also affects Cursor outside AionUi: those chats cannot use this bridge. Use a separate profile to preserve another integration.',
+    'The current NCF connection in this Cursor profile will be updated for AionUi. To use Cursor separately, use another profile.',
   mcpSetup_aionNext:
     'Restart Cursor Agent in AionUi after Apply, then connect using the command below. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
 

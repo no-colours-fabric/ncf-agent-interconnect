@@ -37,6 +37,8 @@ export const ja: Messages = {
   clientsKindAionui: 'AionUi',
   mcpSetup_aionDescription:
     'AionUi内のCursor Agentを接続します。アクセス、保存済みMCP設定、稼働中のブリッジは別の状態です。',
+  mcpSetup_aionContinue: 'AionUi の設定を続けてください。以下の手順に従ってください。',
+  mcpSetup_aionAccessAction: '「{action}」を選択し、ペアリングの手順に従ってください。',
   mcpSetup_aionPairTitle: 'AionUiへのアクセス',
   mcpSetup_aionPairHelp:
     'このコンピューターのAionUiでWebUIを有効にし、アドレスとコードを入力して、AionUiでアクセスを承認してください。',
@@ -52,12 +54,11 @@ export const ja: Messages = {
     '設定を完了できませんでした。AionUi WebUIの起動を確認し、新しいコードを承認してください。',
   mcpSetup_aionMcpTitle: 'Cursor Agent用MCP',
   mcpSetup_aionMcpOutdated: 'AionUi ブリッジの設定を更新する必要があります',
-  mcpSetup_aionUpdateAction:
-    '下の「Cursor Agentを設定」を開き、ブリッジの更新を適用してから、AionUi で Cursor Agent を再接続してください。',
+  mcpSetup_aionUpdateAction: '「{action}」を選択し、「適用」をクリックしてください。',
   mcpSetup_aionRestartAction:
     'ブリッジの適用後、対象の AionUi チャットで Cursor Agent を再接続し、MCP 設定を再読み込みしてください。',
   mcpSetup_aionMcpHelp:
-    '適用すると、選択したCursorのグローバルファイルにAionUiブリッジを設定し、既存のNCF項目を置き換えます。AionUi外のCursorにも影響し、それらのチャットはこのブリッジを使用できません。他の連携を維持するには別のプロファイルを使用してください。',
+    'この Cursor プロファイルの現在の NCF 接続は AionUi 用に更新されます。Cursor を別に使う場合は、別のプロファイルを使用してください。',
   mcpSetup_aionNext:
     '適用後にAionUi内のCursor Agentを再起動し、以下のコマンドを使用してください。保存済み設定はブリッジの稼働を保証しません。この設定は他のAionUiバックエンドをサポートしません。',
 
