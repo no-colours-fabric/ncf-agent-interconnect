@@ -44,14 +44,20 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
     '--node-file',
     '/Users/Пользователь 漢字/Library/Application Support/NCF/Integrations/node.json',
   ]);
-  assert.deepEqual(hooks.SessionStart[0].hooks[1], {
-    type: 'mcp_tool',
-    server: 'plugin:ncf-agent-interconnect:ncf',
-    tool: 'session_event',
-    input: { event: 'start', session_id: '${session_id}' },
+  assert.equal(hooks.SessionStart[0].hooks.length, 1);
+  assert.deepEqual(hooks.SessionStart[1], {
+    matcher: 'clear|compact|resume',
+    hooks: [
+      {
+        type: 'mcp_tool',
+        server: 'plugin:ncf-agent-interconnect:ncf',
+        tool: 'session_event',
+        input: { event: 'start', session_id: '${session_id}' },
+      },
+    ],
   });
   assert.equal(hooks.SessionEnd[0].hooks[1].input.event, 'end');
-  // SessionStart has no matcher, so clear, compact and resume are all covered.
+  // The command SessionStart hook has no matcher, so every source, including clear, is covered.
   assert.ok(!('matcher' in hooks.SessionStart[0]));
   assert.equal(hooks.PreToolUse[0].matcher, 'mcp__plugin_ncf-agent-interconnect_ncf__.*');
   assert.equal(claudeToolPrefix, 'mcp__plugin_ncf-agent-interconnect_ncf__');

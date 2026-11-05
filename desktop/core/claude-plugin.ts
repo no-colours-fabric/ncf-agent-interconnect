@@ -89,7 +89,12 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
     'plugin/hooks/hooks.json': json({
       description: 'Trusted current-chat evidence for NCF Agent Interconnect.',
       hooks: {
-        SessionStart: [{ hooks: [hook, sessionEvent('start')] }],
+        // The command hook covers every source. Claude Code skips mcp_tool hooks at
+        // launch and reports that as a hook error, so they run only for in-process changes.
+        SessionStart: [
+          { hooks: [hook] },
+          { matcher: 'clear|compact|resume', hooks: [sessionEvent('start')] },
+        ],
         SessionEnd: [{ hooks: [hook, sessionEvent('end')] }],
         PreToolUse: [{ matcher: claudeToolPrefix.replace(/__$/, '__.*'), hooks: [hook] }],
       },
