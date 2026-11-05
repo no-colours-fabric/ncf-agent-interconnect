@@ -56,7 +56,7 @@ export const fr: Messages = {
   mcpSetup_aionUpdateAction:
     'Ouvrez « Configurer Cursor Agent » ci-dessous, appliquez la mise à jour du pont, puis reconnectez Cursor Agent dans AionUi.',
   mcpSetup_aionRestartAction:
-    'Après l’application du pont, utilisez « Reconnecter l’agent » dans le chat AionUi concerné pour recharger les réglages MCP.',
+    'Après avoir appliqué le pont, reconnectez Cursor Agent dans le chat AionUi concerné pour recharger les réglages MCP.',
   mcpSetup_aionMcpHelp:
     'Appliquer installe le pont AionUi dans le fichier global Cursor choisi et remplace l’entrée NCF existante. Cela affecte aussi Cursor hors AionUi : ces chats ne peuvent pas utiliser ce pont. Utilisez un profil distinct pour conserver une autre intégration.',
   mcpSetup_aionNext:

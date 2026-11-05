@@ -56,7 +56,7 @@ export const nl: Messages = {
   mcpSetup_aionUpdateAction:
     "Open hieronder 'Cursor Agent instellen', pas de brugupdate toe en verbind Cursor Agent opnieuw in AionUi.",
   mcpSetup_aionRestartAction:
-    "Gebruik na het toepassen van de brug 'Agent opnieuw verbinden' in de bedoelde AionUi-chat, zodat Cursor Agent de MCP-instellingen opnieuw laadt.",
+    'Verbind Cursor Agent na het toepassen van de brug opnieuw in de bedoelde AionUi-chat om de MCP-instellingen opnieuw te laden.',
   mcpSetup_aionMcpHelp:
     'Toepassen installeert de AionUi-bridge in het gekozen globale Cursor-bestand en vervangt een bestaande NCF-vermelding. Dit raakt ook Cursor buiten AionUi: die chats kunnen deze bridge niet gebruiken. Gebruik een apart profiel om een andere integratie te behouden.',
   mcpSetup_aionNext:

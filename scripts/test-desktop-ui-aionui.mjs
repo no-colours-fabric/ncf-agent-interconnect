@@ -220,7 +220,9 @@ try {
     .waitFor();
   await setup.getByTestId('aionui-reconnect-next').waitFor();
   assert.ok(
-    (await setup.getByTestId('aionui-reconnect-next').innerText()).includes('Reconnect agent'),
+    (await setup.getByTestId('aionui-reconnect-next').innerText()).includes(
+      'reconnect Cursor Agent',
+    ),
   );
   await page.screenshot({ path: path.join(root, 'release/aionui-connection-steps.png') });
 

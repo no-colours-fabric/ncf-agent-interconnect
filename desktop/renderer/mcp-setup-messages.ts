@@ -36,7 +36,7 @@ export const mcpSetupEnglish = {
   aionUpdateAction:
     'Use Configure Cursor Agent below, apply the updated bridge, then reconnect Cursor Agent in AionUi.',
   aionRestartAction:
-    'After applying the bridge, use Reconnect agent in the intended AionUi chat so Cursor Agent reloads MCP settings.',
+    'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
   aionMcpHelp:
     'Apply installs the AionUi bridge in the selected global Cursor file and replaces any existing NCF entry. This also affects Cursor outside AionUi: those chats cannot use this bridge. Use a separate profile to preserve another integration.',
   aionNext:

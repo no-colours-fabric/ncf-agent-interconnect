@@ -56,7 +56,7 @@ export const ptBR: Messages = {
   mcpSetup_aionUpdateAction:
     'Abra «Configurar Cursor Agent» abaixo, aplique a atualização da ponte e reconecte o Cursor Agent no AionUi.',
   mcpSetup_aionRestartAction:
-    'Após aplicar a ponte, use «Reconectar agente» na conversa desejada do AionUi para que o Cursor Agent recarregue as configurações MCP.',
+    'Após aplicar a ponte, reconecte o Cursor Agent na conversa desejada do AionUi para recarregar as configurações MCP.',
   mcpSetup_aionMcpHelp:
     'Aplicar instala a ponte AionUi no arquivo global Cursor selecionado e substitui uma entrada NCF existente. Isso também afeta Cursor fora do AionUi: esses chats não podem usar a ponte. Use um perfil separado para preservar outra integração.',
   mcpSetup_aionNext:

@@ -56,7 +56,7 @@ export const es: Messages = {
   mcpSetup_aionUpdateAction:
     'Abre «Configurar Cursor Agent» abajo, aplica la actualización del puente y vuelve a conectar Cursor Agent en AionUi.',
   mcpSetup_aionRestartAction:
-    'Después de aplicar el puente, usa «Volver a conectar el agente» en el chat de AionUi correspondiente para recargar la configuración MCP.',
+    'Después de aplicar el puente, vuelve a conectar Cursor Agent en el chat de AionUi correspondiente para recargar la configuración MCP.',
   mcpSetup_aionMcpHelp:
     'Aplicar instala el puente AionUi en el archivo global Cursor elegido y reemplaza la entrada NCF existente. También afecta a Cursor fuera de AionUi: esos chats no pueden usar este puente. Use un perfil separado para conservar otra integración.',
   mcpSetup_aionNext:

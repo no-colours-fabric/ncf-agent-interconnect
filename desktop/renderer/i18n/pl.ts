@@ -55,7 +55,7 @@ export const pl: Messages = {
   mcpSetup_aionUpdateAction:
     'Otwórz poniżej „Skonfiguruj Cursor Agent”, zastosuj aktualizację mostu, a następnie połącz ponownie Cursor Agent w AionUi.',
   mcpSetup_aionRestartAction:
-    'Po zastosowaniu mostu użyj opcji „Połącz ponownie agenta” w odpowiedniej rozmowie AionUi, aby Cursor Agent ponownie wczytał ustawienia MCP.',
+    'Po zastosowaniu mostu połącz ponownie Cursor Agent w odpowiedniej rozmowie AionUi, aby ponownie wczytać ustawienia MCP.',
   mcpSetup_aionMcpHelp:
     'Zastosuj instaluje most AionUi w wybranym globalnym pliku Cursor i zastępuje istniejący wpis NCF. Wpływa to też na Cursor poza AionUi: te czaty nie mogą używać mostu. Użyj osobnego profilu, aby zachować inną integrację.',
   mcpSetup_aionNext:

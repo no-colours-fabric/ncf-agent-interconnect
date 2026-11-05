@@ -53,7 +53,7 @@ export const zh: Messages = {
   mcpSetup_aionUpdateAction:
     '打开下方的“配置 Cursor Agent”，应用桥接更新，然后在 AionUi 中重新连接 Cursor Agent。',
   mcpSetup_aionRestartAction:
-    '应用桥接后，在目标 AionUi 对话中使用“重新连接代理”，让 Cursor Agent 重新加载 MCP 设置。',
+    '应用桥接后，在目标 AionUi 对话中重新连接 Cursor Agent，以重新加载 MCP 设置。',
   mcpSetup_aionMcpHelp:
     '应用会在所选 Cursor 全局文件中安装 AionUi 桥接并替换现有 NCF 条目。这也会影响 AionUi 之外的 Cursor：那些聊天无法使用此桥接。要保留其他集成，请使用独立配置。',
   mcpSetup_aionNext:

@@ -55,7 +55,7 @@ export const ja: Messages = {
   mcpSetup_aionUpdateAction:
     '下の「Cursor Agentを設定」を開き、ブリッジの更新を適用してから、AionUi で Cursor Agent を再接続してください。',
   mcpSetup_aionRestartAction:
-    'ブリッジの適用後、対象の AionUi チャットで「エージェントを再接続」を使用し、Cursor Agent に MCP 設定を再読み込みさせてください。',
+    'ブリッジの適用後、対象の AionUi チャットで Cursor Agent を再接続し、MCP 設定を再読み込みしてください。',
   mcpSetup_aionMcpHelp:
     '適用すると、選択したCursorのグローバルファイルにAionUiブリッジを設定し、既存のNCF項目を置き換えます。AionUi外のCursorにも影響し、それらのチャットはこのブリッジを使用できません。他の連携を維持するには別のプロファイルを使用してください。',
   mcpSetup_aionNext:

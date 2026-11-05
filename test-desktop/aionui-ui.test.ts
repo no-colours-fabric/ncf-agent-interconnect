@@ -42,7 +42,8 @@ test('AionUi has its own application row and owner pairing instructions in every
       assert.ok(html.includes(escaped(text)), `${locale}: ${text}`);
     assert.ok(!html.includes('data-testid="client-status-panel"'), locale);
     assert.ok(html.includes('data-testid="client-setup-description"'), locale);
-    assert.ok(!html.includes(escaped(messages.aionPairHelp)), `${locale}: closed owner dialog`);
+    for (const text of [messages.aionPairTitle, messages.aionPairHelp])
+      assert.ok(!html.includes(escaped(text)), `${locale}: closed owner dialog`);
     assert.ok(!html.includes('id="aionui-access-title"'), locale);
     assert.ok(!html.includes('data-testid="aionui-address"'), locale);
     assert.ok(!html.includes('data-testid="aionui-code"'), locale);
