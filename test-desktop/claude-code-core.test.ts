@@ -346,3 +346,39 @@ test('A helper reconnected after a node restart proves a still-active chat witho
   await reconnected.detach();
   await ended.detach();
 });
+
+test('A wake the model deferred is renewed once when its turn ends, never in a loop', async (t) => {
+  const f = await claudeFixture(t);
+  const [s1, s2] = [randomUUID(), randomUUID()];
+  const a = new FakeHelper(f, s1),
+    other = new FakeHelper(f, s2);
+  for (const [helper, session] of [
+    [a, s1],
+    [other, s2],
+  ] as const) {
+    await f.hook('SessionStart', session, { source: 'startup' });
+    await helper.attach();
+  }
+  await f.connect(a, s1, 'Боб');
+  await f.connect(other, s2, 'Ева');
+  // On-site T06: the event arrived mid-turn and the model was told to stop first.
+  const sent = await sendTo(f, 'Боб', 'Отложенное');
+  await until(() => a.wakes().length === 1);
+  // Another chat's turn end does not renew this chat.
+  await f.hook('Stop', s2);
+  await settle();
+  assert.equal(a.wakes().length, 1);
+  await f.hook('Stop', s1);
+  await until(() => a.wakes().length === 2);
+  // The model keeps deferring: further turn ends do not repeat the same message.
+  await f.hook('Stop', s1);
+  await f.hook('Stop', s1);
+  await settle();
+  assert.equal(a.wakes().length, 2);
+  assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
+  assert.equal(f.service.store.get(sent.id, 'in')!.state, 'ready');
+  // A turn end without unread offers sends nothing.
+  await f.hook('Stop', s2);
+  await settle();
+  assert.deepEqual(other.wakes(), []);
+});

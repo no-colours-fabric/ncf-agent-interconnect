@@ -40,7 +40,7 @@ export const helperCallSchema = z
   .strict();
 export const hookSchema = z
   .object({
-    event: z.enum(['SessionStart', 'SessionEnd', 'PreToolUse']),
+    event: z.enum(['SessionStart', 'SessionEnd', 'PreToolUse', 'Stop']),
     sessionId,
     source: z.string().max(40).optional(),
     reason: z.string().max(40).optional(),
@@ -292,6 +292,10 @@ export class ClaudeSessions extends EventEmitter {
         }
       this.routes = this.routes.filter((route) => route.session !== input.sessionId);
       void this.persist();
+    } else if (input.event === 'Stop') {
+      // A finished turn lets adapters renew a wake the model saw but deferred.
+      if (record.active) this.emit('turnEnded', input.sessionId);
+      return { recorded: true };
     } else {
       if (!input.tool?.startsWith(claudeToolPrefix) || !input.inputHash) return { recorded: true };
       record.active = true;

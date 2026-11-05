@@ -114,6 +114,20 @@ coalesced. A model saw an event but did not read, and every later message
 was then folded into that ignored wake, so the idle chat was never woken
 again.
 
+## D6a. Renewal after a finished turn
+
+The plugin also has an observation-only `Stop` command hook. When a turn of a
+proven session ends and a message of that session is still offered in the
+current helper lifecycle, the node announces it once more. Each message is
+renewed at most once per lifecycle, so a model that keeps deferring cannot
+cause a loop. The hook forwards only the event and session ID, never the
+assistant text, prints nothing and never blocks the stop.
+
+On-site run ncfcc-20261105-r1 (T05, T06) showed that a model can see a
+channel event during a turn and defer it until the owner asks. Without a
+later event the message then stays unread. A timer is forbidden; the end of
+the turn is the documented host event that makes a renewal safe.
+
 ## D7. Automatic status
 
 `delivery: automatic` is reported only after a wake in the current Claude

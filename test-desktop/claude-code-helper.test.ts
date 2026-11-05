@@ -60,6 +60,7 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
   // The command SessionStart hook has no matcher, so every source, including clear, is covered.
   assert.ok(!('matcher' in hooks.SessionStart[0]));
   assert.equal(hooks.PreToolUse[0].matcher, 'mcp__plugin_ncf-agent-interconnect_ncf__.*');
+  assert.deepEqual(hooks.Stop, [{ hooks: [command] }]);
   assert.equal(claudeToolPrefix, 'mcp__plugin_ncf-agent-interconnect_ncf__');
   const plugin = JSON.parse(posix['plugin/.claude-plugin/plugin.json']);
   assert.deepEqual(plugin.channels, [{ server: 'ncf', displayName: 'NCF Agent Interconnect' }]);
@@ -247,6 +248,15 @@ test('A hook never blocks Claude Code: invalid input or an absent node exits 0 w
   assert.deepEqual(await runHook(missing, 'not json'), { code: 0, output: '' });
   assert.deepEqual(
     await runHook(missing, { hook_event_name: 'SessionStart', session_id: randomUUID() }),
+    { code: 0, output: '' },
+  );
+  assert.deepEqual(
+    await runHook(missing, {
+      hook_event_name: 'Stop',
+      session_id: randomUUID(),
+      stop_hook_active: false,
+      last_assistant_message: 'private text is never forwarded',
+    }),
     { code: 0, output: '' },
   );
 });

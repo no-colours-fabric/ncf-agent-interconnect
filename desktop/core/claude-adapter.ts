@@ -17,7 +17,28 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   private offers = new Map<string, { epoch: string; connectionId: string }>();
   private stopped = false;
   private routed?: string;
+  private renewed = new Set<string>();
   private readonly listener = () => this.observe();
+  /**
+   * After a turn ends, a message still offered in this lifecycle is announced
+   * once more: the model may have seen the event mid-turn and deferred it.
+   * Each message is renewed at most once, so a model that keeps deferring
+   * cannot cause a loop.
+   */
+  private readonly turnEnded = (session: string) => {
+    if (session !== this.profile.sessionId) return;
+    const helper = this.current().helper;
+    if (!helper) return;
+    let renew = false;
+    for (const [id, offer] of this.offers) {
+      if (offer.epoch !== helper.epoch || this.renewed.has(id)) continue;
+      this.renewed.add(id);
+      this.offers.delete(id);
+      helper.outstanding.delete(offer.connectionId);
+      renew = true;
+    }
+    if (renew) this.idle();
+  };
   constructor(
     readonly profile: AdapterProfile,
     private readonly sessions: ClaudeSessions,
@@ -73,6 +94,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   }
   async start(): Promise<void> {
     this.sessions.on('change', this.listener);
+    this.sessions.on('turnEnded', this.turnEnded);
     this.routed = this.current().helper?.epoch;
   }
   async deliver(input: EventInput): Promise<Admission> {
@@ -133,6 +155,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   async stop(): Promise<void> {
     this.stopped = true;
     this.sessions.off('change', this.listener);
+    this.sessions.off('turnEnded', this.turnEnded);
     this.offers.clear();
     this.changed();
   }

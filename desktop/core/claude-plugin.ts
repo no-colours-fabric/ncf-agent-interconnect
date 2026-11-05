@@ -97,6 +97,8 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
         ],
         SessionEnd: [{ hooks: [hook, sessionEvent('end')] }],
         PreToolUse: [{ matcher: claudeToolPrefix.replace(/__$/, '__.*'), hooks: [hook] }],
+        // Observation only: the hook prints nothing and never blocks the stop.
+        Stop: [{ hooks: [hook] }],
       },
     }),
   };

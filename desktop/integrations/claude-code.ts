@@ -376,7 +376,13 @@ export async function runClaudeHook(nodeFile: string, stdin: string): Promise<vo
   if (!parsed.success) return;
   const input = parsed.data;
   const event = input.hook_event_name;
-  if (event !== 'SessionStart' && event !== 'SessionEnd' && event !== 'PreToolUse') return;
+  if (
+    event !== 'SessionStart' &&
+    event !== 'SessionEnd' &&
+    event !== 'PreToolUse' &&
+    event !== 'Stop'
+  )
+    return;
   if (event === 'PreToolUse' && !input.tool_name?.startsWith(claudeToolPrefix)) return;
   await post(
     nodeFile,
