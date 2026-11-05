@@ -335,7 +335,6 @@ export class McpEndpoint {
     }
     if (
       [
-        '/integrations/claude/session',
         '/integrations/claude/hook',
         '/integrations/claude/call',
         '/integrations/opencode',
@@ -360,17 +359,15 @@ export class McpEndpoint {
         return;
       }
       const result =
-        req.url === '/integrations/claude/session'
-          ? this.service.claude.helperSession(body)
-          : req.url === '/integrations/claude/hook'
-            ? this.service.claude.hook(body)
-            : req.url === '/integrations/claude/call'
-              ? await this.service.claudeCall(body)
-              : req.url === '/integrations/aionui/context'
-                ? await this.service.contexts.registerAionUi(body)
-                : req.url!.endsWith('/release')
-                  ? await this.service.contexts.releaseOpenCode(body)
-                  : await this.service.contexts.registerOpenCode(body);
+        req.url === '/integrations/claude/hook'
+          ? await this.service.claude.hook(body)
+          : req.url === '/integrations/claude/call'
+            ? await this.service.claudeCall(body)
+            : req.url === '/integrations/aionui/context'
+              ? await this.service.contexts.registerAionUi(body)
+              : req.url!.endsWith('/release')
+                ? await this.service.contexts.releaseOpenCode(body)
+                : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;
@@ -475,10 +472,11 @@ export class McpEndpoint {
     };
     res.once('close', closed);
     try {
-      helper = this.service.claude.attach(body, {
+      helper = await this.service.claude.attach(body, {
         write: (line) => res.write(line),
         end: () => res.end(),
       });
+      if (res.destroyed || res.writableEnded) this.service.claude.detach(helper);
     } catch {
       res.end(JSON.stringify({ type: 'error' }) + '\n');
     }

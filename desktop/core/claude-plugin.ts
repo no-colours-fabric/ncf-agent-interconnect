@@ -48,13 +48,6 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
     if (!paths.isAbsolute(value) || /[\0\r\n]/.test(value) || value.includes('${'))
       throw new Error('The installed NCF path cannot be used by the Claude Code plugin');
   const hook = commandHook(runtime);
-  const server = `plugin:${claudePlugin.name}:${claudePlugin.server}`;
-  const sessionEvent = (event: 'start' | 'end') => ({
-    type: 'mcp_tool',
-    server,
-    tool: 'session_event',
-    input: { event, session_id: '${session_id}' },
-  });
   const json = (value: unknown) => JSON.stringify(value, null, 2) + '\n';
   return {
     '.claude-plugin/marketplace.json': json({
@@ -89,13 +82,10 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
     'plugin/hooks/hooks.json': json({
       description: 'Trusted current-chat evidence for NCF Agent Interconnect.',
       hooks: {
-        // The command hook covers every source. Claude Code skips mcp_tool hooks at
-        // launch and reports that as a hook error, so they run only for in-process changes.
-        SessionStart: [
-          { hooks: [hook] },
-          { matcher: 'clear|compact|resume', hooks: [sessionEvent('start')] },
-        ],
-        SessionEnd: [{ hooks: [hook, sessionEvent('end')] }],
+        // Native lifecycle evidence is private command-hook state. A model-visible
+        // MCP tool cannot authenticate a context switch.
+        SessionStart: [{ hooks: [hook] }],
+        SessionEnd: [{ hooks: [hook] }],
         PreToolUse: [{ matcher: claudeToolPrefix.replace(/__$/, '__.*'), hooks: [hook] }],
         // Observation only: the hook prints nothing and never blocks the stop.
         Stop: [{ hooks: [hook] }],

@@ -1,9 +1,10 @@
 # Claude Code adapter: decision log
 
 Decisions taken while implementing the interactive Claude Code adapter.
-Vendor facts cite the Claude Code documentation as read on 2026-11-03. The
-local reference binary is Claude Code 2.1.309; it is used only for
-`claude plugin validate` in an isolated home, never for a live session.
+The local P1 correction updates the native-authority and call-proof decisions
+on 2026-11-05. Earlier on-site observations belong to the submitted candidate;
+they do not establish acceptance of the corrected source. Delivery/recovery
+findings R3–R7 remain a separate review stage.
 
 ## D1. Delivery: Channels wake, then `agent_read`
 
@@ -23,71 +24,66 @@ On the v2 runtime, Claude Code registers a channel only for a server that does
 not negotiate `2026-07-28`, so the helper relies on the SDK's own negotiation.
 `MCP_PROTOCOL_NEGOTIATION` is never set. A regression test pins this.
 
-## D3. Session identity evidence
+## D3. Native authority after the local P1 correction
 
-Claude Code exposes the session identity only through trusted sources:
+The original hash-correlation and public session-event design was rejected by
+source review. This section describes the local first-stage correction, not a
+claim of native client acceptance.
 
-- **E1.** `CLAUDE_CODE_SESSION_ID` in the helper environment. Claude Code sets
-  it for stdio MCP subprocesses at spawn, and the helper keeps the spawn value.
-  It may hold the startup ID after `--continue` or after `--resume` without an
-  ID.
-- **E2.** Command hooks of the installed plugin. They post their stdin payload
-  to the node with the app-owned `node.json` credential:
-  - `SessionStart` for every source (no matcher);
-  - `SessionEnd`;
-  - `PreToolUse` for this plugin's MCP tools.
-- **E3.** `mcp_tool` hooks for `SessionStart` and `SessionEnd`. They call the
-  helper's session-event tool over the exact stdio transport. Claude Code skips
-  them at launch, so they cover `/clear`, compaction and in-process switches.
+- The helper keeps the host-provided `CLAUDE_CODE_SESSION_ID` fixed at spawn.
+  Workspace, title, PID, transcript, model identifiers and undocumented MCP
+  metadata do not choose a chat.
+- Installed command hooks persist a private native lease beside the app-owned
+  node descriptor before attempting HTTP. A lease has a session, incarnation
+  nonce and active/revoked state. Missing, corrupt or conflicting evidence
+  cannot produce a positive route.
+- A helper pins its native incarnation. It does not adopt a new nonce when it
+  reconnects. The node checks the current durable lease at attachment, wake and
+  call validation; persisted helper routes do not override revocation.
+- `SessionEnd` for the old session is the exact fencing signal. A new
+  `SessionStart` with a different UUID is not evidence about an old helper.
+  Successful local revocation remains effective if its HTTP notification fails.
+- There is no model-visible lifecycle authority: `session_event` cannot start,
+  end or replace a route, and it is no longer a generated MCP-tool hook.
 
-A helper is the route of session S only after one of these proofs:
+The current payload does not document a trusted correspondence between a
+surviving old helper and an arbitrary new in-process session. Therefore a
+`/clear` or in-process `/resume` does not retarget that helper or move the agent
+name. A fresh helper through the owner's normal client lifecycle is required.
+This is an explicit functional limitation of stage one, not completed recovery
+acceptance. A missing old-session signal cannot be repaired by guessing from a
+new session ID. Simultaneous hook persistence/communication failure is not
+claimed as a proven offline-clear path.
 
-- **P1 (launch / reconnect).** The E1 value equals S, and the node has an
-  active S from E2: a SessionStart was seen and no SessionEnd since. No other
-  live helper may claim S. The active-session list is persisted with the route proofs,
-  so a helper reconnected after a node restart, for example through `/mcp`
-  Reconnect, proves its chat without a new hook.
-- **P2 (switch).** E3 reports S on the helper's transport, and E2 has a
-  matching unconsumed SessionStart for S.
-- **P3 (tool call).** See D4.
-- **P4 (node restart, helper alive).** The helper reconnects with its
-  in-memory secret and its session generation. The node holds a persisted proof
-  for the same helper, secret hash, session and generation.
+## D4. One-use proof injected without a permission decision
 
-Any session change seen by the helper (E3) or the node (E2 SessionEnd)
-immediately removes the old route before a new one is admitted. Two live
-helpers that claim the same session make that session ambiguous, and no wake is
-sent. Workspace, title, PID, transcript and model-supplied IDs are never used.
+The previous decision that hash equality could establish transport identity is
+superseded. Hashes now check argument integrity only and never change
+`proven` or `claim`.
 
-## D4. PreToolUse correlation by exact input instead of injected token
+The command `PreToolUse` hook reads the session only from its host payload. The
+node issues an opaque one-use proof only for a unique already-native-proven
+helper. It binds the native session, helper identity, transport epoch,
+generation, native lease nonce, tool, original argument hash and short lifetime.
+The hook returns the complete original arguments plus this proof through
+`hookSpecificOutput.updatedInput`. Any model-provided proof is overwritten.
 
-**This deviates from response §3,** which asks PreToolUse to inject a node-issued
-`contextToken`. According to the hooks reference, `updatedInput` is combined with
-`permissionDecision` `allow` or `ask`:
+No `permissionDecision`, `allow`, `ask` or permission bypass is added. The
+helper presents the proof for node validation, removes it from ordinary tool
+arguments and forwards only a verified request. For connect, the subsequent
+node context ticket retains the same lease: validation repeats after async
+adapter setup and immediately before the ticket is consumed into a binding.
+Missing, foreign, expired, replayed or old-incarnation proofs fail before route
+mutation, context-ticket issuance or forwarding.
 
-- `allow` would let the hook approve every NCF call;
-- `ask` would prompt on every call, including `agent_read`;
-- behaviour without a decision is undocumented.
-
-Approved by the owner on 2026-11-03: the hook never changes input or
-permissions. It posts `session_id`, `tool_name` and a canonical SHA-256 of
-`tool_input` to the node, which stores a one-use record with a short lifetime.
-
-Before forwarding a call, the helper presents its own canonical hash of the
-received arguments. A unique match proves that this transport carries this
-session (P3). The record is consumed and checked against the helper that made
-the call.
-
-The node refuses a call when:
-
-- no record matches;
-- more than one matches;
-- the record names a different session than a connectionId bound to another
-  Claude chat.
-
-A model-supplied `contextToken` is removed by the helper. For `agent_connect`,
-the node issues an ordinary one-use `ClientContexts` ticket to the helper after
-P3, so the model never sees it.
+Official contract checked on 2026-11-05:
+[PreToolUse decision control](https://code.claude.com/docs/en/hooks#pretooluse-decision-control)
+documents updated input without a permission decision and replacement of the
+whole input. [UpdatedInput in auto mode](https://code.claude.com/docs/en/hooks#pretooluse-updatedinput-in-auto-mode)
+warns that auto mode can reject rewritten calls and can drop a later rewrite
+on an exact retry. Auto-mode compatibility is **NOT_TESTED**; the correction
+must not introduce `allow` to work around it. No native Claude process is used
+by the first-stage source regressions.
 
 ## D5. Ledger
 

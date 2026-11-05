@@ -4,12 +4,12 @@ import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { atomicJson } from './settings.js';
-
 import { claudeToolPrefix } from '../integrations/claude-code.js';
+import { readNativeLease, readNativeLeaseSync } from '../integrations/claude-native-lease.js';
 
 export { claudeToolPrefix };
 
-const sessionId = z.uuid();
+const sessionId = z.uuid().transform((value) => value.toLowerCase());
 const secret = z.string().regex(/^[a-f0-9]{64}$/);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const helperHelloSchema = z
@@ -19,14 +19,7 @@ export const helperHelloSchema = z
     spawnSession: sessionId.nullable(),
     session: sessionId.nullable(),
     generation: z.number().int().nonnegative(),
-  })
-  .strict();
-export const helperSessionSchema = z
-  .object({
-    helperId: z.uuid(),
-    secret,
-    session: sessionId.nullable(),
-    generation: z.number().int().positive(),
+    nativeLeaseNonce: z.uuid().nullable(),
   })
   .strict();
 export const helperCallSchema = z
@@ -35,6 +28,7 @@ export const helperCallSchema = z
     secret,
     tool: z.string().min(1).max(128),
     inputHash: hash,
+    contextToken: z.uuid(),
     connectionId: z.uuid().optional(),
   })
   .strict();
@@ -42,33 +36,36 @@ export const hookSchema = z
   .object({
     event: z.enum(['SessionStart', 'SessionEnd', 'PreToolUse', 'Stop']),
     sessionId,
+    nativeLeaseNonce: z.uuid().nullable(),
     source: z.string().max(40).optional(),
     reason: z.string().max(40).optional(),
     tool: z.string().max(200).optional(),
     inputHash: hash.optional(),
   })
   .strict();
-const routesSchema = z
+const holderSchema = z
   .object({
-    version: z.literal(1),
-    routes: z
-      .array(
-        z
-          .object({
-            helperId: z.uuid(),
-            secretHash: hash,
-            session: sessionId,
-            generation: z.number().int().nonnegative(),
-            confirmed: z.boolean(),
-          })
-          .strict(),
-      )
-      .max(64),
-    /** Sessions with a SessionStart and no SessionEnd yet; survives node restarts. */
-    active: z.array(sessionId).max(256).optional(),
+    helperId: z.uuid(),
+    secretHash: hash,
+    spawnSession: sessionId,
+    nativeLeaseNonce: z.uuid(),
   })
   .strict();
-type Route = z.infer<typeof routesSchema>['routes'][number];
+const routeSchema = holderSchema
+  .extend({
+    generation: z.number().int().nonnegative(),
+    confirmed: z.boolean(),
+  })
+  .strict();
+const routesSchema = z
+  .object({
+    version: z.literal(2),
+    holders: z.array(holderSchema).max(4096),
+    routes: z.array(routeSchema).max(4096),
+  })
+  .strict();
+type Holder = z.infer<typeof holderSchema>;
+type Route = z.infer<typeof routeSchema>;
 
 export interface HelperWriter {
   write(line: string): boolean;
@@ -77,48 +74,49 @@ export interface HelperWriter {
 export interface ClaudeHelper {
   id: string;
   secretHash: string;
-  /** Changes for every helper↔node stream; offers belong to one lifecycle. */
+  /** Changes for every helper-node stream; offers belong to one lifecycle. */
   epoch: string;
   writer: HelperWriter;
   spawnSession: string | null;
   claim: string | null;
   generation: number;
+  nativeLeaseNonce: string | null;
+  bootstrapPending: boolean;
   proven: string | null;
-  /** A wake in this Claude process was followed by agent_read from the proven session. */
   confirmed: boolean;
-  /** Per connection: the newest mailbox sequence an unread wake already announced. */
+  publishing: boolean;
   outstanding: Map<string, number>;
 }
-interface SessionRecord {
-  active: boolean;
-  starts: number;
-  seen: number;
+/** Revalidate this authorization snapshot after asynchronous work and at ticket consumption. */
+export interface ClaudeProofLease {
+  readonly helperId: string;
+  readonly epoch: string;
+  readonly generation: number;
+  readonly session: string;
+  readonly nativeLeaseNonce: string;
 }
-interface ToolRecord {
-  session: string;
+interface ToolProof {
+  lease: ClaudeProofLease;
   tool: string;
   hash: string;
   expires: number;
 }
-
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const same = (a: string, b: string) =>
   a.length === b.length && timingSafeEqual(Buffer.from(a), Buffer.from(b));
+const unproven = () =>
+  new Error('The native Claude Code chat could not be verified. Reconnect MCP from this chat.');
 
-/**
- * Trusted Claude Code session evidence. A helper becomes the route of a
- * session only through documented host signals: its spawn environment,
- * command hooks, hook-driven session events on its own transport, a matching
- * PreToolUse record, or a persisted proof for the same live helper. Nothing is
- * inferred from a workspace, title, PID, transcript or a model-supplied value.
- */
+/** Native spawn identity and a durable lease authorize a route. Tool input never selects it. */
 export class ClaudeSessions extends EventEmitter {
   private helpers = new Map<string, ClaudeHelper>();
-  private sessions = new Map<string, SessionRecord>();
-  private tools: ToolRecord[] = [];
+  private holders = new Map<string, Holder>();
   private routes: Route[] = [];
-  private persisting: Promise<void> = Promise.resolve();
+  private proofs = new Map<string, ToolProof>();
+  private persisting: Promise<boolean> = Promise.resolve(true);
+  private unavailable = false;
   private readonly filename: string;
+  private readonly nodeFile: string;
   private heartbeat?: NodeJS.Timeout;
   constructor(
     directory: string,
@@ -126,6 +124,7 @@ export class ClaudeSessions extends EventEmitter {
   ) {
     super();
     this.filename = path.join(directory, 'claude-routes.json');
+    this.nodeFile = path.join(directory, 'Integrations', 'node.json');
   }
   private now(): number {
     return this.options.now?.() ?? Date.now();
@@ -133,52 +132,39 @@ export class ClaudeSessions extends EventEmitter {
   async load(): Promise<void> {
     try {
       const saved = routesSchema.parse(JSON.parse(await readFile(this.filename, 'utf8')));
+      this.holders = new Map(saved.holders.map((value) => [value.helperId, value]));
       this.routes = saved.routes;
-      // A helper reconnected while NCF was stopped can then prove its spawn session (P1).
-      for (const id of saved.active ?? []) this.session(id).active = true;
-    } catch {
-      // A missing or unreadable proof file only means that routes must be proven again.
+    } catch (error) {
       this.routes = [];
+      this.holders.clear();
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') this.unavailable = true;
     }
   }
-  private persist(): Promise<void> {
-    const routes = [...this.helpers.values()]
-      .filter((helper) => helper.proven)
+  private persist(): Promise<boolean> {
+    const attached = [...this.helpers.values()]
+      .filter((helper) => helper.proven && helper.nativeLeaseNonce && helper.spawnSession)
       .map((helper) => ({
         helperId: helper.id,
         secretHash: helper.secretHash,
-        session: helper.proven!,
+        spawnSession: helper.spawnSession!,
+        nativeLeaseNonce: helper.nativeLeaseNonce!,
         generation: helper.generation,
         confirmed: helper.confirmed,
       }));
-    // Keep proofs of helpers that are temporarily detached, for node or transport restarts.
     const detached = this.routes.filter((route) => !this.helpers.has(route.helperId));
-    this.routes = [...routes, ...detached].slice(0, 64);
-    const active = [...this.sessions.entries()]
-      .filter(([, record]) => record.active)
-      .sort((a, b) => b[1].seen - a[1].seen)
-      .slice(0, 256)
-      .map(([id]) => id);
-    const data = { version: 1 as const, routes: this.routes, active };
-    this.persisting = this.persisting
-      .then(() => atomicJson(this.filename, data))
-      .catch(() => {
+    this.routes = [...attached, ...detached];
+    const data = { version: 2 as const, holders: [...this.holders.values()], routes: this.routes };
+    this.persisting = this.persisting.then(async () => {
+      try {
+        await atomicJson(this.filename, data);
+        return true;
+      } catch {
+        this.unavailable = true;
         this.emit('problem', 'Claude Code routes could not be saved');
-      });
+        return false;
+      }
+    });
     return this.persisting;
-  }
-  private session(id: string): SessionRecord {
-    let record = this.sessions.get(id);
-    if (!record) {
-      record = { active: false, starts: 0, seen: this.now() };
-      this.sessions.set(id, record);
-      if (this.sessions.size > 1024)
-        this.sessions.delete(
-          [...this.sessions.entries()].sort((a, b) => a[1].seen - b[1].seen)[0][0],
-        );
-    }
-    record.seen = this.now();
-    return record;
   }
   private authenticate(helperId: string, value: string): ClaudeHelper {
     const helper = this.helpers.get(helperId);
@@ -187,41 +173,136 @@ export class ClaudeSessions extends EventEmitter {
     return helper;
   }
   private fence(helper: ClaudeHelper): void {
-    if (!helper.proven) return;
     helper.proven = null;
+    helper.claim = null;
+    helper.bootstrapPending = false;
+    helper.confirmed = false;
+    helper.publishing = false;
     helper.outstanding.clear();
+    this.routes = this.routes.filter((route) => route.helperId !== helper.id);
+    for (const [token, proof] of this.proofs)
+      if (proof.lease.helperId === helper.id) this.proofs.delete(token);
   }
-  private claimants(session: string): ClaudeHelper[] {
-    return [...this.helpers.values()].filter(
-      (helper) => helper.proven === session || helper.claim === session,
+  private nativeCurrent(helper: ClaudeHelper, allowPublishing = false): boolean {
+    if (
+      this.unavailable ||
+      (helper.publishing && !allowPublishing) ||
+      !helper.proven ||
+      helper.proven !== helper.spawnSession ||
+      helper.claim !== helper.spawnSession ||
+      !helper.nativeLeaseNonce
+    )
+      return false;
+    try {
+      const lease = readNativeLeaseSync(this.nodeFile, helper.proven);
+      return !!lease?.active && !lease.conflicted && lease.nonce === helper.nativeLeaseNonce;
+    } catch {
+      return false;
+    }
+  }
+  private snapshot(helper: ClaudeHelper): ClaudeProofLease {
+    if (!helper.proven || !helper.nativeLeaseNonce) throw unproven();
+    return Object.freeze({
+      helperId: helper.id,
+      epoch: helper.epoch,
+      generation: helper.generation,
+      session: helper.proven,
+      nativeLeaseNonce: helper.nativeLeaseNonce,
+    });
+  }
+  private matches(lease: ClaudeProofLease): boolean {
+    const helper = this.helpers.get(lease.helperId);
+    return (
+      !!helper &&
+      helper.epoch === lease.epoch &&
+      helper.generation === lease.generation &&
+      helper.proven === lease.session &&
+      helper.claim === lease.session &&
+      helper.spawnSession === lease.session &&
+      helper.nativeLeaseNonce === lease.nativeLeaseNonce &&
+      this.route(lease.session).helper === helper
     );
   }
-  /** P1/P2: a claimed session is proven only by matching host evidence. */
-  private evaluate(helper: ClaudeHelper): boolean {
-    if (helper.proven || !helper.claim) return false;
-    const record = this.sessions.get(helper.claim);
-    if (!record?.active) return false;
-    const launch = helper.generation === 0 && helper.claim === helper.spawnSession;
-    if (!launch && record.starts < 1) return false;
-    if (record.starts > 0) record.starts--;
-    helper.proven = helper.claim;
+  async validateCurrent(lease: ClaudeProofLease): Promise<void> {
+    if (!this.matches(lease)) throw unproven();
+    const native = await readNativeLease(this.nodeFile, lease.session);
+    if (
+      !native?.active ||
+      native.conflicted ||
+      native.nonce !== lease.nativeLeaseNonce ||
+      !this.matches(lease)
+    )
+      throw unproven();
+  }
+  private async bootstrap(helper: ClaudeHelper, expectedNonce?: string | null): Promise<boolean> {
+    if (
+      this.unavailable ||
+      this.helpers.get(helper.id) !== helper ||
+      !helper.spawnSession ||
+      helper.claim !== helper.spawnSession ||
+      helper.generation !== 0
+    )
+      return false;
+    const lease = await readNativeLease(this.nodeFile, helper.spawnSession).catch(() => null);
+    if (
+      !lease?.active ||
+      lease.conflicted ||
+      (expectedNonce !== undefined && lease.nonce !== expectedNonce) ||
+      this.helpers.get(helper.id) !== helper
+    )
+      return false;
+    const capture = helper.nativeLeaseNonce === null;
+    if (capture && (!helper.bootstrapPending || this.holders.has(helper.id))) return false;
+    if (!capture && helper.nativeLeaseNonce !== lease.nonce) return false;
+    if (!this.holders.has(helper.id) && this.holders.size >= 4096) throw unproven();
+    helper.nativeLeaseNonce = lease.nonce;
+    helper.bootstrapPending = false;
+    helper.proven = helper.spawnSession;
+    helper.publishing = true;
+    this.holders.set(helper.id, {
+      helperId: helper.id,
+      secretHash: helper.secretHash,
+      spawnSession: helper.spawnSession,
+      nativeLeaseNonce: lease.nonce,
+    });
+    const route = this.routes.find((value) => value.helperId === helper.id);
+    helper.confirmed = !!(
+      route &&
+      route.nativeLeaseNonce === lease.nonce &&
+      route.generation === helper.generation &&
+      route.confirmed
+    );
+    if (!(await this.persist()) || !this.nativeCurrent(helper, true)) {
+      this.fence(helper);
+      return false;
+    }
+    // Pin before change listeners can offer a wake.
+    if (capture)
+      helper.writer.write(
+        JSON.stringify({ type: 'native-lease', session: helper.spawnSession, nonce: lease.nonce }) +
+          '\n',
+      );
+    helper.publishing = false;
     return true;
   }
-  private reevaluate(): void {
-    let changed = false;
-    for (const helper of this.helpers.values()) changed = this.evaluate(helper) || changed;
-    if (changed) void this.persist();
-    this.emit('change');
-  }
-  attach(raw: unknown, writer: HelperWriter): ClaudeHelper {
+  async attach(raw: unknown, writer: HelperWriter): Promise<ClaudeHelper> {
     const hello = helperHelloSchema.parse(raw);
+    if (this.unavailable || hello.session !== hello.spawnSession) throw unproven();
     const secretHash = digest(hello.secret);
-    const previous = this.helpers.get(hello.helperId);
-    if (previous) {
-      if (!same(previous.secretHash, secretHash))
-        throw new Error('The Claude Code helper identity is invalid');
-      previous.writer.end();
-    }
+    const previous = this.helpers.get(hello.helperId),
+      holder = this.holders.get(hello.helperId);
+    if (
+      (previous &&
+        (!same(previous.secretHash, secretHash) ||
+          previous.spawnSession !== hello.spawnSession ||
+          previous.nativeLeaseNonce !== hello.nativeLeaseNonce)) ||
+      (holder &&
+        (!same(holder.secretHash, secretHash) ||
+          holder.spawnSession !== hello.spawnSession ||
+          holder.nativeLeaseNonce !== hello.nativeLeaseNonce))
+    )
+      throw unproven();
+    previous?.writer.end();
     const helper: ClaudeHelper = {
       id: hello.helperId,
       secretHash,
@@ -230,130 +311,119 @@ export class ClaudeSessions extends EventEmitter {
       spawnSession: hello.spawnSession,
       claim: hello.session,
       generation: hello.generation,
+      nativeLeaseNonce: hello.nativeLeaseNonce,
+      bootstrapPending: !holder && hello.nativeLeaseNonce === null && hello.generation === 0,
       proven: null,
       confirmed: false,
+      publishing: false,
       outstanding: new Map(),
     };
-    // P4: the same live helper, unchanged session generation, persisted proof.
-    const route = this.routes.find((value) => value.helperId === hello.helperId);
-    if (
-      route &&
-      same(route.secretHash, secretHash) &&
-      route.session === hello.session &&
-      route.generation === hello.generation
-    ) {
-      helper.proven = route.session;
-      helper.confirmed = route.confirmed;
-      this.session(route.session).active = true;
-    }
     this.helpers.set(helper.id, helper);
-    writer.write(JSON.stringify({ type: 'ready', epoch: helper.epoch }) + '\n');
-    this.evaluate(helper);
-    void this.persist();
-    this.emit('change');
-    this.startHeartbeat();
-    return helper;
+    try {
+      await this.bootstrap(helper);
+      writer.write(JSON.stringify({ type: 'ready', epoch: helper.epoch }) + '\n');
+      this.emit('change');
+      this.startHeartbeat();
+      return helper;
+    } catch {
+      this.detach(helper);
+      try {
+        writer.end();
+      } catch {
+        // A failed stream has no authority and must not replace a newer helper.
+      }
+      throw unproven();
+    }
   }
   detach(helper: ClaudeHelper): void {
     if (this.helpers.get(helper.id) !== helper) return;
     this.helpers.delete(helper.id);
     helper.outstanding.clear();
+    for (const [token, proof] of this.proofs)
+      if (proof.lease.helperId === helper.id) this.proofs.delete(token);
     this.emit('change');
   }
-  /** E3: a hook-driven session event on the helper's own transport. */
-  helperSession(raw: unknown): { accepted: true } {
-    const input = helperSessionSchema.parse(raw);
-    const helper = this.authenticate(input.helperId, input.secret);
-    if (input.generation <= helper.generation) return { accepted: true };
-    this.fence(helper);
-    helper.claim = input.session;
-    helper.generation = input.generation;
-    this.routes = this.routes.filter((route) => route.helperId !== helper.id);
-    this.evaluate(helper);
-    void this.persist();
-    this.emit('change');
-    return { accepted: true };
+  /** Model-visible lifecycle calls have no authority, including revocation authority. */
+  helperSession(_raw: unknown): never {
+    throw new Error('Session changes require native Claude Code lifecycle evidence.');
   }
-  /** E2: command hook payload posted with the app-owned node credential. */
-  hook(raw: unknown): { recorded: true } {
+  async hook(raw: unknown): Promise<{ recorded: true; contextToken?: string }> {
     const input = hookSchema.parse(raw);
-    const record = this.session(input.sessionId);
-    if (input.event === 'SessionStart') {
-      record.active = true;
-      record.starts = Math.min(record.starts + 1, 8);
-      void this.persist();
-    } else if (input.event === 'SessionEnd') {
-      record.active = false;
-      record.starts = 0;
+    const native = await readNativeLease(this.nodeFile, input.sessionId);
+    if (input.event === 'SessionEnd') {
+      if (!native || native.active || native.nonce !== input.nativeLeaseNonce || this.unavailable)
+        throw unproven();
       for (const helper of this.helpers.values())
-        if (helper.proven === input.sessionId || helper.claim === input.sessionId) {
-          this.fence(helper);
-          if (helper.claim === input.sessionId) helper.claim = null;
-        }
-      this.routes = this.routes.filter((route) => route.session !== input.sessionId);
-      void this.persist();
-    } else if (input.event === 'Stop') {
-      // A finished turn lets adapters renew a wake the model saw but deferred.
-      if (record.active) this.emit('turnEnded', input.sessionId);
+        if (helper.spawnSession === input.sessionId) this.fence(helper);
+      this.routes = this.routes.filter((route) => route.spawnSession !== input.sessionId);
+      await this.persist();
+      this.emit('change');
       return { recorded: true };
-    } else {
-      if (!input.tool?.startsWith(claudeToolPrefix) || !input.inputHash) return { recorded: true };
-      record.active = true;
-      const now = this.now();
-      this.tools = this.tools.filter((value) => value.expires > now).slice(-511);
-      this.tools.push({
-        session: input.sessionId,
-        tool: input.tool,
-        hash: input.inputHash,
-        expires: now + (this.options.toolLifetime ?? 600000),
-      });
     }
-    this.reevaluate();
-    return { recorded: true };
+    if (
+      !native?.active ||
+      native.conflicted ||
+      native.nonce !== input.nativeLeaseNonce ||
+      this.unavailable
+    )
+      throw unproven();
+    if (input.event === 'SessionStart') {
+      for (const helper of this.helpers.values())
+        if (helper.bootstrapPending && helper.spawnSession === input.sessionId)
+          await this.bootstrap(helper, input.nativeLeaseNonce);
+      this.emit('change');
+      return { recorded: true };
+    }
+    const { helper } = this.route(input.sessionId);
+    if (!helper || helper.nativeLeaseNonce !== input.nativeLeaseNonce) throw unproven();
+    if (input.event === 'Stop') {
+      this.emit('turnEnded', input.sessionId);
+      return { recorded: true };
+    }
+    if (!input.tool?.startsWith(claudeToolPrefix) || !input.inputHash) throw unproven();
+    const lease = this.snapshot(helper);
+    await this.validateCurrent(lease);
+    const now = this.now();
+    for (const [token, proof] of this.proofs) if (proof.expires <= now) this.proofs.delete(token);
+    if (this.proofs.size >= 512) throw unproven();
+    const contextToken = randomUUID();
+    this.proofs.set(contextToken, {
+      lease,
+      tool: input.tool.slice(claudeToolPrefix.length),
+      hash: input.inputHash,
+      expires: now + (this.options.toolLifetime ?? 30000),
+    });
+    return { recorded: true, contextToken };
   }
-  /**
-   * P3: the helper presents the hash of the exact arguments it received. A
-   * unique PreToolUse record of the same tool and input proves which session
-   * this transport serves. The record is consumed.
-   */
-  correlate(raw: unknown): { helper: ClaudeHelper; session: string } {
+  async correlate(
+    raw: unknown,
+  ): Promise<{ helper: ClaudeHelper; session: string; lease: ClaudeProofLease }> {
     const input = helperCallSchema.parse(raw);
     const helper = this.authenticate(input.helperId, input.secret);
-    const now = this.now();
-    this.tools = this.tools.filter((value) => value.expires > now);
-    const matches = this.tools.filter(
-      (value) => value.tool === claudeToolPrefix + input.tool && value.hash === input.inputHash,
-    );
-    const sessions = new Set(matches.map((value) => value.session));
-    if (sessions.size !== 1)
-      throw new Error(
-        sessions.size
-          ? 'Two Claude Code chats made the same request at once. Repeat it in this chat.'
-          : 'The NCF Claude Code hooks did not confirm this chat. Restart Claude Code after setup.',
-      );
-    this.tools.splice(this.tools.indexOf(matches[0]), 1);
-    const session = matches[0].session;
-    if (helper.proven !== session) {
-      this.fence(helper);
-      helper.proven = session;
-      helper.claim = session;
-      this.session(session).active = true;
-      void this.persist();
-      this.emit('change');
-    }
-    return { helper, session };
+    const proof = this.proofs.get(input.contextToken);
+    if (
+      !proof ||
+      proof.expires <= this.now() ||
+      proof.lease.helperId !== helper.id ||
+      proof.tool !== input.tool ||
+      !same(proof.hash, input.inputHash)
+    )
+      throw unproven();
+    this.proofs.delete(input.contextToken);
+    await this.validateCurrent(proof.lease);
+    return { helper, session: proof.lease.session, lease: proof.lease };
   }
-  /** Exactly one live helper must hold the proven route; ambiguity sends nothing. */
   route(session: string): { helper?: ClaudeHelper; ambiguous: boolean } {
-    const proven = [...this.helpers.values()].filter((helper) => helper.proven === session);
-    if (proven.length > 1 || (proven.length === 1 && this.claimants(session).length > 1))
-      return { ambiguous: true };
+    const proven = [...this.helpers.values()].filter(
+      (helper) => helper.proven === session && this.nativeCurrent(helper),
+    );
+    if (proven.length > 1) return { ambiguous: true };
     return { helper: proven[0], ambiguous: false };
   }
   send(helper: ClaudeHelper, message: Record<string, unknown>): boolean {
     if (this.helpers.get(helper.id) !== helper) return false;
+    if (message.type !== 'ping' && this.route(helper.proven ?? '').helper !== helper) return false;
     try {
-      // A false return means buffered output, not a lost line.
       helper.writer.write(JSON.stringify(message) + '\n');
       return true;
     } catch {
@@ -362,14 +432,13 @@ export class ClaudeSessions extends EventEmitter {
     }
   }
   confirm(helper: ClaudeHelper): void {
-    if (helper.confirmed) return;
+    if (helper.confirmed || this.route(helper.proven ?? '').helper !== helper) return;
     helper.confirmed = true;
     void this.persist();
     this.emit('change');
   }
   private startHeartbeat(): void {
     if (this.heartbeat) return;
-    // Transport keepalive only; it never reads inboxes or prompts a model.
     this.heartbeat = setInterval(() => {
       for (const helper of [...this.helpers.values()]) this.send(helper, { type: 'ping' });
     }, 15000);
@@ -382,7 +451,7 @@ export class ClaudeSessions extends EventEmitter {
       this.helpers.delete(helper.id);
       helper.writer.end();
     }
-    this.tools = [];
+    this.proofs.clear();
     await this.persisting;
   }
 }

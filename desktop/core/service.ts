@@ -30,7 +30,7 @@ import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
 import { AionUiSessions } from './aionui-sessions.js';
-import { ClaudeSessions, helperCallSchema } from './claude-sessions.js';
+import { ClaudeSessions, helperCallSchema, type ClaudeProofLease } from './claude-sessions.js';
 import {
   claudePluginFiles,
   publishClaudePlugin,
@@ -50,6 +50,7 @@ export class NodeService extends EventEmitter {
   readonly aionui: AionUiSessions;
   readonly claude: ClaudeSessions;
   readonly contexts = new ClientContexts(this);
+  private claudeContextLeases = new Map<string, { lease: ClaudeProofLease; expires: number }>();
   private readonly presence: AgentPresence;
   running = false;
   private receiving: Promise<void> | null = null;
@@ -560,8 +561,13 @@ export class NodeService extends EventEmitter {
         if (this.adapters.get(profile.id).status().state !== 'ready')
           throw new Error('The AionUi realtime connection is unavailable.');
       } else if (context.client === 'Claude Code') {
+        const proof = this.claudeContextLeases.get(contextToken);
+        this.claudeContextLeases.delete(contextToken);
         if (host.client !== 'Claude Code')
           throw new Error('The Claude Code context belongs to another client.');
+        if (!proof || proof.expires < Date.now())
+          throw new Error('The Claude Code context expired. Reconnect from this chat.');
+        await this.claude.validateCurrent(proof.lease);
         if (this.adapters.get(context.adapterId).status().state === 'error')
           throw new Error('This Claude Code chat is not connected through the NCF plugin.');
       }
@@ -666,7 +672,7 @@ export class NodeService extends EventEmitter {
   async claudeCall(raw: unknown): Promise<{ contextToken?: string }> {
     if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
     const input = helperCallSchema.parse(raw);
-    const { helper, session } = this.claude.correlate(input);
+    const { helper, session, lease } = await this.claude.correlate(input);
     if (input.connectionId) {
       const agent = this.store
         .list()
@@ -674,6 +680,8 @@ export class NodeService extends EventEmitter {
       const profile = this.settings.value.adapters.find(
         (value) => value.id === agent?.binding?.adapterId,
       );
+      if (profile?.kind !== 'claude-code')
+        throw new Error('This connection belongs to another Claude Code chat.');
       if (profile?.kind === 'claude-code') {
         if (profile.sessionId !== session)
           throw new Error('This connection belongs to another Claude Code chat.');
@@ -683,6 +691,8 @@ export class NodeService extends EventEmitter {
     }
     if (input.tool !== 'agent_connect') return {};
     const work = this.adapterSetup.then(async () => {
+      if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
+      await this.claude.validateCurrent(lease);
       let profile = this.settings.value.adapters.find(
         (value) => value.kind === 'claude-code' && value.sessionId === session,
       );
@@ -695,11 +705,20 @@ export class NodeService extends EventEmitter {
         };
         await this.installAdapter(profile);
       }
-      return this.contexts.issue({
+      await this.claude.validateCurrent(lease);
+      if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
+      const contextToken = this.contexts.issue({
         client: 'Claude Code',
         chatId: session,
         adapterId: profile.id,
       });
+      const now = Date.now();
+      for (const [key, value] of this.claudeContextLeases)
+        if (value.expires < now) this.claudeContextLeases.delete(key);
+      if (this.claudeContextLeases.size >= 512)
+        this.claudeContextLeases.delete(this.claudeContextLeases.keys().next().value!);
+      this.claudeContextLeases.set(contextToken, { lease, expires: now + 30000 });
+      return contextToken;
     });
     this.adapterSetup = work.then(
       () => {},
@@ -1472,6 +1491,7 @@ export class NodeService extends EventEmitter {
     this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
     this.contexts.clear();
+    this.claudeContextLeases.clear();
     this.store.invalidateClearRequests();
     await this.adapters.close();
     await this.network.close();

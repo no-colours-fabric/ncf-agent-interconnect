@@ -2,18 +2,21 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import {
   StdioClientTransport,
   getDefaultEnvironment,
 } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { claudePluginFiles, publishClaudePlugin } from '../desktop/core/claude-plugin.js';
-import { claudeToolPrefix } from '../desktop/integrations/claude-code.js';
+import { claudeToolPrefix, startClaudeBridge } from '../desktop/integrations/claude-code.js';
+import { readNativeLease } from '../desktop/integrations/claude-native-lease.js';
 import { until } from './aionui-fixture.js';
 import { claudeFixture, type ClaudeFixture } from './claude-code-fixture.js';
 
@@ -45,18 +48,11 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
     '/Users/Пользователь 漢字/Library/Application Support/NCF/Integrations/node.json',
   ]);
   assert.equal(hooks.SessionStart[0].hooks.length, 1);
-  assert.deepEqual(hooks.SessionStart[1], {
-    matcher: 'clear|compact|resume',
-    hooks: [
-      {
-        type: 'mcp_tool',
-        server: 'plugin:ncf-agent-interconnect:ncf',
-        tool: 'session_event',
-        input: { event: 'start', session_id: '${session_id}' },
-      },
-    ],
-  });
-  assert.equal(hooks.SessionEnd[0].hooks[1].input.event, 'end');
+  assert.deepEqual(hooks.SessionStart, [{ hooks: [command] }]);
+  assert.deepEqual(hooks.SessionEnd, [{ hooks: [command] }]);
+  for (const groups of Object.values(hooks) as { hooks: { type: string }[] }[][])
+    for (const group of groups)
+      assert.ok(group.hooks.every((handler) => handler.type === 'command'));
   // The command SessionStart hook has no matcher, so every source, including clear, is covered.
   assert.ok(!('matcher' in hooks.SessionStart[0]));
   assert.equal(hooks.PreToolUse[0].matcher, 'mcp__plugin_ncf-agent-interconnect_ncf__.*');
@@ -107,7 +103,10 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
   if (process.platform !== 'win32') assert.equal(before.mode & 0o777, 0o600);
 });
 
-function runHook(nodeFile: string, input: unknown): Promise<{ code: number; output: string }> {
+function runHook(
+  nodeFile: string,
+  input: unknown,
+): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       process.execPath,
@@ -117,13 +116,60 @@ function runHook(nodeFile: string, input: unknown): Promise<{ code: number; outp
         stdio: ['pipe', 'pipe', 'pipe'],
       },
     );
-    let output = '';
-    child.stdout.on('data', (chunk) => (output += chunk));
-    child.stderr.on('data', (chunk) => (output += chunk));
+    let stdout = '',
+      stderr = '';
+    child.stdout.on('data', (chunk) => (stdout += chunk));
+    child.stderr.on('data', (chunk) => (stderr += chunk));
     child.once('error', reject);
-    child.once('exit', (code) => resolve({ code: code ?? -1, output }));
+    child.once('exit', (code) => resolve({ code: code ?? -1, stdout, stderr }));
     child.stdin.end(typeof input === 'string' ? input : JSON.stringify(input));
   });
+}
+
+function assertQuietHook(result: { code: number; stdout: string; stderr: string }): void {
+  assert.equal(result.code, 0);
+  assert.ok(result.stdout === '', 'The hook must not write unexpected stdout');
+  assert.ok(result.stderr === '', 'The hook must not write unexpected stderr');
+}
+
+/** Emulates the host applying the fixed hook output without changing permission decisions. */
+async function prepareCall(
+  nodeFile: string,
+  session: string,
+  name: string,
+  args: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const hook = await runHook(nodeFile, {
+    hook_event_name: 'PreToolUse',
+    session_id: session,
+    tool_name: claudeToolPrefix + name,
+    tool_input: args,
+    tool_use_id: 'toolu_' + randomUUID(),
+  });
+  assert.equal(hook.code, 0);
+  assert.ok(hook.stderr === '', 'The PreToolUse hook must not write stderr');
+  let response: Record<string, any>;
+  try {
+    response = JSON.parse(hook.stdout) as Record<string, any>;
+  } catch {
+    throw new Error('The native PreToolUse hook did not return a JSON response');
+  }
+  assert.deepEqual(Object.keys(response), ['hookSpecificOutput']);
+  const output = response.hookSpecificOutput;
+  assert.equal(output.hookEventName, 'PreToolUse');
+  assert.ok(!('permissionDecision' in output));
+  assert.ok(!('permissionDecisionReason' in output));
+  assert.deepEqual(Object.keys(output).sort(), ['hookEventName', 'updatedInput']);
+  const updated = output.updatedInput as Record<string, unknown>;
+  assert.ok(typeof updated.contextToken === 'string' && updated.contextToken.length > 0);
+  if ('contextToken' in args)
+    assert.ok(updated.contextToken !== args.contextToken, 'Model-supplied proof must be replaced');
+  const original = { ...args },
+    preserved = { ...updated };
+  delete original.contextToken;
+  delete preserved.contextToken;
+  assert.ok(isDeepStrictEqual(preserved, original), 'The hook must preserve ordinary tool input');
+  return updated;
 }
 
 async function launchHelper(t: test.TestContext, f: ClaudeFixture, session: string) {
@@ -153,7 +199,7 @@ async function launchHelper(t: test.TestContext, f: ClaudeFixture, session: stri
   return { client, wakes };
 }
 
-test('The real helper and hook processes bind an exact chat, deliver wakes, record receipt only through agent_read and fence /clear', async (t) => {
+test('Source helper and command-hook processes require native proofs, reject model lifecycle calls and fence a cleared chat', async (t) => {
   const f = await claudeFixture(t);
   const nodeFile = path.join(f.directory, 'Integrations', 'node.json');
   // The node publishes the plugin from its own runtime at startup.
@@ -177,29 +223,37 @@ test('The real helper and hook processes bind an exact chat, deliver wakes, reco
   );
   const { client, wakes } = await launchHelper(t, f, s1);
   const tools = (await client.listTools()).tools;
-  assert.ok(tools.some((tool) => tool.name === 'session_event'));
-  const connect = tools.find((tool) => tool.name === 'agent_connect')!;
-  assert.ok(!('contextToken' in (connect.inputSchema.properties ?? {})));
+  assert.ok(!tools.some((tool) => tool.name === 'session_event'));
+  for (const tool of tools) assert.ok('contextToken' in (tool.inputSchema.properties ?? {}));
 
-  // Claude Code runs PreToolUse with the exact input, then calls the tool on this transport.
-  const call = async (name: string, args: Record<string, unknown>) => {
-    const hook = await runHook(nodeFile, {
-      hook_event_name: 'PreToolUse',
-      session_id: s1,
-      tool_name: claudeToolPrefix + name,
-      tool_input: args,
-      tool_use_id: 'toolu_fixture',
-    });
-    assert.deepEqual(hook, { code: 0, output: '' });
-    return client.callTool({ name, arguments: args });
-  };
-  // A model-invented contextToken is part of the hashed input and then discarded.
-  const connected = await call('agent_connect', {
+  const forged = await client.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: 'Боб 漢字', contextToken: randomUUID() },
+  });
+  assert.equal(forged.isError, true);
+  assert.ok(!f.service.store.list().some((agent) => agent.nickname === 'Боб 漢字'));
+  // The fixed hook overwrites model input with a fresh node-issued proof.
+  const connectArgs = await prepareCall(nodeFile, s1, 'agent_connect', {
     nickname: 'Боб 漢字',
     contextToken: randomUUID(),
   });
-  assert.equal(connected.isError, undefined, JSON.stringify(connected.content));
+  const connected = await client.callTool({ name: 'agent_connect', arguments: connectArgs });
+  assert.equal(connected.isError, undefined);
   const binding = (connected.structuredContent as { binding: { connectionId: string } }).binding;
+
+  // A public MCP call has no authority to end this chat or start another one.
+  for (const [event, session] of [
+    ['end', s1],
+    ['start', s2],
+  ]) {
+    const attempted = await client.callTool({
+      name: 'session_event',
+      arguments: { event, session_id: session },
+    });
+    assert.equal(attempted.isError, true);
+  }
+  assert.equal((await readNativeLease(nodeFile, s1))?.active, true);
+  assert.equal(await readNativeLease(nodeFile, s2), null);
 
   const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
   if (sender.status !== 'connected') throw new Error();
@@ -214,23 +268,35 @@ test('The real helper and hook processes bind an exact chat, deliver wakes, reco
   assert.ok(!wakes[0].content.includes('Секретный текст'));
   assert.equal(f.service.store.get(sent.id, 'out')!.state, 'ready');
 
-  // Without the PreToolUse record the call is refused before reaching the inbox.
+  // Without a native proof the call is refused before reaching the inbox.
   const unverified = await client.callTool({
     name: 'agent_read',
     arguments: { connectionId: binding.connectionId },
   });
   assert.equal(unverified.isError, true);
   assert.equal(f.service.store.get(sent.id, 'out')!.state, 'ready');
-  const read = await call('agent_read', { connectionId: binding.connectionId });
+  const readArgs = await prepareCall(nodeFile, s1, 'agent_read', {
+    connectionId: binding.connectionId,
+  });
+  const read = await client.callTool({ name: 'agent_read', arguments: readArgs });
   assert.equal(read.isError, undefined);
   assert.match(JSON.stringify(read.structuredContent), /Секретный текст/);
   assert.equal(f.service.store.get(sent.id, 'out')!.state, 'processed');
+  const replayed = await client.callTool({ name: 'agent_read', arguments: readArgs });
+  assert.equal(replayed.isError, true);
 
-  // /clear: command SessionEnd and the mcp_tool session events on this transport.
+  const beforeClear = await prepareCall(nodeFile, s1, 'agent_read', {
+    connectionId: binding.connectionId,
+  });
+  // /clear revokes the disk lease before HTTP; model calls cannot revive the old helper.
   await runHook(nodeFile, { hook_event_name: 'SessionEnd', session_id: s1, reason: 'clear' });
-  await client.callTool({ name: 'session_event', arguments: { event: 'end', session_id: s1 } });
   await runHook(nodeFile, { hook_event_name: 'SessionStart', session_id: s2, source: 'clear' });
-  await client.callTool({ name: 'session_event', arguments: { event: 'start', session_id: s2 } });
+  assert.equal((await readNativeLease(nodeFile, s1))?.active, false);
+  assert.equal((await readNativeLease(nodeFile, s2))?.active, true);
+  assert.equal(
+    (await client.callTool({ name: 'agent_read', arguments: beforeClear })).isError,
+    true,
+  );
   const later = await f.service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: f.service.settings.value.nodeId,
@@ -239,41 +305,341 @@ test('The real helper and hook processes bind an exact chat, deliver wakes, reco
   });
   await until(() => f.service.store.dispatchState(later.id)?.state === 'waiting');
   assert.equal(wakes.length, 1);
+
+  await f.restart();
+  assert.equal(
+    (await client.callTool({ name: 'agent_read', arguments: beforeClear })).isError,
+    true,
+  );
+  assert.equal(f.service.store.get(later.id, 'out')!.state, 'ready');
+  const fresh = await launchHelper(t, f, s2);
+  const freshConnect = await prepareCall(nodeFile, s2, 'agent_connect', {
+    nickname: 'Новый Боб 漢字',
+  });
+  const freshResult = await fresh.client.callTool({
+    name: 'agent_connect',
+    arguments: freshConnect,
+  });
+  assert.equal(freshResult.isError, undefined);
+  const freshBinding = (freshResult.structuredContent as { binding: { connectionId: string } })
+    .binding;
+  const currentSender = f.service.connect({ nickname: 'Новый отправитель', client: 'MCP' });
+  if (currentSender.status !== 'connected') throw new Error();
+  const freshMessage = await f.service.send({
+    connectionId: currentSender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
+    recipientNickname: 'Новый Боб 漢字',
+    text: 'Только новому native context',
+  });
+  await until(() => fresh.wakes.length === 1);
+  const freshRead = await prepareCall(nodeFile, s2, 'agent_read', {
+    connectionId: freshBinding.connectionId,
+  });
+  const freshReceipt = await fresh.client.callTool({ name: 'agent_read', arguments: freshRead });
+  assert.equal(freshReceipt.isError, undefined);
+  assert.equal(f.service.store.get(freshMessage.id, 'out')!.state, 'processed');
+  assert.equal(f.service.store.get(later.id, 'out')!.state, 'ready');
+  assert.equal(wakes.length, 1);
+});
+
+test('A source helper withholds a completed read result when its native lease is revoked in flight', async (t) => {
+  const f = await claudeFixture(t);
+  const session = randomUUID();
+  assertQuietHook(
+    await runHook(f.nodeFile, {
+      hook_event_name: 'SessionStart',
+      session_id: session,
+      source: 'startup',
+    }),
+  );
+  const { client, wakes } = await launchHelper(t, f, session);
+  const connect = await prepareCall(f.nodeFile, session, 'agent_connect', {
+    nickname: 'Получатель',
+  });
+  const connected = await client.callTool({ name: 'agent_connect', arguments: connect });
+  assert.equal(connected.isError, undefined);
+  const binding = (connected.structuredContent as { binding: { connectionId: string } }).binding;
+  const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
+  if (sender.status !== 'connected') throw new Error();
+  const body = 'REVOKED_NATIVE_BODY_' + randomUUID();
+  await f.service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
+    recipientNickname: 'Получатель',
+    text: body,
+  });
+  await until(() => wakes.length === 1);
+
+  let reached = false;
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => (release = resolve));
+  const originalRead = f.service.read;
+  f.service.read = async (...args) => {
+    const result = await originalRead.apply(f.service, args);
+    reached = true;
+    await barrier;
+    return result;
+  };
+  try {
+    const read = await prepareCall(f.nodeFile, session, 'agent_read', {
+      connectionId: binding.connectionId,
+    });
+    const pending = client.callTool({ name: 'agent_read', arguments: read });
+    await until(() => reached);
+    assertQuietHook(
+      await runHook(f.nodeFile, {
+        hook_event_name: 'SessionEnd',
+        session_id: session,
+        reason: 'clear',
+      }),
+    );
+    release();
+    const result = await pending;
+    assert.equal(result.isError, true);
+    assert.ok(
+      !JSON.stringify(result).includes(body),
+      'Revoked native context must not receive the body',
+    );
+    // This is a helper privacy check; receipt semantics are covered separately.
+  } finally {
+    release();
+    f.service.read = originalRead;
+  }
+});
+
+test('A source helper does not forward a new tool call after native revocation during its node MCP reconnect', async (t) => {
+  const f = await claudeFixture(t);
+  const session = randomUUID();
+  assertQuietHook(
+    await runHook(f.nodeFile, {
+      hook_event_name: 'SessionStart',
+      session_id: session,
+      source: 'startup',
+    }),
+  );
+  const originalFetch = globalThis.fetch;
+  const localMcp = f.url('/mcp').href;
+  let failStatus = false,
+    holdInitialize = false,
+    initializeWaiting = false,
+    forwardedPeers = 0,
+    failedStatus = 0;
+  let release!: () => void;
+  const barrier = new Promise<void>((resolve) => (release = resolve));
+  const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+  const client = new Client({ name: 'claude-code', version: 'fixture' });
+  let bridge: Awaited<ReturnType<typeof startClaudeBridge>> | undefined;
+  let pending: ReturnType<Client['callTool']> | undefined;
+  globalThis.fetch = async (input, init) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+    const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
+    if (url === localMcp && method === 'POST') {
+      const body =
+        typeof init?.body === 'string'
+          ? init.body
+          : input instanceof Request
+            ? await input.clone().text()
+            : '';
+      let message: { method?: string; params?: { name?: string } } | undefined;
+      try {
+        message = JSON.parse(body) as typeof message;
+      } catch {
+        // Only valid fixture JSON-RPC requests participate in the fault barrier.
+      }
+      if (
+        message?.method === 'tools/call' &&
+        message.params?.name === 'node_status' &&
+        failStatus
+      ) {
+        failStatus = false;
+        failedStatus++;
+        throw new Error('Synthetic fixture transport failure');
+      }
+      if (message?.method === 'initialize' && holdInitialize) {
+        holdInitialize = false;
+        initializeWaiting = true;
+        await barrier;
+      }
+      if (message?.method === 'tools/call' && message.params?.name === 'node_peers')
+        forwardedPeers++;
+    }
+    return originalFetch(input, init);
+  };
+  try {
+    bridge = await startClaudeBridge(
+      f.nodeFile,
+      { CLAUDE_CODE_SESSION_ID: session },
+      serverTransport,
+    );
+    await client.connect(clientTransport);
+    await until(() => !!f.service.claude.route(session).helper);
+    const connect = await prepareCall(f.nodeFile, session, 'agent_connect', { nickname: 'Борис' });
+    assert.equal(
+      (await client.callTool({ name: 'agent_connect', arguments: connect })).isError,
+      undefined,
+    );
+
+    // A failed read-only request makes the bridge reconnect its node MCP client.
+    failStatus = true;
+    const status = await prepareCall(f.nodeFile, session, 'node_status', {});
+    assert.equal((await client.callTool({ name: 'node_status', arguments: status })).isError, true);
+    assert.equal(failedStatus, 1);
+    const peers = await prepareCall(f.nodeFile, session, 'node_peers', {});
+    holdInitialize = true;
+    pending = client.callTool({ name: 'node_peers', arguments: peers });
+    await until(() => initializeWaiting);
+    assertQuietHook(
+      await runHook(f.nodeFile, {
+        hook_event_name: 'SessionEnd',
+        session_id: session,
+        reason: 'clear',
+      }),
+    );
+    release();
+    const result = await pending;
+    assert.equal(result.isError, true);
+    assert.equal(forwardedPeers, 0);
+  } finally {
+    release();
+    try {
+      await client.close();
+      await bridge?.close();
+      await pending?.catch(() => {});
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  }
+});
+
+test('An old source helper cannot recapture a resumed session incarnation after a node restart', async (t) => {
+  const f = await claudeFixture(t);
+  const session = randomUUID();
+  assertQuietHook(
+    await runHook(f.nodeFile, {
+      hook_event_name: 'SessionStart',
+      session_id: session,
+      source: 'startup',
+    }),
+  );
+  const old = await launchHelper(t, f, session);
+  const connect = await prepareCall(f.nodeFile, session, 'agent_connect', { nickname: 'Борис' });
+  const connected = await old.client.callTool({ name: 'agent_connect', arguments: connect });
+  assert.equal(connected.isError, undefined);
+  const binding = (connected.structuredContent as { binding: { connectionId: string } }).binding;
+  const staleRead = await prepareCall(f.nodeFile, session, 'agent_read', {
+    connectionId: binding.connectionId,
+  });
+  const initial = await readNativeLease(f.nodeFile, session);
+  assertQuietHook(
+    await runHook(f.nodeFile, {
+      hook_event_name: 'SessionEnd',
+      session_id: session,
+      reason: 'resume',
+    }),
+  );
+  assertQuietHook(
+    await runHook(f.nodeFile, {
+      hook_event_name: 'SessionStart',
+      session_id: session,
+      source: 'resume',
+    }),
+  );
+  const resumed = await readNativeLease(f.nodeFile, session);
+  assert.equal(resumed?.active, true);
+  assert.ok(resumed?.nonce !== initial?.nonce, 'Resume must create a new native incarnation');
+  await f.restart();
+  const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
+  if (sender.status !== 'connected') throw new Error();
+  const queued = await f.service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: f.service.settings.value.nodeId,
+    recipientNickname: 'Борис',
+    text: 'Только новому incarnation',
+  });
+  await until(() => f.service.store.dispatchState(queued.id)?.state === 'waiting');
+  assert.equal(
+    (await old.client.callTool({ name: 'agent_read', arguments: staleRead })).isError,
+    true,
+  );
+  assert.equal(old.wakes.length, 0);
+  assert.equal(f.service.store.get(queued.id, 'out')!.state, 'ready');
+
+  const fresh = await launchHelper(t, f, session);
+  await until(() => fresh.wakes.length === 1);
+  const freshRead = await prepareCall(f.nodeFile, session, 'agent_read', {
+    connectionId: binding.connectionId,
+  });
+  const received = await fresh.client.callTool({ name: 'agent_read', arguments: freshRead });
+  assert.equal(received.isError, undefined);
+  assert.equal(f.service.store.get(queued.id, 'out')!.state, 'processed');
+  assert.equal(old.wakes.length, 0);
 });
 
 test('A hook never blocks Claude Code: invalid input or an absent node exits 0 without output', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-claude-hook-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
   const missing = path.join(directory, 'node.json');
-  assert.deepEqual(await runHook(missing, 'not json'), { code: 0, output: '' });
-  assert.deepEqual(
+  assertQuietHook(await runHook(missing, 'not json'));
+  assertQuietHook(
     await runHook(missing, { hook_event_name: 'SessionStart', session_id: randomUUID() }),
-    { code: 0, output: '' },
   );
-  assert.deepEqual(
+  assertQuietHook(
     await runHook(missing, {
       hook_event_name: 'Stop',
       session_id: randomUUID(),
       stop_hook_active: false,
       last_assistant_message: 'private text is never forwarded',
     }),
-    { code: 0, output: '' },
+  );
+  assertQuietHook(
+    await runHook(missing, {
+      hook_event_name: 'PreToolUse',
+      session_id: randomUUID(),
+      tool_name: claudeToolPrefix + 'agent_read',
+      tool_input: { connectionId: randomUUID(), contextToken: randomUUID() },
+    }),
   );
 });
 
-test('A live helper reconnects after a node restart and receives the stale offer again without user action', async (t) => {
+test('A lifecycle hook persists revocation even when its node HTTP request cannot be delivered', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-claude-hook-offline-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const nodeFile = path.join(directory, 'Integrations', 'node.json');
+  await mkdir(path.dirname(nodeFile));
+  await writeFile(
+    nodeFile,
+    JSON.stringify({ url: 'http://127.0.0.1:1/mcp', token: 'a'.repeat(64) }),
+    { mode: 0o600 },
+  );
+  const session = randomUUID();
+  assertQuietHook(
+    await runHook(nodeFile, {
+      hook_event_name: 'SessionStart',
+      session_id: session,
+      source: 'startup',
+    }),
+  );
+  const initial = await readNativeLease(nodeFile, session);
+  assert.equal(initial?.active, true);
+  assertQuietHook(
+    await runHook(nodeFile, {
+      hook_event_name: 'SessionEnd',
+      session_id: session,
+      reason: 'clear',
+    }),
+  );
+  const revoked = await readNativeLease(nodeFile, session);
+  assert.equal(revoked?.active, false);
+  assert.ok(revoked?.nonce !== initial?.nonce, 'Revocation must replace the native incarnation');
+});
+
+test('A source helper reconnects after a node restart and receives the stale offer again without user action', async (t) => {
   const f = await claudeFixture(t);
   const nodeFile = path.join(f.directory, 'Integrations', 'node.json');
   const s1 = randomUUID();
   await runHook(nodeFile, { hook_event_name: 'SessionStart', session_id: s1, source: 'startup' });
   const { client, wakes } = await launchHelper(t, f, s1);
-  const args = { nickname: 'Боб' };
-  await runHook(nodeFile, {
-    hook_event_name: 'PreToolUse',
-    session_id: s1,
-    tool_name: claudeToolPrefix + 'agent_connect',
-    tool_input: args,
-  });
+  const args = await prepareCall(nodeFile, s1, 'agent_connect', { nickname: 'Боб' });
   assert.equal(
     (await client.callTool({ name: 'agent_connect', arguments: args })).isError,
     undefined,
@@ -292,31 +658,21 @@ test('A live helper reconnects after a node restart and receives the stale offer
   assert.equal(wakes[1].meta?.agent, 'Боб');
   // The first read after the restart must reach the new node lifecycle (on-site T11 regression).
   const agent = f.service.store.list().find((value) => value.nickname === 'Боб')!;
-  const read = { connectionId: agent.binding!.connectionId };
-  await runHook(nodeFile, {
-    hook_event_name: 'PreToolUse',
-    session_id: s1,
-    tool_name: claudeToolPrefix + 'agent_read',
-    tool_input: read,
+  const read = await prepareCall(nodeFile, s1, 'agent_read', {
+    connectionId: agent.binding!.connectionId,
   });
   const result = await client.callTool({ name: 'agent_read', arguments: read });
-  assert.equal(result.isError, undefined, JSON.stringify(result.content));
+  assert.equal(result.isError, undefined);
   assert.match(JSON.stringify(result.structuredContent), /Через рестарт/);
 });
 
-test('A reconnected helper offers its route only after the MCP handshake, so a pending wake is not lost', async (t) => {
+test('A source helper offers its route only after the synthetic MCP client initializes', async (t) => {
   const f = await claudeFixture(t);
   const nodeFile = path.join(f.directory, 'Integrations', 'node.json');
   const s1 = randomUUID();
   await runHook(nodeFile, { hook_event_name: 'SessionStart', session_id: s1, source: 'startup' });
   const first = await launchHelper(t, f, s1);
-  const args = { nickname: 'Боб' };
-  await runHook(nodeFile, {
-    hook_event_name: 'PreToolUse',
-    session_id: s1,
-    tool_name: claudeToolPrefix + 'agent_connect',
-    tool_input: args,
-  });
+  const args = await prepareCall(nodeFile, s1, 'agent_connect', { nickname: 'Боб' });
   assert.equal(
     (await first.client.callTool({ name: 'agent_connect', arguments: args })).isError,
     undefined,
@@ -332,8 +688,6 @@ test('A reconnected helper offers its route only after the MCP handshake, so a p
   });
   await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
   // On-site T16: /mcp Reconnect spawns a helper while a message is already queued.
-  const { startClaudeBridge } = await import('../desktop/integrations/claude-code.js');
-  const { InMemoryTransport } = await import('@modelcontextprotocol/sdk/inMemory.js');
   const [client, server] = InMemoryTransport.createLinkedPair();
   const received: { method?: string }[] = [];
   client.onmessage = (message) => received.push(message as { method?: string });

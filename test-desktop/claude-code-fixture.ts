@@ -8,6 +8,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { NodeService } from '../desktop/core/service.js';
 import { claudeToolPrefix } from '../desktop/core/claude-sessions.js';
 import { canonicalInputHash } from '../desktop/integrations/claude-code.js';
+import { readNativeLease, updateNativeLease } from '../desktop/integrations/claude-native-lease.js';
 
 export { canonicalInputHash };
 
@@ -19,71 +20,116 @@ export class FakeHelper {
   generation = 0;
   private controller?: AbortController;
   private reading?: Promise<void>;
+  private nativeLeaseNonce?: string;
+  private leasePinned = false;
   constructor(
     readonly f: ClaudeFixture,
     public spawnSession: string | null,
     public session: string | null = spawnSession,
+    private readonly leaseOverride?: string,
   ) {}
   wakes(): string[] {
     return this.lines.filter((line) => line.type === 'wake').map((line) => String(line.nickname));
   }
   async attach(): Promise<void> {
+    if (!this.leasePinned) {
+      this.nativeLeaseNonce =
+        this.leaseOverride ??
+        (this.spawnSession
+          ? (await readNativeLease(this.f.nodeFile, this.spawnSession))?.nonce
+          : undefined);
+      this.leasePinned = true;
+    }
     this.controller = new AbortController();
-    const response = await fetch(this.f.url('/integrations/claude/helper'), {
-      method: 'POST',
-      headers: this.f.headers(),
-      body: JSON.stringify({
-        helperId: this.id,
-        secret: this.secret,
-        spawnSession: this.spawnSession,
-        session: this.session,
-        generation: this.generation,
-      }),
-      signal: this.controller.signal,
-    });
-    if (!response.ok || !response.body) throw new Error('Helper stream refused');
-    let ready!: () => void;
-    const started = new Promise<void>((resolve) => (ready = resolve));
-    this.reading = (async () => {
-      let buffer = '';
-      try {
-        for await (const chunk of response.body!) {
-          buffer += Buffer.from(chunk).toString();
-          let end: number;
-          while ((end = buffer.indexOf('\n')) >= 0) {
-            const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
-            buffer = buffer.slice(end + 1);
-            if (line.type === 'ready') ready();
-            else if (line.type !== 'ping') this.lines.push(line);
+    const controller = this.controller;
+    const timeout = setTimeout(() => controller.abort(), 5000);
+    try {
+      const response = await fetch(this.f.url('/integrations/claude/helper'), {
+        method: 'POST',
+        headers: this.f.headers(),
+        body: JSON.stringify({
+          helperId: this.id,
+          secret: this.secret,
+          spawnSession: this.spawnSession,
+          session: this.session,
+          generation: this.generation,
+          nativeLeaseNonce: this.nativeLeaseNonce ?? null,
+        }),
+        signal: controller.signal,
+      });
+      if (!response.ok || !response.body) throw new Error('Helper stream refused');
+      let settled = false;
+      let ready!: () => void;
+      let failed!: (error: Error) => void;
+      const started = new Promise<void>((resolve, reject) => {
+        ready = () => {
+          if (settled) return;
+          settled = true;
+          resolve();
+        };
+        failed = (error) => {
+          if (settled) return;
+          settled = true;
+          reject(error);
+        };
+      });
+      this.reading = (async () => {
+        let buffer = '';
+        try {
+          for await (const chunk of response.body!) {
+            buffer += Buffer.from(chunk).toString();
+            let end: number;
+            while ((end = buffer.indexOf('\n')) >= 0) {
+              const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
+              buffer = buffer.slice(end + 1);
+              if (line.type === 'error') {
+                failed(new Error('Helper stream refused the native lease'));
+                return;
+              }
+              if (line.type === 'native-lease') {
+                if (
+                  line.session !== this.spawnSession ||
+                  typeof line.nonce !== 'string' ||
+                  (this.nativeLeaseNonce && this.nativeLeaseNonce !== line.nonce)
+                ) {
+                  failed(new Error('Helper stream changed its pinned native lease'));
+                  return;
+                }
+                this.nativeLeaseNonce = line.nonce;
+                continue;
+              }
+              if (line.type === 'ready') ready();
+              else if (line.type !== 'ping') this.lines.push(line);
+            }
           }
+        } catch (error) {
+          failed(error instanceof Error ? error : new Error('Helper stream failed'));
+        } finally {
+          failed(new Error('Helper stream ended before ready'));
         }
-      } catch {
-        // Aborted by the test.
-      }
-    })();
-    await started;
+      })();
+      await started;
+    } catch (error) {
+      controller.abort();
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
   async detach(): Promise<void> {
     this.controller?.abort();
     await this.reading;
   }
-  async switchSession(session: string | null): Promise<void> {
-    this.session = session;
-    this.generation++;
-    await this.f.post('/integrations/claude/session', {
-      helperId: this.id,
-      secret: this.secret,
-      session,
-      generation: this.generation,
-    });
-  }
   /** What the helper does before forwarding a tool call it received from Claude Code. */
-  verify(tool: string, args: Record<string, unknown>) {
+  verify(tool: string, args: Record<string, unknown>, contextToken?: string) {
+    const original = { ...args };
+    delete original.contextToken;
     return this.f.post('/integrations/claude/call', {
       helperId: this.id,
       secret: this.secret,
       tool,
-      inputHash: canonicalInputHash(args),
+      inputHash: canonicalInputHash(original),
+      ...(contextToken ? { contextToken } : {}),
       ...(typeof args.connectionId === 'string' ? { connectionId: args.connectionId } : {}),
     });
   }
@@ -92,11 +138,16 @@ export class FakeHelper {
 export interface ClaudeFixture {
   service: NodeService;
   directory: string;
+  nodeFile: string;
   url(route: string): URL;
   headers(): Record<string, string>;
   post(route: string, body: unknown): Promise<{ status: number; body: Record<string, unknown> }>;
-  hook(event: string, session: string, extra?: Record<string, unknown>): Promise<void>;
-  preTool(session: string, tool: string, args: Record<string, unknown>): Promise<void>;
+  hook(
+    event: string,
+    session: string,
+    extra?: Record<string, unknown>,
+  ): Promise<Record<string, unknown>>;
+  preTool(session: string, tool: string, args: Record<string, unknown>): Promise<string>;
   connect(helper: FakeHelper, session: string, nickname: string): Promise<Record<string, any>>;
   restart(): Promise<NodeService>;
   mcp(): Promise<Client>;
@@ -105,18 +156,30 @@ export interface ClaudeFixture {
 export async function claudeFixture(t: test.TestContext): Promise<ClaudeFixture> {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-claude-'));
   let service = new NodeService(directory);
-  await service.open();
   const clients: Client[] = [];
   t.after(async () => {
     await Promise.allSettled(clients.map((client) => client.close()));
     await service.close();
     await rm(directory, { recursive: true, force: true });
   });
+  const open = async () => {
+    await service.settings.load();
+    Object.assign(service.settings.value, {
+      mcpPort: 0,
+      peerPort: 0,
+      listenHost: '127.0.0.1',
+      peers: [],
+    });
+    await service.settings.save();
+    await service.open();
+  };
+  await open();
   const f: ClaudeFixture = {
     get service() {
       return service;
     },
     directory,
+    nodeFile: path.join(directory, 'Integrations', 'node.json'),
     url: (route) => new URL(route, service.snapshot().mcpUrl),
     headers: () => ({
       'content-type': 'application/json',
@@ -131,18 +194,29 @@ export async function claudeFixture(t: test.TestContext): Promise<ClaudeFixture>
       return { status: response.status, body: (await response.json()) as Record<string, unknown> };
     },
     async hook(event, session, extra = {}) {
+      const lease =
+        event === 'SessionStart' || event === 'SessionEnd'
+          ? await updateNativeLease(f.nodeFile, session, event)
+          : await readNativeLease(f.nodeFile, session);
       const result = await f.post('/integrations/claude/hook', {
         event,
         sessionId: session,
+        nativeLeaseNonce: lease?.nonce ?? null,
         ...extra,
       });
       if (result.status !== 200) throw new Error('Hook refused: ' + JSON.stringify(result.body));
+      return result.body;
     },
     async preTool(session, tool, args) {
-      await f.hook('PreToolUse', session, {
+      const original = { ...args };
+      delete original.contextToken;
+      const result = await f.hook('PreToolUse', session, {
         tool: claudeToolPrefix + tool,
-        inputHash: canonicalInputHash(args),
+        inputHash: canonicalInputHash(original),
       });
+      if (typeof result.contextToken !== 'string')
+        throw new Error('The native hook did not receive a tool proof');
+      return result.contextToken;
     },
     async mcp() {
       const client = new Client({ name: 'Claude Code', version: 'fixture' });
@@ -158,8 +232,8 @@ export async function claudeFixture(t: test.TestContext): Promise<ClaudeFixture>
     },
     async connect(helper, session, nickname) {
       const args = { nickname };
-      await f.preTool(session, 'agent_connect', args);
-      const verified = await helper.verify('agent_connect', args);
+      const proof = await f.preTool(session, 'agent_connect', args);
+      const verified = await helper.verify('agent_connect', args, proof);
       if (verified.status !== 200) throw new Error(String(verified.body.error));
       const client = await f.mcp();
       const result = await client.callTool({
@@ -173,7 +247,7 @@ export async function claudeFixture(t: test.TestContext): Promise<ClaudeFixture>
       await Promise.allSettled(clients.splice(0).map((client) => client.close()));
       await service.close();
       service = new NodeService(directory);
-      await service.open();
+      await open();
       return service;
     },
   };

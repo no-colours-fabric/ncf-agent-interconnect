@@ -12,6 +12,7 @@ import {
   type ServerNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { readNativeLease, updateNativeLease } from './claude-native-lease.js';
 
 /** Plugin, marketplace and server keys; Claude Code derives tool names from them. */
 export const claudePlugin = {
@@ -64,10 +65,14 @@ const canonical = (value: unknown): unknown =>
         )
       : value;
 /**
- * The PreToolUse hook and the helper hash the same tool input independently.
- * Equal hashes correlate one Claude Code tool call with one stdio transport.
+ * Hash only the original tool arguments. The integration-owned proof is
+ * injected later and establishes authority independently of this integrity hash.
  */
 export function canonicalInputHash(input: unknown): string {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const { contextToken: _proof, ...original } = input as Record<string, unknown>;
+    input = original;
+  }
   return createHash('sha256')
     .update(JSON.stringify(canonical(input ?? {})))
     .digest('hex');
@@ -109,20 +114,7 @@ async function post(
   const parsed = (await response.json().catch(() => ({}))) as Record<string, unknown>;
   return { ok: response.ok, body: parsed };
 }
-const sessionValue = z.uuid();
-const sessionEventTool = {
-  name: 'session_event',
-  description:
-    'Internal endpoint for the NCF plugin hooks. Claude Code calls it on session start and end. Never call this tool yourself.',
-  inputSchema: {
-    type: 'object' as const,
-    properties: {
-      event: { type: 'string', enum: ['start', 'end'] },
-      session_id: { type: 'string' },
-    },
-    required: ['event', 'session_id'],
-  },
-};
+const sessionValue = z.uuid().transform((value) => value.toLowerCase());
 const contextTools = new Set(['agent_connect']);
 
 /**
@@ -139,9 +131,42 @@ export async function startClaudeBridge(
   const secret = randomBytes(32).toString('hex');
   const spawned = sessionValue.safeParse(env.CLAUDE_CODE_SESSION_ID);
   const spawnSession = spawned.success ? spawned.data : null;
-  let session = spawnSession,
-    generation = 0,
-    closed = false;
+  const session = spawnSession;
+  const generation = 0;
+  let closed = false;
+  let nativeLeaseNonce: string | null = null;
+  let nativeLeasePinned = false;
+  let nativeLeaseBlocked = false;
+  if (spawnSession) {
+    try {
+      const lease = await readNativeLease(nodeFile, spawnSession);
+      if (lease?.active) {
+        nativeLeaseNonce = lease.nonce;
+        nativeLeasePinned = true;
+      }
+    } catch {
+      nativeLeaseBlocked = true;
+    }
+  }
+  const nativeLeaseCurrent = async (): Promise<boolean> => {
+    if (!spawnSession || !nativeLeasePinned || !nativeLeaseNonce || nativeLeaseBlocked)
+      return false;
+    try {
+      const lease = await readNativeLease(nodeFile, spawnSession);
+      return !!lease?.active && lease.nonce === nativeLeaseNonce;
+    } catch {
+      return false;
+    }
+  };
+  const unverifiedContext = () => ({
+    isError: true,
+    content: [
+      {
+        type: 'text' as const,
+        text: 'This native Claude Code session is not verified. Use the client controls to reconnect MCP.',
+      },
+    ],
+  });
   let remote: Client | undefined,
     current = '',
     loading: Promise<Client> | undefined;
@@ -182,50 +207,43 @@ export async function startClaudeBridge(
       const result = await (await connect()).listTools();
       return {
         ...result,
-        tools: [
-          ...result.tools.map((tool) => {
-            if (!contextTools.has(tool.name)) return tool;
-            const inputSchema = structuredClone(tool.inputSchema);
-            if (inputSchema.properties) delete inputSchema.properties.contextToken;
-            return { ...tool, inputSchema };
-          }),
-          sessionEventTool,
-        ],
+        tools: result.tools.map((tool) => {
+          const inputSchema = structuredClone(tool.inputSchema);
+          inputSchema.properties = {
+            ...inputSchema.properties,
+            contextToken: {
+              type: 'string',
+              description:
+                'One-use current-call proof supplied automatically by the installed NCF hook.',
+            },
+          };
+          return { ...tool, inputSchema };
+        }),
       };
     } catch {
       throw new Error('The local NCF node is unavailable. Start it and reconnect MCP.');
     }
   });
-  const reportSession = () =>
-    post(nodeFile, '/integrations/claude/session', { helperId, secret, session, generation })
-      // The next stream hello carries the same session and generation.
-      .catch(() => undefined);
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     const original = request.params.arguments ?? {};
-    if (request.params.name === sessionEventTool.name) {
-      const input = z
-        .object({ event: z.enum(['start', 'end']), session_id: sessionValue })
-        .safeParse(original);
-      if (!input.success) return { isError: true, content: [{ type: 'text', text: 'Invalid' }] };
-      if (input.data.event === 'start') {
-        session = input.data.session_id;
-        generation++;
-      } else if (session === input.data.session_id) {
-        session = null;
-        generation++;
-      }
-      await reportSession();
-      return { content: [{ type: 'text', text: 'Recorded.' }] };
-    }
+    if (request.params.name === 'session_event')
+      return {
+        isError: true,
+        content: [
+          { type: 'text', text: 'Model tool calls cannot change the native chat context.' },
+        ],
+      };
     try {
       const args: Record<string, unknown> = { ...original };
       delete args.contextToken;
-      if (contextTools.has(request.params.name) || typeof original.connectionId === 'string') {
+      if (!(await nativeLeaseCurrent())) return unverifiedContext();
+      {
         const verified = await post(nodeFile, '/integrations/claude/call', {
           helperId,
           secret,
           tool: request.params.name,
           inputHash: canonicalInputHash(original),
+          contextToken: original.contextToken,
           ...(typeof original.connectionId === 'string'
             ? { connectionId: original.connectionId }
             : {}),
@@ -245,8 +263,12 @@ export async function startClaudeBridge(
           };
         if (contextTools.has(request.params.name)) args.contextToken = verified.body.contextToken;
       }
+      if (!(await nativeLeaseCurrent())) return unverifiedContext();
       // A failed tool request is never replayed: its effects may already be durable.
-      return await (await connect()).callTool({ ...request.params, arguments: args });
+      const client = await connect();
+      if (!(await nativeLeaseCurrent())) return unverifiedContext();
+      const result = await client.callTool({ ...request.params, arguments: args });
+      return (await nativeLeaseCurrent()) ? result : unverifiedContext();
     } catch {
       const previous = remote;
       remote = undefined;
@@ -286,7 +308,14 @@ export async function startClaudeBridge(
             'content-type': 'application/json',
             authorization: 'Bearer ' + config.token,
           },
-          body: JSON.stringify({ helperId, secret, spawnSession, session, generation }),
+          body: JSON.stringify({
+            helperId,
+            secret,
+            spawnSession,
+            session,
+            generation,
+            nativeLeaseNonce,
+          }),
           redirect: 'error',
           signal: stream.signal,
         });
@@ -301,7 +330,19 @@ export async function startClaudeBridge(
           while ((end = buffer.indexOf('\n')) >= 0) {
             const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
             buffer = buffer.slice(end + 1);
-            if (line.type === 'ready') {
+            if (line.type === 'native-lease' && !nativeLeasePinned && !nativeLeaseBlocked) {
+              if (line.session !== spawnSession || typeof line.nonce !== 'string') {
+                nativeLeaseBlocked = true;
+                continue;
+              }
+              const lease = spawnSession ? await readNativeLease(nodeFile, spawnSession) : null;
+              if (!lease?.active || lease.nonce !== line.nonce) {
+                nativeLeaseBlocked = true;
+                continue;
+              }
+              nativeLeaseNonce = line.nonce;
+              nativeLeasePinned = true;
+            } else if (line.type === 'ready') {
               delay = 1000;
               // A new node lifecycle no longer knows the old MCP session; reconnect
               // before the next tool call instead of failing it.
@@ -312,9 +353,13 @@ export async function startClaudeBridge(
                 await previous?.close().catch(() => {});
               }
               epoch = typeof line.epoch === 'string' ? line.epoch : undefined;
-            } else if (line.type === 'wake' && typeof line.nickname === 'string')
-              await notify(wakeNotification(line.nickname));
-            else if (line.type === 'notice' && typeof line.text === 'string')
+            } else if (line.type === 'wake' && typeof line.nickname === 'string') {
+              if (await nativeLeaseCurrent()) await notify(wakeNotification(line.nickname));
+            } else if (
+              line.type === 'notice' &&
+              typeof line.text === 'string' &&
+              (await nativeLeaseCurrent())
+            )
               await notify({
                 method: claudeChannelMethod,
                 params: { content: line.text, meta: { kind: 'notice' } },
@@ -327,6 +372,9 @@ export async function startClaudeBridge(
         clearTimeout(silence);
       }
       if (closed) break;
+      // An unbound helper cannot acquire another native incarnation after its
+      // first stream disconnects. The owner must use the client's fresh-helper lifecycle.
+      if (!nativeLeasePinned) nativeLeaseBlocked = true;
       await new Promise<void>((resolve) => {
         wake = resolve;
         retry = setTimeout(resolve, delay);
@@ -373,10 +421,13 @@ const hookInput = z
   })
   .loose();
 /**
- * A command hook posts trusted host evidence to the node and exits 0 without
- * output. It never changes tool input or permission decisions.
+ * Persist native lifecycle evidence before HTTP. PreToolUse injects an opaque
+ * node-issued proof without making a permission decision.
  */
-export async function runClaudeHook(nodeFile: string, stdin: string): Promise<void> {
+export async function runClaudeHook(
+  nodeFile: string,
+  stdin: string,
+): Promise<Record<string, unknown> | undefined> {
   const parsed = hookInput.safeParse(JSON.parse(stdin));
   if (!parsed.success) return;
   const input = parsed.data;
@@ -389,12 +440,18 @@ export async function runClaudeHook(nodeFile: string, stdin: string): Promise<vo
   )
     return;
   if (event === 'PreToolUse' && !input.tool_name?.startsWith(claudeToolPrefix)) return;
-  await post(
+  const lease =
+    event === 'SessionStart' || event === 'SessionEnd'
+      ? await updateNativeLease(nodeFile, input.session_id, event)
+      : await readNativeLease(nodeFile, input.session_id);
+  if (!lease || (event !== 'SessionEnd' && !lease.active)) return;
+  const response = await post(
     nodeFile,
     '/integrations/claude/hook',
     {
       event,
       sessionId: input.session_id,
+      nativeLeaseNonce: lease.nonce,
       ...(input.source ? { source: input.source } : {}),
       ...(input.reason ? { reason: input.reason } : {}),
       ...(event === 'PreToolUse'
@@ -403,6 +460,20 @@ export async function runClaudeHook(nodeFile: string, stdin: string): Promise<vo
     },
     5000,
   );
+  if (event === 'PreToolUse' && response.ok && typeof response.body.contextToken === 'string')
+    return {
+      hookSpecificOutput: {
+        hookEventName: 'PreToolUse',
+        updatedInput: {
+          ...(input.tool_input &&
+          typeof input.tool_input === 'object' &&
+          !Array.isArray(input.tool_input)
+            ? (input.tool_input as Record<string, unknown>)
+            : {}),
+          contextToken: response.body.contextToken,
+        },
+      },
+    };
 }
 
 async function readStdin(limit = 1024 * 1024): Promise<string> {
@@ -426,6 +497,9 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     // A hook failure must not block Claude Code; evidence is simply absent.
     readStdin()
       .then((stdin) => runClaudeHook(nodeFile, stdin))
+      .then((output) => {
+        if (output) process.stdout.write(JSON.stringify(output) + '\n');
+      })
       .catch(() => {})
       .finally(() => {
         process.exitCode = 0;

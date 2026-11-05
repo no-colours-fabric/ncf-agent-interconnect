@@ -2,7 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { until } from './aionui-fixture.js';
-import { claudeFixture, FakeHelper, type ClaudeFixture } from './claude-code-fixture.js';
+import {
+  canonicalInputHash,
+  claudeFixture,
+  FakeHelper,
+  type ClaudeFixture,
+} from './claude-code-fixture.js';
 
 const senders = new Map<string, string>();
 async function sendTo(f: ClaudeFixture, nickname: string, text: string) {
@@ -69,32 +74,40 @@ test('Two Claude Code chats in one folder and a second instance receive wakes on
 
   // A connectionId of another Claude Code chat is refused even with a valid hook record.
   const stolen = { connectionId: alice.binding.connectionId };
-  await f.preTool(s1, 'agent_read', stolen);
-  const refused = await a.verify('agent_read', stolen);
+  const proof = await f.preTool(s1, 'agent_read', stolen);
+  const refused = await a.verify('agent_read', stolen, proof);
   assert.equal(refused.status, 400);
   assert.match(String(refused.body.error), /another Claude Code chat/);
 });
 
-test('Context without a hook record, a replayed record, another input and a concurrent identical call are refused', async (t) => {
+test('A tool proof is required, one-use and bound to the exact helper, tool and original input', async (t) => {
   const f = await claudeFixture(t);
   const [s1, s2] = [randomUUID(), randomUUID()];
   const a = new FakeHelper(f, s1),
     b = new FakeHelper(f, s2);
+  await f.hook('SessionStart', s1, { source: 'startup' });
+  await f.hook('SessionStart', s2, { source: 'startup' });
   await a.attach();
   await b.attach();
   const args = { nickname: 'Боб' };
   const missing = await a.verify('agent_connect', args);
   assert.equal(missing.status, 400);
-  assert.match(String(missing.body.error), /did not confirm this chat/);
+  const fabricated = await a.verify('agent_connect', args, randomUUID());
+  assert.equal(fabricated.status, 400);
+  const foreignProof = await f.preTool(s2, 'agent_connect', args);
+  const foreign = await a.verify('agent_connect', args, foreignProof);
+  assert.equal(foreign.status, 400);
 
-  await f.preTool(s1, 'agent_connect', args);
-  const other = await a.verify('agent_connect', { nickname: 'Мэллори' });
+  const otherProof = await f.preTool(s1, 'agent_connect', args);
+  const other = await a.verify('agent_connect', { nickname: 'Мэллори' }, otherProof);
   assert.equal(other.status, 400);
-  const wrongTool = await a.verify('agent_disconnect', args);
+  const wrongToolProof = await f.preTool(s1, 'agent_connect', args);
+  const wrongTool = await a.verify('agent_disconnect', args, wrongToolProof);
   assert.equal(wrongTool.status, 400);
-  const first = await a.verify('agent_connect', args);
+  const proof = await f.preTool(s1, 'agent_connect', args);
+  const first = await a.verify('agent_connect', { ...args, contextToken: proof }, proof);
   assert.equal(first.status, 200);
-  const replay = await a.verify('agent_connect', args);
+  const replay = await a.verify('agent_connect', args, proof);
   assert.equal(replay.status, 400);
 
   // A model-supplied contextToken is not a node ticket.
@@ -117,24 +130,24 @@ test('Context without a hook record, a replayed record, another input and a conc
   });
   assert.equal(again.isError, true);
 
-  // Two chats issuing the identical call at the same time cannot be told apart.
+  // Identical input does not grant another helper authority over this chat.
   const same = { nickname: 'Общий' };
-  await f.preTool(s1, 'agent_connect', same);
-  await f.preTool(s2, 'agent_connect', same);
-  const ambiguous = await b.verify('agent_connect', same);
-  assert.equal(ambiguous.status, 400);
-  assert.match(String(ambiguous.body.error), /same request/);
+  const aProof = await f.preTool(s1, 'agent_connect', same);
+  const bProof = await f.preTool(s2, 'agent_connect', same);
+  assert.equal((await a.verify('agent_connect', same, aProof)).status, 200);
+  assert.equal((await b.verify('agent_connect', same, bProof)).status, 200);
 
   // Without its node-issued context, a plain Claude Code MCP connect is refused.
   const plain = await client.callTool({ name: 'agent_connect', arguments: { nickname: 'Ева' } });
   assert.equal(plain.isError, true);
-  // An unknown helper secret cannot use a record.
-  await f.preTool(s1, 'node_status', {});
+  // An unknown helper secret cannot use a node-issued proof.
+  const impostorProof = await f.preTool(s1, 'node_status', {});
   const impostor = await f.post('/integrations/claude/call', {
     helperId: a.id,
     secret: 'f'.repeat(64),
     tool: 'node_status',
-    inputHash: '0'.repeat(64),
+    inputHash: canonicalInputHash({}),
+    contextToken: impostorProof,
   });
   assert.equal(impostor.status, 400);
 });
@@ -161,8 +174,8 @@ test('A dropped wake never records receipt; a queued backlog gets one wake and a
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'checking');
 
   const read = { connectionId: bob.binding.connectionId, after: 0, limit: 1 };
-  await f.preTool(s1, 'agent_read', read);
-  assert.equal((await a.verify('agent_read', read)).status, 200);
+  const proof = await f.preTool(s1, 'agent_read', read);
+  assert.equal((await a.verify('agent_read', read, proof)).status, 200);
   const page = (await f.service.read(read.connectionId, 0, 1, true)) as { hasMore: boolean };
   assert.equal(page.hasMore, true);
   // A read that confirms a wake marks channel delivery as working for this process.
@@ -201,39 +214,44 @@ test('An ignored wake does not stall later messages: each new arrival is announc
   }
 });
 
-test('A session switch fences the old route before a new context is admitted', async (t) => {
+test('A native session change fences the old helper; a fresh helper does not inherit its nickname', async (t) => {
   const f = await claudeFixture(t);
   const [s1, s2] = [randomUUID(), randomUUID()];
   const a = new FakeHelper(f, s1);
   await f.hook('SessionStart', s1, { source: 'startup' });
   await a.attach();
   const bob = await f.connect(a, s1, 'Боб');
-  // /clear: SessionEnd for the old chat, then the hook-driven session event on the same transport.
+  // An in-process identity change is unsupported: the new native lease needs a fresh helper.
   await f.hook('SessionEnd', s1, { reason: 'clear' });
-  await a.switchSession(s2);
+  await f.hook('SessionStart', s2, { source: 'clear' });
   const sent = await sendTo(f, 'Боб', 'Не в новый чат');
   await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
   await settle();
   assert.deepEqual(a.wakes(), []);
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'error');
-  // The new chat proves its own session but does not inherit the nickname.
-  await f.hook('SessionStart', s2, { source: 'clear' });
+  // The new chat proves its own native session but does not inherit the nickname.
+  const next = new FakeHelper(f, s2);
+  await next.attach();
   const read = { connectionId: bob.binding.connectionId };
-  await f.preTool(s2, 'agent_read', read);
-  const refused = await a.verify('agent_read', read);
+  const proof = await f.preTool(s2, 'agent_read', read);
+  const refused = await next.verify('agent_read', read, proof);
   assert.equal(refused.status, 400);
   await settle();
   assert.deepEqual(a.wakes(), []);
-  const moved = await f.connect(a, s2, 'Боб');
+  const moved = await f.connect(next, s2, 'Боб');
   assert.equal(moved.status, 'nickname_in_use');
-  // /resume back to the proven chat restores its route.
+  // Resuming the original chat also needs a fresh helper for its new native lease.
+  await f.hook('SessionEnd', s2, { reason: 'prompt_input_exit' });
+  await next.detach();
+  await a.detach();
   await f.hook('SessionStart', s1, { source: 'resume' });
-  await a.switchSession(s1);
-  await until(() => a.wakes().length === 1);
+  const resumed = new FakeHelper(f, s1);
+  await resumed.attach();
+  await until(() => resumed.wakes().length === 1);
   assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
 });
 
-test('A late session event cannot roll a helper back, and two helpers claiming one chat pause delivery', async (t) => {
+test('Public session messages cannot rebind a helper; duplicate native helpers pause delivery', async (t) => {
   const f = await claudeFixture(t);
   const s1 = randomUUID();
   const a = new FakeHelper(f, s1);
@@ -246,23 +264,20 @@ test('A late session event cannot roll a helper back, and two helpers claiming o
     session: randomUUID(),
     generation: 0 + 1,
   });
-  assert.equal(stale.status, 200);
-  a.generation = 1;
-  // A replayed older generation is ignored.
+  assert.equal(stale.status, 404);
+  // Replayed model-supplied identity is non-authoritative as well.
   const replay = await f.post('/integrations/claude/session', {
     helperId: a.id,
     secret: a.secret,
     session: s1,
     generation: 1,
   });
-  assert.equal(replay.status, 200);
+  assert.equal(replay.status, 404);
   const sent = await sendTo(f, 'Боб', 'Пауза');
-  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
-  // Two processes resuming the same chat are ambiguous.
-  await f.hook('SessionStart', s1, { source: 'resume' });
-  await a.switchSession(s1);
+  await until(() => a.wakes().length === 1);
+  assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
+  // A second helper presenting the same current native lease creates ambiguity.
   const twin = new FakeHelper(f, s1);
-  await f.hook('SessionStart', s1, { source: 'resume' });
   await twin.attach();
   await settle();
   const agent = f.service.store.list().find((x) => x.nickname === 'Боб')!;
@@ -291,7 +306,7 @@ test('Node restart with a live helper restores the proven route and re-offers st
   await until(() => a.lines.length === lines + 1);
   assert.deepEqual(a.wakes(), ['Боб', 'Боб']);
   // A different helper process with a stale identity cannot reuse the persisted proof.
-  const forged = new FakeHelper(f, s1);
+  const forged = new FakeHelper(f, s1, s1, randomUUID());
   await forged.attach();
   await settle();
   assert.deepEqual(forged.wakes(), []);
@@ -306,8 +321,7 @@ test('Node restart with a live helper restores the proven route and re-offers st
   await until(() => f.service.store.dispatchState(first.id)?.state === 'waiting');
   assert.equal(f.service.store.get(first.id, 'in')!.state, 'ready');
   assert.equal(f.service.store.get(second.id, 'in')!.state, 'ready');
-  // After the client reconnects the server, the new helper proves the still-active chat.
-  await f.hook('SessionStart', s1, { source: 'resume' });
+  // Reconnecting the server uses the unchanged active native lease, without a new SessionStart.
   const reconnected = new FakeHelper(f, s1);
   await reconnected.attach();
   await until(() => reconnected.wakes().length === 1);
