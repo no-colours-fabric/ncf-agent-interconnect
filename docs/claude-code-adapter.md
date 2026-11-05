@@ -108,12 +108,12 @@ the old route before a new one is admitted.
 
 ## Recovery
 
-| Situation                                  | Behaviour                                                                                                                                                                                                                                                                        |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| NCF restarts while Claude Code runs        | The helper reconnects its event stream with backoff and proves its route again with its in-memory secret and session generation. Stale offers are re-sent once. No user or model action is needed.                                                                               |
-| Claude Code starts with `--resume <id>`    | The helper environment and the `SessionStart` command hook name the same session, so the route is proven before the first prompt. After `--continue`, or `--resume` without an ID, the environment can hold the startup ID; the route is then proven at the first NCF tool call. |
-| `/clear` or `/resume` in a running process | `SessionEnd` and the session events block the old route. The new chat does not inherit the agent name; moving it requires the owner-approved transfer. Resuming the original chat restores its route.                                                                            |
-| The stdio helper exits                     | Claude Code marks the server failed. Use **Reconnect** in `/mcp`. Messages stay queued. The new helper is proven again from its spawn session and the persisted active-session list before any wake, without a prompt or tool call. NCF never starts Claude Code itself.         |
+| Situation                                  | Behaviour                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| NCF restarts while Claude Code runs        | The helper reconnects its event stream with backoff and proves its route again with its in-memory secret and session generation. Stale offers are re-sent once. No user or model action is needed.                                                                                                                                                                                                                                                 |
+| Claude Code starts with `--resume <id>`    | The helper environment and the `SessionStart` command hook name the same session, so the route is proven before the first prompt. A wake for a message already queued at launch can arrive before Claude Code registers the channel and is then lost; the message is delivered with the next event. After `--continue`, or `--resume` without an ID, the environment can hold the startup ID; the route is then proven at the first NCF tool call. |
+| `/clear` or `/resume` in a running process | `SessionEnd` and the session events block the old route. The new chat does not inherit the agent name; moving it requires the owner-approved transfer. Resuming the original chat restores its route.                                                                                                                                                                                                                                              |
+| The stdio helper exits                     | Claude Code marks the server failed. Use **Reconnect** in `/mcp`. Messages stay queued. The new helper is proven again from its spawn session and the persisted active-session list before any wake, without a prompt or tool call. NCF never starts Claude Code itself.                                                                                                                                                                           |
 
 ## Verification limits
 
@@ -132,16 +132,35 @@ hook processes, isolated nodes and temporary settings files:
 
 They do not contact Claude Code or any account.
 
-Not yet verified with a live Claude Code session:
+On-site run `ncfcc-20261105-r1` (2026-11-05) used three interactive Claude
+Code 2.1.318 sessions with a claude.ai account, the installed Linux x64 package
+and a dedicated `CLAUDE_CONFIG_DIR`. It verified the following live:
 
 - channel registration;
-- the qualified tool name in a loaded plugin;
-- `mcp_tool` hook calls to the `session_event` tool;
-- `PreToolUse` input identity;
-- drafts and pending permission dialogs during a channel event;
-- the macOS and Windows packages.
+- the loaded tool name `mcp__plugin_ncf-agent-interconnect_ncf__agent_read`
+  and the applied allow rule;
+- idle wakes in both directions;
+- exact routing among six directions;
+- drafts, open permission cards and AskUserQuestion forms during events;
+- busy turns and pagination;
+- NCF restart and transport loss with live helpers;
+- `/clear`, name transfer, helper death with `/mcp` Reconnect;
+- attachments;
+- a session without the channel flag.
 
-Until the owner-run procedure below passes, these items stay open.
+Open items:
+
+- **First wake after a launch with `--resume`.** Claude Code registers the
+  channel listener about 370 ms after the MCP handshake and drops events sent
+  in that window. A message already queued at launch is therefore delivered
+  with the next event, not before the first action. No helper-visible client
+  event marks the registration, so this release does not add a timing
+  heuristic.
+- **`--resume` launches report a hook error.** They show
+  `SessionStart:resume … mcp_tool hooks are not available`. The `mcp_tool`
+  group keeps `resume` so that an in-process `/resume` updates the helper.
+- **Platform and account coverage.** macOS arm64, Windows x64 and a second
+  account were not run.
 
 ## Owner-run validation
 
