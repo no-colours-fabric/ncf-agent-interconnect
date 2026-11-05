@@ -60,7 +60,13 @@ export function createAgentMcp(
             extra.requestId === undefined
           )
             throw new Error('The Claude Code call admission is unavailable.');
-          service.claude.assertCall(permit, name, sessionKey, extra.requestId);
+          service.claude.assertCall(
+            permit,
+            name,
+            sessionKey,
+            extra.requestId,
+            (args as Record<string, unknown>).contextToken,
+          );
         };
         // This synchronous check is the final admission boundary. No await
         // separates it from handler invocation or the result-release check.
@@ -474,6 +480,9 @@ export class McpEndpoint {
             canonicalInputHash(call.params.arguments ?? {}),
             session.key,
             call.id,
+            call.params.arguments && typeof call.params.arguments === 'object'
+              ? (call.params.arguments as Record<string, unknown>).contextToken
+              : undefined,
           );
         }
       }

@@ -726,7 +726,10 @@ export class NodeService extends EventEmitter {
       () => {},
     );
     const contextToken = await work;
-    return { contextToken, callToken: this.claude.issueCall(lease, input.tool, input.inputHash) };
+    return {
+      contextToken,
+      callToken: this.claude.issueCall(lease, input.tool, input.inputHash, contextToken),
+    };
   }
   async connectCodex(
     args: Partial<ConnectInput> & { nickname: string; client: string },

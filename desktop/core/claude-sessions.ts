@@ -107,6 +107,8 @@ interface CallPermit {
   hash: string;
   expires: number;
   state: 'issued' | 'admitted';
+  /** The node-generated connect ticket from this exact preflight, not the hook proof. */
+  expectedConnectTicket?: string;
   sessionKey?: string;
   requestId?: string | number;
 }
@@ -273,9 +275,20 @@ export class ClaudeSessions extends EventEmitter {
     if (!this.matches(lease)) throw unproven();
   }
   /** A private permit for one exact server request, separate from connection tickets. */
-  issueCall(lease: ClaudeProofLease, tool: string, inputHash: string): string {
+  issueCall(
+    lease: ClaudeProofLease,
+    tool: string,
+    inputHash: string,
+    connectTicket?: string,
+  ): string {
     const name = z.string().min(1).max(128).parse(tool);
     const integrity = hash.parse(inputHash);
+    if (
+      name === 'agent_connect'
+        ? !z.uuid().safeParse(connectTicket).success
+        : connectTicket !== undefined
+    )
+      throw unproven();
     this.validateCurrentSync(lease);
     const now = this.now();
     for (const [token, permit] of this.calls)
@@ -288,8 +301,18 @@ export class ClaudeSessions extends EventEmitter {
       hash: integrity,
       expires: now + (this.options.callLifetime ?? 60000),
       state: 'issued',
+      ...(name === 'agent_connect' ? { expectedConnectTicket: connectTicket } : {}),
     });
     return callToken;
+  }
+  private connectTicketMatches(permit: CallPermit, actual: unknown): boolean {
+    if (permit.tool !== 'agent_connect') return true;
+    return (
+      permit.expectedConnectTicket !== undefined &&
+      typeof actual === 'string' &&
+      z.uuid().safeParse(actual).success &&
+      same(permit.expectedConnectTicket, actual)
+    );
   }
   private assertPermitCurrent(callToken: string, permit: CallPermit): void {
     if (
@@ -325,6 +348,7 @@ export class ClaudeSessions extends EventEmitter {
     inputHash: string,
     sessionKey: string,
     requestId: string | number,
+    connectTicket?: unknown,
   ): void {
     const permit = this.calls.get(callToken);
     if (
@@ -332,6 +356,7 @@ export class ClaudeSessions extends EventEmitter {
       permit.state !== 'issued' ||
       permit.tool !== tool ||
       !same(permit.hash, inputHash) ||
+      !this.connectTicketMatches(permit, connectTicket) ||
       !this.requestIdentity(sessionKey, requestId)
     )
       throw unproven();
@@ -354,6 +379,7 @@ export class ClaudeSessions extends EventEmitter {
     tool: string,
     sessionKey: string,
     requestId: string | number,
+    connectTicket?: unknown,
   ): void {
     const permit = this.calls.get(callToken);
     if (
@@ -362,6 +388,7 @@ export class ClaudeSessions extends EventEmitter {
       permit.tool !== tool ||
       permit.sessionKey !== sessionKey ||
       permit.requestId !== requestId ||
+      !this.connectTicketMatches(permit, connectTicket) ||
       !this.requestIdentity(sessionKey, requestId)
     )
       throw unproven();

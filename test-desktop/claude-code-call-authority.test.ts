@@ -247,3 +247,59 @@ test('Permits expire and the bounded registry reclaims expired entries without a
   const fresh = f.sessions.issueCall(p.lease, p.tool, p.inputHash);
   assert.deepEqual(await f.validate(a, fresh, 'forward'), { valid: true });
 });
+
+test('Connect compound authority rejects a mixed raw ticket without burning either call permit', async (t) => {
+  const f = await fixture(t);
+  const a = await f.active();
+  const b = await f.active();
+  const proofA = await f.permit(a);
+  const proofB = await f.permit(b);
+  const contextA = randomUUID();
+  const contextB = randomUUID();
+  const inputHash = canonicalInputHash({ nickname: 'User-selected agent' });
+  assert.throws(() => f.sessions.issueCall(proofA.lease, 'agent_connect', inputHash));
+  assert.throws(() =>
+    f.sessions.issueCall(proofA.lease, 'agent_connect', inputHash, 'not-a-node-ticket'),
+  );
+  assert.throws(() => f.sessions.issueCall(proofA.lease, 'agent_read', inputHash, contextA));
+  const callA = f.sessions.issueCall(proofA.lease, 'agent_connect', inputHash, contextA);
+  const callB = f.sessions.issueCall(proofB.lease, 'agent_connect', inputHash, contextB);
+  const key = randomUUID();
+  assert.throws(() => f.sessions.admitCall(callA, 'agent_connect', inputHash, key, 1, contextB));
+  assert.throws(() => f.sessions.admitCall(callA, 'agent_connect', inputHash, key, 1));
+  assert.deepEqual(await f.validate(a, callA, 'forward'), { valid: true });
+  assert.deepEqual(await f.validate(b, callB, 'forward'), { valid: true });
+  f.sessions.admitCall(callA, 'agent_connect', inputHash, key, 1, contextA);
+  f.sessions.admitCall(callB, 'agent_connect', inputHash, key, 2, contextB);
+  f.sessions.assertCall(callA, 'agent_connect', key, 1, contextA);
+  f.sessions.assertCall(callB, 'agent_connect', key, 2, contextB);
+});
+
+test('Connect compound authority checks the same ticket before the handler and after its await', async (t) => {
+  const f = await fixture(t);
+  const a = await f.active();
+  const proof = await f.permit(a);
+  const contextA = randomUUID();
+  const contextB = randomUUID();
+  const inputHash = canonicalInputHash({ nickname: 'Exact connect' });
+  const call = f.sessions.issueCall(proof.lease, 'agent_connect', inputHash, contextA);
+  const key = randomUUID();
+  f.sessions.admitCall(call, 'agent_connect', inputHash, key, 1, contextA);
+  let handlers = 0;
+  const beforeHandler = (actual: unknown) => {
+    f.sessions.assertCall(call, 'agent_connect', key, 1, actual);
+    handlers++;
+  };
+  assert.throws(() => beforeHandler(contextB));
+  assert.throws(() => beforeHandler(undefined));
+  assert.equal(handlers, 0);
+  beforeHandler(contextA);
+  await Promise.resolve();
+  // The generic connect ticket can already be consumed. This check only compares provenance.
+  assert.throws(() => f.sessions.assertCall(call, 'agent_connect', key, 1, contextB));
+  assert.throws(() => f.sessions.assertCall(call, 'agent_connect', key, 1));
+  f.sessions.assertCall(call, 'agent_connect', key, 1, contextA);
+  assert.equal(handlers, 1);
+  assert.deepEqual(await f.validate(a, call, 'return'), { valid: true });
+  assert.deepEqual(await f.validate(a, call, 'return'), { valid: true });
+});
