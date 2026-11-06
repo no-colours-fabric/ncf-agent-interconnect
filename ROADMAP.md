@@ -1,21 +1,25 @@
 # Roadmap
 
-A living list of ideas, requests, and deferred work for NCF Agent Interconnect. An unchecked item is open; a checked item is complete. Items in Ideas are candidates, not commitments.
+A working notebook for ideas, requests, and deferred work on NCF Agent Interconnect. Entries may be incomplete or exploratory; they are not commitments.
 
-## How to maintain this file
+## Conventions
 
-- Add a new item under Ideas: `- [ ] Short title — desired outcome.`
-- Keep each item to one line. Add indented notes only when context or a link is needed.
-- Move an item to Next or In progress when its status changes.
-- Move completed items to Done, check the box, and link the implementing PR or release when available.
-- Keep declined ideas under Not planned with a brief reason.
+- Give each new entry the next permanent ID: `R-0001`, `R-0002`, and so on. Never renumber or reuse IDs.
+- Keep a short title in the heading. Revise the title as the idea becomes clearer; keep its ID.
+- Write freely below the checkbox: observations, questions, alternatives, links, and evolving requirements may take as much space as needed.
+- `- [ ]` means unfinished. Change it to `- [x]` only when the work is complete; add a brief outcome and a PR or release link when available.
+- Separate entries with `---`. Add new entries at the end so numbering follows the order of capture.
 
-## Ideas
+## Entry template
 
-## Next
+```markdown
+## R-0001 — Short title
 
-## In progress
+- [ ] Open
 
-## Done
+Free-form notes, questions, and requirements.
 
-## Not planned
+---
+```
+
+The template is an example, not an entry. The first recorded idea will be R-0001.
