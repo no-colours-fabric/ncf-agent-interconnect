@@ -20,7 +20,7 @@ A working notebook for ideas, requests, and deferred work on NCF Agent Interconn
 ## Entry template
 
 ```markdown
-## R-0001 — Short title
+## R-NNNN — Short title
 
 - [ ] Open
 
@@ -29,4 +29,18 @@ Free-form notes, questions, and requirements.
 ---
 ```
 
-The template is an example, not an entry. The first recorded idea will be R-0001.
+The template is an example, not an entry. Replace R-NNNN with the next available ID.
+
+## R-0001 — Автоматическое обнаружение узлов для сопряжения
+
+- [ ] Open
+
+Упростить сопряжение нескольких узлов с помощью автоматического поиска в сети.
+
+Ожидаемый сценарий:
+1. Пользователь запускает приложение и видит обнаруженные активные узлы.
+2. Выбирает нужный узел и нажимает кнопку «Сопрячь».
+3. Приложение сразу предлагает ввести код сопряжения.
+4. Пользователь может повторить эти действия для других узлов.
+
+---
