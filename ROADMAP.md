@@ -10,6 +10,13 @@ A working notebook for ideas, requests, and deferred work on NCF Agent Interconn
 - `- [ ]` means unfinished. Change it to `- [x]` only when the work is complete; add a brief outcome and a PR or release link when available.
 - Separate entries with `---`. Add new entries at the end so numbering follows the order of capture.
 
+## Adding an idea
+
+1. The owner describes an idea. Ask at most one clarifying question if needed.
+2. Restate the idea in clear, structured wording, preserving its intent and language. Add only minor details that do not conflict with it.
+3. Show the proposed entry to the owner and request approval.
+4. Add or revise the entry only after the owner explicitly approves it.
+
 ## Entry template
 
 ```markdown
