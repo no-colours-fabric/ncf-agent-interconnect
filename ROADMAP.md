@@ -4,6 +4,7 @@ A working notebook for ideas, requests, and deferred work on NCF Agent Interconn
 
 ## Conventions
 
+- Write all roadmap entries in English, including ideas originally described in another language.
 - Give each new entry the next permanent ID: `R-0001`, `R-0002`, and so on. Never renumber or reuse IDs.
 - Keep a short title in the heading. Revise the title as the idea becomes clearer; keep its ID.
 - Write freely below the checkbox: observations, questions, alternatives, links, and evolving requirements may take as much space as needed.
@@ -13,7 +14,7 @@ A working notebook for ideas, requests, and deferred work on NCF Agent Interconn
 ## Adding an idea
 
 1. The owner describes an idea. Ask at most one clarifying question if needed.
-2. Restate the idea in clear, structured wording, preserving its intent and language. Add only minor details that do not conflict with it.
+2. Restate the idea in clear, structured English, preserving its intent. Add only minor details that do not conflict with it.
 3. Show the proposed entry to the owner and request approval.
 4. Add or revise the entry only after the owner explicitly approves it.
 
@@ -31,49 +32,49 @@ Free-form notes, questions, and requirements.
 
 The template is an example, not an entry. Replace R-NNNN with the next available ID.
 
-## R-0001 — Автоматическое обнаружение узлов для сопряжения
+## R-0001 — Automatic node discovery for pairing
 
 - [ ] Open
 
-Упростить сопряжение нескольких узлов с помощью автоматического поиска в сети.
+Make pairing multiple nodes easier through automatic discovery on the network.
 
-Ожидаемый сценарий:
-1. Пользователь запускает приложение и видит обнаруженные активные узлы.
-2. Выбирает нужный узел и нажимает кнопку «Сопрячь».
-3. Приложение сразу предлагает ввести код сопряжения.
-4. Пользователь может повторить эти действия для других узлов.
+Expected flow:
+1. The user launches the app and sees detected active nodes.
+2. The user selects a node and clicks Pair.
+3. The app immediately prompts for a pairing code.
+4. The user can repeat these steps for other nodes.
 
 ---
 
-## R-0002 — Долговременный профиль агента
+## R-0002 — Long-term agent profile
 
 - [ ] Open
 
-Создать профиль агента для хранения важных сведений, накопленных во время работы.
+Create an agent profile that retains important information gathered during work.
 
-- По мере появления важных сведений агент периодически обращается к MCP для чтения и изменения профиля (CRUD).
-- Очистка истории агента не удаляет профиль.
-- Профиль можно просматривать и редактировать в приложении.
-- При подключении агент сначала получает свой профиль и инструкцию по его поддержанию.
+- As important information emerges, the agent periodically uses MCP to create, read, update, and delete profile records (CRUD).
+- Clearing the agent's history does not reset the profile.
+- The profile can be viewed and edited in the app.
+- On connection, the agent receives its profile and instructions for maintaining it first.
 
-Вопрос для проработки: потребуется ли RAG для работы с профилем.
+Question to explore: whether the profile will require RAG.
 
 ---
 
-## R-0003 — Каталог навыков в приложении
+## R-0003 — Skill catalog in the app
 
 - [ ] Open
 
-Хранить навыки (skills) в приложении в каталоге, доступном любому агенту.
+Store skills in the app in a catalog available to any agent.
 
-Способ загрузки навыков из этого каталога должен ясно отличаться от команд загрузки навыков самого клиента, чтобы пользователь и агент не путали два механизма.
+The way to load skills from this catalog should be clearly distinct from the client's own skill-loading commands, so users and agents do not confuse the two mechanisms.
 
 ---
 
-## R-0004 — Объединение узлов через центральный сервер
+## R-0004 — Connect nodes through a central server
 
 - [ ] Open
 
-Создать центральный сервер, через который узлы смогут объединяться вместо прямых P2P-соединений.
+Create a central server that can connect all nodes instead of direct P2P connections.
 
 ---
