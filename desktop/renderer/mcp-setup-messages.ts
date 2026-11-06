@@ -19,7 +19,7 @@ export const mcpSetupEnglish = {
   aionDescription:
     'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
   aionContinue: 'Continue setting up AionUi. Follow the steps below.',
-  aionAccessAction: 'Open {action} and follow the pairing instructions.',
+  aionAccessAction: 'Select {action} and follow the pairing instructions.',
   aionPairTitle: 'Access to AionUi',
   aionPairHelp:
     'Enable WebUI in AionUi on this computer, enter its address and pairing code, then confirm access in AionUi.',
@@ -35,7 +35,7 @@ export const mcpSetupEnglish = {
     'Could not complete setup. Check that AionUi WebUI is running and approve a fresh pairing code.',
   aionMcpTitle: 'MCP for Cursor Agent',
   aionMcpOutdated: 'AionUi bridge settings need updating',
-  aionUpdateAction: 'Open {action}, then click Apply.',
+  aionUpdateAction: 'Select {action}, then click Apply.',
   aionRestartAction:
     'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
   aionMcpHelp:

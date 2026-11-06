@@ -2,6 +2,18 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.16.0 — 2026-11-06
+
+- Guide AionUi setup through authorization, MCP settings and a verified live
+  bridge, with inline actions and instructions for the current step.
+- Keep the selected configuration file accessible, explain the shared Cursor
+  profile change before Apply, and distinguish saved settings from a live chat.
+- Add user guides for everyday agent work, installation, client setup, desktop
+  controls and AionUi, plus a consolidated `llms.txt` reference.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+Claude Code integration and Cursor reactivity research are not included.
+
 ## 0.14.0 — 2026-11-04
 
 - Redesign the interface with a graphite Material UI theme, bounded content

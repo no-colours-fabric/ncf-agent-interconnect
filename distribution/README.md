@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.15.0
+# NCF Agent Interconnect 0.16.0
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -110,6 +110,16 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.15.0
+
+AionUi setup now shows the current authorization, MCP settings or live-bridge
+step with inline actions. The configuration file remains accessible. Review the
+shared Cursor profile explanation before Apply, then reconnect Cursor Agent in
+the intended AionUi chat. Saved authorization and settings do not prove a live
+bridge. The updated user documentation includes setup and everyday workflows.
+Quit the app before replacing it. Existing data and configuration are preserved;
+storage format 3, peer protocol 2 and the MCP tool schema are unchanged.
 
 ## Upgrade from 0.14.0
 
