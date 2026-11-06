@@ -1,5 +1,7 @@
 # Message protocol
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 The local interface uses authenticated Streamable HTTP MCP. Tool names are
 `node_status`, `node_peers`, `agent_connect`, `agent_read`, `agent_history`,
 `agent_send`, `attachment_receive`, `connection_events`, `agents_list` and

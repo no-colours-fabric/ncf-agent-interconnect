@@ -1,5 +1,7 @@
 # Security
 
+LLM-optimized documentation: [llms.txt](llms.txt).
+
 ## Reporting a vulnerability
 
 Use the repository **Security → Advisories → Report a vulnerability** when

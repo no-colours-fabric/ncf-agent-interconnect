@@ -1,5 +1,7 @@
 # Client connection status: released, unconfirmed and last verified
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 This document explains the honest status model for application connections in
 the Clients view. The core rule: each status states exactly what is confirmed and
 never invents a root cause, a closed chat or a completed task.

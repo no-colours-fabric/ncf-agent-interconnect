@@ -1,5 +1,10 @@
 # Short access codes
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
+This page is the engineering reference for pairing. For owner-facing steps,
+use [Set up NCF Agent Interconnect](setup.md#4-connect-another-computer-if-needed).
+
 To connect two computers, enter the receiving node's address and its temporary
 eight-character code. No certificate copying, export or manual trust decision
 is required. Codes use `ABCDEFGHJKLMNPQRSTUVWXYZ23456789`, accept either letter

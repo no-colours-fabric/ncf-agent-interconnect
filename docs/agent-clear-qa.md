@@ -1,5 +1,7 @@
 # Explicit agent clearing source review
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Reviewed backend and UI: `2528a2e7afc7257c6514d1bb467eaf36a533111c`.
 The revoked-restore correction is author commit
 `10b40d5081e7c1ead9ff654ce5b4af86d6541319`, integrated as `9e7e1e1`.

@@ -1,5 +1,7 @@
 ## 0.15.0
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 - New application icon for macOS and Windows.
 - Applications & MCP combines setup and clearly labelled configuration,
   authorization and delivery status; Overview puts applications below statistics.

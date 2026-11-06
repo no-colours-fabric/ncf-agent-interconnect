@@ -1,5 +1,7 @@
 # Build and verify on Windows
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Windows x64 packages are built natively. For a routine release, run the packaged
 runtime check and one isolated packaged smoke. The extended manual cases below
 are for affected installer/runtime changes or a concrete failure, not every

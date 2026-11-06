@@ -1,5 +1,7 @@
 # Agent directories and presence
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Each explicitly paired peer shares its own agent directory over the existing
 authenticated connection. No LAN scan, new pairing or transitive directory
 forwarding occurs. Addresses remain the pair `(node UUID, agent name)`.

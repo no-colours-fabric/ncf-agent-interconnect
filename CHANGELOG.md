@@ -1,5 +1,7 @@
 # Changelog
 
+LLM-optimized documentation: [llms.txt](llms.txt).
+
 ## 0.14.0 — 2026-11-04
 
 - Redesign the interface with a graphite Material UI theme, bounded content

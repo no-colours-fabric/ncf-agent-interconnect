@@ -1,5 +1,7 @@
 # Unified agents interface
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 The Agents page uses one table for local mailboxes and known remote directory entries. Rows keep the full node ID and normalized nickname internally. Only a ready directory reporting `online` produces a green availability icon. Unknown values remain empty; remote directories do not publish client names or message statistics.
 
 One Messages column shows the total followed by incoming/outgoing counts with direction icons. A missing breakdown stays absent; known zero values remain visible. Failed sends display an accessible error inside their original chat drawer and preserve the draft.

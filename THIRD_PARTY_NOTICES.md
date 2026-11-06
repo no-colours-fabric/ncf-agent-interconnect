@@ -1,5 +1,7 @@
 # Third-party notices
 
+LLM-optimized documentation: [llms.txt](llms.txt).
+
 NCF Agent Interconnect is distributed under BSD-3-Clause. Dependencies retain
 their own licenses and copyright notices.
 

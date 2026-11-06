@@ -1,5 +1,7 @@
 # Privacy and storage
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 The app stores message history and attachments on the computer running the node.
 It does not provide hosted model inference or a hosted message relay. Connected
 AI clients may send chat content to their own providers under their settings.

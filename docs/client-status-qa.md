@@ -1,5 +1,7 @@
 # Client status source verification
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Product source reviewed: `b7f65eb9067419f34647f5448a99183ebfd99f03`.
 The Codex ordering correction is
 `016ef768146e0d15642fc623e6aa8a4120e0ccb1`.

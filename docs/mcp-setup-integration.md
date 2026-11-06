@@ -1,5 +1,7 @@
 # MCP setup integration
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 This module adds client tabs and owner-operated setup buttons. The UI never displays or edits client configuration contents.
 Development and tests use temporary files. They do not change installed clients.
 

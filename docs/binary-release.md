@@ -1,5 +1,7 @@
 # Binary releases
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Use a short release cycle. Keep one version and source revision across platforms;
 reuse completed checks when the relevant source and dependencies are unchanged.
 

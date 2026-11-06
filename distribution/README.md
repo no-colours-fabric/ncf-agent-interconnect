@@ -1,5 +1,7 @@
 # NCF Agent Interconnect 0.15.0
 
+LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
+
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
 npm are not required for installation.
@@ -87,8 +89,9 @@ for a new connection; previously paired nodes reconnect without another code.
 The supported setup is Cursor Agent inside AionUi. Open Applications & MCP → AionUi.
 Configure access and approve it in AionUi, then separately configure Cursor
 Agent with the owner-operated file dialog and Apply. The dialog explains how
-replacing a global Cursor entry affects chats outside AionUi. Restart the agent
-and use the connection command. No session IDs or JSON configuration are entered.
+replacing a global Cursor entry affects chats outside AionUi. Follow the Authorization,
+MCP settings and Live bridge stages. Reconnect Cursor Agent in the intended AionUi
+chat to reload MCP settings, then use the connection command. No session IDs or JSON configuration are entered.
 Authorization, saved settings and a connected bridge are distinct states.
 See the included `guides/AionUi.md` for instructions and verification limits.
 

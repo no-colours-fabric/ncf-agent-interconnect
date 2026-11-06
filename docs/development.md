@@ -1,5 +1,27 @@
 # Development
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
+This is the entry point for engineers working on the application. The primary
+[user guide](usage.md) describes work in AI chats; the separate [setup guide](setup.md)
+covers installation, client configuration and optional pairing from the owner's
+point of view. Product operation does not require the source workflow below.
+
+## Engineering documentation map
+
+| Area                           | References                                                                                                                                   |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| Source structure and contracts | [Architecture](architecture.md), [requirements](requirements.md), [message protocol](message-protocol.md), [transport protocol](protocol.md) |
+| Client integration             | [MCP setup integration](mcp-setup-integration.md), [AionUi adapter](aionui-adapter.md)                                                       |
+| Pairing implementation         | [Pairing protocol](pairing.md)                                                                                                               |
+| Documentation research         | [User workflow findings](workflow-research.md)                                                                                               |
+| Tests and release work         | [Testing](../TESTING.md), [verification](verification.md), [binary releases](binary-release.md), [Windows builds](windows-release.md)        |
+
+Historical QA notes and research in `docs/` and `research/` record particular
+investigations. They are not the instructions for a product user. Keep new
+implementation and test notes in this engineering area; put owner-facing setup
+steps in [setup](setup.md) and task workflows in the [user guide](usage.md).
+
 Use Node.js 22.12 or later and npm. `npm ci` installs the exact versions in
 `package-lock.json`; Electron supplies the runtime in binary packages.
 

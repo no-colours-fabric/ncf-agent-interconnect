@@ -1,5 +1,7 @@
 # Architecture
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 ```text
 Client chat → MCP tools → local NodeService → persistent agent history
                                 │
@@ -52,7 +54,7 @@ supplies native runtime context, verified against the paired account and exact
 chat before issuing a one-use binding ticket. The adapter uses HTTP admission
 and WebSocket completion events. Pairing credentials are private, account
 changes invalidate old access, and uncertain admission is durable. See
-[AionUi integration](aionui-adapter.md) for setup and verification limits.
+[AionUi adapter](aionui-adapter.md) for the implementation and verification limits.
 
 Adapters receive the complete body and verified local attachment links. The
 message envelope identifies From and Reply-To. Uncertain external admission is

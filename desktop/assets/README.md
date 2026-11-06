@@ -1,5 +1,7 @@
 # Application icon
 
+LLM-optimized documentation: [llms.txt](../../llms.txt).
+
 `app-icon.png`, `app-icon.icns`, and `app-icon.ico` are the checked-in application
 icon exports. `scripts/build-assets.mjs` copies them without modification. The
 macOS monochrome menu-bar template is generated separately.

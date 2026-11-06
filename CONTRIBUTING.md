@@ -1,5 +1,7 @@
 # Contributing
 
+LLM-optimized documentation: [llms.txt](llms.txt).
+
 Use an issue to describe a reproducible bug or a focused feature proposal.
 Include the app version, operating system, architecture, client and adapter.
 Do not attach live pairing codes, MCP tokens, private keys or private chats.

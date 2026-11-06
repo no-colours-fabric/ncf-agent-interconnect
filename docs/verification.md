@@ -1,5 +1,7 @@
 # Verification
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Release verification distinguishes product-core checks from client and operating
 system checks. A capability is not treated as verified merely because a tool
 returned success.

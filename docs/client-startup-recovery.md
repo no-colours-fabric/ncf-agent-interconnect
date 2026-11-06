@@ -1,5 +1,7 @@
 # Client startup recovery
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Message exchange after manually selecting a chat is not a cold-start recovery
 test. A passing PING/ACK matrix can include messages fetched through MCP and does
 not establish automatic admission while a client chat is unloaded.

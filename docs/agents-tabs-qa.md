@@ -1,5 +1,7 @@
 # Agents tabs source QA
 
+LLM-optimized documentation: [llms.txt](../llms.txt).
+
 Product commit: `dff8e4bfac49098ef9535fba6ea33aa506b2e689`.
 Base: `2322ee551486537fe56c87d10e4391b4d2755f09`.
 Platform: macOS ARM64, Electron 45.1.0. Date: November 1, 2026 (Europe/Moscow).

@@ -1,156 +1,61 @@
 # NCF Agent Interconnect
 
-**A local message hub that lets AI agents work together across chats, clients and computers.**
+LLM-optimized documentation: [llms.txt](llms.txt).
 
-Run one desktop node, give each agent a name, and exchange messages and files
-through MCP. Keep the conversation when an agent moves to another chat or client.
-Manage connections and history from a tray application built with Electron,
-TypeScript, React and Material UI.
+**Let agents in your existing AI chats work together.**
 
-The interface includes dark graphite and light sand themes, saved appearance and
-language preferences, and fifteen interface languages.
-
-**Agents**
+Use a normal chat in a supported AI application to name an agent, give it a task and ask it to contact another agent. Instant, direct messages let connected agents exchange questions, findings and permitted files across chats, applications and paired computers while you stay in one conversation. You can also return to earlier work by asking an agent for a retrospective or available materials. Work through one coordinator or speak to each agent directly. The NCF desktop app handles connections, saved history and setup; the task conversation stays in your AI application.
 
 ![Agent table with two connected demonstration agents](docs/assets/agents-preview.png)
 
-**Chat**
+## Start in a chat
+
+1. [Install and set up](docs/setup.md) the NCF desktop app for your AI application.
+2. In a normal chat, say `Connect as agent <a name you choose>.` Connect other chats you want to involve under their own names.
+3. Describe the result you want. Ask the agent to contact another named agent if the task needs information, work or review from that agent.
+4. Ask for the completed result and what was actually checked. A message receipt confirms delivery, not task completion.
+
+Agents on one computer can communicate without remote setup. To work across computers, pair the desktop apps using an explicit address and temporary code. The [user guide](docs/usage.md) explains task patterns, coordination, progress, replies, files and moving an agent between chats.
+
+## What the desktop app handles
+
+- **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
+- **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
+- **Client setup:** a dialog for each supported application. The selected client configuration changes only when you click Apply. Saved settings, a live client connection and delivery to a chat are separate states.
+- **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
+- **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
 ![Dialogue between two agents with a verified attachment](docs/assets/app-preview.png)
 
-- **One node, multiple clients.** Share a local hub across supported applications
-  and accounts. Local agents communicate without remote connections.
-- **Names belong to agents.** Choose names yourself. Move an occupied name to
-  another chat with explicit approval and keep its history.
-- **Direct exchange.** Pair another computer using its exact address and a private
-  eight-character code. Certificates are verified and pinned automatically.
-- **Remote agent directory.** See agent names and availability on paired nodes
-  in the UI or through MCP. Identical names on different nodes remain independent.
-- **Persistent history and files.** Store messages locally, verify attachments,
-  and keep working through client or node restarts.
-- **Clear reply routing.** Incoming messages identify the sender and include a
-  short mailbox-scoped reply reference. Delivery receipts are automatic.
-- **User-controlled setup.** Choose a client and configuration file, then click
-  Apply. Matching settings remain unchanged; other client settings are preserved.
-- **Configuration and delivery are separate.** Applications & MCP shows saved
-  settings, typed agent activity and known delivery state. AionUi authorization
-  and its live bridge have their own indicators. A configuration check alone
-  does not prove that a client is connected.
-- **Compact messaging.** Local chats have a history drawer and an expandable
-  composer. Remote messages use a separate dialog with an explicit sender.
-  Drafts and the history reading position survive composer changes.
-- **Fifteen interface languages.** Change the language at the bottom of the
-  sidebar. The app keeps names, message text and filenames unchanged.
+## Download and client support
 
-## Download
+[Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG) or Windows x64 (EXE). macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. Linux packages are not currently published. [Installation details](docs/installation.md) cover verification, updates and removal.
 
-**[Download for Apple Silicon Mac](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
-· **[Download for Intel Mac](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
-· **[Download for Windows x64](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest)**
-· [Release history](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases)
+| AI application                      | Exchange and history | Delivery to the bound chat                                     |
+| ----------------------------------- | -------------------- | -------------------------------------------------------------- |
+| OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                   |
+| Codex Desktop                       | Yes                  | Experimental, version dependent                                |
+| Cursor                              | Yes                  | No automatic wake through standard MCP                         |
+| AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup |
+| Other compatible MCP clients        | Through MCP          | Requires a client adapter                                      |
 
-Choose the **arm64 DMG** for Apple Silicon, **x64 DMG** for Intel Mac, or
-**Windows x64 EXE**. macOS requires **macOS 13 or later**. Installers include the
-runtime; Node.js, npm and source files are not required. Intel packages are built
-on macOS but are not run on Intel hardware. Linux packages are not currently
-published. Only installers are uploaded; GitHub also provides automatic source
-archives. Older releases retain their tags and notes after their installers are
-replaced by the latest release.
-
-1. On macOS, open the DMG and drag **NCF Agent Interconnect** into **Applications**.
-   On Windows, run the EXE installer.
-2. Start the app and open **Applications & MCP**.
-3. Choose a client tab, open its setup dialog, check the file path and click Apply.
-4. Reconnect MCP. Restart OpenCode after adding its bundled plugin.
-5. In a chat, write `Connect as agent Researcher.` using a name you choose.
-
-The macOS build has a local ad-hoc signature and is not notarized by Apple.
-Windows packages are unsigned.
-See [Installation](docs/installation.md) for verification, updates and storage.
-Quit the app from its tray menu before replacing it; closing the window keeps
-the node running. Existing agents, history, attachments and paired routes remain
-in the application's profile.
-
-## Client support
-
-| Client                              | Send, receive and history through MCP | Automatic delivery to the bound chat                  |
-| ----------------------------------- | ------------------------------------- | ----------------------------------------------------- |
-| OpenCode with the bundled v1 plugin | Yes                                   | Yes; busy chats wait for an idle event                |
-| Codex Desktop                       | Yes                                   | Experimental, version-dependent local desktop adapter |
-| Cursor                              | Yes                                   | Not provided by standard MCP                          |
-| AionUi with Cursor Agent            | Yes, through the bundled bridge       | Exact-chat delivery after owner pairing and setup     |
-| Other compatible MCP clients        | Yes                                   | Requires a client adapter                             |
-
-An MCP connection alone does not prove that an idle chat can be awakened.
-Applications & MCP shows counts and latest known activity for typed integrations.
-Cursor-specific metrics remain Unknown because generic manual MCP connections
-cannot be attributed to Cursor. Saved settings, plugin execution, authorization
-and live delivery are distinct facts.
-
-The OpenCode plugin targets the v1 plugin/SDK contract; OpenCode v2 is not claimed.
-The AionUi setup supports **Cursor Agent inside AionUi**, with desktop pairing on
-IPv4 loopback. It installs a different NCF entry in the selected global Cursor
-configuration and explains the impact on Cursor chats outside AionUi before
-Apply. Other AionUi backends, remote/password WebUI modes and real account-switch
-acceptance are not claimed. See the [AionUi guide](docs/aionui-adapter.md).
-Claude Code integration is reserved for a future release.
-
-Receipt confirms that a message was returned through MCP or admitted to its exact
-client chat; it does not confirm task completion. An uncertain client admission
-is retained without an automatic replay to another chat.
+AionUi support covers Cursor Agent inside AionUi. The OpenCode plugin targets its v1 plugin contract. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
 
 ## Documentation
 
-| Guide                                     | What it covers                                           |
-| ----------------------------------------- | -------------------------------------------------------- |
-| [Installation](docs/installation.md)      | Downloads, verification, updates and removal             |
-| [User guide](docs/usage.md)               | Agents, local exchange, pairing, files and reply routing |
-| [Pairing](docs/pairing.md)                | Short access codes, authentication and recovery          |
-| [Agent presence](docs/agent-presence.md)  | Remote directories, client availability and discovery    |
-| [MCP client setup](docs/mcp-clients.md)   | Cursor, OpenCode, Codex and AionUi setup                 |
-| [AionUi](docs/aionui-adapter.md)          | Owner pairing, Cursor Agent bridge and limits            |
-| [Privacy and storage](docs/privacy.md)    | Local data, credentials and client boundaries            |
-| [Architecture](docs/architecture.md)      | Core, adapters, transport and persistence                |
-| [Development](docs/development.md)        | Source setup, checks and test scopes                     |
-| [Binary releases](docs/binary-release.md) | Native package build and verification                    |
-| [Windows builds](docs/windows-release.md) | Native Windows build and smoke checks                    |
-| [Verification](docs/verification.md)      | Completed checks and their limits                        |
-| [Changelog](CHANGELOG.md)                 | Changes by version                                       |
+**Use the product**
 
-For bugs, include the app version, platform, client and reproduction steps.
-Keep credentials and private chats out of issues. Follow [SECURITY.md](SECURITY.md)
-for vulnerability reports.
+- [Work with agents from your chats](docs/usage.md): the main task workflow, coordination, retrospectives, progress and common problems.
+- [Set up NCF Agent Interconnect](docs/setup.md): installation, client configuration, optional computer pairing and a first exchange.
+- [Desktop app controls](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
 
-## Build from source
+**Develop and verify the product**
 
-Use Node.js **22.12 or later** and npm:
+- [Developer documentation](docs/development.md): source setup and links to architecture, protocol, adapter, verification and release material.
+- [Contributing](CONTRIBUTING.md), [changelog](CHANGELOG.md) and [security reports](SECURITY.md).
 
-```sh
-git clone git@github.com:no-colours-fabric/ncf-agent-interconnect.git
-cd ncf-agent-interconnect
-npm ci
-npm run check
-npm test
-npm run app
-```
-
-After the shared checks have passed, build a native user package with:
-
-```sh
-npm run build:release -- --mac --skip-source-checks
-# On Windows:
-npm run build:release -- --win --skip-source-checks
-```
-
-Build packages on their native operating system. macOS builds separate arm64 and
-x64 DMGs; Windows builds an x64 EXE. Without `--skip-source-checks`, the builder
-also runs type and core checks. The flag reuses the checks already completed
-above; package building and runtime verification still run. Keep checksums and
-diagnostic reports locally. Published installers are retained locally under
-`release/<version>/` on each build machine until the owner removes them.
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development conventions.
+For a bug report, include the app version, platform, client and steps to reproduce. Exclude credentials and private chats. See [Security](SECURITY.md) for vulnerability reports.
 
 ## License
 
-[BSD-3-Clause](LICENSE). Dependencies retain their own licenses; see
-[Third-party notices](THIRD_PARTY_NOTICES.md).
+[BSD-3-Clause](LICENSE). Dependencies retain their own licenses; see [third-party notices](THIRD_PARTY_NOTICES.md).

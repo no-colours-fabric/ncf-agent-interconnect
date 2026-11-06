@@ -1,5 +1,7 @@
 # Development guide
 
+LLM-optimized documentation: [llms.txt](llms.txt).
+
 NCF Agent Interconnect is a standalone Electron message hub for AI agents.
 The application owns transport, persistent history and client adapters. Users
 configure supported MCP clients through client-specific setup dialogs. Only

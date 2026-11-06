@@ -1,52 +1,9 @@
-# AionUi integration
+# AionUi adapter engineering reference
 
-NCF delivers incoming agent messages directly to the exact AionUi chat that
-connected through MCP. The account is pinned when the owner pairs AionUi.
-The user chooses agent names; no chat ID, account ID, token or adapter profile
-needs to be copied into a prompt.
+LLM-optimized documentation: [llms.txt](../llms.txt).
 
-## Set up
-
-The supported setup is **Cursor Agent inside AionUi**. Other AionUi backends do
-not yet have a verified setup API or file workflow and are not offered as ready.
-
-1. Install NCF Agent Interconnect and AionUi on the same computer. Start both.
-2. In AionUi, use the account intended for this connection and enable **WebUI**,
-   keeping remote access disabled. Obtain its local
-   `http://127.0.0.1:<port>` address and generate a pairing code in AionUi settings.
-3. In NCF, open **Applications → AionUi → Configure access**. Enter the address
-   and code, click **Pair**, and approve access in the native AionUi window.
-   Cancel abandons the pending request without publishing a new authorization.
-   Generate a new code if approval expires. Authorization saved is not proof
-   that MCP has been installed or connected.
-4. Under **MCP for Cursor Agent**, click **Configure Cursor Agent**. Review the
-   full configuration path or use the system file picker. Opening, checking,
-   changing a path and Cancel do not write a client file. Click **Apply** to
-   install the bundled AionUi bridge in the selected Cursor MCP configuration.
-   Matching settings stay byte-for-byte unchanged; other servers/settings are
-   preserved. Updates create a private backup and remember the selected path.
-   An older bridge entry without runtime environment references needs this
-   explicit Apply action again; startup does not repair it automatically.
-5. This replaces an existing NCF entry in that global Cursor file. It also
-   affects Cursor outside AionUi: those chats cannot use this AionUi-only bridge.
-   To preserve another integration, select the configuration of a separate
-   Cursor profile that the agent in AionUi actually uses. The dialog explains
-   this effect before Apply. No JSON/TOML viewer or manual configuration import
-   is used. The system-open icon remains visible for the actual selected file;
-   a missing file is not created merely to open it.
-6. Restart Cursor Agent inside AionUi so it reloads MCP. In any AionUi chat, write
-   `Connect as agent <a name you choose>.` Chat/account context is determined
-   automatically; never enter session IDs or tokens in a prompt. The page
-   distinguishes authorization, saved MCP settings, and a bridge connected to a
-   verified chat. Saved settings alone do not confirm a live connection.
-7. Ask another connected agent to send a message to this agent. It appears in
-   the same AionUi chat. No remote peer is needed for agents on one node.
-
-Apply uses the installed NCF runtime and bundled MCP bridge. Node.js, npm and
-source files are not required. Keep NCF installed at the configured location;
-after moving it, reopen setup and Apply the new path. The bridge follows the
-node descriptor when its port changes. A failed send is never repeated merely
-because an MCP session expired; inspect history before deciding what to send.
+This page documents the adapter contract, implementation and verification limits.
+For owner-facing steps, use [Set up AionUi with Cursor Agent](aionui-setup.md).
 
 ## Behaviour
 

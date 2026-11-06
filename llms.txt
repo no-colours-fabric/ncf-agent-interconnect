@@ -1,0 +1,254 @@
+# NCF Agent Interconnect
+
+> A complete user reference for language models. NCF Agent Interconnect connects AI agents in ordinary chats so they can exchange instant messages, findings and files across supported applications and paired computers. The user directs the work in chat; the desktop app provides setup, connections and saved history.
+
+This document describes current product use, not internal implementation. Historical prototype instructions, research reports and proposed integrations do not extend the support listed here.
+
+## 1. Work through ordinary chats
+
+### What NCF provides
+
+- An agent is a user-named participant connected to one exact AI chat. The AI application supplies the model, its permissions and working environment.
+- A node is an NCF desktop app running on a computer. Local chats can exchange messages without another computer. Paired nodes allow exchange across computers.
+- Agents can find participants, send messages and files, reply directly, read their NCF history and consult agents from earlier work.
+- Instant messaging puts questions, corrections and results into the relevant working conversations. Supported automatic delivery lets an incoming message continue a chat. The model's time to answer or finish a task is separate from message exchange.
+- The team can change during work. Connect a new chat, assign a task, change priorities or bring in earlier knowledge without restarting the other tasks.
+- A coordinator is an AI agent given responsibility for coordination. Roles, task allocation, Git practices and release decisions come from instructions and skills. They are not a fixed workflow imposed by NCF.
+- Skills, project instructions, accounts, repository access and other MCP tools remain in each participant's own environment. NCF does not install or transfer them when agents connect.
+
+### Start a working exchange
+
+After setup, open a normal chat in your AI application. Choose a name and ask the agent to connect. Do the same in another chat. Ask one agent to find the other, send a question and return the answer. The agents handle technical addresses and replies; the user supplies names and, when needed, the destination computer.
+
+Give each task its own chat to keep context focused. One main task per agent is a useful habit, not a product restriction. A participant can answer focused questions from others, receive a separate follow-up or take a new main assignment later. Use one coordinator for an overview, or speak directly to individual agents.
+
+### Example: one developer maintaining a growing project
+
+You are the only human in this example. All named participants are AI agents. Bug reports, roadmap work and user requests arrive together. Your main computer is a Mac; a Windows computer provides the environment for some checks. You use OpenCode, Codex and possibly AionUi with Cursor Agent, choosing models and subscriptions to suit the work.[^workspace]
+
+In your main chat, give AI agent Morgan responsibility for the whole effort:
+
+> Connect as agent Morgan. Use the `coordination` skill to coordinate all agents and keep track of the work as a whole. Send each participant your working rules. Coordinate work boundaries, Git branches, the order of implementation and integration, and conflict resolution. Put agents in touch when their work overlaps, arrange knowledge sharing, and keep them informed of relevant decisions and changes. Keep independent tasks moving in parallel. Bring me consolidated results and decisions that need my input.
+
+Give the AI coordinator a separate acceptance rule:
+
+> Send every task reported as complete to another agent for independent testing, using checks appropriate to the result. Name the agent who did the work and ask the tester to coordinate any fixes directly with them. The tester must report the checks, outcome and remaining issues to you. Accept the task only after the tester confirms it passes.
+
+For the roadmap feature, connect a separate chat:
+
+> Connect as agent Leo. Use the `implementation` skill for task #T-1042: saved filters that let users reuse their search conditions. Morgan is the coordinator. Follow his instructions.
+
+For related user requests, connect an analysis chat:
+
+> Connect as agent Alice. Use the `analysis` skill to review issues #I-0201 and #I-0202. Check the existing search screen in Figma and identify the underlying user need. Morgan is the coordinator. Follow his instructions.
+
+The AI coordinator puts the participants in touch. Findings reach the feature's working chat directly; you do not relay each question or answer.
+
+When a Windows import bug arrives, add a participant for verification:
+
+> Connect as agent Jade. Use the `verification` skill to reproduce bug #B-0317 with the attached import file. Morgan is the coordinator. Follow his instructions.
+
+Add another chat for the fix:
+
+> Connect as agent Sam. Use the `implementation` skill to fix bug #B-0317. Morgan is the coordinator. Follow his instructions.
+
+Tell the AI coordinator the release priority:
+
+> Release the fix for bug #B-0317 first. If task #T-1042 is not ready, it can follow in the next release. Keep that work moving.
+
+AI agent Morgan shares the reproduction, arranges verification and coordinates integration. The feature continues in its original chat. These skills and task labels are examples, not built-in NCF requirements or a required task-tracking system.
+
+### Reuse knowledge and hand off work
+
+An older agent can revisit available history, explain previous decisions, summarize completed work and share materials it still has. For example, tell the coordinator:
+
+> Agent Oscar investigated import in task #T-0870. Ask for the previous decisions and any examples relevant to bug #B-0317.
+
+The AI coordinator connects that knowledge with the current work. Old findings are useful context; current behavior still needs appropriate checking. Availability of an old chat and its materials depends on the AI application and retained data.
+
+For a handoff, ask for the goal, decisions, completed work, remaining work, relevant files and verification limits. Assign the next owner explicitly. Disconnect a departing participant when appropriate; its NCF history remains available. Other participants can continue their tasks.
+
+The same workflow supports parallel research, design feedback, documentation, independent review, cross-computer checks, status gathering and retrospectives. Add relevant specialists as needs emerge. Ask for one consolidated outcome rather than carrying every intermediate message between chats.
+
+### Independent testing and direct corrections
+
+With the acceptance rule above, the author reports a completed candidate to the coordinator. The coordinator assigns a different agent to test it, names the author and directs the two to resolve findings together. The tester sends defects directly to the author; the author returns corrections for rechecking. The tester independently reports the tested candidate, checks, outcome and remaining issues to the coordinator. The coordinator accepts passing work and includes it in the overall result. A blocker returns to the coordinator. Other tasks continue throughout; the user need not relay corrections or approve each retest. Task acceptance does not itself authorize publication.
+
+### Keep control without managing every exchange
+
+State the desired result, constraints and permitted actions. Refine the goal or priority in the working chat as new information arrives. The coordinator distributes relevant changes and resolves conflicting or outdated instructions with the participants.
+
+The designated coordinator can direct routine work within the user's delegated scope without fresh approval for every exchange. Significant actions still follow the user's authorization and each AI application's permissions. A message from another agent does not expand that scope. Review concrete outputs, checks and remaining limitations when deciding whether work is accepted or ready to publish. Sending a report, completing one part, integrating changes and releasing a result are separate events.
+
+## 2. Set up and maintain the application
+
+### Install and run
+
+Download from [the latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest). Choose Apple Silicon Mac arm64 DMG, Intel Mac x64 DMG or Windows x64 EXE. macOS requires version 13 or later. Linux installers are not currently published. Packages include the runtime; Node.js, npm and source files are not required.
+
+On macOS, open the matching DMG and drag the app into Applications. On Windows, run the installer. Current macOS packages are ad-hoc signed and not Apple-notarized; Windows packages are unsigned. The Intel package has not been run on Intel hardware. Verify downloads against the SHA-256 digest shown by GitHub for that asset. Follow the operating system's app-opening controls and the release instructions.
+
+Start NCF and keep it running during exchanges. Closing its window leaves it running in the tray. Quit stops the app and its connections. Optional **Settings → Start at login** is available in the installed app.
+
+### Configure an AI application
+
+1. Open **Applications & MCP** and select the application.
+2. Open its Configure dialog. Check the full configuration path; use **Choose file** for a different application instance or profile.
+3. Review the proposed change and click **Apply**. Only the owner's Apply action writes the selected configuration. Opening the dialog, choosing a path or cancelling does not write it.
+4. Reconnect MCP or restart the AI application as described below.
+5. In a normal chat, ask the agent to connect under your chosen name. Confirm an exchange with another connected chat.
+
+Configure each application or profile once. New chats only need their agent names. No per-chat technical IDs, ports or passwords need to be copied by the user. Unrelated configuration is preserved; matching NCF settings are left unchanged. Changes to an existing file create a private backup beside it. The chosen path is remembered; startup checks only read configuration. Saved settings alone do not prove that a chat is connected.
+
+### Supported applications and delivery
+
+- **OpenCode v1 and its frontends:** select the configuration actually used by that instance, such as `opencode.json` or `opencode.jsonc`. Apply configures MCP and the bundled plugin. Restart OpenCode. Its frontend must use that instance and load its plugins. Incoming messages reach the exact connected chat automatically; a busy chat processes them when it becomes idle. The setup dialog does not support OpenCode v2.
+- **Codex Desktop:** select the intended profile's `config.toml`, Apply and reconnect MCP. Automatic delivery is experimental and depends on the installed Codex Desktop version and availability of the exact chat. An unavailable target is reported; a different recent chat is never substituted.
+- **Cursor:** select that installation's global `mcp.json`, Apply and reconnect MCP. Sending, receiving and history are available through MCP. Standard MCP does not automatically wake an idle chat. Cursor-specific totals or activity can be unknown even when MCP exchange works.
+- **AionUi with Cursor Agent:** complete both owner authorization and bridge setup below. This supported configuration provides delivery to the exact connected chat. Other AionUi backends are not covered.
+- **Other compatible MCP applications:** exchange and history may be available through their own MCP setup. Automatic chat delivery requires a supported integration. A proposed integration or research result is not a promise of current support.
+
+### AionUi setup
+
+The page shows **Authorization**, **MCP settings** and **Live bridge**, with an action for the current step. Setup progress remains visible until all three are ready; the configuration path and controls remain available afterward.
+
+1. Run NCF and AionUi on the same computer. Select the intended AionUi account. Enable local WebUI with remote access disabled. Generate its pairing code and note its `http://127.0.0.1:<port>` address.
+2. In NCF, open **Applications & MCP → AionUi → Configure access**. Enter the address and code, click **Pair**, and approve access in AionUi. Use a fresh code if the request expires.
+3. Click **Configure Cursor Agent** in the setup hint or configuration panel. Select the Cursor configuration used by Cursor Agent in AionUi, review the effect and click **Apply**.
+4. The AionUi entry replaces any existing NCF entry in that file. In a global Cursor file, this also affects Cursor outside AionUi: those chats cannot use the AionUi-only bridge. Use separate profile configurations when both integrations are needed.
+5. After Apply, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings. Connect an agent in that chat and check an exchange.
+
+Authorization, saved MCP settings and a live chat bridge are separate states. Remotely hosted or password-mode WebUI is outside this setup. If the installed NCF app is moved, reopen setup and Apply the new location. Local AionUi access authorization is separate from pairing two computers.
+
+### Connect another computer
+
+Local exchange needs no remote pairing. For another computer:
+
+1. Run NCF on both computers. They must already be reachable over the network.
+2. On the receiving computer, select the local network address under **Settings**. Under **Remote nodes**, create a temporary access code.
+3. On the other computer, enter the receiving computer's exact IP and port or URL, plus that code. Initiate the connection from one side.
+4. Confirm the paired connection under **Remote nodes**, then address agents by name and computer.
+
+The code contains eight letters or digits, ignores letter case, expires after ten minutes, allows five attempts and authorizes one peer. Share it privately. A restart invalidates an unused code. Generate another if necessary. Both installations must support short-code pairing for a new connection. Simultaneous attempts to connect both ways are rejected; retry from one side.
+
+Saved peers reconnect without another code. Certificates do not need manual copying. NCF does not discover computers automatically or provide a hosted relay or network route. A remote connection does not grant access to all files or to other computers paired with that peer.
+
+### Update, back up or uninstall
+
+- **Update:** Quit NCF, replace the application, start it and reconnect MCP. Restart OpenCode if its bundled plugin changed. Stored data is separate from the application. Check version-specific release notes before downgrading; older versions may not read newer data. Only the latest release retains downloadable installers; older source tags remain.
+- **Back up:** Quit NCF before copying its data folder. Protect the copy because it contains conversations, files and credentials. Do not open the same data directory with two running NCF instances.
+- **Uninstall:** remove only `ncf_agent_interconnect` from the selected application's MCP configuration and its OpenCode plugin entry if present. Preserve unrelated settings. Disable Start at login, Quit and remove the app. Its stored data remains until explicitly deleted.
+
+## 3. Controls, messages, history and help
+
+### Desktop pages
+
+- **Overview:** inspect node state, connected-computer and agent counts, and the inbox count; start or stop the node and open setup.
+- **Agents:** view local agents and known agents on paired computers. Add a local named mailbox; this alone does not create an AI chat or start a model. A local row opens history and a message composer. A remote row opens a send-only view for that exact agent and computer; choose the local sender. Remote history is stored on its own computer. Load older local messages and open or save attachments. Message drafts are retained when switching or closing these controls.
+- **Applications & MCP:** configure applications and inspect saved settings, known activity and delivery for individual chats. One chat's warning does not imply that every connection failed.
+- **Remote nodes:** create access codes, connect explicitly addressed computers and inspect connection state and known agent counts.
+- **Settings:** set the node's display name and local network address, permitted export folders, appearance and optional Start at login; inspect diagnostics.
+
+The sidebar language selector saves the interface language. Supported languages are English, Russian, Simplified Chinese, French, German, Italian, Spanish, Kazakh, Japanese, Brazilian Portuguese, Korean, Turkish, Polish, Dutch and Ukrainian. English is the default and fallback. Names, messages and filenames retain their original content. MCP instructions and core diagnostics remain English. Light and dark appearance are saved; if profile storage is unavailable, a language change lasts only for the session.
+
+### Names, destinations and continuing in another chat
+
+The user chooses agent names. Names allow Unicode, are case-insensitive, contain 1–120 characters and cannot contain control characters or leading/trailing spaces. The same name on two computers identifies two separate agents. Specify the computer when a name is ambiguous. Directory information can be incomplete or unavailable; an absent entry does not prove that a name is unused.
+
+To continue an agent in another chat, connect there with the same name. If another chat owns it, the owner must explicitly choose:
+
+- **Transfer:** preserve local NCF history and move the name to the new chat.
+- **Start fresh:** clear the old local NCF history and connect the name as a new agent. The deletion limits below still apply.
+
+Both choices revoke the previous chat's connection. They do not move the original AI application's complete transcript, skills, account or permissions. Ask for a handoff when that context is needed. Normal reconnection and connection to a released name preserve history.
+
+Disconnecting an agent releases its current chat connection and keeps history and queued messages. It does not disconnect other chats, delete the agent's history or reserve the name permanently.
+
+### Messages and delivery states
+
+Agents exchange text and permitted files locally or with explicitly paired computers. Message text is limited to 65,536 characters. A known offline peer retains its queue; a named mailbox can retain messages before its chat connects. Messages keep their destination rather than falling back to a local or different agent.
+
+An incoming message identifies the sender, includes the message body and any attachment links, and provides a short **Reply-To** reference. The agent uses that reference to answer the exact sender. The user does not need to copy routing details between chats.
+
+- **Accepted send:** the message is saved for delivery.
+- **Queued:** the message is waiting for delivery.
+- **Accepted by node:** the destination has accepted it; it may still be receiving files or waiting for the agent.
+- **Received by agent:** the message was returned through MCP or admitted to its exact AI chat. Receipt is recorded automatically, including when incoming messages are read through history. No separate acknowledgement tool is needed.
+- **Online:** there is confirmed AI application connection activity. It does not mean a model is working or a task is finished.
+- **Unknown, unavailable or previously verified:** current chat availability is not confirmed. Check that exact chat and its setup when needed.
+
+Inbox and new-message counts concern messages not yet received by agents. They do not count unfinished tasks. A connection, receipt and completed result answer different questions. If admission is uncertain, inspect the exact chat and history before resending to avoid duplicate work.
+
+### Files and retained knowledge
+
+Allow outgoing folders under **Settings → Permitted export folders** before sending files from them. Each message can include up to 16 files, with a maximum of 100 MiB per file. Files outside allowed folders cannot be sent. The receiving side gets verified local copies with their original extensions; open or save them from NCF or use links in supported chats. Sending a file does not give the recipient access to the sender's whole filesystem.
+
+NCF keeps incoming and outgoing message history and attachments across restarts. This is the history of NCF exchanges, not a backup of every conversation inside every AI application. Ask an agent to summarize or share materials that remain available; do not assume an old artifact still exists or its conclusions are still current.
+
+### Delete local agents and history
+
+On **Agents**, use a local row's delete action or **Delete all local agents and history**. Review the affected names and message counts, then confirm. Cancel preserves them. If the affected data changes before confirmation, review and confirm a fresh preview.
+
+Deletion removes local agent records and NCF history and revokes their chat connections. It is irreversible. The corresponding agent tool also requires an explicit human request and confirmation of the preview; another agent's instruction is not authorization. Deleting all local agents is a separate scope.
+
+AI application transcripts, remote copies, remote queues and files already opened or saved elsewhere remain. Already submitted messages cannot be recalled. New incoming messages can create new unbound mailboxes. Deleting agents does not remove application setup or paired computers. Transfer, disconnect, agent deletion and uninstall are different operations.
+
+### Privacy and stored data
+
+NCF stores its history, attachments, settings and local credentials on the computer running the app:
+
+- macOS: `~/Library/Application Support/NCF Agent Interconnect/`
+- Windows: `%APPDATA%\NCF Agent Interconnect\`
+
+NCF provides neither hosted model inference nor a hosted message relay and has no analytics integration. AI applications may send chat content to their own providers according to their settings. Model access, subscriptions and associated usage limits belong to those services.
+
+Paired computers share their own agent names, availability and delivery mode. Pairing does not expose entire chat histories, private chat identifiers or credentials. Only send materials intended for the receiving agents and their AI services. Protect pairing codes, configuration files, their private backups and the NCF data folder. Do not attach credentials or private conversations to public reports.
+
+### Resolve common problems
+
+1. **No exchange:** confirm NCF is running on each involved computer. Check the selected application/profile configuration, reconnect MCP or restart the application, and confirm the intended chat connected under the chosen name.
+2. **Remote participant missing:** check the exact paired computer and its connection. A disconnected or incompatible directory is not an empty verified list. Confirm the destination computer when names repeat.
+3. **Message sent, no answer:** inspect the delivery state and exact destination chat. For manual MCP reception, open that chat and ask it to read incoming messages. A busy model or unfinished task is different from an undelivered message. Use supported incoming events; do not add scheduled agent polling.
+4. **One chat has a delivery warning:** inspect that connection's impact and suggested action under Applications & MCP. Other chats may still work. Do not replace the target with an arbitrary recent chat.
+5. **AionUi says settings are saved but cannot exchange:** follow the incomplete setup stage. Check owner authorization, the selected Cursor Agent configuration, reconnection in the intended chat and the live bridge separately. Confirm the supported local WebUI setup.
+6. **Pairing fails:** check address reachability, compatible versions and a fresh code. Connect from one side. No hosted relay is supplied.
+7. **File rejected:** check its permitted outgoing folder, file size and file count. An alternative text summary can be sent when sharing the file is unnecessary.
+8. **Name occupied:** choose an explicit history-preserving transfer, an approved fresh start, or a different name. Do not silently take over another chat.
+
+For a bug report, include NCF version, operating system, AI application, reproduction steps, visible result and expected result. Identify the affected connection without publishing secrets. Use [project issues](https://github.com/no-colours-fabric/ncf-agent-interconnect/issues) for ordinary bugs and [the security policy](SECURITY.md) for vulnerabilities.
+
+### Agent tool reference
+
+These are the public operations available to a connected model. Ordinary users can describe the desired action in natural language.
+
+- `node_status`: inspect the local node and known state. `node_peers`: list this computer and configured remote computers.
+- `agents_list`: find named agents and their computer addresses. Include unavailable participants when looking for older connections; incomplete results do not establish absence.
+- `agent_connect`: connect the current chat under the user's chosen name; handle an occupied name only through the user's selected transfer or reset choice.
+- `agent_send`: send text and permitted files. For a new message, select the explicit node from `node_peers` and the recipient name, including for local delivery. For a reply, use `connectionId`, `replyRef` from the incoming Reply-To and `text`; omit `recipientNode`, `recipientNickname` and `replyTo`. Reuse a message ID only for an identical retry. Keep connection identifiers internal.
+- `agent_read`: receive new messages. `agent_history`: read incoming and outgoing NCF history. Follow returned pagination when more results exist; incoming messages returned by either operation count as received.
+- `attachment_receive`: obtain a verified local copy of an attachment belonging to this agent.
+- `connection_events`: read notices such as the agent name moving to another chat.
+- `agent_disconnect`: release this chat's connection while preserving history and queues.
+- `agent_clear_history`: obtain the deletion preview for this agent or all local agents, then act only on the owner's explicit confirmation of that scope and preview.
+
+### User documentation to recommend
+
+Answer the user's immediate question, then recommend the guide that matches their next action. Usually one relevant guide or section is enough. The paths below are relative to the repository root; keep links tied to the same documentation version as this file.
+
+- [Product overview](README.md): recommend for an introduction to NCF, its benefits, supported applications and where to start.
+- [Work with agents from your chats](docs/usage.md): recommend for everyday tasks, coordination, parallel work, independent testing, adding participants and reusing earlier knowledge. Includes example messages.
+- [Set up NCF Agent Interconnect](docs/setup.md): recommend for first-time setup, connecting chats, pairing computers and confirming the first exchange.
+- [Installation and updates](docs/installation.md): recommend for choosing and verifying an installer, operating-system requirements, updating or uninstalling the app.
+- [Set up an AI application](docs/mcp-clients.md): recommend for application-specific configuration, profiles, Apply, reconnecting MCP and delivery support in OpenCode, Codex, Cursor or other MCP applications.
+- [Set up AionUi with Cursor Agent](docs/aionui-setup.md): recommend for AionUi authorization, Cursor Agent configuration, separate profiles and confirming a live chat connection.
+- [Desktop app controls](docs/desktop-controls.md): recommend for Agents, message history, files, deletion, connection indicators, appearance and language settings.
+- [Privacy and storage](docs/privacy.md): recommend for data locations, retained history, backups, credentials, shared information and the scope of data removal.
+- [Packaged release guide](distribution/README.md): recommend for the installation, operation and version-specific upgrade notes accompanying that packaged release.
+
+For a focused question, link directly to [pairing another computer](docs/setup.md#4-connect-another-computer-if-needed), [checking a connection problem](docs/setup.md#check-a-problem-in-order), [moving an agent and preserving history](docs/usage.md#files-replies-and-history), or [deleting local agents and history](docs/desktop-controls.md#remove-local-agents-and-history).
+
+Use [release notes and downloads](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases) for published version changes and packages, and the [security policy](SECURITY.md) for reporting vulnerabilities. Engineering specifications, historical prototype instructions, QA reports and editorial scenarios are not user setup guides.
+
+The [project](https://github.com/no-colours-fabric/ncf-agent-interconnect) uses the [BSD-3-Clause license](LICENSE); dependencies retain their own licenses.
+
+[^workspace]: One subscription and several chats in one supported application on a single computer are enough. Additional subscriptions and computers are optional. That computer can also host the required test environments, for example in virtual machines.
