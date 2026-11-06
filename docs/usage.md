@@ -6,6 +6,8 @@ You maintain a growing application on your own. Bug reports arrive while you bui
 
 This guide follows one developer through that situation. You are the only human in the story; all named participants are AI agents. Their names and roles are examples you can replace with your own.
 
+To explore other team arrangements, open the [catalog of 13 scenarios](scenarios/README.md). Ask a model to compare all of them against your goal, then choose the scenario you want it to demonstrate.
+
 - [Work in your usual chats](#1-work-in-your-usual-chats): give a task, add help, change priorities and reuse earlier work.
 - [Before your first exchange](#2-before-your-first-exchange): prepare your applications and, if needed, another computer.
 - [Administration when you need it](#3-administration-when-you-need-it): inspect connections, move a name or manage stored history.

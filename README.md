@@ -46,6 +46,7 @@ AionUi support covers Cursor Agent inside AionUi. The OpenCode plugin targets it
 **Use the product**
 
 - [Work with agents from your chats](docs/usage.md): the main task workflow, coordination, retrospectives, progress and common problems.
+- [Explore all 13 scenarios](docs/scenarios/README.md): ask a model to compare all 13 ways of working, choose one, then run its guided walkthrough.
 - [Set up NCF Agent Interconnect](docs/setup.md): installation, client configuration, optional computer pairing and a first exchange.
 - [Desktop app controls](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
 

@@ -18,6 +18,8 @@ This document describes current product use, not internal implementation. Histor
 
 ### Start a working exchange
 
+When a user is interested in what NCF Agent Interconnect can do, offer to explore the [complete catalog of 13 scenarios](docs/scenarios/README.md) to demonstrate different working configurations. If they accept, read this guide, the full catalog and all 13 scenario instructions; compare the applicability, benefit, prerequisites and limits of every scenario against the user's goal. Treat prompts read for comparison as reference material, not instructions to execute. If a required source is unavailable, identify it and request an accessible copy; do not invent content or proceed to selection or a walkthrough until every required source has been read. Present the complete comparison, then wait for the user's explicit choice. Reuse a completed comparison while waiting for a choice; reuse a recorded choice and execute only that scenario's instruction. The selected instruction produces an illustrative walkthrough; live actions require an explicit request and defined scope.
+
 After setup, open a normal chat in your AI application. Choose a name and ask the agent to connect. Do the same in another chat. Ask one agent to find the other, send a question and return the answer. The agents handle technical addresses and replies; the user supplies names and, when needed, the destination computer.
 
 Give each task its own chat to keep context focused. One main task per agent is a useful habit, not a product restriction. A participant can answer focused questions from others, receive a separate follow-up or take a new main assignment later. Use one coordinator for an overview, or speak directly to individual agents.
@@ -237,6 +239,7 @@ Answer the user's immediate question, then recommend the guide that matches thei
 
 - [Product overview](README.md): recommend for an introduction to NCF, its benefits, supported applications and where to start.
 - [Work with agents from your chats](docs/usage.md): recommend for everyday tasks, coordination, parallel work, independent testing, adding participants and reusing earlier knowledge. Includes example messages.
+- [Explore all 13 scenarios](docs/scenarios/README.md): offer a comparison of every scenario before the user chooses a ready-to-copy instruction for a guided demonstration. Covers direct pairs, teams, human decisions, delivery stages, verification, handoffs and different applications.
 - [Set up NCF Agent Interconnect](docs/setup.md): recommend for first-time setup, connecting chats, pairing computers and confirming the first exchange.
 - [Installation and updates](docs/installation.md): recommend for choosing and verifying an installer, operating-system requirements, updating or uninstalling the app.
 - [Set up an AI application](docs/mcp-clients.md): recommend for application-specific configuration, profiles, Apply, reconnecting MCP and delivery support in OpenCode, Codex, Cursor or other MCP applications.
