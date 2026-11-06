@@ -89,7 +89,22 @@ try {
   }
   await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
   const aionSetup = page.getByTestId('aionui-setup');
-  await aionSetup.getByText('Not paired', { exact: true }).waitFor();
+  await aionSetup
+    .getByText('Continue setting up AionUi. Follow the steps below.', { exact: true })
+    .waitFor();
+  assert.equal(
+    await aionSetup.getByTestId('aionui-connection-steps').locator('.MuiStep-root').count(),
+    3,
+  );
+  await aionSetup
+    .getByTestId('aionui-step-hint')
+    .getByRole('button', { name: 'Configure access', exact: true })
+    .waitFor();
+  assert.equal(await aionSetup.getByTestId('aionui-status-facts').count(), 0);
+  assert.equal(
+    (await page.evaluate(() => window.interconnect.invoke('aionUiStatus'))).state,
+    'not-paired',
+  );
   await page.getByTestId('aionui-configure-access').click();
   const accessDialog = page.getByRole('dialog');
   assert.equal(
