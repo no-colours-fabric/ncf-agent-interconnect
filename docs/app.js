@@ -1,7 +1,7 @@
 const COPY = {
   en: {
     pageTitle: 'NCF Agent Interconnect — A story of connected chats',
-    skip: 'Skip to content', brandLabel: 'NCF Agent Interconnect — top', navLabel: 'Main navigation', languageLabel: 'Language',
+    skip: 'Skip to content', brandLabel: 'NCF Agent Interconnect — top', navLabel: 'Main navigation', languageLabel: 'Language', languageMenuTitle: 'Choose a language', closeLanguageMenu: 'Close language selection',
     navStory: 'The story', navGuide: 'Field guide', navStart: 'Get started',
     galleryPageTitle: 'Image archive — NCF Agent Interconnect', galleryBrandLabel: 'NCF Agent Interconnect — back to the story', galleryNavLabel: 'Image archive navigation',
     galleryBack: 'Back to the story', galleryEyebrow: 'Image archive', galleryTitle: 'Every original illustration',
@@ -27,7 +27,7 @@ const COPY = {
   },
   ru: {
     pageTitle: 'NCF Agent Interconnect — Как агенты работают вместе в разных чатах',
-    skip: 'Перейти к содержанию', brandLabel: 'NCF Agent Interconnect — в начало страницы', navLabel: 'Навигация по странице', languageLabel: 'Язык страницы',
+    skip: 'Перейти к содержанию', brandLabel: 'NCF Agent Interconnect — в начало страницы', navLabel: 'Навигация по странице', languageLabel: 'Язык страницы', languageMenuTitle: 'Выберите язык', closeLanguageMenu: 'Закрыть выбор языка',
     navStory: 'История', navGuide: 'Справка', navStart: 'С чего начать',
     galleryPageTitle: 'Архив иллюстраций — NCF Agent Interconnect', galleryBrandLabel: 'NCF Agent Interconnect — вернуться к истории', galleryNavLabel: 'Навигация по архиву иллюстраций',
     galleryBack: 'Вернуться к истории', galleryEyebrow: 'Архив иллюстраций', galleryTitle: 'Все иллюстрации в одном месте',
@@ -53,6 +53,17 @@ const COPY = {
   }
 };
 
+const LANGUAGES = [
+  ['en', 'English'], ['ru', 'Русский'], ['zh-CN', '中文（简体）'], ['fr', 'Français'],
+  ['de', 'Deutsch'], ['it', 'Italiano'], ['es', 'Español'], ['kk', 'Қазақша'],
+  ['ja', '日本語'], ['pt-BR', 'Português (Brasil)'], ['ko', '한국어'], ['tr', 'Türkçe'],
+  ['pl', 'Polski'], ['nl', 'Nederlands'], ['uk', 'Українська']
+];
+const TRANSLATIONS = window.NCF_TRANSLATIONS || {};
+for (const [locale, content] of Object.entries(TRANSLATIONS)) {
+  COPY[locale] = { ...COPY.en, ...content.copy, names: { ...COPY.en.names, ...content.copy?.names } };
+}
+
 const { scenes: SCENES, notes: NOTES } = window.NCF_STORY || { scenes: [], notes: [] };
 
 const GUIDE = [
@@ -72,20 +83,20 @@ function el(tag, className, text) {
   return node;
 }
 
-function renderChatText(value) {
+function renderChatText(value, requiredSkill) {
   const paragraph = el('p', 'chat-text');
-  const skillName = /\b(coordination|implementation|analysis|verification)\b/g;
-  let cursor = 0;
-  for (const match of value.matchAll(skillName)) {
-    const before = value.slice(0, match.index);
-    const after = value.slice(match.index + match[0].length);
-    const isSkill = /(?:the |навык )$/.test(before) && (/^ skill\b/.test(after) || /навык $/.test(before));
-    if (!isSkill) continue;
-    paragraph.append(document.createTextNode(value.slice(cursor, match.index)));
-    paragraph.append(el('span', 'skill-name', match[0]));
-    cursor = match.index + match[0].length;
+  if (!requiredSkill) {
+    paragraph.textContent = value;
+    return paragraph;
   }
-  paragraph.append(document.createTextNode(value.slice(cursor)));
+  const index = value.indexOf(requiredSkill);
+  if (index < 0) {
+    paragraph.append(el('span', 'skill-name', requiredSkill), document.createTextNode(' · ' + value));
+  } else {
+    paragraph.append(document.createTextNode(value.slice(0, index)));
+    paragraph.append(el('span', 'skill-name', requiredSkill));
+    paragraph.append(document.createTextNode(value.slice(index + requiredSkill.length)));
+  }
   return paragraph;
 }
 
@@ -101,7 +112,7 @@ function renderNote(note, lang) {
   portrait.append(image);
   aside.append(portrait);
   const content = el('div', 'note-body');
-  content.innerHTML = note[lang];
+  content.innerHTML = TRANSLATIONS[lang]?.notes?.[NOTES.indexOf(note)]?.html || note[lang] || note.en;
   content.querySelectorAll('a').forEach(link => {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -136,12 +147,14 @@ function renderChat(scene, lang) {
   chat.append(header);
   const messages = el('div', 'chat-messages');
   messages.setAttribute('role', 'list');
-  scene.lines.forEach(line => {
+  const translated = TRANSLATIONS[lang]?.scenes?.[scene.id - 1];
+  scene.lines.forEach((line, lineIndex) => {
     const starts = line[0] === scene.pair[0];
     const entry = el('div', 'chat-entry ' + (starts ? 'chat-entry-initiator' : 'chat-entry-responder'));
     entry.setAttribute('role', 'listitem');
     entry.append(el('span', 'chat-speaker', COPY[lang].names[line[0]]));
-    entry.append(renderChatText(line[lang === 'ru' ? 2 : 1]));
+    const skill = line[1].match(/\b(coordination|implementation|analysis|verification) skill\b/)?.[1];
+    entry.append(renderChatText(translated?.lines?.[lineIndex] || line[lang === 'ru' ? 2 : 1], skill));
     messages.append(entry);
   });
   chat.append(messages);
@@ -154,7 +167,7 @@ function renderChat(scene, lang) {
       step.setAttribute('role', 'listitem');
       const icon = el('span', 'chat-progress-icon');
       icon.setAttribute('aria-hidden', 'true');
-      step.append(icon, el('span', null, line[lang === 'ru' ? 1 : 0]));
+      step.append(icon, el('span', null, translated?.statuses?.[index] || line[lang === 'ru' ? 1 : 0]));
       progress.append(step);
     });
     chat.append(progress);
@@ -174,7 +187,7 @@ function renderScene(scene, lang) {
   frame.setAttribute('aria-labelledby', 'scene-title-' + scene.id);
   const heading = el('div', 'scene-heading');
   heading.append(el('span', 'scene-count', String(scene.id).padStart(2, '0') + ' / ' + SCENES.length));
-  const h2 = el('h2', null, scene.title[lang === 'ru' ? 1 : 0]);
+  const h2 = el('h2', null, TRANSLATIONS[lang]?.scenes?.[scene.id - 1]?.title || scene.title[lang === 'ru' ? 1 : 0]);
   h2.id = 'scene-title-' + scene.id;
   heading.append(h2);
   frame.append(heading);
@@ -212,7 +225,7 @@ function markDialogueRuns() {
 function renderGuide(lang) {
   guideGrid.replaceChildren();
   GUIDE.forEach((item, index) => {
-    const content = item[lang];
+    const content = TRANSLATIONS[lang]?.guide?.[index] || item[lang] || item.en;
     const article = el('article', 'guide-item');
     article.append(el('span', 'guide-index', String(index + 1).padStart(2, '0')));
     article.append(el('h3', null, content[0]));
@@ -242,12 +255,19 @@ function renderGalleryAlts(lang) {
 }
 
 function render(lang) {
+  const copy = COPY[lang] || COPY.en;
   document.documentElement.lang = lang;
-  document.title = COPY[lang][document.body.classList.contains('gallery-page') ? 'galleryPageTitle' : 'pageTitle'];
-  document.querySelectorAll('[data-copy]').forEach(node => { node.textContent = COPY[lang][node.dataset.copy]; });
-  document.querySelectorAll('[data-html]').forEach(node => { node.innerHTML = COPY[lang][node.dataset.html]; });
-  document.querySelectorAll('[data-aria]').forEach(node => { node.setAttribute('aria-label', COPY[lang][node.dataset.aria]); });
+  document.title = copy[document.body.classList.contains('gallery-page') ? 'galleryPageTitle' : 'pageTitle'];
+  document.querySelector('meta[name="description"]')?.setAttribute('content', copy.heroLede);
+  document.querySelectorAll('[data-copy]').forEach(node => { node.textContent = copy[node.dataset.copy]; });
+  document.querySelectorAll('[data-html]').forEach(node => { node.innerHTML = copy[node.dataset.html]; });
+  document.querySelectorAll('[data-aria]').forEach(node => { node.setAttribute('aria-label', copy[node.dataset.aria]); });
   document.querySelectorAll('[data-lang]').forEach(button => { button.setAttribute('aria-pressed', String(button.dataset.lang === lang)); });
+  const currentLabel = LANGUAGES.find(item => item[0] === lang)?.[1] || 'English';
+  document.getElementById('current-language').textContent = currentLabel;
+  document.getElementById('language-trigger').setAttribute('aria-label', copy.languageLabel + ': ' + currentLabel);
+  document.getElementById('language-panel-title').textContent = copy.languageMenuTitle;
+  document.getElementById('language-close').setAttribute('aria-label', copy.closeLanguageMenu);
   if (comic) {
     comic.replaceChildren();
     NOTES.filter(note => note.after === 0).forEach(note => comic.append(renderNote(note, lang)));
@@ -261,11 +281,65 @@ function render(lang) {
   if (document.body.classList.contains('gallery-page')) renderGalleryAlts(lang);
 }
 
-document.querySelectorAll('[data-lang]').forEach(button => button.addEventListener('click', () => {
-  const lang = button.dataset.lang;
-  try { localStorage.setItem('ncf-site-language', lang); } catch (_) { /* Storage may be unavailable. */ }
-  render(lang);
-}));
+const languagePanel = document.getElementById('language-panel');
+const languageScrim = document.getElementById('language-scrim');
+const languageTrigger = document.getElementById('language-trigger');
+const languageOptions = document.getElementById('language-options');
+LANGUAGES.forEach(([code, label]) => {
+  const button = el('button', null, label);
+  button.type = 'button';
+  button.lang = code;
+  button.dataset.lang = code;
+  button.disabled = !COPY[code];
+  button.addEventListener('click', () => {
+    try { localStorage.setItem('ncf-site-language', code); } catch (_) { /* Storage may be unavailable. */ }
+    render(code);
+    closeLanguagePanel();
+  });
+  languageOptions.append(button);
+});
+
+function openLanguagePanel() {
+  languagePanel.inert = false;
+  languagePanel.setAttribute('aria-hidden', 'false');
+  languagePanel.classList.add('is-open');
+  languageScrim.classList.add('is-open');
+  languageTrigger.setAttribute('aria-expanded', 'true');
+  document.body.classList.add('language-panel-open');
+  languageOptions.querySelector('[aria-pressed="true"]')?.focus();
+}
+
+function closeLanguagePanel() {
+  languagePanel.classList.remove('is-open');
+  languageScrim.classList.remove('is-open');
+  languagePanel.setAttribute('aria-hidden', 'true');
+  languagePanel.inert = true;
+  languageTrigger.setAttribute('aria-expanded', 'false');
+  document.body.classList.remove('language-panel-open');
+  languageTrigger.focus();
+}
+
+languageTrigger.addEventListener('click', openLanguagePanel);
+document.getElementById('language-close').addEventListener('click', closeLanguagePanel);
+languageScrim.addEventListener('click', closeLanguagePanel);
+document.addEventListener('keydown', event => {
+  if (!languagePanel.classList.contains('is-open')) return;
+  if (event.key === 'Escape') {
+    closeLanguagePanel();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusable = [...languagePanel.querySelectorAll('button:not([disabled])')];
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+});
 let initialLanguage = 'en';
-try { initialLanguage = localStorage.getItem('ncf-site-language') === 'ru' ? 'ru' : 'en'; } catch (_) { /* Use English. */ }
+try { const saved = localStorage.getItem('ncf-site-language'); if (COPY[saved]) initialLanguage = saved; } catch (_) { /* Use English. */ }
 render(initialLanguage);
