@@ -14,15 +14,15 @@ Start NCF Agent Interconnect. Keep it running while agents exchange messages. Cl
 
 Open **Applications & MCP** in the NCF Agent Interconnect desktop app and select the application you use for AI chats. Open its Configure dialog. Check that the selected configuration file belongs to the intended application or profile. You can choose a different file in the dialog. Review the described change, then click **Apply**. Only this action changes the selected client configuration. Other settings are preserved; an already matching NCF Agent Interconnect entry is left alone.
 
-After Apply, reconnect MCP in the AI application. Restart OpenCode after adding its bundled plugin. For AionUi, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected.
+After Apply, restart Cursor once to load its included plugin, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. For AionUi, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
 
-| Application                         | What to expect after setup                                                                                                  |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| OpenCode with the bundled v1 plugin | Messages can reach the exact connected chat automatically; a busy chat waits for an idle event. Restart after plugin setup. |
-| Codex Desktop                       | Exact-chat delivery is experimental and depends on the installed version. Reconnect MCP after setup.                        |
-| Cursor                              | Exchange and history are available through MCP. Standard MCP does not wake an idle chat automatically.                      |
-| AionUi with Cursor Agent            | Complete both owner authorization and bridge setup. Exact-chat delivery applies to the supported Cursor Agent setup.        |
-| Other compatible MCP clients        | Exchange and history may work; automatic delivery requires a supported adapter.                                             |
+| Application                         | What to expect after setup                                                                                                                                                                                                                |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| OpenCode with the bundled v1 plugin | Messages can reach the exact connected chat automatically; a busy chat waits for an idle event. Restart after plugin setup.                                                                                                               |
+| Codex Desktop                       | Exact-chat delivery is experimental and depends on the installed version. Reconnect MCP after setup.                                                                                                                                      |
+| Cursor                              | Apply installs the included plugin. After restarting Cursor once, connect an agent in the intended chat. Open exact chats can receive messages without being selected. See [Cursor setup](mcp-clients.md#cursor) for verification limits. |
+| AionUi with Cursor Agent            | Complete both owner authorization and bridge setup. Exact-chat delivery applies to the supported Cursor Agent setup.                                                                                                                      |
+| Other compatible MCP clients        | Exchange and history may work; automatic delivery requires a supported adapter.                                                                                                                                                           |
 
 The [application-specific guide](mcp-clients.md) gives the choices in each Configure dialog and current support limits. The NCF Agent Interconnect app never chooses a different recent chat when the exact target is unavailable.
 
@@ -41,7 +41,7 @@ The computers must already be able to reach one another at the address you enter
 ## Check a problem in order
 
 1. Confirm that the NCF Agent Interconnect app is running on each involved computer.
-2. In **Applications & MCP**, check the selected configuration and known activity. Reconnect or restart the AI application as above.
+2. In **Applications & MCP**, check the selected configuration and known activity. If you just applied Cursor setup, restart Cursor once and connect in the intended chat. After a Cursor window reload, any ordinary user message in that same chat can restore its delivery; no special reconnect phrase is needed. Reconnect or restart other AI applications as described above.
 3. In the intended chat, confirm that the agent connected under the name you chose. A configuration check does not prove a chat binding.
 4. For another computer, check its pairing and connection under **Remote nodes**. Identify the intended computer if names repeat.
 5. Ask for a direct reply. Check the recipient's exact chat if its client does not deliver to an idle chat. An accepted or queued message does not prove that the agent has read it or completed the task.

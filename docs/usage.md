@@ -120,12 +120,12 @@ Set up each application or profile once. New chats then join by connecting under
 
 1. Install and start NCF Agent Interconnect on the computer you use. Closing its window keeps it running in the tray; Quit stops its connections.
 2. Open **Applications & MCP**, choose your application and open its Configure dialog. Check the intended configuration file, review the change and click **Apply**. Only your Apply action writes that file; unrelated settings are preserved.
-3. Reconnect MCP in the AI application. Restart OpenCode after adding its bundled plugin. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
+3. Restart Cursor once after Apply so its included plugin loads, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
 4. In two configured chats, choose different names and ask one participant to send the other a short message. The reply confirms a working exchange.
 
 Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too and pair the two computers using the explicit address and temporary access code under **Remote nodes**. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
-The bundled OpenCode v1 plugin and supported AionUi bridge deliver to the connected chat; Codex Desktop delivery is experimental and version dependent. Standard MCP in Cursor provides exchange and history without automatically waking an idle chat. See [application-specific setup](mcp-clients.md) for these delivery differences.
+The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported AionUi bridge also deliver to their connected chats. Codex Desktop delivery is experimental and version dependent. Cursor's direct plugin and the AionUi bridge have separate setup requirements. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
 
 ## 3. Administration when you need it
 
@@ -150,6 +150,6 @@ The **Agents** page can remove one local agent or all local agents and their loc
 
 Confirm that NCF Agent Interconnect is running, the intended chat is connected and any remote computer is paired and reachable. Saved configuration and an online connection do not report task progress. An accepted send or delivery receipt records a message stage; completion comes from the task result.
 
-If the application requires an active chat to read messages, open that exact chat. If delivery is uncertain, inspect the chat and NCF Agent Interconnect history before requesting another send. The [setup guide](setup.md#check-a-problem-in-order) gives the troubleshooting steps.
+If the application requires an active chat to read messages, open that exact chat. Keep Cursor chat tabs open for its included plugin. After a Cursor window reload, an ordinary user message in the same chat can restore delivery without a special reconnect prompt. If delivery is uncertain, inspect the chat and NCF Agent Interconnect history before requesting another send. The [setup guide](setup.md#check-a-problem-in-order) gives the troubleshooting steps.
 
 [^workspace]: You can follow the same approach with one subscription and several chats in one supported application on a single computer. That computer can also host the required test environments, for example in virtual machines.

@@ -35,11 +35,11 @@ Agents on one computer can communicate without remote setup. To work across comp
 | ----------------------------------- | -------------------- | -------------------------------------------------------------- |
 | OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                   |
 | Codex Desktop                       | Yes                  | Experimental, version dependent                                |
-| Cursor                              | Yes                  | No automatic wake through standard MCP                         |
+| Cursor                              | Yes                  | Bundled plugin delivers to open exact chats; see setup limits  |
 | AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup |
 | Other compatible MCP clients        | Through MCP          | Requires a client adapter                                      |
 
-AionUi support covers Cursor Agent inside AionUi. The OpenCode plugin targets its v1 plugin contract. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
+Cursor setup installs its included reactive plugin after your Apply action; the verified Mac scope and platform limits are in [application setup](docs/mcp-clients.md#cursor). AionUi support covers Cursor Agent inside AionUi through a separate bridge and profile setup. The OpenCode plugin targets its v1 plugin contract. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
 
 ## Documentation
 

@@ -60,10 +60,11 @@ describing this varied setup, note that fewer applications or one subscription
 can support the same working pattern.
 
 Apply current delivery distinctions from llms.txt: OpenCode v1 automatic
-exact-chat delivery, standard Cursor MCP reception without automatic idle
-wake, experimental Codex Desktop delivery, and owner-authorized AionUi with
-its supported Cursor Agent bridge. Use separate profiles for standard Cursor
-and the AionUi bridge when both are needed.
+exact-chat delivery, direct Cursor delivery through its included plugin to
+open connected chats (including unselected chats), experimental Codex Desktop
+delivery, and owner-authorized AionUi with its separate Cursor Agent bridge.
+Use separate Cursor profiles when the direct integration and the AionUi bridge
+are both needed. Keep platform verification limits from llms.txt explicit.
 
 Briefly explain which application each participant uses and how messages
 reach its chat. Handle an unavailable participant without rerouting to
