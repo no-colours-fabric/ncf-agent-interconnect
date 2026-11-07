@@ -8,7 +8,7 @@ export const nl: Messages = {
     'Deze controle betreft opgeslagen instellingen, niet of de plugin actief is.',
   mcpSetup_statusUnknown: 'Onbekend',
   mcpSetup_statusCursorMetricsHint:
-    'Het aantal agents en de laatste activiteit worden niet afzonderlijk voor Cursor gemeld.',
+    'Bezorging wordt actief nadat de verbonden chat een beurt heeft voltooid. Stuur na het opnieuw starten van Cursor een willekeurig bericht in die chat om de bezorging te herstellen.',
   mcpSetup_statusDelivery: 'Bezorging aan agents',
   mcpSetup_statusAuthorization: 'Autorisatie',
   mcpSetup_statusLiveBridge: 'Actieve brug',
@@ -74,7 +74,7 @@ export const nl: Messages = {
   mcpSetup_opencodeTitle: 'OpenCode instellen',
   mcpSetup_codexTitle: 'Codex instellen',
   mcpSetup_cursorDescription:
-    'Verbind Cursor met NCF Agent Interconnect. De verbindingsinstellingen worden aan het geselecteerde bestand toegevoegd.',
+    'Verbind Cursor met NCF Agent Interconnect. Met Toepassen wordt de MCP-verbinding toegevoegd en de meegeleverde reactieve plugin automatisch geïnstalleerd.',
   mcpSetup_opencodeDescription:
     'Verbind OpenCode v1 met NCF Agent Interconnect. De verbindingsinstellingen worden toegevoegd en de meegeleverde integratie wordt ingeschakeld. OpenCode v2 wordt niet ondersteund.',
   mcpSetup_codexDescription:
@@ -104,7 +104,8 @@ export const nl: Messages = {
   mcpSetup_applied: 'Instellingen toegepast.',
   mcpSetup_noChanges: 'De instellingen zijn al aanwezig. Er is niets gewijzigd.',
   mcpSetup_failed: 'Instellingen konden niet worden toegepast.',
-  mcpSetup_cursorNext: 'Verbind MCP opnieuw in Cursor om deze instellingen te gebruiken.',
+  mcpSetup_cursorNext:
+    'Start Cursor één keer opnieuw en verbind daarna een agent in de bedoelde chat.',
   mcpSetup_opencodeNext: 'Start OpenCode v1 opnieuw om deze instellingen te gebruiken.',
   mcpSetup_codexNext:
     'Verbind MCP opnieuw in de geselecteerde Codex-instantie of het profiel om deze instellingen te gebruiken.',

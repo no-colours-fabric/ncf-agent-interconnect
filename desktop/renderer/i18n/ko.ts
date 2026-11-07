@@ -6,7 +6,8 @@ export const ko: Messages = {
   mcpSetup_statusOpencodeConfig: 'MCP 및 플러그인 설정',
   mcpSetup_statusOpencodeHint: '저장된 설정을 확인하며 플러그인의 실행 여부는 확인하지 않습니다.',
   mcpSetup_statusUnknown: '알 수 없음',
-  mcpSetup_statusCursorMetricsHint: 'Cursor의 에이전트 수와 최근 활동은 별도로 집계되지 않습니다.',
+  mcpSetup_statusCursorMetricsHint:
+    '연결된 채팅의 턴이 완료되면 메시지 전달이 활성화됩니다. Cursor를 다시 시작한 후에는 해당 채팅에 아무 메시지나 보내 전달을 복원하세요.',
   mcpSetup_statusDelivery: '에이전트 메시지 전달',
   mcpSetup_statusAuthorization: '인증',
   mcpSetup_statusLiveBridge: '실시간 브리지',
@@ -72,7 +73,7 @@ export const ko: Messages = {
   mcpSetup_opencodeTitle: 'OpenCode 설정',
   mcpSetup_codexTitle: 'Codex 설정',
   mcpSetup_cursorDescription:
-    'Cursor를 NCF Agent Interconnect에 연결하세요. 선택한 파일에 연결 설정이 추가됩니다.',
+    'Cursor를 NCF Agent Interconnect에 연결하세요. 적용하면 MCP 연결이 추가되고 포함된 반응형 플러그인이 자동으로 설치됩니다.',
   mcpSetup_opencodeDescription:
     'OpenCode v1을 NCF Agent Interconnect에 연결하세요. 연결 설정이 추가되고 포함된 통합 기능이 활성화됩니다. OpenCode v2는 지원하지 않습니다.',
   mcpSetup_codexDescription:
@@ -101,7 +102,7 @@ export const ko: Messages = {
   mcpSetup_applied: '설정이 적용되었습니다.',
   mcpSetup_noChanges: '설정이 이미 있습니다. 변경 사항이 없습니다.',
   mcpSetup_failed: '설정을 적용할 수 없습니다.',
-  mcpSetup_cursorNext: '이 설정을 사용하려면 Cursor에서 MCP를 다시 연결하세요.',
+  mcpSetup_cursorNext: 'Cursor를 한 번 다시 시작한 다음 대상 채팅에서 에이전트를 연결하세요.',
   mcpSetup_opencodeNext: '이 설정을 사용하려면 OpenCode v1을 다시 시작하세요.',
   mcpSetup_codexNext:
     '이 설정을 사용하려면 선택한 Codex 인스턴스 또는 프로필에서 MCP를 다시 연결하세요.',

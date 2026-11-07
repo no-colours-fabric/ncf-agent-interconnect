@@ -7,7 +7,7 @@ export const pl: Messages = {
   mcpSetup_statusOpencodeHint: 'Sprawdzane są zapisane ustawienia, a nie działanie wtyczki.',
   mcpSetup_statusUnknown: 'Nieznany',
   mcpSetup_statusCursorMetricsHint:
-    'Liczba agentów i ostatnia aktywność nie są raportowane osobno dla Cursor.',
+    'Dostarczanie staje się aktywne po zakończeniu tury w połączonym czacie. Po ponownym uruchomieniu Cursor wyślij dowolną wiadomość w tym czacie, aby przywrócić dostarczanie.',
   mcpSetup_statusDelivery: 'Dostarczanie agentom',
   mcpSetup_statusAuthorization: 'Autoryzacja',
   mcpSetup_statusLiveBridge: 'Aktywny most',
@@ -73,7 +73,7 @@ export const pl: Messages = {
   mcpSetup_opencodeTitle: 'Skonfiguruj OpenCode',
   mcpSetup_codexTitle: 'Skonfiguruj Codex',
   mcpSetup_cursorDescription:
-    'Połącz Cursor z NCF Agent Interconnect. Ustawienia połączenia zostaną dodane do wybranego pliku.',
+    'Połącz Cursor z NCF Agent Interconnect. Zastosowanie zmian dodaje połączenie MCP i automatycznie instaluje dołączoną wtyczkę reaktywną.',
   mcpSetup_opencodeDescription:
     'Połącz OpenCode v1 z NCF Agent Interconnect. Ustawienia połączenia zostaną dodane, a dołączona integracja zostanie włączona. OpenCode v2 nie jest obsługiwany.',
   mcpSetup_codexDescription:
@@ -104,7 +104,8 @@ export const pl: Messages = {
   mcpSetup_applied: 'Zastosowano konfigurację.',
   mcpSetup_noChanges: 'Ustawienia już istnieją. Nic nie zmieniono.',
   mcpSetup_failed: 'Nie udało się zastosować konfiguracji.',
-  mcpSetup_cursorNext: 'Połącz ponownie MCP w Cursor, aby użyć tych ustawień.',
+  mcpSetup_cursorNext:
+    'Uruchom Cursor ponownie jeden raz, a następnie połącz agenta w docelowym czacie.',
   mcpSetup_opencodeNext: 'Uruchom ponownie OpenCode v1, aby użyć tych ustawień.',
   mcpSetup_codexNext:
     'Połącz ponownie MCP w wybranej instancji lub profilu Codex, aby użyć tych ustawień.',

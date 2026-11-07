@@ -7,7 +7,7 @@ export const tr: Messages = {
   mcpSetup_statusOpencodeHint: 'Kayıtlı ayarlar denetlenir; eklentinin çalıştığı doğrulanmaz.',
   mcpSetup_statusUnknown: 'Bilinmiyor',
   mcpSetup_statusCursorMetricsHint:
-    'Cursor için ajan sayısı ve son etkinlik ayrı olarak bildirilmez.',
+    'Bağlı sohbetteki bir tur tamamlandığında teslim etkinleşir. Cursor yeniden başlatıldıktan sonra teslimi geri yüklemek için o sohbette herhangi bir mesaj gönderin.',
   mcpSetup_statusDelivery: 'Ajanlara teslim',
   mcpSetup_statusAuthorization: 'Yetkilendirme',
   mcpSetup_statusLiveBridge: 'Canlı köprü',
@@ -73,7 +73,7 @@ export const tr: Messages = {
   mcpSetup_opencodeTitle: 'OpenCode uygulamasını yapılandır',
   mcpSetup_codexTitle: 'Codex uygulamasını yapılandır',
   mcpSetup_cursorDescription:
-    'Cursor uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları seçilen dosyaya eklenecektir.',
+    'Cursor uygulamasını NCF Agent Interconnect sistemine bağlayın. Uygula işlemi MCP bağlantısını ekler ve birlikte gelen reaktif eklentiyi otomatik olarak kurar.',
   mcpSetup_opencodeDescription:
     'OpenCode v1 uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları eklenecek ve paketle gelen entegrasyon etkinleştirilecektir. OpenCode v2 desteklenmez.',
   mcpSetup_codexDescription:
@@ -103,7 +103,8 @@ export const tr: Messages = {
   mcpSetup_applied: 'Yapılandırma uygulandı.',
   mcpSetup_noChanges: 'Ayarlar zaten mevcut. Hiçbir şey değiştirilmedi.',
   mcpSetup_failed: 'Yapılandırma uygulanamadı.',
-  mcpSetup_cursorNext: 'Bu ayarları kullanmak için Cursor içinde MCP bağlantısını yeniden kurun.',
+  mcpSetup_cursorNext:
+    'Cursor uygulamasını bir kez yeniden başlatın, ardından hedef sohbette bir ajan bağlayın.',
   mcpSetup_opencodeNext: 'Bu ayarları kullanmak için OpenCode v1 uygulamasını yeniden başlatın.',
   mcpSetup_codexNext:
     'Bu ayarları kullanmak için seçilen Codex örneğinde veya profilinde MCP bağlantısını yeniden kurun.',
