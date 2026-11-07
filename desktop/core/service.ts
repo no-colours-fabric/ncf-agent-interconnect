@@ -33,6 +33,7 @@ import { AionUiSessions } from './aionui-sessions.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
+import { cursorIntegration } from './cursor-integration.js';
 
 export class NodeService extends EventEmitter {
   store!: AgentStore;
@@ -263,7 +264,7 @@ export class NodeService extends EventEmitter {
       input.adapterId ?? this.settings.value.adapters.find((a) => a.kind === 'manual')!.id;
     const profile = this.settings.value.adapters.find((a) => a.id === adapterId);
     if (
-      (['opencode-http', 'aionui'].includes(profile?.kind ?? '') &&
+      (['opencode-http', 'cursor-hook', 'aionui'].includes(profile?.kind ?? '') &&
         input.chatId !== profile?.sessionId) ||
       (profile?.kind === 'codex-desktop' && input.chatId !== profile.threadId)
     )
@@ -285,6 +286,7 @@ export class NodeService extends EventEmitter {
           (profile.kind === 'opencode-http' &&
             prior.workspace === profile.workspace &&
             prior.sessionId === profile.sessionId) ||
+          (profile.kind === 'cursor-hook' && prior.sessionId === profile.sessionId) ||
           (profile.kind === 'aionui' &&
             prior.aionConnectionId === profile.aionConnectionId &&
             prior.sessionId === profile.sessionId))
@@ -529,7 +531,8 @@ export class NodeService extends EventEmitter {
         await this.aionui.verify(profile.aionConnectionId);
         if (this.adapters.get(profile.id).status().state !== 'ready')
           throw new Error('The AionUi realtime connection is unavailable.');
-      }
+      } else if (context.client === 'Cursor' && host.client !== 'Cursor')
+        throw new Error('The Cursor context belongs to another client.');
     } else if (/codex/i.test(host.client)) {
       let metadata = host.meta?.['x-codex-turn-metadata'];
       if (typeof metadata === 'string') {
@@ -565,6 +568,10 @@ export class NodeService extends EventEmitter {
     else if (/opencode/i.test(host.client))
       throw new Error(
         'For automatic OpenCode binding, add the bundled plugin using the MCP setup instructions. No session configuration is required.',
+      );
+    else if (/cursor/i.test(host.client))
+      throw new Error(
+        'For automatic Cursor binding, apply the Cursor setup in NCF Applications and restart Cursor.',
       );
     if (!context && input.connectionId) {
       if (input.transferId)
@@ -1155,6 +1162,20 @@ export class NodeService extends EventEmitter {
     }
   }
   clientInstructions(client: McpSetupClient) {
+    const nodeFile = path.join(this.directory, 'Integrations', 'node.json');
+    const cursorBridge = fileURLToPath(
+      new URL('../integrations/cursor.' + this.integrationExtension, import.meta.url),
+    );
+    const cursorHook = fileURLToPath(
+      new URL('../integrations/cursor-hook.' + this.integrationExtension, import.meta.url),
+    );
+    const cursorPlugin = cursorIntegration({
+      executable: process.execPath,
+      bridge: cursorBridge,
+      hook: cursorHook,
+      nodeFile,
+      platform: process.platform,
+    });
     const aionConfiguration = JSON.stringify(
       {
         mcpServers: {
@@ -1165,7 +1186,7 @@ export class NodeService extends EventEmitter {
                 new URL('../integrations/aionui.' + this.integrationExtension, import.meta.url),
               ),
               '--node-file',
-              path.join(this.directory, 'Integrations', 'node.json'),
+              nodeFile,
             ],
             env: {
               ELECTRON_RUN_AS_NODE: '1',
@@ -1186,6 +1207,7 @@ export class NodeService extends EventEmitter {
       client,
       pathToFileURL(this.openCodePlugin).href,
       aionConfiguration,
+      cursorPlugin,
     );
   }
   async userCall(

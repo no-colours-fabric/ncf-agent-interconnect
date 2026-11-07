@@ -1,4 +1,5 @@
 import { EventEmitter } from 'node:events';
+import { randomUUID } from 'node:crypto';
 import type {
   AdapterProfile,
   AdapterState,
@@ -83,6 +84,139 @@ class ManualAdapter implements AgentAdapter {
     return { state: 'waiting' };
   }
   async stop(): Promise<void> {}
+}
+
+type CursorHookResponse = { followup_message?: string };
+type CursorWaiter = {
+  resolve: (value: CursorHookResponse) => void;
+};
+type CursorAdmission = {
+  id: string;
+  isCurrent?: () => boolean;
+  resolve: (value: Admission) => void;
+  timer: NodeJS.Timeout;
+};
+
+/** Event-driven exact-chat delivery through Cursor's native Agent hooks. */
+export class CursorHookAdapter implements AgentAdapter {
+  private state: AdapterState;
+  private waiter?: CursorWaiter;
+  private admission?: CursorAdmission;
+  private stopped = false;
+  constructor(
+    readonly profile: AdapterProfile,
+    readonly changed: () => void,
+    readonly idle: () => void,
+  ) {
+    this.state = {
+      id: profile.id,
+      label: profile.label,
+      kind: 'cursor-hook',
+      capabilities: {
+        wakeIdle: true,
+        receiveActive: true,
+        nativeDisplay: true,
+        exactSession: true,
+      },
+      state: 'checking',
+      error: null,
+    };
+  }
+  status(): AdapterState {
+    return { ...this.state };
+  }
+  async start(): Promise<void> {
+    if (this.stopped) return;
+    this.state.state = 'error';
+    this.state.error = 'Send any message in this Cursor chat to restore delivery';
+    this.changed();
+  }
+  activate(): void {
+    if (this.stopped) return;
+    const changed = this.state.state !== 'ready' || this.state.error !== null;
+    this.state.state = 'ready';
+    this.state.error = null;
+    if (changed) this.changed();
+  }
+  acknowledge(admissionId?: string): void {
+    this.activate();
+    if (!admissionId || this.admission?.id !== admissionId) return;
+    const admission = this.admission;
+    this.admission = undefined;
+    clearTimeout(admission.timer);
+    admission.resolve(
+      admission.isCurrent && !admission.isCurrent() ? { state: 'revoked' } : { state: 'admitted' },
+    );
+    this.idle();
+  }
+  wait(status: string | undefined, signal: AbortSignal): Promise<CursorHookResponse> {
+    if (status !== 'completed' || this.stopped || signal.aborted) return Promise.resolve({});
+    this.activate();
+    this.waiter?.resolve({});
+    return new Promise<CursorHookResponse>((resolve) => {
+      const waiter = { resolve };
+      this.waiter = waiter;
+      const close = () => {
+        if (this.waiter !== waiter) return;
+        this.waiter = undefined;
+        resolve({});
+        if (!this.admission) {
+          this.state.state = 'error';
+          this.state.error = 'Send any message in this Cursor chat to restore delivery';
+          this.changed();
+        }
+      };
+      signal.addEventListener('abort', close, { once: true });
+      this.idle();
+    });
+  }
+  end(): void {
+    this.waiter?.resolve({});
+    this.waiter = undefined;
+    if (this.admission) {
+      const admission = this.admission;
+      this.admission = undefined;
+      clearTimeout(admission.timer);
+      admission.resolve({
+        state: 'uncertain',
+        error: 'Cursor closed before confirming message admission',
+      });
+    }
+    if (!this.stopped) {
+      this.state.state = 'error';
+      this.state.error = 'Send any message in this Cursor chat to restore delivery';
+      this.changed();
+    }
+  }
+  async deliver(input: EventInput): Promise<Admission> {
+    if (this.stopped) return { state: 'failed', error: 'The Cursor integration is disconnected' };
+    if (!this.waiter || this.admission) return { state: 'waiting' };
+    if (input.isCurrent && !input.isCurrent()) return { state: 'revoked' };
+    const waiter = this.waiter;
+    this.waiter = undefined;
+    const admissionId = randomUUID();
+    const text = `${agentMessageText(input)}\n\nNCF-Admission-ID: ${admissionId}`;
+    return new Promise<Admission>((resolve) => {
+      const timer = setTimeout(() => {
+        if (this.admission?.id !== admissionId) return;
+        this.admission = undefined;
+        resolve({
+          state: 'uncertain',
+          error: 'Cursor did not confirm native message admission',
+        });
+      }, 30000);
+      timer.unref();
+      this.admission = { id: admissionId, isCurrent: input.isCurrent, resolve, timer };
+      waiter.resolve({ followup_message: text });
+    });
+  }
+  async stop(): Promise<void> {
+    this.stopped = true;
+    this.end();
+    this.state.state = 'error';
+    this.state.error = 'The Cursor integration is disconnected';
+    this.changed();
+  }
 }
 
 export class OpenCodeAdapter implements AgentAdapter {
@@ -334,9 +468,11 @@ export class AdapterRegistry extends EventEmitter {
         ? new ManualAdapter(profile)
         : profile.kind === 'codex-desktop'
           ? new CodexDesktopAdapter(profile, changed)
-          : profile.kind === 'aionui'
-            ? new AionUiAdapter(profile, this.aionui!, changed, idle)
-            : new OpenCodeAdapter(profile, changed, idle);
+          : profile.kind === 'cursor-hook'
+            ? new CursorHookAdapter(profile, changed, idle)
+            : profile.kind === 'aionui'
+              ? new AionUiAdapter(profile, this.aionui!, changed, idle)
+              : new OpenCodeAdapter(profile, changed, idle);
     this.adapters.set(profile.id, adapter);
     await adapter.start();
   }

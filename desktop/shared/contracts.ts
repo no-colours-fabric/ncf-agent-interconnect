@@ -152,7 +152,7 @@ export interface AdapterCapabilities {
 export interface AdapterProfile {
   id: string;
   label: string;
-  kind: 'manual' | 'opencode-http' | 'codex-desktop' | 'aionui';
+  kind: 'manual' | 'opencode-http' | 'codex-desktop' | 'cursor-hook' | 'aionui';
   aionConnectionId?: string;
   baseUrl?: string;
   sessionId?: string;
@@ -215,6 +215,11 @@ export interface McpInstructions {
   text: string;
   configuration: string;
   testPrompt: string;
+  managedFiles?: {
+    id: string;
+    relativePath: string[];
+    content: string;
+  }[];
 }
 export interface DesktopBridge {
   invoke<T = unknown>(method: string, params?: unknown): Promise<T>;

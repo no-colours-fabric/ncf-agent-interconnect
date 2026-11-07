@@ -248,7 +248,7 @@ function ClientSetupDialog({
                 <ClientApplicationMetrics
                   kind={
                     client === 'cursor'
-                      ? undefined
+                      ? 'cursor-hook'
                       : client === 'opencode'
                         ? 'opencode-http'
                         : client === 'codex'

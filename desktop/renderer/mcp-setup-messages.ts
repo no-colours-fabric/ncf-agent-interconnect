@@ -4,7 +4,8 @@ export const mcpSetupEnglish = {
   statusOpencodeConfig: 'MCP and plugin settings',
   statusOpencodeHint: 'This checks saved settings, not whether the plugin is running.',
   statusUnknown: 'Unknown',
-  statusCursorMetricsHint: 'Agent totals and last activity are not reported separately for Cursor.',
+  statusCursorMetricsHint:
+    'Delivery becomes active after the connected chat completes a turn. After restarting Cursor, send any message in that chat to restore delivery.',
   statusDelivery: 'Agent delivery',
   statusAuthorization: 'Authorization',
   statusLiveBridge: 'Live bridge',
@@ -53,7 +54,7 @@ export const mcpSetupEnglish = {
   opencodeTitle: 'Configure OpenCode',
   codexTitle: 'Configure Codex',
   cursorDescription:
-    'Connect Cursor to NCF Agent Interconnect. We will add the connection settings to the selected file.',
+    'Connect Cursor to NCF Agent Interconnect. Apply adds the MCP connection and installs the included reactive plugin automatically.',
   opencodeDescription:
     'Connect OpenCode v1 to NCF Agent Interconnect. We will add the connection settings and enable the included integration. OpenCode v2 is not supported.',
   codexDescription:
@@ -82,7 +83,7 @@ export const mcpSetupEnglish = {
   applied: 'Setup applied.',
   noChanges: 'Settings are already present. Nothing was changed.',
   failed: 'Setup could not be applied.',
-  cursorNext: 'Reconnect MCP in Cursor to use these settings.',
+  cursorNext: 'Restart Cursor once, then connect an agent in the intended chat.',
   opencodeNext: 'Restart OpenCode v1 to use these settings.',
   codexNext: 'Reconnect MCP in the selected Codex instance or profile to use these settings.',
   copyPrompt: 'Copy connection prompt',

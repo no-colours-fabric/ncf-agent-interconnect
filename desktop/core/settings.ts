@@ -10,7 +10,7 @@ export const adapterSchema = z
   .object({
     id: z.uuid(),
     label: z.string().min(1).max(120),
-    kind: z.enum(['manual', 'opencode-http', 'codex-desktop', 'aionui']),
+    kind: z.enum(['manual', 'opencode-http', 'codex-desktop', 'cursor-hook', 'aionui']),
     aionConnectionId: z.uuid().optional(),
     baseUrl: z.url().optional(),
     sessionId: z.string().max(200).optional(),
@@ -35,6 +35,12 @@ export const adapterSchema = z
         code: 'custom',
         message: 'The Codex integration did not provide the current chat',
         path: ['threadId'],
+      });
+    if (profile.kind === 'cursor-hook' && !profile.sessionId)
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The Cursor integration did not provide the current chat',
+        path: ['sessionId'],
       });
     if (profile.kind === 'opencode-http' && (!profile.baseUrl || !profile.sessionId))
       ctx.addIssue({

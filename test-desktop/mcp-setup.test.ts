@@ -31,6 +31,39 @@ const instructions = (client: McpSetupClient) =>
       },
     }),
   );
+const instructionsWithCursorPlugin = (client: McpSetupClient) => {
+  const base = instructions(client);
+  if (client !== 'cursor') return base;
+  return {
+    ...base,
+    managedFiles: [
+      {
+        id: 'cursor-plugin-manifest',
+        relativePath: [
+          '.cursor',
+          'plugins',
+          'local',
+          'ncf-agent-interconnect',
+          '.cursor-plugin',
+          'plugin.json',
+        ],
+        content: '{"name":"ncf-agent-interconnect"}\n',
+      },
+      {
+        id: 'cursor-plugin-hooks',
+        relativePath: [
+          '.cursor',
+          'plugins',
+          'local',
+          'ncf-agent-interconnect',
+          'hooks',
+          'hooks.json',
+        ],
+        content: '{"version":1,"hooks":{"stop":[]}}\n',
+      },
+    ],
+  };
+};
 
 async function fixture(
   t: test.TestContext,
@@ -199,6 +232,68 @@ test('Apply creates files only at the selected path, with restrictive permission
   const repeat = await service.preview(owner, 'cursor', [{ id: 'configuration', path: filename }]);
   assert.equal(repeat.files[0].action, 'unchanged');
   assert.equal((await service.apply(owner, repeat.planId, false)).status, 'unchanged');
+});
+
+test('Cursor Apply installs its managed plugin atomically while preview and cancel remain read-only', async (t) => {
+  const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
+  const configuration = path.join(directory, '.cursor', 'mcp.json');
+  const plugin = path.join(directory, '.cursor', 'plugins', 'local', 'ncf-agent-interconnect');
+  await mkdir(path.dirname(configuration), { recursive: true });
+  const source = '{"mcpServers":{"other":{"url":"https://example.invalid"}}}\n';
+  await writeFile(configuration, source);
+  await mkdir(plugin, { recursive: true });
+  await writeFile(path.join(plugin, 'owner-note.txt'), 'preserve this file');
+  const preview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  assert.equal(preview.files.length, 3);
+  assert.equal(await readFile(configuration, 'utf8'), source);
+  assert.deepEqual(await readdir(plugin), ['owner-note.txt']);
+  service.discard(owner, preview.planId);
+  assert.deepEqual(await readdir(plugin), ['owner-note.txt']);
+
+  const applied = await service.apply(
+    owner,
+    (await service.preview(owner, 'cursor', [{ id: 'configuration', path: configuration }])).planId,
+    false,
+  );
+  assert.equal(applied.status, 'applied');
+  assert.equal(
+    JSON.parse(await readFile(path.join(plugin, '.cursor-plugin', 'plugin.json'), 'utf8')).name,
+    'ncf-agent-interconnect',
+  );
+  assert.equal(
+    JSON.parse(await readFile(path.join(plugin, 'hooks', 'hooks.json'), 'utf8')).version,
+    1,
+  );
+  assert.equal(await readFile(path.join(plugin, 'owner-note.txt'), 'utf8'), 'preserve this file');
+  assert.equal(
+    parseJson(await readFile(configuration, 'utf8')).mcpServers.other.url,
+    'https://example.invalid',
+  );
+  assert.equal((await service.status('cursor')).state, 'configured');
+});
+
+test('Cursor managed plugin failure rolls back earlier configuration and plugin writes', async (t) => {
+  const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
+  const configuration = path.join(directory, '.cursor', 'mcp.json');
+  const plugin = path.join(directory, '.cursor', 'plugins', 'local', 'ncf-agent-interconnect');
+  const hooks = path.join(plugin, 'hooks', 'hooks.json');
+  await mkdir(path.dirname(hooks), { recursive: true });
+  await writeFile(hooks, '{"owner":"foreign"}\n');
+  const preview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  const hooksPreview = preview.files.find((file) => file.id === 'cursor-plugin-hooks')!;
+  await writeFile(hooksPreview.backupPath!, 'backup collision');
+  const result = await service.apply(owner, preview.planId, false);
+  assert.equal(result.status, 'failed');
+  await assert.rejects(readFile(configuration, 'utf8'), { code: 'ENOENT' });
+  await assert.rejects(readFile(path.join(plugin, '.cursor-plugin', 'plugin.json'), 'utf8'), {
+    code: 'ENOENT',
+  });
+  assert.equal(await readFile(hooks, 'utf8'), '{"owner":"foreign"}\n');
+  assert.equal(await readFile(hooksPreview.backupPath!, 'utf8'), 'backup collision');
 });
 
 test('replacement requires confirmation, preserves the original in a private backup and retains file permissions', async (t) => {

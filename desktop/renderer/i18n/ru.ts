@@ -8,7 +8,7 @@ export const ru: Messages = {
     'Проверяются сохранённые настройки, а не загрузка плагина в работающем приложении.',
   mcpSetup_statusUnknown: 'Неизвестно',
   mcpSetup_statusCursorMetricsHint:
-    'Количество агентов и последняя активность недоступны отдельно для Cursor.',
+    'Доставка включается после завершения хода в подключённом чате. После перезапуска Cursor отправьте в этом чате любое сообщение, чтобы восстановить доставку.',
   mcpSetup_statusDelivery: 'Доставка сообщений',
   mcpSetup_statusAuthorization: 'Авторизация',
   mcpSetup_statusLiveBridge: 'Активный мост',
@@ -74,7 +74,7 @@ export const ru: Messages = {
   mcpSetup_opencodeTitle: 'Настроить OpenCode',
   mcpSetup_codexTitle: 'Настроить Codex',
   mcpSetup_cursorDescription:
-    'Подключите Cursor к NCF Agent Interconnect. Настройки подключения будут добавлены в выбранный файл.',
+    'Подключите Cursor к NCF Agent Interconnect. После применения будут добавлены настройки MCP и автоматически установлен встроенный реактивный плагин.',
   mcpSetup_opencodeDescription:
     'Подключите OpenCode v1 к NCF Agent Interconnect. Будут добавлены настройки подключения и включена встроенная интеграция. OpenCode v2 не поддерживается.',
   mcpSetup_codexDescription:
@@ -104,7 +104,7 @@ export const ru: Messages = {
   mcpSetup_applied: 'Настройка применена.',
   mcpSetup_noChanges: 'Настройки уже присутствуют. Ничего не изменено.',
   mcpSetup_failed: 'Не удалось применить настройку.',
-  mcpSetup_cursorNext: 'Переподключите MCP в Cursor, чтобы использовать эти настройки.',
+  mcpSetup_cursorNext: 'Один раз перезапустите Cursor, затем подключите агента в нужном чате.',
   mcpSetup_opencodeNext: 'Перезапустите OpenCode v1, чтобы использовать эти настройки.',
   mcpSetup_codexNext:
     'Переподключите MCP в выбранном экземпляре или профиле Codex, чтобы использовать эти настройки.',

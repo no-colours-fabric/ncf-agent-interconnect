@@ -36,6 +36,7 @@ interface Source {
   mode: number;
 }
 interface PreparedFile {
+  id: string;
   path: string;
   backupPath?: string;
   backupWritten?: boolean;
@@ -74,6 +75,43 @@ export class McpSetupService {
     this.env = options.env ?? process.env;
     this.now = options.now ?? Date.now;
     this.paths = new McpSetupPaths(options.stateDirectory);
+  }
+
+  private managedFiles(
+    instructions: McpInstructions,
+  ): { id: string; path: string; content: string }[] {
+    return (instructions.managedFiles ?? []).map((file) => {
+      if (
+        !/^[a-z0-9-]{1,80}$/.test(file.id) ||
+        !file.relativePath.length ||
+        file.relativePath.some(
+          (part) =>
+            !part ||
+            part === '.' ||
+            part === '..' ||
+            part.includes('\0') ||
+            part.includes('/') ||
+            part.includes('\\'),
+        )
+      )
+        throw new SetupError('The managed client integration path is invalid');
+      const filename = path.resolve(this.home, ...file.relativePath);
+      const root = path.resolve(this.home);
+      if (filename === root || !filename.startsWith(root + path.sep))
+        throw new SetupError('The managed client integration path is invalid');
+      if (Buffer.byteLength(file.content) > maxBytes || file.content.includes('\0'))
+        throw new SetupError('The managed client integration file is invalid');
+      return { id: file.id, path: filename, content: file.content };
+    });
+  }
+
+  private instructionHash(instructions: McpInstructions): string {
+    return digest(
+      JSON.stringify({
+        configuration: instructions.configuration,
+        managedFiles: instructions.managedFiles ?? [],
+      }),
+    );
   }
 
   async defaults(client: McpSetupClient): Promise<McpSetupDefaults> {
@@ -137,12 +175,17 @@ export class McpSetupService {
         };
       const instructions = await this.options.instructions(client);
       const edit = editMcpConfiguration(client, source.content, instructions.configuration);
-      const state =
+      let state: McpSetupStatus['state'] =
         edit.content === source.content
           ? 'configured'
           : edit.changes.some((change) => change.action !== 'add')
             ? 'needs-update'
             : 'not-configured';
+      for (const managed of this.managedFiles(instructions)) {
+        const installed = await this.readSource(await this.canonicalPath(managed.path));
+        if (!installed.exists && state === 'configured') state = 'not-configured';
+        else if (installed.exists && installed.content !== managed.content) state = 'needs-update';
+      }
       return { client, remembered, state, files: [{ id: 'configuration', path: filename, state }] };
     } catch (error) {
       return {
@@ -207,6 +250,26 @@ export class McpSetupService {
     const changed = edit.content !== source.content;
     const backupPath =
       changed && source.exists ? filename + '.ncf-backup-' + randomUUID() : undefined;
+    const files: PreparedFile[] = [
+      { id: 'configuration', path: filename, backupPath, source, content: edit.content },
+    ];
+    for (const managed of this.managedFiles(instructions)) {
+      const managedPath = await this.canonicalPath(managed.path);
+      if (files.some((file) => file.path === managedPath))
+        throw new SetupError('The selected configuration conflicts with the managed integration');
+      const managedSource = await this.readSource(managedPath);
+      const managedChanged = managedSource.content !== managed.content;
+      files.push({
+        id: managed.id,
+        path: managedPath,
+        backupPath:
+          managedChanged && managedSource.exists
+            ? managedPath + '.ncf-backup-' + randomUUID()
+            : undefined,
+        source: managedSource,
+        content: managed.content,
+      });
+    }
     const planId = randomUUID();
     const expires = this.now() + lifetime;
     const preview: McpSetupPreview = {
@@ -214,15 +277,31 @@ export class McpSetupService {
       planId,
       expiresAt: new Date(expires).toISOString(),
       requiresReplacement: edit.requiresReplacement,
-      files: [
-        {
-          id: 'configuration',
-          path: filename,
-          backupPath,
-          action: !changed ? 'unchanged' : source.exists ? 'update' : 'create',
-          changes: edit.changes,
-        },
-      ],
+      files: files.map((file) => ({
+        id: file.id,
+        path: file.path,
+        backupPath: file.backupPath,
+        action:
+          file.content === file.source.content
+            ? 'unchanged'
+            : file.source.exists
+              ? 'update'
+              : 'create',
+        changes:
+          file.id === 'configuration'
+            ? edit.changes
+            : [
+                {
+                  scope: file.id,
+                  action:
+                    file.content === file.source.content
+                      ? ('unchanged' as const)
+                      : file.source.exists
+                        ? ('replace' as const)
+                        : ('add' as const),
+                },
+              ],
+      })),
     };
     if (this.plans.size >= 30)
       throw new SetupError('Too many setup previews are open; close an earlier dialog');
@@ -230,9 +309,9 @@ export class McpSetupService {
       owner,
       client,
       expires,
-      configurationHash: digest(instructions.configuration),
+      configurationHash: this.instructionHash(instructions),
       preview,
-      files: [{ path: filename, backupPath, source, content: edit.content }],
+      files,
       applying: false,
     });
     return preview;
@@ -265,7 +344,7 @@ export class McpSetupService {
     const written: PreparedFile[] = [];
     try {
       const instructions = await this.options.instructions(plan.client);
-      if (digest(instructions.configuration) !== plan.configurationHash)
+      if (this.instructionHash(instructions) !== plan.configurationHash)
         throw new SetupError('The NCF connection settings changed; prepare a new preview');
       for (const file of plan.files) await this.assertCurrent(file);
       for (const file of plan.files) {
