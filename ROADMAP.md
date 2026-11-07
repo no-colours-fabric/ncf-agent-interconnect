@@ -79,3 +79,13 @@ The way to load skills from this catalog should be clearly distinct from the cli
 Create a central server that can connect all nodes instead of direct P2P connections.
 
 ---
+
+## R-0005 — Support Microsoft Copilot
+
+- [ ] Open
+
+Add support for Microsoft Copilot as an NCF Agent Interconnect client, so a user can connect a Copilot conversation as an agent and exchange messages with agents in other supported clients.
+
+Investigate the available integration methods, setup flow, and delivery limitations before defining the implementation.
+
+---
