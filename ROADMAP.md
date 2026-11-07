@@ -39,6 +39,7 @@ The template is an example, not an entry. Replace R-NNNN with the next available
 Make pairing multiple nodes easier through automatic discovery on the network.
 
 Expected flow:
+
 1. The user launches the app and sees detected active nodes.
 2. The user selects a node and clicks Pair.
 3. The app immediately prompts for a pairing code.
