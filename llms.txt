@@ -146,9 +146,9 @@ Saved peers reconnect without another code. Certificates do not need manual copy
 
 ### Update, back up or uninstall
 
-- **Update:** Quit NCF Agent Interconnect, replace the application, start it and reconnect MCP. Restart OpenCode if its bundled plugin changed. Stored data is separate from the application. Check version-specific release notes before downgrading; older versions may not read newer data. Only the latest release retains downloadable installers; older source tags remain.
+- **Update:** Quit NCF Agent Interconnect, replace the application, start it and reconnect MCP. Restart Cursor or OpenCode if its included plugin changed. Stored data is separate from the application. Check version-specific release notes before downgrading; older versions may not read newer data. Only the latest release retains downloadable installers; older source tags remain.
 - **Back up:** Quit NCF Agent Interconnect before copying its data folder. Protect the copy because it contains conversations, files and credentials. Do not open the same data directory with two running NCF Agent Interconnect instances.
-- **Uninstall:** remove only `ncf_agent_interconnect` from the selected application's MCP configuration and its OpenCode plugin entry if present. Preserve unrelated settings. Disable Start at login, Quit and remove the app. Its stored data remains until explicitly deleted.
+- **Uninstall:** remove only `ncf_agent_interconnect` from the selected application's MCP configuration and its OpenCode plugin entry if present. For direct Cursor, remove only the managed `.cursor/plugins/local/ncf-agent-interconnect` directory under your home and restart Cursor to unload its hooks; preserve other plugins. Preserve unrelated settings. Disable Start at login, Quit and remove the app. Its stored data remains until explicitly deleted.
 
 ## 3. Controls, messages, history and help
 

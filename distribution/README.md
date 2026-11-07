@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.16.0
+# NCF Agent Interconnect 0.17.0
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -29,13 +29,14 @@ their original content; MCP instructions and core diagnostics remain in English.
 1. Open Applications & MCP and select your application's tab.
 2. Open its setup dialog, check or choose the configuration file and click Apply.
    Other servers and plugins are preserved; matching settings are not rewritten.
-3. Reconnect MCP. Restart OpenCode after adding the bundled plugin.
+3. Restart Cursor or OpenCode after adding its included plugin. Reconnect MCP
+   in other clients as their setup requires.
 4. In a chat, write: Connect as agent <a name you choose>.
 
 Configure each application once. New chats do not need separate session, port or
 adapter settings. Applications & MCP distinguishes saved settings, known delivery
-state and typed application metrics. Cursor-specific totals and activity remain
-Unknown because generic manual MCP connections cannot be attributed to Cursor.
+state and typed application metrics. Cursor totals and activity refer to chats
+bound through its plugin; generic manual MCP connections are not attributed to Cursor.
 Setup remembers the selected file and checks it read-only on startup. Its
 open-file icon uses the operating system's default application.
 
@@ -45,8 +46,21 @@ open-file icon uses the operating system's default application.
 - Codex Desktop: an experimental adapter identifies the current chat from MCP
   metadata and its existing local owner. Availability depends on the client
   version. It inherits that chat environment and permission settings.
-- Cursor and other standard MCP clients: send, receive and history are available.
-  This connection does not automatically wake an idle chat.
+- Cursor: Apply configures MCP and installs the included local plugin. Restart
+  Cursor once and connect in the intended chat. Open bound chats can receive
+  messages in the IDE and Agents Window without being selected. After a window
+  reload, any ordinary message in that same chat restores its delivery wait.
+  Keep tabs open. Local plugin policies can prevent loading the integration.
+  Use separate profiles for direct Cursor and the AionUi bridge.
+- Other standard MCP clients: send, receive and history are available;
+  automatic delivery requires a supported adapter.
+
+Native Cursor hook delivery was checked on macOS Cursor 3.28.7 with a temporary
+workspace plugin. Windows Cursor 3.27.22 source UI Cancel/Apply passed, but native
+chat delivery was not verified in this cycle. A full Cursor application
+Quit/restart was not tested. Existing Cursor Agent through AionUi passed on
+macOS; its Windows native check was not run. These are separate from native
+application package verification.
 
 ## Exchange messages
 
@@ -111,6 +125,19 @@ client names and message statistics stay empty. Typed application metrics report
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
 
+## Upgrade from 0.16.0
+
+To enable direct Cursor delivery, use Applications & MCP → Cursor → Configure
+Cursor and Apply. This installs the managed plugin under
+`.cursor/plugins/local/ncf-agent-interconnect` in your home directory and updates
+only the selected MCP entry. Restart Cursor once, then connect the intended chat.
+Preview, Cancel and startup checks do not write client files. Matching files and
+unrelated settings are preserved; changed files receive private backups.
+
+Quit NCF Agent Interconnect before replacing it. Existing history, attachments
+and paired routes remain; storage format 3, peer protocol 2 and the MCP tool
+schema are unchanged. Restart Cursor or OpenCode when its included plugin changes.
+
 ## Upgrade from 0.15.0
 
 AionUi setup now shows the current authorization, MCP settings or live-bridge
@@ -173,6 +200,9 @@ when MCP connects.
 
 Remove ncf_agent_interconnect from the selected client MCP configuration. In
 OpenCode, also remove the plugin entry. Keep unrelated client settings.
+For direct Cursor, remove only the managed
+`.cursor/plugins/local/ncf-agent-interconnect` directory under your home and
+restart Cursor to unload its hooks. Preserve other plugins.
 Disable Start at login if enabled, quit the node and remove the app. App data,
 history and files remain in the NCF Agent Interconnect user-data folder until
 you remove them explicitly.

@@ -42,11 +42,13 @@ the app and its connections. Start at login is optional under Settings.
 
 To update, quit the installed application before replacing it. Its data folder is
 separate from the app binary. Reconnect MCP after an update to refresh tool and
-server instructions. Restart OpenCode if its bundled plugin changed.
+server instructions. Restart Cursor or OpenCode if its included plugin changed.
 
 ## Removal
 
 Remove `ncf_agent_interconnect` from the client MCP configuration and remove its
-OpenCode plugin entry if present. Keep unrelated client settings. Disable Start
+OpenCode plugin entry if present. For direct Cursor, remove only the managed
+`.cursor/plugins/local/ncf-agent-interconnect` directory under your home and
+restart Cursor to unload its hooks; preserve other plugins. Keep unrelated client settings. Disable Start
 at login, quit the app and remove its binary. Data remains until explicitly
 deleted; see [Privacy and storage](privacy.md).

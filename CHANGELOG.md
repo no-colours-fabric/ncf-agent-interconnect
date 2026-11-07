@@ -2,6 +2,25 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.17.0 — 2026-11-07
+
+- Configure direct Cursor delivery from its existing setup tab. Only Apply
+  updates the selected MCP entry and installs the included local plugin;
+  helpers use the installed application runtime without a separate Node.js.
+- Deliver to exact open Cursor chats in the IDE and Agents Window, including
+  unselected chats. After a window reload, an ordinary message in the same
+  chat restores its delivery wait. Receipt requires native admission.
+- Report typed Cursor activity and update setup instructions in all fifteen
+  languages, with synchronized user guides and verification limits.
+
+Native Cursor delivery was checked on macOS Cursor 3.28.7 with a temporary
+workspace plugin. Windows Cursor 3.27.22 source UI Cancel/Apply passed;
+native delivery was not verified because scoped UI automation was blocked.
+A full Cursor application Quit/restart was not tested. Existing Cursor Agent
+through AionUi passed on macOS; its Windows native check was not run.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
 ## 0.16.0 — 2026-11-06
 
 - Guide AionUi setup through authorization, MCP settings and a verified live
