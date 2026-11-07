@@ -121,7 +121,7 @@ export function createAgentMcp(
         .uuid()
         .optional()
         .describe(
-          'Integration-owned one-use current-chat context. The installed OpenCode or AionUi integration injects this automatically; otherwise omit.',
+          'Integration-owned one-use current-chat context. The installed Cursor, OpenCode or AionUi integration injects this automatically; otherwise omit.',
         ),
     },
     false,
@@ -333,6 +333,8 @@ export class McpEndpoint {
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
+        '/integrations/cursor/context',
+        '/integrations/cursor/hook',
       ].includes(req.url ?? '') &&
       req.method === 'POST'
     ) {
@@ -347,12 +349,21 @@ export class McpEndpoint {
         chunks.push(Buffer.from(chunk));
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+      const abort = new AbortController();
+      res.on('close', () => {
+        if (!res.writableEnded) abort.abort();
+      });
       const result =
         req.url === '/integrations/aionui/context'
           ? await this.service.contexts.registerAionUi(body)
-          : req.url!.endsWith('/release')
-            ? await this.service.contexts.releaseOpenCode(body)
-            : await this.service.contexts.registerOpenCode(body);
+          : req.url === '/integrations/cursor/context'
+            ? await this.service.contexts.registerCursor(body)
+            : req.url === '/integrations/cursor/hook'
+              ? await this.service.contexts.handleCursorHook(body, abort.signal)
+              : req.url!.endsWith('/release')
+                ? await this.service.contexts.releaseOpenCode(body)
+                : await this.service.contexts.registerOpenCode(body);
+      if (res.destroyed) return;
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;

@@ -6,7 +6,8 @@ export const zh: Messages = {
   mcpSetup_statusOpencodeConfig: 'MCP 与插件设置',
   mcpSetup_statusOpencodeHint: '此处检查已保存的设置，不表示插件正在运行。',
   mcpSetup_statusUnknown: '未知',
-  mcpSetup_statusCursorMetricsHint: 'Cursor 的代理数量与最近活动无法单独统计。',
+  mcpSetup_statusCursorMetricsHint:
+    '已连接的聊天完成一轮交互后，消息投递将启用。重启 Cursor 后，在该聊天中发送任意消息即可恢复投递。',
   mcpSetup_statusDelivery: '代理消息投递',
   mcpSetup_statusAuthorization: '授权',
   mcpSetup_statusLiveBridge: '实时桥接',
@@ -70,7 +71,7 @@ export const zh: Messages = {
   mcpSetup_opencodeTitle: '配置 OpenCode',
   mcpSetup_codexTitle: '配置 Codex',
   mcpSetup_cursorDescription:
-    '将 Cursor 连接到 NCF Agent Interconnect。连接设置将添加到所选文件中。',
+    '将 Cursor 连接到 NCF Agent Interconnect。应用设置后会添加 MCP 连接，并自动安装内置的响应式插件。',
   mcpSetup_opencodeDescription:
     '将 OpenCode v1 连接到 NCF Agent Interconnect。将添加连接设置并启用随附的集成功能。不支持 OpenCode v2。',
   mcpSetup_codexDescription:
@@ -98,7 +99,7 @@ export const zh: Messages = {
   mcpSetup_applied: '设置已应用。',
   mcpSetup_noChanges: '设置已存在，未作任何更改。',
   mcpSetup_failed: '无法应用设置。',
-  mcpSetup_cursorNext: '要使用这些设置，请在 Cursor 中重新连接 MCP。',
+  mcpSetup_cursorNext: '重启一次 Cursor，然后在目标聊天中连接代理。',
   mcpSetup_opencodeNext: '要使用这些设置，请重新启动 OpenCode v1。',
   mcpSetup_codexNext: '要使用这些设置，请在所选 Codex 实例或配置文件中重新连接 MCP。',
   mcpSetup_copyPrompt: '复制连接提示词',

@@ -8,7 +8,7 @@ export const ptBR: Messages = {
     'Esta verificação considera as configurações salvas, não se o plugin está em execução.',
   mcpSetup_statusUnknown: 'Desconhecido',
   mcpSetup_statusCursorMetricsHint:
-    'O total de agentes e a última atividade não são informados separadamente para o Cursor.',
+    'A entrega é ativada após o chat conectado concluir uma interação. Depois de reiniciar o Cursor, envie qualquer mensagem nesse chat para restaurar a entrega.',
   mcpSetup_statusDelivery: 'Entrega aos agentes',
   mcpSetup_statusAuthorization: 'Autorização',
   mcpSetup_statusLiveBridge: 'Ponte ativa',
@@ -74,7 +74,7 @@ export const ptBR: Messages = {
   mcpSetup_opencodeTitle: 'Configurar OpenCode',
   mcpSetup_codexTitle: 'Configurar Codex',
   mcpSetup_cursorDescription:
-    'Conecte o Cursor ao NCF Agent Interconnect. As configurações de conexão serão adicionadas ao arquivo selecionado.',
+    'Conecte o Cursor ao NCF Agent Interconnect. Ao aplicar, a conexão MCP é adicionada e o plugin reativo incluído é instalado automaticamente.',
   mcpSetup_opencodeDescription:
     'Conecte o OpenCode v1 ao NCF Agent Interconnect. As configurações de conexão serão adicionadas e a integração incluída será ativada. O OpenCode v2 não é compatível.',
   mcpSetup_codexDescription:
@@ -105,7 +105,7 @@ export const ptBR: Messages = {
   mcpSetup_applied: 'Configuração aplicada.',
   mcpSetup_noChanges: 'As configurações já existem. Nada foi alterado.',
   mcpSetup_failed: 'Não foi possível aplicar a configuração.',
-  mcpSetup_cursorNext: 'Reconecte o MCP no Cursor para usar essas configurações.',
+  mcpSetup_cursorNext: 'Reinicie o Cursor uma vez e conecte um agente no chat desejado.',
   mcpSetup_opencodeNext: 'Reinicie o OpenCode v1 para usar essas configurações.',
   mcpSetup_codexNext:
     'Reconecte o MCP na instância ou no perfil selecionado do Codex para usar essas configurações.',

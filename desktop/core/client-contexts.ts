@@ -3,6 +3,7 @@ import { z } from 'zod';
 import type { NodeService } from './service.js';
 import { aionId, aionUrl, aionJson, AionUiError, conversationSchema } from './aionui-api.js';
 import type { AdapterProfile } from '../shared/contracts.js';
+import { CursorHookAdapter } from './adapters.js';
 
 const registration = z
   .object({
@@ -18,6 +19,21 @@ const registration = z
       .optional(),
   })
   .strict();
+const cursorContext = z
+  .object({
+    conversationId: z.uuid(),
+    workspaceRoots: z.array(z.string().min(1).max(4000)).max(32).default([]),
+    toolName: z.string().min(1).max(300),
+  })
+  .strict();
+const cursorHook = z
+  .object({
+    event: z.enum(['beforeSubmitPrompt', 'stop', 'sessionEnd']),
+    conversationId: z.uuid(),
+    admissionId: z.uuid().optional(),
+    status: z.enum(['completed', 'aborted', 'error']).optional(),
+  })
+  .strict();
 export interface ClientContext {
   client: string;
   chatId: string;
@@ -30,6 +46,75 @@ export class ClientContexts {
   private tickets = new Map<string, { context: ClientContext; expires: number }>();
   private setup: Promise<unknown> = Promise.resolve();
   constructor(private readonly service: NodeService) {}
+  private issue(context: ClientContext): string {
+    const now = Date.now();
+    for (const [key, value] of this.tickets) if (value.expires < now) this.tickets.delete(key);
+    if (this.tickets.size >= 512) this.tickets.delete(this.tickets.keys().next().value!);
+    const contextToken = randomUUID();
+    this.tickets.set(contextToken, { context, expires: now + 60000 });
+    return contextToken;
+  }
+  private cursorAdapter(profile: AdapterProfile): CursorHookAdapter {
+    const adapter = this.service.adapters.get(profile.id);
+    if (!(adapter instanceof CursorHookAdapter))
+      throw new Error('The Cursor integration is unavailable');
+    return adapter;
+  }
+  async registerCursor(raw: unknown): Promise<{ contextToken: string }> {
+    if (!this.service.integrationsReady)
+      throw new Error('The node is not ready to accept connections');
+    const input = cursorContext.parse(raw);
+    if (!['agent_connect', 'ncf_agent_interconnect_agent_connect'].includes(input.toolName))
+      throw new Error('The Cursor context is only available for agent_connect');
+    const work = this.setup.then(async () => {
+      if (!this.service.integrationsReady)
+        throw new Error('The node is not ready to accept connections');
+      const profiles = this.service.settings.value.adapters;
+      const profile = profiles.find(
+        (candidate) =>
+          candidate.kind === 'cursor-hook' && candidate.sessionId === input.conversationId,
+      );
+      const updated: AdapterProfile = {
+        id: profile?.id ?? randomUUID(),
+        label: 'Cursor',
+        kind: 'cursor-hook',
+        sessionId: input.conversationId,
+        ...(input.workspaceRoots[0] ? { workspace: input.workspaceRoots[0] } : {}),
+      };
+      if (!profile || JSON.stringify(profile) !== JSON.stringify(updated))
+        await this.service.installAdapter(updated);
+      const adapter = this.cursorAdapter(updated);
+      adapter.activate();
+      return {
+        contextToken: this.issue({
+          client: 'Cursor',
+          chatId: input.conversationId,
+          adapterId: updated.id,
+        }),
+      };
+    });
+    this.setup = work.catch(() => {});
+    return work;
+  }
+  async handleCursorHook(raw: unknown, signal: AbortSignal): Promise<Record<string, unknown>> {
+    if (!this.service.integrationsReady) return {};
+    const input = cursorHook.parse(raw);
+    const profile = this.service.settings.value.adapters.find(
+      (candidate) =>
+        candidate.kind === 'cursor-hook' && candidate.sessionId === input.conversationId,
+    );
+    if (!profile) return {};
+    const adapter = this.cursorAdapter(profile);
+    if (input.event === 'beforeSubmitPrompt') {
+      adapter.acknowledge(input.admissionId);
+      return {};
+    }
+    if (input.event === 'sessionEnd') {
+      adapter.end();
+      return {};
+    }
+    return adapter.wait(input.status, signal);
+  }
   async registerOpenCode(raw: unknown): Promise<unknown> {
     if (!this.service.integrationsReady)
       throw new Error('The node is not ready to accept connections');
@@ -126,12 +211,7 @@ export class ClientContexts {
       else if (this.service.adapters.get(profile!.id).status().state === 'error')
         await this.service.installAdapter(updated);
       const context = { client: 'OpenCode', chatId: input.sessionId!, adapterId: updated.id };
-      const now = Date.now();
-      for (const [key, value] of this.tickets) if (value.expires < now) this.tickets.delete(key);
-      if (this.tickets.size >= 512) this.tickets.delete(this.tickets.keys().next().value!);
-      const contextToken = randomUUID();
-      this.tickets.set(contextToken, { context, expires: now + 60000 });
-      return { contextToken };
+      return { contextToken: this.issue(context) };
     });
     this.setup = work.catch(() => {});
     return work;
@@ -187,15 +267,9 @@ export class ClientContexts {
       this.service.aionui.access(connection.id);
       if (this.service.adapters.get(id).status().state !== 'ready')
         throw new AionUiError('The AionUi realtime connection is unavailable.');
-      const now = Date.now();
-      for (const [key, value] of this.tickets) if (value.expires < now) this.tickets.delete(key);
-      if (this.tickets.size >= 512) this.tickets.delete(this.tickets.keys().next().value!);
-      const contextToken = randomUUID();
-      this.tickets.set(contextToken, {
-        context: { client: 'AionUi', chatId: input.sessionId, adapterId: id },
-        expires: now + 60000,
-      });
-      return { contextToken };
+      return {
+        contextToken: this.issue({ client: 'AionUi', chatId: input.sessionId, adapterId: id }),
+      };
     });
     this.setup = work.catch(() => {});
     return work;

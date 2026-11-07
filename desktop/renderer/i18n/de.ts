@@ -8,7 +8,7 @@ export const de: Messages = {
     'Geprüft werden gespeicherte Einstellungen, nicht der laufende Betrieb des Plugins.',
   mcpSetup_statusUnknown: 'Unbekannt',
   mcpSetup_statusCursorMetricsHint:
-    'Agentenzahl und letzte Aktivität werden für Cursor nicht separat erfasst.',
+    'Die Zustellung wird aktiv, nachdem der verbundene Chat einen Durchlauf abgeschlossen hat. Senden Sie nach einem Neustart von Cursor eine beliebige Nachricht in diesem Chat, um die Zustellung wiederherzustellen.',
   mcpSetup_statusDelivery: 'Nachrichtenzustellung',
   mcpSetup_statusAuthorization: 'Autorisierung',
   mcpSetup_statusLiveBridge: 'Aktive Bridge',
@@ -75,7 +75,7 @@ export const de: Messages = {
   mcpSetup_opencodeTitle: 'OpenCode einrichten',
   mcpSetup_codexTitle: 'Codex einrichten',
   mcpSetup_cursorDescription:
-    'Verbinden Sie Cursor mit NCF Agent Interconnect. Die Verbindungseinstellungen werden der ausgewählten Datei hinzugefügt.',
+    'Verbinden Sie Cursor mit NCF Agent Interconnect. Beim Anwenden wird die MCP-Verbindung hinzugefügt und das enthaltene reaktive Plugin automatisch installiert.',
   mcpSetup_opencodeDescription:
     'Verbinden Sie OpenCode v1 mit NCF Agent Interconnect. Die Verbindungseinstellungen werden hinzugefügt und die mitgelieferte Integration aktiviert. OpenCode v2 wird nicht unterstützt.',
   mcpSetup_codexDescription:
@@ -106,7 +106,8 @@ export const de: Messages = {
   mcpSetup_applied: 'Einrichtung angewendet.',
   mcpSetup_noChanges: 'Einstellungen sind bereits vorhanden. Nichts wurde geändert.',
   mcpSetup_failed: 'Einrichtung konnte nicht angewendet werden.',
-  mcpSetup_cursorNext: 'Verbinden Sie MCP in Cursor erneut, um diese Einstellungen zu verwenden.',
+  mcpSetup_cursorNext:
+    'Starten Sie Cursor einmal neu und verbinden Sie dann einen Agenten im vorgesehenen Chat.',
   mcpSetup_opencodeNext: 'Starten Sie OpenCode v1 neu, um diese Einstellungen zu verwenden.',
   mcpSetup_codexNext:
     'Verbinden Sie MCP in der ausgewählten Codex-Instanz oder im Profil erneut, um diese Einstellungen zu verwenden.',

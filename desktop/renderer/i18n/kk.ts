@@ -8,7 +8,7 @@ export const kk: Messages = {
     'Сақталған баптаулар тексеріледі, плагиннің жұмыс істеп тұрғаны расталмайды.',
   mcpSetup_statusUnknown: 'Белгісіз',
   mcpSetup_statusCursorMetricsHint:
-    'Cursor үшін агенттер саны мен соңғы белсенділік бөлек есептелмейді.',
+    'Қосылған чаттағы жүріс аяқталғаннан кейін жеткізу белсенді болады. Cursor қайта іске қосылғаннан кейін жеткізуді қалпына келтіру үшін сол чатқа кез келген хабар жіберіңіз.',
   mcpSetup_statusDelivery: 'Агенттерге жеткізу',
   mcpSetup_statusAuthorization: 'Авторизация',
   mcpSetup_statusLiveBridge: 'Белсенді көпір',
@@ -73,7 +73,7 @@ export const kk: Messages = {
   mcpSetup_opencodeTitle: 'OpenCode баптау',
   mcpSetup_codexTitle: 'Codex баптау',
   mcpSetup_cursorDescription:
-    'Cursor қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары таңдалған файлға қосылады.',
+    'Cursor қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. «Қолдану» басылғанда MCP қосылымы қосылып, жинақтағы реактивті плагин автоматты түрде орнатылады.',
   mcpSetup_opencodeDescription:
     'OpenCode v1 қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары қосылып, жинақтағы интеграция іске қосылады. OpenCode v2 нұсқасына қолдау көрсетілмейді.',
   mcpSetup_codexDescription:
@@ -104,7 +104,7 @@ export const kk: Messages = {
   mcpSetup_noChanges: 'Баптаулар бұрыннан бар. Ештеңе өзгерген жоқ.',
   mcpSetup_failed: 'Баптауларды қолдану мүмкін болмады.',
   mcpSetup_cursorNext:
-    'Бұл баптауларды пайдалану үшін Cursor ішінде MCP қосылымын қайта орнатыңыз.',
+    'Cursor қолданбасын бір рет қайта іске қосып, содан кейін қажетті чатта агентті қосыңыз.',
   mcpSetup_opencodeNext:
     'Бұл баптауларды пайдалану үшін OpenCode v1 қолданбасын қайта іске қосыңыз.',
   mcpSetup_codexNext:

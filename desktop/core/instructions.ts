@@ -6,6 +6,7 @@ export function mcpInstructions(
   client: string,
   openCodePlugin: string,
   aionConfiguration?: string,
+  cursorIntegration?: Pick<McpInstructions, 'configuration' | 'managedFiles'>,
 ): McpInstructions {
   const testPrompt = 'Connect as agent <a name you choose>.';
   if (client === 'aionui') {
@@ -52,16 +53,19 @@ export function mcpInstructions(
   return {
     client: 'cursor',
     location: 'Global Cursor MCP settings — ~/.cursor/mcp.json',
-    text: 'Add ncf_agent_interconnect to the existing mcpServers object and reconnect MCP. Configure the client once. Sending and receiving work in any chat. Standard MCP does not automatically wake idle Cursor chats; incoming messages stay available in the app.',
-    configuration: JSON.stringify(
-      {
-        mcpServers: {
-          ncf_agent_interconnect: { url, headers: { Authorization: 'Bearer ' + token } },
+    text: 'Apply configures MCP and installs the included Cursor plugin. Restart Cursor once. The plugin binds the exact chat automatically and keeps open chats reactive. After restarting Cursor, any message sent in a previously connected chat restores its delivery wait.',
+    configuration:
+      cursorIntegration?.configuration ??
+      JSON.stringify(
+        {
+          mcpServers: {
+            ncf_agent_interconnect: { url, headers: { Authorization: 'Bearer ' + token } },
+          },
         },
-      },
-      null,
-      2,
-    ),
+        null,
+        2,
+      ),
+    managedFiles: cursorIntegration?.managedFiles,
     testPrompt,
   };
 }

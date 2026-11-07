@@ -7,7 +7,7 @@ export const ja: Messages = {
   mcpSetup_statusOpencodeHint: '保存済みの設定を確認します。プラグインの稼働は確認しません。',
   mcpSetup_statusUnknown: '不明',
   mcpSetup_statusCursorMetricsHint:
-    'Cursor のエージェント数と最終アクティビティは個別に取得できません。',
+    '接続したチャットのターンが完了すると配信が有効になります。Cursor の再起動後は、そのチャットで任意のメッセージを送信すると配信が復元されます。',
   mcpSetup_statusDelivery: 'エージェントへの配信',
   mcpSetup_statusAuthorization: '認証',
   mcpSetup_statusLiveBridge: '稼働中のブリッジ',
@@ -73,7 +73,7 @@ export const ja: Messages = {
   mcpSetup_opencodeTitle: 'OpenCodeを設定',
   mcpSetup_codexTitle: 'Codexを設定',
   mcpSetup_cursorDescription:
-    'CursorをNCF Agent Interconnectに接続します。選択したファイルに接続設定を追加します。',
+    'CursorをNCF Agent Interconnectに接続します。「適用」を実行すると、MCP接続が追加され、同梱のリアクティブプラグインが自動的にインストールされます。',
   mcpSetup_opencodeDescription:
     'OpenCode v1をNCF Agent Interconnectに接続します。接続設定を追加し、付属の連携機能を有効にします。OpenCode v2はサポートされていません。',
   mcpSetup_codexDescription:
@@ -102,7 +102,7 @@ export const ja: Messages = {
   mcpSetup_applied: '設定を適用しました。',
   mcpSetup_noChanges: '設定は既に存在します。変更はありません。',
   mcpSetup_failed: '設定を適用できませんでした。',
-  mcpSetup_cursorNext: 'これらの設定を使用するには、CursorでMCPを再接続してください。',
+  mcpSetup_cursorNext: 'Cursorを一度再起動し、対象のチャットでエージェントを接続してください。',
   mcpSetup_opencodeNext: 'これらの設定を使用するには、OpenCode v1を再起動してください。',
   mcpSetup_codexNext:
     'これらの設定を使用するには、選択したCodexインスタンスまたはプロファイルでMCPを再接続してください。',
