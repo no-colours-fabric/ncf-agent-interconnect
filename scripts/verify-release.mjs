@@ -36,6 +36,8 @@ const executable = fileURLToPath(
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 assert.ok(entries.includes('/build/integrations/opencode.js'));
 assert.ok(entries.includes('/build/integrations/aionui.js'));
+assert.ok(entries.includes('/build/integrations/cursor.js'));
+assert.ok(entries.includes('/build/integrations/cursor-hook.js'));
 assert.ok(entries.includes('/build/main/preload.cjs'));
 assert.ok(entries.includes('/build/renderer/index.html'));
 assert.ok(entries.includes('/build/core/client-contexts.js'));
@@ -100,11 +102,14 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { readFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
+import { spawn } from 'node:child_process';
 import { NodeService } from './build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 const directory = path.resolve('../isolated-data'), service = new NodeService(directory), clients = [];
-let host; const prompts = [];
+let host, cursorService; const prompts = [];
 try {
   assert.ok(process.versions.electron, 'Use the runtime shipped in the package');
   await service.open();
@@ -123,7 +128,7 @@ try {
     await client.connect(new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), { requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } } }));
     clients.push(client); return client;
   };
-  const cursor = await connectClient('Cursor'), opencode = await connectClient('opencode');
+  const manual = await connectClient('Generic MCP'), opencode = await connectClient('opencode');
   const tools = await opencode.listTools(), schema = tools.tools.find(tool => tool.name === 'agent_connect').inputSchema;
   const sendSchema = tools.tools.find(tool => tool.name === 'agent_send').inputSchema;
   assert.ok(opencode.getInstructions().includes('Reply-To')); assert.ok(opencode.getInstructions().includes('agent_send'));
@@ -132,13 +137,13 @@ try {
   assert.ok(tools.tools.find(tool => tool.name === 'agent_clear_history').inputSchema.properties.operationId);
   for (const tool of tools.tools) assert.equal(tool.annotations.destructiveHint, ['agent_connect', 'agent_clear_history'].includes(tool.name));
   for (const removed of ['client', 'chatId', 'adapterId', 'codexTarget']) assert.ok(!(removed in schema.properties));
-  const first = (await cursor.callTool({ name: 'agent_connect', arguments: { nickname: 'Package sender' } })).structuredContent;
+  const first = (await manual.callTool({ name: 'agent_connect', arguments: { nickname: 'Package sender' } })).structuredContent;
   assert.equal(first.status, 'connected'); assert.equal(first.delivery.automatic, false);
   const output = { args: { nickname: 'Package recipient' } };
   await host['tool.execute.before']({ tool: 'ncf_agent_interconnect_agent_connect', sessionID: 'ses_packaged' }, output);
   const second = (await opencode.callTool({ name: 'agent_connect', arguments: output.args })).structuredContent;
   assert.equal(second.status, 'connected'); assert.equal(second.delivery.automatic, true);
-  const missingAddress = await cursor.callTool({ name: 'agent_send', arguments: { connectionId: first.binding.connectionId, recipientNickname: 'Package recipient', text: 'Missing explicit node' } });
+  const missingAddress = await manual.callTool({ name: 'agent_send', arguments: { connectionId: first.binding.connectionId, recipientNickname: 'Package recipient', text: 'Missing explicit node' } });
   assert.equal(missingAddress.isError, true); assert.match(JSON.stringify(missingAddress.content), /recipientNode.*required/);
   const message = await service.send({ connectionId: first.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Package recipient', text: 'The package runs without source files' });
   assert.equal(message.accepted, true); assert.equal(message.recipientNode, service.settings.value.nodeId); assert.ok(!('sent' in message));
@@ -172,10 +177,72 @@ try {
   while (service.store.get(restored.id, 'in')?.state !== 'processed') { if (Date.now() > recoveryDeadline) throw new Error('Packaged host did not restore the saved chat'); await new Promise(resolve => setTimeout(resolve, 10)); }
   assert.deepEqual(service.store.assertOwner(second.binding.connectionId).binding, second.binding);
   assert.equal(prompts.length, 2); assert.equal(prompts[1].id, 'ses_packaged');
-  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+
+  // The control runner may be extracted; Cursor's service and helpers must use the original ASAR.
+  const packagedArchive = ${JSON.stringify(archive)};
+  const ownedCore = await import(pathToFileURL(path.join(packagedArchive, 'build/core/service.js')).href);
+  cursorService = new ownedCore.NodeService(path.join(directory, 'cursor-owned-node'));
+  await cursorService.open();
+  const cursorNodeFile = path.join(cursorService.directory, 'Integrations', 'node.json');
+  const cursorInstructions = cursorService.clientInstructions('cursor');
+  const cursorConfig = JSON.parse(cursorInstructions.configuration).mcpServers.ncf_agent_interconnect;
+  const cursorBridge = path.join(packagedArchive, 'build/integrations/cursor.js');
+  const cursorHook = path.join(packagedArchive, 'build/integrations/cursor-hook.js');
+  assert.equal(cursorConfig.command, process.execPath);
+  assert.deepEqual(cursorConfig.args, [cursorBridge, '--node-file', cursorNodeFile]);
+  assert.deepEqual(cursorConfig.env, { ELECTRON_RUN_AS_NODE: '1' });
+  const hookConfiguration = JSON.parse(cursorInstructions.managedFiles.find(file => file.id === 'cursor-plugin-hooks').content);
+  assert.deepEqual(Object.keys(hookConfiguration.hooks).sort(), ['beforeSubmitPrompt', 'preToolUse', 'sessionEnd', 'stop']);
+  assert.ok(hookConfiguration.hooks.stop[0].command.includes(cursorHook));
+  const coldEnvironment = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
+  for (const key of ['NODE_PATH', 'NODE_OPTIONS', 'ELECTRON_NO_ASAR']) delete coldEnvironment[key];
+  const invokeCursorHook = (event, input) => new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [cursorHook, '--node-file', cursorNodeFile, '--event', event], { cwd: directory, env: coldEnvironment, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
+    let output = '', tooLarge = false;
+    const timer = setTimeout(() => child.kill(), 12000);
+    child.stdout.setEncoding('utf8');
+    child.stdout.on('data', chunk => { output += chunk; if (output.length > 1024 * 1024) { tooLarge = true; child.kill(); } });
+    child.stderr.resume();
+    child.on('error', error => { clearTimeout(timer); reject(error); });
+    child.on('close', code => {
+      clearTimeout(timer);
+      if (code !== 0 || tooLarge) { reject(new Error('Packaged Cursor hook did not complete')); return; }
+      try { resolve(JSON.parse(output)); } catch { reject(new Error('Packaged Cursor hook output was invalid')); }
+    });
+    child.stdin.end(JSON.stringify(input));
+  });
+  const cursor = new Client({ name: 'packaged-cursor-control', version: '1' });
+  await cursor.connect(new StdioClientTransport({ command: process.execPath, args: cursorConfig.args, cwd: directory, env: coldEnvironment, stderr: 'pipe' }));
+  clients.push(cursor);
+  const cursorTools = await cursor.listTools();
+  assert.equal(Object.hasOwn(cursorTools.tools.find(tool => tool.name === 'agent_connect').inputSchema.properties, 'contextToken'), false);
+  const unproven = await cursor.callTool({ name: 'agent_connect', arguments: { nickname: 'Unproven package Cursor' } });
+  assert.equal(unproven.isError, true);
+  const conversationId = randomUUID();
+  const currentContext = await invokeCursorHook('preToolUse', { conversation_id: conversationId, workspace_roots: [directory], tool_name: 'MCP:ncf_agent_interconnect_agent_connect', tool_input: { nickname: 'Package Cursor' } });
+  assert.equal(currentContext.permission, 'allow');
+  assert.equal(typeof currentContext.updated_input?.contextToken, 'string');
+  const cursorConnected = await cursor.callTool({ name: 'agent_connect', arguments: currentContext.updated_input });
+  assert.notEqual(cursorConnected.isError, true);
+  const cursorBinding = cursorConnected.structuredContent;
+  assert.equal(cursorBinding.status, 'connected');
+  assert.equal(cursorBinding.binding.chatId, conversationId);
+  assert.equal(cursorBinding.delivery.automatic, true);
+  const cursorSender = cursorService.connect({ nickname: 'Cursor package sender', client: 'MCP' });
+  assert.equal(cursorSender.status, 'connected');
+  const waitingHook = invokeCursorHook('stop', { conversation_id: conversationId, status: 'completed' });
+  const cursorMessage = await cursorService.send({ connectionId: cursorSender.binding.connectionId, recipientNode: cursorService.settings.value.nodeId, recipientNickname: 'Package Cursor', text: 'Packaged Cursor Unicode 漢字' });
+  const followup = await waitingHook;
+  assert.ok(followup.followup_message.includes('Packaged Cursor Unicode 漢字'));
+  assert.equal(cursorService.store.get(cursorMessage.id, 'in').state, 'ready', 'Returning a hook result must not create receipt');
+  await invokeCursorHook('beforeSubmitPrompt', { conversation_id: conversationId, prompt: followup.followup_message });
+  const cursorDeadline = Date.now() + 5000;
+  while (cursorService.store.get(cursorMessage.id, 'in')?.state !== 'processed') { if (Date.now() > cursorDeadline) throw new Error('Packaged Cursor admission was not recorded'); await new Promise(resolve => setTimeout(resolve, 10)); }
+  assert.equal(cursorService.store.dispatchState(cursorMessage.id).state, 'admitted');
+  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorOwnAsar: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
   if (host) await host.event({ event: { type: 'server.instance.disposed' } });
-  for (const client of clients) await client.close(); await service.close();
+  for (const client of clients) await client.close(); await cursorService?.close(); await service.close();
 }
 `,
   );
