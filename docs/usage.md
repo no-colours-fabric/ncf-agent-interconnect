@@ -6,7 +6,7 @@ You maintain a growing application on your own. Bug reports arrive while you bui
 
 This guide follows one developer through that situation. You are the only human in the story; all named participants are AI agents. Their names and roles are examples you can replace with your own.
 
-To explore other team arrangements, open the [catalog of 13 scenarios](scenarios/README.md). Ask a model to compare all of them against your goal, then choose the scenario you want it to demonstrate.
+For a detailed explanation in your language, use [Learn NCF with your own AI](scenarios/README.md). Its 13 prepared prompts ask your model to study the documentation and explain a complete example. An overview includes one example chosen by the model and an invitation to explore others; a specific question gets a direct answer. You can also copy a prompt for a topic that interests you. You do not need your own project or an installed copy of NCF to follow the explanation.
 
 - [Work in your usual chats](#1-work-in-your-usual-chats): give a task, add help, change priorities and reuse earlier work.
 - [Before your first exchange](#2-before-your-first-exchange): prepare your applications and, if needed, another computer.
