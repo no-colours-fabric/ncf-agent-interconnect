@@ -12,7 +12,7 @@ The generated Cursor entry contains literal `${env:AIONUI_BASE_URL}`,
 `${env:AIONUI_RUNTIME_TOKEN}` references. Cursor resolves them from its current
 AionUi ACP process when starting the MCP helper. This explicit mapping is
 required because the stdio transport does not inherit arbitrary environment
-variables. NCF does not resolve these references or write their values into the
+variables. NCF Agent Interconnect does not resolve these references or write their values into the
 configuration or its backups. No token, account or chat identifier is requested
 from the user. Cursor documents this mechanism under
 [config interpolation](https://cursor.com/docs/mcp#config-interpolation).
@@ -36,16 +36,16 @@ cannot use automatic delivery through this bridge.
 
 Delivery uses the existing HTTP `/api/conversations/:id/messages` and WebSocket
 `/ws` APIs. A confirmed HTTP 202 response with message and turn IDs records
-receipt in NCF. Receipt is admission to the client chat, not task completion.
-Messages, Unicode names, attachment links, NCF message IDs and history remain in
+receipt in NCF Agent Interconnect. Receipt is admission to the client chat, not task completion.
+Messages, Unicode names, attachment links, NCF Agent Interconnect message IDs and history remain in
 the existing durable queue. A busy chat or HTTP 409 waits for that exact chat's
 native `turn.completed` idle event. No scheduled agent polling or terminal input
 injection is used. Network reconnection is transport recovery; it inspects the
 pinned chat after reconnecting to recover a missed completion event.
 
-If admission is uncertain because a request or its response was lost, NCF keeps
+If admission is uncertain because a request or its response was lost, NCF Agent Interconnect keeps
 the uncertain record and does not automatically replay it on completion,
-reconnection or restart. Inspect the exact AionUi transcript and NCF history
+reconnection or restart. Inspect the exact AionUi transcript and NCF Agent Interconnect history
 before deciding what to send next.
 
 Pairing credentials are stored privately in the node's user-data directory.
@@ -59,7 +59,7 @@ write leaves the app unpaired. A new pairing can then be attempted normally.
 
 Logout, revoked access and an account identity mismatch invalidate the saved
 access when observed through an authenticated request or native realtime
-revocation. Every delivery is gated by pinned-account verification. NCF does
+revocation. Every delivery is gated by pinned-account verification. NCF Agent Interconnect does
 not assume that ordinary browser logout closes an existing WebSocket. Without
 a server revocation event, the saved pairing indicator can remain until the
 next authenticated operation; it is not a continuous account-liveness signal.
@@ -116,12 +116,12 @@ resolver and whitelist functions in an isolated VM with synthetic context;
 it does not execute the CLI launcher. The reviewed build is
 `2026.10.22-27dcf5f` for macOS Apple Silicon and Windows x64. Other bundle
 fingerprints require a source review rather than silently using a substitute.
-This is a loader compatibility check, not live ACP or installed NCF acceptance.
+This is a loader compatibility check, not live ACP or installed NCF Agent Interconnect acceptance.
 
 ## Supported platform gates
 
 The release targets are macOS Apple Silicon and Windows x64. Both use the
-installed NCF executable, `ELECTRON_RUN_AS_NODE=1`, an absolute bundled helper
+installed NCF Agent Interconnect executable, `ELECTRON_RUN_AS_NODE=1`, an absolute bundled helper
 path, and separate argument elements. No shell command, manual path quoting,
 source checkout or system Node is required by the product configuration.
 Paths are built with `fileURLToPath` and `path.join`; never treat a file URL's

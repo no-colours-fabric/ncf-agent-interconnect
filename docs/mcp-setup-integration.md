@@ -92,7 +92,7 @@ a user-operated setup dialog and Apply instead of manual-only configuration.
   supported by Electron on macOS and Windows. Paths remain manually editable.
 - Known paths are suggestions, not proof of the active client profile. No broad
   filesystem search, client launches, configuration CLI commands or polling run.
-- An existing incompatible NCF entry is updated only after Apply. Other servers and
+- An existing incompatible NCF Agent Interconnect entry is updated only after Apply. Other servers and
   plugins survive. Comments and unrelated formatting survive JSONC/TOML edits;
   replacing the managed entry can remove its custom options/comments.
 - Prepared operations expose no configuration contents to the renderer. Parser
@@ -134,5 +134,5 @@ The standalone component check does not replace packaged-app or Windows testing.
 AionUi reuses the file flow for Cursor Agent and the actual selected Cursor MCP
 file. Its owner authorization has a separate client-specific dialog. It does
 not imply that MCP was installed or registered. Before Apply, the UI explains
-replacement of an existing NCF entry and the global effect outside AionUi.
+replacement of an existing NCF Agent Interconnect entry and the global effect outside AionUi.
 Other AionUi backends without verified setup paths/APIs are not advertised.

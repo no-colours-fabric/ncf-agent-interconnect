@@ -4,7 +4,7 @@ LLM-optimized documentation: [llms.txt](../llms.txt).
 
 This page gives application-specific details for the [setup guide](setup.md). After setup, work in the AI application's normal chat as described in the [user guide](usage.md).
 
-Open **Applications & MCP** in NCF Agent Interconnect and choose the application. Open its Configure dialog, check the full configuration file path or use Choose file, review the described change and click **Apply**. Cancel leaves the file unchanged. The app preserves unrelated settings and leaves an already matching NCF entry untouched. When it changes an existing file, it creates a private backup beside it.
+Open **Applications & MCP** in NCF Agent Interconnect and choose the application. Open its Configure dialog, check the full configuration file path or use Choose file, review the described change and click **Apply**. Cancel leaves the file unchanged. The app preserves unrelated settings and leaves an already matching NCF Agent Interconnect entry untouched. When it changes an existing file, it creates a private backup beside it.
 
 The app remembers the path you selected. A startup check reads configuration without changing it. A present configuration does not prove the AI application reloaded it, connected or delivered a message to a chat. Configure each application or profile once; each new chat only needs an agent name.
 
@@ -18,7 +18,7 @@ Choose OpenCode, open **Configure OpenCode** and select the configuration that i
 
 ## Codex Desktop
 
-Choose Codex, open **Configure Codex** and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Automatic delivery to the exact chat is experimental and depends on the installed Codex Desktop version. If the intended chat cannot be identified, NCF reports the condition rather than selecting another chat.
+Choose Codex, open **Configure Codex** and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Automatic delivery to the exact chat is experimental and depends on the installed Codex Desktop version. If the intended chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
 
 ## AionUi
 

@@ -6,7 +6,7 @@ You maintain a growing application on your own. Bug reports arrive while you bui
 
 This guide follows one developer through that situation. You are the only human in the story; all named participants are AI agents. Their names and roles are examples you can replace with your own.
 
-For a detailed explanation in your language, use [Learn NCF with your own AI](scenarios/README.md). Its 13 prepared prompts ask your model to study the documentation and explain a complete example. An overview includes one example chosen by the model and an invitation to explore others; a specific question gets a direct answer. You can also copy a prompt for a topic that interests you. You do not need your own project or an installed copy of NCF to follow the explanation.
+For a detailed explanation in your language, use [Learn NCF Agent Interconnect with your own AI](scenarios/README.md). Its 13 prepared prompts ask your model to study the documentation and explain a complete example. An overview includes one example chosen by the model and an invitation to explore others; a specific question gets a direct answer. You can also copy a prompt for a topic that interests you. You do not need your own project or an installed copy of NCF Agent Interconnect to follow the explanation.
 
 - [Work in your usual chats](#1-work-in-your-usual-chats): give a task, add help, change priorities and reuse earlier work.
 - [Before your first exchange](#2-before-your-first-exchange): prepare your applications and, if needed, another computer.
@@ -38,7 +38,7 @@ For the roadmap feature, start a separate chat:
 
 AI agent Leo owns the feature. The AI coordinator follows its progress.
 
-Keeping one main assignment per chat is a working habit, not an NCF restriction. A participant can answer a focused question from another chat or receive a separate follow-up instruction. Later, you can give that chat a new main assignment. Here, new work gets its own participant so the feature can continue.
+Keeping one main assignment per chat is a working habit, not an NCF Agent Interconnect restriction. A participant can answer a focused question from another chat or receive a separate follow-up instruction. Later, you can give that chat a new main assignment. Here, new work gets its own participant so the feature can continue.
 
 ### Let findings reach the working chats
 
@@ -56,7 +56,7 @@ An exchange between the AI agents could read:
 
 This is where instant messaging helps: a question, correction or result goes straight into the relevant working chat. With a supported reactive integration, incoming messages can continue the conversation there. You stay in your usual application while the participants exchange the details. [Application support](setup.md#2-choose-an-application) describes delivery for each integration.
 
-Each participant keeps its existing skills, project instructions and MCP tools. The AI tester can use a regression checklist. The AI developer can follow the project's contribution skill. NCF carries messages and permitted files; source access and other tools stay in the environments you set up.
+Each participant keeps its existing skills, project instructions and MCP tools. The AI tester can use a regression checklist. The AI developer can follow the project's contribution skill. NCF Agent Interconnect carries messages and permitted files; source access and other tools stay in the environments you set up.
 
 ### Give a new bug its own participants
 
@@ -123,7 +123,7 @@ Set up each application or profile once. New chats then join by connecting under
 3. Reconnect MCP in the AI application. Restart OpenCode after adding its bundled plugin. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
 4. In two configured chats, choose different names and ask one participant to send the other a short message. The reply confirms a working exchange.
 
-Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF there too and pair the two computers using the explicit address and temporary access code under **Remote nodes**. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
+Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too and pair the two computers using the explicit address and temporary access code under **Remote nodes**. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
 The bundled OpenCode v1 plugin and supported AionUi bridge deliver to the connected chat; Codex Desktop delivery is experimental and version dependent. Standard MCP in Cursor provides exchange and history without automatically waking an idle chat. See [application-specific setup](mcp-clients.md) for these delivery differences.
 
@@ -140,16 +140,16 @@ Your ordinary work stays in the AI chats. The desktop app provides the controls 
 
 ### Files, replies and history
 
-For an import sample to travel between computers, its outgoing folder must be allowed under **Settings**. Received attachments are verified local copies. NCF retains its message history and attachments across restarts; the AI application's own chat transcript is stored separately. [Desktop controls](desktop-controls.md) covers file limits and history views.
+For an import sample to travel between computers, its outgoing folder must be allowed under **Settings**. Received attachments are verified local copies. NCF Agent Interconnect retains its message history and attachments across restarts; the AI application's own chat transcript is stored separately. [Desktop controls](desktop-controls.md) covers file limits and history views.
 
-To continue an existing named participant in another chat, connect there using the same name. If it is occupied, explicitly choose either transfer with its NCF history preserved or a fresh start that deletes its old local NCF history. Both choices revoke the previous chat binding. Preserving NCF history does not transfer the original AI application's full transcript, skills or account settings; ask for a handoff of the context needed in the new chat.
+To continue an existing named participant in another chat, connect there using the same name. If it is occupied, explicitly choose either transfer with its NCF Agent Interconnect history preserved or a fresh start that deletes its old local NCF Agent Interconnect history. Both choices revoke the previous chat binding. Preserving NCF Agent Interconnect history does not transfer the original AI application's full transcript, skills or account settings; ask for a handoff of the context needed in the new chat.
 
 The **Agents** page can remove one local agent or all local agents and their local history after a confirmation that lists the affected names and message counts. AI application transcripts, remote copies and messages already submitted elsewhere remain. See [desktop controls](desktop-controls.md#remove-local-agents-and-history) and [privacy and storage](privacy.md) for the scope of removal.
 
 ### Check a connection when an exchange stops
 
-Confirm that NCF is running, the intended chat is connected and any remote computer is paired and reachable. Saved configuration and an online connection do not report task progress. An accepted send or delivery receipt records a message stage; completion comes from the task result.
+Confirm that NCF Agent Interconnect is running, the intended chat is connected and any remote computer is paired and reachable. Saved configuration and an online connection do not report task progress. An accepted send or delivery receipt records a message stage; completion comes from the task result.
 
-If the application requires an active chat to read messages, open that exact chat. If delivery is uncertain, inspect the chat and NCF history before requesting another send. The [setup guide](setup.md#check-a-problem-in-order) gives the troubleshooting steps.
+If the application requires an active chat to read messages, open that exact chat. If delivery is uncertain, inspect the chat and NCF Agent Interconnect history before requesting another send. The [setup guide](setup.md#check-a-problem-in-order) gives the troubleshooting steps.
 
 [^workspace]: You can follow the same approach with one subscription and several chats in one supported application on a single computer. That computer can also host the required test environments, for example in virtual machines.

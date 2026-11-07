@@ -17,4 +17,4 @@ this notice are also included with binary releases.
 
 Build and test tooling includes TypeScript, Vite, electron-builder and
 Playwright. Those packages retain their own licenses. No ownership of these
-projects is implied by the NCF name.
+projects is implied by the NCF Agent Interconnect name.

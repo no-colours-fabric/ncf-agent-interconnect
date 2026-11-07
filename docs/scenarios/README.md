@@ -1,10 +1,10 @@
-# Learn NCF with your own AI
+# Learn NCF Agent Interconnect with your own AI
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
-Copy a prepared prompt into your usual AI chat and get a detailed guide in your language. Your model reads the NCF documentation, then explains a complete example: who takes part, what the agents say to each other, how the work develops and what direct messaging makes possible.
+Copy a prepared prompt into your usual AI chat and get a detailed guide in your language. Your model reads the NCF Agent Interconnect documentation, then explains a complete example: who takes part, what the agents say to each other, how the work develops and what direct messaging makes possible.
 
-These 13 examples give the model a story to explain. You can follow any of them without a project of your own or an installed copy of NCF. Ask for a general introduction and the model will choose one example and explain it immediately. You can also choose a topic from the catalog and copy its prompt directly.
+These 13 examples give the model a story to explain. You can follow any of them without a project of your own or an installed copy of NCF Agent Interconnect. Ask for a general introduction and the model will choose one example and explain it immediately. You can also choose a topic from the catalog and copy its prompt directly.
 
 ## Get an overview with an example
 
@@ -31,6 +31,7 @@ then use the selected prompt to write a complete educational chapter.
 The choice is already made: follow that prompt without restarting this
 overview or selecting another example.
 
+Use the full product name NCF Agent Interconnect; do not abbreviate it.
 Write in the language of our conversation unless I request another.
 Keep the story's fictional task, participants and environment. Explain
 the preparation, example messages, decisions, changing work and outcome.
@@ -39,7 +40,7 @@ matters. Do not require my files, accounts, equipment or project details.
 
 Create documentation only. Participants, messages, checks and results are
 illustrative. Do not perform the actions described in the story.
-Use the documented NCF capabilities and limits. If a required source is
+Use the documented NCF Agent Interconnect capabilities and limits. If a required source is
 unavailable, identify it and request an accessible copy; do not invent its
 content or present an unread source as supporting your explanation.
 

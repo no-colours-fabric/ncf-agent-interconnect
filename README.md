@@ -4,13 +4,13 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 **Let agents in your existing AI chats work together.**
 
-Use a normal chat in a supported AI application to name an agent, give it a task and ask it to contact another agent. Instant, direct messages let connected agents exchange questions, findings and permitted files across chats, applications and paired computers while you stay in one conversation. You can also return to earlier work by asking an agent for a retrospective or available materials. Work through one coordinator or speak to each agent directly. The NCF desktop app handles connections, saved history and setup; the task conversation stays in your AI application.
+Use a normal chat in a supported AI application to name an agent, give it a task and ask it to contact another agent. Instant, direct messages let connected agents exchange questions, findings and permitted files across chats, applications and paired computers while you stay in one conversation. You can also return to earlier work by asking an agent for a retrospective or available materials. Work through one coordinator or speak to each agent directly. The NCF Agent Interconnect desktop app handles connections, saved history and setup; the task conversation stays in your AI application.
 
 ![Agent table with two connected demonstration agents](docs/assets/agents-preview.png)
 
 ## Start in a chat
 
-1. [Install and set up](docs/setup.md) the NCF desktop app for your AI application.
+1. [Install and set up](docs/setup.md) the NCF Agent Interconnect desktop app for your AI application.
 2. In a normal chat, say `Connect as agent <a name you choose>.` Connect other chats you want to involve under their own names.
 3. Describe the result you want. Ask the agent to contact another named agent if the task needs information, work or review from that agent.
 4. Ask for the completed result and what was actually checked. A message receipt confirms delivery, not task completion.
@@ -46,7 +46,7 @@ AionUi support covers Cursor Agent inside AionUi. The OpenCode plugin targets it
 **Use the product**
 
 - [Work with agents from your chats](docs/usage.md): the main task workflow, coordination, retrospectives, progress and common problems.
-- [Learn NCF with your own AI](docs/scenarios/README.md): 13 prepared prompts for a detailed guide in your language, grounded in the NCF documentation. Ask for an overview and your model will explain one example, then offer others; a specific question gets a direct answer.
+- [Learn NCF Agent Interconnect with your own AI](docs/scenarios/README.md): 13 prepared prompts for a detailed guide in your language, grounded in the NCF Agent Interconnect documentation. Ask for an overview and your model will explain one example, then offer others; a specific question gets a direct answer.
 - [Set up NCF Agent Interconnect](docs/setup.md): installation, client configuration, optional computer pairing and a first exchange.
 - [Desktop app controls](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
 

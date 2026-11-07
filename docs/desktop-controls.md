@@ -14,7 +14,7 @@ Messages and verified incoming file copies remain in the app's history across re
 
 ## Remove local agents and history
 
-On **Agents**, use a local row's delete control for one agent, or **Delete all local agents and history** for every agent on this computer. Review the confirmation: it lists the affected agents and message counts. Confirming removes their local NCF records and history and revokes their chat bindings. Cancel leaves them intact. If the data changes before confirmation, review a fresh preview.
+On **Agents**, use a local row's delete control for one agent, or **Delete all local agents and history** for every agent on this computer. Review the confirmation: it lists the affected agents and message counts. Confirming removes their local NCF Agent Interconnect records and history and revokes their chat bindings. Cancel leaves them intact. If the data changes before confirmation, review a fresh preview.
 
 This action does not remove agents on other computers, AI application chat transcripts, remote copies or messages already submitted elsewhere. New incoming messages can create new unbound mailboxes. For a move to another chat that should preserve history, use the [transfer choice](usage.md#files-replies-and-history) when connecting the name there.
 

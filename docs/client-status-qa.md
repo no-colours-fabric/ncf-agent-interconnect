@@ -15,7 +15,7 @@ additional isolated service/store check retained the uncertain dispatch and unre
 message without a fabricated receipt or duplicate submission.
 
 The renderer scenario uses temporary Electron profiles and synthetic snapshots;
-it does not start the NCF service or contact client applications. English, Russian
+it does not start the NCF Agent Interconnect service or contact client applications. English, Russian
 and German were checked at widths of 900 and 1050 pixels. The scenario verifies:
 
 - Verification time appears outside closed details.

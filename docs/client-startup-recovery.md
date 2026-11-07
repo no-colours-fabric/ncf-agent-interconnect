@@ -48,14 +48,14 @@ headless recovery.
 ## Desktop acceptance limits
 
 A macOS OpenChamber check used the corrected plugin with the already installed
-NCF 0.11.0 node. OpenChamber was quit and reopened with an empty draft selected.
+NCF Agent Interconnect 0.11.0 node. OpenChamber was quit and reopened with an empty draft selected.
 Existing OpenCode routes recovered without selecting their chats or changing
 bindings. A new message reached its exact recipient through native admission,
 and the recipient replied without MCP history/read calls. This verifies that
 host-restart scenario; it is not Windows acceptance or a Codex cold-owner test.
 
 The test replaced only the application-managed published plugin, with the
-released file backed up. The installed NCF application bundle was not upgraded:
+released file backed up. The installed NCF Agent Interconnect application bundle was not upgraded:
 restarting that released binary republishes its older bundled plugin. A durable
 installation requires an application build containing this fix. No new release
 is implied by the source or desktop check.
