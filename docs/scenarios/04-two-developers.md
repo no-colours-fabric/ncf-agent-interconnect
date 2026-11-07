@@ -53,62 +53,65 @@ on the Mac named Cedar with Leo in OpenCode v1. The other works on Windows
 computer Atlas with Sam in Codex Desktop. Each has a separate working copy and
 local permissions.
 
-Leo owns the backend change and Sam owns the frontend change. The people agree
-on the API boundary; the agents exchange contract questions, revisions and
-check results directly. Include a response-field mismatch found during
-integration and corrected through their messages. Show independent checks of
-each contribution and which person accepts each result.
+Leo owns the backend change and Sam owns the frontend change. The people agree on what the request-detail screen must show. The agents
+exchange short questions and results directly. During integration, the date
+disappears from the screen because the API returns a differently named field.
+Show Sam describing the visible problem to Leo, Leo correcting the response,
+and Sam checking the screen again. Explain the field mismatch in one brief
+sentence outside their dialogue, without a JSON schema or payload. Show
+independent checks and which person accepts each result.
 
 Explain network reachability and owner-operated pairing. Apply the documented
-Codex delivery limits. NCF Agent Interconnect carries messages; Git synchronizes source. A
-message containing a commit reference does not fetch or merge it, or grant
-access to a repository.
+Codex delivery limits. NCF Agent Interconnect carries messages; Git synchronizes source. A message about source code does not fetch or merge it, or grant access to
+a repository.
 
-End with the checked revisions, human acceptance decisions and remaining
-limits. Show the two computers and the response to a disconnected peer: retain
-the destination and continue independent work.
+End with the checked backend and frontend results, human acceptance decisions
+and remaining limits. If a configured peer is temporarily offline, keep the
+exact destination and continue independent work while its messages queue for
+later delivery. Do not describe the outage as an automatic send failure.
 
 Guide to produce:
-Start with what this example will help the reader understand and the problem
-faced by the people in the story. Introduce a compact table of people,
-AI agents, main assignments, named computers and applications. Describe the
-preparation those participants need, with links to the relevant setup guides;
-do not require the reader to carry it out.
+Write a readable guide about the people's goal and how the work develops.
+Open with the practical need, a compact participant table and only the setup
+needed to understand the story. Link to the relevant setup guide; do not ask
+the reader to perform setup.
 
-Tell the story in order using concrete starting prompts, direct agent
-messages, human decisions and the correction or blocked path. After each
-important exchange, explain why it happened, what changed and how NCF Agent Interconnect carries
-the information to the next participant. Make instant, direct messaging and
-its benefit visible through the dialogue. Distinguish message exchange from
-the model's time to answer or complete work.
+Tell the story in order through four to six meaningful exchanges. Show short
+messages as ordinary chat quotations with the sender and recipient named,
+in the guide's language. A style example only; use the actual people, agents
+and issue in this story:
+**Sam → Leo:** "The date is missing from the screen. Can you check the field?"
+**Leo → Sam:** "I found the mismatch. I'll correct it and ask you to check again."
+Use these lines only as a formatting example. Write new messages about the
+selected story, with its own participants, and translate them when needed.
+After each exchange, explain in one or two sentences what the participants
+learned, decided or did next. Make the value of direct messaging clear.
 
-End the story with its illustrative outcome, what the participants would
-check and what remains unresolved. Never present fictional reports, revisions
-or test results as evidence of work actually performed. Explain which lessons
-the example reveals without presenting its arrangement as a required workflow
-or a universally recommended practice.
+Keep messages readable. Do not show JSON, code fences, tool calls such as
+agent_send, reply references, protocol fields, message IDs, raw attachment
+objects or invented commit hashes as dialogue. If a technical detail explains
+a user-visible problem, mention only that detail in brief prose outside the
+quoted message. Summarize files or specifications by purpose rather than
+pasting their contents. Use a simple example of the user's opening request,
+in natural language; in English, "Connect as agent Name" is enough. Do not put
+"AI" in words attributed to the user. Identify AI agents clearly in narration.
 
-Use the full product name NCF Agent Interconnect; do not abbreviate it.
-Identify AI agents clearly in narration. Use the example names and give each
-working chat one main assignment. In illustrative user messages, use
-"Connect as agent Name" without "AI", and mention an appropriate example skill
-from coordination, analysis, implementation and verification. Use task, bug
-and issue references such as #T-1101, #B-0321 and #I-0201. Names, roles, skills
-and task labels are conventions for the story, not built-in NCF Agent Interconnect requirements.
+Give each working chat one main assignment. Example skills may come from
+coordination, analysis, implementation and verification. Task, bug and issue
+numbers such as #T-1101, #B-0321 and #I-0201 are story conventions, not
+product requirements. Use the full product name NCF Agent Interconnect.
+Distinguish its documented messaging from agent instructions and external
+project tools. Message receipt is not task completion. Do not promise model
+response times, universal idle-chat wake, transferred permissions or a task
+scheduler. Use the current application support in llms.txt.
 
-Include a Mermaid workflow and a sequence diagram; provide source if rendering
-is unavailable. Add a conceptual illustration, or a labeled illustration brief
-if image generation is unavailable: pure white background, graphite shapes,
-clear edges, no blur or decorative clutter. The text must stand on its own.
+End with the illustrative result, what the people would check, human decisions
+and remaining limits. Never present fictional checks as real evidence. Explain
+the lesson without presenting this arrangement as a required workflow.
+Keep the guide easy to scan. Do not add diagrams or illustration briefs unless
+the reader specifically asks for one.
 
-Distinguish documented NCF Agent Interconnect capabilities, agent instructions/skills and external
-tools or project records. Follow current application support in llms.txt.
-Message receipt is not task completion. Do not claim model response times,
-universal idle-chat wake, transferred permissions or an NCF Agent Interconnect task scheduler.
-
-Finish with a link to the complete catalog above and invite the reader to
-choose another example or ask for a clearer explanation of part of this one.
-Answer later specific questions directly, without adding or repeating a whole
-example or appending a catalog invitation. Adjust the language, detail and
-presentation when requested.
+Finish with the catalog link above and invite the reader to choose another
+example. Answer later specific questions directly, without repeating a whole
+example or adding a catalog invitation. Adapt the language and detail when asked.
 ```

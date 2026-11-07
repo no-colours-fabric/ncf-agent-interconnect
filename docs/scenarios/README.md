@@ -37,6 +37,15 @@ Keep the story's fictional task, participants and environment. Explain
 the preparation, example messages, decisions, changing work and outcome.
 Show what direct messaging contributes and why each important exchange
 matters. Do not require my files, accounts, equipment or project details.
+Show four to six meaningful exchanges as short, natural chat messages with
+the sender and recipient named. Write the messages in the guide's language.
+For example: **Sam → Leo:** "The date is missing from the screen. Can you
+check which field your API returns?" Use the actual participants and task
+of the chosen example; translate the messages when needed. Explain the
+outcome of each exchange in plain words.
+Do not show JSON messages, tool calls, reply references, message IDs or raw
+attachment objects. Keep technical details brief and outside the dialogue.
+Do not add diagrams unless I ask for them.
 
 Create documentation only. Participants, messages, checks and results are
 illustrative. Do not perform the actions described in the story.
@@ -74,8 +83,8 @@ People, AI agents, names and environments belong to the examples. An agent is a 
 
 ## Make the explanation your own
 
-The resulting guide explains the task and participants, the setup they would need, the initial requests and the messages exchanged as work develops. It shows human decisions, corrections and the outcome of the fictional task. Diagrams help explain the relationships and order of messages; the text remains understandable on its own.
+The resulting guide explains the task and participants, the setup they would need, and a few short conversations as the work develops. Each exchange leads to a decision, correction or next step. The story ends with human decisions and the outcome of the fictional task.
 
-Ask your model to explain an exchange more fully, simplify a diagram or rewrite a section in another language. A focused follow-up receives a direct answer. When you want another example, choose its number or title; you do not need to repeat the introduction.
+Ask your model to explain an exchange more fully or rewrite a section in another language. A focused follow-up receives a direct answer. When you want another example, choose its number or title; you do not need to repeat the introduction.
 
 The [user guide](../usage.md), [setup guide](../setup.md) and [application-specific instructions](../mcp-clients.md) supply the product details behind these explanations. The [full reference](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt) remains the source for supported features and limits. The generated story explains those features; it does not connect agents, change settings or perform the work it describes.
