@@ -66,6 +66,46 @@ for (const [locale, content] of Object.entries(TRANSLATIONS)) {
 
 const { scenes: SCENES, notes: NOTES } = window.NCF_STORY || { scenes: [], notes: [] };
 
+// Each illustrated window belongs to one named chat. Its title reflects the
+// agent's role when that chat was connected, not a task assigned later.
+const CHAT_PROFILES = {
+  morgan: { client: 'OpenCode', title: 'coordination' },
+  jade: { client: 'Codex', title: 'windows' },
+  leo: { client: 'OpenCode', title: 'development' },
+  alice: { client: 'OpenCode', title: 'requests' },
+  sam: { client: 'Cursor', title: 'development' },
+  oscar: { client: 'OpenCode', title: 'import' }
+};
+const CHAT_TITLES = {
+  en: ['Project coordination', 'Windows verification', 'Project development', 'Request analysis', 'Import investigation'],
+  ru: ['Координация проекта', 'Проверка на Windows', 'Разработка проекта', 'Анализ запросов', 'Исследование импорта'],
+  'zh-CN': ['项目协调', 'Windows 验证', '项目开发', '需求分析', '导入功能研究'],
+  fr: ['Coordination du projet', 'Vérification sur Windows', 'Développement du projet', 'Analyse des demandes', 'Étude de l’importation'],
+  de: ['Projektkoordination', 'Prüfung unter Windows', 'Projektentwicklung', 'Anfragenanalyse', 'Untersuchung des Imports'],
+  it: ['Coordinamento del progetto', 'Verifica su Windows', 'Sviluppo del progetto', 'Analisi delle richieste', 'Analisi dell’importazione'],
+  es: ['Coordinación del proyecto', 'Verificación en Windows', 'Desarrollo del proyecto', 'Análisis de solicitudes', 'Estudio de la importación'],
+  kk: ['Жобаны үйлестіру', 'Windows жүйесінде тексеру', 'Жобаны әзірлеу', 'Сұрауларды талдау', 'Импортты зерттеу'],
+  ja: ['プロジェクトの調整', 'Windows での検証', 'プロジェクトの開発', '要望の分析', 'インポート機能の調査'],
+  'pt-BR': ['Coordenação do projeto', 'Verificação no Windows', 'Desenvolvimento do projeto', 'Análise de solicitações', 'Investigação da importação'],
+  ko: ['프로젝트 조율', 'Windows 검증', '프로젝트 개발', '요청 분석', '가져오기 기능 조사'],
+  tr: ['Proje koordinasyonu', 'Windows doğrulaması', 'Proje geliştirme', 'İstek analizi', 'İçe aktarma araştırması'],
+  pl: ['Koordynacja projektu', 'Weryfikacja w Windows', 'Rozwój projektu', 'Analiza zgłoszeń', 'Badanie importu'],
+  nl: ['Projectcoördinatie', 'Controle op Windows', 'Projectontwikkeling', 'Analyse van verzoeken', 'Onderzoek naar importeren'],
+  uk: ['Координація проєкту', 'Перевірка на Windows', 'Розробка проєкту', 'Аналіз запитів', 'Дослідження імпорту']
+};
+const CHAT_TITLE_KEYS = ['coordination', 'windows', 'development', 'requests', 'import'];
+
+function chatOwner(scene) {
+  return scene.pair.includes('user')
+    ? scene.pair.find(person => person !== 'user')
+    : scene.lines[1][0];
+}
+
+function chatTitle(lang, key) {
+  const index = CHAT_TITLE_KEYS.indexOf(key);
+  return (CHAT_TITLES[lang] || CHAT_TITLES.en)[index];
+}
+
 const GUIDE = [
   { en: ['Set up your chats','Install NCF Agent Interconnect, choose the intended client configuration, click Apply, reconnect MCP and test an exchange.','Setup guide'], ru: ['Подключите чаты','Установите NCF Agent Interconnect, выберите нужный файл конфигурации приложения, проверьте изменения и нажмите Apply. Затем переподключите MCP и проверьте обмен сообщениями.','Руководство по настройке'], url: 'https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md' },
   { en: ['Know your client','OpenCode, Codex and Cursor have different delivery behavior and setup requirements.','Client details'], ru: ['Учитывайте особенности клиента','OpenCode, Codex и Cursor различаются способом доставки сообщений и требованиями к настройке.','Особенности клиентов'], url: 'https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md' },
@@ -100,19 +140,18 @@ function renderChatText(value, requiredSkill) {
   return paragraph;
 }
 
-function renderNote(note, lang) {
+function renderNote(notes, lang) {
   const aside = el('aside', 'system-note');
   const portrait = el('div', 'note-figure');
-  portrait.append(el('span', 'note-label', COPY[lang].systemNote));
   const image = el('img');
-  image.src = './assets/developer/scene-' + String(note.image || 13).padStart(2, '0') + '.png';
+  image.src = './assets/notes/note-app-mark.png';
   image.loading = 'lazy';
   image.decoding = 'async';
-  image.alt = COPY[lang].developerAlt;
+  image.alt = '';
   portrait.append(image);
   aside.append(portrait);
   const content = el('div', 'note-body');
-  content.innerHTML = TRANSLATIONS[lang]?.notes?.[NOTES.indexOf(note)]?.html || note[lang] || note.en;
+  content.innerHTML = notes.map(note => TRANSLATIONS[lang]?.notes?.[NOTES.indexOf(note)]?.html || note[lang] || note.en).join('');
   content.querySelectorAll('a').forEach(link => {
     link.target = '_blank';
     link.rel = 'noopener noreferrer';
@@ -138,12 +177,19 @@ function renderParticipant(person, scene, lang, position) {
 }
 
 function renderChat(scene, lang) {
+  const owner = chatOwner(scene);
+  const profile = CHAT_PROFILES[owner];
+  const title = chatTitle(lang, profile.title);
   const chat = el('div', 'chat-thread');
   chat.setAttribute('role', 'group');
-  chat.setAttribute('aria-label', COPY[lang].names[scene.pair[0]] + ' — ' + COPY[lang].names[scene.pair[1]]);
+  chat.setAttribute('aria-label', profile.client + ' · ' + title + ' · ' + COPY[lang].names[owner]);
   const header = el('div', 'chat-thread-header');
   header.append(el('span', 'chat-status'));
-  header.append(el('span', 'chat-heading', COPY[lang].exampleExchange));
+  header.append(el('span', 'chat-client', profile.client));
+  header.append(el('span', 'chat-separator', '·'));
+  header.append(el('span', 'chat-heading', title));
+  header.append(el('span', 'chat-separator', '·'));
+  header.append(el('span', 'chat-agent', COPY[lang].names[owner]));
   chat.append(header);
   const messages = el('div', 'chat-messages');
   messages.setAttribute('role', 'list');
@@ -184,12 +230,16 @@ function renderScene(scene, lang) {
     frame.classList.add(scene.pair.includes('user') ? 'user-agent-scene' : 'agent-pair-scene');
   }
   frame.id = 'scene-' + scene.id;
-  frame.setAttribute('aria-labelledby', 'scene-title-' + scene.id);
   const heading = el('div', 'scene-heading');
   heading.append(el('span', 'scene-count', String(scene.id).padStart(2, '0') + ' / ' + SCENES.length));
-  const h2 = el('h2', null, TRANSLATIONS[lang]?.scenes?.[scene.id - 1]?.title || scene.title[lang === 'ru' ? 1 : 0]);
-  h2.id = 'scene-title-' + scene.id;
-  heading.append(h2);
+  if (reading) {
+    frame.setAttribute('aria-label', COPY[lang].reader);
+  } else {
+    frame.setAttribute('aria-labelledby', 'scene-title-' + scene.id);
+    const h2 = el('h2', null, TRANSLATIONS[lang]?.scenes?.[scene.id - 1]?.title || scene.title[lang === 'ru' ? 1 : 0]);
+    h2.id = 'scene-title-' + scene.id;
+    heading.append(h2);
+  }
   frame.append(heading);
 
   const stage = el('div', 'scene-stage');
@@ -270,10 +320,12 @@ function render(lang) {
   document.getElementById('language-close').setAttribute('aria-label', copy.closeLanguageMenu);
   if (comic) {
     comic.replaceChildren();
-    NOTES.filter(note => note.after === 0).forEach(note => comic.append(renderNote(note, lang)));
+    const openingNotes = NOTES.filter(note => note.after === 0);
+    if (openingNotes.length) comic.append(renderNote(openingNotes, lang));
     SCENES.forEach(scene => {
       comic.append(renderScene(scene, lang));
-      NOTES.filter(note => note.after === scene.id).forEach(note => comic.append(renderNote(note, lang)));
+      const followingNotes = NOTES.filter(note => note.after === scene.id);
+      if (followingNotes.length) comic.append(renderNote(followingNotes, lang));
     });
     markDialogueRuns();
   }
