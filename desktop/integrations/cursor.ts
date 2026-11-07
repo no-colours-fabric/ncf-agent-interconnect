@@ -35,7 +35,7 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
       url.search ||
       url.hash
     )
-      throw new Error('The local NCF connection is invalid.');
+      throw new Error('The local NCF Agent Interconnect connection is invalid.');
     return parsed.data;
   };
   const connect = async () => {
@@ -88,14 +88,16 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
         }),
       };
     } catch {
-      throw new Error('The local NCF node is unavailable. Start it and reconnect MCP.');
+      throw new Error(
+        'The local NCF Agent Interconnect node is unavailable. Start it and reconnect MCP.',
+      );
     }
   });
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
       if (request.params.name === 'agent_connect' && !request.params.arguments?.contextToken)
         throw new Error(
-          'Cursor did not provide the current chat. Check that the NCF Cursor plugin is enabled, then send the request again.',
+          'Cursor did not provide the current chat. Check that the NCF Agent Interconnect Cursor plugin is enabled, then send the request again.',
         );
       return await (await connect()).callTool(request.params);
     } catch (error) {
@@ -106,7 +108,7 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
       const message =
         error instanceof Error && error.message.startsWith('Cursor did not provide')
           ? error.message
-          : 'The NCF request could not be confirmed. Do not repeat a send automatically; reconnect MCP and inspect history.';
+          : 'The NCF Agent Interconnect request could not be confirmed. Do not repeat a send automatically; reconnect MCP and inspect history.';
       return { isError: true, content: [{ type: 'text', text: message }] };
     }
   });
@@ -125,7 +127,7 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const index = process.argv.indexOf('--node-file');
   if (index < 0 || !process.argv[index + 1]) {
-    process.stderr.write('The NCF node descriptor is missing.\n');
+    process.stderr.write('The NCF Agent Interconnect node descriptor is missing.\n');
     process.exitCode = 1;
   } else
     startCursorBridge(process.argv[index + 1])
@@ -134,7 +136,7 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
         process.once('SIGINT', () => void bridge.close());
       })
       .catch(() => {
-        process.stderr.write('The NCF Cursor bridge could not start.\n');
+        process.stderr.write('The NCF Agent Interconnect Cursor bridge could not start.\n');
         process.exitCode = 1;
       });
 }

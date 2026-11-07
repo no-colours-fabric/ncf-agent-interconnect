@@ -571,7 +571,7 @@ export class NodeService extends EventEmitter {
       );
     else if (/cursor/i.test(host.client))
       throw new Error(
-        'For automatic Cursor binding, apply the Cursor setup in NCF Applications and restart Cursor.',
+        'For automatic Cursor binding, apply the Cursor setup in NCF Agent Interconnect and restart Cursor.',
       );
     if (!context && input.connectionId) {
       if (input.transferId)
