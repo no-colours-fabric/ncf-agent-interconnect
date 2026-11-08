@@ -14,7 +14,7 @@ export function mcpInstructions(
     return {
       client,
       location: 'Cursor Agent global MCP configuration',
-      text: 'Apply configures the AionUi bridge in the selected Cursor file. This replaces an existing NCF entry and affects Cursor outside AionUi. Use a separate profile to preserve another integration.',
+      text: 'Apply configures the shared adaptive Cursor connection. The same NCF entry supports Cursor Agent in AionUi and direct Cursor; direct Cursor setup separately installs its reactive plugin.',
       configuration: aionConfiguration,
       testPrompt,
     };

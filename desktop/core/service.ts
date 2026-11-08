@@ -1176,38 +1176,23 @@ export class NodeService extends EventEmitter {
       nodeFile,
       platform: process.platform,
     });
-    const aionConfiguration = JSON.stringify(
-      {
-        mcpServers: {
-          ncf_agent_interconnect: {
-            command: process.execPath,
-            args: [
-              fileURLToPath(
-                new URL('../integrations/aionui.' + this.integrationExtension, import.meta.url),
-              ),
-              '--node-file',
-              nodeFile,
-            ],
-            env: {
-              ELECTRON_RUN_AS_NODE: '1',
-              AIONUI_BASE_URL: '${env:AIONUI_BASE_URL}',
-              AIONUI_USER_ID: '${env:AIONUI_USER_ID}',
-              AIONUI_CONVERSATION_ID: '${env:AIONUI_CONVERSATION_ID}',
-              AIONUI_RUNTIME_TOKEN: '${env:AIONUI_RUNTIME_TOKEN}',
-            },
-          },
-        },
-      },
-      null,
-      2,
-    );
+    const commonCursorConfiguration = JSON.parse(cursorPlugin.configuration) as {
+      mcpServers: { ncf_agent_interconnect: { env: Record<string, string> } };
+    };
+    Object.assign(commonCursorConfiguration.mcpServers.ncf_agent_interconnect.env, {
+      AIONUI_BASE_URL: '${env:AIONUI_BASE_URL}',
+      AIONUI_USER_ID: '${env:AIONUI_USER_ID}',
+      AIONUI_CONVERSATION_ID: '${env:AIONUI_CONVERSATION_ID}',
+      AIONUI_RUNTIME_TOKEN: '${env:AIONUI_RUNTIME_TOKEN}',
+    });
+    const commonConfiguration = JSON.stringify(commonCursorConfiguration, null, 2);
     return mcpInstructions(
       this.snapshot().mcpUrl,
       this.settings.value.localToken,
       client,
       pathToFileURL(this.openCodePlugin).href,
-      aionConfiguration,
-      cursorPlugin,
+      commonConfiguration,
+      { ...cursorPlugin, configuration: commonConfiguration },
     );
   }
   async userCall(

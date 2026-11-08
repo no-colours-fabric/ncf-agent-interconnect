@@ -8,6 +8,8 @@ import {
   getDefaultEnvironment,
 } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { McpSetupService } from '../desktop/core/mcp-setup.js';
+import { aionRuntimeContext } from '../desktop/integrations/aionui.js';
+import { cursorRuntime } from '../desktop/integrations/cursor.js';
 import { aionFixture, until } from './aionui-fixture.js';
 import { ownStdio, temporaryNode } from './aionui-lifecycle.js';
 import { cursorMcpFixtureLoader, type CursorStdioEntry } from './cursor-mcp-loader-fixture.js';
@@ -19,6 +21,39 @@ const fields = [
   'AIONUI_RUNTIME_TOKEN',
 ] as const;
 
+const validRuntime = {
+  AIONUI_BASE_URL: 'http://127.0.0.1:25808',
+  AIONUI_USER_ID: 'fixture-user',
+  AIONUI_CONVERSATION_ID: 'fixture-chat',
+  AIONUI_RUNTIME_TOKEN: 'fixture-token',
+};
+
+test('adaptive Cursor entry selects direct only without actual AionUi runtime values', () => {
+  assert.equal(cursorRuntime({}), 'cursor');
+  const unresolved = Object.fromEntries(fields.map((field) => [field, '${env:' + field + '}']));
+  assert.equal(cursorRuntime(unresolved), 'cursor');
+  for (const absent of fields) {
+    const mixed = { ...unresolved };
+    delete mixed[absent];
+    assert.equal(cursorRuntime(mixed), 'cursor');
+  }
+  assert.equal(cursorRuntime(validRuntime), 'aionui');
+  assert.deepEqual(aionRuntimeContext(validRuntime), {
+    baseUrl: validRuntime.AIONUI_BASE_URL,
+    userId: validRuntime.AIONUI_USER_ID,
+    sessionId: validRuntime.AIONUI_CONVERSATION_ID,
+    runtimeToken: validRuntime.AIONUI_RUNTIME_TOKEN,
+  });
+  for (const field of fields) {
+    const partial = { [field]: validRuntime[field] };
+    assert.equal(cursorRuntime(partial), 'aionui');
+    assert.throws(() => aionRuntimeContext(partial));
+    const invalid = { ...validRuntime, [field]: '' };
+    assert.equal(cursorRuntime(invalid), 'aionui');
+    assert.throws(() => aionRuntimeContext(invalid));
+  }
+});
+
 test('Cursor whitelist and interpolation deliver current ACP context to the real helper and reject unresolved context', async (t) => {
   const f = await aionFixture(t);
   const service = await temporaryNode(f.scope, 'ncf-cursor-env-');
@@ -26,6 +61,7 @@ test('Cursor whitelist and interpolation deliver current ACP context to the real
   const loader = await cursorMcpFixtureLoader();
   t.diagnostic(loader.provenance);
   const config = service.clientInstructions('aionui').configuration;
+  assert.equal(config, service.clientInstructions('cursor').configuration);
   const entry: CursorStdioEntry = JSON.parse(config).mcpServers.ncf_agent_interconnect;
   const ambient = {
     ...getDefaultEnvironment(),
@@ -70,7 +106,7 @@ test('Cursor whitelist and interpolation deliver current ACP context to the real
   const invoke = (client: Client) =>
     client.callTool({ name: 'agent_connect', arguments: { nickname: 'Мост 漢字' } });
 
-  // Reproduce the original assumption: ACP has all four values, but the stdio whitelist drops them.
+  // An old direct Cursor environment remains direct when it has no actual AionUi values.
   const legacy = await launch({ ...entry, env: { ELECTRON_RUN_AS_NODE: '1' } }, ambient);
   for (const field of fields) assert.ok(!(field in legacy.resolved.env));
   const original = await invoke(legacy.client);
@@ -78,9 +114,7 @@ test('Cursor whitelist and interpolation deliver current ACP context to the real
   assert.deepEqual(original.content, [
     {
       type: 'text',
-      text:
-        'This MCP integration requires the current AionUi agent runtime. ' +
-        `Missing fields: ${fields.join(', ')}. Restart the agent in AionUi after setup.`,
+      text: 'Cursor did not provide the current chat. Check that the NCF Agent Interconnect Cursor plugin is enabled, then send the request again.',
     },
   ]);
   assert.equal(registrations, 0);
@@ -105,7 +139,16 @@ test('Cursor whitelist and interpolation deliver current ACP context to the real
   assert.equal(f.posts.length, 1);
   assert.equal(f.posts[0].chat, 'fixture-chat-b');
 
-  for (const absent of [fields, ...fields.map((field) => [field])]) {
+  const outside: Record<string, string> = { ...ambient };
+  for (const field of fields) delete outside[field];
+  const direct = await launch(entry, outside);
+  for (const field of fields) assert.equal(direct.resolved.env[field], '${env:' + field + '}');
+  const directFailure = await invoke(direct.client);
+  assert.equal(directFailure.isError, true);
+  assert.match(JSON.stringify(directFailure.content), /Cursor did not provide the current chat/);
+  assert.equal(registrations, 1);
+
+  for (const absent of fields.map((field) => [field])) {
     const outside: Record<string, string> = { ...ambient };
     for (const field of absent) delete outside[field];
     const rejected = await launch(entry, outside);
@@ -162,11 +205,21 @@ test('owner Apply saves only Cursor literal references, preserves other settings
   for (const field of fields)
     assert.equal(config.mcpServers.ncf_agent_interconnect.env[field], '${env:' + field + '}');
   assert.equal((await setup.status('aionui')).state, 'configured');
-  assert.equal((await setup.status('cursor')).state, 'needs-update');
+  assert.equal((await setup.status('cursor')).state, 'not-configured');
   const stamp = (await stat(filename)).mtimeMs;
   const next = await setup.preview('fixture-owner', 'aionui', files);
   assert.equal(next.files[0].action, 'unchanged');
   assert.equal((await setup.apply('fixture-owner', next.planId, false)).status, 'unchanged');
   assert.equal(await readFile(filename, 'utf8'), content);
   assert.equal((await stat(filename)).mtimeMs, stamp);
+
+  const cursorPreview = await setup.preview('fixture-owner', 'cursor', files);
+  assert.equal(
+    cursorPreview.files.find((file) => file.id === 'configuration')?.action,
+    'unchanged',
+  );
+  assert.equal((await setup.apply('fixture-owner', cursorPreview.planId, false)).status, 'applied');
+  assert.equal(await readFile(filename, 'utf8'), content);
+  assert.equal((await setup.status('cursor')).state, 'configured');
+  assert.equal((await setup.status('aionui')).state, 'configured');
 });

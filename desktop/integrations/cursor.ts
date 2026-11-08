@@ -11,10 +11,26 @@ import {
   type LoggingMessageNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { startAionBridge } from './aionui.js';
 
 const descriptorSchema = z
   .object({ url: z.url(), token: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
+const aionRuntimeFields = [
+  'AIONUI_BASE_URL',
+  'AIONUI_USER_ID',
+  'AIONUI_CONVERSATION_ID',
+  'AIONUI_RUNTIME_TOKEN',
+] as const;
+
+export function cursorRuntime(env: NodeJS.ProcessEnv): 'cursor' | 'aionui' {
+  return aionRuntimeFields.some((field) => {
+    const value = env[field];
+    return value !== undefined && value !== '${env:' + field + '}';
+  })
+    ? 'aionui'
+    : 'cursor';
+}
 
 /** Stdio keeps Cursor hook context separate from the shared HTTP MCP transport. */
 export async function startCursorBridge(nodeFile: string): Promise<{ close: () => Promise<void> }> {
@@ -124,13 +140,22 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
   };
 }
 
+export function startAdaptiveCursorBridge(
+  nodeFile: string,
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<{ close: () => Promise<void> }> {
+  return cursorRuntime(env) === 'aionui'
+    ? startAionBridge(nodeFile, env)
+    : startCursorBridge(nodeFile);
+}
+
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
   const index = process.argv.indexOf('--node-file');
   if (index < 0 || !process.argv[index + 1]) {
     process.stderr.write('The NCF Agent Interconnect node descriptor is missing.\n');
     process.exitCode = 1;
   } else
-    startCursorBridge(process.argv[index + 1])
+    startAdaptiveCursorBridge(process.argv[index + 1])
       .then((bridge) => {
         process.once('SIGTERM', () => void bridge.close());
         process.once('SIGINT', () => void bridge.close());
