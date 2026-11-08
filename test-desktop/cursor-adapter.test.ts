@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -56,7 +57,12 @@ test('Cursor plugin commands use the installed Electron runtime on macOS and Win
   const windowsHooks = JSON.parse(
     windows.managedFiles!.find((file) => file.id === 'cursor-plugin-hooks')!.content,
   );
-  assert.match(windowsHooks.hooks.stop[0].command, /^\$env:ELECTRON_RUN_AS_NODE='1'; & /);
+  assert.match(windowsHooks.hooks.stop[0].command, /^& \{ \$env:ELECTRON_RUN_AS_NODE='1'; /);
+  assert.match(windowsHooks.hooks.stop[0].command, /\$input \| & /);
+  assert.match(
+    windowsHooks.hooks.stop[0].command,
+    /\| ForEach-Object \{ \$_ \}; exit \$LASTEXITCODE \}$/,
+  );
   assert.match(windowsHooks.hooks.stop[0].command, /Owner''s PC/);
   assert.equal(windowsHooks.hooks.stop[0].loop_limit, null);
   const windowsMcp = JSON.parse(windows.configuration);
@@ -76,6 +82,78 @@ test('Cursor plugin commands use the installed Electron runtime on macOS and Win
   assert.match(macHooks.hooks.beforeSubmitPrompt[0].command, /^ELECTRON_RUN_AS_NODE=1 /);
   assert.match(macHooks.hooks.beforeSubmitPrompt[0].command, /owner'\\''s Mac/);
 });
+
+test(
+  'Cursor Windows hook command survives the host pipeline with exact stdin, stdout and exit code',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-cursor-pipeline-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const unicodeDirectory = path.join(directory, "путь 漢字 owner's");
+    await mkdir(unicodeDirectory);
+    const hook = path.join(unicodeDirectory, "owner's hook.cjs");
+    const nodeFile = path.join(unicodeDirectory, "node's descriptor.json");
+    await writeFile(
+      hook,
+      [
+        "process.stdin.setEncoding('utf8');",
+        "let input = '';",
+        "process.stdin.on('data', (chunk) => { input += chunk; });",
+        "process.stdin.on('end', () => {",
+        '  process.stdout.write(JSON.stringify({ input, runAsNode: process.env.ELECTRON_RUN_AS_NODE, event: process.argv.at(-1) }));',
+        '  process.exit(Number(process.env.NCF_CURSOR_TEST_EXIT));',
+        '});',
+      ].join('\n'),
+    );
+    const setup = cursorIntegration({
+      executable: process.execPath,
+      bridge: path.join(directory, 'cursor.js'),
+      hook,
+      nodeFile,
+      platform: 'win32',
+    });
+    const hooks = JSON.parse(
+      setup.managedFiles!.find((file) => file.id === 'cursor-plugin-hooks')!.content,
+    );
+    const command = hooks.hooks.stop[0].command as string;
+    const payload = '{"text":"Unicode Привет 漢字"}';
+    const invoke = (exitCode: number) =>
+      new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
+        const child = spawn(
+          'powershell.exe',
+          ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', `$input | ${command}`],
+          {
+            env: { ...process.env, NCF_CURSOR_TEST_EXIT: String(exitCode) },
+            stdio: ['pipe', 'pipe', 'pipe'],
+            windowsHide: true,
+          },
+        );
+        let stdout = '';
+        let stderr = '';
+        child.stdout.setEncoding('utf8');
+        child.stderr.setEncoding('utf8');
+        child.stdout.on('data', (chunk) => {
+          stdout += chunk;
+        });
+        child.stderr.on('data', (chunk) => {
+          stderr += chunk;
+        });
+        child.on('error', reject);
+        child.on('close', (code) => resolve({ code, stdout, stderr }));
+        child.stdin.end(payload);
+      });
+    for (const exitCode of [0, 23]) {
+      const result = await invoke(exitCode);
+      assert.equal(result.code, exitCode);
+      assert.equal(result.stderr, '');
+      assert.deepEqual(JSON.parse(result.stdout.trim()), {
+        input: payload,
+        runAsNode: '1',
+        event: 'stop',
+      });
+    }
+  },
+);
 
 test('Cursor hook adapter admits only the matching exact-chat follow-up confirmation', async () => {
   let idle = 0;

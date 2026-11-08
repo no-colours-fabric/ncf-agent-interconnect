@@ -19,13 +19,22 @@ export function cursorIntegration(
   const command = (event: string): string =>
     options.platform === 'win32'
       ? [
-          "$env:ELECTRON_RUN_AS_NODE='1'; &",
+          '& {',
+          "$env:ELECTRON_RUN_AS_NODE='1';",
+          '$utf8 = [System.Text.UTF8Encoding]::new($false);',
+          '$OutputEncoding = $utf8;',
+          '[Console]::InputEncoding = $utf8;',
+          '[Console]::OutputEncoding = $utf8;',
+          '$input | &',
           quote(options.executable, options.platform),
           quote(options.hook, options.platform),
           "'--node-file'",
           quote(options.nodeFile, options.platform),
           "'--event'",
           quote(event, options.platform),
+          '| ForEach-Object { $_ };',
+          'exit $LASTEXITCODE',
+          '}',
         ].join(' ')
       : [
           'ELECTRON_RUN_AS_NODE=1',
