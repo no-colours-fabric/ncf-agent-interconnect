@@ -2,22 +2,36 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-**Let agents in your existing AI chats work together.**
+NCF Agent Interconnect lets your AI assistants exchange messages and files. They can work on different parts of the same task at the same time, discuss decisions and use one another's results. Keep talking to each assistant directly, or ask one to coordinate the others.
 
-Use a normal chat in a supported AI application to name an agent, give it a task and ask it to contact another agent. Instant, direct messages let connected agents exchange questions, findings and permitted files across chats, applications and paired computers while you stay in one conversation. You can also return to earlier work by asking an agent for a retrospective or available materials. Work through one coordinator or speak to each agent directly. The NCF Agent Interconnect desktop app handles connections, saved history and setup; the task conversation stays in your AI application.
+Suppose you are planning a party in an AI chat. While you choose the activities, you also want to work out the costs. Open a second chat and give the calculations to another assistant. Each has a clear part of the work and a conversation with the details it needs.
 
-![Agent table with two connected demonstration agents](docs/assets/agents-preview.png)
+In the first chat, say “Connect as agent Amy”; in the second, “Connect as agent Ben.” Ask Amy to discuss the costs with Ben. Amy suggests a workshop and sends a list of materials. Ben finds that the workshop costs too much and tells Amy. She chooses another activity, and Ben updates the calculation.
 
-## Start in a chat
+You can clarify requirements, add work or change direction as you go. For example, ask Amy to plan something for the children and Ben to account for the extra costs. Start with one assistant and bring in others when you need them. One AI application on one computer is enough to work together.
 
-1. [Install and set up](docs/setup.md) the NCF Agent Interconnect desktop app for your AI application.
-2. In a normal chat, say `Connect as agent <a name you choose>.` Connect other chats you want to involve under their own names.
-3. Describe the result you want. Ask the agent to contact another named agent if the task needs information, work or review from that agent.
-4. Ask for the completed result and what was actually checked. A message receipt confirms delivery, not task completion.
+![Settings and monitoring: agents and connection status.](docs/assets/agents-preview.png)
 
-Agents on one computer can communicate without remote setup. To work across computers, pair the desktop apps using an explicit address and temporary code. The [user guide](docs/usage.md) explains task patterns, coordination, progress, replies, files and moving an agent between chats.
+_Settings and monitoring: agents and connection status._
 
-## What the desktop app handles
+## How to start
+
+1. Install NCF Agent Interconnect and configure it for your chosen AI application using the [setup guide](docs/setup.md).
+2. In each AI chat you want to connect, give the assistant a different name: “Connect as agent Amy” in one chat and “Connect as agent Ben” in the other.
+3. Give the assistants their parts of the task and ask them to discuss questions and results with each other.
+4. Keep talking to any of them, or ask one to coordinate the others. Clarify requirements, add work and ask what is ready.
+
+Confirmation that a message was received does not mean the task is complete.
+
+Work on one computer needs no connection to another computer. If you need assistants on another computer in your local network, connect it using the [setup instructions](docs/setup.md). The [user guide](docs/usage.md) explains how to work together.
+
+## NCF Agent Interconnect settings and monitoring
+
+Use the NCF Agent Interconnect window for setup and monitoring. Configure connections and check their state and message delivery here. Discuss tasks and results with your AI assistants in their usual chats.
+
+The **Agents** page shows local agents and known agents on paired computers. You can view a local agent's messages and files, or delete one or all local agents along with their history.
+
+### Features
 
 - **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
@@ -25,7 +39,9 @@ Agents on one computer can communicate without remote setup. To work across comp
 - **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
-![Dialogue between two agents with a verified attachment](docs/assets/app-preview.png)
+![Settings and monitoring: message history and files.](docs/assets/app-preview.png)
+
+_Settings and monitoring: message history and files._
 
 ## Download and client support
 
@@ -48,7 +64,7 @@ Cursor setup installs its included reactive plugin after your Apply action; the 
 - [Work with agents from your chats](docs/usage.md): the main task workflow, coordination, retrospectives, progress and common problems.
 - [Learn NCF Agent Interconnect with your own AI](docs/scenarios/README.md): 13 prepared prompts for a detailed guide in your language, grounded in the NCF Agent Interconnect documentation. Ask for an overview and your model will explain one example, then offer others; a specific question gets a direct answer.
 - [Set up NCF Agent Interconnect](docs/setup.md): installation, client configuration, optional computer pairing and a first exchange.
-- [Desktop app controls](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
+- [NCF Agent Interconnect settings and monitoring](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
 
 **Develop and verify the product**
 

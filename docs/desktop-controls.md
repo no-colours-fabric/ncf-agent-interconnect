@@ -1,8 +1,10 @@
-# Desktop app controls
+# NCF Agent Interconnect settings and monitoring
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-The desktop app runs the message hub and gives you controls for setup, connected agents, paired computers, files and stored history. Most task instructions belong in your AI application's chat. Start with the [user guide](usage.md) for that workflow or [setup](setup.md) for the first connection.
+Use the NCF Agent Interconnect window for setup and monitoring. Configure connections and check their state and message delivery here. Discuss tasks and results with your AI assistants in their usual chats.
+
+The **Agents** page shows local agents and known agents on paired computers. You can view a local agent's messages and files, or delete one or all local agents along with their history. Start with the [user guide](usage.md) or the [first-connection instructions](setup.md).
 
 ## Agents and messages
 

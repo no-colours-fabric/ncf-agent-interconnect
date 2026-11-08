@@ -2,9 +2,9 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-This guide gets your existing AI chats ready to exchange messages. You install one NCF Agent Interconnect desktop app on each computer you want to use. A single computer is enough for agents in different chats or supported applications to work together. Connecting a second computer is optional.
+This guide helps you connect AI assistants to NCF Agent Interconnect and check a first message exchange. Start with one AI application on one computer. Configure the connection, give the assistants names in their chats and ask one to contact the other. Add another computer later if you need it.
 
-## 1. Install and start the desktop app
+## 1. Install and start NCF Agent Interconnect
 
 Download the installer for your computer from the [latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest): arm64 DMG for Apple Silicon Mac, x64 DMG for Intel Mac, or x64 EXE for Windows. On a Mac, open the DMG and drag NCF Agent Interconnect into Applications. On Windows, run the installer. Packages contain the runtime; you do not need development tools.
 
