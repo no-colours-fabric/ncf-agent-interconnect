@@ -6,6 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import https from 'node:https';
 import selfsigned from 'selfsigned';
+import { WebSocket } from 'ws';
 import { SRP } from 'fast-srp-hap';
 import {
   PairingClient,
@@ -563,7 +564,18 @@ async function until(check: () => unknown): Promise<void> {
 test('authenticated peers refresh node names on connect, live rename and reconnect', async (t) => {
   const a = await node(t),
     b = await node(t);
+  const notifications: unknown[] = [];
+  a.mcp.notify = (event) => {
+    notifications.push(event);
+  };
   await a.userCall('saveNode', { nodeLabel: 'Alpha node', listenHost: a.snapshot().listenHost });
+  assert.ok(
+    notifications.some(
+      (event) =>
+        (event as { type?: string }).type === 'directory_changed' &&
+        (event as { nodeId?: string }).nodeId === a.settings.value.nodeId,
+    ),
+  );
   await b.userCall('saveNode', { nodeLabel: 'Бета узел', listenHost: b.snapshot().listenHost });
   await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
   await until(
@@ -601,6 +613,148 @@ test('authenticated peers refresh node names on connect, live rename and reconne
     JSON.parse(await readFile(a.settings.filename, 'utf8')).peers[0].label,
     'Бета после отключения',
   );
+});
+
+test('verified handshake catches up a rename made after its label header was sent', async (t) => {
+  const a = await node(t),
+    b = await node(t);
+  await a.userCall('saveNode', {
+    nodeLabel: 'Header snapshot',
+    listenHost: a.snapshot().listenHost,
+  });
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+  await a.stop();
+  await until(() => b.snapshot().peers[0]?.connected === false);
+  await a.start();
+  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+
+  const original = a.network.onIdentity.bind(a.network);
+  let entered!: () => void;
+  let resume!: () => void;
+  const enteredPromise = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  let blocked = false;
+  a.network.onIdentity = async (...args) => {
+    if (!blocked) {
+      blocked = true;
+      entered();
+      await gate;
+    }
+    await original(...args);
+  };
+  a.network.reconnectPeer(b.settings.value.nodeId);
+  await enteredPromise;
+  a.settings.value.nodeLabel = 'Catch-up rename 漢字';
+  await a.settings.save();
+  resume();
+  await until(() => b.snapshot().peers[0]?.label === 'Catch-up rename 漢字');
+  assert.equal(a.snapshot().peers[0]?.connected, true);
+  assert.equal(b.snapshot().peers[0]?.connected, true);
+});
+
+test('revoked peer authorization cannot finish a stale handshake or persist its node name', async (t) => {
+  const a = await node(t),
+    b = await node(t);
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+  await a.stop();
+  await until(() => b.snapshot().peers[0]?.connected === false);
+  await a.start();
+  await until(() => a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected);
+  b.settings.value.nodeLabel = 'Stale remote rename';
+  await b.settings.save();
+
+  let release!: () => void;
+  const writeGate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  (a.settings as unknown as { saving: Promise<void> }).saving = writeGate;
+  const original = a.network.onIdentity.bind(a.network);
+  let entered!: () => void;
+  let finished!: () => void;
+  const enteredPromise = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const finishedPromise = new Promise<void>((resolve) => {
+    finished = resolve;
+  });
+  a.network.onIdentity = async (...args) => {
+    entered();
+    try {
+      await original(...args);
+    } finally {
+      finished();
+    }
+  };
+  let connected = 0;
+  a.network.on('connected', () => connected++);
+  const peerId = b.settings.value.nodeId;
+  a.network.reconnectPeer(peerId);
+  await enteredPromise;
+  a.settings.value.peers = a.settings.value.peers.map((current) =>
+    current.id === peerId ? { ...current, secret: 'cd'.repeat(32) } : current,
+  );
+  a.network.reconnectPeer(peerId);
+  release();
+  await finishedPromise;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(connected, 0);
+  assert.notEqual(a.settings.value.peers[0]?.label, 'Stale remote rename');
+  assert.notEqual(
+    JSON.parse(await readFile(a.settings.filename, 'utf8')).peers[0].label,
+    'Stale remote rename',
+  );
+});
+
+test('legacy and invalid node-label headers never negotiate identity frames', async (t) => {
+  const service = await node(t);
+  const legacyId = randomUUID();
+  const secret = 'ef'.repeat(32);
+  await service.settings.savePeers(() => [
+    {
+      id: legacyId,
+      label: 'Legacy peer',
+      address: '',
+      secret,
+      certificate: certs[0].cert,
+    },
+  ]);
+  const connect = async (label?: string) => {
+    const frames: { type?: string }[] = [];
+    const ws = new WebSocket(service.snapshot().peerUrl, {
+      rejectUnauthorized: false,
+      headers: {
+        authorization: 'Bearer ' + secret,
+        'x-node-id': legacyId,
+        'x-ncf-features': 'agent-directory-v1',
+        ...(label === undefined ? {} : { 'x-ncf-node-label': label }),
+      },
+    });
+    ws.on('message', (data) => frames.push(JSON.parse(data.toString()) as { type?: string }));
+    await new Promise<void>((resolve, reject) => {
+      ws.once('open', resolve);
+      ws.once('error', reject);
+    });
+    ws.send(JSON.stringify({ type: 'hello', protocol: 2, nodeId: legacyId }));
+    await until(() => frames.some((frame) => frame.type === 'hello'));
+    await new Promise((resolve) => setTimeout(resolve, 30));
+    assert.equal(frames[0]?.type, 'hello');
+    assert.equal(
+      frames.some((frame) => frame.type === 'identity'),
+      false,
+    );
+    await new Promise<void>((resolve) => {
+      ws.once('close', () => resolve());
+      ws.close();
+    });
+  };
+  await connect();
+  await connect('_w');
 });
 
 test('real nodes pair with lowercase code, rotate an active credential, and reconnect after restart', async (t) => {

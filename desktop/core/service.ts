@@ -171,14 +171,18 @@ export class NodeService extends EventEmitter {
     this.presence.reset();
     this.mcp = new McpEndpoint(this);
     this.network.onFrame = (id, frame) => this.receive(id, frame);
-    this.network.onIdentity = async (id, label) => {
+    this.network.onIdentity = async (id, label, isCurrent) => {
       const current = this.settings.value.peers.find((peer) => peer.id === id);
-      if (!current || current.label === label) return;
+      if (!current || current.label === label || !isCurrent()) return;
       try {
-        await this.settings.savePeers((peers) =>
-          peers.map((peer) => (peer.id === id ? { ...peer, label } : peer)),
+        await this.settings.savePeers(
+          (peers) => peers.map((peer) => (peer.id === id ? { ...peer, label } : peer)),
+          () => {
+            if (!isCurrent()) throw new Error('The peer authorization changed');
+          },
         );
       } catch {
+        if (!isCurrent()) return;
         this.problem('The remote node name changed, but the new name could not be saved.');
         return;
       }
@@ -1321,6 +1325,12 @@ export class NodeService extends EventEmitter {
       await this.settings.save();
       if (restart) await this.start();
       else if (renamed) await this.network.publishIdentity(input.nodeLabel);
+      if (renamed)
+        this.mcp.notify({
+          source: 'application',
+          type: 'directory_changed',
+          nodeId: this.settings.value.nodeId,
+        });
       this.emit('change');
       return { saved: true };
     }

@@ -80,8 +80,14 @@ const decodedNodeLabel = (value: string | string[] | undefined): string | undefi
   if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) return undefined;
   const bytes = Buffer.from(value, 'base64url');
   if (bytes.toString('base64url') !== value) return undefined;
-  const parsed = nodeLabelSchema.safeParse(bytes.toString('utf8'));
-  return parsed.success ? parsed.data : undefined;
+  try {
+    const label = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    if (!Buffer.from(label, 'utf8').equals(bytes)) return undefined;
+    const parsed = nodeLabelSchema.safeParse(label);
+    return parsed.success ? parsed.data : undefined;
+  } catch {
+    return undefined;
+  }
 };
 function pinned(certificate: string): {
   ca: string;
@@ -124,7 +130,8 @@ export class PeerNetwork extends EventEmitter {
   private pairingLeases = new Map<string, symbol>();
   port = 0;
   onFrame: (peerId: string, frame: Frame) => Promise<void> = async () => {};
-  onIdentity: (peerId: string, label: string) => Promise<void> = async () => {};
+  onIdentity: (peerId: string, label: string, isCurrent: () => boolean) => Promise<void> =
+    async () => {};
   constructor(readonly settings: SettingsFile) {
     super();
   }
@@ -309,6 +316,16 @@ export class PeerNetwork extends EventEmitter {
       });
     const link = this.link(peer.id),
       generation = link.generation,
+      isCurrent = () => {
+        const current = this.settings.value.peers.find((value) => value.id === peer.id);
+        return (
+          !this.stopped &&
+          link.generation === generation &&
+          link.socket === ws &&
+          current?.secret === peer.secret &&
+          current.certificate === peer.certificate
+        );
+      },
       deadline = setTimeout(() => ws.terminate(), 6000);
     const hello = () => {
       if (this.stopped || link.generation !== generation) {
@@ -345,7 +362,14 @@ export class PeerNetwork extends EventEmitter {
           link.identitySupported = remoteLabel !== undefined;
           link.connecting = false;
           link.error = null;
-          if (remoteLabel !== undefined) await this.onIdentity(peer.id, remoteLabel);
+          if (remoteLabel !== undefined) await this.onIdentity(peer.id, remoteLabel, isCurrent);
+          if (!isCurrent()) return;
+          if (link.identitySupported)
+            await this.write(ws, {
+              type: 'identity',
+              label: nodeLabelSchema.parse(this.settings.value.nodeLabel),
+            });
+          if (!isCurrent()) return;
           this.emit('connected', peer.id);
           this.emit('change');
           return;
@@ -357,7 +381,7 @@ export class PeerNetwork extends EventEmitter {
         if (frame.type === 'identity') {
           if (!link.identitySupported)
             throw new Error('Node identity updates were not negotiated on this connection');
-          await this.onIdentity(peer.id, frame.label);
+          await this.onIdentity(peer.id, frame.label, isCurrent);
           return;
         }
         if (frame.type === 'blob/result' || frame.type === 'blob/error') {
