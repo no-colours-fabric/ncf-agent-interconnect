@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f8fbff" />
+    <meta
+      name="description"
+      content="See AI assistants plan a party together, sharing messages and files through NCF Agent Interconnect."
+    />
+    <title>Plan a party — NCF Agent Interconnect</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Rubik:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="icon" href="./assets/app-icon.png" type="image/png" />
+    <link rel="stylesheet" href="./styles.css" />
+    <script src="./story-data.js" defer></script>
+    <script src="./translations.js" defer></script>
+    <script src="./app.js" defer></script>
+  </head>
+  <body class="review-page review-holiday">
+    <a class="skip-link" href="#main">Skip to content</a>
+    <div class="language-scrim" id="language-scrim" aria-hidden="true"></div>
+    <section
+      class="language-panel"
+      id="language-panel"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="language-panel-title"
+      aria-hidden="true"
+      inert
+    >
+      <div class="language-panel-heading">
+        <h2 id="language-panel-title">Choose a language</h2>
+        <button
+          class="language-close"
+          id="language-close"
+          type="button"
+          aria-label="Close language selection"
+        >
+          ×
+        </button>
+      </div>
+      <div class="language-options" id="language-options"></div>
+    </section>
+    <div class="site-shell">
+      <header class="site-header review-header">
+        <a class="brand" href="./index.html" aria-label="NCF Agent Interconnect — choose a story"
+          ><img src="./assets/app-icon.png" width="38" height="38" alt="" /><span
+            >NCF <span class="brand-secondary">Agent Interconnect</span></span
+          ></a
+        >
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="./index.html">Choose a story</a
+          ><a
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md"
+            >How to connect your assistants</a
+          ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect">GitHub</a>
+        </nav>
+        <button
+          class="language-trigger"
+          id="language-trigger"
+          type="button"
+          aria-haspopup="dialog"
+          aria-expanded="false"
+          aria-controls="language-panel"
+        >
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="9" />
+            <path
+              d="M3 12h18M12 3c2.5 2.4 3.8 5.4 3.8 9s-1.3 6.6-3.8 9c-2.5-2.4-3.8-5.4-3.8-9S9.5 5.4 12 3Z"
+            /></svg
+          ><span id="current-language">English</span>
+        </button>
+      </header>
+      <main id="main">
+        <section class="review-story-hero section-wrap" aria-labelledby="holiday-title">
+          <div>
+            <p class="eyebrow">An illustrative story</p>
+            <h1 id="holiday-title">Plan a party</h1>
+            <p>
+              Start with an ordinary conversation with an AI assistant. When a separate task comes
+              up, give it to another assistant. Each gets its own part of the work and a
+              conversation with the details it needs. Everyone in this story works in one AI
+              application on one computer.
+            </p>
+          </div>
+          <div class="review-holiday-hero-art" aria-hidden="true">
+            <img src="./assets/holiday/holiday-user-speaking.png" alt="" />
+          </div>
+        </section>
+        <div class="holiday-story" id="holiday-story">
+          <section class="holiday-part" id="part-1" aria-labelledby="part-1-title">
+            <div class="holiday-part-heading section-wrap">
+              <span class="scene-count">01 / 06</span>
+              <h2 id="part-1-title">Start with what you are already discussing</h2>
+              <p>
+                You are planning a party at home. While discussing the activities, you also want to
+                work out the costs. Keep planning with the first assistant and ask a second one to
+                handle the calculations.
+              </p>
+            </div>
+            <div class="holiday-scenes" data-part="1"></div>
+            <aside class="system-note holiday-note">
+              <div class="note-figure"><img src="./assets/notes/note-app-mark.png" alt="" /></div>
+              <div class="note-body">
+                <p>
+                  Open a second AI chat for the costs. Ideas and preferences stay in one
+                  conversation, prices and calculations in another. The assistants can work on their
+                  parts at the same time.
+                </p>
+              </div>
+            </aside>
+          </section>
+          <section class="holiday-part" id="part-2" aria-labelledby="part-2-title">
+            <div class="holiday-part-heading section-wrap">
+              <span class="scene-count">02 / 06</span>
+              <h2 id="part-2-title">Give the assistants names and introduce them</h2>
+              <p>
+                First, configure NCF Agent Interconnect for your chosen AI application once. After
+                that, assistants connect directly from their chats.
+              </p>
+            </div>
+            <div class="holiday-scenes" data-part="2"></div>
+            <aside class="system-note holiday-note">
+              <div class="note-figure"><img src="./assets/notes/note-app-mark.png" alt="" /></div>
+              <div class="note-body">
+                <p>
+                  Amy and Ben are names you chose. Now the assistants can address each other by
+                  name. Introduce them with an ordinary request.
+                </p>
+              </div>
+            </aside>
+          </section>
+          <section class="holiday-part" id="part-3" aria-labelledby="part-3-title">
+            <div class="holiday-part-heading section-wrap">
+              <span class="scene-count">03 / 06</span>
+              <h2 id="part-3-title">Let one assistant's work help another</h2>
+              <p>
+                Amy suggests a workshop and sends Ben a list of materials. Ben finds that the
+                workshop costs too much and tells Amy.
+              </p>
+            </div>
+            <div class="holiday-scenes" data-part="3"></div>
+            <aside class="system-note holiday-note">
+              <div class="note-figure"><img src="./assets/notes/note-app-mark.png" alt="" /></div>
+              <div class="note-body">
+                <p>
+                  Amy changes the plan and Ben updates the calculation. Each handles a different
+                  part, while they agree on decisions together. Their work comes together in one
+                  party plan.
+                </p>
+              </div>
+            </aside>
+          </section>
+          <section class="holiday-part" id="part-4" aria-labelledby="part-4-title">
+            <div class="holiday-part-heading section-wrap">
+              <span class="scene-count">04 / 06</span>
+              <h2 id="part-4-title">Keep talking as the work progresses</h2>
+              <p>
+                While the assistants are working, you learn that children will be coming too.
+                Discuss the new requirements straight away.
+              </p>
+            </div>
+            <div class="holiday-scenes" data-part="4"></div>
+            <aside class="system-note holiday-note">
+              <div class="note-figure"><img src="./assets/notes/note-app-mark.png" alt="" /></div>
+              <div class="note-body">
+                <p>
+                  Talk to any assistant to clarify requirements, ask questions or add work. If you
+                  prefer to discuss everything with Amy, ask her to pass changes on to the others
+                  and collect their results.
+                </p>
+              </div>
+            </aside>
+          </section>
+          <section class="holiday-part" id="part-5" aria-labelledby="part-5-title">
+            <div class="holiday-part-heading section-wrap">
+              <span class="scene-count">05 / 06</span>
+              <h2 id="part-5-title">Bring in help when you need it</h2>
+              <p>
+                Now it is time to plan the food. Open another chat to work on the menu with Kate.
+                Amy continues the activities and Ben the costs.
+              </p>
+            </div>
+            <div class="holiday-scenes" data-part="5"></div>
+            <aside class="system-note holiday-note">
+              <div class="note-figure"><img src="./assets/notes/note-app-mark.png" alt="" /></div>
+              <div class="note-body">
+                <p>
+                  A new assistant joins when a separate piece of work comes up. The menu, activities
+                  and costs each have someone responsible, and they agree on shared details.
+                </p>
+              </div>
+            </aside>
+          </section>
+          <section class="holiday-part" id="part-6" aria-labelledby="part-6-title">
+            <div class="holiday-part-heading section-wrap">
+              <span class="scene-count">06 / 06</span>
+              <h2 id="part-6-title">Bring the result together</h2>
+            </div>
+            <div class="holiday-scenes" data-part="6"></div>
+            <aside class="system-note holiday-note">
+              <div class="note-figure"><img src="./assets/notes/note-app-mark.png" alt="" /></div>
+              <div class="note-body">
+                <p>
+                  You now have three materials that fit together: a party plan, a menu with a
+                  shopping list and a cost estimate. Discuss any of them with its author, or
+                  continue everything through Amy. Start with one assistant and bring in others as
+                  you need them. One AI application on one computer is enough.
+                </p>
+              </div>
+            </aside>
+          </section>
+        </div>
+        <nav class="review-story-end section-wrap" aria-label="After the story">
+          <a
+            class="button button-primary"
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md"
+            >How to connect your assistants</a
+          ><a class="button button-secondary" href="./index.html">Choose a story</a>
+        </nav>
+      </main>
+      <footer class="site-footer review-footer">
+        <div class="footer-brand"><strong>NCF Agent Interconnect</strong></div>
+        <div class="footer-links">
+          <a
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/usage.md"
+            >User guide</a
+          ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/LICENSE"
+            >License</a
+          >
+        </div>
+      </footer>
+    </div>
+  </body>
+</html>

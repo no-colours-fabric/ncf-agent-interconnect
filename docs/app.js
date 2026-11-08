@@ -151,6 +151,7 @@ const LANGUAGES = [
   ['uk', 'Українська'],
 ];
 const TRANSLATIONS = window.NCF_TRANSLATIONS || {};
+const SITE = window.NCF_SITE_COPY || {};
 for (const [locale, content] of Object.entries(TRANSLATIONS)) {
   COPY[locale] = {
     ...COPY.en,
@@ -565,12 +566,333 @@ function renderGalleryAlts(lang) {
   });
 }
 
+function renderHoliday() {
+  const lang = document.documentElement.lang;
+  const holidayCopy = SITE[lang].holiday;
+  const dialogue = SITE[lang].holidayDialogue;
+  const activity = SITE[lang].holidayActivity;
+  const workActivity = { 1: [2, 3], 2: [4], 5: [5], 7: [6], 8: [7], 11: [8] };
+  const frames = window.NCF_HOLIDAY || [];
+  const frameById = new Map(frames.map((frame) => [frame.id, frame]));
+  const groups = [
+    { part: 1, ids: [1], owner: 'amy', left: 'user', right: [] },
+    { part: 2, ids: [2], owner: 'amy', left: 'user', right: ['amy'] },
+    { part: 2, ids: [3], owner: 'ben', left: 'user', right: ['ben'] },
+    { part: 3, ids: [4, 5], owner: 'ben', left: 'amy', right: ['ben'] },
+    { part: 4, ids: [6], owner: 'amy', left: 'user', right: ['amy'] },
+    { part: 4, ids: [7, 8], owner: 'ben', left: ['amy', 'user'], right: ['ben'] },
+    { part: 5, ids: [9, 10, 11], owner: 'kate', left: 'user', right: ['kate', 'amy', 'ben'] },
+    { part: 6, ids: [12, 13, 14, 15], owner: 'amy', left: 'user', right: ['amy', 'ben', 'kate'] },
+  ];
+  const portraits = { amy: 'morgan', ben: 'leo', kate: 'alice' };
+  const titles = { amy: holidayCopy[22], ben: holidayCopy[23], kate: holidayCopy[24] };
+  const displayName = (person) =>
+    person === 'user' ? holidayCopy[26] : person[0].toUpperCase() + person.slice(1);
+
+  function participant(person, frame, position) {
+    const figure = el(
+      'figure',
+      'participant participant-' +
+        position +
+        (person === 'user' ? ' participant-human' : ' participant-agent'),
+    );
+    const image = el('img');
+    image.src =
+      person === 'user'
+        ? './assets/holiday/holiday-user-' + frame.pose + '.png'
+        : './assets/agents/' + portraits[person] + '.png';
+    image.alt =
+      person === 'user' ? holidayCopy[27] : holidayCopy[28].replace('{name}', displayName(person));
+    image.loading = frame.id < 3 ? 'eager' : 'lazy';
+    image.decoding = 'async';
+    figure.append(image);
+    figure.append(
+      el(
+        'figcaption',
+        'participant-name',
+        frame.anonymous && person === 'amy' ? holidayCopy[25] : displayName(person),
+      ),
+    );
+    return figure;
+  }
+
+  function chat(group) {
+    const ownerName = group.anonymous ? holidayCopy[25] : displayName(group.owner);
+    const thread = el('div', 'chat-thread');
+    thread.setAttribute('role', 'group');
+    thread.setAttribute('aria-label', 'ChatGPT · ' + titles[group.owner] + ' · ' + ownerName);
+    const header = el('div', 'chat-thread-header');
+    header.append(
+      el('span', 'chat-status'),
+      el('span', 'chat-client', 'ChatGPT'),
+      el('span', 'chat-separator', '·'),
+      el('span', 'chat-heading', titles[group.owner]),
+      el('span', 'chat-separator', '·'),
+      el('span', 'chat-agent', ownerName),
+    );
+    thread.append(header);
+    const messages = el('div', 'chat-messages');
+    messages.setAttribute('role', 'list');
+    group.frames.forEach((frame) => {
+      frame.lines.forEach(([from, to], lineIndex) => {
+        const own = from === group.owner;
+        const entry = el(
+          'div',
+          'chat-entry ' + (own ? 'chat-entry-responder' : 'chat-entry-initiator'),
+        );
+        entry.setAttribute('role', 'listitem');
+        const fromLabel = group.anonymous && from === 'amy' ? holidayCopy[25] : displayName(from);
+        entry.append(
+          el(
+            'span',
+            'chat-speaker',
+            own && to !== 'user' ? fromLabel + ' → ' + displayName(to) : fromLabel,
+          ),
+        );
+        entry.append(el('p', 'chat-text', dialogue[frame.id - 1][lineIndex]));
+        if (frame.id === 15 && from === 'amy' && to === 'user') {
+          const files = el('div', 'holiday-chat-files');
+          files.setAttribute('role', 'list');
+          files.setAttribute('aria-label', holidayCopy[33]);
+          holidayCopy.slice(34, 37).forEach((name) => {
+            const file = el('div', 'holiday-chat-file');
+            file.setAttribute('role', 'listitem');
+            file.append(el('span', 'holiday-chat-file-icon'), el('span', null, name));
+            files.append(file);
+          });
+          entry.append(files);
+        }
+        messages.append(entry);
+      });
+      if (frame.owner !== group.owner) return;
+      frame.statuses?.forEach((status) => {
+        const progress = el('div', 'chat-progress chat-progress-' + status.kind);
+        progress.setAttribute('role', 'listitem');
+        progress.setAttribute('aria-label', holidayCopy[32].replace('{name}', ownerName));
+        if (status.recipient)
+          progress.append(el('span', 'chat-progress-recipient', status.recipient));
+        status.lines.forEach((line, index) => {
+          const step = el(
+            'div',
+            'chat-progress-step' +
+              (status.kind === 'send' && index === status.lines.length - 1
+                ? ' chat-progress-step-done'
+                : ''),
+          );
+          const icon = el('span', 'chat-progress-icon');
+          icon.setAttribute('aria-hidden', 'true');
+          const translated =
+            status.kind === 'send' ? activity[index] : activity[workActivity[frame.id][index]];
+          step.append(icon, el('span', null, translated));
+          progress.append(step);
+        });
+        messages.append(progress);
+      });
+    });
+    thread.append(messages);
+    return thread;
+  }
+
+  document.querySelectorAll('.holiday-scenes').forEach((mount) => {
+    mount.replaceChildren();
+    groups
+      .filter((group) => group.part === Number(mount.dataset.part))
+      .forEach((group) => {
+        group.frames = group.ids.map((id) => frameById.get(id));
+        group.anonymous = group.frames[0].anonymous;
+        const leftPeople = Array.isArray(group.left) ? group.left : [group.left];
+        const lines = group.frames.flatMap((frame) => frame.lines);
+        const userLineIndex = lines.findIndex(([from]) => from === 'user');
+        const userPosition =
+          lines.length > 2 && userLineIndex !== -1
+            ? userLineIndex === 0
+              ? ' holiday-user-first'
+              : ' holiday-user-late'
+            : '';
+        const section = el(
+          'section',
+          'comic-scene dialogue-scene holiday-comic-scene ' +
+            (leftPeople.includes('user') ? 'user-agent-scene' : 'agent-pair-scene') +
+            (group.right.length ? '' : ' holiday-before-agent') +
+            userPosition,
+        );
+        section.id = 'holiday-scene-' + group.ids.join('-');
+        const description = group.anonymous
+          ? holidayCopy[30]
+          : holidayCopy[31].replace('{name}', displayName(group.owner));
+        section.setAttribute(
+          'aria-label',
+          holidayCopy[29]
+            .replace('{frames}', group.ids.join(', '))
+            .replace('{total}', frames.length)
+            .replace('{description}', description),
+        );
+        const stage = el('div', 'scene-stage');
+        const userFrame =
+          group.frames.find((frame) => frame.pair.includes('user')) || group.frames[0];
+        const right = el(
+          'div',
+          'holiday-agent-rail' + (group.right.length > 1 ? ' holiday-agent-rail-multiple' : ''),
+        );
+        group.right.forEach((person) => right.append(participant(person, userFrame, 'responder')));
+        if (leftPeople.length === 1)
+          stage.append(participant(leftPeople[0], userFrame, 'initiator'));
+        else {
+          const left = el('div', 'holiday-left-rail');
+          leftPeople.forEach((person) => {
+            const figure = participant(person, userFrame, 'initiator');
+            if (person === 'user') figure.classList.add('holiday-late-human');
+            left.append(figure);
+          });
+          stage.append(left);
+        }
+        stage.append(chat(group));
+        if (group.right.length) stage.append(right);
+        section.append(stage);
+        mount.append(section);
+      });
+  });
+}
+
+function localizeStatic(lang) {
+  const site = SITE[lang] || SITE.en;
+  const shared = site.shared;
+  const set = (selector, value, attribute) => {
+    const node = document.querySelector(selector);
+    if (!node) return;
+    if (attribute) node.setAttribute(attribute, value);
+    else node.textContent = value;
+  };
+  document.title =
+    site.home && document.body.classList.contains('review-home')
+      ? site.home[0]
+      : document.body.classList.contains('review-holiday')
+        ? site.holiday[0]
+        : site.development[0];
+  set(
+    'meta[name="description"]',
+    document.body.classList.contains('review-home')
+      ? site.home[1]
+      : document.body.classList.contains('review-holiday')
+        ? site.holiday[1]
+        : site.development[1],
+    'content',
+  );
+  set('.skip-link', COPY[lang].skip);
+  set('.brand', 'NCF Agent Interconnect — ' + shared[0].toLowerCase(), 'aria-label');
+  set('.main-nav', COPY[lang].navLabel, 'aria-label');
+  set('.footer-brand > span', shared[5]);
+  if (document.body.classList.contains('review-home')) {
+    const home = site.home;
+    const nav = document.querySelectorAll('.main-nav a');
+    nav[0].textContent = shared[1];
+    nav[1].textContent = COPY[lang].navStart;
+    document.querySelectorAll('.review-home-copy > p').forEach((node, index) => {
+      node.textContent = home[2 + index];
+    });
+    set('#stories-title', home[4]);
+    document.querySelectorAll('.review-story-feature').forEach((article, index) => {
+      const offset = index === 0 ? 5 : 8;
+      article.querySelector('h3').textContent = home[offset];
+      article.querySelector('p').textContent = home[offset + 1];
+      article.querySelector('img').alt = home[offset + 2];
+      article.querySelector('.review-story-link').textContent = COPY[lang].readStory;
+    });
+    set('#home-more-title', home[11]);
+    set('.review-home-section-intro > p', home[12]);
+    document.querySelectorAll('.review-home-methods article').forEach((article, index) => {
+      article.querySelector('h3').textContent = home[13 + index * 2];
+      article.querySelector('p').textContent = home[14 + index * 2];
+    });
+    set('#home-conversation-title', home[21]);
+    document
+      .querySelectorAll('.review-home-conversation-inner > div > p')
+      .forEach((node, index) => {
+        node.textContent = home[22 + index];
+      });
+    set('#home-environments-title', home[24]);
+    document.querySelectorAll('.review-home-environments-copy > p').forEach((node, index) => {
+      node.textContent = home[25 + index];
+    });
+    set('.review-home-environments-copy > a', home[27]);
+    set('#home-materials-title', home[28]);
+    document.querySelectorAll('.review-home-materials-copy > p').forEach((node, index) => {
+      node.textContent = home[29 + index];
+    });
+    set('.review-home-materials-copy > a', home[31]);
+    set('.guide > .eyebrow', home[32]);
+    set('#guide-title', home[33]);
+    document.querySelectorAll('.guide-grid .guide-item').forEach((article, index) => {
+      article.querySelector('h3').textContent = home[34 + index * 3];
+      article.querySelector('p').textContent = home[35 + index * 3];
+      article.querySelector('a').textContent = home[36 + index * 3];
+    });
+    set('.start .eyebrow', home[46]);
+    set('#start-title', home[47]);
+    set('.start-copy > p:not(.eyebrow):not(.download-note)', home[48]);
+    set('.download-note', home[49]);
+    set('.start-actions .button-primary', shared[3]);
+    set('.start-actions .button-secondary', shared[2]);
+    set('.footer-links a:first-child', shared[4]);
+    set('.footer-links a:last-child', COPY[lang].license);
+  } else if (document.body.classList.contains('review-development')) {
+    const development = site.development;
+    const nav = document.querySelectorAll('.main-nav a');
+    [shared[0], COPY[lang].navStory, COPY[lang].navGuide, COPY[lang].navStart].forEach(
+      (label, index) => {
+        nav[index].textContent = label;
+      },
+    );
+    set('.hero .eyebrow', development[2]);
+    set('#hero-title', development[3]);
+    set('.hero-lede', development[4]);
+    set('.review-hero-followup', development[5]);
+    set('.hero-actions .button-primary', shared[3]);
+    set('.hero-actions .text-link', shared[0]);
+    set('.review-story-end', shared[6], 'aria-label');
+    set('.review-story-end .button-primary', shared[2]);
+    set('.review-story-end .button-secondary', shared[0]);
+    set('.footer-links a:nth-child(2)', COPY[lang].usageGuide);
+    set('.footer-links a:nth-child(4)', COPY[lang].license);
+  } else if (document.body.classList.contains('review-holiday')) {
+    const holiday = site.holiday;
+    const nav = document.querySelectorAll('.main-nav a');
+    nav[0].textContent = shared[0];
+    nav[1].textContent = shared[2];
+    set('.review-story-hero .eyebrow', holiday[2]);
+    set('#holiday-title', holiday[3]);
+    set('.review-story-hero > div > p:not(.eyebrow)', holiday[4]);
+    set('.review-story-hero img', holiday[27], 'alt');
+    set('.review-story-hero img', './assets/holiday/holiday-user-speaking.png', 'src');
+    document.querySelectorAll('.holiday-part').forEach((part, index) => {
+      const heading = index === 5 ? holiday[20] : holiday[5 + index * 3];
+      const intro = index === 5 ? null : holiday[6 + index * 3];
+      const note = index === 5 ? holiday[21] : holiday[7 + index * 3];
+      part.querySelector('.holiday-part-heading h2').textContent = heading;
+      const introNode = part.querySelector('.holiday-part-heading p');
+      if (introNode && intro) introNode.textContent = intro;
+      const noteParagraphs = part.querySelectorAll('.holiday-note .note-body p');
+      noteParagraphs[0].textContent = note;
+      for (let i = 1; i < noteParagraphs.length; i++) noteParagraphs[i].remove();
+    });
+    set('.review-story-end', shared[6], 'aria-label');
+    set('.review-story-end .button-primary', shared[2]);
+    set('.review-story-end .button-secondary', shared[0]);
+    set('.footer-links a:first-child', COPY[lang].usageGuide);
+    set('.footer-links a:last-child', COPY[lang].license);
+  }
+}
+
 function render(lang) {
   const copy = COPY[lang] || COPY.en;
+  const isReviewDevelopment = document.body.classList.contains('review-development');
+  const isReviewHoliday = document.body.classList.contains('review-holiday');
   document.documentElement.lang = lang;
-  document.title =
-    copy[document.body.classList.contains('gallery-page') ? 'galleryPageTitle' : 'pageTitle'];
-  document.querySelector('meta[name="description"]')?.setAttribute('content', copy.heroLede);
+  if (!isReviewDevelopment && !isReviewHoliday) {
+    document.title =
+      copy[document.body.classList.contains('gallery-page') ? 'galleryPageTitle' : 'pageTitle'];
+    document.querySelector('meta[name="description"]')?.setAttribute('content', copy.heroLede);
+  }
   document.querySelectorAll('[data-copy]').forEach((node) => {
     node.textContent = copy[node.dataset.copy];
   });
@@ -584,16 +906,18 @@ function render(lang) {
     button.setAttribute('aria-pressed', String(button.dataset.lang === lang));
   });
   const currentLabel = LANGUAGES.find((item) => item[0] === lang)?.[1] || 'English';
-  document.getElementById('current-language').textContent = currentLabel;
-  document
-    .getElementById('language-trigger')
-    .setAttribute('aria-label', copy.languageLabel + ': ' + currentLabel);
-  document.getElementById('language-panel-title').textContent = copy.languageMenuTitle;
-  document.getElementById('language-close').setAttribute('aria-label', copy.closeLanguageMenu);
+  if (document.getElementById('current-language')) {
+    document.getElementById('current-language').textContent = currentLabel;
+    document
+      .getElementById('language-trigger')
+      .setAttribute('aria-label', copy.languageLabel + ': ' + currentLabel);
+    document.getElementById('language-panel-title').textContent = copy.languageMenuTitle;
+    document.getElementById('language-close').setAttribute('aria-label', copy.closeLanguageMenu);
+  }
   if (comic) {
     comic.replaceChildren();
     const openingNotes = NOTES.filter((note) => note.after === 0);
-    if (openingNotes.length) comic.append(renderNote(openingNotes, lang));
+    if (openingNotes.length && !isReviewDevelopment) comic.append(renderNote(openingNotes, lang));
     SCENES.forEach((scene) => {
       comic.append(renderScene(scene, lang));
       const followingNotes = NOTES.filter((note) => note.after === scene.id);
@@ -603,29 +927,32 @@ function render(lang) {
   }
   if (guideGrid) renderGuide(lang);
   if (document.body.classList.contains('gallery-page')) renderGalleryAlts(lang);
+  if (isReviewHoliday) renderHoliday();
+  if (document.body.classList.contains('review-page')) localizeStatic(lang);
 }
 
 const languagePanel = document.getElementById('language-panel');
 const languageScrim = document.getElementById('language-scrim');
 const languageTrigger = document.getElementById('language-trigger');
 const languageOptions = document.getElementById('language-options');
-LANGUAGES.forEach(([code, label]) => {
-  const button = el('button', null, label);
-  button.type = 'button';
-  button.lang = code;
-  button.dataset.lang = code;
-  button.disabled = !COPY[code];
-  button.addEventListener('click', () => {
-    try {
-      localStorage.setItem('ncf-site-language', code);
-    } catch (_) {
-      /* Storage may be unavailable. */
-    }
-    render(code);
-    closeLanguagePanel();
+if (languageOptions)
+  LANGUAGES.forEach(([code, label]) => {
+    const button = el('button', null, label);
+    button.type = 'button';
+    button.lang = code;
+    button.dataset.lang = code;
+    button.disabled = !COPY[code];
+    button.addEventListener('click', () => {
+      try {
+        localStorage.setItem('ncf-site-language', code);
+      } catch (_) {
+        /* Storage may be unavailable. */
+      }
+      render(code);
+      closeLanguagePanel();
+    });
+    languageOptions.append(button);
   });
-  languageOptions.append(button);
-});
 
 function openLanguagePanel() {
   languagePanel.inert = false;
@@ -647,11 +974,11 @@ function closeLanguagePanel() {
   languageTrigger.focus();
 }
 
-languageTrigger.addEventListener('click', openLanguagePanel);
-document.getElementById('language-close').addEventListener('click', closeLanguagePanel);
-languageScrim.addEventListener('click', closeLanguagePanel);
+languageTrigger?.addEventListener('click', openLanguagePanel);
+document.getElementById('language-close')?.addEventListener('click', closeLanguagePanel);
+languageScrim?.addEventListener('click', closeLanguagePanel);
 document.addEventListener('keydown', (event) => {
-  if (!languagePanel.classList.contains('is-open')) return;
+  if (!languagePanel?.classList.contains('is-open')) return;
   if (event.key === 'Escape') {
     closeLanguagePanel();
     return;
