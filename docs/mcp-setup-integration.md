@@ -134,5 +134,7 @@ The standalone component check does not replace packaged-app or Windows testing.
 AionUi reuses the file flow for Cursor Agent and the actual selected Cursor MCP
 file. Its owner authorization has a separate client-specific dialog. It does
 not imply that MCP was installed or registered. Before Apply, the UI explains
-replacement of an existing NCF Agent Interconnect entry and the global effect outside AionUi.
-Other AionUi backends without verified setup paths/APIs are not advertised.
+that direct Cursor and Cursor Agent in AionUi share the MCP entry in that file.
+Only the direct Cursor Apply installs its plugin; AionUi authorization and a
+live chat bridge remain separate states. Other AionUi backends without verified
+setup paths/APIs are not advertised.

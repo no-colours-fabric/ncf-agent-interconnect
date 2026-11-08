@@ -125,7 +125,7 @@ Set up each application or profile once. New chats then join by connecting under
 
 Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too and pair the two computers using the explicit address and temporary access code under **Remote nodes**. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
-The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported AionUi bridge also deliver to their connected chats. Codex Desktop delivery is experimental and version dependent. Cursor's direct plugin and the AionUi bridge have separate setup requirements. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
+The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported AionUi bridge also deliver to their connected chats. Codex Desktop delivery is experimental and version dependent. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
 
 ## 3. Administration when you need it
 
