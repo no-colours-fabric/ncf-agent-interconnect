@@ -2,6 +2,15 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.17.3 — 2026-11-08
+
+- Accept complete Codex Desktop IPC frames up to a fixed 128 MiB limit, including fragmented Unicode snapshots larger than the former 32 MiB ceiling. Parse JSON only after the declared frame is complete.
+- Resume the delivery queue when a ready event arrives during an occupied dispatch and that attempt then fails. Keep uncertain requests pending without blind replay or fabricated receipts.
+
+Synthetic regressions cover fragmented large frames, invalid and incomplete frames, queue recovery and uncertain-admission protection. Package checks remain separate from a live Codex Desktop chat check; this cycle does not verify delivery to the affected working chat.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
 ## 0.17.2 — 2026-11-08
 
 - Restore an existing Cursor chat after a restart from one ordinary owner message, without another connection or inbox-read request. Delivery remains recovering until the completed turn arms its reactive wait.

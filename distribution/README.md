@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.17.2
+# NCF Agent Interconnect 0.17.3
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -131,6 +131,15 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.17.2
+
+Quit NCF Agent Interconnect from its tray menu before replacing it, then start
+the updated app. This fix changes internal Codex delivery and queue recovery;
+no new Apply or agent connection is required when installation paths stay the
+same. Existing chat bindings, history, attachments, peer settings and AionUi
+authorization are preserved. Saved requests with uncertain admission are not
+replayed automatically. Codex Desktop compatibility remains version dependent.
 
 ## Upgrade from 0.17.1
 

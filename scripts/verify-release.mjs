@@ -96,6 +96,10 @@ try {
   asar.extractAll(archive, extracted);
   const worker = path.join(extracted, 'verify-installed.mjs');
   await writeFile(
+    path.join(extracted, 'verify-codex-package.mjs'),
+    await readFile(new URL('verify-codex-package.mjs', import.meta.url)),
+  );
+  await writeFile(
     worker,
     `
 import assert from 'node:assert/strict';
@@ -105,6 +109,7 @@ import { readFile } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { NodeService } from './build/core/service.js';
+import { verifyCodexPackage } from './verify-codex-package.mjs';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -287,7 +292,8 @@ try {
   await invokeCursorHook('sessionEnd', { conversation_id: conversationId });
   assert.deepEqual(await restoredIdleHook, {});
   assert.equal(cursorService.agentDirectories()[0].agents.find(agent => agent.nickname === 'Package Cursor').availability, 'unknown');
-  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+  const codexPackage = await verifyCodexPackage();
+  console.log(JSON.stringify({ ...codexPackage, electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
   if (host) await host.event({ event: { type: 'server.instance.disposed' } });
   for (const client of clients) await client.close(); await cursorService?.close(); await service.close();

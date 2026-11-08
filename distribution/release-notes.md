@@ -1,11 +1,10 @@
-## 0.17.2
+## 0.17.3
 
-- Restore an existing Cursor chat after a restart with one ordinary message. Its binding is preserved; another `agent_connect` or `agent_read` call is unnecessary. Delivery stays recovering until the turn completes and its reactive wait is armed.
-- Show restored Cursor chats as available while their exact wait is active, and withdraw that availability when the wait ends.
-- Refresh current node display names on authenticated connection, reconnection and live rename. Compatible peers save the new name without changing node identity, authorization or agent bindings. Older peers without this capability keep their known name.
+- Fix delivery for large Codex Desktop chat snapshots. The adapter assembles a complete frame before parsing JSON and accepts frames up to a fixed 128 MiB limit instead of the former 32 MiB limit.
+- Resume queued delivery when readiness arrives during a failed dispatch. Requests whose admission is uncertain remain pending and are not replayed automatically; receipt still requires confirmed admission.
 
-Quit NCF Agent Interconnect before replacing it, then start the updated app. In each previously connected Cursor chat, send one ordinary message and let its response finish. Keep the tab open. When the installation path is unchanged, updating from 0.17.1 does not require another Apply or reconnect. If the app path changes, use Cursor setup and Apply to update its paths. Earlier Cursor installations still need their setup steps. Existing history, attachments, peer settings and AionUi authorization are preserved.
+Quit NCF Agent Interconnect from its tray menu before replacing it, then start the updated app. Updating from 0.17.2 at the same installation path needs no new Apply or agent connection. Existing bindings, history, attachments, peer settings and AionUi authorization are preserved. If the installation path changes, update affected client paths through their setup dialog and Apply.
 
-Source and package checks are separate from native Cursor UI validation. A new full Cursor application Quit/restart check was not run for this release. Earlier direct Cursor and AionUi exchanges do not extend that verification scope.
+Codex Desktop integration remains experimental and version dependent. Synthetic source and package checks are separate from live-client validation; delivery to the affected working Codex chat was not tested in this release cycle. Cursor and AionUi verification limits from earlier releases remain unchanged.
 
-macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned. The Intel package was not run on Intel hardware.
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged. macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned. The Intel package was not run on Intel hardware.
