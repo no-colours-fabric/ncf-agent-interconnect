@@ -89,3 +89,19 @@ Add support for Microsoft Copilot as an NCF Agent Interconnect client, so a user
 Investigate the available integration methods, setup flow, and delivery limitations before defining the implementation.
 
 ---
+
+## R-0006 — Headless service and TUI administration
+
+- [ ] Open
+
+Allow NCF Agent Interconnect to run without a graphical environment as a service.
+
+Keep the current GUI, headless service, and terminal administration modes in one application. Select the mode through launch parameters:
+
+- GUI mode: run the desktop interface as it works now.
+- Service mode: run without a graphical interface.
+- TUI mode: administer a running service from a terminal.
+
+The service should remain running while a TUI session is used for administration.
+
+---
