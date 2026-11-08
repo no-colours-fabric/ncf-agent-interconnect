@@ -81,7 +81,7 @@ const decodedNodeLabel = (value: string | string[] | undefined): string | undefi
   const bytes = Buffer.from(value, 'base64url');
   if (bytes.toString('base64url') !== value) return undefined;
   try {
-    const label = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+    const label = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true }).decode(bytes);
     if (!Buffer.from(label, 'utf8').equals(bytes)) return undefined;
     const parsed = nodeLabelSchema.safeParse(label);
     return parsed.success ? parsed.data : undefined;

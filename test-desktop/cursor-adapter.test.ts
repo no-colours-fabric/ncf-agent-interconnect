@@ -344,10 +344,38 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   });
   await until(() => service.store.get(first.id, 'in')?.state === 'processed');
 
+  await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
+    conversation_id: conversationId,
+    prompt: 'Проверь состояние подключения.',
+  });
+  assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'recovering');
+  const repeatedConnectHook = await runCursorHook(nodeFile, 'preToolUse', {
+    conversation_id: conversationId,
+    workspace_roots: [path.join(directory, 'workspace')],
+    tool_name: 'MCP:ncf_agent_interconnect_agent_connect',
+    tool_input: { nickname: 'Курсор' },
+  });
+  const repeatedConnect = await client.callTool({
+    name: 'agent_connect',
+    arguments: repeatedConnectHook.updated_input as Record<string, unknown>,
+  });
+  assert.equal(repeatedConnect.isError, undefined);
+  assert.equal(
+    (repeatedConnect.structuredContent as { delivery: { automatic: boolean } }).delivery.automatic,
+    false,
+  );
+  assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'recovering');
+  const beforeRestartWait = runCursorHook(nodeFile, 'stop', {
+    conversation_id: conversationId,
+    status: 'completed',
+  });
+  await until(() => service.adapters.get(body.binding.adapterId).status().state === 'ready');
+
   await client.close();
   const originalBinding = service.store.assertOwner(body.binding.connectionId).binding;
   const originalStamp = service.store.sourceStamp('Курсор');
   await service.close();
+  await beforeRestartWait;
   service = new NodeService(directory);
   await service.open();
   client = await openClient();
@@ -373,22 +401,6 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   });
   assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'recovering');
   assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
-  const repeatedConnectHook = await runCursorHook(nodeFile, 'preToolUse', {
-    conversation_id: conversationId,
-    workspace_roots: [path.join(directory, 'workspace')],
-    tool_name: 'MCP:ncf_agent_interconnect_agent_connect',
-    tool_input: { nickname: 'Курсор' },
-  });
-  const repeatedConnect = await client.callTool({
-    name: 'agent_connect',
-    arguments: repeatedConnectHook.updated_input as Record<string, unknown>,
-  });
-  assert.equal(repeatedConnect.isError, undefined);
-  assert.equal(
-    (repeatedConnect.structuredContent as { delivery: { automatic: boolean } }).delivery.automatic,
-    false,
-  );
-  assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'recovering');
   const secondWait = runCursorHook(nodeFile, 'stop', {
     conversation_id: conversationId,
     status: 'completed',

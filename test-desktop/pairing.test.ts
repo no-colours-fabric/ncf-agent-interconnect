@@ -724,7 +724,7 @@ test('legacy and invalid node-label headers never negotiate identity frames', as
       certificate: certs[0].cert,
     },
   ]);
-  const connect = async (label?: string) => {
+  const connect = async (label?: string, identityExpected = false) => {
     const frames: { type?: string }[] = [];
     const ws = new WebSocket(service.snapshot().peerUrl, {
       rejectUnauthorized: false,
@@ -746,7 +746,7 @@ test('legacy and invalid node-label headers never negotiate identity frames', as
     assert.equal(frames[0]?.type, 'hello');
     assert.equal(
       frames.some((frame) => frame.type === 'identity'),
-      false,
+      identityExpected,
     );
     await new Promise<void>((resolve) => {
       ws.once('close', () => resolve());
@@ -755,6 +755,8 @@ test('legacy and invalid node-label headers never negotiate identity frames', as
   };
   await connect();
   await connect('_w');
+  await connect(Buffer.from('\uFEFFNode', 'utf8').toString('base64url'), true);
+  assert.equal(service.settings.value.peers[0].label, '\uFEFFNode');
 });
 
 test('real nodes pair with lowercase code, rotate an active credential, and reconnect after restart', async (t) => {
