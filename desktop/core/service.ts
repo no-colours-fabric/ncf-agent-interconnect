@@ -171,6 +171,20 @@ export class NodeService extends EventEmitter {
     this.presence.reset();
     this.mcp = new McpEndpoint(this);
     this.network.onFrame = (id, frame) => this.receive(id, frame);
+    this.network.onIdentity = async (id, label) => {
+      const current = this.settings.value.peers.find((peer) => peer.id === id);
+      if (!current || current.label === label) return;
+      try {
+        await this.settings.savePeers((peers) =>
+          peers.map((peer) => (peer.id === id ? { ...peer, label } : peer)),
+        );
+      } catch {
+        this.problem('The remote node name changed, but the new name could not be saved.');
+        return;
+      }
+      this.emit('change');
+      this.mcp.notify({ source: 'application', type: 'directory_changed', nodeId: id });
+    };
     this.network.on('change', () => this.emit('change'));
     this.network.on('problem', (e) => this.problem(String(e)));
     this.network.on('connected', (id: string) => {
@@ -1301,10 +1315,12 @@ export class NodeService extends EventEmitter {
       if (!localAddresses().includes(input.listenHost))
         throw new Error('Choose a local IP address');
       const restart = input.listenHost !== this.settings.value.listenHost;
+      const renamed = input.nodeLabel !== this.settings.value.nodeLabel;
       if (restart) await this.stop();
       Object.assign(this.settings.value, input);
       await this.settings.save();
       if (restart) await this.start();
+      else if (renamed) await this.network.publishIdentity(input.nodeLabel);
       this.emit('change');
       return { saved: true };
     }

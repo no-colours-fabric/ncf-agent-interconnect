@@ -21,9 +21,12 @@ import { PairingClient, PairingError, PairingHost, type PairedIdentity } from '.
 
 const messageFrame = z.object({ type: z.literal('message'), envelope: envelopeSchema }).strict();
 const directoryFeature = 'agent-directory-v1';
+const nodeLabelHeader = 'x-ncf-node-label';
+const nodeLabelSchema = z.string().min(1).max(120);
 const frameSchema = z.discriminatedUnion('type', [
   messageFrame,
   z.object({ type: z.literal('directory'), snapshot: directorySnapshotSchema }).strict(),
+  z.object({ type: z.literal('identity'), label: nodeLabelSchema }).strict(),
   z.object({ type: z.literal('hello'), protocol: z.literal(2), nodeId: z.uuid() }).strict(),
   z
     .object({
@@ -59,6 +62,7 @@ interface Link {
   error: string | null;
   connecting: boolean;
   directorySupported: boolean;
+  identitySupported: boolean;
   generation: number;
   timer?: NodeJS.Timeout;
 }
@@ -70,6 +74,15 @@ export const secretMatches = (actual: unknown, expected: string): boolean =>
   typeof actual === 'string' &&
   Buffer.byteLength(actual) === Buffer.byteLength(expected) &&
   timingSafeEqual(Buffer.from(actual), Buffer.from(expected));
+const encodedNodeLabel = (label: string): string =>
+  Buffer.from(label, 'utf8').toString('base64url');
+const decodedNodeLabel = (value: string | string[] | undefined): string | undefined => {
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]+$/.test(value)) return undefined;
+  const bytes = Buffer.from(value, 'base64url');
+  if (bytes.toString('base64url') !== value) return undefined;
+  const parsed = nodeLabelSchema.safeParse(bytes.toString('utf8'));
+  return parsed.success ? parsed.data : undefined;
+};
 function pinned(certificate: string): {
   ca: string;
   checkServerIdentity: typeof tls.checkServerIdentity;
@@ -111,6 +124,7 @@ export class PeerNetwork extends EventEmitter {
   private pairingLeases = new Map<string, symbol>();
   port = 0;
   onFrame: (peerId: string, frame: Frame) => Promise<void> = async () => {};
+  onIdentity: (peerId: string, label: string) => Promise<void> = async () => {};
   constructor(readonly settings: SettingsFile) {
     super();
   }
@@ -159,6 +173,7 @@ export class PeerNetwork extends EventEmitter {
     this.wss.on('headers', (headers, req) => {
       if (req.headers['x-ncf-features'] === directoryFeature)
         headers.push('X-NCF-Features: ' + directoryFeature);
+      headers.push('X-NCF-Node-Label: ' + encodedNodeLabel(this.settings.value.nodeLabel));
     });
     this.server.on('upgrade', (req, socket, head) => {
       const peer = this.settings.value.peers.find((p) => p.id === req.headers['x-node-id']);
@@ -172,7 +187,13 @@ export class PeerNetwork extends EventEmitter {
         return;
       }
       this.wss!.handleUpgrade(req, socket, head, (ws) =>
-        this.attach(peer, ws, false, req.headers['x-ncf-features'] === directoryFeature),
+        this.attach(
+          peer,
+          ws,
+          false,
+          req.headers['x-ncf-features'] === directoryFeature,
+          decodedNodeLabel(req.headers[nodeLabelHeader]),
+        ),
       );
     });
     const listen = (port: number) =>
@@ -218,6 +239,7 @@ export class PeerNetwork extends EventEmitter {
         error: null,
         connecting: false,
         directorySupported: false,
+        identitySupported: false,
         generation: 0,
       };
       this.links.set(peerId, value);
@@ -262,6 +284,7 @@ export class PeerNetwork extends EventEmitter {
         authorization: 'Bearer ' + peer.secret,
         'x-node-id': this.settings.value.nodeId,
         'x-ncf-features': directoryFeature,
+        [nodeLabelHeader]: encodedNodeLabel(this.settings.value.nodeLabel),
       },
       handshakeTimeout: 6000,
       maxPayload: 512 * 1024,
@@ -269,13 +292,20 @@ export class PeerNetwork extends EventEmitter {
     });
     this.attach(peer, ws, true);
   }
-  private attach(peer: Peer, ws: WebSocket, outbound: boolean, directorySupported = false): void {
+  private attach(
+    peer: Peer,
+    ws: WebSocket,
+    outbound: boolean,
+    directorySupported = false,
+    remoteLabel?: string,
+  ): void {
     this.socketPeers.set(ws, peer.id);
     this.sockets.add(ws);
     let verified = false;
     if (outbound)
       ws.once('upgrade', (response) => {
         directorySupported = response.headers['x-ncf-features'] === directoryFeature;
+        remoteLabel = decodedNodeLabel(response.headers[nodeLabelHeader]);
       });
     const link = this.link(peer.id),
       generation = link.generation,
@@ -312,8 +342,10 @@ export class PeerNetwork extends EventEmitter {
           clearTimeout(deadline);
           link.socket = ws;
           link.directorySupported = directorySupported;
+          link.identitySupported = remoteLabel !== undefined;
           link.connecting = false;
           link.error = null;
+          if (remoteLabel !== undefined) await this.onIdentity(peer.id, remoteLabel);
           this.emit('connected', peer.id);
           this.emit('change');
           return;
@@ -322,6 +354,12 @@ export class PeerNetwork extends EventEmitter {
         if (frame.type === 'hello') throw new Error('Repeated handshake');
         if (frame.type === 'directory' && !directorySupported)
           throw new Error('Agent directory was not negotiated on this connection');
+        if (frame.type === 'identity') {
+          if (!link.identitySupported)
+            throw new Error('Node identity updates were not negotiated on this connection');
+          await this.onIdentity(peer.id, frame.label);
+          return;
+        }
         if (frame.type === 'blob/result' || frame.type === 'blob/error') {
           const request = this.requests.get(frame.requestId);
           if (request && request.peerId === peer.id) {
@@ -355,6 +393,7 @@ export class PeerNetwork extends EventEmitter {
       if (link.socket === ws) {
         link.socket = null;
         link.directorySupported = false;
+        link.identitySupported = false;
         for (const [id, r] of this.requests)
           if (r.peerId === peer.id) {
             clearTimeout(r.timer);
@@ -390,6 +429,7 @@ export class PeerNetwork extends EventEmitter {
     link.socket = null;
     link.connecting = false;
     link.directorySupported = false;
+    link.identitySupported = false;
     link.error = null;
     for (const socket of this.sockets)
       if (this.socketPeers.get(socket) === peerId) socket.terminate();
@@ -411,6 +451,14 @@ export class PeerNetwork extends EventEmitter {
     if (!this.link(peerId).directorySupported)
       return Promise.reject(new Error('Agent directory is not supported by this peer'));
     return this.send(peerId, { type: 'directory', snapshot });
+  }
+  async publishIdentity(label: string): Promise<void> {
+    const frame: Frame = { type: 'identity', label: nodeLabelSchema.parse(label) };
+    await Promise.allSettled(
+      [...this.links.entries()].map(([peerId, link]) =>
+        link.identitySupported && link.socket ? this.send(peerId, frame) : Promise.resolve(),
+      ),
+    );
   }
   receipt(peerId: string, id: string, state: Exclude<MessageState, 'queued'>): Promise<void> {
     return this.send(peerId, { type: 'receipt', id, state });
@@ -694,6 +742,7 @@ export class PeerNetwork extends EventEmitter {
       link.timer = undefined;
       link.connecting = false;
       link.directorySupported = false;
+      link.identitySupported = false;
       link.socket = null;
     }
     for (const ws of this.sockets) ws.terminate();

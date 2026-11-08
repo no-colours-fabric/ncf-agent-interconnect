@@ -560,6 +560,49 @@ async function until(check: () => unknown): Promise<void> {
   }
 }
 
+test('authenticated peers refresh node names on connect, live rename and reconnect', async (t) => {
+  const a = await node(t),
+    b = await node(t);
+  await a.userCall('saveNode', { nodeLabel: 'Alpha node', listenHost: a.snapshot().listenHost });
+  await b.userCall('saveNode', { nodeLabel: 'Бета узел', listenHost: b.snapshot().listenHost });
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await until(
+    () =>
+      a.snapshot().peers[0]?.connected &&
+      b.snapshot().peers[0]?.connected &&
+      a.snapshot().peers[0]?.label === 'Бета узел' &&
+      b.snapshot().peers[0]?.label === 'Alpha node',
+  );
+
+  await b.userCall('saveNode', {
+    nodeLabel: 'Бета переименован 漢字',
+    listenHost: b.snapshot().listenHost,
+  });
+  await until(() => a.snapshot().peers[0]?.label === 'Бета переименован 漢字');
+  assert.equal(a.snapshot().peers[0]?.connected, true);
+  assert.equal(
+    JSON.parse(await readFile(a.settings.filename, 'utf8')).peers[0].label,
+    'Бета переименован 漢字',
+  );
+
+  await a.stop();
+  await until(() => b.snapshot().peers[0]?.connected === false);
+  await b.userCall('saveNode', {
+    nodeLabel: 'Бета после отключения',
+    listenHost: b.snapshot().listenHost,
+  });
+  await a.start();
+  await until(
+    () =>
+      a.snapshot().peers[0]?.connected === true &&
+      a.snapshot().peers[0]?.label === 'Бета после отключения',
+  );
+  assert.equal(
+    JSON.parse(await readFile(a.settings.filename, 'utf8')).peers[0].label,
+    'Бета после отключения',
+  );
+});
+
 test('real nodes pair with lowercase code, rotate an active credential, and reconnect after restart', async (t) => {
   const a = await node(t),
     b = await node(t);
