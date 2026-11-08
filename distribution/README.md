@@ -1,6 +1,8 @@
-# NCF Agent Interconnect 0.17.0
+# NCF Agent Interconnect 0.17.1-preview.1
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
+
+Local Windows preview for owner verification of the Cursor hook and shared Cursor / AionUi setup fixes. The combined build has not yet completed native Cursor acceptance.
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -51,7 +53,9 @@ open-file icon uses the operating system's default application.
   messages in the IDE and Agents Window without being selected. After a window
   reload, any ordinary message in that same chat restores its delivery wait.
   Keep tabs open. Local plugin policies can prevent loading the integration.
-  Use separate profiles for direct Cursor and the AionUi bridge.
+  Direct Cursor and Cursor Agent in AionUi share the same MCP settings. Direct
+  Cursor additionally needs its plugin; AionUi authorization and live-chat
+  connections remain separate.
 - Other standard MCP clients: send, receive and history are available;
   automatic delivery requires a supported adapter.
 
@@ -102,8 +106,8 @@ for a new connection; previously paired nodes reconnect without another code.
 
 The supported setup is Cursor Agent inside AionUi. Open Applications & MCP → AionUi.
 Configure access and approve it in AionUi, then separately configure Cursor
-Agent with the owner-operated file dialog and Apply. The dialog explains how
-replacing a global Cursor entry affects chats outside AionUi. Follow the Authorization,
+Agent with the owner-operated file dialog and Apply. The selected MCP entry
+supports both Cursor and Cursor Agent in AionUi. Follow the Authorization,
 MCP settings and Live bridge stages. Reconnect Cursor Agent in the intended AionUi
 chat to reload MCP settings, then use the connection command. No session IDs or JSON configuration are entered.
 Authorization, saved settings and a connected bridge are distinct states.

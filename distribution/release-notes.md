@@ -1,23 +1,11 @@
-## 0.17.0
+## 0.17.1-preview.1
 
-LLM-optimized documentation: [llms.txt](../llms.txt).
+Local Windows preview for owner verification; not a published release.
 
-- Direct Cursor setup now installs the included reactive local plugin through
-  the existing Apply dialog, using the application runtime without system Node.js.
-- Exact open chats can receive messages in the IDE and Agents Window while
-  unselected. An ordinary message restores delivery after a window reload.
-- Updated Cursor metrics, fifteen-language setup guidance and user documentation.
+- Fix the Cursor Windows PowerShell hook command so the host pipeline preserves UTF-8 JSON and the helper exit code.
+- Share one MCP connection between direct Cursor and Cursor Agent in AionUi. The direct plugin and AionUi authorization remain separate.
+- Clarify the shared configuration in both setup tabs and dialogs across all fifteen languages.
 
-Quit the application before replacing it. Existing agents, history, attachments
-and client configuration are preserved; storage format 3 and peer protocol 2
-are unchanged. Apply Cursor setup and restart Cursor once to load the plugin;
-keep connected chat tabs open.
+Quit NCF Agent Interconnect before replacing it. Open Cursor setup in the preview and click Apply to regenerate its managed hooks, then reload the integration as required by Cursor. Existing chat history and peer settings are preserved.
 
-Cursor native delivery was checked on macOS Cursor 3.28.7 with a temporary
-workspace plugin. Windows Cursor 3.27.22 source UI Cancel/Apply passed; native
-delivery was not verified because scoped UI automation was blocked. A full
-Cursor application Quit/restart was not tested. Existing Cursor Agent through
-AionUi passed on macOS; its Windows native check was not run.
-
-macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned.
-The Intel package was not run on Intel hardware. Claude Code is not included.
+The command regression passed on Windows PowerShell. Actual Cursor native acceptance for this combined preview is pending owner testing. The Windows installer is unsigned.

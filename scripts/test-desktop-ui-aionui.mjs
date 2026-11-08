@@ -219,13 +219,38 @@ try {
   await dialog.getByText('Setup applied.', { exact: true }).waitFor();
   await dialog.getByRole('button', { name: 'Close', exact: true }).click();
   await dialog.waitFor({ state: 'detached' });
-  const applied = JSON.parse(await readFile(targetFile, 'utf8'));
+  const appliedBytes = await readFile(targetFile, 'utf8');
+  const applied = JSON.parse(appliedBytes);
   const configuration = applied.mcpServers.ncf_agent_interconnect;
   assert.equal(configuration.env.ELECTRON_RUN_AS_NODE, '1');
   assert.ok(!('url' in configuration));
   assert.equal(applied.fixture, 'keep');
   assert.equal(applied.mcpServers.foreign.command, 'keep');
   assert.deepEqual((await fingerprint()).slice(1), before.slice(1));
+  assert.equal((await invoke('mcpSetupStatus', { client: 'aionui' })).state, 'configured');
+  assert.equal((await invoke('mcpSetupStatus', { client: 'cursor' })).state, 'not-configured');
+  await page.getByRole('tab', { name: 'Cursor', exact: true }).click();
+  await page.getByTestId('mcp-shared-configuration-note').waitFor();
+  await page.getByTestId('mcp-configure-cursor').click();
+  dialog = page.getByRole('dialog');
+  await dialog.getByTestId('cursor-shared-configuration-note').waitFor();
+  await page.waitForFunction(() => {
+    const button = document.querySelector('[data-testid="mcp-apply"]');
+    return button && !button.disabled;
+  });
+  await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+  await dialog.getByText('Setup applied.', { exact: true }).waitFor();
+  await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+  await dialog.waitFor({ state: 'detached' });
+  assert.equal(await readFile(targetFile, 'utf8'), appliedBytes);
+  assert.deepEqual(
+    JSON.parse(await readFile(path.join(profile, 'aionui-credentials.json'), 'utf8')),
+    credentials,
+  );
+  assert.equal((await invoke('mcpSetupStatus', { client: 'cursor' })).state, 'configured');
+  assert.equal((await invoke('mcpSetupStatus', { client: 'aionui' })).state, 'configured');
+  assert.equal((await invoke('aionUiStatus')).bridgeConnected, false);
+  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
   const configured = await fingerprint();
   assert.equal((await invoke('aionUiStatus')).bridgeConnected, false);
   await setup.getByTestId('aionui-setup-panel').waitFor();
