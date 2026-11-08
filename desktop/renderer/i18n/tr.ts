@@ -58,7 +58,7 @@ export const tr: Messages = {
   mcpSetup_aionRestartAction:
     "Köprüyü uyguladıktan sonra MCP ayarlarını yeniden yüklemek için Cursor Agent'ı ilgili AionUi sohbetinde yeniden bağlayın.",
   mcpSetup_aionMcpHelp:
-    'Bu Cursor profilindeki mevcut NCF bağlantısı AionUi için güncellenecek. Cursor uygulamasını ayrı kullanmak için başka bir profil seçin.',
+    'Bu MCP ayarları hem Cursor hem de AionUi içindeki Cursor Agent ile çalışır. Doğrudan Cursor bağlantısı eklentisini de gerektirir; AionUi için yetkilendirme ve bağlı bir sohbet gerekir.',
   mcpSetup_aionNext:
     'Uyguladıktan sonra AionUi içindeki Cursor Agent uygulamasını yeniden başlatın ve aşağıdaki komutu kullanın. Kaydedilmiş ayarlar etkin köprüyü doğrulamaz. Bu kurulum diğer AionUi arka uçlarını desteklemez.',
 
@@ -78,6 +78,7 @@ export const tr: Messages = {
     'OpenCode v1 uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları eklenecek ve paketle gelen entegrasyon etkinleştirilecektir. OpenCode v2 desteklenmez.',
   mcpSetup_codexDescription:
     'Codex uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları seçilen örneğe veya profile eklenecektir.',
+  mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi ortak yapılandırması',
   mcpSetup_pathLabel: 'Yapılandırma dosyası yolu',
   mcpSetup_browse: 'Dosya seç…',
   mcpSetup_knownPaths: 'Diğer konumlar',

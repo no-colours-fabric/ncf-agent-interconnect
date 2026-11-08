@@ -58,7 +58,7 @@ export const ja: Messages = {
   mcpSetup_aionRestartAction:
     'ブリッジの適用後、対象の AionUi チャットで Cursor Agent を再接続し、MCP 設定を再読み込みしてください。',
   mcpSetup_aionMcpHelp:
-    'この Cursor プロファイルの現在の NCF 接続は AionUi 用に更新されます。Cursor を別に使う場合は、別のプロファイルを使用してください。',
+    'この MCP 設定は Cursor と AionUi 内の Cursor Agent の両方で使用できます。Cursor の直接接続にはプラグインも必要です。AionUi には認証と接続済みのチャットが必要です。',
   mcpSetup_aionNext:
     '適用後にAionUi内のCursor Agentを再起動し、以下のコマンドを使用してください。保存済み設定はブリッジの稼働を保証しません。この設定は他のAionUiバックエンドをサポートしません。',
 
@@ -78,6 +78,7 @@ export const ja: Messages = {
     'OpenCode v1をNCF Agent Interconnectに接続します。接続設定を追加し、付属の連携機能を有効にします。OpenCode v2はサポートされていません。',
   mcpSetup_codexDescription:
     'CodexをNCF Agent Interconnectに接続します。選択したインスタンスまたはプロファイルに接続設定を追加します。',
+  mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi の共有設定',
   mcpSetup_pathLabel: '設定ファイルのパス',
   mcpSetup_browse: 'ファイルを選択…',
   mcpSetup_knownPaths: 'その他の場所',

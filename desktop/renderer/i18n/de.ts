@@ -60,7 +60,7 @@ export const de: Messages = {
   mcpSetup_aionRestartAction:
     'Verbinden Sie Cursor Agent nach dem Anwenden der Bridge im gewünschten AionUi-Chat erneut, damit die MCP-Einstellungen neu geladen werden.',
   mcpSetup_aionMcpHelp:
-    'Die aktuelle NCF-Verbindung in diesem Cursor-Profil wird für AionUi aktualisiert. Verwenden Sie für Cursor allein ein anderes Profil.',
+    'Diese MCP-Einstellungen funktionieren sowohl mit Cursor als auch mit Cursor Agent in AionUi. Direktes Cursor benötigt zusätzlich sein Plugin; AionUi benötigt eine Autorisierung und einen verbundenen Chat.',
   mcpSetup_aionNext:
     'Starten Sie Cursor Agent in AionUi nach dem Anwenden neu und verwenden Sie den Befehl unten. Gespeicherte Einstellungen bestätigen keine aktive Bridge. Andere AionUi-Backends werden von dieser Einrichtung nicht unterstützt.',
 
@@ -80,6 +80,7 @@ export const de: Messages = {
     'Verbinden Sie OpenCode v1 mit NCF Agent Interconnect. Die Verbindungseinstellungen werden hinzugefügt und die mitgelieferte Integration aktiviert. OpenCode v2 wird nicht unterstützt.',
   mcpSetup_codexDescription:
     'Verbinden Sie Codex mit NCF Agent Interconnect. Die Verbindungseinstellungen werden der ausgewählten Instanz oder dem Profil hinzugefügt.',
+  mcpSetup_cursorSharedConfiguration: 'Gemeinsame Konfiguration für Cursor / AionUi',
   mcpSetup_pathLabel: 'Pfad der Konfigurationsdatei',
   mcpSetup_browse: 'Datei auswählen…',
   mcpSetup_knownPaths: 'Weitere Speicherorte',

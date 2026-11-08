@@ -59,7 +59,7 @@ export const uk: Messages = {
   mcpSetup_aionRestartAction:
     'Після застосування мосту перепідключіть Cursor Agent у потрібній розмові AionUi, щоб він повторно завантажив налаштування MCP.',
   mcpSetup_aionMcpHelp:
-    'Поточне підключення NCF у цьому профілі Cursor буде оновлено для AionUi. Для окремої роботи в Cursor використовуйте інший профіль.',
+    'Ці налаштування MCP підходять і для Cursor, і для Cursor Agent в AionUi. Для прямого підключення Cursor також потрібен плагін; для AionUi — авторизація та підключений чат.',
   mcpSetup_aionNext:
     'Після застосування перезапустіть Cursor Agent в AionUi та скористайтеся командою нижче. Наявність налаштувань не підтверджує підключення мосту. Інші backend AionUi цим налаштуванням не підтримуються.',
 
@@ -79,6 +79,7 @@ export const uk: Messages = {
     'Підключіть OpenCode v1 до NCF Agent Interconnect. Буде додано налаштування підключення та ввімкнено вбудовану інтеграцію. OpenCode v2 не підтримується.',
   mcpSetup_codexDescription:
     'Підключіть Codex до NCF Agent Interconnect. Налаштування підключення буде додано до вибраного екземпляра або профілю.',
+  mcpSetup_cursorSharedConfiguration: 'Спільна конфігурація Cursor / AionUi',
   mcpSetup_pathLabel: 'Шлях до файлу конфігурації',
   mcpSetup_browse: 'Вибрати файл…',
   mcpSetup_knownPaths: 'Інші розташування',

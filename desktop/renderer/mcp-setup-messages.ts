@@ -40,7 +40,7 @@ export const mcpSetupEnglish = {
   aionRestartAction:
     'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
   aionMcpHelp:
-    'The current NCF connection in this Cursor profile will be updated for AionUi. To use Cursor separately, use another profile.',
+    'These MCP settings work with both Cursor and Cursor Agent in AionUi. Direct Cursor also needs its plugin; AionUi needs authorization and a connected chat.',
   aionNext:
     'Restart Cursor Agent in AionUi after Apply, then connect using the command below. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
 
@@ -59,6 +59,7 @@ export const mcpSetupEnglish = {
     'Connect OpenCode v1 to NCF Agent Interconnect. We will add the connection settings and enable the included integration. OpenCode v2 is not supported.',
   codexDescription:
     'Connect Codex to NCF Agent Interconnect. We will add the connection settings to the selected instance or profile.',
+  cursorSharedConfiguration: 'Shared Cursor / AionUi configuration',
   pathLabel: 'Configuration file path',
   browse: 'Choose file…',
   knownPaths: 'Other locations',

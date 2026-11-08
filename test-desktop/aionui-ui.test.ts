@@ -29,6 +29,9 @@ test('AionUi has its own application row and owner pairing instructions in every
     );
     assert.ok(html.includes('data-testid="aionui-setup"'), locale);
     assert.ok(html.includes('data-testid="aionui-connection-steps"'), locale);
+    assert.ok(html.includes('data-testid="mcp-shared-configuration-note"'), locale);
+    assert.ok(html.includes(escaped(messages.cursorSharedConfiguration)), locale);
+    assert.ok(html.includes(escaped(messages.aionMcpHelp)), locale);
     const tab = html.match(/<button\b[^>]*\bid="mcp-tab-aionui"[^>]*>/)?.[0] ?? '';
     assert.match(tab, /role="tab"/, locale);
     assert.match(tab, /aria-selected="true"/, locale);
@@ -49,6 +52,20 @@ test('AionUi has its own application row and owner pairing instructions in every
     assert.ok(!html.includes('data-testid="aionui-code"'), locale);
     assert.ok(!html.includes('<pre'), locale);
     assert.ok(!html.includes('Copy MCP configuration'), locale);
+
+    const cursor = renderToStaticMarkup(
+      createElement(McpSetup, {
+        client: 'cursor',
+        onClientChange: () => {},
+        invoke,
+        messages,
+        locale,
+      }),
+    );
+    assert.ok(cursor.includes('data-testid="mcp-shared-configuration-note"'), locale);
+    assert.ok(cursor.includes(escaped(messages.cursorSharedConfiguration)), locale);
+    assert.ok(cursor.includes(escaped(messages.aionMcpHelp)), locale);
+    assert.ok(!cursor.includes('data-testid="aionui-connection-steps"'), locale);
 
     // Standalone mode renders the owner instructions; GUI covers opening and cancelling the dialog.
     const authorization = renderToStaticMarkup(

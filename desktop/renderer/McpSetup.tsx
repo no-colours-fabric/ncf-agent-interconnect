@@ -122,6 +122,7 @@ function ClientSetupDialog({
   const status = state.status;
   const shownState = check ? (check.error ? 'unavailable' : check.status?.state) : status?.state;
   const hasConfiguration = shownState === 'configured' || shownState === 'needs-update';
+  const sharedCursorConfiguration = client === 'cursor' || client === 'aionui';
   const canOpen =
     !!status?.files[0]?.path &&
     !!shownState &&
@@ -231,7 +232,9 @@ function ClientSetupDialog({
                     color="text.secondary"
                     sx={{ mb: 0.5 }}
                   >
-                    {client === 'opencode' ? m.statusOpencodeConfig : m.statusMcpConfig}
+                    {client === 'opencode' || client === 'cursor'
+                      ? m.statusOpencodeConfig
+                      : m.statusMcpConfig}
                   </Typography>
                   <Stack
                     component="dd"
@@ -308,7 +311,7 @@ function ClientSetupDialog({
                   color="text.secondary"
                   sx={{ display: 'block', mb: 0.5 }}
                 >
-                  {m.pathLabel}
+                  {sharedCursorConfiguration ? m.cursorSharedConfiguration : m.pathLabel}
                 </Typography>
                 {status?.files.map((file) => (
                   <Box key={file.id}>
@@ -361,6 +364,16 @@ function ClientSetupDialog({
               </Tooltip>
             </Stack>
           </Box>
+          {sharedCursorConfiguration && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mt: 1.5, lineHeight: 1.65 }}
+              data-testid="mcp-shared-configuration-note"
+            >
+              {m.aionMcpHelp}
+            </Typography>
+          )}
           <Box
             sx={{
               mt: 2.5,
@@ -431,8 +444,15 @@ function ClientSetupDialog({
                       htmlInput: { spellCheck: false, 'data-testid': 'mcp-path-' + file.id },
                     }}
                   />
-                  {client === 'aionui' && (
-                    <Alert severity="info" data-testid="aionui-global-cursor-warning">
+                  {sharedCursorConfiguration && (
+                    <Alert
+                      severity="info"
+                      data-testid={
+                        client === 'aionui'
+                          ? 'aionui-global-cursor-warning'
+                          : 'cursor-shared-configuration-note'
+                      }
+                    >
                       {m.aionMcpHelp}
                     </Alert>
                   )}

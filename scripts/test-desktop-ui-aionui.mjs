@@ -115,7 +115,7 @@ try {
     3,
   );
   assert.equal(await setup.getByTestId('aionui-status-facts').count(), 0);
-  await setup.getByText('Configuration file path').waitFor();
+  await setup.getByText('Shared Cursor / AionUi configuration', { exact: true }).waitFor();
   await setup
     .getByTestId('aionui-step-hint')
     .getByRole('button', { name: 'Configure access' })
@@ -198,8 +198,8 @@ try {
     const button = document.querySelector('[data-testid="mcp-apply"]');
     return button && !button.disabled;
   });
-  assert.ok((await dialog.innerText()).includes('current NCF connection'));
-  assert.ok((await dialog.innerText()).includes('another profile'));
+  assert.ok((await dialog.innerText()).includes('both Cursor and Cursor Agent in AionUi'));
+  assert.ok(!(await dialog.innerText()).includes('another profile'));
   const warning = dialog.getByTestId('aionui-global-cursor-warning');
   assert.ok(!(await warning.innerText()).includes(configs[0]));
   await page.waitForTimeout(350);

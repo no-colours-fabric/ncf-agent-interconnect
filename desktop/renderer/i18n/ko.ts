@@ -58,7 +58,7 @@ export const ko: Messages = {
   mcpSetup_aionRestartAction:
     '브리지를 적용한 뒤 해당 AionUi 채팅에서 Cursor Agent를 다시 연결해 MCP 설정을 다시 불러오세요.',
   mcpSetup_aionMcpHelp:
-    '이 Cursor 프로필의 현재 NCF 연결이 AionUi용으로 업데이트됩니다. Cursor를 별도로 사용하려면 다른 프로필을 사용하세요.',
+    '이 MCP 설정은 Cursor와 AionUi의 Cursor Agent 모두에서 사용할 수 있습니다. Cursor 직접 연결에는 플러그인도 필요하며, AionUi에는 인증과 연결된 채팅이 필요합니다.',
   mcpSetup_aionNext:
     '적용 후 AionUi 안의 Cursor Agent를 재시작하고 아래 명령을 사용하세요. 저장된 설정은 활성 브리지를 확인하지 않습니다. 이 설정은 다른 AionUi 백엔드를 지원하지 않습니다.',
 
@@ -78,6 +78,7 @@ export const ko: Messages = {
     'OpenCode v1을 NCF Agent Interconnect에 연결하세요. 연결 설정이 추가되고 포함된 통합 기능이 활성화됩니다. OpenCode v2는 지원하지 않습니다.',
   mcpSetup_codexDescription:
     'Codex를 NCF Agent Interconnect에 연결하세요. 선택한 인스턴스 또는 프로필에 연결 설정이 추가됩니다.',
+  mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi 공유 설정',
   mcpSetup_pathLabel: '설정 파일 경로',
   mcpSetup_browse: '파일 선택…',
   mcpSetup_knownPaths: '다른 위치',

@@ -57,7 +57,7 @@ export const zh: Messages = {
   mcpSetup_aionRestartAction:
     '应用桥接后，在目标 AionUi 对话中重新连接 Cursor Agent，以重新加载 MCP 设置。',
   mcpSetup_aionMcpHelp:
-    '此 Cursor 配置文件中的现有 NCF 连接将更新为供 AionUi 使用。如需单独使用 Cursor，请使用其他配置文件。',
+    '这些 MCP 设置同时适用于 Cursor 和 AionUi 中的 Cursor Agent。Cursor 直接连接还需要插件；AionUi 需要授权和已连接的聊天。',
   mcpSetup_aionNext:
     '应用后请重启 AionUi 内的 Cursor Agent，再使用下面的命令。已保存设置不代表桥接已连接。此设置不支持其他 AionUi 后端。',
 
@@ -76,6 +76,7 @@ export const zh: Messages = {
     '将 OpenCode v1 连接到 NCF Agent Interconnect。将添加连接设置并启用随附的集成功能。不支持 OpenCode v2。',
   mcpSetup_codexDescription:
     '将 Codex 连接到 NCF Agent Interconnect。连接设置将添加到所选实例或配置文件中。',
+  mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi 共享配置',
   mcpSetup_pathLabel: '配置文件路径',
   mcpSetup_browse: '选择文件…',
   mcpSetup_knownPaths: '其他位置',

@@ -58,7 +58,7 @@ export const kk: Messages = {
   mcpSetup_aionRestartAction:
     'Көпірді қолданғаннан кейін MCP баптауларын қайта жүктеу үшін тиісті AionUi чатында Cursor Agent-ті қайта қосыңыз.',
   mcpSetup_aionMcpHelp:
-    'Осы Cursor профиліндегі ағымдағы NCF қосылымы AionUi үшін жаңартылады. Cursor-ды бөлек пайдалану үшін басқа профильді қолданыңыз.',
+    'Бұл MCP баптаулары Cursor үшін де, AionUi ішіндегі Cursor Agent үшін де жарамды. Cursor тікелей қосылымына плагин де қажет; AionUi үшін авторизация және қосылған чат қажет.',
   mcpSetup_aionNext:
     'Қолданған соң AionUi ішіндегі Cursor Agent қайта іске қосып, төмендегі пәрменді пайдаланыңыз. Сақталған баптаулар белсенді көпірді растамайды. Бұл баптау басқа AionUi backend түрлерін қолдамайды.',
 
@@ -78,6 +78,7 @@ export const kk: Messages = {
     'OpenCode v1 қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары қосылып, жинақтағы интеграция іске қосылады. OpenCode v2 нұсқасына қолдау көрсетілмейді.',
   mcpSetup_codexDescription:
     'Codex қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары таңдалған данаға немесе профильге қосылады.',
+  mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi ортақ конфигурациясы',
   mcpSetup_pathLabel: 'Конфигурация файлының жолы',
   mcpSetup_browse: 'Файлды таңдау…',
   mcpSetup_knownPaths: 'Басқа орындар',
