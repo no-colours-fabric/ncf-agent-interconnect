@@ -263,6 +263,7 @@ export const ko: Messages = {
   clientsAvailable: '사용 가능',
   clientsUnavailable: '사용 불가',
   clientsChecking: '연결 확인 중',
+  clientsRecovering: '전달 복구 중',
   clientsColumnAgents: '에이전트',
   clientsColumnStatus: '상태',
   clientsColumnImpact: '전달',
@@ -282,6 +283,10 @@ export const ko: Messages = {
     '앱과 이 특정 채팅을 사용할 수 있는지 확인하세요. 필요한 경우 설정 안내를 참조하세요.',
   clientsCheckingImpact: '이 연결이 메시지를 자동으로 받을 수 있는지 확인 중입니다.',
   clientsWaitAction: '연결 확인이 끝날 때까지 기다리세요.',
+  clientsRecoveringImpact:
+    '이 Cursor 채팅이 확인되었습니다. 현재 응답이 끝나면 자동 전달이 다시 시작됩니다.',
+  clientsRecoveringAction:
+    'Cursor 응답이 끝날 때까지 기다리세요. 다시 연결하거나 받은 메시지를 읽을 필요가 없습니다.',
   clientsManualImpact: '이 모드는 채팅으로 자동 전달하지 않고 MCP를 통해 메시지를 받습니다.',
   clientsMcpAction: '이 채팅에서 MCP를 통해 수신 메시지를 읽으세요. 설정 안내를 참조하세요.',
   clientsNeedsReview: '전달 확인',

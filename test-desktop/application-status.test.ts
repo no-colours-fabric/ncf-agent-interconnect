@@ -365,6 +365,23 @@ test('checking is an unfinished availability check, without a success claim', ()
   }
 });
 
+test('Cursor recovery is paused until the current response arms automatic delivery', () => {
+  const connection = profile('cursor-recovery', 'recovering', null, 'cursor-hook');
+  for (const bound of [true, false]) {
+    const presentation = connectionPresentation(connection, bound);
+    assert.equal(presentation.tone, 'info');
+    assert.equal(presentation.status, 'clientsRecovering');
+    assert.equal(presentation.impact, 'clientsRecoveringImpact');
+    assert.equal(presentation.action, 'clientsRecoveringAction');
+  }
+  const status = applicationStatus('cursor-hook', {
+    adapters: [connection],
+    agents: [agent('Cursor agent', connection.id)],
+  });
+  assert.equal(status.summary, 'paused');
+  assert.equal(status.issues.length, 0);
+});
+
 test('explicit rejection and absent support confirmation keep different explanations', () => {
   const rejected = connectionPresentation(
     profile('rejected', 'error', 'The handler for this Codex chat does not support external input'),

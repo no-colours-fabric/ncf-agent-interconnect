@@ -166,6 +166,7 @@ export interface Messages extends McpSetupTranslations {
   clientsAvailable: string;
   clientsUnavailable: string;
   clientsChecking: string;
+  clientsRecovering: string;
   clientsColumnAgents: string;
   clientsColumnStatus: string;
   clientsColumnImpact: string;
@@ -183,6 +184,8 @@ export interface Messages extends McpSetupTranslations {
   clientsCheckExactChat: string;
   clientsCheckingImpact: string;
   clientsWaitAction: string;
+  clientsRecoveringImpact: string;
+  clientsRecoveringAction: string;
   clientsManualImpact: string;
   clientsMcpAction: string;
   clientsNeedsReview: string;

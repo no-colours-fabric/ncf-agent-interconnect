@@ -266,6 +266,7 @@ export const ja: Messages = {
   clientsAvailable: '利用可能',
   clientsUnavailable: '利用不可',
   clientsChecking: '接続を確認中',
+  clientsRecovering: '配信を復元中',
   clientsColumnAgents: 'エージェント',
   clientsColumnStatus: '状態',
   clientsColumnImpact: '配信',
@@ -285,6 +286,10 @@ export const ja: Messages = {
     'アプリとこの特定のチャットが利用可能か確認してください。必要に応じて設定手順を参照してください。',
   clientsCheckingImpact: 'この接続でメッセージを自動受信できるか確認しています。',
   clientsWaitAction: '接続の確認が完了するまでお待ちください。',
+  clientsRecoveringImpact:
+    'この特定の Cursor チャットが認識されました。この応答が完了すると自動配信が再開されます。',
+  clientsRecoveringAction:
+    'Cursor の応答が完了するまでお待ちください。再接続や受信メッセージの読み取りは不要です。',
   clientsManualImpact:
     'このモードでは MCP 経由でメッセージを受信し、チャットへの自動配信は行いません。',
   clientsMcpAction:

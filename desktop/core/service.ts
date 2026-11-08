@@ -625,14 +625,23 @@ export class NodeService extends EventEmitter {
         input.connectionId = existing.connectionId;
     }
     const result = this.connect({ ...input, ...context }),
-      automatic = this.adapters.get(context.adapterId).status().capabilities.wakeIdle;
+      adapter = this.adapters.get(context.adapterId),
+      adapterStatus = adapter.status(),
+      cursor =
+        this.settings.value.adapters.find((profile) => profile.id === context.adapterId)?.kind ===
+        'cursor-hook',
+      automatic = cursor
+        ? adapterStatus.state === 'ready' && adapterStatus.capabilities.wakeIdle
+        : adapterStatus.capabilities.wakeIdle;
     return {
       ...result,
       delivery: {
         automatic,
         description: automatic
           ? 'Incoming messages are delivered to this chat automatically'
-          : 'This client uses standard MCP. Automatic wake-up is not supported; history is available in the app and through MCP.',
+          : cursor
+            ? 'This exact Cursor chat is saved. Automatic delivery becomes ready when the current Cursor response finishes.'
+            : 'This client uses standard MCP. Automatic wake-up is not supported; history is available in the app and through MCP.',
       },
     };
   }

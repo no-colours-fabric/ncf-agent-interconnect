@@ -138,9 +138,18 @@ export class CursorHookAdapter implements AgentAdapter {
     this.state.error = null;
     if (changed) this.changed();
   }
+  recover(): void {
+    if (this.stopped) return;
+    this.waiter?.resolve({});
+    this.waiter = undefined;
+    const changed = this.state.state !== 'recovering' || this.state.error !== null;
+    this.state.state = 'recovering';
+    this.state.error = null;
+    if (changed) this.changed();
+  }
   acknowledge(admissionId?: string): void {
-    this.activate();
     if (!admissionId || this.admission?.id !== admissionId) return;
+    this.activate();
     const admission = this.admission;
     this.admission = undefined;
     clearTimeout(admission.timer);
@@ -150,12 +159,19 @@ export class CursorHookAdapter implements AgentAdapter {
     this.idle();
   }
   wait(status: string | undefined, signal: AbortSignal): Promise<CursorHookResponse> {
-    if (status !== 'completed' || this.stopped || signal.aborted) return Promise.resolve({});
-    this.activate();
+    if (status !== 'completed' || this.stopped || signal.aborted) {
+      if (!this.stopped && this.state.state === 'recovering') {
+        this.state.state = 'error';
+        this.state.error = 'Send any message in this Cursor chat to restore delivery';
+        this.changed();
+      }
+      return Promise.resolve({});
+    }
     this.waiter?.resolve({});
     return new Promise<CursorHookResponse>((resolve) => {
       const waiter = { resolve };
       this.waiter = waiter;
+      this.activate();
       const close = () => {
         if (this.waiter !== waiter) return;
         this.waiter = undefined;

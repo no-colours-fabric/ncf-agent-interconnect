@@ -220,27 +220,55 @@ test('Cursor admission is revoked when the binding moves before native submissio
   await adapter.stop();
 });
 
+test('Cursor recovery becomes ready only after the exact completed turn arms its waiter', async () => {
+  const adapter = new CursorHookAdapter(
+    {
+      id: randomUUID(),
+      label: 'Cursor',
+      kind: 'cursor-hook',
+      sessionId: conversationId,
+    },
+    () => {},
+    () => {},
+  );
+  await adapter.start();
+  adapter.recover();
+  assert.equal(adapter.status().state, 'recovering');
+  assert.deepEqual(await adapter.wait('aborted', new AbortController().signal), {});
+  assert.equal(adapter.status().state, 'error');
+  assert.equal((await adapter.deliver(event())).state, 'waiting');
+
+  adapter.recover();
+  const waiting = adapter.wait('completed', new AbortController().signal);
+  assert.equal(adapter.status().state, 'ready');
+  await adapter.stop();
+  assert.deepEqual(await waiting, {});
+});
+
 test('Cursor plugin context is one-use and arbitrary owner prompts restore exact reactive delivery', async (t) => {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-cursor-adapter-'));
-  const service = new NodeService(directory);
+  let service = new NodeService(directory);
   await service.open();
   const nodeFile = path.join(directory, 'Integrations', 'node.json');
-  const client = new Client({ name: 'Cursor', version: '1' });
-  await client.connect(
-    new StdioClientTransport({
-      command: process.execPath,
-      args: [
-        '--import',
-        'tsx',
-        path.join(process.cwd(), 'desktop/integrations/cursor.ts'),
-        '--node-file',
-        nodeFile,
-      ],
-    }),
-  );
-  let clientClosed = false;
+  const openClient = async () => {
+    const next = new Client({ name: 'Cursor', version: '1' });
+    await next.connect(
+      new StdioClientTransport({
+        command: process.execPath,
+        args: [
+          '--import',
+          'tsx',
+          path.join(process.cwd(), 'desktop/integrations/cursor.ts'),
+          '--node-file',
+          nodeFile,
+        ],
+      }),
+    );
+    return next;
+  };
+  let client = await openClient();
   t.after(async () => {
-    if (!clientClosed) await client.close().catch(() => {});
+    await client.close().catch(() => {});
     await service.close();
     await rm(directory, { recursive: true, force: true });
   });
@@ -275,6 +303,10 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   const body = connected.structuredContent as ConnectResult;
   assert.equal(body.status, 'connected');
   if (body.status !== 'connected') throw new Error();
+  assert.equal(
+    (connected.structuredContent as { delivery: { automatic: boolean } }).delivery.automatic,
+    false,
+  );
   assert.equal(body.binding.chatId, conversationId);
   assert.equal(body.binding.client, 'Cursor');
   assert.equal(
@@ -313,10 +345,16 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   await until(() => service.store.get(first.id, 'in')?.state === 'processed');
 
   await client.close();
-  clientClosed = true;
-  await service.stop();
-  await service.start();
+  const originalBinding = service.store.assertOwner(body.binding.connectionId).binding;
+  const originalStamp = service.store.sourceStamp('Курсор');
+  await service.close();
+  service = new NodeService(directory);
+  await service.open();
+  client = await openClient();
+  await client.listTools();
   assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'error');
+  assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
+  assert.deepEqual(service.store.sourceStamp('Курсор'), originalStamp);
   const second = await service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
@@ -325,13 +363,37 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   });
   await until(() => service.store.dispatchState(second.id)?.state === 'waiting');
   await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
+    conversation_id: randomUUID(),
+    prompt: 'Это другой чат.',
+  });
+  assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'error');
+  await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
     conversation_id: conversationId,
     prompt: 'Продолжи текущую задачу.',
   });
+  assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'recovering');
+  assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
+  const repeatedConnectHook = await runCursorHook(nodeFile, 'preToolUse', {
+    conversation_id: conversationId,
+    workspace_roots: [path.join(directory, 'workspace')],
+    tool_name: 'MCP:ncf_agent_interconnect_agent_connect',
+    tool_input: { nickname: 'Курсор' },
+  });
+  const repeatedConnect = await client.callTool({
+    name: 'agent_connect',
+    arguments: repeatedConnectHook.updated_input as Record<string, unknown>,
+  });
+  assert.equal(repeatedConnect.isError, undefined);
+  assert.equal(
+    (repeatedConnect.structuredContent as { delivery: { automatic: boolean } }).delivery.automatic,
+    false,
+  );
+  assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'recovering');
   const secondWait = runCursorHook(nodeFile, 'stop', {
     conversation_id: conversationId,
     status: 'completed',
   });
+  await until(() => service.adapters.get(body.binding.adapterId).status().state === 'ready');
   const secondPrompt = await secondWait;
   assert.match(String(secondPrompt.followup_message), /После перезапуска/);
   await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
@@ -339,5 +401,6 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
     prompt: secondPrompt.followup_message,
   });
   await until(() => service.store.get(second.id, 'in')?.state === 'processed');
-  assert.equal(service.store.assertOwner(body.binding.connectionId).binding.chatId, conversationId);
+  assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
+  assert.deepEqual(service.store.sourceStamp('Курсор'), originalStamp);
 });

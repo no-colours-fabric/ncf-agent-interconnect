@@ -263,6 +263,7 @@ export const en: Messages = {
   clientsAvailable: 'Available',
   clientsUnavailable: 'Unavailable',
   clientsChecking: 'Checking connection',
+  clientsRecovering: 'Restoring delivery',
   clientsColumnAgents: 'Agent',
   clientsColumnStatus: 'Status',
   clientsColumnImpact: 'Delivery',
@@ -282,6 +283,10 @@ export const en: Messages = {
     'Check that the application and the exact chat are available. Review setup if needed.',
   clientsCheckingImpact: 'Checking whether this connection can receive messages automatically.',
   clientsWaitAction: 'Wait for the connection check.',
+  clientsRecoveringImpact:
+    'This exact Cursor chat was recognized. Automatic delivery will resume when this response finishes.',
+  clientsRecoveringAction:
+    'Wait for the Cursor response to finish. Reconnecting or reading incoming messages is not required.',
   clientsManualImpact: 'This mode receives messages through MCP, without automatic chat delivery.',
   clientsMcpAction: 'Read incoming messages through MCP in this chat. See setup instructions.',
   clientsNeedsReview: 'Check delivery',

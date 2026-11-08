@@ -269,6 +269,7 @@ export const nl: Messages = {
   clientsAvailable: 'Beschikbaar',
   clientsUnavailable: 'Niet beschikbaar',
   clientsChecking: 'Verbinding controleren',
+  clientsRecovering: 'Bezorging herstellen',
   clientsColumnAgents: 'Agent',
   clientsColumnStatus: 'Status',
   clientsColumnImpact: 'Bezorging',
@@ -291,6 +292,10 @@ export const nl: Messages = {
   clientsCheckingImpact:
     'Er wordt gecontroleerd of deze verbinding berichten automatisch kan ontvangen.',
   clientsWaitAction: 'Wacht tot de verbindingscontrole is voltooid.',
+  clientsRecoveringImpact:
+    'Deze exacte Cursor-chat is herkend. De automatische bezorging wordt hervat zodra dit antwoord is voltooid.',
+  clientsRecoveringAction:
+    'Wacht tot het Cursor-antwoord is voltooid. Opnieuw verbinden of inkomende berichten lezen is niet nodig.',
   clientsManualImpact:
     'In deze modus worden berichten via MCP ontvangen, zonder automatische bezorging in de chat.',
   clientsMcpAction: 'Lees inkomende berichten via MCP in deze chat. Zie de instelinstructies.',

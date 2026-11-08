@@ -83,8 +83,7 @@ export class ClientContexts {
       };
       if (!profile || JSON.stringify(profile) !== JSON.stringify(updated))
         await this.service.installAdapter(updated);
-      const adapter = this.cursorAdapter(updated);
-      adapter.activate();
+      this.cursorAdapter(updated);
       return {
         contextToken: this.issue({
           client: 'Cursor',
@@ -104,9 +103,17 @@ export class ClientContexts {
         candidate.kind === 'cursor-hook' && candidate.sessionId === input.conversationId,
     );
     if (!profile) return {};
+    const bound = this.service.store
+      .list()
+      .some(
+        (agent) =>
+          agent.binding?.adapterId === profile.id && agent.binding.chatId === input.conversationId,
+      );
+    if (!bound) return {};
     const adapter = this.cursorAdapter(profile);
     if (input.event === 'beforeSubmitPrompt') {
-      adapter.acknowledge(input.admissionId);
+      if (input.admissionId) adapter.acknowledge(input.admissionId);
+      else adapter.recover();
       return {};
     }
     if (input.event === 'sessionEnd') {

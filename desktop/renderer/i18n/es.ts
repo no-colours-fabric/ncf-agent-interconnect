@@ -269,6 +269,7 @@ export const es: Messages = {
   clientsAvailable: 'Disponible',
   clientsUnavailable: 'No disponible',
   clientsChecking: 'Comprobando la conexión',
+  clientsRecovering: 'Restaurando la entrega',
   clientsColumnAgents: 'Agente',
   clientsColumnStatus: 'Estado',
   clientsColumnImpact: 'Entrega',
@@ -290,6 +291,10 @@ export const es: Messages = {
   clientsCheckingImpact:
     'Se está comprobando si esta conexión puede recibir mensajes automáticamente.',
   clientsWaitAction: 'Espere a que termine la comprobación de conexión.',
+  clientsRecoveringImpact:
+    'Se ha reconocido este chat concreto de Cursor. La entrega automática se reanudará cuando termine esta respuesta.',
+  clientsRecoveringAction:
+    'Espere a que termine la respuesta de Cursor. No es necesario volver a conectarse ni leer los mensajes entrantes.',
   clientsManualImpact: 'Este modo recibe mensajes mediante MCP, sin entrega automática al chat.',
   clientsMcpAction:
     'Lea los mensajes entrantes mediante MCP en este chat. Consulte las instrucciones de configuración.',

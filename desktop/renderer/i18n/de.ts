@@ -271,6 +271,7 @@ export const de: Messages = {
   clientsAvailable: 'Verfügbar',
   clientsUnavailable: 'Nicht verfügbar',
   clientsChecking: 'Verbindung wird geprüft',
+  clientsRecovering: 'Zustellung wird wiederhergestellt',
   clientsColumnAgents: 'Agent',
   clientsColumnStatus: 'Status',
   clientsColumnImpact: 'Zustellung',
@@ -293,6 +294,10 @@ export const de: Messages = {
   clientsCheckingImpact:
     'Es wird geprüft, ob diese Verbindung Nachrichten automatisch empfangen kann.',
   clientsWaitAction: 'Warten Sie, bis die Verbindungsprüfung abgeschlossen ist.',
+  clientsRecoveringImpact:
+    'Dieser Cursor-Chat wurde erkannt. Die automatische Zustellung wird fortgesetzt, sobald diese Antwort abgeschlossen ist.',
+  clientsRecoveringAction:
+    'Warten Sie, bis die Cursor-Antwort abgeschlossen ist. Erneutes Verbinden oder Abrufen ist nicht erforderlich.',
   clientsManualImpact:
     'In diesem Modus werden Nachrichten über MCP empfangen, ohne automatische Zustellung im Chat.',
   clientsMcpAction:

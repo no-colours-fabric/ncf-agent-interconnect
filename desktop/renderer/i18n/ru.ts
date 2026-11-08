@@ -268,6 +268,7 @@ export const ru: Messages = {
   clientsAvailable: 'Доступно',
   clientsUnavailable: 'Недоступно',
   clientsChecking: 'Проверка подключения',
+  clientsRecovering: 'Восстановление доставки',
   clientsColumnAgents: 'Агент',
   clientsColumnStatus: 'Состояние',
   clientsColumnImpact: 'Доставка',
@@ -288,6 +289,10 @@ export const ru: Messages = {
   clientsCheckingImpact:
     'Проверяется возможность автоматического получения сообщений через это подключение.',
   clientsWaitAction: 'Дождитесь окончания проверки подключения.',
+  clientsRecoveringImpact:
+    'Этот чат Cursor распознан. Автоматическая доставка возобновится после завершения текущего ответа.',
+  clientsRecoveringAction:
+    'Дождитесь завершения ответа Cursor. Повторное подключение и чтение входящих не требуются.',
   clientsManualImpact:
     'В этом режиме сообщения получают через MCP, без автоматической доставки в чат.',
   clientsMcpAction:

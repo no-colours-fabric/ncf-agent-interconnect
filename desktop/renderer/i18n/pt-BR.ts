@@ -268,6 +268,7 @@ export const ptBR: Messages = {
   clientsAvailable: 'Disponível',
   clientsUnavailable: 'Indisponível',
   clientsChecking: 'Verificando a conexão',
+  clientsRecovering: 'Restaurando a entrega',
   clientsColumnAgents: 'Agente',
   clientsColumnStatus: 'Estado',
   clientsColumnImpact: 'Entrega',
@@ -288,6 +289,10 @@ export const ptBR: Messages = {
     'Verifique se o aplicativo e este chat específico estão disponíveis. Consulte a configuração se necessário.',
   clientsCheckingImpact: 'Verificando se esta conexão pode receber mensagens automaticamente.',
   clientsWaitAction: 'Aguarde a conclusão da verificação da conexão.',
+  clientsRecoveringImpact:
+    'Este chat específico do Cursor foi reconhecido. A entrega automática será retomada quando esta resposta terminar.',
+  clientsRecoveringAction:
+    'Aguarde o fim da resposta do Cursor. Não é necessário reconectar nem ler as mensagens recebidas.',
   clientsManualImpact: 'Este modo recebe mensagens por MCP, sem entrega automática no chat.',
   clientsMcpAction:
     'Leia as mensagens recebidas por MCP neste chat. Consulte as instruções de configuração.',

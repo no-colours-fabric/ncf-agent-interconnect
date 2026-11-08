@@ -269,6 +269,7 @@ export const tr: Messages = {
   clientsAvailable: 'Kullanılabilir',
   clientsUnavailable: 'Kullanılamıyor',
   clientsChecking: 'Bağlantı kontrol ediliyor',
+  clientsRecovering: 'Teslimat geri yükleniyor',
   clientsColumnAgents: 'Ajan',
   clientsColumnStatus: 'Durum',
   clientsColumnImpact: 'Teslimat',
@@ -289,6 +290,10 @@ export const tr: Messages = {
     'Uygulamanın ve tam olarak bu sohbetin kullanılabilir olduğunu kontrol edin. Gerekirse kurulum yönergelerine bakın.',
   clientsCheckingImpact: 'Bu bağlantının mesajları otomatik alıp alamadığı kontrol ediliyor.',
   clientsWaitAction: 'Bağlantı kontrolünün tamamlanmasını bekleyin.',
+  clientsRecoveringImpact:
+    'Tam olarak bu Cursor sohbeti tanındı. Bu yanıt tamamlandığında otomatik teslimat devam edecek.',
+  clientsRecoveringAction:
+    'Cursor yanıtının tamamlanmasını bekleyin. Yeniden bağlanmak veya gelen mesajları okumak gerekmez.',
   clientsManualImpact: 'Bu mod, sohbete otomatik teslimat olmadan MCP üzerinden mesaj alır.',
   clientsMcpAction:
     'Bu sohbette gelen mesajları MCP üzerinden okuyun. Kurulum yönergelerine bakın.',

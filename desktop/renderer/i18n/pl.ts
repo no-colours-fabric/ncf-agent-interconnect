@@ -268,6 +268,7 @@ export const pl: Messages = {
   clientsAvailable: 'Dostępne',
   clientsUnavailable: 'Niedostępne',
   clientsChecking: 'Sprawdzanie połączenia',
+  clientsRecovering: 'Przywracanie dostarczania',
   clientsColumnAgents: 'Agent',
   clientsColumnStatus: 'Stan',
   clientsColumnImpact: 'Dostarczanie',
@@ -289,6 +290,10 @@ export const pl: Messages = {
   clientsCheckingImpact:
     'Trwa sprawdzanie, czy to połączenie może automatycznie odbierać wiadomości.',
   clientsWaitAction: 'Poczekaj na zakończenie sprawdzania połączenia.',
+  clientsRecoveringImpact:
+    'Ten konkretny czat Cursor został rozpoznany. Automatyczne dostarczanie zostanie wznowione po zakończeniu tej odpowiedzi.',
+  clientsRecoveringAction:
+    'Poczekaj na zakończenie odpowiedzi Cursor. Ponowne łączenie ani odczytywanie wiadomości przychodzących nie jest wymagane.',
   clientsManualImpact:
     'Ten tryb odbiera wiadomości przez MCP, bez automatycznego dostarczania do czatu.',
   clientsMcpAction:

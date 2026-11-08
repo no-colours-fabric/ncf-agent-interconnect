@@ -170,7 +170,7 @@ export interface AdapterState {
   label: string;
   kind: AdapterProfile['kind'];
   capabilities: AdapterCapabilities;
-  state: 'manual' | 'ready' | 'checking' | 'error' | 'uncertain';
+  state: 'manual' | 'ready' | 'checking' | 'recovering' | 'error' | 'uncertain';
   error: string | null;
   released?: boolean;
   lastOwnerVerifiedAt?: string;

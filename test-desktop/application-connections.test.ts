@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   ApplicationConnections,
+  ClientApplicationMetrics,
   applicationActivity,
 } from '../desktop/renderer/application-connections.js';
 import type { AdapterState, AgentIdentity } from '../desktop/shared/contracts.js';
@@ -78,4 +79,28 @@ test('missing activity stays unknown and unrelated or invalid observations canno
   };
   assert.equal(applicationActivity('codex-desktop', snapshot), null);
   assert.equal(applicationActivity('manual', snapshot), null);
+});
+
+test('Cursor recovery is shown as paused instead of connected', () => {
+  const recovering: AdapterState = {
+    ...profile('cursor-recovery'),
+    kind: 'cursor-hook',
+    state: 'recovering',
+    error: null,
+  };
+  const snapshot = {
+    adapters: [recovering],
+    agents: [agent('Cursor agent', recovering.id)],
+  };
+  const html = renderToStaticMarkup(
+    createElement(ClientApplicationMetrics, {
+      kind: 'cursor-hook',
+      snapshot,
+      locale: 'en',
+      unknownLabel: 'Unknown',
+      deliveryLabel: 'Delivery',
+    }),
+  );
+  assert.ok(html.includes(t('en', 'clientsPaused')));
+  assert.ok(!html.includes(t('en', 'clientsConnected')));
 });

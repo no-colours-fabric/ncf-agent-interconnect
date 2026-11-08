@@ -269,6 +269,7 @@ export const kk: Messages = {
   clientsAvailable: 'Қолжетімді',
   clientsUnavailable: 'Қолжетімсіз',
   clientsChecking: 'Қосылым тексерілуде',
+  clientsRecovering: 'Жеткізу қалпына келтірілуде',
   clientsColumnAgents: 'Агент',
   clientsColumnStatus: 'Күйі',
   clientsColumnImpact: 'Жеткізу',
@@ -289,6 +290,10 @@ export const kk: Messages = {
   clientsCheckingImpact:
     'Бұл қосылымның хабарламаларды автоматты түрде қабылдау мүмкіндігі тексерілуде.',
   clientsWaitAction: 'Қосылымды тексеру аяқталғанша күтіңіз.',
+  clientsRecoveringImpact:
+    'Cursor қолданбасындағы дәл осы чат танылды. Ағымдағы жауап аяқталғанда, автоматты жеткізу қайта басталады.',
+  clientsRecoveringAction:
+    'Cursor жауабының аяқталуын күтіңіз. Қайта қосылу немесе кіріс хабарларын оқу қажет емес.',
   clientsManualImpact:
     'Бұл режимде хабарламалар чатқа автоматты жеткізусіз MCP арқылы қабылданады.',
   clientsMcpAction:

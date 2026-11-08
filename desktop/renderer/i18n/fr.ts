@@ -268,6 +268,7 @@ export const fr: Messages = {
   clientsAvailable: 'Disponible',
   clientsUnavailable: 'Indisponible',
   clientsChecking: 'Vérification de la connexion',
+  clientsRecovering: 'Rétablissement de la livraison',
   clientsColumnAgents: 'Agent',
   clientsColumnStatus: 'État',
   clientsColumnImpact: 'Livraison',
@@ -290,6 +291,10 @@ export const fr: Messages = {
   clientsCheckingImpact:
     'Vérification de la réception automatique des messages par cette connexion.',
   clientsWaitAction: 'Attendez la fin de la vérification de connexion.',
+  clientsRecoveringImpact:
+    'Cette discussion Cursor précise a été reconnue. La livraison automatique reprendra à la fin de cette réponse.',
+  clientsRecoveringAction:
+    "Attendez la fin de la réponse de Cursor. Il n'est pas nécessaire de se reconnecter ni de lire les messages entrants.",
   clientsManualImpact:
     'Ce mode reçoit les messages via MCP, sans livraison automatique dans la discussion.',
   clientsMcpAction:

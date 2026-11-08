@@ -269,6 +269,7 @@ export const uk: Messages = {
   clientsAvailable: 'Доступно',
   clientsUnavailable: 'Недоступно',
   clientsChecking: 'Перевірка підключення',
+  clientsRecovering: 'Відновлення доставки',
   clientsColumnAgents: 'Агент',
   clientsColumnStatus: 'Стан',
   clientsColumnImpact: 'Доставка',
@@ -289,6 +290,10 @@ export const uk: Messages = {
   clientsCheckingImpact:
     'Перевіряється можливість автоматичного отримання повідомлень через це підключення.',
   clientsWaitAction: 'Дочекайтеся завершення перевірки підключення.',
+  clientsRecoveringImpact:
+    'Цей чат Cursor розпізнано. Автоматична доставка відновиться після завершення поточної відповіді.',
+  clientsRecoveringAction:
+    'Дочекайтеся завершення відповіді Cursor. Повторне підключення та читання вхідних повідомлень не потрібні.',
   clientsManualImpact:
     'У цьому режимі повідомлення отримують через MCP, без автоматичної доставки в чат.',
   clientsMcpAction:

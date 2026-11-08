@@ -94,6 +94,13 @@ export function connectionPresentation(
       action: 'clientsWaitAction',
       tone: 'info',
     };
+  if (profile.state === 'recovering')
+    return {
+      status: 'clientsRecovering',
+      impact: 'clientsRecoveringImpact',
+      action: 'clientsRecoveringAction',
+      tone: 'info',
+    };
   if (profile.released)
     return {
       status: 'clientsReleased',
@@ -182,6 +189,7 @@ export function applicationStatus(
   else if (readyAgents > 0) summary = codex ? 'verifiedSome' : 'partial';
   else if (bound.some(({ profile }) => profile.state === 'uncertain')) summary = 'paused';
   else if (bound.some(({ profile }) => profile.state === 'checking')) summary = 'paused';
+  else if (bound.some(({ profile }) => profile.state === 'recovering')) summary = 'paused';
   else if (bound.every(({ profile }) => profile.released)) summary = 'released';
   else summary = 'notConfirmed';
   // A released connection is not a technical failure (unless admission is
