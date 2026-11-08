@@ -20,9 +20,9 @@ This action does not remove agents on other computers, AI application chat trans
 
 ## Connections, appearance and language
 
-**Applications & MCP** shows saved application configuration and known activity. Authorization, configuration and a live chat connection can have separate states. The setup check reads client files; only your Apply action in a Configure dialog updates the selected file.
+**Applications & MCP** shows saved application configuration and known activity. Authorization, configuration and a live chat connection can have separate states. A recovering Cursor chat has not yet restored its reactive wait. Send an ordinary message in the same previously connected chat; it becomes ready after that turn completes and the wait is armed. The setup check reads client files; only your Apply action in a Configure dialog updates the selected file.
 
-**Remote nodes** manages explicitly paired computers and their connection state. **Settings** includes the local network address, outgoing file folders and optional Start at login. Closing the window leaves the app in the tray; Quit stops the node and its connections.
+**Remote nodes** manages explicitly paired computers and their connection state. **Settings** includes this computer's display name, local network address, outgoing file folders and optional Start at login. Compatible paired computers receive the current display name on authenticated connection or reconnection and when you rename this computer while connected. The saved remote name changes without changing its node identity, authorization or agent bindings. Older peers without this capability keep their known pairing name until they support an update. Closing the window leaves the app in the tray; Quit stops the node and its connections.
 
 Use the language selector at the bottom of the sidebar. The app saves the choice in its profile and supports English, Russian, Simplified Chinese, French, German, Italian, Spanish, Kazakh, Japanese, Brazilian Portuguese, Korean, Turkish, Polish, Dutch and Ukrainian. Agent names, message text and filenames keep their original language. The app also saves light or dark appearance. If profile storage is unavailable, a language change lasts only for the current session.
 
