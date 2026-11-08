@@ -1,12 +1,12 @@
-## 0.17.1-preview.2
+## 0.17.1
 
-Local Windows preview for owner verification; not a published release.
+- Fix Windows Cursor hooks under the host PowerShell pipeline, preserving UTF-8 JSON and helper exit codes.
+- Share one MCP entry between direct Cursor and Cursor Agent in AionUi. Setup explains their separate plugin, authorization and live-chat states in all fifteen languages.
+- Recognize direct Cursor when the IDE resolves missing AionUi runtime references to empty values; partial or invalid AionUi context remains rejected.
+- Synchronize the shared-configuration instructions in user guides and llms.txt.
 
-- Fix direct Cursor being incorrectly detected as AionUi when the IDE resolves missing runtime information.
-- Fix the Cursor Windows PowerShell hook command so the host pipeline preserves UTF-8 JSON and the helper exit code.
-- Share one MCP connection between direct Cursor and Cursor Agent in AionUi. The direct plugin and AionUi authorization remain separate.
-- Clarify the shared configuration in both setup tabs and dialogs across all fifteen languages.
+Quit NCF Agent Interconnect before replacing it. Apply Cursor setup, then restart Cursor to load the updated bridge and plugin. Existing history and peer settings are preserved.
 
-Quit NCF Agent Interconnect before replacing it. Open Cursor setup in the preview and click Apply to regenerate its managed hooks, then reload the integration as required by Cursor. Existing chat history and peer settings are preserved.
+Owner-led Windows Cursor 3.29.9 direct IDE and AionUi exchanges were confirmed with recipient acknowledgments. The exact running helper revision was not captured; installed preview.2 files separately matched the tested package. Unselected chats, Agents Window and restart recovery were not repeated in this fix cycle.
 
-The command regression passed on Windows PowerShell. Actual Cursor native acceptance for this combined preview is pending owner testing. The Windows installer is unsigned.
+macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned. The Intel package was not run on Intel hardware.

@@ -2,6 +2,17 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.17.1 — 2026-11-08
+
+- Fix Windows Cursor hook commands under the host PowerShell pipeline, preserving UTF-8 JSON and helper exit codes.
+- Use one MCP entry for direct Cursor and Cursor Agent in AionUi, while keeping the direct plugin, AionUi authorization and live-chat state separate.
+- Recognize direct Cursor when missing AionUi runtime references resolve to empty values. Partial or invalid AionUi context remains rejected.
+- Clarify the shared configuration in all fifteen interface languages and user guides.
+
+Owner-led Windows Cursor 3.29.9 direct IDE and AionUi exchanges were confirmed with recipient acknowledgments. The running helper revision was not captured; installed preview.2 files separately matched the tested package. Unselected chats, Agents Window and restart recovery were not repeated in this fix cycle.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
 ## 0.17.0 — 2026-11-07
 
 - Configure direct Cursor delivery from its existing setup tab. Only Apply

@@ -1,8 +1,6 @@
-# NCF Agent Interconnect 0.17.1-preview.2
+# NCF Agent Interconnect 0.17.1
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
-
-Local Windows preview for owner verification of the Cursor hook and shared Cursor / AionUi setup fixes. The combined build has not yet completed native Cursor acceptance.
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
@@ -59,12 +57,14 @@ open-file icon uses the operating system's default application.
 - Other standard MCP clients: send, receive and history are available;
   automatic delivery requires a supported adapter.
 
-Native Cursor hook delivery was checked on macOS Cursor 3.28.7 with a temporary
-workspace plugin. Windows Cursor 3.27.22 source UI Cancel/Apply passed, but native
-chat delivery was not verified in this cycle. A full Cursor application
-Quit/restart was not tested. Existing Cursor Agent through AionUi passed on
-macOS; its Windows native check was not run. These are separate from native
-application package verification.
+For this fix, owner-led Windows Cursor 3.29.9 checks confirmed two-way exchanges
+and recipient acknowledgments in direct Cursor IDE and Cursor Agent through
+AionUi. The exact running helper revision was not captured for those exchanges;
+installed preview.2 files separately matched the tested package. Unselected
+chats, Agents Window and restart recovery were not repeated in this fix cycle.
+Earlier macOS Cursor 3.28.7 checks covered those open-chat paths and window
+reload recovery, but not a full Cursor Quit/restart. Application package checks
+are separate from native client checks.
 
 ## Exchange messages
 
@@ -128,6 +128,13 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.17.0 or a fix preview
+
+Quit NCF Agent Interconnect before replacing it. Open Cursor setup and click
+Apply to update the shared MCP entry and managed Windows hooks. Restart Cursor
+to load the updated bridge and plugin. Matching settings are left unchanged;
+AionUi authorization, history, names and peer settings are preserved.
 
 ## Upgrade from 0.16.0
 
