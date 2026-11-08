@@ -37,6 +37,16 @@ test('adaptive Cursor entry selects direct only without actual AionUi runtime va
     delete mixed[absent];
     assert.equal(cursorRuntime(mixed), 'cursor');
   }
+  const empty = Object.fromEntries(fields.map((field) => [field, '']));
+  assert.equal(cursorRuntime(empty), 'cursor');
+  for (const field of fields) {
+    const mixedEmpty = { ...empty };
+    delete mixedEmpty[field];
+    assert.equal(cursorRuntime(mixedEmpty), 'aionui');
+    assert.throws(() => aionRuntimeContext(mixedEmpty));
+    assert.equal(cursorRuntime({ ...empty, [field]: '${env:' + field + '}' }), 'aionui');
+  }
+  assert.equal(cursorRuntime({ ...empty, AIONUI_USER_ID: ' ' }), 'aionui');
   assert.equal(cursorRuntime(validRuntime), 'aionui');
   assert.deepEqual(aionRuntimeContext(validRuntime), {
     baseUrl: validRuntime.AIONUI_BASE_URL,
@@ -112,6 +122,22 @@ test('Cursor whitelist and interpolation deliver current ACP context to the real
   const original = await invoke(legacy.client);
   assert.equal(original.isError, true);
   assert.deepEqual(original.content, [
+    {
+      type: 'text',
+      text: 'Cursor did not provide the current chat. Check that the NCF Agent Interconnect Cursor plugin is enabled, then send the request again.',
+    },
+  ]);
+  assert.equal(registrations, 0);
+  assert.equal(service.store.list().length, 0);
+
+  // Cursor IDE resolves missing environment references to four empty strings.
+  const emptyEntry = structuredClone(entry);
+  for (const field of fields) emptyEntry.env[field] = '';
+  const empty = await launch(emptyEntry, ambient);
+  for (const field of fields) assert.equal(empty.resolved.env[field], '');
+  const emptyFailure = await invoke(empty.client);
+  assert.equal(emptyFailure.isError, true);
+  assert.deepEqual(emptyFailure.content, [
     {
       type: 'text',
       text: 'Cursor did not provide the current chat. Check that the NCF Agent Interconnect Cursor plugin is enabled, then send the request again.',

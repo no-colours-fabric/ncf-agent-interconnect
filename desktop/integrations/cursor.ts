@@ -24,12 +24,12 @@ const aionRuntimeFields = [
 ] as const;
 
 export function cursorRuntime(env: NodeJS.ProcessEnv): 'cursor' | 'aionui' {
-  return aionRuntimeFields.some((field) => {
+  const expectedReferences = aionRuntimeFields.every((field) => {
     const value = env[field];
-    return value !== undefined && value !== '${env:' + field + '}';
-  })
-    ? 'aionui'
-    : 'cursor';
+    return value === undefined || value === '${env:' + field + '}';
+  });
+  const emptyReferences = aionRuntimeFields.every((field) => env[field] === '');
+  return expectedReferences || emptyReferences ? 'cursor' : 'aionui';
 }
 
 /** Stdio keeps Cursor hook context separate from the shared HTTP MCP transport. */
