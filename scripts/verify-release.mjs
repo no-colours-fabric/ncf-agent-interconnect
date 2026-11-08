@@ -185,16 +185,27 @@ try {
   await cursorService.open();
   const cursorNodeFile = path.join(cursorService.directory, 'Integrations', 'node.json');
   const cursorInstructions = cursorService.clientInstructions('cursor');
+  const aionInstructions = cursorService.clientInstructions('aionui');
   const cursorConfig = JSON.parse(cursorInstructions.configuration).mcpServers.ncf_agent_interconnect;
   const cursorBridge = path.join(packagedArchive, 'build/integrations/cursor.js');
   const cursorHook = path.join(packagedArchive, 'build/integrations/cursor-hook.js');
+  const expectedCursorEnvironment = {
+    ELECTRON_RUN_AS_NODE: '1',
+    AIONUI_BASE_URL: '$' + '{env:AIONUI_BASE_URL}',
+    AIONUI_USER_ID: '$' + '{env:AIONUI_USER_ID}',
+    AIONUI_CONVERSATION_ID: '$' + '{env:AIONUI_CONVERSATION_ID}',
+    AIONUI_RUNTIME_TOKEN: '$' + '{env:AIONUI_RUNTIME_TOKEN}',
+  };
+  assert.equal(aionInstructions.configuration, cursorInstructions.configuration);
+  assert.equal(aionInstructions.managedFiles, undefined);
+  assert.deepEqual(cursorInstructions.managedFiles.map(file => file.id).sort(), ['cursor-plugin-hooks', 'cursor-plugin-manifest']);
   assert.equal(cursorConfig.command, process.execPath);
   assert.deepEqual(cursorConfig.args, [cursorBridge, '--node-file', cursorNodeFile]);
-  assert.deepEqual(cursorConfig.env, { ELECTRON_RUN_AS_NODE: '1' });
+  assert.deepEqual(cursorConfig.env, expectedCursorEnvironment);
   const hookConfiguration = JSON.parse(cursorInstructions.managedFiles.find(file => file.id === 'cursor-plugin-hooks').content);
   assert.deepEqual(Object.keys(hookConfiguration.hooks).sort(), ['beforeSubmitPrompt', 'preToolUse', 'sessionEnd', 'stop']);
   assert.ok(hookConfiguration.hooks.stop[0].command.includes(cursorHook));
-  const coldEnvironment = { ...process.env, ELECTRON_RUN_AS_NODE: '1' };
+  const coldEnvironment = { ...process.env, ...cursorConfig.env };
   for (const key of ['NODE_PATH', 'NODE_OPTIONS', 'ELECTRON_NO_ASAR']) delete coldEnvironment[key];
   const invokeCursorHook = (event, input) => new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cursorHook, '--node-file', cursorNodeFile, '--event', event], { cwd: directory, env: coldEnvironment, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });
