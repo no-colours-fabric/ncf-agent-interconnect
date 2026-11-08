@@ -14,7 +14,7 @@ export function mcpInstructions(
     return {
       client,
       location: 'Cursor Agent global MCP configuration',
-      text: 'Apply configures the shared adaptive Cursor connection. The same NCF entry supports Cursor Agent in AionUi and direct Cursor; direct Cursor setup separately installs its reactive plugin.',
+      text: 'Apply configures the shared adaptive Cursor connection. The same MCP entry supports Cursor Agent in AionUi and direct Cursor; direct Cursor setup separately installs its reactive plugin.',
       configuration: aionConfiguration,
       testPrompt,
     };
