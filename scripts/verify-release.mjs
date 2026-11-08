@@ -225,7 +225,8 @@ try {
     child.stdin.end(JSON.stringify(input));
   });
   const cursor = new Client({ name: 'packaged-cursor-control', version: '1' });
-  await cursor.connect(new StdioClientTransport({ command: process.execPath, args: cursorConfig.args, cwd: directory, env: coldEnvironment, stderr: 'pipe' }));
+  const cursorTransport = new StdioClientTransport({ command: process.execPath, args: cursorConfig.args, cwd: directory, env: coldEnvironment, stderr: 'pipe' });
+  await cursor.connect(cursorTransport);
   clients.push(cursor);
   const cursorTools = await cursor.listTools();
   assert.equal(Object.hasOwn(cursorTools.tools.find(tool => tool.name === 'agent_connect').inputSchema.properties, 'contextToken'), false);
@@ -240,7 +241,7 @@ try {
   const cursorBinding = cursorConnected.structuredContent;
   assert.equal(cursorBinding.status, 'connected');
   assert.equal(cursorBinding.binding.chatId, conversationId);
-  assert.equal(cursorBinding.delivery.automatic, true);
+  assert.equal(cursorBinding.delivery.automatic, false, 'A bound chat is not an armed reactive wait');
   const cursorSender = cursorService.connect({ nickname: 'Cursor package sender', client: 'MCP' });
   assert.equal(cursorSender.status, 'connected');
   const waitingHook = invokeCursorHook('stop', { conversation_id: conversationId, status: 'completed' });
@@ -252,7 +253,41 @@ try {
   const cursorDeadline = Date.now() + 5000;
   while (cursorService.store.get(cursorMessage.id, 'in')?.state !== 'processed') { if (Date.now() > cursorDeadline) throw new Error('Packaged Cursor admission was not recorded'); await new Promise(resolve => setTimeout(resolve, 10)); }
   assert.equal(cursorService.store.dispatchState(cursorMessage.id).state, 'admitted');
-  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorOwnAsar: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+
+  // Reopen persisted state and start a fresh packaged bridge without reconnect/read tools.
+  const previousCursorPid = cursorTransport.pid;
+  assert.ok(Number.isInteger(previousCursorPid));
+  await cursor.close(); clients.splice(clients.indexOf(cursor), 1);
+  const previousCursorService = cursorService;
+  await previousCursorService.close();
+  cursorService = new ownedCore.NodeService(previousCursorService.directory);
+  await cursorService.open();
+  const restoredCursor = new Client({ name: 'packaged-cursor-restored-control', version: '1' });
+  const restoredCursorTransport = new StdioClientTransport({ command: process.execPath, args: cursorConfig.args, cwd: directory, env: coldEnvironment, stderr: 'pipe' });
+  await restoredCursor.connect(restoredCursorTransport); clients.push(restoredCursor);
+  assert.ok(Number.isInteger(restoredCursorTransport.pid));
+  assert.notEqual(restoredCursorTransport.pid, previousCursorPid);
+  await restoredCursor.listTools();
+  const restoredCursorMessage = await cursorService.send({ connectionId: cursorSender.binding.connectionId, recipientNode: cursorService.settings.value.nodeId, recipientNickname: 'Package Cursor', text: 'Cursor backlog after persisted restart 漢字' });
+  assert.equal(cursorService.store.get(restoredCursorMessage.id, 'in').state, 'ready');
+  await invokeCursorHook('beforeSubmitPrompt', { conversation_id: conversationId, prompt: 'Continue the current task.' });
+  assert.equal(cursorService.adapters.states().find(profile => profile.id === cursorBinding.binding.adapterId).state, 'recovering');
+  assert.deepEqual(cursorService.store.assertOwner(cursorBinding.binding.connectionId).binding, cursorBinding.binding);
+  const restoredCursorFollowup = await invokeCursorHook('stop', { conversation_id: conversationId, status: 'completed' });
+  assert.ok(restoredCursorFollowup.followup_message.includes('Cursor backlog after persisted restart 漢字'));
+  assert.equal(cursorService.store.get(restoredCursorMessage.id, 'in').state, 'ready', 'Recovery followup must wait for exact admission');
+  await invokeCursorHook('beforeSubmitPrompt', { conversation_id: conversationId, prompt: restoredCursorFollowup.followup_message });
+  const restoredCursorDeadline = Date.now() + 5000;
+  while (cursorService.store.get(restoredCursorMessage.id, 'in')?.state !== 'processed') { if (Date.now() > restoredCursorDeadline) throw new Error('Restored packaged Cursor admission was not recorded'); await new Promise(resolve => setTimeout(resolve, 10)); }
+  assert.equal(cursorService.store.dispatchState(restoredCursorMessage.id).state, 'admitted');
+  assert.deepEqual(cursorService.store.assertOwner(cursorBinding.binding.connectionId).binding, cursorBinding.binding);
+  const restoredIdleHook = invokeCursorHook('stop', { conversation_id: conversationId, status: 'completed' });
+  const restoredPresenceDeadline = Date.now() + 5000;
+  while (!cursorService.agentDirectories()[0].agents.some(agent => agent.nickname === 'Package Cursor' && agent.availability === 'online' && agent.delivery === 'automatic')) { if (Date.now() > restoredPresenceDeadline) throw new Error('Restored packaged Cursor wait was not discoverable'); await new Promise(resolve => setTimeout(resolve, 10)); }
+  await invokeCursorHook('sessionEnd', { conversation_id: conversationId });
+  assert.deepEqual(await restoredIdleHook, {});
+  assert.equal(cursorService.agentDirectories()[0].agents.find(agent => agent.nickname === 'Package Cursor').availability, 'unknown');
+  console.log(JSON.stringify({ electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
   if (host) await host.event({ event: { type: 'server.instance.disposed' } });
   for (const client of clients) await client.close(); await cursorService?.close(); await service.close();
