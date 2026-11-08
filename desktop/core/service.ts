@@ -49,6 +49,7 @@ export class NodeService extends EventEmitter {
   private receiving: Promise<void> | null = null;
   private receiveAgain = false;
   private dispatching = new Set<string>();
+  private adapterRedrain = new Set<string>();
   private jobs = new Set<Promise<void>>();
   private fileJobs = new Set<Promise<unknown>>();
   private cleaningFiles: Promise<void> | null = null;
@@ -147,7 +148,7 @@ export class NodeService extends EventEmitter {
       this.refreshPresence();
       this.emit('change');
     });
-    this.adapters.on('idle', () => this.drainAdapters());
+    this.adapters.on('idle', () => this.drainAdapters(true));
     await this.start();
   }
   private transition(work: () => Promise<void>): Promise<void> {
@@ -1089,7 +1090,7 @@ export class NodeService extends EventEmitter {
     this.emit('change');
     this.drainAdapters();
   }
-  private drainAdapters(): void {
+  private drainAdapters(adapterWake = false): void {
     if (!this.running) return;
     for (const event of this.store.pendingSystemEvents()) {
       const key = 'system:' + event.id;
@@ -1121,7 +1122,11 @@ export class NodeService extends EventEmitter {
       const binding = identity.binding,
         dispatchKey = identity.key + ':' + identity.binding.connectionId,
         adapter = this.adapters.get(binding.adapterId);
-      if (this.dispatching.has(dispatchKey) || !adapter.status().capabilities.wakeIdle) continue;
+      if (this.dispatching.has(dispatchKey)) {
+        if (adapterWake) this.adapterRedrain.add(dispatchKey);
+        continue;
+      }
+      if (!adapter.status().capabilities.wakeIdle) continue;
       const ready = this.store.history(identity.key, 0, 200, true).messages;
       const row = ready.find((message) => {
         const previous = this.store.dispatchState(message.envelope.id);
@@ -1189,8 +1194,9 @@ export class NodeService extends EventEmitter {
           );
         } finally {
           this.dispatching.delete(dispatchKey);
+          const redrain = this.adapterRedrain.delete(dispatchKey);
           this.emit('change');
-          if (admitted) this.drainAdapters();
+          if (admitted || redrain) this.drainAdapters();
         }
       })();
       this.jobs.add(job);
@@ -1405,6 +1411,7 @@ export class NodeService extends EventEmitter {
     await this.network.close();
     await this.receiving;
     await Promise.all([...this.jobs]);
+    this.adapterRedrain.clear();
     await this.mcp.close();
     this.emit('change');
   }

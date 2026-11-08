@@ -88,6 +88,11 @@ interface Wire {
   };
 }
 
+// Exact-chat snapshots can exceed the former 32 MiB ceiling. Keep a fixed
+// allocation bound for the same-user local socket instead of accepting an
+// untrusted length prefix without a limit.
+export const CODEX_IPC_MAX_FRAME_BYTES = 128 * 1024 * 1024;
+
 export async function codexExchange(
   profile: AdapterProfile,
   input?: EventInput,
@@ -122,7 +127,10 @@ export async function codexExchange(
       following = false,
       clientId = 'initializing-client',
       owner = '';
-    let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0),
+    const header = Buffer.allocUnsafe(4);
+    let headerBytes = 0,
+      frame: Buffer<ArrayBufferLike> | undefined,
+      frameBytes = 0,
       timer: NodeJS.Timeout;
     const initializeId = randomUUID(),
       discoverId = randomUUID(),
@@ -148,6 +156,9 @@ export async function codexExchange(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      headerBytes = 0;
+      frame = undefined;
+      frameBytes = 0;
       signal?.removeEventListener('abort', abort);
       if (following && connection.writable) broadcast(false);
       connection.end();
@@ -338,16 +349,30 @@ export async function codexExchange(
     );
     connection.on('data', (data) => {
       if (settled) return;
-      buffer = Buffer.concat([buffer, typeof data === 'string' ? Buffer.from(data) : data]);
-      while (!settled && buffer.length >= 4) {
-        const length = buffer.readUInt32LE(0);
-        if (!length || length > 32 * 1024 * 1024) {
-          fail('Invalid Codex IPC frame');
-          return;
+      const chunk = typeof data === 'string' ? Buffer.from(data) : data;
+      let offset = 0;
+      while (!settled && offset < chunk.length) {
+        if (!frame) {
+          const copied = chunk.copy(header, headerBytes, offset, offset + (4 - headerBytes));
+          headerBytes += copied;
+          offset += copied;
+          if (headerBytes < 4) continue;
+          const length = header.readUInt32LE(0);
+          headerBytes = 0;
+          if (!length || length > CODEX_IPC_MAX_FRAME_BYTES) {
+            fail('Invalid Codex IPC frame');
+            return;
+          }
+          frame = Buffer.allocUnsafe(length);
+          frameBytes = 0;
         }
-        if (buffer.length < length + 4) return;
-        const bytes = buffer.subarray(4, length + 4);
-        buffer = buffer.subarray(length + 4);
+        const copied = chunk.copy(frame, frameBytes, offset, offset + (frame.length - frameBytes));
+        frameBytes += copied;
+        offset += copied;
+        if (frameBytes < frame.length) continue;
+        const bytes = frame;
+        frame = undefined;
+        frameBytes = 0;
         try {
           const value: unknown = JSON.parse(bytes.toString('utf8'));
           if (!value || typeof value !== 'object' || !('type' in value)) throw new Error();

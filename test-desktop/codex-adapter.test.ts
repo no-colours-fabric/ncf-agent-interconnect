@@ -7,7 +7,11 @@ import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
-import { CodexDesktopAdapter, codexExchange } from '../desktop/core/codex-adapter.js';
+import {
+  CODEX_IPC_MAX_FRAME_BYTES,
+  CodexDesktopAdapter,
+  codexExchange,
+} from '../desktop/core/codex-adapter.js';
 import { AdapterRegistry } from '../desktop/core/adapters.js';
 import { NodeService } from '../desktop/core/service.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
@@ -45,20 +49,34 @@ async function fixture(t: test.TestContext) {
     discoveryResult: 'success',
     admission: 'success',
     ownerThreadId: '',
+    snapshotPadding: '',
+    frameFragmentBytes: 0,
+    coalesceSnapshots: false,
+    truncateSnapshot: false,
+    invalidSnapshotLength: undefined as number | undefined,
   };
   const server = net.createServer((connection) => {
     sockets.add(connection);
     connection.on('close', () => sockets.delete(connection));
     connection.on('error', () => {});
     let buffer: Buffer<ArrayBufferLike> = Buffer.alloc(0);
-    const write = (value: object) => {
-      if (connection.destroyed || !connection.writable) return;
+    const encode = (value: object, truncate = false) => {
       const bytes = Buffer.from(JSON.stringify(value)),
         frame = Buffer.alloc(bytes.length + 4);
       frame.writeUInt32LE(bytes.length);
       bytes.copy(frame, 4);
-      connection.write(frame);
+      return truncate ? frame.subarray(0, Math.max(4, Math.floor(frame.length / 2))) : frame;
     };
+    const send = (output: Buffer) => {
+      if (connection.destroyed || !connection.writable) return;
+      if (!state.frameFragmentBytes) {
+        connection.write(output);
+        return;
+      }
+      for (let offset = 0; offset < output.length; offset += state.frameFragmentBytes)
+        connection.write(output.subarray(offset, offset + state.frameFragmentBytes));
+    };
+    const write = (value: object, truncate = false) => send(encode(value, truncate));
     connection.on('data', (data) => {
       buffer = Buffer.concat([buffer, typeof data === 'string' ? Buffer.from(data) : data]);
       while (buffer.length >= 4 && buffer.length >= buffer.readUInt32LE(0) + 4) {
@@ -94,22 +112,37 @@ async function fixture(t: test.TestContext) {
           request.method === 'thread-stream-following-changed' &&
           request.params.following === true
         ) {
+          if (state.invalidSnapshotLength !== undefined) {
+            const header = Buffer.alloc(4);
+            header.writeUInt32LE(state.invalidSnapshotLength);
+            connection.write(header);
+            state.invalidSnapshotLength = undefined;
+            return;
+          }
           // A broadcast belonging to another chat must never trigger admission.
-          for (const conversationId of [randomUUID(), request.params.conversationId])
-            write({
-              type: 'broadcast',
-              sourceClientId: 'exact-owner',
-              method: 'thread-stream-state-changed',
-              version: 11,
-              params: {
-                hostId: 'local',
-                conversationId,
-                change: {
-                  type: 'snapshot',
-                  conversationState: { threadRuntimeStatus: { type: state.runtime } },
+          const snapshots = [randomUUID(), request.params.conversationId].map((conversationId) => ({
+            type: 'broadcast',
+            sourceClientId: 'exact-owner',
+            method: 'thread-stream-state-changed',
+            version: 11,
+            params: {
+              hostId: 'local',
+              conversationId,
+              change: {
+                type: 'snapshot',
+                conversationState: {
+                  threadRuntimeStatus: { type: state.runtime },
+                  ignoredLargeState:
+                    conversationId === request.params.conversationId ? state.snapshotPadding : '',
                 },
               },
-            });
+            },
+          }));
+          if (state.coalesceSnapshots)
+            send(
+              Buffer.concat(snapshots.map((snapshot) => encode(snapshot, state.truncateSnapshot))),
+            );
+          else for (const snapshot of snapshots) write(snapshot, state.truncateSnapshot);
         }
         if (
           request.method === 'thread-follower-start-turn' ||
@@ -275,6 +308,65 @@ test('Codex owner probe is read-only; idle admission inherits settings and targe
   assert.ok(!JSON.stringify(params).includes('untrusted_input'));
   assert.ok(!JSON.stringify(params).includes('approvalPolicy'));
   assert.ok(!JSON.stringify(params).includes('model'));
+});
+
+test(
+  'Codex assembles a fragmented frame larger than 32 MiB and parses it only when complete',
+  { timeout: 20000 },
+  async (t) => {
+    const f = await fixture(t);
+    const unicode = 'Ж漢🙂';
+    f.state.snapshotPadding = unicode.repeat(
+      Math.ceil((33 * 1024 * 1024) / Buffer.byteLength(unicode)),
+    );
+    assert.ok(Buffer.byteLength(f.state.snapshotPadding) > 32 * 1024 * 1024);
+    f.state.frameFragmentBytes = 1024 * 1024 - 17;
+    const result = await codexExchange(f.profile, input(f.profile), undefined, 15000);
+    assert.deepEqual(result, { state: 'admitted' });
+    assert.equal(
+      f.requests.filter((request) => request.method === 'thread-follower-start-turn').length,
+      1,
+    );
+  },
+);
+
+test('Codex decodes coalesced frames and ignores a complete frame for another chat', async (t) => {
+  const f = await fixture(t);
+  f.state.coalesceSnapshots = true;
+  f.state.snapshotPadding = 'Граница UTF-8 漢🙂';
+  assert.deepEqual(await codexExchange(f.profile, input(f.profile)), { state: 'admitted' });
+  assert.equal(
+    f.requests.filter((request) => request.method === 'thread-follower-start-turn').length,
+    1,
+  );
+});
+
+test('Codex rejects invalid frame lengths and never parses an incomplete frame', async (t) => {
+  await t.test('zero length', async (t) => {
+    const f = await fixture(t);
+    f.state.invalidSnapshotLength = 0;
+    assert.deepEqual(await codexExchange(f.profile, input(f.profile)), {
+      state: 'failed',
+      error: 'Invalid Codex IPC frame',
+    });
+  });
+  await t.test('length above the absolute limit', async (t) => {
+    const f = await fixture(t);
+    f.state.invalidSnapshotLength = CODEX_IPC_MAX_FRAME_BYTES + 1;
+    assert.deepEqual(await codexExchange(f.profile, input(f.profile)), {
+      state: 'failed',
+      error: 'Invalid Codex IPC frame',
+    });
+  });
+  await t.test('truncated JSON frame', async (t) => {
+    const f = await fixture(t);
+    f.state.truncateSnapshot = true;
+    assert.deepEqual(await codexExchange(f.profile, input(f.profile), undefined, 50), {
+      state: 'failed',
+      error: 'Codex IPC: request timed out',
+    });
+    assert.ok(!f.requests.some((request) => request.method.startsWith('thread-follower-')));
+  });
 });
 
 test('Codex active admission has required restore metadata; revoked binding never submits and lost admission is uncertain', async (t) => {
@@ -951,6 +1043,75 @@ test(
     await Promise.resolve();
     assert.equal(connections.mock.callCount(), count);
     assert.deepEqual(f.notifications(), notifications);
+  },
+);
+
+test(
+  'a ready event during an occupied dispatch key redrains once without replaying uncertain input',
+  { timeout: 15000 },
+  async (t) => {
+    for (const outcome of ['failed', 'uncertain'] as const)
+      await t.test(outcome, async (t) => {
+        const f = await fixture(t),
+          directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-redrain-')),
+          service = new NodeService(directory);
+        t.after(async () => {
+          await service.close();
+          await rm(directory, { recursive: true, force: true });
+        });
+        await service.open();
+        const receiver = await service.connectCodex(
+            { nickname: 'Получатель', client: 'Codex' },
+            { threadId: f.profile.threadId!, socket: f.profile.socket },
+          ),
+          sender = service.connect({ nickname: 'Автор', client: 'MCP' });
+        if (receiver.status !== 'connected' || sender.status !== 'connected') throw new Error();
+        const adapter = service.adapters.get(receiver.binding.adapterId),
+          actualDeliver = adapter.deliver.bind(adapter),
+          delivered: string[] = [];
+        let started!: () => void, release!: () => void;
+        const firstStarted = new Promise<void>((resolve) => (started = resolve)),
+          held = new Promise<void>((resolve) => (release = resolve));
+        adapter.deliver = async (event) => {
+          delivered.push(event.messageId);
+          if (delivered.length === 1) {
+            started();
+            await held;
+            return { state: outcome, error: 'Synthetic preflight outcome' };
+          }
+          return actualDeliver(event);
+        };
+        const send = (text: string) =>
+            service.send({
+              connectionId: sender.binding.connectionId,
+              recipientNode: service.settings.value.nodeId,
+              recipientNickname: receiver.nickname,
+              text,
+            }),
+          first = await send('First queued request'),
+          waitUntil = async (check: () => boolean) => {
+            const deadline = Date.now() + 7000;
+            while (!check()) {
+              if (Date.now() > deadline) throw new Error('Queued Codex recovery timed out');
+              await new Promise((resolve) => setTimeout(resolve, 10));
+            }
+          };
+        await firstStarted;
+        const second = await send('Second queued request');
+        service.adapters.emit('idle');
+        release();
+        await waitUntil(() => service.store.get(second.id, 'in')?.state === 'processed');
+        assert.equal(service.store.dispatchState(second.id)?.state, 'admitted');
+        if (outcome === 'failed') {
+          await waitUntil(() => service.store.get(first.id, 'in')?.state === 'processed');
+          assert.deepEqual(delivered, [first.id, first.id, second.id]);
+          assert.equal(service.store.dispatchState(first.id)?.state, 'admitted');
+        } else {
+          assert.deepEqual(delivered, [first.id, second.id]);
+          assert.equal(service.store.get(first.id, 'in')?.state, 'ready');
+          assert.equal(service.store.dispatchState(first.id)?.state, 'uncertain');
+        }
+      });
   },
 );
 
