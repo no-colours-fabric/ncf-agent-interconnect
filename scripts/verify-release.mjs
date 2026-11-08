@@ -206,6 +206,8 @@ try {
   assert.deepEqual(Object.keys(hookConfiguration.hooks).sort(), ['beforeSubmitPrompt', 'preToolUse', 'sessionEnd', 'stop']);
   assert.ok(hookConfiguration.hooks.stop[0].command.includes(cursorHook));
   const coldEnvironment = { ...process.env, ...cursorConfig.env };
+  // Cursor IDE resolves missing AionUi environment references to empty strings.
+  for (const key of ['AIONUI_BASE_URL', 'AIONUI_USER_ID', 'AIONUI_CONVERSATION_ID', 'AIONUI_RUNTIME_TOKEN']) coldEnvironment[key] = '';
   for (const key of ['NODE_PATH', 'NODE_OPTIONS', 'ELECTRON_NO_ASAR']) delete coldEnvironment[key];
   const invokeCursorHook = (event, input) => new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [cursorHook, '--node-file', cursorNodeFile, '--event', event], { cwd: directory, env: coldEnvironment, stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true });

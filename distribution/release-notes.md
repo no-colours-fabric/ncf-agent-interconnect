@@ -1,7 +1,8 @@
-## 0.17.1-preview.1
+## 0.17.1-preview.2
 
 Local Windows preview for owner verification; not a published release.
 
+- Fix direct Cursor being incorrectly detected as AionUi when the IDE resolves missing runtime information.
 - Fix the Cursor Windows PowerShell hook command so the host pipeline preserves UTF-8 JSON and the helper exit code.
 - Share one MCP connection between direct Cursor and Cursor Agent in AionUi. The direct plugin and AionUi authorization remain separate.
 - Clarify the shared configuration in both setup tabs and dialogs across all fifteen languages.
