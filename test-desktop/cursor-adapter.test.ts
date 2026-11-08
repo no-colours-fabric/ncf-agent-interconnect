@@ -84,7 +84,7 @@ test('Cursor plugin commands use the installed Electron runtime on macOS and Win
 });
 
 test(
-  'Cursor Windows hook command survives the host pipeline with exact stdin, stdout and exit code',
+  'Cursor Windows hook command preserves UTF-8 JSON, stdout and exit code through the host pipeline',
   { skip: process.platform !== 'win32' },
   async (t) => {
     const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-cursor-pipeline-'));
@@ -93,6 +93,7 @@ test(
     await mkdir(unicodeDirectory);
     const hook = path.join(unicodeDirectory, "owner's hook.cjs");
     const nodeFile = path.join(unicodeDirectory, "node's descriptor.json");
+    const inputFile = path.join(unicodeDirectory, "hook input's 漢字.json");
     await writeFile(
       hook,
       [
@@ -117,14 +118,17 @@ test(
     );
     const command = hooks.hooks.stop[0].command as string;
     const payload = '{"text":"Unicode Привет 漢字"}';
+    await writeFile(inputFile, payload, 'utf8');
+    const inputLiteral = "'" + inputFile.replaceAll("'", "''") + "'";
+    const vendorCommand = `Get-Content -LiteralPath ${inputLiteral} -Raw -Encoding UTF8 | & { $input | ${command} }`;
     const invoke = (exitCode: number) =>
       new Promise<{ code: number | null; stdout: string; stderr: string }>((resolve, reject) => {
         const child = spawn(
           'powershell.exe',
-          ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', `$input | ${command}`],
+          ['-NoLogo', '-NoProfile', '-NonInteractive', '-Command', vendorCommand],
           {
             env: { ...process.env, NCF_CURSOR_TEST_EXIT: String(exitCode) },
-            stdio: ['pipe', 'pipe', 'pipe'],
+            stdio: ['ignore', 'pipe', 'pipe'],
             windowsHide: true,
           },
         );
@@ -140,17 +144,19 @@ test(
         });
         child.on('error', reject);
         child.on('close', (code) => resolve({ code, stdout, stderr }));
-        child.stdin.end(payload);
       });
     for (const exitCode of [0, 23]) {
       const result = await invoke(exitCode);
       assert.equal(result.code, exitCode);
       assert.equal(result.stderr, '');
-      assert.deepEqual(JSON.parse(result.stdout.trim()), {
-        input: payload,
-        runAsNode: '1',
-        event: 'stop',
-      });
+      const output = JSON.parse(result.stdout.trim()) as {
+        input: string;
+        runAsNode: string;
+        event: string;
+      };
+      assert.deepEqual(JSON.parse(output.input), JSON.parse(payload));
+      assert.equal(output.runAsNode, '1');
+      assert.equal(output.event, 'stop');
     }
   },
 );
