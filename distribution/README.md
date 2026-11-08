@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.17.1
+# NCF Agent Interconnect 0.17.2
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -48,8 +48,10 @@ open-file icon uses the operating system's default application.
   version. It inherits that chat environment and permission settings.
 - Cursor: Apply configures MCP and installs the included local plugin. Restart
   Cursor once and connect in the intended chat. Open bound chats can receive
-  messages in the IDE and Agents Window without being selected. After a window
-  reload, any ordinary message in that same chat restores its delivery wait.
+  messages in the IDE and Agents Window without being selected. After a restart,
+  send one ordinary message in the same previously connected chat. Delivery
+  remains recovering until that turn completes and the reactive wait is armed;
+  another connection or inbox-read request is unnecessary.
   Keep tabs open. Local plugin policies can prevent loading the integration.
   Direct Cursor and Cursor Agent in AionUi share the same MCP settings. Direct
   Cursor additionally needs its plugin; AionUi authorization and live-chat
@@ -57,14 +59,15 @@ open-file icon uses the operating system's default application.
 - Other standard MCP clients: send, receive and history are available;
   automatic delivery requires a supported adapter.
 
-For this fix, owner-led Windows Cursor 3.29.9 checks confirmed two-way exchanges
+During the v0.17.1 cycle, owner-led Windows Cursor 3.29.9 checks confirmed two-way exchanges
 and recipient acknowledgments in direct Cursor IDE and Cursor Agent through
 AionUi. The exact running helper revision was not captured for those exchanges;
 installed preview.2 files separately matched the tested package. Unselected
-chats, Agents Window and restart recovery were not repeated in this fix cycle.
+chats, Agents Window and restart recovery were not repeated in that fix cycle.
 Earlier macOS Cursor 3.28.7 checks covered those open-chat paths and window
 reload recovery, but not a full Cursor Quit/restart. Application package checks
-are separate from native client checks.
+are separate from native client checks. The newer persisted recovery has source
+regression coverage; a new native Cursor application restart check was not run.
 
 ## Exchange messages
 
@@ -128,6 +131,18 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.17.1
+
+Quit NCF Agent Interconnect before replacing it, then start the updated app.
+In each previously connected Cursor chat, send one ordinary message and let the
+response finish. Keep the tab open. Its exact binding and queued messages are
+preserved; another connection or inbox-read request is unnecessary. When the
+installation path is unchanged, another Apply is unnecessary. If the app path
+changes, use Cursor setup and Apply to update its paths.
+Compatible paired computers exchange current display names on connection,
+reconnection and live rename. Older peers keep their known name until they
+support the update. Node IDs, authorization and agent bindings do not change.
 
 ## Upgrade from 0.17.0 or a fix preview
 

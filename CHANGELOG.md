@@ -2,6 +2,17 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.17.2 — 2026-11-08
+
+- Restore an existing Cursor chat after a restart from one ordinary owner message, without another connection or inbox-read request. Delivery remains recovering until the completed turn arms its reactive wait.
+- Keep restored Cursor chats discoverable while their exact reactive wait is active; interrupted or consumed waits do not claim automatic availability.
+- Exchange current node display names on authenticated connection and reconnection, and push live renames to compatible connected peers. Save the refreshed remote name without changing node IDs, authorization or chat bindings.
+- Preserve connections to older peers without the name-update capability; their known pairing names remain until a supported update.
+
+Source regressions cover persisted node and helper restart, exact-chat admission, wait availability, live rename and reconnect. A new native Cursor application restart check was not run; earlier client verification scopes remain separate.
+
+Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged. Node-name metadata uses an optional negotiated extension.
+
 ## 0.17.1 — 2026-11-08
 
 - Fix Windows Cursor hook commands under the host PowerShell pipeline, preserving UTF-8 JSON and helper exit codes.
