@@ -125,27 +125,31 @@ export class CursorHookAdapter implements AgentAdapter {
   status(): AdapterState {
     return { ...this.state };
   }
+  hasActiveWait(): boolean {
+    return !this.stopped && this.state.state === 'ready' && this.waiter !== undefined;
+  }
   async start(): Promise<void> {
     if (this.stopped) return;
     this.state.state = 'error';
     this.state.error = 'Send any message in this Cursor chat to restore delivery';
     this.changed();
   }
-  activate(): void {
+  activate(forceChanged = false): void {
     if (this.stopped) return;
     const changed = this.state.state !== 'ready' || this.state.error !== null;
     this.state.state = 'ready';
     this.state.error = null;
-    if (changed) this.changed();
+    if (changed || forceChanged) this.changed();
   }
   recover(): void {
     if (this.stopped) return;
+    const wasActive = this.waiter !== undefined;
     this.waiter?.resolve({});
     this.waiter = undefined;
     const changed = this.state.state !== 'recovering' || this.state.error !== null;
     this.state.state = 'recovering';
     this.state.error = null;
-    if (changed) this.changed();
+    if (changed || wasActive) this.changed();
   }
   acknowledge(admissionId?: string): void {
     if (!admissionId || this.admission?.id !== admissionId) return;
@@ -167,11 +171,12 @@ export class CursorHookAdapter implements AgentAdapter {
       }
       return Promise.resolve({});
     }
+    const wasActive = this.waiter !== undefined;
     this.waiter?.resolve({});
     return new Promise<CursorHookResponse>((resolve) => {
       const waiter = { resolve };
       this.waiter = waiter;
-      this.activate();
+      this.activate(!wasActive);
       const close = () => {
         if (this.waiter !== waiter) return;
         this.waiter = undefined;
@@ -179,8 +184,8 @@ export class CursorHookAdapter implements AgentAdapter {
         if (!this.admission) {
           this.state.state = 'error';
           this.state.error = 'Send any message in this Cursor chat to restore delivery';
-          this.changed();
         }
+        this.changed();
       };
       signal.addEventListener('abort', close, { once: true });
       this.idle();
@@ -210,6 +215,7 @@ export class CursorHookAdapter implements AgentAdapter {
     if (input.isCurrent && !input.isCurrent()) return { state: 'revoked' };
     const waiter = this.waiter;
     this.waiter = undefined;
+    this.changed();
     const admissionId = randomUUID();
     const text = `${agentMessageText(input)}\n\nNCF-Admission-ID: ${admissionId}`;
     return new Promise<Admission>((resolve) => {

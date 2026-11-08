@@ -24,7 +24,7 @@ import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './setti
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { PeerNetwork, type Frame } from './peer.js';
-import { AdapterRegistry } from './adapters.js';
+import { AdapterRegistry, CursorHookAdapter } from './adapters.js';
 import { McpEndpoint } from './mcp-http.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
@@ -378,11 +378,20 @@ export class NodeService extends EventEmitter {
     const changed = this.presence.update(
       this.store.list().flatMap((agent) => {
         if (!agent.binding) return [];
-        const online = this.running && this.presence.isOnline(agent.binding.connectionId);
         const adapter = this.adapters
           .states()
           .find((value) => value.id === agent.binding!.adapterId);
-        const automatic = adapter?.state === 'ready' && adapter.capabilities.wakeIdle;
+        const cursor = adapter?.kind === 'cursor-hook';
+        const adapterInstance = cursor ? this.adapters.get(agent.binding.adapterId) : undefined;
+        const cursorActive =
+          adapterInstance instanceof CursorHookAdapter && adapterInstance.hasActiveWait();
+        const online =
+          this.running &&
+          (this.presence.isOnline(agent.binding.connectionId) || cursorActive === true);
+        const automatic =
+          adapter?.state === 'ready' &&
+          adapter.capabilities.wakeIdle &&
+          (!cursor || cursorActive === true);
         return [
           {
             nickname: agent.nickname,

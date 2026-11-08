@@ -380,9 +380,38 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   await service.open();
   client = await openClient();
   await client.listTools();
+  const listedCursor = (includeUnavailable = false) =>
+    (
+      service.listAgents({ includeUnavailable }) as {
+        agents: { nickname: string; availability: string; delivery: string }[];
+      }
+    ).agents.find((agent) => agent.nickname === 'Курсор');
   assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'error');
   assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
   assert.deepEqual(service.store.sourceStamp('Курсор'), originalStamp);
+  assert.equal(listedCursor(), undefined);
+  assert.equal(listedCursor(true)?.availability, 'unknown');
+  assert.equal(listedCursor(true)?.delivery, 'unknown');
+
+  await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
+    conversation_id: conversationId,
+    prompt: 'Восстанови доставку.',
+  });
+  assert.equal(listedCursor(), undefined);
+  const aborted = new AbortController();
+  const armedWait = service.contexts.handleCursorHook(
+    { event: 'stop', conversationId, status: 'completed' },
+    aborted.signal,
+  );
+  await until(() => listedCursor()?.delivery === 'automatic');
+  assert.equal(listedCursor()?.availability, 'online');
+  assert.equal(listedCursor()?.delivery, 'automatic');
+  aborted.abort();
+  await armedWait;
+  await until(() => listedCursor() === undefined);
+  assert.equal(listedCursor(true)?.availability, 'unknown');
+  assert.equal(listedCursor(true)?.delivery, 'unknown');
+
   const second = await service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
@@ -408,6 +437,8 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   await until(() => service.adapters.get(body.binding.adapterId).status().state === 'ready');
   const secondPrompt = await secondWait;
   assert.match(String(secondPrompt.followup_message), /После перезапуска/);
+  assert.equal(listedCursor(), undefined);
+  assert.notEqual(service.store.get(second.id, 'in')?.state, 'processed');
   await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
     conversation_id: conversationId,
     prompt: secondPrompt.followup_message,
