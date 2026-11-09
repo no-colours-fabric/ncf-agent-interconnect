@@ -32,6 +32,7 @@ and Claude inside other applications are not covered.
    Both run the installed NCF executable with `ELECTRON_RUN_AS_NODE=1`. Node.js,
    Bun and a source checkout are not required. Startup only publishes these
    files; it never writes Claude Code settings.
+
 2. Open **MCP setup → Claude Code** and click **Configure Claude Code**. The
    dialog selects `$CLAUDE_CONFIG_DIR/settings.json`, or
    `~/.claude/settings.json` when that variable is unset. Choose another user
@@ -51,6 +52,7 @@ and Claude inside other applications are not covered.
    backup, and a disabled plugin or moved marketplace needs confirmation. No
    other tool, wildcard, Bash rule or bypass mode is added. Cancel writes
    nothing.
+
 4. Start or resume Claude Code normally. In the chat, write
    `Connect as agent <a name you choose>.` Never enter session IDs or tokens.
 
@@ -106,16 +108,16 @@ The hook does not change permission decisions.
 
 ## Lifecycle
 
-| Situation                                         | Behaviour                                                                                                                                                                                                                                                                                       |
-| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Launch or exact `claude --resume <id>`            | Supported. The mod's stream attaches to the exact session; messages already waiting are announced without a prompt or a second message.                                                                                                                                                        |
-| Later arrivals, busy turns                        | Supported. A notice waits until the session is idle. A newer wake supersedes an older queued notice; one read drains the backlog.                                                                                                                                                              |
-| Stop or Esc                                       | The queued notice is dropped by Claude Code and never resubmitted. A turn that ends with a message still unread is announced once more; nothing polls.                                                                                                                                          |
-| Draft in the input, permission or question dialog | The notice waits for the session to be idle and leaves the draft and the dialog unchanged.                                                                                                                                                                                                     |
+| Situation                                         | Behaviour                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Launch or exact `claude --resume <id>`            | Supported. The mod's stream attaches to the exact session; messages already waiting are announced without a prompt or a second message.                                                                                                                                                           |
+| Later arrivals, busy turns                        | Supported. A notice waits until the session is idle. A newer wake supersedes an older queued notice; one read drains the backlog.                                                                                                                                                                 |
+| Stop or Esc                                       | The queued notice is dropped by Claude Code and never resubmitted. A turn that ends with a message still unread is announced once more; nothing polls.                                                                                                                                            |
+| Draft in the input, permission or question dialog | The notice waits for the session to be idle and leaves the draft and the dialog unchanged.                                                                                                                                                                                                        |
 | In-process `/clear`, `/resume` or `/branch`       | `session.end` ends the old stream and its notices. Claude Code does not start mods again for the new context, so it stays unbound and no name moves automatically. Recovery: quit Claude Code and start it again (`claude --resume <id>` for an existing chat), then connect if it is a new chat. |
-| NCF restart                                       | The helper keeps its pinned native incarnation; the mod's stream reconnects as transport recovery. Claims of the previous NCF run are void.                                                                                                                                                    |
-| Name transfer                                     | Requires explicit owner approval and revokes the former binding; claims of the former binding are refused.                                                                                                                                                                                     |
-| Mods off, plugin missing or gate disabled         | No automatic wake; status says so. Messages stay readable with `agent_read`.                                                                                                                                                                                                                   |
+| NCF restart                                       | The helper keeps its pinned native incarnation; the mod's stream reconnects as transport recovery. Claims of the previous NCF run are void.                                                                                                                                                       |
+| Name transfer                                     | Requires explicit owner approval and revokes the former binding; claims of the former binding are refused.                                                                                                                                                                                        |
+| Mods off, plugin missing or gate disabled         | No automatic wake; status says so. Messages stay readable with `agent_read`.                                                                                                                                                                                                                      |
 
 ## Delivery and receipt
 
@@ -147,9 +149,11 @@ The hook does not change permission decisions.
 
 ## Verification
 
-See the candidate's `VERIFICATION.md` for exact revisions, commands, the native
-campaign and its limits. macOS, Windows, Claude Desktop and organization
-policies were not verified by the submitter.
+`docs/claude-code-candidate-verification.md` lists the exact revisions, the
+commands, the native campaign with its case table and the open items. Sanitized
+native evidence is in `docs/evidence/claude-code-candidate-native.json`. macOS,
+Windows, Claude Desktop and organization policies were not verified by the
+submitter.
 
 ## Targeted development checks
 
