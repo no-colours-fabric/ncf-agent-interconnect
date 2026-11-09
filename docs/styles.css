@@ -1913,34 +1913,65 @@ h3 {
     font-size: 1.65rem;
   }
   .review-development .dialogue-scene .participant-agent img {
-    width: 135%;
+    width: 110%;
   }
   .review-development .dialogue-scene .participant-human img {
-    width: 155%;
+    width: 125%;
+  }
+  .review-development .dialogue-scene .participant-agent.participant-initiator {
+    transform: translate(-10px, -24px);
+  }
+  .review-development .dialogue-scene .participant-agent.participant-responder {
+    transform: translate(10px, 24px);
   }
   .review-development .dialogue-scene .participant-human.participant-initiator {
-    transform: translate(40px, -24px);
+    transform: translate(-25px, -24px);
   }
   .review-development .dialogue-scene .participant-human.participant-responder {
-    transform: translate(20px, 24px);
+    transform: translate(35px, 24px);
+  }
+  .review-development .dialogue-shift-left .participant-human.participant-initiator img {
+    width: 110%;
+  }
+  .review-development .dialogue-shift-left .participant-human.participant-initiator {
+    transform: translate(-10px, -24px);
+  }
+  .review-development .dialogue-shift-right .participant-human.participant-initiator img,
+  .review-development .dialogue-shift-left .participant-human.participant-responder img {
+    width: 135%;
+  }
+  .review-development .dialogue-shift-right .participant-human.participant-initiator {
+    transform: translate(-35px, -24px);
   }
   .review-holiday .dialogue-scene .participant-agent img,
   .review-holiday .dialogue-scene .participant-human img,
   .review-holiday .dialogue-scene .holiday-left-rail .participant-agent img,
   .review-holiday .dialogue-scene .holiday-agent-rail .participant img {
-    width: 135%;
     max-width: none;
   }
-  .review-holiday .dialogue-scene .participant-human img {
-    width: 150%;
+  .review-holiday .dialogue-scene .participant-initiator img,
+  .review-holiday .dialogue-scene .holiday-left-rail .participant img {
+    width: 125%;
+  }
+  .review-holiday .dialogue-scene .holiday-agent-rail .participant img {
+    width: 120%;
+  }
+  .review-holiday .dialogue-scene .participant-initiator,
+  .review-holiday .dialogue-scene .holiday-left-rail .participant {
+    transform: translateX(-23px);
+  }
+  .review-holiday .holiday-user-first .scene-stage > .participant-human {
+    transform: translateX(-23px);
+  }
+  .review-holiday .dialogue-scene .holiday-agent-rail {
+    transform: translateX(20px);
+  }
+  .review-holiday .holiday-before-agent .participant-human img {
+    width: 115%;
     max-height: 460px;
   }
-  .review-holiday .dialogue-scene .holiday-left-rail .participant-human img {
-    width: 145%;
-    max-height: 390px;
-  }
-  .review-holiday .dialogue-scene .holiday-agent-rail-multiple .participant img {
-    width: 125%;
+  .review-holiday .holiday-before-agent .participant-human {
+    transform: translateX(-27px);
   }
   .review-home .site-header {
     max-width: 1000px;
@@ -2063,6 +2094,38 @@ h3 {
   }
   .review-home .site-footer {
     padding-inline: calc((100vw - 860px) / 2);
+  }
+}
+@media (min-width: 1201px) {
+  .review-page:not(.review-home) .dialogue-scene .scene-stage {
+    width: calc(100% - 28px);
+    margin-inline: 14px;
+  }
+}
+@media (min-width: 821px) and (max-width: 1200px) {
+  .review-page:not(.review-home) .dialogue-scene .scene-stage {
+    gap: 28px;
+  }
+  .review-page:not(.review-home) .dialogue-shift-left .scene-stage,
+  .review-page:not(.review-home) .dialogue-shift-right .scene-stage {
+    transform: none;
+  }
+  .review-page:not(.review-home) .dialogue-scene .participant img,
+  .review-holiday .dialogue-scene .holiday-left-rail .participant img,
+  .review-holiday .dialogue-scene .holiday-agent-rail .participant img {
+    width: 100%;
+    max-width: 100%;
+  }
+  .review-page:not(.review-home) .dialogue-scene .participant-initiator,
+  .review-holiday .holiday-user-first .scene-stage > .participant-human,
+  .review-holiday .dialogue-scene .holiday-left-rail .participant {
+    transform: translateY(-24px);
+  }
+  .review-page:not(.review-home) .dialogue-scene .participant-responder {
+    transform: translateY(24px);
+  }
+  .review-holiday .dialogue-scene .holiday-agent-rail {
+    transform: none;
   }
 }
 @media (max-width: 820px) {
