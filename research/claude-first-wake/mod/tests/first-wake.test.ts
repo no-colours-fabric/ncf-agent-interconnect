@@ -23,6 +23,8 @@ interface Options {
   consume?: () => Answer;
   start?: () => Answer;
   drop?: string;
+  // Makes the start-check request reject, like a node that went away.
+  startFails?: boolean;
   // Holds the mod's own submission like a prompt queued until the session is idle.
   queue?: Promise<void>;
 }
@@ -44,6 +46,7 @@ function fixture(on, options: Options = {}) {
   on('http.fetch', async ($, e) => {
     const route = String(e.url).replace('http://127.0.0.1:1', '');
     routes.push(route);
+    if (route === '/first-wake/start' && options.startFails) return { deny: 'node unreachable' };
     const body = JSON.parse(e.init.body);
     let value: Record<string, unknown> = {};
     if (route === '/first-wake/result') reports.push(body);
@@ -219,6 +222,16 @@ test('a refused start check drops the dequeued notice and fences the lifecycle',
     'prompt-hook:engine',
     'start-check:claim:revoked:binding',
   ]);
+});
+
+test('a start check that fails drops the notice through the catch handler', async ($, on) => {
+  const queued = gate<void>();
+  const f = fixture(on, { queue: queued.wait, startFails: true });
+  await $.session.start({ cwd: '/fixture' });
+  await settle();
+  const result = await $.prompt.submit({ text: f.delivered[0].text });
+  expect(String(result.drop)).toContain('NCF wake notice withdrawn: check');
+  expect(f.delivered.length).toBe(1);
 });
 
 test('an end while the notice is queued drops it', async ($, on) => {

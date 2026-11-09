@@ -236,3 +236,30 @@ test('Pending before subscription, arrival while held, and a later arrival: one 
   assert.deepEqual(r.server.claims.get(next)!.backlog, [during.id, later.id]);
   assert.ok(unread(f, [during.id, later.id]));
 });
+
+test('Research controls: an observed native event releases the barrier, second arrivals precede the snapshot, transfer follows consumption', async (t) => {
+  const f = await claudeFixture(t);
+  const r = await rig(t, f);
+  const { session } = await bound(f, 'Зоя');
+  await r.post('/fixture/hold', { trigger: 'turn.start', send: 2, transferOnConsume: true });
+  const pending = r.ask(session);
+  // Unrelated observations do not release it.
+  await r.post('/fixture/observe', {
+    sessionId: session,
+    event: 'draft',
+    detail: { present: true },
+  });
+  await r.post('/fixture/observe', { sessionId: session, event: 'turn.start', detail: {} });
+  const answer = await pending;
+  assert.equal(answer.wake, true);
+  const claim = String(answer.claim);
+  const ids = r.server.claims.get(claim)!.backlog;
+  assert.equal(ids.length, 2);
+  assert.equal((await r.consume(session, claim)).consumed, true);
+  assert.match(
+    await r.journal(),
+    /"event":"fixture-transfer","nickname":"Зоя","status":"connected"/,
+  );
+  assert.equal((await r.start(session, claim)).reason, 'revoked:binding');
+  assert.ok(unread(f, ids));
+});

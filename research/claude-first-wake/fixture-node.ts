@@ -12,8 +12,11 @@
 // Nothing here reads, receipts or suppresses messages or Channels offers.
 //
 // Usage: node --experimental-sqlite --import tsx fixture-node.ts --data <dir> [--control]
-// --control adds owner-operated research barriers (/fixture/hold, /fixture/release)
-// and a synthetic approved name transfer (/fixture/transfer) for native experiments.
+// --control adds research barriers for native experiments: /fixture/hold arms a
+// barrier before the snapshot that /fixture/observe releases on a native event
+// reported by the observer mod (or /fixture/release by hand), optionally with
+// synthetic second arrivals; /fixture/transfer and transferOnConsume perform a
+// synthetic owner-approved name transfer.
 import http from 'node:http';
 import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
@@ -142,6 +145,17 @@ export function snapshot(service: NodeService, sessionId: string): Pending | str
   };
 }
 
+/** The nickname bound to this exact native session, if exactly one. */
+function boundNickname(service: NodeService, sessionId: string): string | null {
+  const profiles = service.settings.value.adapters.filter(
+    (profile) => profile.kind === 'claude-code' && profile.sessionId === sessionId,
+  );
+  const agents = service.store
+    .list()
+    .filter((agent) => profiles.some((profile) => profile.id === agent.binding?.adapterId));
+  return agents.length === 1 ? agents[0].nickname : null;
+}
+
 const digest = (ids: string[]) => createHash('sha256').update(ids.join('\n')).digest('hex');
 
 export class WakeClaims {
@@ -264,8 +278,11 @@ export async function startFirstWakeEndpoint(
   options: { control?: boolean; claims?: WakeClaims } = {},
 ): Promise<{ url: string; claims: WakeClaims; close: () => Promise<void> }> {
   const claims = options.claims ?? new WakeClaims(service);
-  // Research control: an owner-operated barrier before the snapshot, not a timer.
+  // Research control: a barrier before the snapshot, released by an observed
+  // native event or by the operator, never by a timer.
   let gate: { wait: Promise<void>; open: () => void } | null = null;
+  let armed: { trigger: string; send: number; transferOnConsume: boolean } | null = null;
+  let senderConnection: string | null = null;
   const log = (entry: Record<string, unknown>) =>
     appendFile(journal, JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n', {
       mode: 0o600,
@@ -281,6 +298,39 @@ export async function startFirstWakeEndpoint(
     return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
   };
   const claimInput = z.object({ sessionId: z.uuid(), claim: z.string().regex(/^[0-9a-f]{64}$/) });
+  // A synthetic owner-approved transfer of the name to a manual MCP chat.
+  const transfer = (nickname: string): string => {
+    const target = {
+      nickname,
+      client: 'MCP',
+      chatId: randomUUID(),
+      adapterId: service.settings.value.adapters.find((item) => item.kind === 'manual')!.id,
+    };
+    const request = service.connect(target);
+    if (request.status !== 'nickname_in_use') return request.status;
+    return service.connect({
+      ...target,
+      connectionId: request.connectionId,
+      transferId: request.transferId,
+      confirmTransfer: true,
+    }).status;
+  };
+  // The fixture's own synthetic sender, reconnected through an approved transfer.
+  const sender = (): string => {
+    if (senderConnection) return senderConnection;
+    const target = { nickname: 'rr-Fixture-sender', client: 'MCP', chatId: randomUUID() };
+    let result = service.connect(target);
+    if (result.status === 'nickname_in_use')
+      result = service.connect({
+        ...target,
+        connectionId: result.connectionId,
+        transferId: result.transferId,
+        confirmTransfer: true,
+      });
+    if (result.status !== 'connected') throw new Error('fixture sender unavailable');
+    senderConnection = result.binding.connectionId;
+    return senderConnection;
+  };
   const server = http.createServer((req, res) => {
     void (async () => {
       const reply = (status: number, value: unknown) => {
@@ -317,6 +367,14 @@ export async function startFirstWakeEndpoint(
           claim: input.claim,
           ...result,
         });
+        // Research boundary: an approved transfer after consumption, before the
+        // mod receives the answer and submits its notice.
+        if (consuming && result.ok && armed?.transferOnConsume) {
+          armed = null;
+          const nickname = claims.get(input.claim)?.nickname;
+          if (nickname)
+            await log({ event: 'fixture-transfer', nickname, status: transfer(nickname) });
+        }
         return reply(
           200,
           consuming
@@ -324,36 +382,90 @@ export async function startFirstWakeEndpoint(
             : { started: result.ok, reason: result.reason },
         );
       }
+      if (options.control && req.url === '/fixture/observe') {
+        const input = z
+          .object({
+            sessionId: z.uuid(),
+            event: z.string().max(64),
+            detail: z.record(z.string(), z.union([z.string().max(200), z.boolean()])),
+          })
+          .strict()
+          .parse(await body(req));
+        await log({
+          event: 'observed',
+          native: input.event,
+          sessionId: input.sessionId,
+          ...input.detail,
+        });
+        const fire =
+          armed &&
+          gate &&
+          ((armed.trigger === 'turn.start' && input.event === 'turn.start') ||
+            (armed.trigger === 'draft' &&
+              input.event === 'draft' &&
+              input.detail.present === true) ||
+            (armed.trigger === 'ask' &&
+              input.event === 'tool.check' &&
+              input.detail.decision === 'ask') ||
+            (armed.trigger === 'question' && input.event === 'question') ||
+            (armed.trigger === 'session.end' && input.event === 'session.end'));
+        if (fire) {
+          const count = armed!.send;
+          armed = armed!.transferOnConsume ? { ...armed!, trigger: 'none', send: 0 } : null;
+          // Second arrivals are stored before the held query takes its snapshot.
+          const nickname = boundNickname(service, input.sessionId);
+          for (let index = 0; index < count && nickname; index++) {
+            const sent = await service.send({
+              connectionId: sender(),
+              recipientNode: service.settings.value.nodeId,
+              recipientNickname: nickname,
+              text:
+                'Synthetic second arrival ' + (index + 1) + ' (' + new Date().toISOString() + ')',
+            });
+            await log({ event: 'fixture-send', id: sent.id });
+          }
+          gate!.open();
+          gate = null;
+          await log({ event: 'fixture-release', on: input.event });
+        }
+        return reply(200, {});
+      }
       if (options.control && req.url?.startsWith('/fixture/')) {
         const input = z
-          .object({ nickname: z.string().max(120).optional() })
+          .object({
+            nickname: z.string().max(120).optional(),
+            trigger: z
+              .enum(['manual', 'turn.start', 'draft', 'ask', 'question', 'session.end'])
+              .optional(),
+            send: z.number().int().min(0).max(5).optional(),
+            transferOnConsume: z.boolean().optional(),
+          })
           .strict()
           .parse(await body(req));
         if (req.url === '/fixture/hold') {
           let open!: () => void;
           const wait = new Promise<void>((resolve) => (open = resolve));
           gate = { wait, open };
+          armed = {
+            trigger: input.trigger ?? 'manual',
+            send: input.send ?? 0,
+            transferOnConsume: input.transferOnConsume ?? false,
+          };
+          await log({ event: 'fixture-hold', ...armed });
+          return reply(200, {});
+        } else if (req.url === '/fixture/arm') {
+          // No barrier: only the transfer after the next consumption.
+          armed = { trigger: 'none', send: 0, transferOnConsume: input.transferOnConsume ?? false };
+          await log({ event: 'fixture-arm', ...armed });
+          return reply(200, {});
         } else if (req.url === '/fixture/release') {
           gate?.open();
           gate = null;
+          armed = null;
         } else if (req.url === '/fixture/transfer' && input.nickname) {
-          // A synthetic owner-approved transfer of the name to a manual MCP chat.
-          const target = {
-            nickname: input.nickname,
-            client: 'MCP',
-            chatId: randomUUID(),
-            adapterId: service.settings.value.adapters.find((item) => item.kind === 'manual')!.id,
-          };
-          const request = service.connect(target);
-          if (request.status !== 'nickname_in_use') return reply(409, { status: request.status });
-          const moved = service.connect({
-            ...target,
-            connectionId: request.connectionId,
-            transferId: request.transferId,
-            confirmTransfer: true,
-          });
-          await log({ event: 'fixture-transfer', nickname: input.nickname, status: moved.status });
-          return reply(200, { status: moved.status });
+          const status = transfer(input.nickname);
+          await log({ event: 'fixture-transfer', nickname: input.nickname, status });
+          return reply(200, { status });
         } else return reply(404, { error: 'not found' });
         await log({ event: 'fixture-' + req.url.slice('/fixture/'.length) });
         return reply(200, {});

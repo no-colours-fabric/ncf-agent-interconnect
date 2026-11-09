@@ -33,28 +33,38 @@ export function register(on) {
     return next(e);
   });
   on('prompt.submit', async ($, e, next) => {
-    // The event carries no prompt origin, and next.origin names whoever fired the
-    // event (the engine when a queued prompt is dequeued), so the notice is
-    // recognised by its exact text.
+    // The event names no prompt origin, so the notice is recognised by its exact
+    // text. Whether this hook sees the mod's own queued notice, and with which
+    // next.origin, is recorded as native evidence by the prompt-hook report.
     if (!isWakeText(e.text)) return next(e);
-    const own = scope;
-    if (own?.endpoint)
-      await report($, own.endpoint, {
-        sessionId: own.sessionId,
-        claim: own.claim,
-        outcome: 'prompt-hook:' + String(next.origin?.plugin ?? 'none'),
-      });
-    // A notice from a fenced lifecycle is never let through.
-    if (!own || own.text !== e.text)
-      return { drop: 'NCF wake notice from an ended session lifecycle. Messages stay unread.' };
-    own.text = null;
-    const verdict = await startCheck($, own).catch(() => 'start-check-failed');
-    if (verdict !== 'started') {
-      own.current = false;
-      return { drop: 'NCF wake notice withdrawn: ' + verdict + '. Messages stay unread.' };
-    }
-    return next(e);
+    const refusal = await noticeCheck($, e.text, next.origin);
+    return refusal ? { drop: refusal } : next(e);
+  }).catch(($, e, next) => {
+    // A failed or timed-out check never lets a notice through.
+    if (next.called || !isWakeText(e.text)) return next(e);
+    return {
+      drop: 'NCF wake notice withdrawn: check ' + next.error.kind + '. Messages stay unread.',
+    };
   });
+}
+
+// Why the notice must not start a turn now, or null when it may.
+async function noticeCheck($, text, origin) {
+  const own = scope;
+  if (own?.endpoint)
+    await report($, own.endpoint, {
+      sessionId: own.sessionId,
+      claim: own.claim,
+      outcome: 'prompt-hook:' + String(origin?.plugin ?? 'none'),
+    });
+  // A notice from a fenced lifecycle is never let through.
+  if (!own || own.text !== text)
+    return 'NCF wake notice from an ended session lifecycle. Messages stay unread.';
+  own.text = null;
+  const verdict = await startCheck($, own);
+  if (verdict === 'started') return null;
+  own.current = false;
+  return 'NCF wake notice withdrawn: ' + verdict + '. Messages stay unread.';
 }
 
 export function wakeText(nickname) {

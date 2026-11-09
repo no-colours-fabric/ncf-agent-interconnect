@@ -1,0 +1,7 @@
+{
+  "name": "ncf-first-wake-observer",
+  "version": "0.0.1",
+  "description": "Research instrumentation only: reports native lifecycle, turn, draft and dialog events to the isolated first-wake fixture node. It changes nothing.",
+  "author": { "name": "no-colours-fabric" },
+  "license": "BSD-3-Clause"
+}
