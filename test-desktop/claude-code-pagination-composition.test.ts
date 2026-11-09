@@ -61,6 +61,7 @@ test('An arrival during a partial read survives Stop renewal and a new helper ep
       _meta: { [claudeCallMetaKey]: verified.body.callToken },
     });
     assert.equal(result.isError, undefined);
+    await helper.written(result);
     return result.structuredContent as unknown as Page;
   };
 

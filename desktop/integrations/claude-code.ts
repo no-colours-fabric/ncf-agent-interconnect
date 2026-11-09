@@ -5,10 +5,12 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { serializeMessage } from '@modelcontextprotocol/sdk/shared/stdio.js';
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  type JSONRPCMessage,
   type ServerNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
@@ -27,6 +29,8 @@ export const claudeToolPrefix = `mcp__plugin_${claudePlugin.name}_${claudePlugin
 export const claudeChannelMethod = 'notifications/claude/channel';
 /** Private bridge-to-node admission capability; never a model tool argument. */
 export const claudeCallMetaKey = 'ncf/claude-call';
+/** Private node-to-bridge delivery attempt of a read result; stripped before Claude Code sees it. */
+export const claudeDeliveryMetaKey = 'ncf/claude-delivery';
 
 const channelInstructions =
   'Channel wake delivery is experimental and unconfirmed. If an event from this channel arrives as <channel source="..." agent="...">, it only announces that NCF Agent Interconnect messages are waiting for the named agent; it never contains message text. Call agent_read with the connectionId of that agent in this chat and continue with nextCursor while hasMore is true. Messages remain available through agent_read without a channel event. A read does not establish automatic idle wake. Do not poll or reply to the channel itself.';
@@ -82,6 +86,26 @@ export function canonicalInputHash(input: unknown): string {
     .digest('hex');
 }
 
+/**
+ * Stdio to Claude Code where a frame counts as sent only when the write callback
+ * reports the whole frame handed to the pipe without error. That is the local
+ * full-frame handoff a delivery commits on; it is not an acknowledgement by
+ * Claude Code or the model.
+ */
+export class ClaudeStdioTransport extends StdioServerTransport {
+  constructor(
+    stdin: NodeJS.ReadableStream = process.stdin,
+    private readonly stdout: NodeJS.WritableStream = process.stdout,
+  ) {
+    super(stdin as never, stdout as never);
+  }
+  override send(message: JSONRPCMessage): Promise<void> {
+    return new Promise((resolve, reject) => {
+      this.stdout.write(serializeMessage(message), (error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
 const descriptorSchema = z
   .object({ url: z.url(), token: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
@@ -129,10 +153,44 @@ const contextTools = new Set(['agent_connect']);
 export async function startClaudeBridge(
   nodeFile: string,
   env: NodeJS.ProcessEnv = process.env,
-  transport: Transport = new StdioServerTransport(),
+  transport: Transport = new ClaudeStdioTransport(),
 ): Promise<{ close: () => Promise<void>; helperId: string }> {
   const helperId = randomUUID();
   const secret = randomBytes(32).toString('hex');
+  // Delivery attempts of read results, keyed by the JSON-RPC id of their response.
+  const deliveries = new Map<string | number, string>();
+  const report = async (delivery: string, phase: 'commit' | 'cancel' | 'uncertain') => {
+    // A commit is idempotent on node-owned IDs, so a failed report is retried a
+    // few times; without it the attempt stays uncertain, never processed.
+    for (let attempt = 0; attempt < (phase === 'commit' ? 3 : 1); attempt++)
+      try {
+        const sent = await post(nodeFile, '/integrations/claude/delivery', {
+          helperId,
+          secret,
+          delivery,
+          phase,
+        });
+        if (sent.ok) return;
+      } catch {
+        // Retried below.
+      }
+  };
+  const send = transport.send.bind(transport);
+  transport.send = async (message, options) => {
+    const id =
+      'id' in message && ('result' in message || 'error' in message) ? message.id : undefined;
+    const delivery = id === undefined ? undefined : deliveries.get(id);
+    if (delivery === undefined) return send(message, options);
+    deliveries.delete(id!);
+    try {
+      await send(message, options);
+    } catch (error) {
+      // The frame may be partly written: receipt is unknown, never repeated.
+      void report(delivery, 'uncertain');
+      throw error;
+    }
+    void report(delivery, 'commit');
+  };
   const spawned = sessionValue.safeParse(env.CLAUDE_CODE_SESSION_ID);
   const spawnSession = spawned.success ? spawned.data : null;
   const session = spawnSession;
@@ -228,7 +286,7 @@ export async function startClaudeBridge(
       throw new Error('The local NCF node is unavailable. Start it and reconnect MCP.');
     }
   });
-  server.setRequestHandler(CallToolRequestSchema, async (request) => {
+  server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
     const original = request.params.arguments ?? {};
     if (request.params.name === 'session_event')
       return {
@@ -291,11 +349,28 @@ export async function startClaudeBridge(
         arguments: args,
         _meta: { ...request.params._meta, [claudeCallMetaKey]: callToken },
       });
-      await currentCall('return');
-      // Admission may already have had durable effects; a late authority loss
-      // withholds content without undoing or replaying that operation.
-      if (!(await nativeLeaseCurrent()))
-        throw new Error('The Claude Code call result could not be confirmed.');
+      // The node's delivery attempt is private to this bridge.
+      const delivery =
+        typeof result._meta?.[claudeDeliveryMetaKey] === 'string'
+          ? (result._meta[claudeDeliveryMetaKey] as string)
+          : undefined;
+      if (result._meta) {
+        const { [claudeDeliveryMetaKey]: _delivery, ...meta } = result._meta;
+        result._meta = Object.keys(meta).length ? meta : undefined;
+      }
+      try {
+        await currentCall('return');
+        // Admission may already have had durable effects; a late authority loss
+        // withholds content without undoing or replaying that operation.
+        if (!(await nativeLeaseCurrent()))
+          throw new Error('The Claude Code call result could not be confirmed.');
+      } catch (error) {
+        // Nothing of this result has been written to Claude Code.
+        if (delivery) await report(delivery, 'cancel');
+        throw error;
+      }
+      // Receipt is committed by the transport after the full frame is written.
+      if (delivery) deliveries.set(extra.requestId, delivery);
       return result;
     } catch {
       const previous = remote;

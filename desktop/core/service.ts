@@ -165,6 +165,9 @@ export class NodeService extends EventEmitter {
       }
     };
     this.claude.on('problem', (message: string) => this.problem(message));
+    this.claude.on('helperGone', (helperId: string) => {
+      if (this.store && this.store.claudeHelperGone(helperId)) this.emit('change');
+    });
     this.claude.on('change', () => {
       for (const [key, snapshot] of this.claudeDispatchSnapshots)
         if (snapshot.lifecycle !== this.claudeDispatchLifecycle(snapshot.sessionId))
@@ -857,22 +860,42 @@ export class NodeService extends EventEmitter {
         : undefined);
     return this.connect({ ...args, connectionId, chatId: validated.threadId, adapterId });
   }
+  /**
+   * A fenced incoming message (held by an active or uncertain Claude Code
+   * delivery) appears in history without its content, so no path repeats it.
+   */
+  private withheld(row: Message): Record<string, unknown> {
+    const { text: _text, attachments: _files, ...envelope } = row.envelope;
+    return {
+      direction: row.direction,
+      sequence: row.sequence,
+      envelope,
+      withheld: 'Delivery to Claude Code is in progress or uncertain; content is not repeated',
+    };
+  }
   async read(connectionId: string, after = 0, limit = 50, unread = false): Promise<unknown> {
     return this.fileOperation(async () => {
       const owner = this.store.assertOwner(connectionId),
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
-      const page = this.store.history(owner.key, after, limit, unread);
+      const page = this.store.history(owner.key, after, limit, unread, unread);
+      const fenced = new Set(
+        page.messages
+          .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
+          .map((row) => row.envelope.id),
+      );
       const prepared = await allFileResults(
-        page.messages.map(async (row) => ({
-          ...row,
-          files: await allFileResults(
-            row.envelope.attachments.map(async (file) => ({
-              ...file,
-              localPath: await this.files.materialize(row.envelope.id, file),
-            })),
-          ),
-        })),
+        page.messages
+          .filter((row) => !fenced.has(row.envelope.id))
+          .map(async (row) => ({
+            ...row,
+            files: await allFileResults(
+              row.envelope.attachments.map(async (file) => ({
+                ...file,
+                localPath: await this.files.materialize(row.envelope.id, file),
+              })),
+            ),
+          })),
       );
       this.store.assertOwner(connectionId);
       for (const row of prepared)
@@ -888,23 +911,187 @@ export class NodeService extends EventEmitter {
       for (const row of prepared)
         if (!this.store.get(row.envelope.id, row.direction))
           throw new Error('The message was cleared');
-      const messages = prepared
+      const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+      const messages = page.messages
         .filter((row) => !unread || delivered.has(row.envelope.id))
-        .map(({ state, error: _error, ...message }) => ({
-          ...message,
-          ...(message.direction === 'in'
-            ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
-            : {}),
-          delivery: deliveryStatus(
-            this.store.get(message.envelope.id, message.direction)?.state ?? state,
-          ),
-        }));
+        .map((row) => {
+          const ready = released.get(row.envelope.id + row.direction);
+          if (!ready) return this.withheld(row);
+          const { state, error: _error, ...message } = ready;
+          return {
+            ...message,
+            ...(message.direction === 'in'
+              ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+              : {}),
+            delivery: deliveryStatus(
+              this.store.get(message.envelope.id, message.direction)?.state ?? state,
+            ),
+          };
+        });
       adapter?.afterRead?.(
         connectionId,
-        this.store.history(owner.key, 0, 1, true).messages.length > 0,
+        this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
       );
       return { ...page, messages };
     });
+  }
+  /**
+   * agent_read and agent_history through the exact Claude Code call. The node
+   * chooses the page and reserves its ready incoming IDs before any asynchronous
+   * preparation, revalidates the call's authority, persists the intent and only
+   * then releases content to the helper. Receipt is not recorded here: the
+   * helper commits it after it has written the complete response frame to
+   * Claude Code, or cancels when it can prove it wrote nothing.
+   */
+  async readClaude(
+    connectionId: string,
+    after: number,
+    limit: number,
+    unread: boolean,
+    callToken: string,
+  ): Promise<{ result: unknown; delivery?: string }> {
+    return this.fileOperation(async () => {
+      const scope = this.claude.callScope(callToken);
+      const authorized = () => {
+        this.claude.assertCall(callToken, scope.tool, scope.sessionKey, scope.requestId);
+        this.claude.validateCurrentSync(scope.lease);
+      };
+      const owner = this.store.assertOwner(connectionId),
+        adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
+      adapter?.beforeRead?.(connectionId);
+      const page = this.store.history(owner.key, after, limit, unread, unread);
+      const fenced = new Set(
+        page.messages
+          .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
+          .map((row) => row.envelope.id),
+      );
+      const ids = page.messages
+        .filter(
+          (row) => row.direction === 'in' && row.state === 'ready' && !fenced.has(row.envelope.id),
+        )
+        .map((row) => row.envelope.id);
+      authorized();
+      const delivery = ids.length
+        ? this.store.reserveClaudeDelivery({
+            connectionId,
+            ids,
+            helperId: scope.lease.helperId,
+            scope: {
+              helperId: scope.lease.helperId,
+              epoch: scope.lease.epoch,
+              generation: scope.lease.generation,
+              session: scope.lease.session,
+              nativeLeaseNonce: scope.lease.nativeLeaseNonce,
+              sessionKey: scope.sessionKey,
+              requestId: scope.requestId,
+              tool: scope.tool,
+              permit: scope.permit,
+            },
+          })
+        : undefined;
+      try {
+        const prepared = await allFileResults(
+          page.messages
+            .filter((row) => !fenced.has(row.envelope.id))
+            .map(async (row) => ({
+              ...row,
+              files: await allFileResults(
+                row.envelope.attachments.map(async (file) => ({
+                  ...file,
+                  localPath: await this.files.materialize(row.envelope.id, file),
+                })),
+              ),
+            })),
+        );
+        this.store.assertOwner(connectionId);
+        for (const row of prepared)
+          if (!this.store.get(row.envelope.id, row.direction))
+            throw new Error('The message was cleared');
+        // The last check before content may leave the node; no await follows.
+        authorized();
+        if (delivery) this.store.issueClaudeDelivery(delivery);
+        const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+        const messages = page.messages.map((row) => {
+          const ready = released.get(row.envelope.id + row.direction);
+          if (!ready) return this.withheld(row);
+          const { state, error: _error, ...message } = ready;
+          return {
+            ...message,
+            ...(message.direction === 'in'
+              ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+              : {}),
+            delivery: deliveryStatus(
+              this.store.get(message.envelope.id, message.direction)?.state ?? state,
+            ),
+          };
+        });
+        // With a delivery, the adapter learns the outcome when the helper reports it.
+        if (!delivery)
+          adapter?.afterRead?.(
+            connectionId,
+            this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+          );
+        return { result: { ...page, messages }, ...(delivery ? { delivery } : {}) };
+      } catch (error) {
+        // Nothing was released: the reservation ends without receipt.
+        if (delivery && this.store.claudeDelivery(delivery)?.state === 'reserved')
+          this.store.cancelClaudeDelivery(delivery, (error as Error).message);
+        throw error;
+      }
+    });
+  }
+  /**
+   * The helper's report for one delivery attempt it received: commit after a
+   * complete frame write, cancel when no write started, uncertain otherwise.
+   * Only the helper the attempt was issued to can report, with its secret.
+   */
+  async claudeDelivery(raw: unknown): Promise<{ state: string }> {
+    const input = z
+      .object({
+        helperId: z.uuid(),
+        secret: z.string().regex(/^[a-f0-9]{64}$/),
+        delivery: z.uuid(),
+        phase: z.enum(['commit', 'cancel', 'uncertain']),
+      })
+      .strict()
+      .parse(raw);
+    const helper = this.claude.authenticateHelper(input.helperId, input.secret);
+    const attempt = this.store.claudeDelivery(input.delivery);
+    if (!attempt || attempt.helperId !== helper.id || attempt.scope.epoch !== helper.epoch)
+      throw new Error('The delivery does not belong to this Claude Code helper');
+    if (input.phase === 'cancel')
+      this.store.cancelClaudeDelivery(input.delivery, 'The helper wrote nothing');
+    else if (input.phase === 'uncertain')
+      this.store.uncertainClaudeDelivery(input.delivery, 'The response write failed');
+    else {
+      const delivered = this.store.commitClaudeDelivery(input.delivery);
+      if (delivered.length) {
+        for (const [key, snapshot] of this.claudeDispatchSnapshots)
+          if (snapshot.connectionId === attempt.connectionId)
+            this.claudeDispatchSnapshots.delete(key);
+        await Promise.all(
+          delivered.map(async (id) => {
+            const row = this.store.get(id, 'in')!;
+            if (row.envelope.fromNode !== this.settings.value.nodeId)
+              await this.network.receipt(row.envelope.fromNode, id, 'processed').catch(() => {});
+          }),
+        );
+      }
+    }
+    // As after any read: remaining unread messages are offered again, event driven.
+    try {
+      const owner = this.store.assertOwner(attempt.connectionId);
+      this.adapters
+        .get(owner.binding.adapterId)
+        .afterRead?.(
+          attempt.connectionId,
+          this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+        );
+    } catch {
+      // The binding moved on; its new owner is offered by its own lifecycle.
+    }
+    this.emit('change');
+    return { state: this.store.claudeDelivery(input.delivery)?.state ?? 'unknown' };
   }
   private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
     const delivered = this.store.recordDelivery(connectionId, ids);
@@ -1086,6 +1273,8 @@ export class NodeService extends EventEmitter {
         row.state === 'received'
       )
         throw new Error('The attachment does not belong to this agent or is not ready');
+      if (row.direction === 'in' && this.store.claudeFenced(messageId))
+        throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       const file = row.envelope.attachments.find((f) => f.id === fileId);
       if (!file) throw new Error('Attachment not found');
       const localPath = await this.files.materialize(messageId, file);
@@ -1398,6 +1587,8 @@ export class NodeService extends EventEmitter {
       const status = adapter.status();
       if (!status.capabilities.wakeIdle) continue;
       const eligible = (message: Message) => {
+        // Content held by a Claude Code delivery is never admitted elsewhere.
+        if (this.store.claudeFenced(message.envelope.id)) return false;
         const previous = this.store.dispatchState(message.envelope.id);
         return (
           !previous ||

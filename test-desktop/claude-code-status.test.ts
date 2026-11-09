@@ -51,11 +51,13 @@ async function readThroughMcp(
   assert.equal(verified.status, 200);
   assert.ok(typeof verified.body.callToken === 'string');
   const client = await f.mcp();
-  return client.callTool({
+  const result = await client.callTool({
     name: 'agent_read',
     arguments: args,
     _meta: { [claudeCallMetaKey]: verified.body.callToken },
   });
+  await helper.written(result);
+  return result;
 }
 
 test('Claude missing, failed, empty and successful manual reads never promote automatic delivery', async (t) => {

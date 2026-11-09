@@ -12,7 +12,19 @@ import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
 import { helperHelloSchema, type ClaudeHelper, type WakeSink } from './claude-sessions.js';
-import { canonicalInputHash, claudeCallMetaKey } from '../integrations/claude-code.js';
+import {
+  canonicalInputHash,
+  claudeCallMetaKey,
+  claudeDeliveryMetaKey,
+} from '../integrations/claude-code.js';
+
+/** A read result released to a Claude Code helper under one delivery attempt. */
+class ClaudeRelease {
+  constructor(
+    readonly result: unknown,
+    readonly delivery?: string,
+  ) {}
+}
 
 export function createAgentMcp(
   service: NodeService,
@@ -41,7 +53,12 @@ export function createAgentMcp(
     readOnlyHint: boolean,
     handler: (
       args: z.infer<z.ZodObject<T>>,
-      extra: { _meta?: Record<string, unknown>; requestId?: string | number },
+      extra: {
+        _meta?: Record<string, unknown>;
+        requestId?: string | number;
+        /** The admitted Claude Code call permit, when this is one. */
+        claudePermit?: string;
+      },
     ) => unknown | Promise<unknown>,
     destructiveHint = false,
   ): void {
@@ -49,6 +66,7 @@ export function createAgentMcp(
       args: z.infer<z.ZodObject<T>>,
       extra: { _meta?: Record<string, unknown>; requestId?: string | number },
     ): Promise<CallToolResult> => {
+      let delivery: string | undefined;
       try {
         const currentCall = () => {
           const client = mcp.server.getClientVersion()?.name;
@@ -71,14 +89,25 @@ export function createAgentMcp(
         // This synchronous check is the final admission boundary. No await
         // separates it from handler invocation or the result-release check.
         currentCall();
-        const result = await handler(args as z.infer<z.ZodObject<T>>, extra);
+        const permit = extra._meta?.[claudeCallMetaKey];
+        const output = await handler(args as z.infer<z.ZodObject<T>>, {
+          ...extra,
+          ...(typeof permit === 'string' && mcp.server.getClientVersion()?.name === 'Claude Code'
+            ? { claudePermit: permit }
+            : {}),
+        });
+        const result = output instanceof ClaudeRelease ? output.result : output;
+        delivery = output instanceof ClaudeRelease ? output.delivery : undefined;
         currentCall();
         touch();
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result) }],
           structuredContent: result as Record<string, unknown>,
+          ...(delivery ? { _meta: { [claudeDeliveryMetaKey]: delivery } } : {}),
         };
       } catch (e) {
+        // The error result carries no content, so the attempt ends without receipt.
+        if (delivery) service.store.cancelClaudeDelivery(delivery, 'The call lost its authority');
         return { isError: true, content: [{ type: 'text' as const, text: (e as Error).message }] };
       }
     };
@@ -186,9 +215,17 @@ export function createAgentMcp(
     'Receive new messages and verified attachments. Returned messages are automatically marked received by the agent; no separate confirmation is needed. Paginate with nextCursor and hasMore.',
     read,
     false,
-    (args) => {
+    async (args, extra) => {
       touch(args.connectionId);
-      return service.read(args.connectionId, args.after, args.limit, true);
+      if (!extra.claudePermit) return service.read(args.connectionId, args.after, args.limit, true);
+      const released = await service.readClaude(
+        args.connectionId,
+        args.after,
+        args.limit,
+        true,
+        extra.claudePermit,
+      );
+      return new ClaudeRelease(released.result, released.delivery);
     },
   );
   register(
@@ -196,9 +233,18 @@ export function createAgentMcp(
     'Get persistent incoming and outgoing history. Incoming messages returned here are also marked received by the agent. Paginate with nextCursor and hasMore.',
     read,
     false,
-    (args) => {
+    async (args, extra) => {
       touch(args.connectionId);
-      return service.read(args.connectionId, args.after, args.limit, false);
+      if (!extra.claudePermit)
+        return service.read(args.connectionId, args.after, args.limit, false);
+      const released = await service.readClaude(
+        args.connectionId,
+        args.after,
+        args.limit,
+        false,
+        extra.claudePermit,
+      );
+      return new ClaudeRelease(released.result, released.delivery);
     },
   );
   register(
@@ -367,6 +413,7 @@ export class McpEndpoint {
         '/integrations/claude/call/validate',
         '/integrations/claude/wake/claim',
         '/integrations/claude/wake/start',
+        '/integrations/claude/delivery',
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
@@ -399,11 +446,13 @@ export class McpEndpoint {
                 ? await this.service.claudeWakeClaim(body)
                 : req.url === '/integrations/claude/wake/start'
                   ? await this.service.claudeWakeStart(body)
-                  : req.url === '/integrations/aionui/context'
-                    ? await this.service.contexts.registerAionUi(body)
-                    : req.url!.endsWith('/release')
-                      ? await this.service.contexts.releaseOpenCode(body)
-                      : await this.service.contexts.registerOpenCode(body);
+                  : req.url === '/integrations/claude/delivery'
+                    ? await this.service.claudeDelivery(body)
+                    : req.url === '/integrations/aionui/context'
+                      ? await this.service.contexts.registerAionUi(body)
+                      : req.url!.endsWith('/release')
+                        ? await this.service.contexts.releaseOpenCode(body)
+                        : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;

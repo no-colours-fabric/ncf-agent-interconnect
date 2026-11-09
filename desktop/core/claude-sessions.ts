@@ -208,6 +208,33 @@ export class ClaudeSessions extends EventEmitter {
     });
     return this.persisting;
   }
+  /** A connected helper, authenticated by its private secret. */
+  authenticateHelper(helperId: string, value: string): ClaudeHelper {
+    return this.authenticate(helperId, value);
+  }
+  /**
+   * The exact scope of one admitted call, captured for a delivery attempt: the
+   * native lease and the server-owned request identity. The permit token itself
+   * is kept only as a digest.
+   */
+  callScope(callToken: string): {
+    lease: ClaudeProofLease;
+    tool: string;
+    sessionKey: string;
+    requestId: string | number;
+    permit: string;
+  } {
+    const permit = this.calls.get(callToken);
+    if (!permit || permit.state !== 'admitted' || permit.sessionKey === undefined) throw unproven();
+    this.assertPermitCurrent(callToken, permit);
+    return {
+      lease: permit.lease,
+      tool: permit.tool,
+      sessionKey: permit.sessionKey,
+      requestId: permit.requestId!,
+      permit: digest(callToken),
+    };
+  }
   private authenticate(helperId: string, value: string): ClaudeHelper {
     const helper = this.helpers.get(helperId);
     if (!helper || !same(helper.secretHash, digest(value)))
@@ -593,6 +620,8 @@ export class ClaudeSessions extends EventEmitter {
   detach(helper: ClaudeHelper): void {
     if (this.helpers.get(helper.id) !== helper) return;
     this.helpers.delete(helper.id);
+    // Its issued deliveries can no longer be confirmed by a frame write report.
+    this.emit('helperGone', helper.id);
     helper.outstanding.clear();
     for (const [token, proof] of this.proofs)
       if (proof.lease.helperId === helper.id) this.proofs.delete(token);

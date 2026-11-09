@@ -82,6 +82,7 @@ async function fixture(t: TestContext) {
       _meta: { [claudeCallMetaKey]: permit.body.callToken },
     });
     assert.equal(result.isError, undefined, JSON.stringify(result.content));
+    await target.written(result);
     await settle();
     return result.structuredContent as unknown as ChatHistoryPage;
   };

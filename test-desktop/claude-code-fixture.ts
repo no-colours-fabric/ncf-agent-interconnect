@@ -120,6 +120,21 @@ export class FakeHelper {
     this.controller?.abort();
     await this.reading;
   }
+  /**
+   * What the installed bridge does after it has written a read result's complete
+   * frame to Claude Code: commit the node's delivery attempt for that result.
+   */
+  async written(result: { _meta?: Record<string, unknown> }): Promise<void> {
+    const delivery = result._meta?.['ncf/claude-delivery'];
+    if (typeof delivery !== 'string') return;
+    const committed = await this.f.post('/integrations/claude/delivery', {
+      helperId: this.id,
+      secret: this.secret,
+      delivery,
+      phase: 'commit',
+    });
+    if (committed.status !== 200) throw new Error('The delivery commit was refused');
+  }
   /** What the helper does before forwarding a tool call it received from Claude Code. */
   verify(tool: string, args: Record<string, unknown>, contextToken?: string) {
     const original = { ...args };

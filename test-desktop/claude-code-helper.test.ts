@@ -318,7 +318,9 @@ test('Source helper and command-hook processes require native proofs, reject mod
   const read = await client.callTool({ name: 'agent_read', arguments: readArgs });
   assert.equal(read.isError, undefined);
   assert.match(JSON.stringify(read.structuredContent), /Секретный текст/);
-  assert.equal(f.service.store.get(sent.id, 'out')!.state, 'processed');
+  // The bridge commits receipt after its write of the complete response frame.
+  await until(() => f.service.store.get(sent.id, 'out')!.state === 'processed');
+  assert.ok(!JSON.stringify(read).includes('ncf/claude-delivery'));
   const replayed = await client.callTool({ name: 'agent_read', arguments: readArgs });
   assert.equal(replayed.isError, true);
 
@@ -374,7 +376,7 @@ test('Source helper and command-hook processes require native proofs, reject mod
   });
   const freshReceipt = await fresh.client.callTool({ name: 'agent_read', arguments: freshRead });
   assert.equal(freshReceipt.isError, undefined);
-  assert.equal(f.service.store.get(freshMessage.id, 'out')!.state, 'processed');
+  await until(() => f.service.store.get(freshMessage.id, 'out')!.state === 'processed');
   assert.equal(f.service.store.get(later.id, 'out')!.state, 'ready');
   assert.equal(wakes.length, 1);
 });
@@ -404,7 +406,7 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
     const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
     if (sender.status !== 'connected') throw new Error();
     const body = 'REVOKED_NATIVE_BODY_' + randomUUID();
-    await f.service.send({
+    const sent = await f.service.send({
       connectionId: sender.binding.connectionId,
       recipientNode: f.service.settings.value.nodeId,
       recipientNickname: 'Получатель',
@@ -415,8 +417,8 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
     let reached = false;
     let release!: () => void;
     const barrier = new Promise<void>((resolve) => (release = resolve));
-    const originalRead = f.service.read;
-    f.service.read = async (...args) => {
+    const originalRead = f.service.readClaude;
+    f.service.readClaude = async (...args) => {
       const result = await originalRead.apply(f.service, args);
       reached = true;
       await barrier;
@@ -452,10 +454,18 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
         !JSON.stringify(result).includes(body),
         'Revoked native context must not receive the body',
       );
-      // This is a helper privacy check; receipt semantics are covered separately.
+      // The withheld content is never receipted. After native end the helper can
+      // still prove it wrote nothing, so the attempt is cancelled and the message
+      // stays readable; a replaced helper cannot report any more, so its
+      // released attempt stays uncertain and its message stays fenced.
+      const inbound = f.service.store.get(sent.id, 'in')!;
+      assert.equal(inbound.state, 'ready');
+      await until(
+        () => f.service.store.claudeFenced(sent.id) === (invalidation === 'route-replacement'),
+      );
     } finally {
       release();
-      f.service.read = originalRead;
+      f.service.readClaude = originalRead;
       const cleanup = await Promise.allSettled([client.close(), replacement?.detach()]);
       assert.ok(
         cleanup.every((result) => result.status === 'fulfilled'),
@@ -779,7 +789,7 @@ test('An old source helper cannot recapture a resumed session incarnation after 
   });
   const received = await fresh.client.callTool({ name: 'agent_read', arguments: freshRead });
   assert.equal(received.isError, undefined);
-  assert.equal(f.service.store.get(queued.id, 'out')!.state, 'processed');
+  await until(() => f.service.store.get(queued.id, 'out')!.state === 'processed');
   assert.equal(old.wakes.length, 0);
 });
 
