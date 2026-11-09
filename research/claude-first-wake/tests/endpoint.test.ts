@@ -68,7 +68,7 @@ test('A pending message on a proven exact route answers once with the bound name
   const answer = await e.ask(session);
   assert.equal(answer.wake, true);
   assert.equal(answer.nickname, 'Боб 漢字');
-  assert.ok(answer.ticket);
+  assert.match(String(answer.claim), /^[0-9a-f]{64}$/);
   assert.ok(!('ids' in answer));
   assert.match(await e.journal(), new RegExp(sent.id));
   // The endpoint never reads the inbox: the message is still unread.

@@ -6,16 +6,22 @@
 // session has (a) a bound Claude Code agent, (b) unread ready messages and
 // (c) a unique proven helper route with a current native lease. It subscribes
 // before taking its first snapshot, so an arrival between them is not missed.
-// A deadline is a resource limit and is reported as such, never as a wake.
+// A wake answer carries a one-use claim; /first-wake/claim consumes it right
+// before the mod submits and /first-wake/start confirms it right before the
+// queued notice starts a turn. A deadline is a resource limit, never a wake.
+// Nothing here reads, receipts or suppresses messages or Channels offers.
 //
-// Usage: node --experimental-sqlite --import tsx fixture-node.ts --data <dir>
+// Usage: node --experimental-sqlite --import tsx fixture-node.ts --data <dir> [--control]
+// --control adds owner-operated research barriers (/fixture/hold, /fixture/release)
+// and a synthetic approved name transfer (/fixture/transfer) for native experiments.
 import http from 'node:http';
-import { randomBytes, randomUUID } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { appendFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { z } from 'zod';
 import { NodeService } from '../../desktop/core/service.js';
 import { secretMatches } from '../../desktop/core/peer.js';
+import type { ClaudeProofLease } from '../../desktop/core/claude-sessions.js';
 
 const deadlineMs = () => Number(process.env.NCF_FIRST_WAKE_DEADLINE_MS ?? 20000);
 
@@ -50,13 +56,56 @@ export async function prepareSettings(directory: string): Promise<void> {
 export interface FirstWakeAnswer {
   wake: boolean;
   nickname?: string;
-  ticket: string | null;
+  claim: string | null;
+  expiresAt?: string;
   reason?: string;
-  ids?: string[];
 }
 
-/** The pending snapshot for one exact native session. */
-export function snapshot(service: NodeService, sessionId: string): FirstWakeAnswer | string {
+/**
+ * A research-only, node-owned, one-use right to submit one wake notice. It is
+ * bound to the exact native session, this node incarnation, the helper
+ * lifecycle with its native lease, the agent binding and the backlog captured
+ * when it was issued. It authorizes a notice, never message content: every read
+ * still passes the unchanged native proof and tool-admission checks.
+ */
+export interface WakeClaim {
+  id: string;
+  session: string;
+  incarnation: string;
+  lease: ClaudeProofLease;
+  binding: { agentKey: string; connectionId: string; adapterId: string; generation: number };
+  backlog: string[];
+  digest: string;
+  nickname: string;
+  claimBy: number;
+  startBy: number;
+  state: 'issued' | 'consumed' | 'started' | 'void';
+}
+
+interface Pending {
+  nickname: string;
+  agentKey: string;
+  binding: WakeClaim['binding'];
+  lease: ClaudeProofLease;
+  backlog: string[];
+}
+
+const claimMs = () => Number(process.env.NCF_FIRST_WAKE_CLAIM_MS ?? 15000);
+const startMs = () => Number(process.env.NCF_FIRST_WAKE_START_MS ?? 600000);
+
+function unread(service: NodeService, agentKey: string): string[] {
+  const ids: string[] = [];
+  let after = 0;
+  for (;;) {
+    const page = service.store.history(agentKey, after, 200, true);
+    ids.push(...page.messages.map((message) => message.envelope.id));
+    if (!page.hasMore) return ids;
+    after = page.nextCursor;
+  }
+}
+
+/** The pending snapshot for one exact native session, or the reason there is none. */
+export function snapshot(service: NodeService, sessionId: string): Pending | string {
   const profiles = service.settings.value.adapters.filter(
     (profile) => profile.kind === 'claude-code' && profile.sessionId === sessionId,
   );
@@ -67,22 +116,156 @@ export function snapshot(service: NodeService, sessionId: string): FirstWakeAnsw
   if (agents.length > 1) return 'ambiguous-binding';
   const route = service.claude.route(sessionId);
   if (route.ambiguous) return 'ambiguous-route';
-  if (!route.helper) return 'no-route';
+  const helper = route.helper;
+  if (!helper || helper.proven !== sessionId || !helper.nativeLeaseNonce) return 'no-route';
   const agent = agents[0];
-  const ready = service.store.history(agent.key, 0, 200, true).messages;
-  if (!ready.length) return 'none-pending';
+  const backlog = unread(service, agent.key);
+  if (!backlog.length) return 'none-pending';
+  const binding = agent.binding!;
   return {
-    wake: true,
     nickname: agent.nickname,
-    ticket: randomUUID(),
-    ids: ready.map((message) => message.envelope.id),
+    agentKey: agent.key,
+    binding: {
+      agentKey: agent.key,
+      connectionId: binding.connectionId,
+      adapterId: binding.adapterId,
+      generation: binding.generation,
+    },
+    lease: Object.freeze({
+      helperId: helper.id,
+      epoch: helper.epoch,
+      generation: helper.generation,
+      session: sessionId,
+      nativeLeaseNonce: helper.nativeLeaseNonce,
+    }),
+    backlog,
   };
+}
+
+const digest = (ids: string[]) => createHash('sha256').update(ids.join('\n')).digest('hex');
+
+export class WakeClaims {
+  readonly incarnation = randomUUID();
+  private readonly claims = new Map<string, WakeClaim>();
+  constructor(
+    private readonly service: NodeService,
+    private readonly now: () => number = Date.now,
+  ) {}
+  /** Issued synchronously from the snapshot that found the backlog. */
+  issue(session: string, pending: Pending): WakeClaim {
+    const now = this.now();
+    for (const [id, claim] of this.claims)
+      if (claim.state === 'void' || (claim.state === 'issued' && claim.claimBy <= now))
+        this.claims.delete(id);
+    if (this.claims.size >= 256) throw new Error('too many claims');
+    const claim: WakeClaim = {
+      id: randomBytes(32).toString('hex'),
+      session,
+      incarnation: this.incarnation,
+      lease: pending.lease,
+      binding: pending.binding,
+      backlog: pending.backlog,
+      digest: digest(pending.backlog),
+      nickname: pending.nickname,
+      claimBy: now + claimMs(),
+      startBy: 0,
+      state: 'issued',
+    };
+    this.claims.set(claim.id, claim);
+    return claim;
+  }
+  /** Why this claim no longer describes the current lifecycle, or null. Synchronous. */
+  private stale(claim: WakeClaim): string | null {
+    if (claim.incarnation !== this.incarnation) return 'incarnation';
+    try {
+      this.service.claude.validateCurrentSync(claim.lease);
+    } catch {
+      return 'revoked:helper';
+    }
+    const profile = this.service.settings.value.adapters.find(
+      (item) => item.id === claim.binding.adapterId,
+    );
+    if (profile?.kind !== 'claude-code' || profile.sessionId !== claim.session)
+      return 'revoked:profile';
+    const agent = this.service.store.list().find((item) => item.key === claim.binding.agentKey);
+    const binding = agent?.binding;
+    if (
+      !binding ||
+      binding.connectionId !== claim.binding.connectionId ||
+      binding.adapterId !== claim.binding.adapterId ||
+      binding.generation !== claim.binding.generation
+    )
+      return 'revoked:binding';
+    if (!claim.backlog.some((id) => this.service.store.get(id, 'in')?.state === 'ready'))
+      return 'backlog-read';
+    return null;
+  }
+  private find(session: string, id: string): WakeClaim | string {
+    const claim = this.claims.get(id);
+    if (!claim) return 'unknown';
+    // A foreign session never learns about or spends another session's claim.
+    if (claim.session !== session) return 'unknown';
+    return claim;
+  }
+  /** Consume once. Every failure leaves the backlog untouched. */
+  async consume(session: string, id: string): Promise<{ ok: boolean; reason?: string }> {
+    const found = this.find(session, id);
+    if (typeof found === 'string') return { ok: false, reason: found };
+    if (found.state !== 'issued') return { ok: false, reason: 'replayed' };
+    // The native lease file is read asynchronously, then everything is rechecked
+    // synchronously in the same tick as the state change.
+    try {
+      await this.service.claude.validateCurrent(found.lease);
+    } catch {
+      // Rechecked below.
+    }
+    return this.transition(found, 'issued', 'consumed');
+  }
+  /** The queued notice is about to start a turn. Same checks, once. */
+  async start(session: string, id: string): Promise<{ ok: boolean; reason?: string }> {
+    const found = this.find(session, id);
+    if (typeof found === 'string') return { ok: false, reason: found };
+    if (found.state !== 'consumed') return { ok: false, reason: 'replayed' };
+    try {
+      await this.service.claude.validateCurrent(found.lease);
+    } catch {
+      // Rechecked below.
+    }
+    return this.transition(found, 'consumed', 'started');
+  }
+  private transition(
+    claim: WakeClaim,
+    from: WakeClaim['state'],
+    to: WakeClaim['state'],
+  ): { ok: boolean; reason?: string } {
+    if (claim.state !== from) return { ok: false, reason: 'replayed' };
+    const now = this.now();
+    if (from === 'issued' ? claim.claimBy <= now : claim.startBy <= now) {
+      claim.state = 'void';
+      return { ok: false, reason: 'expired' };
+    }
+    const reason = this.stale(claim);
+    if (reason) {
+      claim.state = 'void';
+      return { ok: false, reason };
+    }
+    claim.state = to;
+    if (to === 'consumed') claim.startBy = now + startMs();
+    return { ok: true };
+  }
+  get(id: string): WakeClaim | undefined {
+    return this.claims.get(id);
+  }
 }
 
 export async function startFirstWakeEndpoint(
   service: NodeService,
   journal: string,
-): Promise<{ url: string; close: () => Promise<void> }> {
+  options: { control?: boolean; claims?: WakeClaims } = {},
+): Promise<{ url: string; claims: WakeClaims; close: () => Promise<void> }> {
+  const claims = options.claims ?? new WakeClaims(service);
+  // Research control: an owner-operated barrier before the snapshot, not a timer.
+  let gate: { wait: Promise<void>; open: () => void } | null = null;
   const log = (entry: Record<string, unknown>) =>
     appendFile(journal, JSON.stringify({ at: new Date().toISOString(), ...entry }) + '\n', {
       mode: 0o600,
@@ -97,6 +280,7 @@ export async function startFirstWakeEndpoint(
     }
     return JSON.parse(Buffer.concat(chunks).toString('utf8')) as unknown;
   };
+  const claimInput = z.object({ sessionId: z.uuid(), claim: z.string().regex(/^[0-9a-f]{64}$/) });
   const server = http.createServer((req, res) => {
     void (async () => {
       const reply = (status: number, value: unknown) => {
@@ -113,7 +297,7 @@ export async function startFirstWakeEndpoint(
         const input = z
           .object({
             sessionId: z.uuid(),
-            ticket: z.string().nullable(),
+            claim: z.string().nullable(),
             outcome: z.string().max(4200),
           })
           .strict()
@@ -121,42 +305,121 @@ export async function startFirstWakeEndpoint(
         await log({ event: 'mod-result', ...input });
         return reply(200, {});
       }
+      if (req.url === '/first-wake/claim' || req.url === '/first-wake/start') {
+        const input = claimInput.strict().parse(await body(req));
+        const consuming = req.url === '/first-wake/claim';
+        const result = consuming
+          ? await claims.consume(input.sessionId, input.claim)
+          : await claims.start(input.sessionId, input.claim);
+        await log({
+          event: consuming ? 'claim-consume' : 'claim-start',
+          sessionId: input.sessionId,
+          claim: input.claim,
+          ...result,
+        });
+        return reply(
+          200,
+          consuming
+            ? { consumed: result.ok, reason: result.reason }
+            : { started: result.ok, reason: result.reason },
+        );
+      }
+      if (options.control && req.url?.startsWith('/fixture/')) {
+        const input = z
+          .object({ nickname: z.string().max(120).optional() })
+          .strict()
+          .parse(await body(req));
+        if (req.url === '/fixture/hold') {
+          let open!: () => void;
+          const wait = new Promise<void>((resolve) => (open = resolve));
+          gate = { wait, open };
+        } else if (req.url === '/fixture/release') {
+          gate?.open();
+          gate = null;
+        } else if (req.url === '/fixture/transfer' && input.nickname) {
+          // A synthetic owner-approved transfer of the name to a manual MCP chat.
+          const target = {
+            nickname: input.nickname,
+            client: 'MCP',
+            chatId: randomUUID(),
+            adapterId: service.settings.value.adapters.find((item) => item.kind === 'manual')!.id,
+          };
+          const request = service.connect(target);
+          if (request.status !== 'nickname_in_use') return reply(409, { status: request.status });
+          const moved = service.connect({
+            ...target,
+            connectionId: request.connectionId,
+            transferId: request.transferId,
+            confirmTransfer: true,
+          });
+          await log({ event: 'fixture-transfer', nickname: input.nickname, status: moved.status });
+          return reply(200, { status: moved.status });
+        } else return reply(404, { error: 'not found' });
+        await log({ event: 'fixture-' + req.url.slice('/fixture/'.length) });
+        return reply(200, {});
+      }
       if (req.url !== '/first-wake/pending') return reply(404, { error: 'not found' });
       const { sessionId } = z
         .object({ sessionId: z.uuid() })
         .strict()
         .parse(await body(req));
-      await log({ event: 'mod-query', sessionId });
+      await log({ event: 'mod-query', sessionId, held: !!gate });
+      if (gate) await gate.wait;
       // Subscribe first, then take the snapshot: no arrival can fall between them.
-      const answer = await new Promise<FirstWakeAnswer>((resolve) => {
-        let last = 'pending';
-        const check = () => {
-          const value = snapshot(service, sessionId);
-          if (typeof value === 'string') {
-            last = value;
-            if (value === 'no-binding' || value.startsWith('ambiguous'))
-              finish({ wake: false, reason: value, ticket: null });
-            return;
-          }
-          finish(value);
-        };
-        const finish = (value: FirstWakeAnswer) => {
-          clearTimeout(timer);
-          service.off('change', check);
-          service.claude.off('change', check);
-          resolve(value);
-        };
-        service.on('change', check);
-        service.claude.on('change', check);
-        const timer = setTimeout(
-          () => finish({ wake: false, reason: 'deadline:' + last, ticket: null }),
-          deadlineMs(),
-        );
-        check();
+      // The claim is issued in the same synchronous step as the snapshot that found it.
+      const answer = await new Promise<{ answer: FirstWakeAnswer; claim?: WakeClaim }>(
+        (resolve) => {
+          let last = 'pending';
+          const check = () => {
+            const value = snapshot(service, sessionId);
+            if (typeof value === 'string') {
+              last = value;
+              if (value === 'no-binding' || value.startsWith('ambiguous'))
+                finish({ answer: { wake: false, reason: value, claim: null } });
+              return;
+            }
+            const claim = claims.issue(sessionId, value);
+            finish({
+              answer: {
+                wake: true,
+                nickname: value.nickname,
+                claim: claim.id,
+                expiresAt: new Date(claim.claimBy).toISOString(),
+              },
+              claim,
+            });
+          };
+          const finish = (value: { answer: FirstWakeAnswer; claim?: WakeClaim }) => {
+            clearTimeout(timer);
+            service.off('change', check);
+            service.claude.off('change', check);
+            resolve(value);
+          };
+          service.on('change', check);
+          service.claude.on('change', check);
+          const timer = setTimeout(
+            () => finish({ answer: { wake: false, reason: 'deadline:' + last, claim: null } }),
+            deadlineMs(),
+          );
+          check();
+        },
+      );
+      await log({
+        event: 'mod-answer',
+        sessionId,
+        ...answer.answer,
+        ...(answer.claim
+          ? {
+              ids: answer.claim.backlog,
+              digest: answer.claim.digest,
+              epoch: answer.claim.lease.epoch,
+              helperGeneration: answer.claim.lease.generation,
+              bindingGeneration: answer.claim.binding.generation,
+              incarnation: answer.claim.incarnation,
+            }
+          : {}),
       });
-      await log({ event: 'mod-answer', sessionId, ...answer });
-      const { ids: _ids, ...visible } = answer;
-      reply(200, visible);
+      reply(200, answer.answer);
     })().catch((error) => {
       if (!res.headersSent) {
         res.writeHead(400, { 'content-type': 'application/json' });
@@ -168,6 +431,7 @@ export async function startFirstWakeEndpoint(
   const { port } = server.address() as { port: number };
   return {
     url: 'http://127.0.0.1:' + port,
+    claims,
     close: () => new Promise((resolve) => server.close(() => resolve())),
   };
 }
@@ -183,6 +447,7 @@ if (process.argv[1]?.endsWith('fixture-node.ts')) {
   const endpoint = await startFirstWakeEndpoint(
     service,
     path.join(directory, 'first-wake-journal.jsonl'),
+    { control: process.argv.includes('--control') },
   );
   // Research evidence: dispatch transitions with timestamps, driven by node events.
   const seen = new Map<string, string>();
