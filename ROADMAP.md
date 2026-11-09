@@ -105,3 +105,26 @@ Keep the current GUI, headless service, and terminal administration modes in one
 The service should remain running while a TUI session is used for administration.
 
 ---
+
+## R-0007 — Discover installed AI applications
+
+- [ ] Open
+
+Detect supported AI applications installed on the user's computer.
+
+- On the first launch after installing NCF Agent Interconnect, look for all supported applications.
+- On later launches, detect newly installed supported applications and offer to configure them.
+- Show the setup offer only once for each application.
+- Display discovered applications as compact tiles with their official icons or logos.
+
+---
+
+## R-0008 — Distribute client adapters as plugins
+
+- [ ] Open
+
+Make client adapters plugins that can be developed independently of NCF Agent Interconnect and downloaded as packages.
+
+One possible distribution model is a GitHub repository containing plugin packages. An npm registry is another option. The distribution model remains open for discussion.
+
+---
