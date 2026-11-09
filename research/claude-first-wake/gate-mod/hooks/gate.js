@@ -87,7 +87,9 @@ async function check($, own) {
     // Evidence only.
   }
   if (verdict === 'started') return null;
-  return verdict === 'fenced'
-    ? ended
-    : 'NCF wake notice withdrawn: ' + verdict + '. Messages stay unread.';
+  if (verdict === 'fenced') return ended;
+  // The node found every message this notice announced already read.
+  if (verdict === 'claim:backlog-read')
+    return 'NCF wake notice withdrawn: the waiting messages were already read.';
+  return 'NCF wake notice withdrawn: ' + verdict + '. Messages stay unread.';
 }
