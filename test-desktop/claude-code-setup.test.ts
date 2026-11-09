@@ -31,21 +31,22 @@ test('Claude Code settings gain the marketplace, enabled plugin and one exact al
     extraKnownMarketplaces: {
       'ncf-agent-interconnect': { source: { source: 'directory', path: marketplace } },
     },
-    enabledPlugins: { 'ncf-agent-interconnect@ncf-agent-interconnect': true },
+    enabledPlugins: {
+      'ncf-agent-interconnect@ncf-agent-interconnect': true,
+      'ncf-agent-interconnect-gate@ncf-agent-interconnect': true,
+    },
     permissions: { allow: [rule] },
   });
   assert.ok(!configuration.includes('fixture-token-never-live'));
   assert.ok(!('mcpServers' in generated));
   assert.equal(instructions('claude').launchCommand, claudeLaunchCommand);
-  assert.equal(
-    claudeLaunchCommand,
-    'claude --dangerously-load-development-channels plugin:ncf-agent-interconnect@ncf-agent-interconnect',
-  );
+  // Normal use needs no development flag.
+  assert.equal(claudeLaunchCommand, 'claude');
   const created = edit('');
   assert.deepEqual(JSON.parse(created.content), generated);
   assert.deepEqual(
     created.changes.map((change) => change.action),
-    ['add', 'add', 'add'],
+    ['add', 'add', 'add', 'add'],
   );
   assert.equal(created.requiresReplacement, false);
 });

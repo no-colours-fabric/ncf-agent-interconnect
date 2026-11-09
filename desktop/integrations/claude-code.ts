@@ -19,6 +19,8 @@ export const claudePlugin = {
   name: 'ncf-agent-interconnect',
   marketplace: 'ncf-agent-interconnect',
   server: 'ncf',
+  /** The notice gate; the main plugin depends on it, so its mod runs first. */
+  gate: 'ncf-agent-interconnect-gate',
 } as const;
 /** Documented form for plugin servers; unverified until checked against a loaded plugin. */
 export const claudeToolPrefix = `mcp__plugin_${claudePlugin.name}_${claudePlugin.server}__`;
@@ -436,6 +438,75 @@ export async function startClaudeBridge(
   };
 }
 
+/**
+ * The installed mod's child for one exact native session: it holds the node's
+ * wake stream and prints each claimed wake as one JSON line. It never reads an
+ * inbox. Reconnection is transport recovery; it ends when the native session
+ * ends or its parent goes away.
+ */
+export async function runWakeStream(
+  nodeFile: string,
+  session: string,
+  write: (line: string) => void = (line) => void process.stdout.write(line),
+  parent: () => number = () => process.ppid,
+): Promise<void> {
+  const sessionId = sessionValue.parse(session);
+  const parentPid = parent();
+  let delay = 1000;
+  for (;;) {
+    if (parent() !== parentPid) return;
+    const lease = await readNativeLease(nodeFile, sessionId).catch(() => null);
+    if (!lease?.active) return;
+    const stream = new AbortController();
+    let silence: NodeJS.Timeout | undefined;
+    const quiet = () => {
+      clearTimeout(silence);
+      silence = setTimeout(() => stream.abort(), 45000);
+    };
+    try {
+      const config = await nodeDescriptor(nodeFile);
+      const response = await fetch(new URL('/integrations/claude/wake/stream', config.url), {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', authorization: 'Bearer ' + config.token },
+        body: JSON.stringify({ sessionId, nativeLeaseNonce: lease.nonce }),
+        redirect: 'error',
+        signal: stream.signal,
+      });
+      if (!response.ok || !response.body) throw new Error('refused');
+      quiet();
+      let buffer = '';
+      for await (const chunk of response.body) {
+        quiet();
+        buffer += Buffer.from(chunk).toString('utf8');
+        if (buffer.length > 65536) throw new Error('frame');
+        let end: number;
+        while ((end = buffer.indexOf('\n')) >= 0) {
+          const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
+          buffer = buffer.slice(end + 1);
+          if (line.type === 'error') throw new Error('refused');
+          if (line.type === 'ready') delay = 1000;
+          if (
+            line.type === 'wake' &&
+            typeof line.claim === 'string' &&
+            /^[0-9a-f]{64}$/.test(line.claim) &&
+            typeof line.notice === 'string'
+          )
+            write(JSON.stringify({ type: 'wake', claim: line.claim, notice: line.notice }) + '\n');
+        }
+        if (parent() !== parentPid) return;
+      }
+    } catch {
+      // Retried below with backoff while the native session lasts.
+    } finally {
+      clearTimeout(silence);
+      stream.abort();
+    }
+    if (parent() !== parentPid) return;
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    delay = Math.min(delay * 2, 30000);
+  }
+}
+
 const hookInput = z
   .object({
     hook_event_name: z.string(),
@@ -519,6 +590,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   if (!nodeFile) {
     process.stderr.write('The NCF node descriptor is missing.\n');
     process.exitCode = process.argv.includes('--hook') ? 0 : 1;
+  } else if (process.argv.includes('--wake-stream')) {
+    const session = process.argv[process.argv.indexOf('--session') + 1] ?? '';
+    runWakeStream(nodeFile, session)
+      .catch(() => {})
+      .finally(() => {
+        process.exitCode = 0;
+      });
   } else if (process.argv.includes('--hook'))
     // A hook failure must not block Claude Code; evidence is simply absent.
     readStdin()

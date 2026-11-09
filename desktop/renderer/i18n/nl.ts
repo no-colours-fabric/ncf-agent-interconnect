@@ -83,10 +83,10 @@ export const nl: Messages = {
   mcpSetup_configureClaude: 'Claude Code instellen',
   mcpSetup_claudeTitle: 'Claude Code instellen',
   mcpSetup_claudeDescription:
-    'Verbind interactieve Claude Code met NCF Agent Interconnect. Apply schakelt de door deze app gepubliceerde NCF-plugin in het geselecteerde gebruikersinstellingenbestand in en staat agent_read zonder vraag toe, zodat aangekondigde berichten automatisch worden ontvangen en als ontvangen gemarkeerd. Andere toestemmingsbeslissingen blijven bij jou. Kanalen zijn een research preview van Claude Code.',
+    'Verbind interactieve Claude Code met NCF Agent Interconnect. Toepassen schakelt in het gekozen gebruikersinstellingenbestand de NCF-plugin en de bijbehorende controleplugin in, beide gepubliceerd door deze app, en staat agent_read toe zonder vraag. De NCF-plugin meldt wachtende berichten in de juiste chat; de controle laat een melding alleen een beurt starten zolang die actueel is. Andere machtigingsbeslissingen blijven bij u.',
   mcpSetup_claudeNext:
-    'Start Claude Code met de onderstaande opdracht en verbind daarna een agent. Opgeslagen instellingen bevestigen niet dat het kanaal actief is.',
-  mcpSetup_claudeLaunch: 'Claude Code starten met het NCF-kanaal',
+    'Start of hervat Claude Code zoals gewoonlijk en verbind daarna een agent. De agentstatus toont wanneer automatisch wekken in een chat is bevestigd; de veilige modus of een organisatiebeleid kan het uitschakelen.',
+  mcpSetup_claudeLaunch: 'Claude Code starten',
   mcpSetup_copyLaunch: 'Startopdracht kopiëren',
   mcpSetup_connectionPrompt: 'Verbind als agent <een naam naar keuze>.',
 

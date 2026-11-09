@@ -62,8 +62,45 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
   assert.deepEqual(plugin.channels, [{ server: 'ncf', displayName: 'NCF Agent Interconnect' }]);
   assert.deepEqual(plugin.mcpServers.ncf.env, { ELECTRON_RUN_AS_NODE: '1' });
   assert.equal(plugin.mcpServers.ncf.command, command.args[1]);
-  assert.ok(!JSON.stringify(posix).includes('token'));
-  assert.equal(JSON.parse(posix['.claude-plugin/marketplace.json']).plugins[0].source, './plugin');
+  // No secret is published: the mods read the node descriptor at run time.
+  assert.ok(!/[0-9a-f]{64}/.test(JSON.stringify(posix)));
+  assert.deepEqual(
+    JSON.parse(posix['.claude-plugin/marketplace.json']).plugins.map(
+      (entry: { name: string; source: string }) => [entry.name, entry.source],
+    ),
+    [
+      ['ncf-agent-interconnect', './plugin'],
+      ['ncf-agent-interconnect-gate', './gate'],
+    ],
+  );
+  // The documented mod order: the main mod runs before the gate it depends on;
+  // an absent, disabled or mismatched gate stops the main plugin from loading.
+  assert.deepEqual(plugin.dependencies, [
+    { name: 'ncf-agent-interconnect-gate', version: '=0.12.0' },
+  ]);
+  assert.deepEqual(JSON.parse(posix['plugin/hooks/hooks.json']).modules, ['./wake.js']);
+  assert.equal(JSON.parse(posix['gate/.claude-plugin/plugin.json']).version, '0.12.0');
+  assert.deepEqual(JSON.parse(posix['gate/hooks/hooks.json']), {
+    description: 'NCF wake notice gate.',
+    modules: ['./gate.js'],
+  });
+  // Paths reach the mods as JSON string literals and an argument vector, never a shell line.
+  const wake = posix['plugin/hooks/wake.js'];
+  assert.ok(
+    wake.includes(
+      'const streamArgv = ' +
+        JSON.stringify([
+          "/Applications/NCF O'Brien $HOME.app/Contents/MacOS/NCF",
+          '/Applications/NCF.app/Contents/Resources/app.asar/build/integrations/claude-code.js',
+          '--wake-stream',
+          '--node-file',
+          '/Users/Пользователь 漢字/Library/Application Support/NCF/Integrations/node.json',
+        ]) +
+        ';',
+    ),
+  );
+  assert.ok(!wake.includes('asUser'));
+  assert.ok(posix['gate/hooks/gate.js'].includes('const source = "ncf-agent-interconnect";'));
 
   const windows = claudePluginFiles({
     execPath: "C:\\Program Files\\NCF O'Brien\\NCF.exe",

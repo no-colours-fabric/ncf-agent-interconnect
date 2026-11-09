@@ -83,10 +83,10 @@ export const es: Messages = {
   mcpSetup_configureClaude: 'Configurar Claude Code',
   mcpSetup_claudeTitle: 'Configurar Claude Code',
   mcpSetup_claudeDescription:
-    'Conecta Claude Code interactivo a NCF Agent Interconnect. Apply habilita el plugin de NCF publicado por esta aplicación en el archivo de configuración de usuario seleccionado y permite agent_read sin preguntar, para que los mensajes anunciados se reciban y se marquen como recibidos automáticamente. Las demás decisiones de permisos siguen siendo tuyas. Los canales son una vista previa de investigación de Claude Code.',
+    'Conecte Claude Code interactivo a NCF Agent Interconnect. Aplicar habilita en el archivo de configuración de usuario seleccionado el plugin de NCF y su plugin de verificación, ambos publicados por esta aplicación, y permite agent_read sin preguntar. El plugin de NCF anuncia los mensajes en espera en el chat exacto; la verificación solo deja que un anuncio inicie un turno mientras siga vigente. Las demás decisiones de permisos siguen siendo suyas.',
   mcpSetup_claudeNext:
-    'Inicia Claude Code con el comando de abajo y luego conecta un agente. La configuración guardada no confirma que el canal esté activo.',
-  mcpSetup_claudeLaunch: 'Iniciar Claude Code con el canal de NCF',
+    'Inicie o reanude Claude Code con normalidad y luego conecte un agente. El estado del agente indica cuándo el despertar automático está verificado en un chat; el modo seguro o una política de la organización pueden desactivarlo.',
+  mcpSetup_claudeLaunch: 'Iniciar Claude Code',
   mcpSetup_copyLaunch: 'Copiar comando de inicio',
   mcpSetup_connectionPrompt: 'Conéctate como agente <el nombre que elijas>.',
 

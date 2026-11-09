@@ -11,7 +11,7 @@ import { z } from 'zod';
 import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
-import { helperHelloSchema, type ClaudeHelper } from './claude-sessions.js';
+import { helperHelloSchema, type ClaudeHelper, type WakeSink } from './claude-sessions.js';
 import { canonicalInputHash, claudeCallMetaKey } from '../integrations/claude-code.js';
 
 export function createAgentMcp(
@@ -356,11 +356,17 @@ export class McpEndpoint {
       await this.claudeHelper(req, res, reject);
       return;
     }
+    if (req.url === '/integrations/claude/wake/stream' && req.method === 'POST') {
+      await this.claudeWakeStream(req, res, reject);
+      return;
+    }
     if (
       [
         '/integrations/claude/hook',
         '/integrations/claude/call',
         '/integrations/claude/call/validate',
+        '/integrations/claude/wake/claim',
+        '/integrations/claude/wake/start',
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
@@ -389,11 +395,15 @@ export class McpEndpoint {
             ? await this.service.claudeCall(body)
             : req.url === '/integrations/claude/call/validate'
               ? await this.service.claude.validateCall(body)
-              : req.url === '/integrations/aionui/context'
-                ? await this.service.contexts.registerAionUi(body)
-                : req.url!.endsWith('/release')
-                  ? await this.service.contexts.releaseOpenCode(body)
-                  : await this.service.contexts.registerOpenCode(body);
+              : req.url === '/integrations/claude/wake/claim'
+                ? await this.service.claudeWakeClaim(body)
+                : req.url === '/integrations/claude/wake/start'
+                  ? await this.service.claudeWakeStart(body)
+                  : req.url === '/integrations/aionui/context'
+                    ? await this.service.contexts.registerAionUi(body)
+                    : req.url!.endsWith('/release')
+                      ? await this.service.contexts.releaseOpenCode(body)
+                      : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;
@@ -536,6 +546,43 @@ export class McpEndpoint {
         end: () => res.end(),
       });
       if (res.destroyed || res.writableEnded) this.service.claude.detach(helper);
+    } catch {
+      res.end(JSON.stringify({ type: 'error' }) + '\n');
+    }
+  }
+  /** One ndjson stream per mod-held wake sink: claimed wake notices and keepalives only. */
+  private async claudeWakeStream(
+    req: IncomingMessage,
+    res: ServerResponse,
+    reject: (status: number, error: string) => void,
+  ): Promise<void> {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > 4096) {
+        reject(413, 'Request too large');
+        return;
+      }
+      chunks.push(Buffer.from(chunk));
+    }
+    if (!this.service.integrationsReady) {
+      reject(503, 'The node is not ready to accept connections');
+      return;
+    }
+    const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+    res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' });
+    res.socket?.setKeepAlive(true, 15000);
+    let sink: WakeSink | undefined;
+    res.once('close', () => {
+      if (sink) this.service.claude.detachWakeSink(sink);
+    });
+    try {
+      sink = await this.service.claude.attachWakeSink(body, {
+        write: (line) => res.write(line),
+        end: () => res.end(),
+      });
+      if (res.destroyed || res.writableEnded) this.service.claude.detachWakeSink(sink);
     } catch {
       res.end(JSON.stringify({ type: 'error' }) + '\n');
     }

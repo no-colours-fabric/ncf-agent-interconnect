@@ -1,7 +1,6 @@
 export const mcpSetupClients = ['cursor', 'opencode', 'codex', 'aionui', 'claude'] as const;
-/** Channels in the research preview need this explicit, per-launch opt-in by the owner. */
-export const claudeLaunchCommand =
-  'claude --dangerously-load-development-channels plugin:ncf-agent-interconnect@ncf-agent-interconnect';
+/** Claude Code starts normally; the NCF mod announces messages without development flags. */
+export const claudeLaunchCommand = 'claude';
 export type McpSetupClient = (typeof mcpSetupClients)[number];
 export type McpSetupApplication = McpSetupClient;
 export type McpSetupFormat = 'jsonc' | 'toml';

@@ -39,6 +39,7 @@ import {
   publishClaudePlugin,
   type ClaudePluginRuntime,
 } from './claude-plugin.js';
+import { WakeClaims, wakePending } from './claude-wake.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
@@ -68,6 +69,8 @@ export class NodeService extends EventEmitter {
   readonly aionui: AionUiSessions;
   readonly claude: ClaudeSessions;
   readonly contexts = new ClientContexts(this);
+  /** One-use claims for wake notices submitted by the installed Claude Code mod. */
+  readonly wakeClaims: WakeClaims;
   private claudeContextLeases = new Map<string, { lease: ClaudeProofLease; expires: number }>();
   private readonly presence: AgentPresence;
   running = false;
@@ -139,6 +142,28 @@ export class NodeService extends EventEmitter {
     this.aionui = new AionUiSessions(directory);
     this.claude = new ClaudeSessions(directory);
     this.adapters = new AdapterRegistry(this.aionui, this.claude);
+    this.wakeClaims = new WakeClaims({
+      claude: this.claude,
+      profiles: () => this.settings.value.adapters,
+      store: {
+        list: () => this.store.list(),
+        get: (id, direction) => this.store.get(id, direction),
+        history: (key, after, limit, unread) => this.store.history(key, after, limit, unread),
+      },
+    });
+    this.claude.wakeIssuer = (session) => {
+      const pending = wakePending(
+        { claude: this.claude, profiles: () => this.settings.value.adapters, store: this.store },
+        session,
+      );
+      if (typeof pending === 'string') return;
+      try {
+        const claim = this.wakeClaims.issue(session, pending);
+        return { claim: claim.id, notice: claim.notice };
+      } catch {
+        return;
+      }
+    };
     this.claude.on('problem', (message: string) => this.problem(message));
     this.claude.on('change', () => {
       for (const [key, snapshot] of this.claudeDispatchSnapshots)
@@ -687,6 +712,26 @@ export class NodeService extends EventEmitter {
     };
   }
   /** Verifies a Claude Code helper call before the helper forwards it to MCP. */
+  /** The installed mod consumes a wake claim immediately before it submits the notice. */
+  async claudeWakeClaim(raw: unknown): Promise<{ consumed: boolean; reason?: string }> {
+    const input = z
+      .object({ sessionId: z.uuid(), claim: z.string().regex(/^[0-9a-f]{64}$/) })
+      .strict()
+      .parse(raw);
+    const result = await this.wakeClaims.consume(input.sessionId.toLowerCase(), input.claim);
+    return { consumed: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
+  }
+  /** The installed gate starts the claim of the exact notice right before its turn. */
+  async claudeWakeStart(raw: unknown): Promise<{ started: boolean; reason?: string }> {
+    const input = z
+      .object({ sessionId: z.uuid(), notice: z.string().regex(/^[0-9a-f]{64}$/) })
+      .strict()
+      .parse(raw);
+    const session = input.sessionId.toLowerCase();
+    const result = await this.wakeClaims.start(session, input.notice);
+    if (result.ok) this.claude.markWakeVerified(session);
+    return { started: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
+  }
   async claudeCall(raw: unknown): Promise<{ contextToken?: string; callToken: string }> {
     if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
     const input = helperCallSchema.parse(raw);
@@ -1213,6 +1258,7 @@ export class NodeService extends EventEmitter {
       helper?.epoch,
       helper?.generation,
       helper?.nativeLeaseNonce,
+      this.claude.wakeSink(sessionId)?.id,
     ]);
   }
   private claudeDispatchCandidate(

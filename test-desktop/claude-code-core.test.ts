@@ -50,7 +50,10 @@ test('Two Claude Code chats in one folder and a second instance receive wakes on
   assert.equal(bob.status, 'connected');
   assert.ok(!('delivery' in bob));
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
-  assert.equal(adapterOf(f, bob.binding.connectionId).error, null);
+  assert.match(
+    String(adapterOf(f, bob.binding.connectionId).error),
+    /^Automatic wake is unavailable in this chat/,
+  );
   // The snapshot hides Claude Code chat identifiers like other exact-chat integrations.
   const snapshotBinding = f.service.snapshot().agents.find((x) => x.nickname === 'Боб')!.binding!;
   assert.equal(snapshotBinding.chatId, '[private]');

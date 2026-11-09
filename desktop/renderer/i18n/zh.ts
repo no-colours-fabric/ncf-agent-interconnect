@@ -78,10 +78,10 @@ export const zh: Messages = {
   mcpSetup_configureClaude: '配置 Claude Code',
   mcpSetup_claudeTitle: '配置 Claude Code',
   mcpSetup_claudeDescription:
-    '将交互式 Claude Code 连接到 NCF Agent Interconnect。Apply 会在所选用户设置文件中启用本应用发布的 NCF 插件，并允许无需确认即可使用 agent_read，从而自动接收已通知的消息并标记为已接收。其他权限决定仍由你做出。通道是 Claude Code 的研究预览功能。',
+    '将交互式 Claude Code 连接到 NCF Agent Interconnect。“应用”会在所选的用户设置文件中启用本应用发布的 NCF 插件及其检查插件，并允许无需确认即可使用 agent_read。NCF 插件会在对应的聊天中通知等待中的消息；检查插件只在通知仍然有效时允许它开始一轮对话。其他权限决定仍由你做出。',
   mcpSetup_claudeNext:
-    '使用下面的命令启动 Claude Code，然后连接代理。已保存的设置并不能确认通道处于活动状态。',
-  mcpSetup_claudeLaunch: '使用 NCF 通道启动 Claude Code',
+    '像平常一样启动或恢复 Claude Code，然后连接代理。代理状态会显示自动唤醒是否已在聊天中得到确认；安全模式或组织策略可能会将其关闭。',
+  mcpSetup_claudeLaunch: '启动 Claude Code',
   mcpSetup_copyLaunch: '复制启动命令',
   mcpSetup_connectionPrompt: '以代理<您选择的名称>的身份连接。',
 

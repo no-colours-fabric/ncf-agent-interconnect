@@ -22,6 +22,8 @@ export const helperHelloSchema = z
     nativeLeaseNonce: z.uuid().nullable(),
   })
   .strict();
+/** The installed mod's wake stream for one exact native session. */
+export const wakeSinkHelloSchema = z.object({ sessionId, nativeLeaseNonce: z.uuid() }).strict();
 export const helperCallSchema = z
   .object({
     helperId: z.uuid(),
@@ -87,6 +89,19 @@ export interface ClaudeHelper {
   publishing: boolean;
   outstanding: Map<string, number>;
 }
+/** A wake stream opened by the installed mod for one exact native session. */
+export interface WakeSink {
+  id: string;
+  session: string;
+  nativeLeaseNonce: string;
+  writer: HelperWriter;
+  /** The gate started a notice of this stream: the mod and gate run in order. */
+  verified: boolean;
+}
+export interface IssuedWake {
+  claim: string;
+  notice: string;
+}
 /** Revalidate this authorization snapshot after asynchronous work and at ticket consumption. */
 export interface ClaudeProofLease {
   readonly helperId: string;
@@ -129,6 +144,9 @@ const unproven = () =>
 /** Native spawn identity and a durable lease authorize a route. Tool input never selects it. */
 export class ClaudeSessions extends EventEmitter {
   private helpers = new Map<string, ClaudeHelper>();
+  private sinks = new Map<string, WakeSink>();
+  /** Installed by the node: issues a one-use claim for the session's pending backlog. */
+  wakeIssuer?: (session: string) => IssuedWake | undefined;
   private holders = new Map<string, Holder>();
   private routes: Route[] = [];
   private proofs = new Map<string, ToolProof>();
@@ -499,6 +517,79 @@ export class ClaudeSessions extends EventEmitter {
       throw unproven();
     }
   }
+  /**
+   * Attach the mod's wake stream to the current route of its exact session and
+   * native lease. Wakes covered by an earlier channel offer are offered again.
+   */
+  async attachWakeSink(raw: unknown, writer: HelperWriter): Promise<WakeSink> {
+    const hello = wakeSinkHelloSchema.parse(raw);
+    const native = await readNativeLease(this.nodeFile, hello.sessionId).catch(() => null);
+    const { helper } = this.route(hello.sessionId);
+    if (
+      this.unavailable ||
+      !native?.active ||
+      native.conflicted ||
+      native.nonce !== hello.nativeLeaseNonce ||
+      !helper ||
+      helper.nativeLeaseNonce !== hello.nativeLeaseNonce
+    )
+      throw unproven();
+    const previous = this.sinks.get(hello.sessionId);
+    const sink: WakeSink = {
+      id: randomUUID(),
+      session: hello.sessionId,
+      nativeLeaseNonce: hello.nativeLeaseNonce,
+      writer,
+      verified: false,
+    };
+    this.sinks.set(sink.session, sink);
+    if (previous)
+      try {
+        previous.writer.end();
+      } catch {
+        // A replaced stream has no authority.
+      }
+    helper.outstanding.clear();
+    writer.write(JSON.stringify({ type: 'ready' }) + '\n');
+    this.emit('change');
+    this.startHeartbeat();
+    return sink;
+  }
+  detachWakeSink(sink: WakeSink): void {
+    if (this.sinks.get(sink.session) !== sink) return;
+    this.sinks.delete(sink.session);
+    this.emit('change');
+  }
+  /** The wake stream of a session, only while it matches the current route's native lease. */
+  wakeSink(session: string | null | undefined): WakeSink | undefined {
+    if (!session) return;
+    const sink = this.sinks.get(session);
+    const { helper } = this.route(session);
+    return sink && helper?.nativeLeaseNonce === sink.nativeLeaseNonce ? sink : undefined;
+  }
+  /** Sends a claimed wake notice through the session's mod stream, or reports that none exists. */
+  sendWake(helper: ClaudeHelper): 'sent' | 'none' | 'failed' {
+    const sink = this.wakeSink(helper.proven);
+    if (!sink || !this.wakeIssuer) return 'none';
+    const issued = this.wakeIssuer(sink.session);
+    if (!issued) return 'failed';
+    try {
+      return sink.writer.write(JSON.stringify({ type: 'wake', ...issued }) + '\n')
+        ? 'sent'
+        : 'failed';
+    } catch {
+      this.detachWakeSink(sink);
+      return 'failed';
+    }
+  }
+  /** The gate started a notice of this session's current stream. */
+  markWakeVerified(session: string): void {
+    const sink = this.wakeSink(session);
+    if (sink && !sink.verified) {
+      sink.verified = true;
+      this.emit('change');
+    }
+  }
   detach(helper: ClaudeHelper): void {
     if (this.helpers.get(helper.id) !== helper) return;
     this.helpers.delete(helper.id);
@@ -606,6 +697,16 @@ export class ClaudeSessions extends EventEmitter {
     if (this.heartbeat) return;
     this.heartbeat = setInterval(() => {
       for (const helper of [...this.helpers.values()]) this.send(helper, { type: 'ping' });
+      // A stream whose route moved on is closed; the mod's child then exits.
+      for (const sink of [...this.sinks.values()])
+        try {
+          if (this.wakeSink(sink.session) !== sink) {
+            this.detachWakeSink(sink);
+            sink.writer.end();
+          } else sink.writer.write(JSON.stringify({ type: 'ping' }) + '\n');
+        } catch {
+          this.detachWakeSink(sink);
+        }
     }, 15000);
     this.heartbeat.unref();
   }
@@ -615,6 +716,10 @@ export class ClaudeSessions extends EventEmitter {
     for (const helper of [...this.helpers.values()]) {
       this.helpers.delete(helper.id);
       helper.writer.end();
+    }
+    for (const sink of [...this.sinks.values()]) {
+      this.sinks.delete(sink.session);
+      sink.writer.end();
     }
     this.proofs.clear();
     this.calls.clear();

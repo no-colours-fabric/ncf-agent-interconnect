@@ -22,7 +22,8 @@ function assertUnknownDelivery(f: ClaudeFixture, connectionId: string): void {
   const state = f.service.adapters.get(agent.binding.adapterId).status();
   assert.equal(state.kind, 'claude-code');
   assert.equal(state.state, 'manual');
-  assert.equal(state.error, null);
+  // Without the mod's wake stream, automatic wake is reported unavailable, not working.
+  assert.match(String(state.error), /^Automatic wake is unavailable in this chat/);
   assert.equal(state.capabilities.wakeIdle, true);
   assert.equal(state.capabilities.exactSession, true);
   const snapshot = f.service.snapshot();
@@ -33,7 +34,8 @@ function assertUnknownDelivery(f: ClaudeFixture, connectionId: string): void {
   assert.equal(entry?.delivery, 'unknown');
   const presentation = applicationStatus('claude-code', snapshot);
   assert.equal(presentation.summary, 'notConfirmed');
-  assert.equal(presentation.issues.length, 0);
+  // The unavailable automatic wake is shown to the owner as the reason.
+  assert.equal(presentation.issues.length, 1);
   assert.equal(connectionPresentation(state, true).status, 'clientsNotConfirmed');
 }
 

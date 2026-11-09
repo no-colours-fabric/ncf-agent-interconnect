@@ -48,9 +48,10 @@ export interface McpSetupEdit {
 }
 
 /**
- * Claude Code user settings: the local NCF marketplace, its enabled plugin and
- * one exact allow rule. Other settings, comments and formatting are preserved;
- * MCP servers are never added outside the plugin.
+ * Claude Code user settings: the local NCF marketplace, its enabled plugins (the
+ * NCF plugin and the gate it depends on) and one exact allow rule. Other
+ * settings, comments and formatting are preserved; MCP servers are never added
+ * outside the plugin.
  */
 function editClaudeSettings(original: string, configuration: string): McpSetupEdit {
   const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
@@ -81,9 +82,15 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
     return entries[0];
   };
   const [marketplace, entry] = wanted('extraKnownMarketplaces');
-  const [plugin, enabled] = wanted('enabledPlugins');
+  const wantedPlugins = Object.entries(table(desired, 'enabledPlugins'));
   const rules = own(table(desired, 'permissions'), 'allow');
-  if (!object(entry) || enabled !== true || !Array.isArray(rules) || rules.length !== 1)
+  if (
+    !object(entry) ||
+    !wantedPlugins.length ||
+    wantedPlugins.some(([, enabled]) => enabled !== true) ||
+    !Array.isArray(rules) ||
+    rules.length !== 1
+  )
     throw new Error('The generated Claude Code settings are invalid');
   const rule = rules[0] as string;
   const markets = table(root, 'extraKnownMarketplaces');
@@ -94,17 +101,18 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
     throw new Error('The permissions.allow setting must be an array of strings');
   const previous = own(markets, marketplace);
   const marketEqual = containsSettings(previous, entry);
-  const pluginState = own(plugins, plugin);
+  const pluginStates = wantedPlugins.map(([plugin]) => [plugin, own(plugins, plugin)] as const);
   const ruleExists = allow.includes(rule);
   const changes: McpSetupEdit['changes'] = [
     {
       scope: 'extraKnownMarketplaces.' + marketplace,
       action: marketEqual ? 'unchanged' : previous === undefined ? 'add' : 'replace',
     },
-    {
+    ...pluginStates.map(([plugin, state]) => ({
       scope: 'enabledPlugins.' + plugin,
-      action: pluginState === true ? 'unchanged' : pluginState === undefined ? 'add' : 'replace',
-    },
+      action: (state === true ? 'unchanged' : state === undefined ? 'add' : 'replace') as
+        'unchanged' | 'add' | 'replace',
+    })),
     { scope: 'permissions.allow', action: ruleExists ? 'unchanged' : 'add' },
   ];
   let content = source.trim() ? source : '{}';
@@ -115,8 +123,9 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
       content,
       modify(content, ['extraKnownMarketplaces', marketplace], entry, options),
     );
-  if (pluginState !== true)
-    content = applyEdits(content, modify(content, ['enabledPlugins', plugin], true, options));
+  for (const [plugin, state] of pluginStates)
+    if (state !== true)
+      content = applyEdits(content, modify(content, ['enabledPlugins', plugin], true, options));
   if (!ruleExists)
     content = applyEdits(content, modify(content, ['permissions', 'allow', -1], rule, options));
   const parsed = json(content);
@@ -127,7 +136,7 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
     changes,
     requiresReplacement:
       (previous !== undefined && !marketEqual) ||
-      (pluginState !== undefined && pluginState !== true),
+      pluginStates.some(([, state]) => state !== undefined && state !== true),
   };
 }
 

@@ -16,7 +16,7 @@ export function mcpInstructions(
     return {
       client,
       location: 'Claude Code user settings — ~/.claude/settings.json',
-      text: 'Apply enables the NCF plugin from the marketplace published by this app and allows agent_read without a prompt. Other permissions stay yours. Start Claude Code with the command below to permit experimental channel announcements. Automatic idle wake is not confirmed; messages remain available through agent_read even if no announcement arrives. A read does not prove automatic delivery. Do not poll.',
+      text: 'Apply enables two plugins from the marketplace published by this app: the NCF plugin (its MCP server, lifecycle and tool-call hooks, and a mod that announces waiting messages in the exact chat) and the NCF gate plugin it depends on, which lets an announcement start a turn only while its one-use claim is current. Apply also allows agent_read without a prompt; other permission decisions stay yours. Start or resume Claude Code normally. Announcements need Claude Code mods, which safe mode and some organization policies turn off; messages always remain available through agent_read. Do not poll.',
       configuration: JSON.stringify(
         {
           extraKnownMarketplaces: {
@@ -24,7 +24,10 @@ export function mcpInstructions(
               source: { source: 'directory', path: claudeMarketplace },
             },
           },
-          enabledPlugins: { [claudePlugin.name + '@' + claudePlugin.marketplace]: true },
+          enabledPlugins: {
+            [claudePlugin.name + '@' + claudePlugin.marketplace]: true,
+            [claudePlugin.gate + '@' + claudePlugin.marketplace]: true,
+          },
           permissions: { allow: [claudeToolPrefix + 'agent_read'] },
         },
         null,

@@ -8,9 +8,11 @@ import {
 import type { ClaudeHelper, ClaudeSessions } from './claude-sessions.js';
 
 /**
- * Wake-only delivery to one exact Claude Code session. A channel notification
- * is never acknowledged by Claude Code, so an offer is not a receipt: the
- * message content is obtained through agent_read.
+ * Wake-only delivery to one exact Claude Code session. The installed NCF mod
+ * holds a wake stream for the session; each wake carries a one-use claim and
+ * the mod submits a notice that the NCF gate plugin checks right before it
+ * starts a turn. Without that stream the legacy channel notification is sent.
+ * Neither is a receipt: the message content is obtained through agent_read.
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly wakeOnly = true;
@@ -64,7 +66,15 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     return this.sessions.route(this.profile.sessionId);
   }
   private lifecycle(helper: ClaudeHelper): string {
-    return [helper.id, helper.epoch, helper.generation, helper.nativeLeaseNonce].join(':');
+    // A wake stream attaching or leaving starts a new offer lifecycle, so the
+    // backlog announced before it is offered again through it.
+    return [
+      helper.id,
+      helper.epoch,
+      helper.generation,
+      helper.nativeLeaseNonce,
+      this.sessions.wakeSink(helper.proven)?.id ?? '',
+    ].join(':');
   }
   private observe(): void {
     const route = this.current();
@@ -102,9 +112,18 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         state: 'error',
         error: 'This Claude Code chat is not connected through the NCF plugin',
       };
-    // A current native route makes MCP available. Reads, including reads after
-    // an outstanding wake, do not establish that the channel woke an idle model.
-    return { ...base, state: 'manual', error: null };
+    // A current native route makes MCP available. Only a notice that the gate
+    // started in this chat's current wake stream shows automatic wake working;
+    // MCP initialization or an ordinary read never does.
+    const sink = this.sessions.wakeSink(route.helper.proven);
+    if (sink?.verified) return { ...base, state: 'ready', error: null };
+    return {
+      ...base,
+      state: 'manual',
+      error: sink
+        ? 'Automatic wake is set up in this chat but not verified yet; messages remain available through agent_read'
+        : 'Automatic wake is unavailable in this chat: the NCF mod is not running (Claude Code safe mode, an organization policy or an older client). Messages remain available through agent_read',
+    };
   }
   async start(): Promise<void> {
     this.sessions.on('change', this.listener);
@@ -136,12 +155,17 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       this.offers.set(input.messageId, { lifecycleKey, connectionId: key });
       return { state: 'offered' };
     }
-    const sent = this.sessions.send(
-      helper,
-      input.systemEvent
-        ? { type: 'notice', text: agentMessageText(input) }
-        : { type: 'wake', nickname: input.nickname },
-    );
+    const viaMod = input.systemEvent ? 'none' : this.sessions.sendWake(helper);
+    if (viaMod === 'failed')
+      return { state: 'failed', error: 'The NCF wake stream is unavailable' };
+    const sent =
+      viaMod === 'sent' ||
+      this.sessions.send(
+        helper,
+        input.systemEvent
+          ? { type: 'notice', text: agentMessageText(input) }
+          : { type: 'wake', nickname: input.nickname },
+      );
     if (!sent) return { state: 'failed', error: 'The Claude Code helper disconnected' };
     if (!input.systemEvent)
       helper.outstanding.set(
