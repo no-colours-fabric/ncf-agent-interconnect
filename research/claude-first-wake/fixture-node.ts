@@ -184,6 +184,30 @@ if (process.argv[1]?.endsWith('fixture-node.ts')) {
     service,
     path.join(directory, 'first-wake-journal.jsonl'),
   );
+  // Research evidence: dispatch transitions with timestamps, driven by node events.
+  const seen = new Map<string, string>();
+  const journal = path.join(directory, 'first-wake-journal.jsonl');
+  service.on('change', () => {
+    for (const agent of service.store.list()) {
+      for (const message of service.store.history(agent.key, 0, 200, false).messages) {
+        if (message.direction !== 'in') continue;
+        const state =
+          message.state + '/' + (service.store.dispatchState(message.envelope.id)?.state ?? '-');
+        if (seen.get(message.envelope.id) === state) continue;
+        seen.set(message.envelope.id, state);
+        void appendFile(
+          journal,
+          JSON.stringify({
+            at: new Date().toISOString(),
+            event: 'dispatch',
+            id: message.envelope.id,
+            state,
+          }) + '\n',
+          { mode: 0o600 },
+        );
+      }
+    }
+  });
   await writeFile(
     path.join(directory, 'research-first-wake.json'),
     JSON.stringify({ url: endpoint.url, token: service.settings.value.localToken }),

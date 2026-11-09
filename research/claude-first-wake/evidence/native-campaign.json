@@ -1,0 +1,407 @@
+{
+  "campaign": "ncfcr-20261109",
+  "implementationHead": "dd846a6 (+ fixture dispatch logging, see commit)",
+  "vendor": "Claude Code 2.1.318 (native, Linux x86_64, claude.ai personal account, isolated CLAUDE_CONFIG_DIR)",
+  "runtime": "Node.js 26.9.0 source fixture node (tsx), MCP SDK 1.32.2",
+  "aliases": {
+    "SESSION-B": "the exact resumed fixture conversation of agent rr-Борис"
+  },
+  "probes": [
+    {
+      "id": "c7693354-c682-4ad3-955e-871a527f1f0d",
+      "delivery": "accepted_by_node",
+      "at": "2026-11-09T11:10:40.170Z"
+    },
+    {
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "delivery": "accepted_by_node",
+      "at": "2026-11-09T11:13:38.992Z"
+    },
+    {
+      "id": "6e5d0b89-da9f-4d27-bf5a-7b10db80744f",
+      "delivery": "accepted_by_node",
+      "at": "2026-11-09T11:41:53.968Z"
+    },
+    {
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "delivery": "accepted_by_node",
+      "at": "2026-11-09T12:27:42.302Z"
+    },
+    {
+      "id": "5c5fa13e-94a4-4e64-b73a-1ab076f39a2e",
+      "delivery": "accepted_by_node",
+      "at": "2026-11-09T12:34:07.710Z"
+    }
+  ],
+  "nodeJournal": [
+    {
+      "at": "2026-11-09T11:09:22.300Z",
+      "event": "mod-query",
+      "sessionId": "SESSION-B"
+    },
+    {
+      "at": "2026-11-09T11:09:22.301Z",
+      "event": "mod-answer",
+      "sessionId": "SESSION-B",
+      "wake": false,
+      "reason": "no-binding"
+    },
+    {
+      "at": "2026-11-09T11:09:22.347Z",
+      "event": "mod-result",
+      "sessionId": "SESSION-B",
+      "outcome": "not-submitted:no-binding"
+    },
+    {
+      "at": "2026-11-09T11:11:01.087Z",
+      "event": "mod-query",
+      "sessionId": "SESSION-B"
+    },
+    {
+      "at": "2026-11-09T11:11:01.567Z",
+      "event": "mod-answer",
+      "sessionId": "SESSION-B",
+      "wake": true,
+      "nickname": "rr-Борис",
+      "ids": ["c7693354-c682-4ad3-955e-871a527f1f0d"]
+    },
+    {
+      "at": "2026-11-09T11:11:06.025Z",
+      "event": "mod-result",
+      "sessionId": "SESSION-B",
+      "outcome": "turn-started"
+    },
+    {
+      "at": "2026-11-09T11:41:53.778Z",
+      "event": "dispatch",
+      "id": "c7693354-c682-4ad3-955e-871a527f1f0d",
+      "state": "processed/admitted"
+    },
+    {
+      "at": "2026-11-09T11:41:53.778Z",
+      "event": "dispatch",
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "state": "ready/waiting"
+    },
+    {
+      "at": "2026-11-09T11:41:53.842Z",
+      "event": "dispatch",
+      "id": "6e5d0b89-da9f-4d27-bf5a-7b10db80744f",
+      "state": "ready/-"
+    },
+    {
+      "at": "2026-11-09T11:41:53.904Z",
+      "event": "dispatch",
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "state": "ready/offering"
+    },
+    {
+      "at": "2026-11-09T11:41:53.963Z",
+      "event": "dispatch",
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "state": "ready/waiting"
+    },
+    {
+      "at": "2026-11-09T11:44:00.477Z",
+      "event": "mod-query",
+      "sessionId": "SESSION-B"
+    },
+    {
+      "at": "2026-11-09T11:44:01.076Z",
+      "event": "dispatch",
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "state": "ready/offering"
+    },
+    {
+      "at": "2026-11-09T11:44:01.078Z",
+      "event": "mod-answer",
+      "sessionId": "SESSION-B",
+      "wake": true,
+      "nickname": "rr-Борис",
+      "ids": ["2d578abe-0890-4cdf-baf5-b9745ced3d19", "6e5d0b89-da9f-4d27-bf5a-7b10db80744f"]
+    },
+    {
+      "at": "2026-11-09T11:44:01.215Z",
+      "event": "dispatch",
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "state": "ready/offered"
+    },
+    {
+      "at": "2026-11-09T11:44:01.502Z",
+      "event": "dispatch",
+      "id": "6e5d0b89-da9f-4d27-bf5a-7b10db80744f",
+      "state": "ready/offered"
+    },
+    {
+      "at": "2026-11-09T11:44:01.587Z",
+      "event": "mod-result",
+      "sessionId": "SESSION-B",
+      "outcome": "turn-started"
+    },
+    {
+      "at": "2026-11-09T11:44:04.466Z",
+      "event": "dispatch",
+      "id": "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+      "state": "processed/admitted"
+    },
+    {
+      "at": "2026-11-09T11:44:04.466Z",
+      "event": "dispatch",
+      "id": "6e5d0b89-da9f-4d27-bf5a-7b10db80744f",
+      "state": "processed/admitted"
+    },
+    {
+      "at": "2026-11-09T12:27:42.111Z",
+      "event": "dispatch",
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "state": "ready/-"
+    },
+    {
+      "at": "2026-11-09T12:27:42.205Z",
+      "event": "dispatch",
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "state": "ready/offering"
+    },
+    {
+      "at": "2026-11-09T12:27:42.298Z",
+      "event": "dispatch",
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "state": "ready/waiting"
+    },
+    {
+      "at": "2026-11-09T12:31:50.924Z",
+      "event": "mod-query",
+      "sessionId": "SESSION-B"
+    },
+    {
+      "at": "2026-11-09T12:31:51.386Z",
+      "event": "dispatch",
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "state": "ready/offering"
+    },
+    {
+      "at": "2026-11-09T12:31:51.390Z",
+      "event": "mod-answer",
+      "sessionId": "SESSION-B",
+      "wake": true,
+      "nickname": "rr-Борис",
+      "ids": ["b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8"]
+    },
+    {
+      "at": "2026-11-09T12:31:51.488Z",
+      "event": "dispatch",
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "state": "ready/offered"
+    },
+    {
+      "at": "2026-11-09T12:31:51.546Z",
+      "event": "mod-result",
+      "sessionId": "SESSION-B",
+      "outcome": "turn-started"
+    },
+    {
+      "at": "2026-11-09T12:31:54.923Z",
+      "event": "dispatch",
+      "id": "b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8",
+      "state": "processed/admitted"
+    },
+    {
+      "at": "2026-11-09T12:34:07.475Z",
+      "event": "dispatch",
+      "id": "5c5fa13e-94a4-4e64-b73a-1ab076f39a2e",
+      "state": "ready/-"
+    },
+    {
+      "at": "2026-11-09T12:34:07.591Z",
+      "event": "dispatch",
+      "id": "5c5fa13e-94a4-4e64-b73a-1ab076f39a2e",
+      "state": "ready/offering"
+    },
+    {
+      "at": "2026-11-09T12:34:07.705Z",
+      "event": "dispatch",
+      "id": "5c5fa13e-94a4-4e64-b73a-1ab076f39a2e",
+      "state": "ready/offered"
+    },
+    {
+      "at": "2026-11-09T12:35:52.553Z",
+      "event": "dispatch",
+      "id": "5c5fa13e-94a4-4e64-b73a-1ab076f39a2e",
+      "state": "ready/offering"
+    },
+    {
+      "at": "2026-11-09T12:35:52.667Z",
+      "event": "dispatch",
+      "id": "5c5fa13e-94a4-4e64-b73a-1ab076f39a2e",
+      "state": "ready/offered"
+    }
+  ],
+  "nativeTranscript": [
+    {
+      "at": "2026-11-09T11:11:01.761Z",
+      "type": "user"
+    },
+    {
+      "at": "2026-11-09T11:11:01.761Z",
+      "type": "user",
+      "origin": {
+        "kind": "channel",
+        "server": "plugin:ncf-agent-interconnect:ncf"
+      }
+    },
+    {
+      "at": "2026-11-09T11:11:03.885Z",
+      "type": "assistant",
+      "toolUse": "mcp__plugin_ncf-agent-interconnect_ncf__agent_read"
+    },
+    {
+      "at": "2026-11-09T11:11:04.291Z",
+      "type": "attachment",
+      "attachment": "hook_success"
+    },
+    {
+      "at": "2026-11-09T11:11:04.499Z",
+      "type": "user",
+      "returnedIds": ["c7693354-c682-4ad3-955e-871a527f1f0d"]
+    },
+    {
+      "at": "2026-11-09T11:11:05.537Z",
+      "type": "assistant"
+    },
+    {
+      "at": "2026-11-09T11:11:06.008Z",
+      "type": "user",
+      "origin": {
+        "kind": "plugin",
+        "name": "ncf-first-wake-research"
+      },
+      "text": "fixed NCF first-wake notice"
+    },
+    {
+      "at": "2026-11-09T11:11:09.055Z",
+      "type": "assistant"
+    },
+    {
+      "at": "2026-11-09T11:11:09.454Z",
+      "type": "assistant",
+      "toolUse": "mcp__plugin_ncf-agent-interconnect_ncf__agent_read"
+    },
+    {
+      "at": "2026-11-09T11:11:09.862Z",
+      "type": "attachment",
+      "attachment": "hook_success"
+    },
+    {
+      "at": "2026-11-09T11:11:09.889Z",
+      "type": "user",
+      "returnedIds": []
+    },
+    {
+      "at": "2026-11-09T11:11:11.718Z",
+      "type": "assistant"
+    },
+    {
+      "at": "2026-11-09T11:44:01.563Z",
+      "type": "user",
+      "origin": {
+        "kind": "plugin",
+        "name": "ncf-first-wake-research"
+      },
+      "text": "fixed NCF first-wake notice"
+    },
+    {
+      "at": "2026-11-09T11:44:03.852Z",
+      "type": "assistant",
+      "toolUse": "mcp__plugin_ncf-agent-interconnect_ncf__agent_read"
+    },
+    {
+      "at": "2026-11-09T11:44:04.300Z",
+      "type": "attachment",
+      "attachment": "hook_success"
+    },
+    {
+      "at": "2026-11-09T11:44:04.488Z",
+      "type": "user",
+      "returnedIds": [
+        "2d578abe-0890-4cdf-baf5-b9745ced3d19",
+        "6e5d0b89-da9f-4d27-bf5a-7b10db80744f"
+      ]
+    },
+    {
+      "at": "2026-11-09T11:44:01.583Z",
+      "type": "attachment",
+      "origin": {
+        "kind": "channel",
+        "server": "plugin:ncf-agent-interconnect:ncf"
+      },
+      "attachment": "queued_command"
+    },
+    {
+      "at": "2026-11-09T11:44:06.782Z",
+      "type": "assistant"
+    },
+    {
+      "at": "2026-11-09T11:44:07.328Z",
+      "type": "assistant",
+      "toolUse": "mcp__plugin_ncf-agent-interconnect_ncf__agent_read"
+    },
+    {
+      "at": "2026-11-09T11:44:07.735Z",
+      "type": "attachment",
+      "attachment": "hook_success"
+    },
+    {
+      "at": "2026-11-09T11:44:07.763Z",
+      "type": "user",
+      "returnedIds": []
+    },
+    {
+      "at": "2026-11-09T11:44:09.110Z",
+      "type": "assistant"
+    },
+    {
+      "at": "2026-11-09T12:31:51.524Z",
+      "type": "user",
+      "origin": {
+        "kind": "plugin",
+        "name": "ncf-first-wake-research"
+      },
+      "text": "fixed NCF first-wake notice"
+    },
+    {
+      "at": "2026-11-09T12:31:54.387Z",
+      "type": "assistant",
+      "toolUse": "mcp__plugin_ncf-agent-interconnect_ncf__agent_read"
+    },
+    {
+      "at": "2026-11-09T12:31:54.791Z",
+      "type": "attachment",
+      "attachment": "hook_success"
+    },
+    {
+      "at": "2026-11-09T12:31:54.954Z",
+      "type": "user",
+      "returnedIds": ["b1ed7f0b-a604-4b1f-bd71-a902f31bc6a8"]
+    },
+    {
+      "at": "2026-11-09T12:31:56.339Z",
+      "type": "assistant"
+    }
+  ],
+  "claudeDebugExcerpt": [
+    "2026-11-09T11:13:54.065Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Starting connection with timeout of 30000ms",
+    "2026-11-09T11:13:54.528Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 477ms",
+    "2026-11-09T11:13:54.909Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Channel notifications registered",
+    "2026-11-09T11:44:00.403Z [DEBUG] hooks module ncf-first-wake-research@inline session.start settled in 59.8ms (worker hop, next() included)",
+    "2026-11-09T11:44:00.419Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Starting connection with timeout of 30000ms",
+    "2026-11-09T11:44:00.916Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 513ms",
+    "2026-11-09T11:44:00.957Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Channel notifications registered",
+    "2026-11-09T12:31:50.847Z [DEBUG] hooks module ncf-first-wake-research@inline session.start settled in 46.3ms (worker hop, next() included)",
+    "2026-11-09T12:31:50.860Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Starting connection with timeout of 30000ms",
+    "2026-11-09T12:31:51.278Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 431ms",
+    "2026-11-09T12:31:51.543Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Channel notifications skipped: server plugin:ncf-agent-interconnect:ncf not in --channels list for this session",
+    "2026-11-09T12:35:51.985Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Starting connection with timeout of 30000ms",
+    "2026-11-09T12:35:52.434Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 465ms",
+    "2026-11-09T12:35:52.681Z [DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Channel notifications registered"
+  ]
+}
