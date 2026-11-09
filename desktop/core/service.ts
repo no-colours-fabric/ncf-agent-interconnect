@@ -148,7 +148,8 @@ export class NodeService extends EventEmitter {
       store: {
         list: () => this.store.list(),
         get: (id, direction) => this.store.get(id, direction),
-        history: (key, after, limit, unread) => this.store.history(key, after, limit, unread),
+        history: (key, after, limit, unread, unfenced) =>
+          this.store.history(key, after, limit, unread, unfenced),
       },
     });
     this.claude.wakeIssuer = (session) => {
@@ -164,6 +165,7 @@ export class NodeService extends EventEmitter {
         return;
       }
     };
+    this.claude.wakeQueued = (session) => this.wakeClaims.queued(session);
     this.claude.on('problem', (message: string) => this.problem(message));
     this.claude.on('helperGone', (helperId: string) => {
       if (this.store && this.store.claudeHelperGone(helperId)) this.emit('change');
@@ -723,6 +725,17 @@ export class NodeService extends EventEmitter {
       .parse(raw);
     const result = await this.wakeClaims.consume(input.sessionId.toLowerCase(), input.claim);
     return { consumed: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
+  }
+  /** The installed mod reports that Claude Code dropped its submitted notice. */
+  claudeWakeDropped(raw: unknown): { recorded: boolean } {
+    const input = z
+      .object({ sessionId: z.uuid(), claim: z.string().regex(/^[0-9a-f]{64}$/) })
+      .strict()
+      .parse(raw);
+    const session = input.sessionId.toLowerCase();
+    const recorded = this.wakeClaims.dropped(session, input.claim);
+    if (recorded) this.claude.wakeDropped(session);
+    return { recorded };
   }
   /** The installed gate starts the claim of the exact notice right before its turn. */
   async claudeWakeStart(raw: unknown): Promise<{ started: boolean; reason?: string }> {

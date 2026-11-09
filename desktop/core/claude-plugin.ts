@@ -142,7 +142,14 @@ async function submit($, own, descriptor, sessionId, wake) {
   const answer = JSON.parse(response.text);
   // Consumed immediately before submit; no await separates the check from it.
   if (answer.consumed !== true || !current(own)) return;
-  await $.prompt.submit({ text: wake.notice });
+  const result = await $.prompt.submit({ text: wake.notice });
+  // Never resubmitted; the node only learns that this notice no longer covers the backlog.
+  if (result && typeof result.drop === 'string')
+    await $.http.fetch(new URL('/integrations/claude/wake/dropped', descriptor.url).href, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: 'Bearer ' + descriptor.token },
+      body: JSON.stringify({ sessionId, claim: wake.claim }),
+    });
 }
 `;
 }

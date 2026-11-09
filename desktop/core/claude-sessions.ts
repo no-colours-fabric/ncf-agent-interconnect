@@ -147,6 +147,8 @@ export class ClaudeSessions extends EventEmitter {
   private sinks = new Map<string, WakeSink>();
   /** Installed by the node: issues a one-use claim for the session's pending backlog. */
   wakeIssuer?: (session: string) => IssuedWake | undefined;
+  /** Installed by the node: whether a current notice of the session is already queued. */
+  wakeQueued?: (session: string) => boolean;
   private holders = new Map<string, Holder>();
   private routes: Route[] = [];
   private proofs = new Map<string, ToolProof>();
@@ -598,6 +600,8 @@ export class ClaudeSessions extends EventEmitter {
   sendWake(helper: ClaudeHelper): 'sent' | 'none' | 'failed' {
     const sink = this.wakeSink(helper.proven);
     if (!sink || !this.wakeIssuer) return 'none';
+    // Coalesce: the queued notice reads everything that is unread when it runs.
+    if (this.wakeQueued?.(sink.session)) return 'sent';
     const issued = this.wakeIssuer(sink.session);
     if (!issued) return 'failed';
     try {
@@ -608,6 +612,10 @@ export class ClaudeSessions extends EventEmitter {
       this.detachWakeSink(sink);
       return 'failed';
     }
+  }
+  /** A dropped notice ends its coverage; the next event may wake again, nothing is resubmitted. */
+  wakeDropped(session: string): void {
+    this.emit('wakeDropped', session);
   }
   /** The gate started a notice of this session's current stream. */
   markWakeVerified(session: string): void {

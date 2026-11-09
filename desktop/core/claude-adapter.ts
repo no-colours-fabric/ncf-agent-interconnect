@@ -26,6 +26,14 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     return this.revision;
   }
   private readonly listener = () => this.observe();
+  /** A dropped notice no longer covers the backlog; nothing is announced until the next event. */
+  private readonly wakeDropped = (session: string) => {
+    if (session !== this.profile.sessionId) return;
+    const helper = this.current().helper;
+    helper?.outstanding.clear();
+    for (const [id, offer] of this.offers) if (helper) this.offers.delete(id);
+    this.revision++;
+  };
   /**
    * After a turn ends, a message still offered in this lifecycle is announced
    * once more: the model may have seen the event mid-turn and deferred it.
@@ -128,6 +136,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   async start(): Promise<void> {
     this.sessions.on('change', this.listener);
     this.sessions.on('turnEnded', this.turnEnded);
+    this.sessions.on('wakeDropped', this.wakeDropped);
     const helper = this.current().helper;
     this.routed = helper ? this.lifecycle(helper) : undefined;
   }
@@ -212,6 +221,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     this.stopped = true;
     this.sessions.off('change', this.listener);
     this.sessions.off('turnEnded', this.turnEnded);
+    this.sessions.off('wakeDropped', this.wakeDropped);
     this.offers.clear();
     this.renewed.clear();
     this.changed();

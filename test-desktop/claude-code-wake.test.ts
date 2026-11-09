@@ -123,42 +123,68 @@ test('A pending backlog is announced through the mod stream once it attaches, no
   assert.equal(f.service.store.get(sent.id, 'in')!.state, 'ready');
 });
 
-test('A later arrival supersedes a queued notice; the older notice cannot start the newer claim', async (t) => {
+test('Arrivals coalesce into a queued notice; an unconsumed one is superseded; a drop ends its cover', async (t) => {
   const f = await claudeFixture(t);
-  const { session } = await bound(f, 'Ева');
+  const { session, connectionId } = await bound(f, 'Ева');
   const sink = new FakeSink(f, session);
   t.after(() => sink.detach());
   assert.equal(await sink.attach(), true);
   const send = sender(f);
+  const adapter = () =>
+    f.service.adapters.get(
+      f.service.store.list().find((a) => a.nickname === 'Ева')!.binding!.adapterId,
+    );
+  const claim = (claim: string) =>
+    post(f, '/integrations/claude/wake/claim', { sessionId: session, claim });
+  const start = (notice: string) =>
+    post(f, '/integrations/claude/wake/start', {
+      sessionId: session,
+      notice: wakeNoticeHash(notice),
+    });
   await send('Ева', 'first');
   await until(() => sink.wakes().length === 1);
   const first = sink.wakes()[0];
-  await post(f, '/integrations/claude/wake/claim', { sessionId: session, claim: first.claim });
-  // The first notice is still queued; a read clears the outstanding cover so a
-  // later arrival is offered again.
-  f.service.adapters
-    .get(f.service.store.list().find((a) => a.nickname === 'Ева')!.binding!.adapterId)
-    .beforeRead?.(f.service.store.list().find((a) => a.nickname === 'Ева')!.binding!.connectionId);
-  await send('Ева', 'second');
+  assert.deepEqual((await claim(first.claim)).body, { consumed: true });
+  // The first notice is queued: a later arrival is covered by it, not announced again.
+  adapter().beforeRead?.(connectionId);
+  const second = await send('Ева', 'second');
+  await until(() => f.service.store.dispatchState(second.id)?.state === 'offered');
+  assert.equal(sink.wakes().length, 1);
+  assert.deepEqual((await start(first.notice)).body, { started: true });
+  assert.deepEqual((await start(first.notice)).body, { started: false, reason: 'replayed' });
+  // An issued notice that the mod has not consumed yet is superseded by a newer one.
+  adapter().beforeRead?.(connectionId);
+  await send('Ева', 'third');
   await until(() => sink.wakes().length === 2);
-  const second = sink.wakes()[1];
-  assert.notEqual(second.notice, first.notice);
-  await post(f, '/integrations/claude/wake/claim', { sessionId: session, claim: second.claim });
-  const old = await post(f, '/integrations/claude/wake/start', {
+  const third = sink.wakes()[1];
+  adapter().beforeRead?.(connectionId);
+  await send('Ева', 'fourth');
+  await until(() => sink.wakes().length === 3);
+  const fourth = sink.wakes()[2];
+  assert.notEqual(fourth.notice, third.notice);
+  assert.deepEqual((await claim(third.claim)).body, { consumed: false, reason: 'superseded' });
+  assert.deepEqual((await claim(fourth.claim)).body, { consumed: true });
+  // Claude Code dropped the fourth notice (Esc): its claim is void and nothing is
+  // resubmitted, but the next arrival wakes again.
+  const dropped = await post(f, '/integrations/claude/wake/dropped', {
     sessionId: session,
-    notice: wakeNoticeHash(first.notice),
+    claim: fourth.claim,
   });
-  assert.deepEqual(old.body, { started: false, reason: 'superseded' });
-  const fresh = await post(f, '/integrations/claude/wake/start', {
-    sessionId: session,
-    notice: wakeNoticeHash(second.notice),
-  });
-  assert.deepEqual(fresh.body, { started: true });
-  const replay = await post(f, '/integrations/claude/wake/start', {
-    sessionId: session,
-    notice: wakeNoticeHash(second.notice),
-  });
-  assert.deepEqual(replay.body, { started: false, reason: 'replayed' });
+  assert.deepEqual(dropped.body, { recorded: true });
+  assert.deepEqual((await start(fourth.notice)).body, { started: false, reason: 'dropped' });
+  assert.equal(sink.wakes().length, 3);
+  await send('Ева', 'fifth');
+  await until(() => sink.wakes().length === 4);
+  // Every message is still unread: no wake step read or receipted anything.
+  assert.equal(
+    f.service.store.history(
+      f.service.store.list().find((a) => a.nickname === 'Ева')!.key,
+      0,
+      10,
+      true,
+    ).messages.length,
+    5,
+  );
 });
 
 test('A foreign session, a session end and an approved transfer never start a notice', async (t) => {

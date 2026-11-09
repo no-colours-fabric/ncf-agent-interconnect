@@ -413,6 +413,7 @@ export class McpEndpoint {
         '/integrations/claude/call/validate',
         '/integrations/claude/wake/claim',
         '/integrations/claude/wake/start',
+        '/integrations/claude/wake/dropped',
         '/integrations/claude/delivery',
         '/integrations/opencode',
         '/integrations/opencode/release',
@@ -446,13 +447,15 @@ export class McpEndpoint {
                 ? await this.service.claudeWakeClaim(body)
                 : req.url === '/integrations/claude/wake/start'
                   ? await this.service.claudeWakeStart(body)
-                  : req.url === '/integrations/claude/delivery'
-                    ? await this.service.claudeDelivery(body)
-                    : req.url === '/integrations/aionui/context'
-                      ? await this.service.contexts.registerAionUi(body)
-                      : req.url!.endsWith('/release')
-                        ? await this.service.contexts.releaseOpenCode(body)
-                        : await this.service.contexts.registerOpenCode(body);
+                  : req.url === '/integrations/claude/wake/dropped'
+                    ? this.service.claudeWakeDropped(body)
+                    : req.url === '/integrations/claude/delivery'
+                      ? await this.service.claudeDelivery(body)
+                      : req.url === '/integrations/aionui/context'
+                        ? await this.service.contexts.registerAionUi(body)
+                        : req.url!.endsWith('/release')
+                          ? await this.service.contexts.releaseOpenCode(body)
+                          : await this.service.contexts.registerOpenCode(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;

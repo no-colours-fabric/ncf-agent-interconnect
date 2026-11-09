@@ -189,9 +189,28 @@ export class WakeClaims {
       binding.generation !== claim.binding.generation
     )
       return 'revoked:binding';
-    if (!claim.backlog.some((id) => this.authority.store.get(id, 'in')?.state === 'ready'))
+    // The notice tells Claude to read until nothing is left, so it stays useful
+    // while any message of this agent is unread and not already being delivered.
+    if (!this.authority.store.history(claim.binding.agentKey, 0, 1, true, true).messages.length)
       return 'backlog-read';
     return null;
+  }
+  /**
+   * A notice of this session is queued in Claude Code and still current: a
+   * later arrival is covered by it instead of queueing another notice.
+   */
+  queued(session: string): boolean {
+    this.reclaim();
+    return [...this.claims.values()].some(
+      (claim) => claim.session === session && claim.state === 'consumed' && !this.stale(claim),
+    );
+  }
+  /** Claude Code dropped the submitted notice (Stop, Esc or a refusal); it is never resubmitted. */
+  dropped(session: string, id: string): boolean {
+    const found = this.claims.get(id);
+    if (!found || found.session !== session || found.state !== 'consumed') return false;
+    this.finish(found, 'void', 'dropped');
+    return true;
   }
   private refusal(key: string): string {
     return this.finished.get(key) ?? 'unknown';
