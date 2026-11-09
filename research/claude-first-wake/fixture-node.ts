@@ -60,6 +60,8 @@ export interface FirstWakeAnswer {
   wake: boolean;
   nickname?: string;
   claim: string | null;
+  /** The exact text to submit; the gate names it by its hash. */
+  notice?: string;
   expiresAt?: string;
   reason?: string;
 }
@@ -80,10 +82,28 @@ export interface WakeClaim {
   backlog: string[];
   digest: string;
   nickname: string;
+  /** The exact notice text the submitter must send, and its hash for the gate. */
+  notice: string;
+  noticeHash: string;
   claimBy: number;
   startBy: number;
   state: 'issued' | 'consumed' | 'started' | 'void';
 }
+
+export const noticePrefix = 'NCF Agent Interconnect messages were already waiting for agent ';
+
+/** One notice per claim: the random reference makes the text, and its hash, unique. */
+export function noticeText(nickname: string, reference: string): string {
+  return (
+    noticePrefix +
+    JSON.stringify(nickname) +
+    ' when this session started. Call agent_read for this agent now and continue with nextCursor while hasMore is true. This notice contains no message content. Wake reference ' +
+    reference +
+    '.'
+  );
+}
+
+export const noticeHash = (text: string) => createHash('sha256').update(text, 'utf8').digest('hex');
 
 interface Pending {
   nickname: string;
@@ -158,24 +178,47 @@ function boundNickname(service: NodeService, sessionId: string): string | null {
 
 const digest = (ids: string[]) => createHash('sha256').update(ids.join('\n')).digest('hex');
 
+const activeLimit = 256;
+const tombstoneLimit = 1024;
+
 export class WakeClaims {
   readonly incarnation = randomUUID();
   private readonly claims = new Map<string, WakeClaim>();
+  /** Bounded memory of finished claims and notices, so a replay reads as one. */
+  private readonly finished = new Map<string, string>();
   constructor(
     private readonly service: NodeService,
     private readonly now: () => number = Date.now,
   ) {}
+  private finish(claim: WakeClaim, state: 'started' | 'void', reason: string): void {
+    claim.state = state;
+    this.claims.delete(claim.id);
+    for (const key of [claim.id, claim.noticeHash]) {
+      this.finished.delete(key);
+      this.finished.set(key, state === 'started' ? 'replayed' : reason);
+    }
+    while (this.finished.size > tombstoneLimit)
+      this.finished.delete(this.finished.keys().next().value!);
+  }
+  /** Reclaim expired authority; active authority is never evicted. */
+  private reclaim(): void {
+    const now = this.now();
+    for (const claim of [...this.claims.values()])
+      if (
+        (claim.state === 'issued' && claim.claimBy <= now) ||
+        (claim.state === 'consumed' && claim.startBy <= now)
+      )
+        this.finish(claim, 'void', 'expired');
+  }
   /** Issued synchronously from the snapshot that found the backlog. */
   issue(session: string, pending: Pending): WakeClaim {
+    this.reclaim();
+    // A new answer for this session supersedes its earlier unfinished claims.
+    for (const claim of [...this.claims.values()])
+      if (claim.session === session) this.finish(claim, 'void', 'superseded');
+    if (this.claims.size >= activeLimit) throw new Error('too many active wake claims');
     const now = this.now();
-    for (const [id, claim] of this.claims) {
-      // A new answer for this session supersedes its earlier unfinished claims.
-      if (claim.session === session && (claim.state === 'issued' || claim.state === 'consumed'))
-        claim.state = 'void';
-      if (claim.state === 'void' || (claim.state === 'issued' && claim.claimBy <= now))
-        this.claims.delete(id);
-    }
-    if (this.claims.size >= 256) throw new Error('too many claims');
+    const notice = noticeText(pending.nickname, randomBytes(12).toString('hex'));
     const claim: WakeClaim = {
       id: randomBytes(32).toString('hex'),
       session,
@@ -185,6 +228,8 @@ export class WakeClaims {
       backlog: pending.backlog,
       digest: digest(pending.backlog),
       nickname: pending.nickname,
+      notice,
+      noticeHash: noticeHash(notice),
       claimBy: now + claimMs(),
       startBy: 0,
       state: 'issued',
@@ -218,20 +263,16 @@ export class WakeClaims {
       return 'backlog-read';
     return null;
   }
-  private find(session: string, id: string): WakeClaim | string {
-    const claim = this.claims.get(id);
-    if (!claim) return 'unknown';
-    // A foreign session never learns about or spends another session's claim.
-    if (claim.session !== session) return 'unknown';
-    return claim;
+  private refusal(key: string): string {
+    return this.finished.get(key) ?? 'unknown';
   }
-  /** Consume once. Every failure leaves the backlog untouched. */
+  /** Consume once, by claim id, in the session it was issued to. */
   async consume(session: string, id: string): Promise<{ ok: boolean; reason?: string }> {
-    const found = this.find(session, id);
-    if (typeof found === 'string') return { ok: false, reason: found };
+    this.reclaim();
+    const found = this.claims.get(id);
+    // A foreign session never learns about or spends another session's claim.
+    if (!found || found.session !== session) return { ok: false, reason: this.refusal(id) };
     if (found.state !== 'issued') return { ok: false, reason: 'replayed' };
-    // The native lease file is read asynchronously, then everything is rechecked
-    // synchronously in the same tick as the state change.
     try {
       await this.service.claude.validateCurrent(found.lease);
     } catch {
@@ -240,21 +281,16 @@ export class WakeClaims {
     return this.transition(found, 'issued', 'consumed');
   }
   /**
-   * The queued notice is about to start a turn. Same checks, once. Without a
-   * claim id (the separate gate plugin cannot share the mod's memory) it takes
-   * the only consumed claim of this exact session.
+   * The queued notice is about to start a turn: the gate names the exact notice
+   * by its text hash, so an older notice can never start a newer claim.
    */
-  async start(session: string, id?: string): Promise<{ ok: boolean; reason?: string }> {
-    let found: WakeClaim | string;
-    if (id) found = this.find(session, id);
-    else {
-      const consumed = [...this.claims.values()].filter(
-        (claim) => claim.session === session && claim.state === 'consumed',
-      );
-      found = consumed.length === 1 ? consumed[0] : consumed.length ? 'ambiguous' : 'unknown';
-    }
-    if (typeof found === 'string') return { ok: false, reason: found };
-    if (found.state !== 'consumed') return { ok: false, reason: 'replayed' };
+  async start(session: string, hash: string): Promise<{ ok: boolean; reason?: string }> {
+    this.reclaim();
+    const found = [...this.claims.values()].find(
+      (claim) => claim.noticeHash === hash && claim.session === session,
+    );
+    if (!found) return { ok: false, reason: this.refusal(hash) };
+    if (found.state !== 'consumed') return { ok: false, reason: 'not-consumed' };
     try {
       await this.service.claude.validateCurrent(found.lease);
     } catch {
@@ -265,25 +301,34 @@ export class WakeClaims {
   private transition(
     claim: WakeClaim,
     from: WakeClaim['state'],
-    to: WakeClaim['state'],
+    to: 'consumed' | 'started',
   ): { ok: boolean; reason?: string } {
-    if (claim.state !== from) return { ok: false, reason: 'replayed' };
+    if (claim.state !== from || this.claims.get(claim.id) !== claim)
+      return { ok: false, reason: 'replayed' };
     const now = this.now();
     if (from === 'issued' ? claim.claimBy <= now : claim.startBy <= now) {
-      claim.state = 'void';
+      this.finish(claim, 'void', 'expired');
       return { ok: false, reason: 'expired' };
     }
     const reason = this.stale(claim);
     if (reason) {
-      claim.state = 'void';
+      this.finish(claim, 'void', reason);
       return { ok: false, reason };
     }
-    claim.state = to;
-    if (to === 'consumed') claim.startBy = now + startMs();
+    if (to === 'started') this.finish(claim, 'started', 'replayed');
+    else {
+      claim.state = 'consumed';
+      claim.startBy = now + startMs();
+    }
     return { ok: true };
   }
   get(id: string): WakeClaim | undefined {
     return this.claims.get(id);
+  }
+  /** Active claims only; finished ones are reclaimed. */
+  get size(): number {
+    this.reclaim();
+    return this.claims.size;
   }
 }
 
@@ -372,16 +417,23 @@ export async function startFirstWakeEndpoint(
       }
       if (req.url === '/first-wake/claim' || req.url === '/first-wake/start') {
         const consuming = req.url === '/first-wake/claim';
-        const input = (consuming ? claimInput : claimInput.partial({ claim: true }))
-          .strict()
-          .parse(await body(req));
+        const input = consuming
+          ? { ...claimInput.strict().parse(await body(req)), notice: undefined }
+          : {
+              ...z
+                .object({ sessionId: z.uuid(), notice: z.string().regex(/^[0-9a-f]{64}$/) })
+                .strict()
+                .parse(await body(req)),
+              claim: undefined,
+            };
         const result = consuming
           ? await claims.consume(input.sessionId, input.claim!)
-          : await claims.start(input.sessionId, input.claim);
+          : await claims.start(input.sessionId, input.notice!);
         await log({
           event: consuming ? 'claim-consume' : 'claim-start',
           sessionId: input.sessionId,
           claim: input.claim ?? null,
+          ...(input.notice ? { notice: input.notice } : {}),
           ...result,
         });
         // Research boundary: an approved transfer after consumption, before the
@@ -516,6 +568,7 @@ export async function startFirstWakeEndpoint(
                 wake: true,
                 nickname: value.nickname,
                 claim: claim.id,
+                notice: claim.notice,
                 expiresAt: new Date(claim.claimBy).toISOString(),
               },
               claim,

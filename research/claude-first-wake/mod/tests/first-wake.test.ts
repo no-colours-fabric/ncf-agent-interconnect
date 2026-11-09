@@ -7,6 +7,10 @@ const settle = async () => {
 const sessionA = 'b5e1a3f2-0000-4000-8000-000000000001';
 const sessionB = 'b5e1a3f2-0000-4000-8000-000000000002';
 const claim = 'c'.repeat(64);
+const notice = (nickname: string) =>
+  'NCF Agent Interconnect messages were already waiting for agent ' +
+  JSON.stringify(nickname) +
+  ' when this session started. Call agent_read for this agent now. Wake reference 00ff.';
 
 // A stub answer the test releases explicitly: a deterministic barrier, not a timer.
 function gate<T>() {
@@ -48,7 +52,12 @@ function fixture(on, options: Options = {}) {
     let value: Record<string, unknown> = {};
     if (route === '/first-wake/result') reports.push(body);
     else if (route === '/first-wake/pending')
-      value = (await options.pending?.()) ?? { wake: true, nickname: 'Боб', claim };
+      value = (await options.pending?.()) ?? {
+        wake: true,
+        nickname: 'Боб',
+        claim,
+        notice: notice('Боб'),
+      };
     else if (route === '/first-wake/claim')
       value = (await options.consume?.()) ?? { consumed: true };
     return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify(value) } };
@@ -64,13 +73,15 @@ const end = ($, reason = 'clear') =>
   $.session.end({ cwd: '/fixture', sessionId: sessionA, reason });
 
 test('a current start consumes the claim and submits one plugin notice', async ($, on) => {
-  const f = fixture(on, { pending: () => ({ wake: true, nickname: 'Боб "漢字"', claim }) });
+  const f = fixture(on, {
+    pending: () => ({ wake: true, nickname: 'Боб "漢字"', claim, notice: notice('Боб "漢字"') }),
+  });
   await $.session.start({ cwd: '/fixture' });
   await settle();
   expect(f.delivered.length).toBe(1);
   expect(f.delivered[0].asUser).toBeUndefined();
   expect(f.delivered[0].text).toContain('"Боб \\"漢字\\""');
-  expect(f.delivered[0].text).toContain('no message content');
+  expect(f.delivered[0].text).toBe(notice('Боб "漢字"'));
   expect(f.routes).toEqual(['/first-wake/pending', '/first-wake/claim', '/first-wake/result']);
   expect(f.reports.map((r) => r.outcome)).toEqual(['turn-started']);
 });
@@ -105,7 +116,7 @@ test('an end during the pending query submits nothing', async ($, on) => {
   await $.session.start({ cwd: '/fixture' });
   await settle();
   await end($);
-  pending.open({ wake: true, nickname: 'Боб', claim });
+  pending.open({ wake: true, nickname: 'Боб', claim, notice: notice('Боб') });
   await settle();
   expect(f.delivered.length).toBe(0);
   expect(f.routes).toEqual(['/first-wake/pending', '/first-wake/result']);
@@ -134,11 +145,11 @@ test('a delayed answer from a previous start never replaces the newer lifecycle'
   await settle();
   await $.session.start({ cwd: '/fixture' });
   await settle();
-  first.open({ wake: true, nickname: 'Старый', claim });
+  first.open({ wake: true, nickname: 'Старый', claim, notice: notice('Старый') });
   await settle();
   expect(f.delivered.length).toBe(0);
   // The newer lifecycle is still current and its own wake goes through once.
-  second.open({ wake: true, nickname: 'Новый', claim });
+  second.open({ wake: true, nickname: 'Новый', claim, notice: notice('Новый') });
   await settle();
   expect(f.delivered.length).toBe(1);
   expect(f.delivered[0].text).toContain('"Новый"');
@@ -151,9 +162,9 @@ test('a delayed answer from a previous start never replaces the newer lifecycle'
 test('no wake, an invalid name, a missing claim or a refused claim submits nothing', async ($, on) => {
   const answers = [
     { wake: false, reason: 'deadline:none-pending', claim: null },
-    { wake: true, nickname: 'line\nbreak', claim },
-    { wake: true, nickname: 'Боб', claim: null },
-    { wake: true, nickname: 'Боб', claim },
+    { wake: true, nickname: 'line\nbreak', claim, notice: notice('line\nbreak') },
+    { wake: true, nickname: 'Боб', claim: null, notice: notice('Боб') },
+    { wake: true, nickname: 'Боб', claim, notice: notice('Боб') },
   ];
   const f = fixture(on, {
     pending: () => answers.shift()!,

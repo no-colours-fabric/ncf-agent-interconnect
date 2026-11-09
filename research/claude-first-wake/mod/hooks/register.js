@@ -35,11 +35,15 @@ export function register(on) {
   });
 }
 
-export function wakeText(nickname) {
+const prefix = 'NCF Agent Interconnect messages were already waiting for agent ';
+
+// The node composes the exact notice; only its fixed shape is checked here.
+function validNotice(text, nickname) {
   return (
-    'NCF Agent Interconnect messages were already waiting for agent ' +
-    JSON.stringify(nickname) +
-    ' when this session started. Call agent_read for this agent now and continue with nextCursor while hasMore is true. This notice contains no message content.'
+    typeof text === 'string' &&
+    text.length <= 1000 &&
+    text.startsWith(prefix + JSON.stringify(nickname) + ' ') &&
+    !/[\u0000-\u001f\u007f]/.test(text)
   );
 }
 
@@ -89,7 +93,13 @@ async function firstWake($, own) {
   }
   const claim = typeof answer.claim === 'string' ? answer.claim : null;
   // A deadline or a fenced scope is a resource limit, never an incoming event.
-  if (!current(own) || answer.wake !== true || !claim || !validName(answer.nickname)) {
+  if (
+    !current(own) ||
+    answer.wake !== true ||
+    !claim ||
+    !validName(answer.nickname) ||
+    !validNotice(answer.notice, answer.nickname)
+  ) {
     await report($, endpoint, {
       sessionId,
       claim,
@@ -106,7 +116,7 @@ async function firstWake($, own) {
     });
     return;
   }
-  const result = await $.prompt.submit({ text: wakeText(answer.nickname) });
+  const result = await $.prompt.submit({ text: answer.notice });
   await report($, endpoint, {
     sessionId,
     claim,

@@ -13,7 +13,12 @@ import {
   FakeHelper,
   type ClaudeFixture,
 } from '../../../test-desktop/claude-code-fixture.js';
-import { startFirstWakeEndpoint, WakeClaims, type FirstWakeAnswer } from '../fixture-node.js';
+import {
+  noticeHash,
+  startFirstWakeEndpoint,
+  WakeClaims,
+  type FirstWakeAnswer,
+} from '../fixture-node.js';
 
 process.env.NCF_FIRST_WAKE_DEADLINE_MS = '600';
 
@@ -40,13 +45,20 @@ async function rig(t: test.TestContext, f: ClaudeFixture, claims?: WakeClaims) {
     assert.equal(response.status, 200);
     return (await response.json()) as Record<string, any>;
   };
+  // The gate names a notice by the hash of its text; tests keep that per claim.
+  const notices = new Map<string, string>();
   return {
     server,
     post,
-    ask: (sessionId: string) =>
-      post('/first-wake/pending', { sessionId }) as Promise<FirstWakeAnswer>,
+    notices,
+    ask: async (sessionId: string) => {
+      const answer = (await post('/first-wake/pending', { sessionId })) as FirstWakeAnswer;
+      if (answer.claim && answer.notice) notices.set(answer.claim, noticeHash(answer.notice));
+      return answer;
+    },
     consume: (sessionId: string, claim: string) => post('/first-wake/claim', { sessionId, claim }),
-    start: (sessionId: string, claim: string) => post('/first-wake/start', { sessionId, claim }),
+    start: (sessionId: string, claim: string) =>
+      post('/first-wake/start', { sessionId, notice: notices.get(claim) ?? '0'.repeat(64) }),
     journal: () => readFile(journal, 'utf8').catch(() => ''),
   };
 }
@@ -119,7 +131,7 @@ test('Missing, foreign and expired claims fail without spending the owner right'
   const second = String((await r.ask(a.session)).claim);
   now += 60_000;
   assert.equal((await r.consume(a.session, second)).reason, 'expired');
-  assert.equal((await r.consume(a.session, second)).reason, 'replayed');
+  assert.equal((await r.consume(a.session, second)).reason, 'expired');
   assert.ok(unread(f, [sent.id]));
 });
 
@@ -264,26 +276,6 @@ test('Research controls: an observed native event releases the barrier, second a
   assert.ok(unread(f, ids));
 });
 
-test('A start check without a claim id takes only the single consumed claim of that exact session', async (t) => {
-  const f = await claudeFixture(t);
-  const r = await rig(t, f);
-  const a = await bound(f, 'Ира');
-  const b = await bound(f, 'Олег');
-  const send = sender(f);
-  const sent = await send('Ира', 'gate check');
-  await send('Олег', 'other session');
-  const startAnonymous = (sessionId: string) => r.post('/first-wake/start', { sessionId });
-  const claim = String((await r.ask(a.session)).claim);
-  // Issued but not consumed: there is nothing for the gate to start.
-  assert.equal((await startAnonymous(a.session)).reason, 'unknown');
-  assert.equal((await r.consume(a.session, claim)).consumed, true);
-  // Another session never starts A's claim.
-  assert.equal((await startAnonymous(b.session)).reason, 'unknown');
-  assert.equal((await startAnonymous(a.session)).started, true);
-  assert.equal((await startAnonymous(a.session)).reason, 'unknown');
-  assert.ok(unread(f, [sent.id]));
-});
-
 test('A newer answer for the same session supersedes its unfinished claims; other sessions keep theirs', async (t) => {
   const f = await claudeFixture(t);
   const r = await rig(t, f);
@@ -296,10 +288,9 @@ test('A newer answer for the same session supersedes its unfinished claims; othe
   assert.equal((await r.consume(a.session, old)).consumed, true);
   const other = String((await r.ask(b.session)).claim);
   const fresh = String((await r.ask(a.session)).claim);
-  assert.equal((await r.start(a.session, old)).reason, 'unknown');
+  assert.equal((await r.start(a.session, old)).reason, 'superseded');
   assert.equal((await r.consume(a.session, fresh)).consumed, true);
-  // The session-scoped start check now finds exactly one consumed claim.
-  assert.equal((await r.post('/first-wake/start', { sessionId: a.session })).started, true);
+  assert.equal((await r.start(a.session, fresh)).started, true);
   assert.equal((await r.consume(b.session, other)).consumed, true);
   assert.ok(unread(f, [sent.id]));
 });
@@ -325,4 +316,122 @@ test('A nested change event after the answer issues no second claim for the same
   assert.equal(answer.wake, true);
   assert.equal((await r.consume(session, String(answer.claim))).consumed, true);
   assert.ok(unread(f, [sent.id]));
+});
+
+test('G2: an older queued notice cannot start a newer claim; the fresh right survives its rejection', async (t) => {
+  const f = await claudeFixture(t);
+  const r = await rig(t, f);
+  const { session } = await bound(f, 'Лиза');
+  const send = sender(f);
+  const first = await send('Лиза', 'first');
+  // C1 consumed, notice N1 queued.
+  const a1 = await r.ask(session);
+  assert.equal((await r.consume(session, String(a1.claim))).consumed, true);
+  // C2 issued and consumed, superseding C1; notice N2 queued.
+  const second = await send('Лиза', 'second');
+  const a2 = await r.ask(session);
+  assert.notEqual(a2.notice, a1.notice);
+  assert.equal((await r.consume(session, String(a2.claim))).consumed, true);
+  // N1 dequeues first: refused as superseded, without spending C2.
+  const n1 = await r.post('/first-wake/start', {
+    sessionId: session,
+    notice: noticeHash(a1.notice!),
+  });
+  assert.deepEqual([n1.started, n1.reason], [false, 'superseded']);
+  // Replays of N1, concurrent and later, are refused too.
+  const replays = await Promise.all(
+    [1, 2, 3].map(() =>
+      r.post('/first-wake/start', { sessionId: session, notice: noticeHash(a1.notice!) }),
+    ),
+  );
+  assert.ok(replays.every((x) => x.started === false));
+  // N2 starts C2 exactly once, even under concurrent dequeues.
+  const n2 = await Promise.all(
+    [1, 2].map(() =>
+      r.post('/first-wake/start', { sessionId: session, notice: noticeHash(a2.notice!) }),
+    ),
+  );
+  assert.deepEqual(n2.map((x) => x.started).sort(), [false, true]);
+  assert.ok(unread(f, [first.id, second.id]));
+});
+
+test('G2: a notice cannot carry an old identity across a stale helper or an approved transfer', async (t) => {
+  const f = await claudeFixture(t);
+  const r = await rig(t, f);
+  const { session, helper } = await bound(f, 'Марк');
+  const send = sender(f);
+  const sent = await send('Марк', 'stale helper');
+  const old = await r.ask(session);
+  assert.equal((await r.consume(session, String(old.claim))).consumed, true);
+  // The helper is replaced: the queued notice of the old lifecycle is refused.
+  await helper.detach();
+  const replacement = new FakeHelper(f, session);
+  await replacement.attach();
+  assert.equal((await r.start(session, String(old.claim))).reason, 'revoked:helper');
+  // The new lifecycle gets a fresh claim; an approved transfer then revokes it.
+  const fresh = await r.ask(session);
+  assert.equal((await r.consume(session, String(fresh.claim))).consumed, true);
+  assert.equal((await r.post('/fixture/transfer', { nickname: 'Марк' })).status, 'connected');
+  assert.equal((await r.start(session, String(fresh.claim))).reason, 'revoked:binding');
+  // The same nickname text cannot authorize anything by itself.
+  const forged =
+    'NCF Agent Interconnect messages were already waiting for agent "Марк" when this session started.';
+  assert.equal(
+    (await r.post('/first-wake/start', { sessionId: session, notice: noticeHash(forged) })).reason,
+    'unknown',
+  );
+  assert.ok(unread(f, [sent.id]));
+});
+
+test('G3: finished and expired claims are reclaimed; active authority is never evicted', async (t) => {
+  const f = await claudeFixture(t);
+  let now = 1_000_000;
+  const claims = new WakeClaims(f.service, () => now);
+  const r = await rig(t, f, claims);
+  const send = sender(f);
+  const agents = await Promise.all(
+    Array.from({ length: 4 }, (_, index) => bound(f, 'Ресурс ' + index)),
+  );
+  for (const [index] of agents.entries()) await send('Ресурс ' + index, 'pending');
+  // More than 256 completed claims, cycling through the sessions.
+  for (let round = 0; round < 300; round++) {
+    const { session } = agents[round % agents.length];
+    const answer = await r.ask(session);
+    assert.equal((await r.consume(session, String(answer.claim))).consumed, true);
+    assert.equal((await r.start(session, String(answer.claim))).started, true);
+  }
+  // More than 256 consumed claims whose start deadline then expired.
+  for (let round = 0; round < 300; round++) {
+    const { session } = agents[round % agents.length];
+    const answer = await r.ask(session);
+    assert.equal((await r.consume(session, String(answer.claim))).consumed, true);
+    now += 700_000;
+  }
+  assert.equal(claims.size, 0);
+  const fresh = await r.ask(agents[0].session);
+  assert.equal((await r.consume(agents[0].session, String(fresh.claim))).consumed, true);
+  assert.equal((await r.start(agents[0].session, String(fresh.claim))).started, true);
+  // Active claims are counted, never evicted: the quota fails closed instead.
+  const quota = new WakeClaims(f.service, () => now);
+  const pending = {
+    nickname: 'Ресурс 0',
+    agentKey: 'x',
+    binding: { agentKey: 'x', connectionId: 'c', adapterId: 'a', generation: 1 },
+    lease: { helperId: 'h', epoch: 'e', generation: 0, session: 's', nativeLeaseNonce: 'n' },
+    backlog: ['m'],
+  };
+  for (let index = 0; index < 256; index++) quota.issue('session-' + index, pending);
+  assert.throws(() => quota.issue('session-overflow', pending), /too many active wake claims/);
+  assert.equal(quota.size, 256);
+  // Messages and their state are untouched by reclamation.
+  for (const [index] of agents.entries())
+    assert.equal(
+      f.service.store.history(
+        f.service.store.list().find((a) => a.nickname === 'Ресурс ' + index)!.key,
+        0,
+        10,
+        true,
+      ).messages.length,
+      1,
+    );
 });
