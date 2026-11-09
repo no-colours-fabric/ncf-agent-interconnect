@@ -297,3 +297,40 @@ test('The mod child waits for a native lease the SessionStart hook has not writt
   await f.hook('SessionEnd', session, { reason: 'prompt_input_exit' });
   await child;
 });
+
+test('An owner-approved transfer between two Claude Code chats completes and revokes the former chat', async (t) => {
+  const f = await claudeFixture(t);
+  const a = await bound(f, 'Перенос');
+  const session = randomUUID();
+  const helper = new FakeHelper(f, session);
+  await f.hook('SessionStart', session, { source: 'startup' });
+  await helper.attach();
+  const request = await f.connect(helper, session, 'Перенос');
+  assert.equal(request.status, 'nickname_in_use');
+  const choice = request.choices.find((option: { mode: string }) => option.mode === 'transfer');
+  const args = {
+    nickname: 'Перенос',
+    connectionId: request.connectionId,
+    transferId: choice.transferId,
+    confirmTransfer: true,
+  };
+  const proof = await f.preTool(session, 'agent_connect', args);
+  const verified = await helper.verify('agent_connect', args, proof);
+  assert.equal(verified.status, 200, JSON.stringify(verified.body));
+  const client = await f.mcp();
+  const moved = await client.callTool({
+    name: 'agent_connect',
+    arguments: { ...args, contextToken: verified.body.contextToken },
+    _meta: { 'ncf/claude-call': verified.body.callToken },
+  });
+  assert.equal(moved.isError, undefined, JSON.stringify(moved.content));
+  assert.equal((moved.structuredContent as { status: string }).status, 'connected');
+  // The former chat's connection is revoked; its read is refused.
+  const read = { connectionId: a.connectionId };
+  const stale = await a.helper.verify(
+    'agent_read',
+    read,
+    await f.preTool(a.session, 'agent_read', read),
+  );
+  assert.notEqual(stale.status, 200);
+});

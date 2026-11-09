@@ -752,7 +752,9 @@ export class NodeService extends EventEmitter {
     if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
     const input = helperCallSchema.parse(raw);
     const { session, lease } = await this.claude.correlate(input);
-    if (input.connectionId) {
+    // agent_connect names the occupied binding when the owner approves a transfer;
+    // its authority is the transfer issued to this chat, checked by the store.
+    if (input.connectionId && input.tool !== 'agent_connect') {
       const agent = this.store
         .list()
         .find((value) => value.binding?.connectionId === input.connectionId);
