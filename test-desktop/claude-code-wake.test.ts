@@ -246,3 +246,28 @@ test('The mod child relays claimed wakes as lines and ends with its native sessi
   await child;
   t.after(() => undefined);
 });
+
+test('The mod child waits for a native lease the SessionStart hook has not written yet', async (t) => {
+  const f = await claudeFixture(t);
+  const session = randomUUID();
+  const lines: string[] = [];
+  const parent = { pid: 1 };
+  // The mod starts before the command hook: no active lease and no route yet.
+  const child = runWakeStream(
+    f.nodeFile,
+    session,
+    (line) => void lines.push(line),
+    () => parent.pid,
+  );
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  await f.hook('SessionStart', session, { source: 'resume' });
+  const helper = new FakeHelper(f, session);
+  await helper.attach();
+  await f.connect(helper, session, 'Поздний');
+  await until(() => !!f.service.claude.wakeSink(session));
+  await sender(f)('Поздний', 'after the late lease');
+  await until(() => lines.length === 1);
+  parent.pid = 2;
+  await f.hook('SessionEnd', session, { reason: 'prompt_input_exit' });
+  await child;
+});

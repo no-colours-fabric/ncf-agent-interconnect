@@ -527,11 +527,23 @@ export async function runWakeStream(
 ): Promise<void> {
   const sessionId = sessionValue.parse(session);
   const parentPid = parent();
-  let delay = 1000;
+  // Mods start before the SessionStart command hook may have recorded this
+  // session's native lease, so an inactive lease is awaited for a bounded time
+  // until it has been seen active; after that it means the session ended.
+  const startedAt = Date.now();
+  let seenActive = false,
+    connected = false,
+    delay = 250;
   for (;;) {
     if (parent() !== parentPid) return;
     const lease = await readNativeLease(nodeFile, sessionId).catch(() => null);
-    if (!lease?.active) return;
+    if (!lease?.active) {
+      if (seenActive || Date.now() - startedAt > 120000) return;
+      await new Promise((resolve) => setTimeout(resolve, delay));
+      delay = Math.min(delay * 2, 5000);
+      continue;
+    }
+    seenActive = true;
     const stream = new AbortController();
     let silence: NodeJS.Timeout | undefined;
     const quiet = () => {
@@ -559,7 +571,10 @@ export async function runWakeStream(
           const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
           buffer = buffer.slice(end + 1);
           if (line.type === 'error') throw new Error('refused');
-          if (line.type === 'ready') delay = 1000;
+          if (line.type === 'ready') {
+            connected = true;
+            delay = 1000;
+          }
           if (
             line.type === 'wake' &&
             typeof line.claim === 'string' &&
@@ -578,7 +593,8 @@ export async function runWakeStream(
     }
     if (parent() !== parentPid) return;
     await new Promise((resolve) => setTimeout(resolve, delay));
-    delay = Math.min(delay * 2, 30000);
+    // Until the first stream is attached the helper route is still starting.
+    delay = Math.min(delay * 2, connected ? 30000 : 5000);
   }
 }
 
