@@ -112,14 +112,14 @@ test('Missing, foreign and expired claims fail without spending the owner right'
   assert.equal((await r.ask(b.session)).reason, 'deadline:none-pending');
   // The owner can still consume after the foreign attempts.
   assert.equal((await r.consume(a.session, claim)).consumed, true);
-  // A fresh claim that is not consumed in time expires.
+  // A consumed claim whose queued prompt starts too late expires.
+  now += 3_600_000;
+  assert.equal((await r.start(a.session, claim)).reason, 'expired');
+  // A fresh claim that is not consumed in time expires as well.
   const second = String((await r.ask(a.session)).claim);
   now += 60_000;
   assert.equal((await r.consume(a.session, second)).reason, 'expired');
   assert.equal((await r.consume(a.session, second)).reason, 'replayed');
-  // A consumed claim whose queued prompt starts too late expires as well.
-  now += 3_600_000;
-  assert.equal((await r.start(a.session, claim)).reason, 'expired');
   assert.ok(unread(f, [sent.id]));
 });
 
@@ -281,5 +281,25 @@ test('A start check without a claim id takes only the single consumed claim of t
   assert.equal((await startAnonymous(b.session)).reason, 'unknown');
   assert.equal((await startAnonymous(a.session)).started, true);
   assert.equal((await startAnonymous(a.session)).reason, 'unknown');
+  assert.ok(unread(f, [sent.id]));
+});
+
+test('A newer answer for the same session supersedes its unfinished claims; other sessions keep theirs', async (t) => {
+  const f = await claudeFixture(t);
+  const r = await rig(t, f);
+  const a = await bound(f, 'Тая');
+  const b = await bound(f, 'Юрий');
+  const send = sender(f);
+  const sent = await send('Тая', 'superseded');
+  await send('Юрий', 'kept');
+  const old = String((await r.ask(a.session)).claim);
+  assert.equal((await r.consume(a.session, old)).consumed, true);
+  const other = String((await r.ask(b.session)).claim);
+  const fresh = String((await r.ask(a.session)).claim);
+  assert.equal((await r.start(a.session, old)).reason, 'unknown');
+  assert.equal((await r.consume(a.session, fresh)).consumed, true);
+  // The session-scoped start check now finds exactly one consumed claim.
+  assert.equal((await r.post('/first-wake/start', { sessionId: a.session })).started, true);
+  assert.equal((await r.consume(b.session, other)).consumed, true);
   assert.ok(unread(f, [sent.id]));
 });

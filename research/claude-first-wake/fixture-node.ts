@@ -168,9 +168,13 @@ export class WakeClaims {
   /** Issued synchronously from the snapshot that found the backlog. */
   issue(session: string, pending: Pending): WakeClaim {
     const now = this.now();
-    for (const [id, claim] of this.claims)
+    for (const [id, claim] of this.claims) {
+      // A new answer for this session supersedes its earlier unfinished claims.
+      if (claim.session === session && (claim.state === 'issued' || claim.state === 'consumed'))
+        claim.state = 'void';
       if (claim.state === 'void' || (claim.state === 'issued' && claim.claimBy <= now))
         this.claims.delete(id);
+    }
     if (this.claims.size >= 256) throw new Error('too many claims');
     const claim: WakeClaim = {
       id: randomBytes(32).toString('hex'),

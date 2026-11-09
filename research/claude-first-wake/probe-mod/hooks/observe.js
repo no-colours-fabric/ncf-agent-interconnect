@@ -7,6 +7,7 @@
 
 let endpoint = null;
 let draft = false;
+let draftCommand = false;
 
 function send($, event, detail) {
   if (!endpoint) return;
@@ -60,10 +61,14 @@ export function register(on) {
   on('prompt.edit', async ($, e, next) => {
     // next(e) resolves to the box the editor shows after this edit.
     const box = await next(e);
-    const present = typeof box?.text === 'string' && box.text.length > 0;
-    if (present !== draft) {
+    const text = typeof box?.text === 'string' ? box.text : '';
+    const present = text.length > 0;
+    const command = text.startsWith('/');
+    if (present !== draft || command !== draftCommand) {
       draft = present;
-      send($, 'draft', { present });
+      draftCommand = command;
+      // Only whether a draft exists and whether it is a slash command, never its text.
+      send($, 'draft', { present, command });
     }
     return box;
   });
