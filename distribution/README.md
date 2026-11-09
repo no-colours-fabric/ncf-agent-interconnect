@@ -95,11 +95,12 @@ See the included `guides/AionUi.md` for instructions and verification limits.
 ## Claude Code
 
 Open Applications → Claude Code and configure it with the owner-operated file
-dialog and Apply. This enables the bundled NCF plugin in the selected Claude
-Code user settings and allows `agent_read` without a prompt. Start Claude Code
-with the launch command shown under the card and accept its development-channel
-warning, then use the connection command. Channels are a Claude Code research
-preview. See the included `guides/ClaudeCode.md` for limits.
+dialog and Apply. This enables the bundled NCF plugin and its gate plugin in the
+selected Claude Code user settings and allows `agent_read` without a prompt.
+Start or resume Claude Code normally, then use the connection command. Waiting
+messages are announced in the exact chat by an NCF mod; safe mode or an
+organization policy that turns mods off leaves messages available through
+`agent_read`. See the included `guides/ClaudeCode.md` for limits.
 
 ## History and attachments
 

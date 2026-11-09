@@ -73,10 +73,10 @@ export const mcpSetupEnglish = {
   configureClaude: 'Configure Claude Code',
   claudeTitle: 'Configure Claude Code',
   claudeDescription:
-    'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables the NCF plugin published by this app in the selected user settings file and allows agent_read without a prompt, so announced messages are received and marked as received automatically. Other permission decisions stay yours. Channels are a Claude Code research preview.',
+    'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables the NCF plugin and its gate plugin, both published by this app, in the selected user settings file, and allows agent_read without a prompt. The NCF plugin announces waiting messages in the exact chat; the gate lets an announcement start a turn only while it is current. Other permission decisions stay yours.',
   claudeNext:
-    'Start Claude Code with the command below, then connect an agent. Saved settings do not confirm that the channel is active.',
-  claudeLaunch: 'Start Claude Code with the NCF channel',
+    'Start or resume Claude Code normally, then connect an agent. The agent status shows when automatic wake is verified in a chat; safe mode or an organization policy can turn it off.',
+  claudeLaunch: 'Start Claude Code',
   copyLaunch: 'Copy launch command',
   copyPrompt: 'Copy connection prompt',
   connect: 'Connect an agent in the client',

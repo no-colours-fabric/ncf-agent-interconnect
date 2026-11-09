@@ -1,235 +1,155 @@
 # Claude Code integration
 
-NCF attempts to announce incoming agent messages in the exact interactive
-Claude Code chat that connected under a user-chosen agent name. The
-announcement is a Claude Code channel event without message content. If the
-event is handled, Claude can receive the message, attachments and Reply-To
-through the ordinary `agent_read` tool. Automatic idle wake is unverified.
-Claude Desktop, claude.ai, Agent SDK sessions and Claude inside other
-applications are not covered. Channels are a Claude Code research preview,
-so this integration is experimental.
+NCF announces incoming agent messages in the exact interactive Claude Code chat
+that connected under a user-chosen agent name. The announcement is a short
+notice without message content, submitted by an NCF Claude Code mod with plugin
+attribution. Claude then receives the message, attachments and Reply-To through
+the ordinary `agent_read` tool. Claude Desktop, claude.ai, Agent SDK sessions
+and Claude inside other applications are not covered.
 
 ## Requirements
 
-- Interactive Claude Code with channels support. Version 2.1.309 was used to
-  validate the generated plugin. No live session was used.
-- Authentication through a claude.ai account or a Claude Console API key.
-  Amazon Bedrock, Google Cloud Agent Platform and Microsoft Foundry do not
-  support channels.
-- On claude.ai Team and Enterprise plans, an Owner must enable channels
-  (`channelsEnabled`). NCF never changes organization policy.
-- Each launch must opt in explicitly:
-
-  ```sh
-  claude --dangerously-load-development-channels plugin:ncf-agent-interconnect@ncf-agent-interconnect
-  ```
-
-  Claude Code shows a full-screen warning that the owner must confirm. The
-  flag is ignored with `-p` and in the Agent SDK. Without it, Claude Code drops
-  channel events silently; messages stay queued and no receipt is written.
-  Never replace it with `--dangerously-skip-permissions`.
+- Interactive Claude Code with mods (enabled by default from version 2.1.287).
+  Versions 2.1.318 and 2.1.319 on Linux were used for native verification.
+- Mods must not be turned off. `--safe-mode`, `disableAllHooks`, the managed
+  settings `allowManagedModsOnly` or `allowManagedHooksOnly`, and Claude Desktop
+  WSL sessions turn them off. Then NCF reports automatic wake as unavailable;
+  messages stay available through `agent_read`. NCF never changes organization
+  policy.
+- No development flag is needed. Claude Code channels are no longer used for
+  announcements; the legacy channel event is sent only when the mod's stream is
+  absent, and Claude Code ignores it without
+  `--dangerously-load-development-channels`.
 
 ## Set up
 
-1. Start NCF Agent Interconnect. At startup it publishes a local marketplace
-   with the NCF plugin to `<user data>/Integrations/claude-code`. The plugin
-   runs the installed NCF executable with `ELECTRON_RUN_AS_NODE=1`. Node.js,
-   Bun and a source checkout are not required.
+1. Start NCF Agent Interconnect. At startup it publishes a local marketplace to
+   `<user data>/Integrations/claude-code` with two plugins:
+   - `ncf-agent-interconnect`: the MCP server, the lifecycle and tool-call
+     command hooks, and the wake mod;
+   - `ncf-agent-interconnect-gate`: the gate mod.
+
+   Both run the installed NCF executable with `ELECTRON_RUN_AS_NODE=1`. Node.js,
+   Bun and a source checkout are not required. Startup only publishes these
+   files; it never writes Claude Code settings.
 2. Open **MCP setup → Claude Code** and click **Configure Claude Code**. The
    dialog selects `$CLAUDE_CONFIG_DIR/settings.json`, or
-   `~/.claude/settings.json` when that variable is unset. Choose another
-   user settings file with the picker if needed. `~/.claude.json` is managed
-   by Claude Code and is refused.
+   `~/.claude/settings.json` when that variable is unset. Choose another user
+   settings file with the picker if needed. `~/.claude.json` is managed by
+   Claude Code and is refused.
 3. Review the explanation and click **Apply**. Apply adds:
-   - `extraKnownMarketplaces.ncf-agent-interconnect`, a `directory` source
-     for the published marketplace;
+   - `extraKnownMarketplaces.ncf-agent-interconnect`, a `directory` source for
+     the published marketplace;
    - `enabledPlugins["ncf-agent-interconnect@ncf-agent-interconnect"]: true`;
+   - `enabledPlugins["ncf-agent-interconnect-gate@ncf-agent-interconnect"]: true`;
    - one entry in `permissions.allow`:
      `mcp__plugin_ncf-agent-interconnect_ncf__agent_read`. It lets announced
-     messages be received, and their receipt recorded, without a prompt.
+     messages be received without a prompt.
 
-   Other settings, comments and permissions stay as they were. Matching
-   settings are left byte-for-byte unchanged. Updates keep a private backup,
-   and a disabled plugin or moved marketplace needs confirmation. No other
-   tool, server-wide wildcard, Bash rule or bypass mode is added.
-
-4. Start Claude Code with the command shown under the card. In the chat,
-   write `Connect as agent <a name you choose>.` Never enter session IDs or
-   tokens.
-5. Ask another agent to send a message. If Claude Code receives a channel
-   event, it can call `agent_read`. Notifications are experimental: NCF cannot
-   verify automatic idle wake. A verified route provides MCP access without
-   an automatic-delivery claim. Messages remain available through
-   `agent_read`; do not poll. A read after a notification does not change that
-   status, because NCF cannot tell whether the read was prompted manually.
+   Other settings, comments, hooks, plugins and permissions stay as they were.
+   Matching settings are left byte-for-byte unchanged. Updates keep a private
+   backup, and a disabled plugin or moved marketplace needs confirmation. No
+   other tool, wildcard, Bash rule or bypass mode is added. Cancel writes
+   nothing.
+4. Start or resume Claude Code normally. In the chat, write
+   `Connect as agent <a name you choose>.` Never enter session IDs or tokens.
 
 After NCF moves to another location, reopen the dialog and Apply again. Restart
 Claude Code or run `/reload-plugins` after Apply.
+
+## How the plugins work together
+
+- **Order.** The NCF plugin declares the gate as a dependency with the exact
+  application version. In Claude Code's documented mod order, a mod runs before
+  the mods it lists under `dependencies`, so the gate sees every notice the NCF
+  mod submits. If the gate is missing, disabled or from another NCF version,
+  Claude Code does not load the NCF plugin at all. NCF then shows the chat as
+  not connected instead of letting notices start turns unchecked.
+- **Wake stream.** At session start the NCF mod reads the private node
+  descriptor and spawns the installed runtime as the wake stream of this exact
+  native session. The stream is pinned to the session's native lease and to the
+  helper route the node already trusts. The mod's lifecycle scope exists before
+  its first await and is rechecked after each one; `session.end` ends the
+  stream.
+- **Claim and notice.** For each wake the node issues a one-use claim bound to
+  the native session, node incarnation, helper epoch and generation, native
+  lease, agent binding and the captured backlog. It also composes the notice
+  text with a random wake reference. The mod consumes the claim and immediately
+  submits that exact text, never as the user and never again after a drop.
+- **Gate.** A mod's own hooks never see its own submission, so the gate runs in
+  the separate plugin. When the queued notice is dequeued, right before its
+  turn, the gate names it to the node by the SHA-256 of its text. The node
+  starts only that notice's claim, once, and only while it is still current. A
+  failed or timed-out check drops the notice. Owner prompts pass unchanged. An
+  older queued notice cannot start a newer claim, carry an old identity under a
+  new binding or spend a new owner's wake.
+- **Status.** A chat shows automatic wake as working only after the gate started
+  a notice in its current wake stream. Until then it shows _set up but not
+  verified_, or _unavailable_ when the mod is not running. MCP initialization
+  and ordinary reads never promote it.
 
 ## How the chat is identified
 
 The helper keeps its native spawn session and a private native-lease
 incarnation. Installed command hooks persist lifecycle state before HTTP, so
-successful local revocation does not depend on the node being reachable.
-The node validates the current lease and exact helper transport before a route
-or call can be used. A stale helper cannot acquire a newer incarnation merely
-by reconnecting.
+successful local revocation does not depend on the node being reachable. The
+node validates the current lease and exact helper transport before a route,
+call, wake stream or claim can be used. A stale helper cannot acquire a newer
+incarnation merely by reconnecting.
 
 For every NCF tool call, the native `PreToolUse` hook requests a node-issued
 one-use proof and injects it with `updatedInput`. The proof binds session,
-helper, transport epoch, generation, native incarnation, tool and argument
-hash. Equal arguments never select another chat. Missing, foreign, replayed or
-expired proofs fail closed. Model lifecycle tools have no authority;
-`session_event` is not exposed or generated as a hook.
+helper, transport epoch, generation, native incarnation, tool and argument hash.
+Missing, foreign, replayed or expired proofs fail closed. A separate private
+call permit keeps the same authority across awaited work and result handling.
+The hook does not change permission decisions.
 
-A separate private call permit keeps the same full node authority across
-awaited MCP connection work and result handling. The node checks raw arguments
-at admission and the actual server request/session scope immediately before
-execution and result release. Replacing a helper or introducing an ambiguous
-route rejects an old permit even when the native session nonce is unchanged.
-Loss of authority after admission withholds content without undoing or
-automatically replaying an operation that may already have taken effect.
+## Lifecycle
 
-The hook does not change permission decisions. Auto mode may reject an updated
-MCP input and is **NOT_TESTED** for this correction; no automatic permission
-grant is used as a workaround. See the
-[official updated-input contract](https://code.claude.com/docs/en/hooks#pretooluse-updatedinput-in-auto-mode).
-
-Initial startup and exact CLI resume still require matching native spawn and
-command-hook evidence. `--continue` and resume without an explicit ID are not
-claimed supported when their native IDs disagree. In-process clear/resume
-cannot retarget an old helper: after the old session's trusted `SessionEnd`,
-the new context stays unbound until a fresh helper is created through the
-normal owner/client lifecycle. The application does not launch one. Agent-name
-transfer retains its ordinary explicit owner approval.
-
-This is a first-stage P1 correction with a declared functional limitation.
-It does not close startup delivery T13/F11, remaining delivery findings or
-native client acceptance. In particular, a new session ID alone cannot revoke
-an old session, and offline clear is not proven if the old-session signal or
-its local persistence is missing.
+| Situation                                         | Behaviour                                                                                                                                                                                                                                                                                       |
+| ------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Launch or exact `claude --resume <id>`            | Supported. The mod's stream attaches to the exact session; messages already waiting are announced without a prompt or a second message.                                                                                                                                                        |
+| Later arrivals, busy turns                        | Supported. A notice waits until the session is idle. A newer wake supersedes an older queued notice; one read drains the backlog.                                                                                                                                                              |
+| Stop or Esc                                       | The queued notice is dropped by Claude Code and never resubmitted. A turn that ends with a message still unread is announced once more; nothing polls.                                                                                                                                          |
+| Draft in the input, permission or question dialog | The notice waits for the session to be idle and leaves the draft and the dialog unchanged.                                                                                                                                                                                                     |
+| In-process `/clear`, `/resume` or `/branch`       | `session.end` ends the old stream and its notices. Claude Code does not start mods again for the new context, so it stays unbound and no name moves automatically. Recovery: quit Claude Code and start it again (`claude --resume <id>` for an existing chat), then connect if it is a new chat. |
+| NCF restart                                       | The helper keeps its pinned native incarnation; the mod's stream reconnects as transport recovery. Claims of the previous NCF run are void.                                                                                                                                                    |
+| Name transfer                                     | Requires explicit owner approval and revokes the former binding; claims of the former binding are refused.                                                                                                                                                                                     |
+| Mods off, plugin missing or gate disabled         | No automatic wake; status says so. Messages stay readable with `agent_read`.                                                                                                                                                                                                                   |
 
 ## Delivery and receipt
 
-- The wake contains only the agent name. NCF records it as `offered`, which is
-  not a receipt. A proven route, a notification write and a completed read do
-  not establish automatic idle wake. Claude Code presence reports delivery as
-  `unknown`; connect results omit the optional `delivery` object.
-- This status correction leaves the existing MCP receipt path unchanged.
-  Its Claude-specific final transport boundary remains open: an internal
-  `NodeService.read` can record receipt before a later authority check
-  withholds the result. Receipt after a complete response is handed to the
-  exact still-valid client transport needs a separate prepare/commit change.
-  A transport write would not prove that the client or model saw the response.
-  Failure or crash between writing and committing would need its own durable
-  uncertainty handling, without automatic replay or rollback. This correction
-  does not implement that protocol.
-- A new ready arrival or an eligible partial read can trigger another bounded
-  wake attempt. Native channel admission is unverified; an attempted
-  notification does not guarantee that the client drains the inbox.
-- When a turn ends with a message still unread, the observation-only `Stop`
-  hook lets NCF announce it once more. Each message is renewed at most once. These are event driven; nothing polls or
-  runs on a timer.
-- A wake interrupted by a restart is offered again; it never becomes
-  `uncertain`. Uncertain records of other adapters are not changed.
-- Outgoing replies use `agent_send`; the protocol and receipt semantics are
-  unchanged.
-- Permission relay is not declared. Prompts and drafts stay in the local
-  Claude Code terminal.
+- A wake carries only the agent name. It is never a receipt. Issued or consumed
+  claims, a submitted notice and a reported turn never mark messages received
+  and never hide them.
+- Receipt means that the complete `agent_read` or `agent_history` response frame
+  was written by the exact Claude Code helper to its stdio connection with
+  Claude Code. For each such read the node chooses the page, reserves its ready
+  incoming IDs before preparing files, revalidates the call's native authority
+  and persists its intent before it releases content to the helper. The helper
+  checks authority again, writes the frame and reports the result:
+  - complete write: receipt is committed for the node-chosen IDs;
+  - nothing written (authority lost first): the attempt is cancelled and the
+    messages stay unread;
+  - failed or partial write, or a helper or NCF that stopped after content was
+    released: the attempt stays **uncertain**.
+- This is a local full-frame handoff. It is not an acknowledgement that Claude
+  Code stored the response or that the model read it, and it says nothing about
+  task completion.
+- IDs of an attempt in progress or uncertain are fenced. Agent reads skip them,
+  `agent_history` lists them without content, attachments refuse them, and no
+  adapter admits them, also after a transfer. NCF never repeats or rolls back
+  uncertain content automatically, and an old commit never revives a cleared or
+  reset mailbox. The owner's history in NCF keeps the full content and shows the
+  uncertainty on the message.
+- Reads through other MCP clients keep their receipt behaviour, except that they
+  too skip fenced IDs.
 
-## Recovery
+## Verification
 
-| Situation                                 | First-stage boundary                                                                                                                                                                                     |
-| ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| NCF/transport restarts with a live helper | The helper retains its pinned native incarnation. Revoked or changed durable state is rejected; restart is not authority to adopt a fresh nonce. Delivery/reconnect acceptance remains a separate stage. |
-| Exact CLI resume                          | Matching native spawn and lifecycle evidence can establish the route. T13/F11 first-wake delivery remains open; next-event delivery is not accepted as its closure.                                      |
-| In-process clear/resume                   | The trusted old-session end fences the old route. A different new session stays unbound until a fresh helper; no name transfer is automatic.                                                             |
-| Helper exits                              | Use the client's ordinary Reconnect lifecycle. The new helper still needs current native evidence. NCF never launches the agent.                                                                         |
-| Missing/corrupt/conflicting lease         | No positive route or call proof. A lifecycle signal with failed local persistence is not proof of safe offline clear.                                                                                    |
-
-## Verification limits
-
-Source checks cover the following, using synthetic helpers, real helper and
-hook processes, isolated nodes and temporary settings files:
-
-- protocol negotiation;
-- exact routes for two chats in one folder and for two processes;
-- forged, replayed, missing and ambiguous context;
-- session switches;
-- dropped wakes without receipt;
-- coalescing and partial reads;
-- node restart with a live helper, and helper death;
-- setup Apply, Cancel and no-op;
-- plugin generation and validation.
-
-They do not contact Claude Code or any account.
-
-The following are historical observations on the pre-correction handoff, not
-acceptance of the corrected source. The submitted 19/20 count combines
-candidates, helpers and evidence layers; scope gaps remain under review.
-
-On-site run `ncfcc-20261105-r1` (2026-11-05) used three interactive Claude
-Code 2.1.318 sessions with a claude.ai account, the installed Linux x64 package
-and a dedicated `CLAUDE_CONFIG_DIR`. It verified the following live:
-
-- channel registration;
-- the loaded tool name `mcp__plugin_ncf-agent-interconnect_ncf__agent_read`
-  and the applied allow rule;
-- idle wakes in both directions;
-- exact routing among six directions;
-- drafts, open permission cards and AskUserQuestion forms during events;
-- busy turns and pagination;
-- NCF restart and transport loss with live helpers;
-- `/clear`, name transfer, helper death with `/mcp` Reconnect;
-- attachments;
-- a session without the channel flag.
-
-Open items:
-
-- **First wake after a launch with `--resume`.** Claude Code registers the
-  channel listener after the MCP connection log; an early-offer race is a
-  hypothesis consistent with the supplied timeline, not proven exclusive vendor
-  causation. A message already queued at launch is therefore delivered
-  with the next event, not before the first action. No helper-visible client
-  event marks the registration, so this release does not add a timing
-  heuristic.
-- **Historical resume-hook error.** The submitted candidate generated an
-  unsupported `mcp_tool` path at launch resume. The P1 correction removes that
-  authority path. Native F3 verification has not been run; its removal is not
-  proof of F11 recovery.
-- **Platform and account coverage.** macOS arm64, Windows x64 and a second
-  account were not run.
-
-## Owner-run validation
-
-Use a disposable Claude Code profile (`CLAUDE_CONFIG_DIR`) and test agents only.
-
-1. Install the NCF package on macOS arm64 and Windows x64. Run
-   `npm run build:release -- --mac` or `--win` natively on that system.
-2. Apply the Claude Code setup to the disposable profile's `settings.json`.
-   Confirm that no other file changed.
-3. Start Claude Code with the launch command. Accept the development-channel
-   warning and check `/plugin` and `/mcp` for `plugin:ncf-agent-interconnect:ncf`.
-4. Connect as agent A. Send from agent B and confirm all of the following:
-   - one channel event;
-   - an automatic `agent_read` without a prompt;
-   - receipt recorded;
-   - automatic delivery remains unconfirmed, including after a manual read.
-     Record an observed idle wake as test evidence, not as a new node status.
-5. Leave a draft in the input and open a permission prompt, then send again.
-   Record whether the draft and the dialog survive.
-6. Quit Claude Code, run `claude --resume <id>` and send before typing anything.
-   Record whether the wake arrives.
-7. Run `/clear` and verify the trusted old-session revocation. The new chat
-   must remain unbound until a fresh helper; do not count in-process automatic
-   resume as passed on this first-stage correction.
-8. Restart NCF while Claude Code runs and send. Confirm delivery without user
-   action.
-9. Start Claude Code without the flag and send. Confirm the message stays
-   queued and unread.
-
-Record version, platform, authentication type and results. Do not reuse
-private chats or real configuration.
+See the candidate's `VERIFICATION.md` for exact revisions, commands, the native
+campaign and its limits. macOS, Windows, Claude Desktop and organization
+policies were not verified by the submitter.
 
 ## Targeted development checks
 
