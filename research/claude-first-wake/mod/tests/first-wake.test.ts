@@ -21,12 +21,9 @@ interface Options {
   descriptor?: () => Promise<string> | string;
   pending?: () => Answer;
   consume?: () => Answer;
-  start?: () => Answer;
   drop?: string;
-  // Makes the start-check request reject, like a node that went away.
-  startFails?: boolean;
-  // Holds the mod's own submission like a prompt queued until the session is idle.
-  queue?: Promise<void>;
+  // Makes the pending query reject, like the 30 second $.http.fetch limit.
+  queryFails?: boolean;
 }
 
 function fixture(on, options: Options = {}) {
@@ -46,7 +43,7 @@ function fixture(on, options: Options = {}) {
   on('http.fetch', async ($, e) => {
     const route = String(e.url).replace('http://127.0.0.1:1', '');
     routes.push(route);
-    if (route === '/first-wake/start' && options.startFails) return { deny: 'node unreachable' };
+    if (route === '/first-wake/pending' && options.queryFails) return { deny: 'timed out' };
     const body = JSON.parse(e.init.body);
     let value: Record<string, unknown> = {};
     if (route === '/first-wake/result') reports.push(body);
@@ -54,18 +51,10 @@ function fixture(on, options: Options = {}) {
       value = (await options.pending?.()) ?? { wake: true, nickname: 'Боб', claim };
     else if (route === '/first-wake/claim')
       value = (await options.consume?.()) ?? { consumed: true };
-    else if (route === '/first-wake/start') value = (await options.start?.()) ?? { started: true };
     return { value: { status: 200, ok: true, headers: {}, text: JSON.stringify(value) } };
   });
-  // The kit sends the mod's own $.prompt.submit straight to this stub, without
-  // the mod's prompt.submit hook. A test fires $.prompt.submit itself to model
-  // the engine dequeuing that prompt through every prompt.submit hook.
-  let queue = options.queue;
-  on('prompt.submit', async ($, e) => {
+  on('prompt.submit', ($, e) => {
     delivered.push({ text: e.text, asUser: e.asUser });
-    const held = queue;
-    queue = undefined;
-    if (held) await held;
     return options.drop ? { drop: options.drop } : { text: e.text };
   });
   return { delivered, reports, routes };
@@ -183,93 +172,6 @@ test('no wake, an invalid name, a missing claim or a refused claim submits nothi
   ]);
 });
 
-test('a dequeued notice passes the start check once and a replay is dropped', async ($, on) => {
-  const queued = gate<void>();
-  const f = fixture(on, { queue: queued.wait });
-  await $.session.start({ cwd: '/fixture' });
-  await settle();
-  expect(f.delivered.length).toBe(1);
-  const text = f.delivered[0].text;
-  // Dequeue: the mod's own hook revalidates the lifecycle and the claim.
-  const passed = await $.prompt.submit({ text });
-  expect(passed.drop).toBeUndefined();
-  expect(f.delivered.length).toBe(2);
-  // The same notice again (a replay) is not the pending notice any more.
-  const replay = await $.prompt.submit({ text });
-  expect(String(replay.drop)).toContain('ended session lifecycle');
-  queued.open();
-  await settle();
-  expect(f.reports.map((r) => r.outcome)).toEqual([
-    'prompt-hook:engine',
-    'start-check:started',
-    'prompt-hook:engine',
-    'turn-started',
-  ]);
-});
-
-test('a refused start check drops the dequeued notice and fences the lifecycle', async ($, on) => {
-  const queued = gate<void>();
-  const f = fixture(on, {
-    queue: queued.wait,
-    start: () => ({ started: false, reason: 'revoked:binding' }),
-  });
-  await $.session.start({ cwd: '/fixture' });
-  await settle();
-  const result = await $.prompt.submit({ text: f.delivered[0].text });
-  expect(String(result.drop)).toContain('withdrawn: claim:revoked:binding');
-  expect(f.delivered.length).toBe(1);
-  expect(f.reports.map((r) => r.outcome)).toEqual([
-    'prompt-hook:engine',
-    'start-check:claim:revoked:binding',
-  ]);
-});
-
-test('a start check that fails drops the notice through the catch handler', async ($, on) => {
-  const queued = gate<void>();
-  const f = fixture(on, { queue: queued.wait, startFails: true });
-  await $.session.start({ cwd: '/fixture' });
-  await settle();
-  const result = await $.prompt.submit({ text: f.delivered[0].text });
-  expect(String(result.drop)).toContain('NCF wake notice withdrawn: check');
-  expect(f.delivered.length).toBe(1);
-});
-
-test('an end while the notice is queued drops it', async ($, on) => {
-  const queued = gate<void>();
-  const f = fixture(on, { queue: queued.wait });
-  await $.session.start({ cwd: '/fixture' });
-  await settle();
-  await end($);
-  const ended = await $.prompt.submit({ text: f.delivered[0].text });
-  expect(String(ended.drop)).toContain('ended session lifecycle');
-  expect(f.delivered.length).toBe(1);
-});
-
-test('an end during the start check drops the dequeued notice', async ($, on) => {
-  const queued = gate<void>();
-  const start = gate<Record<string, unknown>>();
-  const f = fixture(on, { queue: queued.wait, start: () => start.wait });
-  await $.session.start({ cwd: '/fixture' });
-  await settle();
-  const pending = $.prompt.submit({ text: f.delivered[0].text });
-  await settle();
-  await end($);
-  start.open({ started: true });
-  const result = await pending;
-  expect(String(result.drop)).toContain('withdrawn: fenced');
-  expect(f.delivered.length).toBe(1);
-});
-
-test('a notice from an ended lifecycle is dropped and an unrelated prompt passes', async ($, on) => {
-  const f = fixture(on, {});
-  const result = await $.prompt.submit({
-    text: 'NCF Agent Interconnect messages were already waiting for agent "Боб" when this session started.',
-  });
-  expect(String(result.drop)).toContain('ended session lifecycle');
-  await $.prompt.submit({ text: 'an ordinary owner prompt' });
-  expect(f.delivered.map((d) => d.text)).toEqual(['an ordinary owner prompt']);
-});
-
 test('a dropped submission is reported once and never retried', async ($, on) => {
   const drop = 'the prompt was removed from the queue before it ran';
   on('turn.complete', ($, e) => ({ text: '' }));
@@ -280,4 +182,12 @@ test('a dropped submission is reported once and never retried', async ($, on) =>
   await settle();
   expect(f.delivered.length).toBe(1);
   expect(f.reports.map((r) => r.outcome)).toEqual(['dropped:' + drop]);
+});
+
+test('a failed pending query is reported and submits nothing', async ($, on) => {
+  const f = fixture(on, { queryFails: true });
+  await $.session.start({ cwd: '/fixture' });
+  await settle();
+  expect(f.delivered.length).toBe(0);
+  expect(f.reports.map((r) => r.outcome)).toEqual(['query-failed']);
 });

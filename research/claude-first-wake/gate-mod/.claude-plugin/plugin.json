@@ -1,0 +1,7 @@
+{
+  "name": "ncf-first-wake-gate",
+  "version": "0.0.1",
+  "description": "Research prototype: the start check for the NCF first-wake notice, loaded after ncf-first-wake-research. Not a product component.",
+  "author": { "name": "no-colours-fabric" },
+  "license": "BSD-3-Clause"
+}

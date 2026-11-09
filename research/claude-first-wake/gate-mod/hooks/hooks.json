@@ -1,0 +1,4 @@
+{
+  "description": "NCF first-wake research gate",
+  "modules": ["./gate.js"]
+}

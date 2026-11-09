@@ -235,9 +235,20 @@ export class WakeClaims {
     }
     return this.transition(found, 'issued', 'consumed');
   }
-  /** The queued notice is about to start a turn. Same checks, once. */
-  async start(session: string, id: string): Promise<{ ok: boolean; reason?: string }> {
-    const found = this.find(session, id);
+  /**
+   * The queued notice is about to start a turn. Same checks, once. Without a
+   * claim id (the separate gate plugin cannot share the mod's memory) it takes
+   * the only consumed claim of this exact session.
+   */
+  async start(session: string, id?: string): Promise<{ ok: boolean; reason?: string }> {
+    let found: WakeClaim | string;
+    if (id) found = this.find(session, id);
+    else {
+      const consumed = [...this.claims.values()].filter(
+        (claim) => claim.session === session && claim.state === 'consumed',
+      );
+      found = consumed.length === 1 ? consumed[0] : consumed.length ? 'ambiguous' : 'unknown';
+    }
     if (typeof found === 'string') return { ok: false, reason: found };
     if (found.state !== 'consumed') return { ok: false, reason: 'replayed' };
     try {
@@ -356,22 +367,24 @@ export async function startFirstWakeEndpoint(
         return reply(200, {});
       }
       if (req.url === '/first-wake/claim' || req.url === '/first-wake/start') {
-        const input = claimInput.strict().parse(await body(req));
         const consuming = req.url === '/first-wake/claim';
+        const input = (consuming ? claimInput : claimInput.partial({ claim: true }))
+          .strict()
+          .parse(await body(req));
         const result = consuming
-          ? await claims.consume(input.sessionId, input.claim)
+          ? await claims.consume(input.sessionId, input.claim!)
           : await claims.start(input.sessionId, input.claim);
         await log({
           event: consuming ? 'claim-consume' : 'claim-start',
           sessionId: input.sessionId,
-          claim: input.claim,
+          claim: input.claim ?? null,
           ...result,
         });
         // Research boundary: an approved transfer after consumption, before the
         // mod receives the answer and submits its notice.
         if (consuming && result.ok && armed?.transferOnConsume) {
           armed = null;
-          const nickname = claims.get(input.claim)?.nickname;
+          const nickname = claims.get(input.claim!)?.nickname;
           if (nickname)
             await log({ event: 'fixture-transfer', nickname, status: transfer(nickname) });
         }

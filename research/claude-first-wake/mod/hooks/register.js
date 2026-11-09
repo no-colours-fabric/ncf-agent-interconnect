@@ -2,10 +2,11 @@
 // isolated NCF fixture node, once, whether this exact native Claude Code
 // session already has a pending NCF message on a proven route. If so it consumes
 // the node's one-use claim and submits one fixed wake notice with default plugin
-// attribution (never asUser). Right before that prompt starts a turn, its own
-// prompt.submit hook revalidates the lifecycle and the claim and drops a stale
-// notice. It never reads an inbox, never repeats a dropped or refused
-// submission and never acts for a lifecycle other than the one it was started in.
+// attribution (never asUser). It never reads an inbox, never repeats a dropped
+// or refused submission and never acts for a lifecycle other than the one it
+// was started in. A mod's own hooks do not see its own submission, so the check
+// right before the queued notice starts a turn lives in the separate
+// ncf-first-wake-gate plugin, loaded after this one.
 
 const maxName = 120;
 
@@ -20,7 +21,7 @@ function current(own) {
 export function register(on) {
   on('session.start', ($, e, next) => {
     if (scope) scope.current = false;
-    const own = { current: true, sessionId: null, claim: null, text: null };
+    const own = { current: true, sessionId: null };
     scope = own;
     // Not awaited: the long request and the submission must not hold the start.
     firstWake($, own).catch(() => {});
@@ -32,39 +33,6 @@ export function register(on) {
     scope = null;
     return next(e);
   });
-  on('prompt.submit', async ($, e, next) => {
-    // The event names no prompt origin, so the notice is recognised by its exact
-    // text. Whether this hook sees the mod's own queued notice, and with which
-    // next.origin, is recorded as native evidence by the prompt-hook report.
-    if (!isWakeText(e.text)) return next(e);
-    const refusal = await noticeCheck($, e.text, next.origin);
-    return refusal ? { drop: refusal } : next(e);
-  }).catch(($, e, next) => {
-    // A failed or timed-out check never lets a notice through.
-    if (next.called || !isWakeText(e.text)) return next(e);
-    return {
-      drop: 'NCF wake notice withdrawn: check ' + next.error.kind + '. Messages stay unread.',
-    };
-  });
-}
-
-// Why the notice must not start a turn now, or null when it may.
-async function noticeCheck($, text, origin) {
-  const own = scope;
-  if (own?.endpoint)
-    await report($, own.endpoint, {
-      sessionId: own.sessionId,
-      claim: own.claim,
-      outcome: 'prompt-hook:' + String(origin?.plugin ?? 'none'),
-    });
-  // A notice from a fenced lifecycle is never let through.
-  if (!own || own.text !== text)
-    return 'NCF wake notice from an ended session lifecycle. Messages stay unread.';
-  own.text = null;
-  const verdict = await startCheck($, own);
-  if (verdict === 'started') return null;
-  own.current = false;
-  return 'NCF wake notice withdrawn: ' + verdict + '. Messages stay unread.';
 }
 
 export function wakeText(nickname) {
@@ -72,13 +40,6 @@ export function wakeText(nickname) {
     'NCF Agent Interconnect messages were already waiting for agent ' +
     JSON.stringify(nickname) +
     ' when this session started. Call agent_read for this agent now and continue with nextCursor while hasMore is true. This notice contains no message content.'
-  );
-}
-
-function isWakeText(text) {
-  return (
-    typeof text === 'string' &&
-    text.startsWith('NCF Agent Interconnect messages were already waiting for agent ')
   );
 }
 
@@ -109,25 +70,6 @@ async function report($, endpoint, body) {
   }
 }
 
-// The last check before the queued notice starts a turn.
-async function startCheck($, own) {
-  if (!current(own)) return 'fenced';
-  if ((await $.session.id()) !== own.sessionId || !current(own)) return 'fenced:session';
-  const answer = await post($, own.endpoint, '/first-wake/start', {
-    sessionId: own.sessionId,
-    claim: own.claim,
-  });
-  if (!current(own)) return 'fenced';
-  const verdict =
-    answer.started === true ? 'started' : 'claim:' + String(answer.reason ?? 'refused');
-  await report($, own.endpoint, {
-    sessionId: own.sessionId,
-    claim: own.claim,
-    outcome: 'start-check:' + verdict,
-  });
-  return verdict;
-}
-
 async function firstWake($, own) {
   const sessionId = await $.session.id();
   if (!current(own)) return;
@@ -137,8 +79,14 @@ async function firstWake($, own) {
   const endpoint = JSON.parse(await $.fs.read(file));
   if (typeof endpoint.url !== 'string' || typeof endpoint.token !== 'string' || !current(own))
     return;
-  own.endpoint = endpoint;
-  const answer = await post($, endpoint, '/first-wake/pending', { sessionId });
+  let answer;
+  try {
+    answer = await post($, endpoint, '/first-wake/pending', { sessionId });
+  } catch {
+    // For example the 30 second $.http.fetch limit: never a wake, never retried.
+    await report($, endpoint, { sessionId, claim: null, outcome: 'query-failed' });
+    return;
+  }
   const claim = typeof answer.claim === 'string' ? answer.claim : null;
   // A deadline or a fenced scope is a resource limit, never an incoming event.
   if (!current(own) || answer.wake !== true || !claim || !validName(answer.nickname)) {
@@ -158,11 +106,7 @@ async function firstWake($, own) {
     });
     return;
   }
-  const text = wakeText(answer.nickname);
-  own.claim = claim;
-  own.text = text;
-  const result = await $.prompt.submit({ text });
-  if (own.text === text) own.text = null;
+  const result = await $.prompt.submit({ text: wakeText(answer.nickname) });
   await report($, endpoint, {
     sessionId,
     claim,

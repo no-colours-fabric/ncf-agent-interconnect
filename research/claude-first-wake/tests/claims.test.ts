@@ -263,3 +263,23 @@ test('Research controls: an observed native event releases the barrier, second a
   assert.equal((await r.start(session, claim)).reason, 'revoked:binding');
   assert.ok(unread(f, ids));
 });
+
+test('A start check without a claim id takes only the single consumed claim of that exact session', async (t) => {
+  const f = await claudeFixture(t);
+  const r = await rig(t, f);
+  const a = await bound(f, 'Ира');
+  const b = await bound(f, 'Олег');
+  const send = sender(f);
+  const sent = await send('Ира', 'gate check');
+  await send('Олег', 'other session');
+  const startAnonymous = (sessionId: string) => r.post('/first-wake/start', { sessionId });
+  const claim = String((await r.ask(a.session)).claim);
+  // Issued but not consumed: there is nothing for the gate to start.
+  assert.equal((await startAnonymous(a.session)).reason, 'unknown');
+  assert.equal((await r.consume(a.session, claim)).consumed, true);
+  // Another session never starts A's claim.
+  assert.equal((await startAnonymous(b.session)).reason, 'unknown');
+  assert.equal((await startAnonymous(a.session)).started, true);
+  assert.equal((await startAnonymous(a.session)).reason, 'unknown');
+  assert.ok(unread(f, [sent.id]));
+});
