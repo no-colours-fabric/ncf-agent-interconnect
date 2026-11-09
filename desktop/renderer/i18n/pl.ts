@@ -84,7 +84,7 @@ export const pl: Messages = {
   mcpSetup_configureClaude: 'Skonfiguruj Claude Code',
   mcpSetup_claudeTitle: 'Skonfiguruj Claude Code',
   mcpSetup_claudeDescription:
-    'Połącz interaktywny Claude Code z NCF Agent Interconnect. Zastosuj włącza w wybranym pliku ustawień użytkownika wtyczkę NCF i jej wtyczkę kontrolną, obie opublikowane przez tę aplikację, oraz zezwala na agent_read bez pytania. Wtyczka NCF ogłasza oczekujące wiadomości we właściwym czacie; kontrola pozwala ogłoszeniu rozpocząć turę tylko wtedy, gdy jest aktualne. Pozostałe decyzje o uprawnieniach należą do Ciebie.',
+    'Połącz interaktywny Claude Code z NCF Agent Interconnect. Zastosuj włącza w wybranym pliku ustawień użytkownika dwie wtyczki opublikowane przez tę aplikację: wtyczkę NCF z serwerem MCP, stałymi hookami cyklu życia i wywołań narzędzi uruchamianymi przez tę aplikację oraz modem ogłaszającym oczekujące wiadomości we właściwym czacie; oraz wtyczkę kontrolną, od której zależy i która pozwala ogłoszeniu rozpocząć turę tylko wtedy, gdy jest aktualne. Zezwala też na agent_read bez pytania. Pozostałe decyzje o uprawnieniach należą do Ciebie.',
   mcpSetup_claudeNext:
     'Uruchom lub wznów Claude Code jak zwykle, a następnie połącz agenta. Stan agenta pokazuje, kiedy automatyczne budzenie zostało potwierdzone w czacie; tryb awaryjny lub zasady organizacji mogą je wyłączyć.',
   mcpSetup_claudeLaunch: 'Uruchom Claude Code',

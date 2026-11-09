@@ -82,7 +82,7 @@ export const ko: Messages = {
   mcpSetup_configureClaude: 'Claude Code 설정',
   mcpSetup_claudeTitle: 'Claude Code 설정',
   mcpSetup_claudeDescription:
-    '대화형 Claude Code를 NCF Agent Interconnect에 연결합니다. 적용을 누르면 선택한 사용자 설정 파일에서 이 앱이 게시한 NCF 플러그인과 그 게이트 플러그인을 활성화하고 agent_read를 묻지 않고 허용합니다. NCF 플러그인은 대기 중인 메시지를 정확한 채팅에 알리고, 게이트는 알림이 유효한 동안에만 턴을 시작하게 합니다. 그 밖의 권한 결정은 사용자에게 남습니다.',
+    '대화형 Claude Code를 NCF Agent Interconnect에 연결합니다. 적용을 누르면 선택한 사용자 설정 파일에서 이 앱이 게시한 플러그인 두 개를 활성화합니다. 하나는 MCP 서버, 이 앱이 실행하는 고정된 수명 주기 및 도구 호출 훅, 대기 중인 메시지를 정확한 채팅에 알리는 mod를 포함한 NCF 플러그인이고, 다른 하나는 그것이 의존하는 게이트 플러그인으로 알림이 유효한 동안에만 턴을 시작하게 합니다. agent_read도 묻지 않고 허용합니다. 그 밖의 권한 결정은 사용자에게 남습니다.',
   mcpSetup_claudeNext:
     '평소처럼 Claude Code를 시작하거나 재개한 다음 에이전트를 연결하세요. 에이전트 상태에 채팅에서 자동 깨우기가 확인되었는지 표시됩니다. 안전 모드나 조직 정책으로 꺼질 수 있습니다.',
   mcpSetup_claudeLaunch: 'Claude Code 시작',
