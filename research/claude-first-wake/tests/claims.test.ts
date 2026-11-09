@@ -303,3 +303,26 @@ test('A newer answer for the same session supersedes its unfinished claims; othe
   assert.equal((await r.consume(b.session, other)).consumed, true);
   assert.ok(unread(f, [sent.id]));
 });
+
+test('A nested change event after the answer issues no second claim for the same query', async (t) => {
+  const f = await claudeFixture(t);
+  const r = await rig(t, f);
+  const { session, helper } = await bound(f, 'Нина');
+  const send = sender(f);
+  const sent = await send('Нина', 'nested change');
+  await helper.detach();
+  // While the route is missing the query waits; a claude change that re-emits a
+  // service change synchronously reaches the waiting check twice in one cycle.
+  const relay = () => f.service.emit('change');
+  f.service.claude.prependListener('change', relay);
+  t.after(() => f.service.claude.off('change', relay));
+  const pending = r.ask(session);
+  // Wait until the query is journaled, so it is subscribed before the route returns.
+  while (!(await r.journal()).includes('"event":"mod-query"')) await new Promise(setImmediate);
+  const replacement = new FakeHelper(f, session);
+  await replacement.attach();
+  const answer = await pending;
+  assert.equal(answer.wake, true);
+  assert.equal((await r.consume(session, String(answer.claim))).consumed, true);
+  assert.ok(unread(f, [sent.id]));
+});

@@ -499,7 +499,10 @@ export async function startFirstWakeEndpoint(
       const answer = await new Promise<{ answer: FirstWakeAnswer; claim?: WakeClaim }>(
         (resolve) => {
           let last = 'pending';
+          // A nested change event can call check again after finish; answer once.
+          let done = false;
           const check = () => {
+            if (done) return;
             const value = snapshot(service, sessionId);
             if (typeof value === 'string') {
               last = value;
@@ -519,6 +522,7 @@ export async function startFirstWakeEndpoint(
             });
           };
           const finish = (value: { answer: FirstWakeAnswer; claim?: WakeClaim }) => {
+            done = true;
             clearTimeout(timer);
             service.off('change', check);
             service.claude.off('change', check);
