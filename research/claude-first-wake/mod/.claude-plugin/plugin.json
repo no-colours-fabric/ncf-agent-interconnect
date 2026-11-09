@@ -1,0 +1,7 @@
+{
+  "name": "ncf-first-wake-research",
+  "version": "0.0.1",
+  "description": "Research prototype: submits a fixed NCF wake notice for an already-pending message at session start. Not a product component.",
+  "author": { "name": "no-colours-fabric" },
+  "license": "BSD-3-Clause"
+}
