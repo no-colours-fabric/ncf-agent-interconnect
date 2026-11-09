@@ -85,10 +85,11 @@ Claude Code or run `/reload-plugins` after Apply.
   failed or timed-out check drops the notice. Owner prompts pass unchanged. An
   older queued notice cannot start a newer claim, carry an old identity under a
   new binding or spend a new owner's wake.
-- **Status.** A chat shows automatic wake as working only after the gate started
-  a notice in its current wake stream. Until then it shows _set up but not
-  verified_, or _unavailable_ when the mod is not running. MCP initialization
-  and ordinary reads never promote it.
+- **Status.** A connected wake stream remains _set up but not verified_. A gate
+  start permits a notice but does not prove that its native read will succeed.
+  The first-resume failure reported in campaign K5 remains under native
+  investigation. MCP initialization, gate starts and ordinary reads never
+  promote this diagnostic candidate to confirmed automatic delivery.
 
 ## How the chat is identified
 
@@ -138,14 +139,18 @@ The hook does not change permission decisions.
 - This is a local full-frame handoff. It is not an acknowledgement that Claude
   Code stored the response or that the model read it, and it says nothing about
   task completion.
-- IDs of an attempt in progress or uncertain are fenced. Agent reads skip them,
+- IDs of an attempt in progress or uncertain are fenced. Unread agent reads
+  report an explicit busy or uncertain error when the selected page is blocked;
   `agent_history` lists them without content, attachments refuse them, and no
   adapter admits them, also after a transfer. NCF never repeats or rolls back
   uncertain content automatically, and an old commit never revives a cleared or
   reset mailbox. The owner's history in NCF keeps the full content and shows the
   uncertainty on the message.
-- Reads through other MCP clients keep their receipt behaviour, except that they
-  too skip fenced IDs.
+- Reads through other MCP clients keep their receipt behaviour, except that
+  blocked unread pages also report busy or uncertain rather than an empty inbox.
+
+For the corrective branch, build instructions, diagnostics and three native
+manual cases are in [Claude diagnostic testing](claude-code-diagnostic-testing.md).
 
 ## Verification
 

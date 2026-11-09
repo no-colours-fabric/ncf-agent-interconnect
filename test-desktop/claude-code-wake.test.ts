@@ -106,7 +106,7 @@ test('A pending backlog is announced through the mod stream once it attaches, no
   assert.ok(wake.notice.startsWith(wakeNoticePrefix + JSON.stringify('Боб 漢字') + ' '));
   assert.ok(!wake.notice.includes('pending before the mod'));
   assert.match(String(adapterState(f, connectionId).error), /not verified yet/);
-  // The mod consumes, then the gate starts the exact notice: wake is now verified.
+  // Starting the exact notice does not prove that the native client can read it.
   assert.deepEqual(
     (await post(f, '/integrations/claude/wake/claim', { sessionId: session, claim: wake.claim }))
       .body,
@@ -117,8 +117,8 @@ test('A pending backlog is announced through the mod stream once it attaches, no
     notice: wakeNoticeHash(wake.notice),
   });
   assert.deepEqual(started.body, { started: true });
-  assert.equal(adapterState(f, connectionId).state, 'ready');
-  assert.equal(adapterState(f, connectionId).error, null);
+  assert.equal(adapterState(f, connectionId).state, 'manual');
+  assert.match(String(adapterState(f, connectionId).error), /not verified yet/);
   // Nothing was read or receipted by the wake path.
   assert.equal(f.service.store.get(sent.id, 'in')!.state, 'ready');
 });

@@ -5,12 +5,14 @@ import {
   fstatSync,
   readFileSync,
   closeSync,
+  watch,
   type Stats,
 } from 'node:fs';
 import { mkdir, open, rename, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
+import { traceClaude } from './claude-diagnostics.js';
 
 const uuid = z.uuid().transform((value) => value.toLowerCase());
 const leaseSchema = z
@@ -35,6 +37,23 @@ function locations(nodeFile: string, sessionId: string) {
 const unavailable = () => new Error('The native Claude Code session lease is unavailable.');
 const missing = (error: unknown) => (error as NodeJS.ErrnoException)?.code === 'ENOENT';
 
+/** A private lifecycle writer is in progress; this never authorizes a lease. */
+export class NativeLeaseBusyError extends Error {
+  constructor() {
+    super('The native Claude Code session lease is being updated.');
+  }
+}
+
+function assertUnlocked(lock: string): void {
+  try {
+    const entry = lstatSync(lock);
+    if (!privateEntry(entry, true)) throw unavailable();
+    throw new NativeLeaseBusyError();
+  } catch (error) {
+    if (!missing(error)) throw error;
+  }
+}
+
 function privateEntry(info: Stats, directory: boolean): boolean {
   return (
     !info.isSymbolicLink() &&
@@ -51,14 +70,7 @@ function readLease(nodeFile: string, sessionId: string, locked: boolean): Native
   let descriptor: number | undefined;
   try {
     if (!privateEntry(lstatSync(value.directory), true)) throw unavailable();
-    if (!locked) {
-      try {
-        lstatSync(value.lock);
-        throw unavailable();
-      } catch (error) {
-        if (!missing(error)) throw error;
-      }
-    }
+    if (!locked) assertUnlocked(value.lock);
     const before = lstatSync(value.filename);
     if (!privateEntry(before, false) || before.size > 4096) throw unavailable();
     descriptor = openSync(value.filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
@@ -82,17 +94,11 @@ function readLease(nodeFile: string, sessionId: string, locked: boolean): Native
       !privateEntry(after, false)
     )
       throw unavailable();
-    if (!locked) {
-      try {
-        lstatSync(value.lock);
-        throw unavailable();
-      } catch (error) {
-        if (!missing(error)) throw error;
-      }
-    }
+    if (!locked) assertUnlocked(value.lock);
     return lease;
   } catch (error) {
     if (missing(error)) return null;
+    if (error instanceof NativeLeaseBusyError) throw error;
     throw unavailable();
   } finally {
     if (descriptor !== undefined) closeSync(descriptor);
@@ -109,6 +115,67 @@ export async function readNativeLease(
   sessionId: string,
 ): Promise<NativeLease | null> {
   return readNativeLeaseSync(nodeFile, sessionId);
+}
+
+/**
+ * A fresh helper waits only for an already-running private lifecycle write.
+ * Filesystem events trigger checks; the deadline denies instead of fabricating
+ * readiness. Pinned helpers never use this path to adopt another incarnation.
+ */
+export async function readInitialNativeLease(
+  nodeFile: string,
+  sessionId: string,
+  deadlineMs = 15000,
+): Promise<NativeLease | null> {
+  try {
+    return readNativeLeaseSync(nodeFile, sessionId);
+  } catch (error) {
+    if (!(error instanceof NativeLeaseBusyError)) throw error;
+  }
+  traceClaude(nodeFile, 'lease.initial-busy', { session: sessionId });
+  const value = locations(nodeFile, sessionId);
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let timer: NodeJS.Timeout | undefined;
+    let watcher: ReturnType<typeof watch> | undefined;
+    const finish = (error?: unknown, lease?: NativeLease | null) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      watcher?.close();
+      if (error) {
+        traceClaude(nodeFile, 'lease.initial-wait-failed', {
+          session: sessionId,
+          outcome: 'unavailable',
+        });
+        reject(unavailable());
+      } else {
+        traceClaude(nodeFile, 'lease.initial-wait-resolved', {
+          session: sessionId,
+          outcome: lease?.active ? 'active' : lease ? 'inactive' : 'absent',
+        });
+        resolve(lease ?? null);
+      }
+    };
+    const check = () => {
+      if (settled) return;
+      try {
+        finish(undefined, readNativeLeaseSync(nodeFile, sessionId));
+      } catch (error) {
+        if (!(error instanceof NativeLeaseBusyError)) finish(error);
+      }
+    };
+    try {
+      if (!privateEntry(lstatSync(value.directory), true)) throw unavailable();
+      watcher = watch(value.directory, check);
+      watcher.once('error', finish);
+      timer = setTimeout(() => finish(unavailable()), deadlineMs);
+      // Subscribe before checking again, so lock release cannot be missed.
+      check();
+    } catch (error) {
+      finish(error);
+    }
+  });
 }
 
 /** Persist native lifecycle evidence before attempting any HTTP notification. */

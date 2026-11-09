@@ -120,11 +120,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
         state: 'error',
         error: 'This Claude Code chat is not connected through the NCF plugin',
       };
-    // A current native route makes MCP available. Only a notice that the gate
-    // started in this chat's current wake stream shows automatic wake working;
-    // MCP initialization or an ordinary read never does.
+    // A gate verdict proves permission to submit a wake, not the client's
+    // ability to read it (the first-resume bootstrap remains under diagnosis).
+    // Keep delivery unverified until there is a supported native readiness proof.
     const sink = this.sessions.wakeSink(route.helper.proven);
-    if (sink?.verified) return { ...base, state: 'ready', error: null };
     return {
       ...base,
       state: 'manual',

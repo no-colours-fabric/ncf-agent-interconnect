@@ -813,6 +813,8 @@ export class AgentStore {
         )
           throw new Error('The message does not belong to this agent or is not ready');
         if (this.claudeFenced(id)) throw new Error('The message is already being delivered');
+        if (['dispatching', 'uncertain'].includes(this.dispatchState(id)?.state ?? ''))
+          throw new Error('Message delivery is in progress or uncertain; content is not repeated');
       }
       const id = randomUUID(),
         now = Date.now();
@@ -894,16 +896,35 @@ export class AgentStore {
         }
       : undefined;
   }
+  /** Captured mailbox and binding authority must still belong to this attempt. */
+  assertClaudeDeliveryCurrent(id: string): void {
+    const row = this.db.prepare('SELECT * FROM claude_deliveries WHERE id=?').get(id) as
+      Row | undefined;
+    if (!row) throw new Error('The Claude Code delivery is unknown');
+    const owner = this.assertOwner(String(row.connection_id));
+    const agent = this.db.prepare('SELECT incarnation FROM agents WHERE key=?').get(owner.key) as
+      Row | undefined;
+    if (
+      owner.key !== row.agent_key ||
+      owner.binding.generation !== Number(row.binding_generation) ||
+      !agent ||
+      agent.incarnation !== row.incarnation
+    )
+      throw new Error('The Claude Code delivery binding is no longer current');
+  }
   /**
    * The helper wrote the complete response frame: record receipt for the IDs the
-   * node chose. A cleared or reset mailbox is never revived, and receipt does
-   * not depend on the binding still being current.
+   * node chose. A cleared or reset mailbox is never revived, and receipt
+   * requires the captured binding to remain current. A revoked write whose
+   * ordering cannot be proved stays uncertain instead of creating receipt.
    */
   commitClaudeDelivery(id: string): string[] {
     return this.transaction(() => {
       const row = this.db.prepare('SELECT * FROM claude_deliveries WHERE id=?').get(id) as
         Row | undefined;
-      if (!row || !this.claudeTransition(id, ['issued'], 'committed', null)) return [];
+      if (!row || row.state !== 'issued') return [];
+      this.assertClaudeDeliveryCurrent(id);
+      if (!this.claudeTransition(id, ['issued'], 'committed', null)) return [];
       const agent = this.db
         .prepare('SELECT incarnation FROM agents WHERE key=?')
         .get(String(row.agent_key)) as Row | undefined;
@@ -925,16 +946,19 @@ export class AgentStore {
     });
   }
   /** Issued attempts of a helper that can no longer report its write become uncertain. */
-  claudeHelperGone(helperId: string): number {
+  claudeHelperGone(helperId: string, epoch?: string): number {
     const rows = this.db
       .prepare("SELECT id FROM claude_deliveries WHERE helper_id=? AND state='issued'")
       .all(helperId) as Row[];
-    for (const row of rows)
+    const affected = rows.filter(
+      (row) => !epoch || this.claudeDelivery(String(row.id))?.scope.epoch === epoch,
+    );
+    for (const row of affected)
       this.uncertainClaudeDelivery(
         String(row.id),
         'The Claude Code helper disconnected before confirming the response write',
       );
-    return rows.length;
+    return affected.length;
   }
   /** Unresolved attempts per agent key, for inspection; nothing here resolves them. */
   claudeUncertain(): Map<string, number> {

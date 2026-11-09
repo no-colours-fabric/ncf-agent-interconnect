@@ -14,7 +14,12 @@ import {
   type ServerNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
-import { readNativeLease, updateNativeLease } from './claude-native-lease.js';
+import {
+  readInitialNativeLease,
+  readNativeLease,
+  updateNativeLease,
+} from './claude-native-lease.js';
+import { traceClaude } from './claude-diagnostics.js';
 
 /** Plugin, marketplace and server keys; Claude Code derives tool names from them. */
 export const claudePlugin = {
@@ -145,6 +150,30 @@ async function post(
 const sessionValue = z.uuid().transform((value) => value.toLowerCase());
 const contextTools = new Set(['agent_connect']);
 
+/** Decode private JSON lines without changing Unicode across transport chunks. */
+export class ClaudeJsonLineDecoder {
+  private readonly decoder = new TextDecoder('utf-8', { fatal: true });
+  private buffer = '';
+  constructor(private readonly limit: number) {}
+  push(chunk: Uint8Array): Record<string, unknown>[] {
+    this.buffer += this.decoder.decode(chunk, { stream: true });
+    if (Buffer.byteLength(this.buffer, 'utf8') > this.limit)
+      throw new Error('The Claude Code integration stream frame is too large.');
+    const lines: Record<string, unknown>[] = [];
+    let end: number;
+    while ((end = this.buffer.indexOf('\n')) >= 0) {
+      lines.push(JSON.parse(this.buffer.slice(0, end)) as Record<string, unknown>);
+      this.buffer = this.buffer.slice(end + 1);
+    }
+    return lines;
+  }
+  finish(): void {
+    this.buffer += this.decoder.decode();
+    if (this.buffer.length)
+      throw new Error('The Claude Code integration stream ended with an incomplete frame.');
+  }
+}
+
 /**
  * Stdio channel helper for one Claude Code process. It proxies NCF tools,
  * proves its session through hook evidence held by the node, and turns node
@@ -157,9 +186,25 @@ export async function startClaudeBridge(
 ): Promise<{ close: () => Promise<void>; helperId: string }> {
   const helperId = randomUUID();
   const secret = randomBytes(32).toString('hex');
-  // Delivery attempts of read results, keyed by the JSON-RPC id of their response.
-  const deliveries = new Map<string | number, string>();
-  const report = async (delivery: string, phase: 'commit' | 'cancel' | 'uncertain') => {
+  interface PendingFrame {
+    delivery: string;
+    requestId: string | number;
+    signal: AbortSignal;
+    digest: string;
+    validate: () => Promise<void>;
+    writing: boolean;
+    settled: boolean;
+    cleanup: () => void;
+  }
+  const deliveries = new Map<string | number, PendingFrame>();
+  const resultDigest = (result: unknown) =>
+    createHash('sha256')
+      .update(JSON.stringify(canonical(result)))
+      .digest('hex');
+  const report = async (
+    delivery: string,
+    phase: 'validate' | 'commit' | 'cancel' | 'uncertain',
+  ) => {
     // A commit is idempotent on node-owned IDs, so a failed report is retried a
     // few times; without it the attempt stays uncertain, never processed.
     for (let attempt = 0; attempt < (phase === 'commit' ? 3 : 1); attempt++)
@@ -170,29 +215,78 @@ export async function startClaudeBridge(
           delivery,
           phase,
         });
-        if (sent.ok) return;
+        traceClaude(nodeFile, 'bridge.delivery-report', {
+          helper: helperId,
+          attempt: delivery,
+          phase,
+          outcome: sent.ok ? 'accepted' : 'refused',
+        });
+        if (sent.ok) return true;
       } catch {
         // Retried below.
       }
+    return false;
+  };
+  const settle = (entry: PendingFrame, phase: 'commit' | 'cancel' | 'uncertain') => {
+    if (entry.settled) return;
+    entry.settled = true;
+    entry.cleanup();
+    if (deliveries.get(entry.requestId) === entry) deliveries.delete(entry.requestId);
+    void report(entry.delivery, phase).then((accepted) => {
+      if (!accepted && phase === 'commit') void report(entry.delivery, 'uncertain');
+    });
   };
   const send = transport.send.bind(transport);
   transport.send = async (message, options) => {
     const id =
       'id' in message && ('result' in message || 'error' in message) ? message.id : undefined;
-    const delivery = id === undefined ? undefined : deliveries.get(id);
-    if (delivery === undefined) return send(message, options);
-    deliveries.delete(id!);
+    const entry = id === undefined ? undefined : deliveries.get(id);
+    if (!entry) return send(message, options);
+    // The SDK clones a handler result during validation. Match its complete
+    // content as well as the server-owned request signal; an id alone is not
+    // evidence that this frame carries the reserved page.
+    if (!('result' in message) || resultDigest(message.result) !== entry.digest) {
+      settle(entry, 'cancel');
+      return send(message, options);
+    }
+    if (entry.signal.aborted || entry.settled) {
+      settle(entry, 'cancel');
+      throw new Error('The Claude Code response was cancelled before writing.');
+    }
     try {
+      await entry.validate();
+      if (entry.signal.aborted || entry.settled)
+        throw new Error('The Claude Code response was cancelled before writing.');
+      if (!(await report(entry.delivery, 'validate')))
+        throw new Error('The Claude Code response lost its delivery authority.');
+      // The node response itself may have waited on I/O. Recheck the native
+      // incarnation locally after that await before entering the writer.
+      await entry.validate();
+      if (entry.signal.aborted || entry.settled)
+        throw new Error('The Claude Code response was cancelled before writing.');
+      entry.writing = true;
+      traceClaude(nodeFile, 'bridge.frame-start', {
+        helper: helperId,
+        request: entry.requestId,
+        attempt: entry.delivery,
+      });
       await send(message, options);
     } catch (error) {
-      // The frame may be partly written: receipt is unknown, never repeated.
-      void report(delivery, 'uncertain');
+      settle(entry, entry.writing ? 'uncertain' : 'cancel');
       throw error;
     }
-    void report(delivery, 'commit');
+    traceClaude(nodeFile, 'bridge.frame-complete', {
+      helper: helperId,
+      request: entry.requestId,
+      attempt: entry.delivery,
+    });
+    // A write may have happened even if authority was revoked in the meantime.
+    // The node revalidates captured authority at commit; rejection is uncertain.
+    settle(entry, entry.signal.aborted ? 'uncertain' : 'commit');
   };
   const spawned = sessionValue.safeParse(env.CLAUDE_CODE_SESSION_ID);
   const spawnSession = spawned.success ? spawned.data : null;
+  traceClaude(nodeFile, 'helper.spawn', { helper: helperId, session: spawnSession });
   const session = spawnSession;
   const generation = 0;
   let closed = false;
@@ -201,18 +295,34 @@ export async function startClaudeBridge(
   let nativeLeaseBlocked = false;
   if (spawnSession) {
     try {
-      const lease = await readNativeLease(nodeFile, spawnSession);
+      const lease = await readInitialNativeLease(nodeFile, spawnSession);
       if (lease?.active) {
         nativeLeaseNonce = lease.nonce;
         nativeLeasePinned = true;
+        traceClaude(nodeFile, 'helper.lease-pinned', {
+          helper: helperId,
+          session,
+          outcome: 'initial',
+        });
       }
     } catch {
       nativeLeaseBlocked = true;
+      traceClaude(nodeFile, 'helper.lease-blocked', {
+        helper: helperId,
+        session,
+        outcome: 'initial-read-failed',
+      });
     }
   }
   const nativeLeaseCurrent = async (): Promise<boolean> => {
-    if (!spawnSession || !nativeLeasePinned || !nativeLeaseNonce || nativeLeaseBlocked)
+    if (!spawnSession || !nativeLeasePinned || !nativeLeaseNonce || nativeLeaseBlocked) {
+      traceClaude(nodeFile, 'helper.lease-unavailable', {
+        helper: helperId,
+        session,
+        outcome: nativeLeaseBlocked ? 'blocked' : nativeLeasePinned ? 'missing' : 'not-pinned',
+      });
       return false;
+    }
     try {
       const lease = await readNativeLease(nodeFile, spawnSession);
       return !!lease?.active && lease.nonce === nativeLeaseNonce;
@@ -287,14 +397,26 @@ export async function startClaudeBridge(
     }
   });
   server.setRequestHandler(CallToolRequestSchema, async (request, extra) => {
+    let pending: PendingFrame | undefined;
+    const cancelled = () => {
+      traceClaude(nodeFile, 'bridge.request-cancelled', {
+        helper: helperId,
+        request: extra.requestId,
+      });
+      if (pending) settle(pending, pending.writing ? 'uncertain' : 'cancel');
+    };
+    extra.signal.addEventListener('abort', cancelled, { once: true });
+    const cleanup = () => extra.signal.removeEventListener('abort', cancelled);
     const original = request.params.arguments ?? {};
-    if (request.params.name === 'session_event')
+    if (request.params.name === 'session_event') {
+      cleanup();
       return {
         isError: true,
         content: [
           { type: 'text', text: 'Model tool calls cannot change the native chat context.' },
         ],
       };
+    }
     try {
       const args: Record<string, unknown> = { ...original };
       delete args.contextToken;
@@ -358,19 +480,40 @@ export async function startClaudeBridge(
         const { [claudeDeliveryMetaKey]: _delivery, ...meta } = result._meta;
         result._meta = Object.keys(meta).length ? meta : undefined;
       }
+      if (delivery) {
+        pending = {
+          delivery,
+          requestId: extra.requestId,
+          signal: extra.signal,
+          digest: resultDigest(result),
+          writing: false,
+          settled: false,
+          cleanup,
+          validate: async () => {
+            await currentCall('return');
+            if (!(await nativeLeaseCurrent()))
+              throw new Error('The native Claude Code lease was revoked.');
+          },
+        };
+      }
       try {
         await currentCall('return');
         // Admission may already have had durable effects; a late authority loss
         // withholds content without undoing or replaying that operation.
         if (!(await nativeLeaseCurrent()))
           throw new Error('The Claude Code call result could not be confirmed.');
+        if (extra.signal.aborted) throw new Error('The Claude Code request was cancelled.');
       } catch (error) {
         // Nothing of this result has been written to Claude Code.
-        if (delivery) await report(delivery, 'cancel');
+        if (pending) settle(pending, 'cancel');
         throw error;
       }
       // Receipt is committed by the transport after the full frame is written.
-      if (delivery) deliveries.set(extra.requestId, delivery);
+      if (pending) {
+        const previous = deliveries.get(extra.requestId);
+        if (previous) settle(previous, previous.writing ? 'uncertain' : 'cancel');
+        deliveries.set(extra.requestId, pending);
+      }
       return result;
     } catch {
       const previous = remote;
@@ -386,6 +529,8 @@ export async function startClaudeBridge(
           },
         ],
       };
+    } finally {
+      if (!pending || pending.settled) cleanup();
     }
   });
 
@@ -424,15 +569,10 @@ export async function startClaudeBridge(
         });
         if (!response.ok || !response.body) throw new Error('refused');
         quiet();
-        let buffer = '';
+        const decoder = new ClaudeJsonLineDecoder(1024 * 1024);
         for await (const chunk of response.body) {
           quiet();
-          buffer += Buffer.from(chunk).toString('utf8');
-          if (buffer.length > 1024 * 1024) throw new Error('frame');
-          let end: number;
-          while ((end = buffer.indexOf('\n')) >= 0) {
-            const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
-            buffer = buffer.slice(end + 1);
+          for (const line of decoder.push(chunk)) {
             if (line.type === 'native-lease' && !nativeLeasePinned && !nativeLeaseBlocked) {
               if (line.session !== spawnSession || typeof line.nonce !== 'string') {
                 nativeLeaseBlocked = true;
@@ -445,6 +585,11 @@ export async function startClaudeBridge(
               }
               nativeLeaseNonce = line.nonce;
               nativeLeasePinned = true;
+              traceClaude(nodeFile, 'helper.lease-pinned', {
+                helper: helperId,
+                session,
+                outcome: 'node-bootstrap',
+              });
             } else if (line.type === 'ready') {
               delay = 1000;
               // A new node lifecycle no longer knows the old MCP session; reconnect
@@ -456,6 +601,7 @@ export async function startClaudeBridge(
                 await previous?.close().catch(() => {});
               }
               epoch = typeof line.epoch === 'string' ? line.epoch : undefined;
+              traceClaude(nodeFile, 'helper.stream-ready', { helper: helperId, session, epoch });
             } else if (line.type === 'wake' && typeof line.nickname === 'string') {
               if (await nativeLeaseCurrent()) await notify(wakeNotification(line.nickname));
             } else if (
@@ -469,6 +615,7 @@ export async function startClaudeBridge(
               });
           }
         }
+        decoder.finish();
       } catch {
         // Retried below with backoff.
       } finally {
@@ -477,7 +624,14 @@ export async function startClaudeBridge(
       if (closed) break;
       // An unbound helper cannot acquire another native incarnation after its
       // first stream disconnects. The owner must use the client's fresh-helper lifecycle.
-      if (!nativeLeasePinned) nativeLeaseBlocked = true;
+      if (!nativeLeasePinned) {
+        nativeLeaseBlocked = true;
+        traceClaude(nodeFile, 'helper.lease-blocked', {
+          helper: helperId,
+          session,
+          outcome: 'unpinned-stream-ended',
+        });
+      }
       await new Promise<void>((resolve) => {
         wake = resolve;
         retry = setTimeout(resolve, delay);
@@ -491,6 +645,7 @@ export async function startClaudeBridge(
   const shutdown = async () => {
     if (closed) return;
     closed = true;
+    for (const entry of deliveries.values()) settle(entry, entry.writing ? 'uncertain' : 'cancel');
     clearTimeout(retry);
     wake();
     stream?.abort();
@@ -561,15 +716,10 @@ export async function runWakeStream(
       });
       if (!response.ok || !response.body) throw new Error('refused');
       quiet();
-      let buffer = '';
+      const decoder = new ClaudeJsonLineDecoder(65536);
       for await (const chunk of response.body) {
         quiet();
-        buffer += Buffer.from(chunk).toString('utf8');
-        if (buffer.length > 65536) throw new Error('frame');
-        let end: number;
-        while ((end = buffer.indexOf('\n')) >= 0) {
-          const line = JSON.parse(buffer.slice(0, end)) as Record<string, unknown>;
-          buffer = buffer.slice(end + 1);
+        for (const line of decoder.push(chunk)) {
           if (line.type === 'error') throw new Error('refused');
           if (line.type === 'ready') {
             connected = true;
@@ -585,6 +735,7 @@ export async function runWakeStream(
         }
         if (parent() !== parentPid) return;
       }
+      decoder.finish();
     } catch {
       // Retried below with backoff while the native session lasts.
     } finally {
@@ -628,11 +779,20 @@ export async function runClaudeHook(
   )
     return;
   if (event === 'PreToolUse' && !input.tool_name?.startsWith(claudeToolPrefix)) return;
+  traceClaude(nodeFile, 'hook.received', {
+    session: input.session_id,
+    phase: event.toLowerCase(),
+    outcome: input.source === 'resume' ? 'resume' : undefined,
+  });
   const lease =
     event === 'SessionStart' || event === 'SessionEnd'
       ? await updateNativeLease(nodeFile, input.session_id, event)
       : await readNativeLease(nodeFile, input.session_id);
   if (!lease || (event !== 'SessionEnd' && !lease.active)) return;
+  traceClaude(nodeFile, 'hook.lease-ready', {
+    session: input.session_id,
+    phase: event.toLowerCase(),
+  });
   const response = await post(
     nodeFile,
     '/integrations/claude/hook',

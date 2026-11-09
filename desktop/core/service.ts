@@ -43,6 +43,7 @@ import { WakeClaims, wakePending } from './claude-wake.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
+import { traceClaude } from '../integrations/claude-diagnostics.js';
 
 interface ClaudeDispatchSnapshot {
   connectionId: string;
@@ -167,8 +168,8 @@ export class NodeService extends EventEmitter {
     };
     this.claude.wakeQueued = (session) => this.wakeClaims.queued(session);
     this.claude.on('problem', (message: string) => this.problem(message));
-    this.claude.on('helperGone', (helperId: string) => {
-      if (this.store && this.store.claudeHelperGone(helperId)) this.emit('change');
+    this.claude.on('helperGone', (helperId: string, epoch: string) => {
+      if (this.store && this.store.claudeHelperGone(helperId, epoch)) this.emit('change');
     });
     this.claude.on('change', () => {
       for (const [key, snapshot] of this.claudeDispatchSnapshots)
@@ -724,6 +725,10 @@ export class NodeService extends EventEmitter {
       .strict()
       .parse(raw);
     const result = await this.wakeClaims.consume(input.sessionId.toLowerCase(), input.claim);
+    traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'wake.claim', {
+      session: input.sessionId,
+      outcome: result.ok ? 'consumed' : 'rejected',
+    });
     return { consumed: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
   }
   /** The installed mod reports that Claude Code dropped its submitted notice. */
@@ -745,7 +750,10 @@ export class NodeService extends EventEmitter {
       .parse(raw);
     const session = input.sessionId.toLowerCase();
     const result = await this.wakeClaims.start(session, input.notice);
-    if (result.ok) this.claude.markWakeVerified(session);
+    traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'wake.gate', {
+      session,
+      outcome: result.ok ? 'started' : 'rejected',
+    });
     return { started: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
   }
   async claudeCall(raw: unknown): Promise<{ contextToken?: string; callToken: string }> {
@@ -893,7 +901,9 @@ export class NodeService extends EventEmitter {
       const owner = this.store.assertOwner(connectionId),
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
-      const page = this.store.history(owner.key, after, limit, unread, unread);
+      const page = this.store.history(owner.key, after, limit, unread);
+      if (unread && page.messages.some((row) => this.store.claudeFenced(row.envelope.id)))
+        throw new Error('Message delivery is in progress or uncertain; content is not repeated');
       const fenced = new Set(
         page.messages
           .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
@@ -974,7 +984,9 @@ export class NodeService extends EventEmitter {
       const owner = this.store.assertOwner(connectionId),
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
-      const page = this.store.history(owner.key, after, limit, unread, unread);
+      const page = this.store.history(owner.key, after, limit, unread);
+      if (unread && page.messages.some((row) => this.store.claudeFenced(row.envelope.id)))
+        throw new Error('Message delivery is in progress or uncertain; content is not repeated');
       const fenced = new Set(
         page.messages
           .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
@@ -1066,14 +1078,41 @@ export class NodeService extends EventEmitter {
         helperId: z.uuid(),
         secret: z.string().regex(/^[a-f0-9]{64}$/),
         delivery: z.uuid(),
-        phase: z.enum(['commit', 'cancel', 'uncertain']),
+        phase: z.enum(['validate', 'commit', 'cancel', 'uncertain']),
       })
       .strict()
       .parse(raw);
     const helper = this.claude.authenticateHelper(input.helperId, input.secret);
     const attempt = this.store.claudeDelivery(input.delivery);
+    const trace = (outcome: string) =>
+      traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'delivery.report', {
+        helper: input.helperId,
+        attempt: input.delivery,
+        phase: input.phase,
+        outcome,
+      });
     if (!attempt || attempt.helperId !== helper.id || attempt.scope.epoch !== helper.epoch)
       throw new Error('The delivery does not belong to this Claude Code helper');
+    if (input.phase === 'validate' || (input.phase === 'commit' && attempt.state === 'issued')) {
+      try {
+        this.store.assertClaudeDeliveryCurrent(input.delivery);
+        await this.claude.assertCapturedCall(attempt.scope);
+        this.store.assertClaudeDeliveryCurrent(input.delivery);
+      } catch (error) {
+        if (input.phase === 'commit')
+          this.store.uncertainClaudeDelivery(
+            input.delivery,
+            'Authority changed before the complete response write could be confirmed',
+          );
+        trace('rejected');
+        throw error;
+      }
+      if (input.phase === 'validate') {
+        if (attempt.state !== 'issued') throw new Error('The Claude Code delivery is not writable');
+        trace('validated');
+        return { state: 'issued' };
+      }
+    }
     if (input.phase === 'cancel')
       this.store.cancelClaudeDelivery(input.delivery, 'The helper wrote nothing');
     else if (input.phase === 'uncertain')
@@ -1106,6 +1145,7 @@ export class NodeService extends EventEmitter {
       // The binding moved on; its new owner is offered by its own lifecycle.
     }
     this.emit('change');
+    trace(this.store.claudeDelivery(input.delivery)?.state ?? 'unknown');
     return { state: this.store.claudeDelivery(input.delivery)?.state ?? 'unknown' };
   }
   private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
@@ -1294,6 +1334,8 @@ export class NodeService extends EventEmitter {
       if (!file) throw new Error('Attachment not found');
       const localPath = await this.files.materialize(messageId, file);
       this.store.assertOwner(connectionId);
+      if (row.direction === 'in' && this.store.claudeFenced(messageId))
+        throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       if (!this.store.get(messageId, row.direction)) throw new Error('The message was cleared');
       return { ...file, localPath };
     });
@@ -1655,6 +1697,10 @@ export class NodeService extends EventEmitter {
             ),
           );
           this.store.assertOwner(binding.connectionId);
+          if (this.store.claudeFenced(row.envelope.id))
+            throw new Error(
+              'Message delivery is in progress or uncertain; content is not repeated',
+            );
           if (!this.store.get(row.envelope.id, 'in')) throw new Error('The message was cleared');
           submitting = true;
           const result = await adapter.deliver({
@@ -1677,7 +1723,10 @@ export class NodeService extends EventEmitter {
             isCurrent: () => {
               try {
                 this.store.assertOwner(binding.connectionId);
-                return this.store.get(row.envelope.id, 'in')?.state === 'ready';
+                return (
+                  !this.store.claudeFenced(row.envelope.id) &&
+                  this.store.get(row.envelope.id, 'in')?.state === 'ready'
+                );
               } catch {
                 return false;
               }
@@ -1715,12 +1764,18 @@ export class NodeService extends EventEmitter {
             offered = result.state === 'offered';
           }
         } catch (e) {
-          this.store.dispatch(
-            row.envelope.id,
-            binding.connectionId,
-            submitting && !adapter.wakeOnly ? 'uncertain' : 'failed',
-            (e as Error).message,
-          );
+          if (this.store.claudeFenced(row.envelope.id))
+            this.store.error(
+              row.envelope.id,
+              'Message delivery is in progress or uncertain; content is not repeated',
+            );
+          else
+            this.store.dispatch(
+              row.envelope.id,
+              binding.connectionId,
+              submitting && !adapter.wakeOnly ? 'uncertain' : 'failed',
+              (e as Error).message,
+            );
         } finally {
           this.dispatching.delete(dispatchKey);
           this.emit('change');

@@ -79,7 +79,8 @@ test('A Claude read records no receipt until the helper reports the complete fra
   assert.equal(f.service.store.claudeFenced(sent.id), true);
   // The same ID is not repeated while the write is outstanding.
   const again = await call(f, helper, session, 'agent_read', { connectionId });
-  assert.deepEqual((again.structuredContent as unknown as Page).messages, []);
+  assert.equal(again.isError, true);
+  assert.match(JSON.stringify(again.content), /in progress or uncertain/);
   const history = await call(f, helper, session, 'agent_history', { connectionId });
   const row = (history.structuredContent as unknown as Page).messages.find(
     (message) => message.envelope.id === sent.id,
@@ -142,7 +143,10 @@ test('A failed or partial write and a helper gone before its report stay uncerta
   assert.equal(f.service.store.claudeFenced(first.id), true);
   assert.match(String(f.service.store.get(first.id, 'in')?.error), /uncertain/);
   const second = await send('Мира', 'helper gone');
-  const issued = await call(f, helper, session, 'agent_read', { connectionId });
+  const issued = await call(f, helper, session, 'agent_read', {
+    connectionId,
+    after: (partial.structuredContent as unknown as Page).nextCursor,
+  });
   const ids = (issued.structuredContent as unknown as Page).messages.map((m) => m.envelope.id);
   assert.deepEqual(ids, [second.id]);
   await helper.detach();
@@ -154,7 +158,8 @@ test('A failed or partial write and a helper gone before its report stay uncerta
   const replacement = new FakeHelper(f, session);
   await replacement.attach();
   const after = await call(f, replacement, session, 'agent_read', { connectionId });
-  assert.deepEqual((after.structuredContent as unknown as Page).messages, []);
+  assert.equal(after.isError, true);
+  assert.match(JSON.stringify(after.content), /in progress or uncertain/);
 });
 
 test('A restart cancels reserved attempts and keeps issued ones uncertain', async (t) => {
@@ -203,8 +208,7 @@ test('Concurrent reads, attachments and dispatch skip IDs reserved during file p
   // Reserved before the asynchronous preparation: no other path takes the ID.
   assert.equal(f.service.store.claudeFenced(sent.id), true);
   f.service.files.materialize = materialize;
-  const plain = (await f.service.read(connectionId, 0, 50, true)) as Page;
-  assert.deepEqual(plain.messages, []);
+  await assert.rejects(f.service.read(connectionId, 0, 50, true), /in progress or uncertain/);
   const file = f.service.store.get(sent.id, 'in')!.envelope.attachments[0];
   await assert.rejects(
     f.service.receiveFile(connectionId, sent.id, file.id),
@@ -245,12 +249,14 @@ test('A commit after a reset or an approved transfer never revives or misplaces 
   });
   assert.equal(transferred.status, 'connected');
   if (transferred.status !== 'connected') return;
-  // The new owner does not get the in-flight ID.
-  const owner = (await f.service.read(transferred.binding.connectionId, 0, 50, true)) as Page;
-  assert.deepEqual(owner.messages, []);
-  // The content was written to the old chat: its commit is still the receipt.
-  await report(f, helper, deliveryOf(before), 'commit');
-  assert.equal(state(f, moved.id), 'processed');
+  // No writer ordering has been proven across the transfer: do not invent receipt.
+  await assert.rejects(
+    f.service.read(transferred.binding.connectionId, 0, 50, true),
+    /in progress or uncertain/,
+  );
+  assert.equal((await report(f, helper, deliveryOf(before), 'commit')).status, 400);
+  assert.equal(state(f, moved.id), 'ready');
+  assert.equal(f.service.store.claudeDelivery(deliveryOf(before))?.state, 'uncertain');
 
   // A reset (fresh agent, history deleted) after release: the old commit is void.
   const second = await bound(f, 'Сброс');

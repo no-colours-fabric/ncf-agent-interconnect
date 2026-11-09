@@ -214,6 +214,25 @@ export class ClaudeSessions extends EventEmitter {
   authenticateHelper(helperId: string, value: string): ClaudeHelper {
     return this.authenticate(helperId, value);
   }
+  /** Revalidate the exact admitted server request captured by a delivery. */
+  async assertCapturedCall(scope: Record<string, unknown>): Promise<void> {
+    const entry = [...this.calls.entries()].find(([token]) => digest(token) === scope.permit);
+    if (!entry) throw unproven();
+    const [token, permit] = entry;
+    if (
+      permit.lease.helperId !== scope.helperId ||
+      permit.lease.epoch !== scope.epoch ||
+      permit.lease.generation !== scope.generation ||
+      permit.lease.session !== scope.session ||
+      permit.lease.nativeLeaseNonce !== scope.nativeLeaseNonce ||
+      permit.tool !== scope.tool ||
+      permit.sessionKey !== scope.sessionKey ||
+      permit.requestId !== scope.requestId
+    )
+      throw unproven();
+    await this.validateCurrent(permit.lease);
+    this.assertCall(token, permit.tool, permit.sessionKey!, permit.requestId!);
+  }
   /**
    * The exact scope of one admitted call, captured for a delivery attempt: the
    * native lease and the server-owned request identity. The permit token itself
@@ -512,6 +531,7 @@ export class ClaudeSessions extends EventEmitter {
       throw unproven();
     if (previous) {
       this.invalidateCalls(previous.id);
+      this.emit('helperGone', previous.id, previous.epoch);
       previous.writer.end();
     }
     const helper: ClaudeHelper = {
@@ -629,7 +649,7 @@ export class ClaudeSessions extends EventEmitter {
     if (this.helpers.get(helper.id) !== helper) return;
     this.helpers.delete(helper.id);
     // Its issued deliveries can no longer be confirmed by a frame write report.
-    this.emit('helperGone', helper.id);
+    this.emit('helperGone', helper.id, helper.epoch);
     helper.outstanding.clear();
     for (const [token, proof] of this.proofs)
       if (proof.lease.helperId === helper.id) this.proofs.delete(token);
