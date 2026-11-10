@@ -2158,3 +2158,236 @@ h3 {
     min-width: 0;
   }
 }
+
+/* Match the current home container; only text columns absorb the extra width. */
+@media (min-width: 1001px) {
+  .review-development,
+  .review-holiday {
+    --story-width: 1280px;
+    --story-scene-padding: clamp(20px, 3vw, 48px);
+    --story-scene-gap: 28px;
+    --story-scene-inset: 0px;
+    --story-image-column: calc(
+      (
+          1000px - 2 * var(--story-scene-padding) - var(--story-scene-inset) - 2 *
+            var(--story-scene-gap)
+        ) *
+        0.2352941176
+    );
+  }
+  .review-page:not(.review-home) main,
+  .review-page:not(.review-home) .site-header {
+    max-width: var(--story-width);
+    margin-inline: auto;
+  }
+  .review-page:not(.review-home) .site-header,
+  .review-page:not(.review-home) main .section-wrap,
+  .review-development .hero {
+    padding-inline: 44px;
+  }
+  .review-page:not(.review-home) .site-footer {
+    max-width: var(--story-width);
+    margin-inline: auto;
+    padding-inline: 44px;
+  }
+  .review-page:not(.review-home) .dialogue-scene .scene-stage {
+    grid-template-columns: var(--story-image-column) minmax(0, 1fr) var(--story-image-column);
+  }
+  .review-page.review-holiday .holiday-before-agent .scene-stage {
+    max-width: none;
+    grid-template-columns: calc(
+        (
+            1000px - 2 * var(--story-scene-padding) - var(--story-scene-inset) -
+              var(--story-scene-gap)
+          ) *
+          0.320754717
+      ) minmax(0, 1fr);
+  }
+  .review-development .reading-scene .scene-stage {
+    max-width: none;
+    grid-template-columns: calc(
+        (1000px - 2 * var(--story-scene-padding) - clamp(12px, 1.5vw, 24px)) / 2
+      ) minmax(0, 1fr);
+  }
+  .review-holiday .review-story-hero {
+    grid-template-columns: minmax(0, 1fr) calc((860px - clamp(20px, 3vw, 45px)) * 0.4594594595);
+  }
+  .review-development .hero {
+    grid-template-columns: minmax(0, 1fr) calc((860px - 5vw) * 0.55);
+  }
+}
+@media (min-width: 1201px) {
+  .review-development,
+  .review-holiday {
+    --story-scene-gap: clamp(12px, 1.5vw, 24px);
+    --story-scene-inset: 28px;
+  }
+}
+@media (min-width: 1600px) {
+  .review-development,
+  .review-holiday {
+    --story-width: 1380px;
+  }
+}
+
+/* Shared story navigation and a full-width footer, aligned with the homepage. */
+.review-page:not(.review-home) .site-footer {
+  max-width: none;
+  margin-inline: 0;
+  padding: 35px max(44px, calc((100% - 1192px) / 2)) 42px;
+}
+@media (min-width: 1001px) {
+  .review-page:not(.review-home) .site-header {
+    flex-wrap: nowrap;
+  }
+  .review-page:not(.review-home) .site-header .main-nav {
+    order: 0;
+    width: auto;
+    margin: 0 0 0 auto;
+  }
+}
+@media (max-width: 800px) {
+  .review-page:not(.review-home) .site-footer {
+    padding: 30px 24px;
+  }
+}
+
+/* Use the homepage heading scale and the full available text column. */
+.review-page:not(.review-home) .site-header {
+  gap: 25px;
+  padding-block: 24px;
+}
+.review-page:not(.review-home) .brand {
+  font-size: 1.18rem;
+}
+.review-page:not(.review-home) .main-nav {
+  gap: 23px;
+}
+.review-page:not(.review-home) .main-nav a {
+  font-size: 0.84rem;
+}
+.review-development .hero h1,
+.review-holiday .review-story-hero h1 {
+  max-width: none;
+  font-size: clamp(2.65rem, 4.15vw, 4.25rem);
+  line-height: 1.05;
+  letter-spacing: -0.045em;
+}
+.review-page:not(.review-home) .holiday-part-heading h2,
+.review-page:not(.review-home) .scene-heading h2 {
+  font-size: clamp(2.05rem, 3.1vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: -0.035em;
+}
+.review-page:not(.review-home) .note-body h3 {
+  font-size: clamp(1.45rem, 2.1vw, 1.9rem);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+@media (max-width: 800px) {
+  .review-page:not(.review-home) .site-header {
+    padding: 20px 24px;
+    gap: 17px;
+  }
+  .review-development .hero h1,
+  .review-holiday .review-story-hero h1 {
+    font-size: clamp(2.45rem, 7.2vw, 3.65rem);
+  }
+  .review-page:not(.review-home) .holiday-part-heading h2,
+  .review-page:not(.review-home) .scene-heading h2 {
+    font-size: 2.2rem;
+  }
+  .review-page:not(.review-home) .note-body h3 {
+    font-size: 1.65rem;
+  }
+}
+@media (max-width: 480px) {
+  .review-page:not(.review-home) .brand {
+    font-size: 0.98rem;
+    gap: 8px;
+  }
+  .review-page:not(.review-home) .brand img {
+    width: 30px;
+    height: 30px;
+  }
+  .review-page:not(.review-home) .site-header {
+    gap: 12px;
+  }
+  .review-page:not(.review-home) .site-header .main-nav {
+    gap: 18px;
+  }
+  .review-page:not(.review-home) .site-header .main-nav a {
+    font-size: 0.78rem;
+  }
+}
+
+/* Shared type roles: the homepage is the reference for both stories. */
+:root {
+  --site-copy-size: 1.08rem;
+  --site-copy-leading: 1.65;
+  --site-message-size: 0.98rem;
+  --site-message-leading: 1.52;
+  --site-speaker-size: 0.7rem;
+  --site-action-size: 0.73rem;
+  --site-action-leading: 1.45;
+  --site-tab-size: 0.74rem;
+  --site-file-size: 0.8rem;
+}
+.review-development .hero-lede,
+.review-holiday .review-story-hero > div > p:not(.eyebrow),
+.review-page:not(.review-home) .holiday-part-heading p,
+.review-page:not(.review-home) .note-body :is(p, li, dt, dd, table) {
+  font-family: var(--font-body);
+  font-size: var(--site-copy-size);
+  line-height: var(--site-copy-leading);
+}
+.review-page:not(.review-home) .system-note strong {
+  font-weight: 600;
+}
+.review-page:not(.review-home) .chat-text {
+  font-size: var(--site-message-size);
+  line-height: var(--site-message-leading);
+}
+.review-page:not(.review-home) :is(.chat-speaker, .participant-name) {
+  font-family: var(--font-body);
+  font-size: var(--site-speaker-size);
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+}
+.review-page:not(.review-home) .chat-thread-header {
+  font-size: var(--site-tab-size);
+  font-weight: 400;
+}
+.review-page:not(.review-home) :is(.chat-progress-step, .chat-progress-recipient) {
+  font-size: var(--site-action-size);
+  font-weight: 400;
+  line-height: var(--site-action-leading);
+}
+.review-page:not(.review-home) .holiday-chat-file {
+  font-size: var(--site-file-size);
+  font-weight: 500;
+  line-height: var(--site-message-leading);
+}
+.review-page:not(.review-home) .scene-count {
+  font-family: var(--font-body);
+  font-size: var(--site-action-size);
+  font-weight: 500;
+}
+.review-page:not(.review-home) .reading-stage p {
+  font-size: clamp(1.65rem, 2.5vw, 2.35rem);
+  font-weight: 400;
+  line-height: 1.25;
+}
+@media (max-width: 1100px) {
+  :root {
+    --site-copy-size: 1.02rem;
+  }
+}
+@media (max-width: 480px) {
+  :root {
+    --site-copy-size: 1rem;
+    --site-copy-leading: 1.62;
+    --site-message-size: 0.93rem;
+  }
+}

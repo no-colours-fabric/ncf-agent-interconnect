@@ -150,6 +150,23 @@ const LANGUAGES = [
   ['nl', 'Nederlands'],
   ['uk', 'Українська'],
 ];
+const HOME_LABELS = {
+  en: 'Home',
+  ru: 'Главная',
+  'zh-CN': '首页',
+  fr: 'Accueil',
+  de: 'Startseite',
+  it: 'Home',
+  es: 'Inicio',
+  kk: 'Басты бет',
+  ja: 'ホーム',
+  'pt-BR': 'Início',
+  ko: '홈',
+  tr: 'Ana sayfa',
+  pl: 'Strona główna',
+  nl: 'Home',
+  uk: 'Головна',
+};
 const TRANSLATIONS = window.NCF_TRANSLATIONS || {};
 const SITE = window.NCF_SITE_COPY || {};
 for (const [locale, content] of Object.entries(TRANSLATIONS)) {
@@ -757,6 +774,10 @@ function renderHoliday() {
 function localizeStatic(lang) {
   const site = SITE[lang] || SITE.en;
   const shared = site.shared;
+  const storyChrome =
+    document.body.classList.contains('review-development') ||
+    document.body.classList.contains('review-holiday');
+  const homeLabel = HOME_LABELS[lang] || HOME_LABELS.en;
   const set = (selector, value, attribute) => {
     const node = document.querySelector(selector);
     if (!node) return;
@@ -779,9 +800,19 @@ function localizeStatic(lang) {
     'content',
   );
   set('.skip-link', COPY[lang].skip);
-  set('.brand', 'NCF Agent Interconnect — ' + shared[0].toLowerCase(), 'aria-label');
+  set(
+    '.brand',
+    'NCF Agent Interconnect — ' + (storyChrome ? homeLabel : shared[0].toLowerCase()),
+    'aria-label',
+  );
   set('.main-nav', COPY[lang].navLabel, 'aria-label');
   set('.footer-brand > span', shared[5]);
+  if (storyChrome) {
+    document.querySelectorAll('.story-home-link').forEach((link) => {
+      link.textContent = homeLabel;
+    });
+    set('.story-license', COPY[lang].license);
+  }
   if (document.body.classList.contains('review-home')) {
     const home = site.home;
     const nav = document.querySelectorAll('.main-nav a');
@@ -837,28 +868,17 @@ function localizeStatic(lang) {
     set('.footer-links a:last-child', COPY[lang].license);
   } else if (document.body.classList.contains('review-development')) {
     const development = site.development;
-    const nav = document.querySelectorAll('.main-nav a');
-    [shared[0], COPY[lang].navStory, COPY[lang].navGuide, COPY[lang].navStart].forEach(
-      (label, index) => {
-        nav[index].textContent = label;
-      },
-    );
     set('.hero .eyebrow', development[2]);
     set('#hero-title', development[3]);
     set('.hero-lede', development[4]);
     set('.review-hero-followup', development[5]);
     set('.hero-actions .button-primary', shared[3]);
-    set('.hero-actions .text-link', shared[0]);
+    set('.hero-actions .text-link', homeLabel);
     set('.review-story-end', shared[6], 'aria-label');
     set('.review-story-end .button-primary', shared[2]);
-    set('.review-story-end .button-secondary', shared[0]);
-    set('.footer-links a:nth-child(2)', COPY[lang].usageGuide);
-    set('.footer-links a:nth-child(4)', COPY[lang].license);
+    set('.review-story-end .button-secondary', homeLabel);
   } else if (document.body.classList.contains('review-holiday')) {
     const holiday = site.holiday;
-    const nav = document.querySelectorAll('.main-nav a');
-    nav[0].textContent = shared[0];
-    nav[1].textContent = shared[2];
     set('.review-story-hero .eyebrow', holiday[2]);
     set('#holiday-title', holiday[3]);
     set('.review-story-hero > div > p:not(.eyebrow)', holiday[4]);
@@ -877,9 +897,7 @@ function localizeStatic(lang) {
     });
     set('.review-story-end', shared[6], 'aria-label');
     set('.review-story-end .button-primary', shared[2]);
-    set('.review-story-end .button-secondary', shared[0]);
-    set('.footer-links a:first-child', COPY[lang].usageGuide);
-    set('.footer-links a:last-child', COPY[lang].license);
+    set('.review-story-end .button-secondary', homeLabel);
   }
 }
 

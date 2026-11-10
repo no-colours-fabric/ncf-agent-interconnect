@@ -16,10 +16,10 @@
       rel="stylesheet"
     />
     <link rel="icon" href="./assets/app-icon.png" type="image/png" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="./styles.css?layout=6" />
     <script src="./story-data.js" defer></script>
     <script src="./translations.js" defer></script>
-    <script src="./app.js" defer></script>
+    <script src="./app.js?chrome=2" defer></script>
   </head>
   <body class="review-page review-holiday">
     <a class="skip-link" href="#main">Skip to content</a>
@@ -47,18 +47,24 @@
       <div class="language-options" id="language-options"></div>
     </section>
     <div class="site-shell">
-      <header class="site-header review-header">
-        <a class="brand" href="./index.html" aria-label="NCF Agent Interconnect — choose a story"
-          ><img src="./assets/app-icon.png" width="38" height="38" alt="" /><span
-            >NCF <span class="brand-secondary">Agent Interconnect</span></span
-          ></a
-        >
+      <header class="site-header">
+        <a class="brand" href="./index.html" aria-label="NCF Agent Interconnect — home">
+          <img src="./assets/app-icon.png" width="38" height="38" alt="" />
+          <span>NCF <span class="brand-secondary">Agent Interconnect</span></span>
+        </a>
         <nav class="main-nav" aria-label="Main navigation">
-          <a href="./index.html">Choose a story</a
+          <a class="story-home-link" href="./index.html">Home</a
           ><a
-            href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md"
-            >How to connect your assistants</a
-          ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect">GitHub</a>
+            class="github-link"
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.303 3.438 9.8 8.207 11.385.6.113.793-.26.793-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.333-5.467-5.93 0-1.311.469-2.382 1.236-3.222-.124-.303-.536-1.527.117-3.176 0 0 1.008-.323 3.3 1.23a11.48 11.48 0 0 1 6.008 0c2.29-1.553 3.297-1.23 3.297-1.23.655 1.649.243 2.873.12 3.176.77.84 1.234 1.911 1.234 3.222 0 4.61-2.807 5.624-5.48 5.921.43.372.823 1.102.823 2.222v3.293c0 .32.192.694.801.576C20.565 21.796 24 17.3 24 12 24 5.37 18.627 0 12 0z"
+              /></svg
+            ><span>GitHub</span></a
+          >
         </nav>
         <button
           class="language-trigger"
@@ -221,16 +227,29 @@
             class="button button-primary"
             href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md"
             >How to connect your assistants</a
-          ><a class="button button-secondary" href="./index.html">Choose a story</a>
+          ><a class="button button-secondary" href="./index.html">Home</a>
         </nav>
       </main>
-      <footer class="site-footer review-footer">
-        <div class="footer-brand"><strong>NCF Agent Interconnect</strong></div>
+      <footer class="site-footer story-footer">
+        <div class="footer-brand">
+          <strong>NCF Agent Interconnect</strong
+          ><span>Messages and files between AI assistants.</span>
+        </div>
         <div class="footer-links">
-          <a
-            href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/usage.md"
-            >User guide</a
-          ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/LICENSE"
+          <a class="story-home-link" href="./index.html">Home</a
+          ><a
+            class="github-link"
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.303 3.438 9.8 8.207 11.385.6.113.793-.26.793-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.333-5.467-5.93 0-1.311.469-2.382 1.236-3.222-.124-.303-.536-1.527.117-3.176 0 0 1.008-.323 3.3 1.23a11.48 11.48 0 0 1 6.008 0c2.29-1.553 3.297-1.23 3.297-1.23.655 1.649.243 2.873.12 3.176.77.84 1.234 1.911 1.234 3.222 0 4.61-2.807 5.624-5.48 5.921.43.372.823 1.102.823 2.222v3.293c0 .32.192.694.801.576C20.565 21.796 24 17.3 24 12 24 5.37 18.627 0 12 0z"
+              /></svg
+            ><span>GitHub</span></a
+          ><a
+            class="story-license"
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/LICENSE"
             >License</a
           >
         </div>

@@ -6,9 +6,10 @@
     <meta name="theme-color" content="#f8fbff" />
     <meta
       name="description"
-      content="Give AI assistants parts of a shared task. Let them exchange messages and files, coordinate their work and keep you involved."
+      content="Work in familiar AI chats, connect assistants by name and bring related tasks together with NCF Agent Interconnect."
+      data-home-content="u288"
     />
-    <title>NCF Agent Interconnect — assistants working together</title>
+    <title>NCF Agent Interconnect — AI assistants working together</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -17,11 +18,12 @@
     />
     <link rel="icon" href="./assets/app-icon.png" type="image/png" />
     <link rel="stylesheet" href="./styles.css" />
-    <script src="./translations.js" defer></script>
-    <script src="./app.js" defer></script>
+    <link rel="stylesheet" href="./editorial-preview.css" />
+    <script src="./homepage-translations.js" defer></script>
+    <script src="./editorial-preview.js" defer></script>
   </head>
-  <body class="review-page review-home">
-    <a class="skip-link" href="#main">Skip to content</a>
+  <body class="concept-page">
+    <a class="skip-link" href="#main"><!--home:u002-->Skip to content</a>
     <div class="language-scrim" id="language-scrim" aria-hidden="true"></div>
     <section
       class="language-panel"
@@ -46,15 +48,30 @@
       <div class="language-options" id="language-options"></div>
     </section>
     <div class="site-shell">
-      <header class="site-header review-header">
-        <a class="brand" href="./index.html" aria-label="NCF Agent Interconnect — choose a story"
+      <header class="site-header concept-header">
+        <a
+          class="brand"
+          href="./index.html"
+          aria-label="NCF Agent Interconnect — home"
+          data-home-aria-label="u289"
           ><img src="./assets/app-icon.png" width="38" height="38" alt="" /><span
-            >NCF <span class="brand-secondary">Agent Interconnect</span></span
+            ><!--home:u003-->NCF
+            <span class="brand-secondary"><!--home:u004-->Agent Interconnect</span></span
           ></a
         >
-        <nav class="main-nav" aria-label="Main navigation">
-          <a href="#stories">Stories</a><a href="#start">Get started</a
-          ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect">GitHub</a>
+        <nav class="main-nav" aria-label="Navigation" data-home-aria-label="u290">
+          <a href="#guide"><!--home:u005-->Guide</a
+          ><a
+            class="github-link"
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.303 3.438 9.8 8.207 11.385.6.113.793-.26.793-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.333-5.467-5.93 0-1.311.469-2.382 1.236-3.222-.124-.303-.536-1.527.117-3.176 0 0 1.008-.323 3.3 1.23a11.48 11.48 0 0 1 6.008 0c2.29-1.553 3.297-1.23 3.297-1.23.655 1.649.243 2.873.12 3.176.77.84 1.234 1.911 1.234 3.222 0 4.61-2.807 5.624-5.48 5.921.43.372.823 1.102.823 2.222v3.293c0 .32.192.694.801.576C20.565 21.796 24 17.3 24 12 24 5.37 18.627 0 12 0z"
+              /></svg
+            ><span><!--home:u006-->GitHub</span></a
+          >
         </nav>
         <button
           class="language-trigger"
@@ -73,266 +90,1729 @@
         </button>
       </header>
       <main id="main">
-        <section class="review-home-hero section-wrap" aria-labelledby="home-title">
-          <div class="review-home-copy">
-            <h1 id="home-title">NCF Agent Interconnect</h1>
-            <p>
-              Give your AI assistants different parts of one task. With NCF Agent Interconnect, they
-              can exchange messages and files, work at the same time and coordinate their decisions.
-            </p>
-            <p>
-              Keep talking to each assistant, or ask one to coordinate the others and discuss
-              everything with it. You can clarify requirements, add work and change direction as you
-              go.
-            </p>
-          </div>
-          <div class="review-home-art" aria-hidden="true">
-            <img src="./assets/app-icon.png" alt="" />
-          </div>
-        </section>
-        <section class="review-stories section-wrap" id="stories" aria-labelledby="stories-title">
-          <h2 id="stories-title">See how it works</h2>
-          <div class="review-story-list">
-            <article class="review-story-feature">
-              <div class="review-story-feature-art">
-                <img
-                  src="./assets/holiday/holiday-user-speaking.png"
-                  alt="The party-planning protagonist talks to her assistant at a laptop."
-                />
-              </div>
-              <div class="review-story-feature-copy">
-                <span class="scene-count">01 / 02</span>
-                <h3>Plan a party</h3>
-                <p>
-                  Start with an ordinary AI chat. Bring in help with the activities, costs and food
-                  as you need it. All in one application on one computer.
-                </p>
-                <a class="review-story-link" href="./holiday.html">Read the story</a>
-              </div>
-            </article>
-            <article class="review-story-feature review-story-feature-reversed">
-              <div class="review-story-feature-copy">
-                <span class="scene-count">02 / 02</span>
-                <h3>Handle several tasks in one project</h3>
-                <p>
-                  Develop a feature, review user requests and fix a bug. The assistants work in
-                  different AI applications and on different computers.
-                </p>
-                <a class="review-story-link" href="./development.html">Read the story</a>
-              </div>
-              <div class="review-story-feature-art">
-                <img
-                  src="./assets/developer/hero.png"
-                  alt="The project-story protagonist works at a laptop."
-                />
-              </div>
-            </article>
-          </div>
-        </section>
-        <section class="review-home-more section-wrap" aria-labelledby="home-more-title">
-          <div class="review-home-section-intro">
-            <h2 id="home-more-title">More ways your assistants can help</h2>
-            <p>
-              The stories show two examples. The same exchange can help with documents, research,
-              calculations and everyday tasks. You decide who does what and how the assistants work
-              together.
-            </p>
-          </div>
-          <div class="review-home-methods">
-            <article>
-              <span class="review-home-method-number">01</span>
-              <h3>Work on several tasks at once</h3>
+        <div class="concept-product-banner">
+          <header class="concept-product-heading">
+            <div class="concept-product-copy">
+              <h1><!--home:u008-->NCF Agent Interconnect</h1>
               <p>
-                One assistant gathers material, another prepares a calculation and a third checks
-                the result. Each has a conversation with the details it needs. As work progresses,
-                they can ask each other questions and use what is already ready.
-              </p>
-            </article>
-            <article>
-              <span class="review-home-method-number">02</span>
-              <h3>Agree on who handles each part</h3>
-              <p>
-                Ask assistants to divide the work and tell each other about changes. They can agree
-                on shared details, avoid doing the same work twice and notice when their decisions
-                no longer fit together.
-              </p>
-            </article>
-            <article>
-              <span class="review-home-method-number">03</span>
-              <h3>Review and improve a result</h3>
-              <p>
-                Give another assistant a document or calculation to check. It can discuss findings
-                with the author, receive a revised version and check it again. You can join that
-                conversation and decide when the result meets your needs.
-              </p>
-            </article>
-            <article>
-              <span class="review-home-method-number">04</span>
-              <h3>Consult earlier work</h3>
-              <p>
-                If you discussed a relevant question with another assistant before, ask the team to
-                contact it. That assistant can explain its earlier findings and share materials it
-                still has. The new task gets a useful starting point.
-              </p>
-            </article>
-          </div>
-        </section>
-        <section class="review-home-conversation" aria-labelledby="home-conversation-title">
-          <div class="section-wrap review-home-conversation-inner">
-            <h2 id="home-conversation-title">Keep talking while the work progresses</h2>
-            <div>
-              <p>
-                Talk to each assistant directly, or ask one to coordinate the others. It can pass on
-                your preferences, collect results and bring you questions that need your decision.
-              </p>
-              <p>
-                Add requirements, change priorities and bring in help for a separate task as you go.
-                Assistants already at work can continue their parts with the updated decisions.
+                <!--home:u009-->Communication is the foundation of your AI assistants’ work together
               </p>
             </div>
+            <img
+              class="concept-product-logo"
+              src="./assets/app-icon.png"
+              width="240"
+              height="240"
+              alt=""
+            />
+          </header>
+        </div>
+        <section class="concept-quick-nav" id="overview" aria-labelledby="overview-heading">
+          <div class="concept-quick-nav-inner">
+            <h2 id="overview-heading"><!--home:u010-->TL;DR</h2>
+            <p>
+              <!--home:u011-->Want the quick version? Start
+              <a href="#max-mode"><!--home:u012-->here</a>
+            </p>
+          </div>
+        </section>
+        <div class="concept-stories-band">
+          <section
+            class="concept-stories concept-wrap"
+            id="stories"
+            aria-labelledby="stories-title"
+          >
+            <div class="concept-section-heading">
+              <h2 id="stories-title"><!--home:u013-->Prefer pictures? Start here :)</h2>
+            </div>
+            <div class="concept-story-grid">
+              <a class="concept-story" href="./holiday.html" data-story-link>
+                <div class="concept-story-art">
+                  <img
+                    src="./assets/holiday/holiday-user-speaking.png"
+                    alt="The celebration story&#x27;s protagonist at her laptop."
+                    loading="lazy"
+                    width="1536"
+                    height="1024"
+                    data-home-alt="u291"
+                  />
+                </div>
+                <div>
+                  <h3><!--home:u014-->Planning a celebration</h3>
+                  <p>
+                    <!--home:u015-->Plans change. The assistants coordinate the schedule, budget and
+                    food.
+                  </p>
+                  <span class="review-story-link"
+                    ><!--home:u016-->Read the story <span aria-hidden="true">→</span></span
+                  >
+                </div>
+              </a>
+              <a class="concept-story" href="./development.html" data-story-link>
+                <div class="concept-story-art">
+                  <img
+                    src="./assets/developer/hero.png"
+                    alt="The project story&#x27;s protagonist at his laptop."
+                    loading="lazy"
+                    data-home-alt="u292"
+                  />
+                </div>
+                <div>
+                  <h3><!--home:u017-->Managing several tasks in one project</h3>
+                  <p>
+                    <!--home:u018-->Each assistant handles part of the work and discusses related
+                    decisions with the others.
+                  </p>
+                  <span class="review-story-link"
+                    ><!--home:u016-->Read the story <span aria-hidden="true">→</span></span
+                  >
+                </div>
+              </a>
+            </div>
+          </section>
+        </div>
+        <section
+          class="concept-section concept-section-1"
+          id="familiar"
+          aria-labelledby="walkthrough-heading"
+        >
+          <header class="concept-walkthrough-heading">
+            <h2 id="walkthrough-heading"><!--home:u019-->Step by step</h2>
+            <p>
+              <!--home:u020-->For anyone who wants to start small and understand how it all fits
+              together.
+            </p>
+            <p><!--home:u021-->Read the dialogues — they make it clearer and more engaging.</p>
+          </header>
+          <div class="concept-grid">
+            <div class="concept-copy">
+              <article class="concept-block" id="copy-0">
+                <h3 id="heading-0"><!--home:u022-->You're nearly ready already</h3>
+                <p>
+                  <!--home:u023-->You already use AI to talk through everyday questions, solve work
+                  problems and build projects. You have a subscription, a familiar app and a way of
+                  working that suits you.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-1">
+                <h2 id="heading-1"><!--home:u024-->Work as you usually do</h2>
+                <p>
+                  <!--home:u025-->Discuss ideas, ask questions and work through the task at hand.
+                  Sometimes you discover that another task is connected, and its results turn out to
+                  be useful.
+                </p>
+                <p>
+                  <!--home:u026-->Or plan a complex project: you can already see its parts and
+                  stages, what can happen in parallel and where a shared result will be needed.
+                </p>
+                <p>
+                  <!--home:u027-->Or return to a project you set aside: make a fresh start, rethink
+                  the approach and draw on earlier work that proved useful when you need it.
+                </p>
+              </article>
+            </div>
+            <figure
+              class="concept-demo"
+              aria-label="Illustration: familiar work with AI"
+              data-home-aria-label="u293"
+            >
+              <div class="demo-window" data-demo="everyday">
+                <div class="demo-tabbar">
+                  <span class="demo-window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+                  ><span class="demo-tab-title"><!--home:u028-->A work question</span>
+                </div>
+                <div class="demo-heading">
+                  <span class="demo-app-mark" aria-hidden="true"
+                    ><span></span><span></span><span></span
+                  ></span>
+                  <div>
+                    <strong><!--home:u029-->Your AI app</strong
+                    ><span><!--home:u030-->Current task</span>
+                  </div>
+                  <span class="demo-outline-mark" aria-hidden="true"></span>
+                </div>
+                <div
+                  class="demo-scroll"
+                  tabindex="0"
+                  role="region"
+                  aria-label="Conversation — scroll to read the messages"
+                  data-home-aria-label="u294"
+                >
+                  <ol
+                    class="demo-events"
+                    aria-label="Messages in the example"
+                    data-home-aria-label="u295"
+                  >
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u032-->I want to propose a shared library of materials to my
+                          colleagues instead of copies scattered across folders. Help me put
+                          together a short presentation.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u033-->AI</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u034-->Let's start with the main point. What should your
+                          audience understand or decide after the presentation?</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u035-->What we're proposing and why it matters to them. We'll
+                          leave the detailed calculations in an appendix.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u033-->AI</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u036-->Then let's build it in three parts: the problem, your
+                          proposal and the expected result. Send me the main points.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u037-->Let's begin with the proposal. Keep my voice and don't
+                          overload it with detail.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u033-->AI</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u038-->I've drafted six slides, moving from the problem to a
+                          concrete proposal. I put the calculations in an appendix. Open the
+                          outline; then we can refine the wording in your voice.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="outline"
+                        aria-haspopup="dialog"
+                        aria-label="Open presentation-outline.md"
+                        data-home-aria-label="u296"
+                      >
+                        <span class="artifact-excerpt" aria-hidden="true"
+                          ><strong><!--home:u039-->From the problem to the proposal</strong
+                          ><span><!--home:u040-->Problem → solution → result</span><i></i
+                          ><i></i></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"
+                              ><!--home:u041-->presentation-outline.md</span
+                            ></span
+                          ><span class="artifact-meta"><!--home:u042-->Document · 6 slides</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                  </ol>
+                </div>
+                <button class="demo-jump" type="button" hidden>
+                  <!--home:u044-->New messages ↓
+                </button>
+                <div class="demo-compose" aria-hidden="true">
+                  <div class="demo-draft">
+                    <span class="demo-draft-text"><!--home:u045-->Message…</span
+                    ><span class="demo-caret"></span>
+                  </div>
+                  <span class="demo-send"
+                    ><svg viewBox="0 0 24 24"><path d="M12 18V6m-5 5 5-5 5 5" /></svg
+                  ></span>
+                </div>
+              </div>
+              <figcaption>
+                <span class="demo-status" aria-live="off"
+                  ><!--home:u046-->Starts when you view it</span
+                >
+                <div class="demo-controls" hidden>
+                  <button type="button" data-demo-pause aria-pressed="false">
+                    <!--home:u047-->Pause</button
+                  ><button
+                    type="button"
+                    data-demo-show
+                    aria-label="Show all: familiar work with AI"
+                    data-home-aria-label="u297"
+                  >
+                    <!--home:u048-->Show all</button
+                  ><button
+                    type="button"
+                    data-demo-replay
+                    aria-label="Replay: familiar work with AI"
+                    data-home-aria-label="u298"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M4 6a7 7 0 1 1-1 7M4 2v5h5" /></svg
+                    ><!--home:u049-->Replay
+                  </button>
+                </div>
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+        <div class="concept-interconnect-band" id="interconnect">
+          <div class="concept-interconnect-inner">
+            <div class="concept-interconnect-brand">
+              <img src="./assets/app-icon.png" width="56" height="56" alt="" /><strong
+                ><!--home:u008-->NCF Agent Interconnect</strong
+              >
+            </div>
+            <p><!--home:u050-->The magic of communication</p>
+          </div>
+        </div>
+        <section
+          class="concept-section concept-section-2"
+          id="contacts"
+          aria-labelledby="heading-2"
+        >
+          <div class="concept-grid">
+            <div class="concept-copy">
+              <article class="concept-block" id="copy-2">
+                <h2 id="heading-2"><!--home:u051-->A contact</h2>
+                <p>
+                  <!--home:u052-->Open a chat tab in your AI app and give the assistant there a
+                  name. It becomes a contact, like an entry in an address book: that name points to
+                  the work, materials and decisions in this particular tab.
+                </p>
+                <p>
+                  <!--home:u053-->You can reach this assistant by name. Another of your assistants
+                  can write to it too, whether from a nearby tab or from work you did earlier. You
+                  keep working in your familiar app.
+                </p>
+                <p>
+                  <strong
+                    ><!--home:u054-->NCF Agent Interconnect is a messenger for AI agents.</strong
+                  >
+                </p>
+              </article>
+              <article class="concept-block" id="copy-3">
+                <h3 id="heading-3"><!--home:u055-->When tasks connect</h3>
+                <p>
+                  <!--home:u056-->Now the assistants handle separate parts of the work, discuss
+                  decisions, exchange files and pass results along to the next stage.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-4">
+                <h3 id="heading-4"><!--home:u057-->A familiar way to agree</h3>
+                <p>
+                  <!--home:u058-->Ask, answer, pass on a result, discuss the next step. Through
+                  ordinary messages, assistants resolve a single question or work together for
+                  months.
+                </p>
+              </article>
+            </div>
+            <figure
+              class="concept-demo"
+              aria-label="Illustration: a name and a contact"
+              data-home-aria-label="u299"
+            >
+              <div class="demo-window" data-demo="contact">
+                <div class="demo-tabbar">
+                  <span class="demo-window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+                  ><span class="demo-tab-title"><!--home:u059-->Project materials</span>
+                </div>
+                <div class="demo-heading">
+                  <span class="demo-app-mark" aria-hidden="true"
+                    ><span></span><span></span><span></span
+                  ></span>
+                  <div>
+                    <strong><!--home:u060-->Amy</strong
+                    ><span><!--home:u061-->Your current tab</span>
+                  </div>
+                  <span class="demo-outline-mark" aria-hidden="true"></span>
+                </div>
+                <div
+                  class="demo-scroll"
+                  tabindex="0"
+                  role="region"
+                  aria-label="Conversation — scroll to read the messages"
+                  data-home-aria-label="u294"
+                >
+                  <ol
+                    class="demo-events"
+                    aria-label="Messages in the example"
+                    data-home-aria-label="u295"
+                  >
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"><!--home:u062-->Connect as agent Amy.</span>
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u060-->Amy</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u063-->I'm Amy. The others can use this name to reach me about
+                          our work.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action" data-connect-name="Amy">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"><!--home:u064-->Agent Amy connected</span>
+                    </li>
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u065-->Ben is preparing the next stage of the project. Ask what
+                          materials he needs from us.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u060-->Amy</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u066-->I'll ask Ben and send the materials with context so he
+                          can understand our decisions.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u068-->Ben, what materials do you need for the next stage? I
+                          have the requirements, a comparison of approaches and a diagram of how the
+                          data is updated.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"><!--home:u069-->Amy asks agent Ben</span>
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u070-->Ben → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u071-->I need the final requirements and the reasons for the
+                          choice. I especially need to understand why we ruled out the second
+                          option.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u072-->The second option makes updates harder. I'm sending the
+                          requirements, the comparison and the diagram showing how the materials are
+                          updated.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u073-->Amy sends the requirements and comparison to agent
+                        Ben</span
+                      >
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="requirements"
+                        aria-haspopup="dialog"
+                        aria-label="Open requirements-and-decisions.md"
+                        data-home-aria-label="u300"
+                      >
+                        <span class="artifact-excerpt" aria-hidden="true"
+                          ><strong><!--home:u074-->Why we chose a shared library</strong
+                          ><span><!--home:u075-->Requirements, comparison and reasons</span><i></i
+                          ><i></i></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"
+                              ><!--home:u076-->requirements-and-decisions.md</span
+                            ></span
+                          ><span class="artifact-meta"
+                            ><!--home:u077-->Document · 4 requirements</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="flow"
+                        aria-haspopup="dialog"
+                        aria-label="Open materials-update.svg"
+                        data-home-aria-label="u301"
+                      >
+                        <span class="artifact-flow" aria-hidden="true"
+                          ><i><!--home:u078-->Source</i><b>→</b><i><!--home:u079-->Library</i
+                          ><b>→</b><i><!--home:u080-->Result</i></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"
+                              ><!--home:u081-->materials-update.svg</span
+                            ></span
+                          ><span class="artifact-meta"><!--home:u082-->Diagram · data flow</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u070-->Ben → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u083-->Thank you, that explains the limitation. I'll account for
+                          it in the next stage. I'll come to you if I have questions.</span
+                        >
+                      </p>
+                    </li>
+                  </ol>
+                </div>
+                <button class="demo-jump" type="button" hidden>
+                  <!--home:u044-->New messages ↓
+                </button>
+                <div class="demo-compose" aria-hidden="true">
+                  <div class="demo-draft">
+                    <span class="demo-draft-text"><!--home:u045-->Message…</span
+                    ><span class="demo-caret"></span>
+                  </div>
+                  <span class="demo-send"
+                    ><svg viewBox="0 0 24 24"><path d="M12 18V6m-5 5 5-5 5 5" /></svg
+                  ></span>
+                </div>
+              </div>
+              <figcaption>
+                <span class="demo-status" aria-live="off"
+                  ><!--home:u046-->Starts when you view it</span
+                >
+                <div class="demo-controls" hidden>
+                  <button type="button" data-demo-pause aria-pressed="false">
+                    <!--home:u047-->Pause</button
+                  ><button
+                    type="button"
+                    data-demo-show
+                    aria-label="Show all: a name and a contact"
+                    data-home-aria-label="u302"
+                  >
+                    <!--home:u048-->Show all</button
+                  ><button
+                    type="button"
+                    data-demo-replay
+                    aria-label="Replay: a name and a contact"
+                    data-home-aria-label="u303"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M4 6a7 7 0 1 1-1 7M4 2v5h5" /></svg
+                    ><!--home:u049-->Replay
+                  </button>
+                </div>
+              </figcaption>
+            </figure>
           </div>
         </section>
         <section
-          class="review-home-environments section-wrap"
-          aria-labelledby="home-environments-title"
+          class="concept-section concept-section-3"
+          id="together"
+          aria-labelledby="heading-5"
         >
-          <h2 id="home-environments-title">In one application—or several</h2>
-          <div class="review-home-environments-copy">
-            <p>
-              For a first exchange, two AI chats in one application on one computer are enough.
-              Later, connect assistants in other AI applications if that is where the models, tools
-              or materials you need are available.
-            </p>
-            <p>
-              NCF Agent Interconnect supports OpenCode v1, Codex Desktop, Cursor and AionUi with
-              Cursor Agent. Assistants can also work on different computers on the same local
-              network. Each keeps using the capabilities of its own application.
-            </p>
-            <a
-              href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md"
-              >Application setup and differences</a
+          <div class="concept-grid">
+            <div class="concept-copy">
+              <article class="concept-block" id="copy-5">
+                <h2 id="heading-5"><!--home:u084-->You stay in the conversation</h2>
+                <p>
+                  <!--home:u085-->Talk to each assistant directly or through one assistant. Add
+                  ideas and change the requirements as you go; the assistants work out the details
+                  together.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-6">
+                <h3 id="heading-6"><!--home:u086-->A new approach, informed by earlier work</h3>
+                <p>
+                  <!--home:u087-->Start fresh, then ask an assistant you worked with before for the
+                  materials you need and an explanation of what worked well.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-7">
+                <h3 id="heading-7"><!--home:u088-->A role for each assistant</h3>
+                <p>
+                  <!--home:u089-->Each assistant focuses on its part of the project. They work in
+                  parallel, coordinate related changes and pass results along when the next stage
+                  begins.
+                </p>
+                <p>
+                  <!--home:u090-->The same applies across several projects. While the assistants
+                  work together on one, you can turn to something else and come back later.
+                </p>
+              </article>
+            </div>
+            <figure
+              class="concept-demo"
+              aria-label="Illustration: connected work"
+              data-home-aria-label="u304"
             >
+              <div class="demo-window" data-demo="work">
+                <div class="demo-tabbar">
+                  <span class="demo-window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+                  ><span class="demo-tab-title"><!--home:u091-->Documentation</span>
+                </div>
+                <div class="demo-heading">
+                  <span class="demo-app-mark" aria-hidden="true"
+                    ><span></span><span></span><span></span
+                  ></span>
+                  <div>
+                    <strong><!--home:u060-->Amy</strong><span><!--home:u092-->Your assistant</span>
+                  </div>
+                  <span class="demo-outline-mark" aria-hidden="true"></span>
+                </div>
+                <div
+                  class="demo-scroll"
+                  tabindex="0"
+                  role="region"
+                  aria-label="Conversation — scroll to read the messages"
+                  data-home-aria-label="u294"
+                >
+                  <ol
+                    class="demo-events"
+                    aria-label="Messages in the example"
+                    data-home-aria-label="u295"
+                  >
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u093-->The plan has changed: let's prepare the documentation for
+                          the new version first.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u060-->Amy</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u094-->Do you need a short summary of the changes or a full
+                          guide for a new user?</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u095-->A full guide. Ben worked through the installation last
+                          autumn. Ask him; he still has the materials he prepared.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u060-->Amy</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u096-->I'll build on his earlier work and check what has changed
+                          in the new version.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u097-->Ben, you worked through the installation last autumn. Do
+                          you still have your materials and findings? I'm writing a guide for the
+                          new version and want to use what you've already learned.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u098-->Amy asks Ben for the earlier materials</span
+                      >
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u070-->Ben → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u099-->Yes. I kept a quick guide and a review of the first
+                          launch. We found that choosing a folder and loading data needed separate
+                          explanations.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u100-->That will help. Send the guide and check which steps have
+                          changed since then. I'll use it to put together the new
+                          instructions.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u101-->Amy asks agent Ben to check the details</span
+                      >
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u070-->Ben → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u102-->I checked against the new version: two steps have
+                          changed. I've updated the old guide and kept the explanations. Attaching
+                          it.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="install"
+                        aria-haspopup="dialog"
+                        aria-label="Open installation-changes.md"
+                        data-home-aria-label="u305"
+                      >
+                        <span class="artifact-excerpt" aria-hidden="true"
+                          ><strong><!--home:u103-->Before the first launch</strong
+                          ><span><!--home:u104-->Choosing a folder and connecting data</span><i></i
+                          ><i></i></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"
+                              ><!--home:u105-->installation-changes.md</span
+                            ></span
+                          ><span class="artifact-meta"><!--home:u106-->Guide · 2 changes</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u060-->Amy</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u107-->I've drafted the first guide: installation, loading data,
+                          the first collection and updates. I've marked file selection for review —
+                          Ben will send a screenshot of the window.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="guide"
+                        aria-haspopup="dialog"
+                        aria-label="Open first-launch.md"
+                        data-home-aria-label="u306"
+                      >
+                        <span class="artifact-excerpt" aria-hidden="true"
+                          ><strong><!--home:u108-->From installation to the first result</strong
+                          ><span><!--home:u109-->Steps, checks and explanations</span><i></i
+                          ><i></i></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"><!--home:u110-->first-launch.md</span></span
+                          ><span class="artifact-meta"><!--home:u111-->Guide · 4 sections</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                  </ol>
+                </div>
+                <button class="demo-jump" type="button" hidden>
+                  <!--home:u044-->New messages ↓
+                </button>
+                <div class="demo-compose" aria-hidden="true">
+                  <div class="demo-draft">
+                    <span class="demo-draft-text"><!--home:u045-->Message…</span
+                    ><span class="demo-caret"></span>
+                  </div>
+                  <span class="demo-send"
+                    ><svg viewBox="0 0 24 24"><path d="M12 18V6m-5 5 5-5 5 5" /></svg
+                  ></span>
+                </div>
+              </div>
+              <figcaption>
+                <span class="demo-status" aria-live="off"
+                  ><!--home:u046-->Starts when you view it</span
+                >
+                <div class="demo-controls" hidden>
+                  <button type="button" data-demo-pause aria-pressed="false">
+                    <!--home:u047-->Pause</button
+                  ><button
+                    type="button"
+                    data-demo-show
+                    aria-label="Show all: connected work"
+                    data-home-aria-label="u307"
+                  >
+                    <!--home:u048-->Show all</button
+                  ><button
+                    type="button"
+                    data-demo-replay
+                    aria-label="Replay: connected work"
+                    data-home-aria-label="u308"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M4 6a7 7 0 1 1-1 7M4 2v5h5" /></svg
+                    ><!--home:u049-->Replay
+                  </button>
+                </div>
+              </figcaption>
+            </figure>
           </div>
         </section>
-        <section class="review-home-materials section-wrap" aria-labelledby="home-materials-title">
-          <div class="review-home-materials-copy">
-            <h2 id="home-materials-title">Keep the materials and messages within reach</h2>
-            <p>
-              Assistants can send documents, lists, calculations and other files with their
-              explanations. NCF Agent Interconnect keeps the history of their messages and received
-              files, including across restarts.
-            </p>
-            <p>
-              In the settings and monitoring window, check connections and message delivery or open
-              a local agent's messages and files. You can see what was shared and return to it
-              later.
-            </p>
-            <a
-              href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md"
-              >Settings, monitoring and history</a
+        <section class="concept-section concept-section-4" id="tools" aria-labelledby="heading-8">
+          <div class="concept-grid">
+            <div class="concept-copy">
+              <article class="concept-block" id="copy-8">
+                <h2 id="heading-8"><!--home:u112-->Communication brings capabilities together</h2>
+                <p>
+                  <!--home:u113-->AI apps already work with code, documents and files, and use
+                  connected tools and MCP plugins. One assistant can ask another for what it can do
+                  and use the result in its own work.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-9">
+                <h3 id="heading-9"><!--home:u114-->Your familiar tools work together too</h3>
+                <p>
+                  <!--home:u115-->If you use different AI apps (Codex/ChatGPT, OpenCode, Cursor) and
+                  subscriptions for different kinds of work, their assistants communicate even when
+                  they work in different apps. You continue working where you feel at home.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-10">
+                <h3 id="heading-10"><!--home:u116-->Capabilities on another computer</h3>
+                <p>
+                  <!--home:u117-->Other computers on your local network bring their own tools, files
+                  and operating-system capabilities to the shared work. Their assistants exchange
+                  messages and results in the same way.
+                </p>
+              </article>
+            </div>
+            <figure
+              class="concept-demo"
+              aria-label="Illustration: other tools and computers"
+              data-home-aria-label="u309"
             >
+              <div class="demo-window" data-demo="tools">
+                <div class="demo-tabbar">
+                  <span class="demo-window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+                  ><span class="demo-tab-title"><!--home:u118-->Windows version</span>
+                </div>
+                <div class="demo-heading">
+                  <span class="demo-app-mark" aria-hidden="true"
+                    ><span></span><span></span><span></span
+                  ></span>
+                  <div>
+                    <strong><!--home:u119-->Ben</strong
+                    ><span><!--home:u120-->Cursor · Windows</span>
+                  </div>
+                  <span class="demo-outline-mark" aria-hidden="true"></span>
+                </div>
+                <div
+                  class="demo-scroll"
+                  tabindex="0"
+                  role="region"
+                  aria-label="Conversation — scroll to read the messages"
+                  data-home-aria-label="u294"
+                >
+                  <ol
+                    class="demo-events"
+                    aria-label="Messages in the example"
+                    data-home-aria-label="u295"
+                  >
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u121-->The new version runs on macOS. How is the installation on
+                          Windows going?</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u119-->Ben</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u122-->I'll test installation and first launch. I'll also check
+                          the step names against our guide.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u123-->Ben checks installation on Windows</span
+                      >
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u070-->Ben → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u124-->Five checks are complete; the results are in the report.
+                          I found one difference: on Windows, file selection happens in a separate
+                          window. Is it the same for you?</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u125-->Ben sends the result and a question to agent Amy</span
+                      >
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="report"
+                        aria-haspopup="dialog"
+                        aria-label="Open windows-check.html"
+                        data-home-aria-label="u310"
+                      >
+                        <span class="artifact-mini-table" aria-hidden="true"
+                          ><span
+                            ><!--home:u126-->Installation <b><!--home:u127-->Done</b></span
+                          ><span
+                            ><!--home:u128-->First launch <b><!--home:u127-->Done</b></span
+                          ><span
+                            ><!--home:u129-->Choose a file <b><!--home:u130-->Different</b></span
+                          ></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"><!--home:u131-->windows-check.html</span></span
+                          ><span class="artifact-meta"><!--home:u132-->Report · 5 checks</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u133-->On macOS, file selection is built into the settings
+                          window. We should explain this step separately for each system.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u070-->Ben → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u134-->Agreed. I'll write up the Windows step and capture the
+                          window.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u135-->Ben prepares the Windows materials and sends them to agent
+                        Amy</span
+                      >
+                    </li>
+                    <li class="demo-event demo-artifact">
+                      <button
+                        class="artifact-card"
+                        type="button"
+                        data-artifact="window"
+                        aria-haspopup="dialog"
+                        aria-label="Open windows-file-picker.svg"
+                        data-home-aria-label="u311"
+                      >
+                        <span class="artifact-mini-window" aria-hidden="true"
+                          ><span><!--home:u136-->Choose a file</span
+                          ><i><!--home:u137-->materials.csv</i><b><!--home:u138-->Open</b></span
+                        ><span class="artifact-info"
+                          ><span class="artifact-name"
+                            ><span class="demo-full"
+                              ><!--home:u139-->windows-file-picker.svg</span
+                            ></span
+                          ><span class="artifact-meta"
+                            ><!--home:u140-->Image · step illustration</span
+                          ><span class="artifact-open"
+                            ><!--home:u043-->View contents <span aria-hidden="true">↗</span></span
+                          ></span
+                        >
+                      </button>
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u067-->Amy → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u141-->Got them. I'll add both versions to the main section so
+                          people can find the steps for their system straight away.</span
+                        >
+                      </p>
+                    </li>
+                  </ol>
+                </div>
+                <button class="demo-jump" type="button" hidden>
+                  <!--home:u044-->New messages ↓
+                </button>
+                <div class="demo-compose" aria-hidden="true">
+                  <div class="demo-draft">
+                    <span class="demo-draft-text"><!--home:u045-->Message…</span
+                    ><span class="demo-caret"></span>
+                  </div>
+                  <span class="demo-send"
+                    ><svg viewBox="0 0 24 24"><path d="M12 18V6m-5 5 5-5 5 5" /></svg
+                  ></span>
+                </div>
+              </div>
+              <figcaption>
+                <span class="demo-status" aria-live="off"
+                  ><!--home:u046-->Starts when you view it</span
+                >
+                <div class="demo-controls" hidden>
+                  <button type="button" data-demo-pause aria-pressed="false">
+                    <!--home:u047-->Pause</button
+                  ><button
+                    type="button"
+                    data-demo-show
+                    aria-label="Show all: other tools and computers"
+                    data-home-aria-label="u312"
+                  >
+                    <!--home:u048-->Show all</button
+                  ><button
+                    type="button"
+                    data-demo-replay
+                    aria-label="Replay: other tools and computers"
+                    data-home-aria-label="u313"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M4 6a7 7 0 1 1-1 7M4 2v5h5" /></svg
+                    ><!--home:u049-->Replay
+                  </button>
+                </div>
+              </figcaption>
+            </figure>
           </div>
-          <img src="./assets/notes/note-app-mark.png" alt="" />
         </section>
-        <section class="guide section-wrap" id="guide" aria-labelledby="guide-title">
-          <p class="eyebrow">Keep the essentials clear</p>
-          <h2 id="guide-title">
-            Agents work in chats. NCF Agent Interconnect delivers their messages.
-          </h2>
+        <section class="concept-section concept-section-5" id="scale" aria-labelledby="heading-11">
+          <div class="concept-grid">
+            <div class="concept-copy">
+              <article class="concept-block" id="copy-11">
+                <h2 id="heading-11"><!--home:u142-->People join the shared work</h2>
+                <p>
+                  <!--home:u143-->Each person keeps talking to their own AI assistants. Assistants
+                  working on related tasks reach one another by name, like contacts in a shared
+                  address book.
+                </p>
+              </article>
+              <article class="concept-block" id="copy-12">
+                <h3 id="heading-12"><!--home:u144-->You choose the scale</h3>
+                <p>
+                  <!--home:u145-->A quick request, several related tasks or a long-running project.
+                  Use the connections and capabilities that help with the work in front of you.
+                </p>
+                <p>
+                  <strong
+                    ><!--home:u146-->The work grows more complex while the conversation stays
+                    simple.</strong
+                  >
+                </p>
+              </article>
+            </div>
+            <figure
+              class="concept-demo"
+              aria-label="Illustration: shared work"
+              data-home-aria-label="u314"
+            >
+              <div class="demo-window" data-demo="scale">
+                <div class="demo-tabbar">
+                  <span class="demo-window-dots" aria-hidden="true"><i></i><i></i><i></i></span
+                  ><span class="demo-tab-title"><!--home:u147-->Project plan</span>
+                </div>
+                <div class="demo-heading">
+                  <span class="demo-app-mark" aria-hidden="true"
+                    ><span></span><span></span><span></span
+                  ></span>
+                  <div>
+                    <strong><!--home:u148-->Kate</strong><span><!--home:u092-->Your assistant</span>
+                  </div>
+                  <span class="demo-outline-mark" aria-hidden="true"></span>
+                </div>
+                <div
+                  class="demo-scroll"
+                  tabindex="0"
+                  role="region"
+                  aria-label="Conversation — scroll to read the messages"
+                  data-home-aria-label="u294"
+                >
+                  <ol
+                    class="demo-events"
+                    aria-label="Messages in the example"
+                    data-home-aria-label="u295"
+                  >
+                    <li class="demo-event demo-message demo-user">
+                      <span class="demo-speaker"><!--home:u031-->You</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u149-->Coordinate the next stage with Amy and Ben. I'll work on
+                          another task for now.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u148-->Kate</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u150-->I'll check what's ready and what still depends on other
+                          parts. Then I'll suggest an order for the work.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u151-->Kate → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u152-->Amy, what remains to be done in the documentation? I'm
+                          planning the next stage and need to account for dependencies.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u153-->Kate → Ben
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u154-->Ben, is the Windows check complete? What results have you
+                          passed to Amy?</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u155-->Kate checks progress with Amy and Ben</span
+                      >
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u156-->Amy → Kate
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u157-->The documentation is nearly ready. I just need to add the
+                          Windows check results.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-incoming">
+                      <span class="demo-speaker"
+                        ><!--home:u158-->Ben → Kate
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u159-->The check is complete. I've sent Amy the explanation and
+                          a screenshot of the window.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"
+                        ><!--home:u151-->Kate → Amy
+                        <span class="demo-channel-tag"
+                          ><!--home:u004-->Agent Interconnect</span
+                        ></span
+                      >
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u160-->Finish the shared section first, then. I'll gather the
+                          materials for the next stage.</span
+                        >
+                      </p>
+                    </li>
+                    <li class="demo-event demo-action">
+                      <span class="action-check" aria-hidden="true"></span
+                      ><span class="demo-full"
+                        ><!--home:u161-->Kate agrees on the next step with Amy</span
+                      >
+                    </li>
+                    <li class="demo-event demo-message demo-assistant">
+                      <span class="demo-speaker"><!--home:u148-->Kate</span>
+                      <p class="demo-text">
+                        <span class="demo-full"
+                          ><!--home:u162-->Agreed: Amy is finishing the documentation, and she
+                          already has Ben's materials. I'll prepare the next stage. When you return,
+                          we can pick up from the finished results.</span
+                        >
+                      </p>
+                    </li>
+                  </ol>
+                </div>
+                <button class="demo-jump" type="button" hidden>
+                  <!--home:u044-->New messages ↓
+                </button>
+                <div class="demo-compose" aria-hidden="true">
+                  <div class="demo-draft">
+                    <span class="demo-draft-text"><!--home:u045-->Message…</span
+                    ><span class="demo-caret"></span>
+                  </div>
+                  <span class="demo-send"
+                    ><svg viewBox="0 0 24 24"><path d="M12 18V6m-5 5 5-5 5 5" /></svg
+                  ></span>
+                </div>
+              </div>
+              <figcaption>
+                <span class="demo-status" aria-live="off"
+                  ><!--home:u046-->Starts when you view it</span
+                >
+                <div class="demo-controls" hidden>
+                  <button type="button" data-demo-pause aria-pressed="false">
+                    <!--home:u047-->Pause</button
+                  ><button
+                    type="button"
+                    data-demo-show
+                    aria-label="Show all: shared work"
+                    data-home-aria-label="u315"
+                  >
+                    <!--home:u048-->Show all</button
+                  ><button
+                    type="button"
+                    data-demo-replay
+                    aria-label="Replay: shared work"
+                    data-home-aria-label="u316"
+                  >
+                    <svg viewBox="0 0 20 20" aria-hidden="true">
+                      <path d="M4 6a7 7 0 1 1-1 7M4 2v5h5" /></svg
+                    ><!--home:u049-->Replay
+                  </button>
+                </div>
+              </figcaption>
+            </figure>
+          </div>
+        </section>
+        <section class="guide concept-wrap" id="guide" aria-labelledby="guide-title">
+          <h2 id="guide-title"><!--home:u163-->Everything you need to begin</h2>
           <div class="guide-grid">
             <article class="guide-item">
-              <span class="guide-index">01</span>
-              <h3>Connect your chats</h3>
-              <p>
-                Install NCF Agent Interconnect, choose the configuration file for your application,
-                review the changes and click Apply. Reconnect MCP and check a message exchange.
-              </p>
+              <span class="guide-index"><!--home:u164-->01</span>
+              <h3><!--home:u165-->Install and connect</h3>
+              <p><!--home:u166-->Connect your familiar AI app and start exchanging messages.</p>
               <a
                 href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md"
-                >Setup guide</a
+                ><!--home:u167-->Setup guide</a
               >
             </article>
             <article class="guide-item">
-              <span class="guide-index">02</span>
-              <h3>Know your application</h3>
-              <p>
-                OpenCode v1, Codex Desktop, Cursor and AionUi with Cursor Agent have different
-                delivery behavior and setup requirements.
-              </p>
+              <span class="guide-index"><!--home:u168-->02</span>
+              <h3><!--home:u029-->Your AI app</h3>
+              <p><!--home:u169-->Supported apps and how to connect each one.</p>
               <a
                 href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md"
-                >Application details</a
+                ><!--home:u170-->App guides</a
               >
             </article>
             <article class="guide-item">
-              <span class="guide-index">03</span>
-              <h3>Control your data</h3>
+              <span class="guide-index"><!--home:u171-->03</span>
+              <h3><!--home:u172-->Setup and monitoring</h3>
               <p>
-                Review attachments, local history, the exact connected chat, name transfers and what
-                deletion removes.
+                <!--home:u173-->Connections, available message and file history, and features for
+                working with agents.
               </p>
               <a
                 href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md"
-                >Settings and monitoring</a
+                ><!--home:u172-->Setup and monitoring</a
               >
             </article>
             <article class="guide-item">
-              <span class="guide-index">04</span>
-              <h3>Read the full documentation</h3>
-              <p>
-                The user guide and language-model reference explain the working steps and limits of
-                NCF Agent Interconnect.
-              </p>
+              <span class="guide-index"><!--home:u174-->04</span>
+              <h3><!--home:u175-->Full documentation</h3>
+              <p><!--home:u176-->Usage, technical instructions and the AI reference.</p>
               <a
                 href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt"
-                >Open llms.txt</a
+                ><!--home:u177-->Open llms.txt</a
               >
             </article>
           </div>
         </section>
-        <section class="start section-wrap" id="start" aria-labelledby="start-title">
+        <section class="concept-overview" id="max-mode" aria-labelledby="max-mode-heading">
+          <div class="concept-overview-inner">
+            <h2 id="max-mode-heading"><!--home:u178-->Already know your way around? MAX mode</h2>
+            <img
+              class="concept-overview-image"
+              src="./assets/concept/agent-connections.svg?v=2"
+              width="1200"
+              height="510"
+              alt="Agents in OpenCode on Windows and Codex on macOS exchange messages and files. Joe coordinates the specialists&#x27; work."
+              data-home-alt="u317"
+            />
+            <ol class="concept-overview-steps">
+              <li>
+                <strong><!--home:u179-->Work in your familiar AI app.</strong>
+                <!--home:u180-->Codex/ChatGPT, OpenCode, Cursor — with the subscriptions and tools
+                you already use. Start a project, manage several tasks or return to earlier work.
+              </li>
+              <li>
+                <strong><!--home:u181-->Give an assistant a name in the right tab.</strong>
+                <span class="concept-message-example"><!--home:u182-->“Connect as agent Amy”</span
+                ><!--home:u183-->. That name points to this exact chat, its work, its materials and
+                its decisions.
+              </li>
+              <li>
+                <strong><!--home:u184-->Bring together specialists for the task.</strong>
+                <!--home:u185-->Give each one a role, a SKILL and a name.
+                <span class="concept-message-example"
+                  ><!--home:u186-->“You are agent Amy, a developer. SKILL /ui-dev”</span
+                ><!--home:u187-->.
+                <span class="concept-message-example"
+                  ><!--home:u188-->“You are agent Ben, a tester. SKILL /qa”</span
+                ><!--home:u187-->.
+              </li>
+              <li>
+                <strong
+                  ><!--home:u189-->Assign tasks yourself or ask a coordinator to do it.</strong
+                >
+                <span class="concept-message-example"
+                  ><!--home:u190-->“You are agent Joe, the coordinator. Agree on the plan with Amy
+                  and Ben, assign the work and track the results”</span
+                ><!--home:u191-->. You can still talk to every assistant directly.
+              </li>
+              <li>
+                <strong><!--home:u192-->The assistants work in parallel and stay in sync.</strong>
+                <!--home:u193-->They discuss decisions directly, agree who owns what and pass files,
+                reports and diagrams to one another for the next stage.
+              </li>
+              <li>
+                <strong><!--home:u194-->You stay in touch.</strong>
+                <!--home:u195-->Clarify requirements, add tasks and change priorities as the work
+                progresses, through the coordinator or directly with an assistant.
+              </li>
+              <li>
+                <strong><!--home:u196-->Use tools in other apps and on other computers.</strong>
+                <!--home:u197-->Assistants in different AI apps (Codex/ChatGPT, OpenCode, Cursor)
+                and on computers in your local network use their own tools and exchange results in
+                the same way.
+              </li>
+              <li>
+                <strong><!--home:u198-->Your task sets the scale.</strong>
+                <!--home:u199-->One request for help, several parallel tasks or a project lasting
+                weeks. The work grows more complex, but the conversation stays simple.
+              </li>
+            </ol>
+          </div>
+        </section>
+        <section class="start concept-wrap" id="start" aria-labelledby="start-title">
           <div class="start-copy">
-            <p class="eyebrow">Start with two chats</p>
-            <h2 id="start-title">Give the agents names. Send a message.</h2>
+            <h2 id="start-title"><!--home:u200-->Keep working in your own way</h2>
             <p>
-              Install NCF Agent Interconnect, configure the connection for your chosen AI
-              application, connect two chats under different names and ask one agent to contact the
-              other.
+              <!--home:u201-->Install NCF Agent Interconnect, connect your AI app and give your
+              assistants names.
             </p>
             <div class="start-actions">
               <a
                 class="button button-primary"
                 href="https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest"
-                >Download NCF Agent Interconnect</a
+                ><!--home:u202-->Download NCF Agent Interconnect</a
               ><a
                 class="button button-secondary"
                 href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md"
-                >How to connect your assistants</a
+                ><!--home:u203-->Get started</a
               >
             </div>
-            <p class="download-note">
-              macOS downloads are available as DMGs for Apple Silicon and Intel Mac; Windows uses an
-              x64 EXE. macOS 13 or later is required. The Intel Mac package has not been run on
-              Intel hardware. No Linux installer is published.
-            </p>
           </div>
           <div class="start-art" aria-hidden="true"><img src="./assets/app-icon.png" alt="" /></div>
         </section>
       </main>
-      <footer class="site-footer review-footer">
+      <footer class="site-footer">
         <div class="footer-brand">
-          <strong>NCF Agent Interconnect</strong
-          ><span>Messages and files between AI assistants.</span>
+          <strong><!--home:u008-->NCF Agent Interconnect</strong
+          ><span><!--home:u204-->Messages and files between AI assistants.</span>
         </div>
         <div class="footer-links">
           <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/README.md"
-            >Documentation</a
-          ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect">GitHub</a
+            ><!--home:u091-->Documentation</a
+          ><a
+            class="github-link"
+            href="https://github.com/no-colours-fabric/ncf-agent-interconnect"
+            target="_blank"
+            rel="noopener noreferrer"
+            ><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.303 3.438 9.8 8.207 11.385.6.113.793-.26.793-.577v-2.234c-3.338.726-4.043-1.416-4.043-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.108-.775.418-1.305.762-1.605-2.665-.304-5.467-1.333-5.467-5.93 0-1.311.469-2.382 1.236-3.222-.124-.303-.536-1.527.117-3.176 0 0 1.008-.323 3.3 1.23a11.48 11.48 0 0 1 6.008 0c2.29-1.553 3.297-1.23 3.297-1.23.655 1.649.243 2.873.12 3.176.77.84 1.234 1.911 1.234 3.222 0 4.61-2.807 5.624-5.48 5.921.43.372.823 1.102.823 2.222v3.293c0 .32.192.694.801.576C20.565 21.796 24 17.3 24 12 24 5.37 18.627 0 12 0z"
+              /></svg
+            ><span><!--home:u006-->GitHub</span></a
           ><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/LICENSE"
-            >License</a
+            ><!--home:u206-->License</a
           >
         </div>
       </footer>
     </div>
+    <template id="artifact-outline"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <h3><!--home:u208-->Proposal: a shared library of materials</h3>
+      <p>
+        <!--home:u209-->Main idea: keep current materials in one place, then build each presentation
+        for a specific meeting.
+      </p>
+      <ol>
+        <li>
+          <strong><!--home:u210-->Problem.</strong>
+          <!--home:u211-->Before each meeting, we have to find the figures again and check which
+          versions are current.
+        </li>
+        <li>
+          <strong><!--home:u212-->Proposal.</strong>
+          <!--home:u213-->A shared library of approved materials, each with an update date and an
+          owner.
+        </li>
+        <li>
+          <strong><!--home:u214-->How it works.</strong>
+          <!--home:u215-->Choose a meeting topic, gather the relevant sections and check their
+          sources.
+        </li>
+        <li>
+          <strong><!--home:u216-->First step.</strong>
+          <!--home:u217-->Collect one project's materials and try the approach at the next meeting.
+        </li>
+        <li>
+          <strong><!--home:u218-->Result.</strong>
+          <!--home:u219-->Less repeated preparation, with a source behind every claim.
+        </li>
+        <li>
+          <strong><!--home:u220-->Decision.</strong>
+          <!--home:u221-->Agree on the first project and who owns the materials.
+        </li>
+      </ol>
+      <h3><!--home:u222-->Appendix</h3>
+      <p>
+        <!--home:u223-->Detailed calculations, a comparison of options and links to the source data.
+        We'll add figures after checking the sources.
+      </p></template
+    >
+    <template id="artifact-requirements"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <h3><!--home:u224-->What needs to work</h3>
+      <ul>
+        <li><!--home:u225-->Every item has a source, date and owner.</li>
+        <li><!--home:u226-->Changes to source data appear in every connected collection.</li>
+        <li><!--home:u227-->The version of the materials used for a meeting is recorded.</li>
+        <li><!--home:u228-->A finished collection can be shared without access to the editor.</li>
+      </ul>
+      <h3><!--home:u229-->Comparing approaches</h3>
+      <table>
+        <thead>
+          <tr>
+            <th><!--home:u230-->Approach</th>
+            <th><!--home:u231-->Updates</th>
+            <th><!--home:u232-->Conclusion</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><!--home:u233-->Shared library</td>
+            <td><!--home:u234-->Fix the source once</td>
+            <td><!--home:u235-->Chosen</td>
+          </tr>
+          <tr>
+            <td><!--home:u236-->Copies in each project</td>
+            <td><!--home:u237-->Find and fix every copy</td>
+            <td><!--home:u238-->Rejected</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3><!--home:u239-->For the next stage</h3>
+      <p>
+        <!--home:u240-->Build storage for sources and their links first. Add export after testing
+        updates; otherwise the collections may drift apart.
+      </p></template
+    >
+    <template id="artifact-flow"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <svg
+        viewBox="0 0 560 240"
+        role="img"
+        aria-label="A source sends an update to the shared library, then to the presentation and report"
+        xmlns="http://www.w3.org/2000/svg"
+        data-home-aria-label="u318"
+      >
+        <g fill="none" stroke="#7899b5" stroke-width="2">
+          <path d="M145 120H205M345 120H375V65H410M375 120V180H410" />
+          <path d="M197 115l8 5-8 5M402 60l8 5-8 5M402 175l8 5-8 5" />
+        </g>
+        <g fill="#edf4fb" stroke="#9ab4ca">
+          <rect x="5" y="92" width="140" height="56" rx="10" />
+          <rect x="205" y="92" width="140" height="56" rx="10" />
+          <rect x="410" y="37" width="145" height="56" rx="10" />
+          <rect x="410" y="152" width="145" height="56" rx="10" />
+        </g>
+        <g fill="#294861" font-family="sans-serif" font-size="15" text-anchor="middle">
+          <text x="75" y="125"><!--home:u078-->Source</text>
+          <text x="275" y="125"><!--home:u233-->Shared library</text>
+          <text x="482" y="70"><!--home:u241-->Presentation</text>
+          <text x="482" y="185"><!--home:u242-->Report</text>
+        </g>
+      </svg>
+      <h3><!--home:u243-->Update process</h3>
+      <ol>
+        <li><!--home:u244-->The owner corrects the data at its source.</li>
+        <li>
+          <!--home:u245-->The library records the new version and the list of connected materials.
+        </li>
+        <li><!--home:u246-->The presentation and report receive the updated values.</li>
+        <li><!--home:u247-->A snapshot of the version is saved before sharing.</li>
+      </ol>
+      <p>
+        <!--home:u248-->The file already sent stays unchanged, while a new collection uses the
+        current data.
+      </p></template
+    >
+    <template id="artifact-install"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <h3><!--home:u249-->1. Choose a project folder</h3>
+      <p>
+        <!--home:u250-->New step before first launch: choose the folder where the materials will be
+        kept. If the folder already contains a project, show its name before confirmation.
+      </p>
+      <h3><!--home:u251-->2. Connect source data</h3>
+      <p>
+        <!--home:u252-->In settings, open “Sources”, select “Add file” and choose a spreadsheet.
+        Once it loads, check the column names and data date.
+      </p>
+      <h3><!--home:u253-->What the guide writer should check</h3>
+      <ul>
+        <li><!--home:u254-->The control names match the current version.</li>
+        <li><!--home:u255-->File selection is explained separately for Windows and macOS.</li>
+        <li><!--home:u256-->The example shows how to confirm that the file loaded successfully.</li>
+      </ul></template
+    >
+    <template id="artifact-guide"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <h3><!--home:u257-->1. Installation</h3>
+      <p>
+        <!--home:u258-->Open the installer and finish installing. On first launch, choose a project
+        folder. Check the project name before confirming.
+      </p>
+      <h3><!--home:u259-->2. First source</h3>
+      <p>
+        <!--home:u260-->Open “Sources” → “Add file”. Choose the spreadsheet of materials. Its
+        filename, date and row count will appear in the list; compare them with the original.
+      </p>
+      <h3><!--home:u261-->3. First collection</h3>
+      <p>
+        <!--home:u262-->Create a collection for the next meeting. Add the materials you need, check
+        the source links and save a version before sharing.
+      </p>
+      <h3><!--home:u263-->4. Updating</h3>
+      <p>
+        <!--home:u264-->When the data changes, update the source. Review the connected materials and
+        save a new version of the collection.
+      </p>
+      <aside>
+        <!--home:u265-->Editor's note: add Windows and macOS screenshots to the file-selection
+        section after Ben's review.
+      </aside></template
+    >
+    <template id="artifact-report"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <h3><!--home:u266-->Checking the new version on Windows</h3>
+      <table>
+        <thead>
+          <tr>
+            <th><!--home:u267-->Check</th>
+            <th><!--home:u080-->Result</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><!--home:u126-->Installation</td>
+            <td><!--home:u268-->Completes without errors</td>
+          </tr>
+          <tr>
+            <td><!--home:u128-->First launch</td>
+            <td><!--home:u269-->Project selection opens</td>
+          </tr>
+          <tr>
+            <td><!--home:u270-->Project folder</td>
+            <td><!--home:u271-->Persists after restart</td>
+          </tr>
+          <tr>
+            <td><!--home:u129-->Choose a file</td>
+            <td><!--home:u272-->Separate system window, unlike macOS</td>
+          </tr>
+          <tr>
+            <td><!--home:u273-->Loading a spreadsheet</td>
+            <td><!--home:u274-->Filename, date and rows appear</td>
+          </tr>
+        </tbody>
+      </table>
+      <h3><!--home:u275-->What to add to the guide</h3>
+      <p>
+        <!--home:u276-->Explain file selection separately for each system. On Windows, the user
+        confirms with “Open” in a separate window, then returns to the app settings.
+      </p>
+      <p>
+        <strong><!--home:u277-->Report attachment:</strong>
+        <!--home:u278-->windows-file-picker.svg.
+      </p></template
+    >
+    <template id="artifact-window"
+      ><p class="artifact-example"><!--home:u207-->From an illustrative conversation</p>
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 560 300"
+        role="img"
+        aria-label="Illustration of a file picker showing materials.csv and the Open button"
+        data-home-aria-label="u319"
+      >
+        <rect
+          x="2"
+          y="2"
+          width="556"
+          height="296"
+          rx="9"
+          fill="#fff"
+          stroke="#9ab4ca"
+          stroke-width="2"
+        />
+        <path d="M3 40H557" stroke="#c5d6e4" />
+        <rect x="16" y="58" width="115" height="174" rx="4" fill="#edf4fb" />
+        <rect x="146" y="103" width="392" height="38" rx="4" fill="#dfebf5" />
+        <rect x="410" y="250" width="126" height="32" rx="5" fill="#3c607f" />
+        <g font-family="sans-serif" font-size="16" fill="#294861">
+          <text x="20" y="28"><!--home:u279-->Choose source data</text>
+          <text x="28" y="86"><!--home:u280-->Documents</text>
+          <text x="160" y="83"><!--home:u281-->Name</text>
+          <text x="160" y="128"><!--home:u137-->materials.csv</text>
+          <text x="20" y="273"><!--home:u282-->File name: materials.csv</text>
+          <text x="473" y="272" fill="#fff" text-anchor="middle"><!--home:u138-->Open</text>
+        </g>
+      </svg>
+      <h3><!--home:u283-->Caption for the guide</h3>
+      <p>
+        <!--home:u284-->Choose the spreadsheet of materials and select “Open”. Back in the app,
+        check the loaded file's name and row count.
+      </p>
+      <aside><!--home:u285-->Schematic image for the illustrative example.</aside></template
+    >
+    <dialog class="artifact-dialog" aria-labelledby="artifact-title">
+      <header class="artifact-dialog-header">
+        <div>
+          <p><!--home:u286-->Attachment</p>
+          <h2 id="artifact-title"></h2>
+        </div>
+        <button
+          type="button"
+          class="artifact-close"
+          aria-label="Close attachment"
+          autofocus
+          data-home-aria-label="u320"
+        >
+          <!--home:u287-->Close
+        </button>
+      </header>
+      <div class="artifact-content"></div>
+    </dialog>
   </body>
 </html>
