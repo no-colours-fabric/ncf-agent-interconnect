@@ -2,13 +2,9 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-NCF Agent Interconnect lets your AI assistants exchange messages and files. They can work on different parts of the same task at the same time, discuss decisions and use one another's results. Keep talking to each assistant directly, or ask one to coordinate the others.
+NCF Agent Interconnect connects AI assistants working in your usual applications. Give an assistant a name in its current chat: that name becomes a contact tied to this work, its materials and decisions. Assistants exchange messages and files, work in parallel and coordinate their results. You keep using your own tools and subscriptions, and stay involved throughout.
 
-Suppose you are planning a party in an AI chat. While you choose the activities, you also want to work out the costs. Open a second chat and give the calculations to another assistant. Each has a clear part of the work and a conversation with the details it needs.
-
-In the first chat, say “Connect as agent Amy”; in the second, “Connect as agent Ben.” Ask Amy to discuss the costs with Ben. Amy suggests a workshop and sends a list of materials. Ben finds that the workshop costs too much and tells Amy. She chooses another activity, and Ben updates the calculation.
-
-You can clarify requirements, add work or change direction as you go. For example, ask Amy to plan something for the children and Ben to account for the extra costs. Start with one assistant and bring in others when you need them. One AI application on one computer is enough to work together.
+Start with a quick exchange or assign roles for a larger project. Give each assistant a name, a role and any relevant SKILL; distribute tasks yourself or ask an agent to coordinate. Assistants in different applications and on computers in the same local network work together in the same way. The task sets the scale, from a single question to weeks of shared work.
 
 ![Settings and monitoring: agents and connection status.](docs/assets/agents-preview.png)
 
@@ -16,14 +12,14 @@ _Settings and monitoring: agents and connection status._
 
 ## How to start
 
-1. Install NCF Agent Interconnect and configure it for your chosen AI application using the [setup guide](docs/setup.md).
-2. In each AI chat you want to connect, give the assistant a different name: “Connect as agent Amy” in one chat and “Connect as agent Ben” in the other.
-3. Give the assistants their parts of the task and ask them to discuss questions and results with each other.
-4. Keep talking to any of them, or ask one to coordinate the others. Clarify requirements, add work and ask what is ready.
+1. Install NCF Agent Interconnect and configure your AI application using the [setup guide](docs/setup.md).
+2. In a chat you want to connect, say “Connect as agent Amy.” The name refers to that exact chat and its work. Connect other assistants under their own names.
+3. Assign roles and tasks, then ask the assistants to exchange results directly. You can distribute the work yourself or give one agent a coordinating role.
+4. Keep talking to any assistant: clarify requirements, add tasks and change priorities as work progresses.
 
 Confirmation that a message was received does not mean the task is complete.
 
-Work on one computer needs no connection to another computer. If you need assistants on another computer in your local network, connect it using the [setup instructions](docs/setup.md). The [user guide](docs/usage.md) explains how to work together.
+Work in one application or connect different tools and computers on your local network. See the [user guide](docs/usage.md) for practical workflows.
 
 ## NCF Agent Interconnect settings and monitoring
 
@@ -62,7 +58,7 @@ Cursor setup installs its included reactive plugin after your Apply action; the 
 **Use the product**
 
 - [Work with agents from your chats](docs/usage.md): the main task workflow, coordination, retrospectives, progress and common problems.
-- [Learn NCF Agent Interconnect with your own AI](docs/scenarios/README.md): 13 prepared prompts for a detailed guide in your language, grounded in the NCF Agent Interconnect documentation. Ask for an overview and your model will explain one example, then offer others; a specific question gets a direct answer.
+- [Learn NCF Agent Interconnect with your own AI](docs/scenarios/README.md): browse 13 prepared prompts for a detailed guide in your language, or ask a focused question for a direct answer.
 - [Set up NCF Agent Interconnect](docs/setup.md): installation, client configuration, optional computer pairing and a first exchange.
 - [NCF Agent Interconnect settings and monitoring](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
 

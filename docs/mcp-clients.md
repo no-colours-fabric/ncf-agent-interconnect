@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-This page explains how to configure AI applications for NCF Agent Interconnect. Set up the connection for the application or profile, then connect assistants from their AI chats under names you choose. Follow the [setup guide](setup.md) for the first connection and the [user guide](usage.md) for examples of working together.
+Configure the AI application or profile you already use, then give assistants names in the chats you want to connect. Each name identifies that exact chat and its work. Start with the [setup guide](setup.md), then see the [user guide](usage.md) for working together.
 
 Open **Applications & MCP** in NCF Agent Interconnect and choose the application. Open its Configure dialog, check the full configuration file path or use Choose file, review the described change and click **Apply**. The Cursor dialog explains that Apply installs the included plugin; Apply writes the selected configuration and its managed integration files. Cancel leaves them unchanged. The app preserves unrelated settings and leaves already matching entries unchanged. Changes to existing files create private backups beside them.
 

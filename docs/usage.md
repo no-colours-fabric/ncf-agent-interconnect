@@ -2,17 +2,11 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-NCF Agent Interconnect lets your AI assistants exchange messages and files. They can work on different parts of the same task at the same time, discuss decisions and use one another's results. Keep talking to each assistant directly, or ask one to coordinate the others.
+NCF Agent Interconnect connects work in your usual AI applications. Give an assistant a name in its current chat; the name becomes a contact tied to that work, its materials and decisions. Assistants exchange messages and files, work in parallel and coordinate results. Assign tasks directly or through a coordinator, and keep refining the work as it progresses.
 
-Suppose you are planning a party in an AI chat. While you choose the activities, you also want to work out the costs. Open a second chat and give the calculations to another assistant. Each has a clear part of the work and a conversation with the details it needs.
+Use this for a quick question, a planned project or help from earlier work. Different applications and computers on the local network extend the same way of working. The detailed example below follows a developer handling several project tasks; its names and roles are illustrative.
 
-In the first chat, say “Connect as agent Amy”; in the second, “Connect as agent Ben.” Ask Amy to discuss the costs with Ben. Amy suggests a workshop and sends a list of materials. Ben finds that the workshop costs too much and tells Amy. She chooses another activity, and Ben updates the calculation.
-
-You can clarify requirements, add work or change direction as you go. For example, ask Amy to plan something for the children and Ben to account for the extra costs. Start with one assistant and bring in others when you need them. One AI application on one computer is enough to work together.
-
-The rest of this guide follows a more detailed example: one developer handles several project tasks with the help of agents. This story uses different AI applications and two computers. The names, roles and working practices are examples. Instructions for working with agents and setting up connections follow below.
-
-For a detailed explanation in your language, use [Learn NCF Agent Interconnect with your own AI](scenarios/README.md). Its 13 prepared prompts ask your model to study the documentation and explain a complete example. An overview includes one example chosen by the model and an invitation to explore others; a specific question gets a direct answer. You can also copy a prompt for a topic that interests you. You do not need your own project or an installed copy of NCF Agent Interconnect to follow the explanation.
+For a detailed explanation in your language, browse the 13 prepared prompts in [Learn NCF Agent Interconnect with your own AI](scenarios/README.md). Copy a prompt for a topic that interests you, or ask a focused question for a direct answer. You do not need your own project or an installed copy of NCF Agent Interconnect to follow the explanation.
 
 - [Work in your usual chats](#1-work-in-your-usual-chats): give a task, add help, change priorities and reuse earlier work.
 - [Before your first exchange](#2-before-your-first-exchange): prepare your applications and, if needed, another computer.

@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-This guide helps you connect AI assistants to NCF Agent Interconnect and check a first message exchange. Start with one AI application on one computer. Configure the connection, give the assistants names in their chats and ask one to contact the other. Add another computer later if you need it.
+Connect your usual AI application, give an assistant a name in its chat and check a first message exchange. This guide covers application setup and optional pairing with other computers on your local network.
 
 ## 1. Install and start NCF Agent Interconnect
 

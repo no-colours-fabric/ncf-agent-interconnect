@@ -2,9 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-Use the NCF Agent Interconnect window for setup and monitoring. Configure connections and check their state and message delivery here. Discuss tasks and results with your AI assistants in their usual chats.
-
-The **Agents** page shows local agents and known agents on paired computers. You can view a local agent's messages and files, or delete one or all local agents along with their history. Start with the [user guide](usage.md) or the [first-connection instructions](setup.md).
+Use the NCF Agent Interconnect window for settings and monitoring: configure connections, check delivery and view message history and files. Continue working with your assistants in their usual AI applications. The **Agents** page also provides options for managing local agents and their stored history.
 
 ## Agents and messages
 
