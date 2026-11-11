@@ -572,9 +572,18 @@
   border-color: var(--ink);
 }
 .concept-page .guide {
+  position: relative;
+  isolation: isolate;
   padding-top: 65px;
   padding-bottom: 80px;
-  border-top: 1px solid #c6d8e8;
+}
+.concept-page .guide::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset-block: 0;
+  inset-inline: calc(50% - 50vw);
+  background: #edf4fb;
 }
 .concept-page .guide h2 {
   max-width: none;
