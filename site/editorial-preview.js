@@ -9,6 +9,15 @@
   let frame = 0;
   let previousTime = null;
 
+  function speakerName(element) {
+    const speaker = element.querySelector('.demo-speaker');
+    return [...(speaker?.childNodes || [])]
+      .filter((node) => node.nodeType === Node.TEXT_NODE)
+      .map((node) => node.textContent)
+      .join('')
+      .trim();
+  }
+
   const demos = [...document.querySelectorAll('[data-demo]')].map((windowElement) => {
     const figure = windowElement.closest('figure');
     const events = [...windowElement.querySelectorAll('.demo-event')].map((element) => {
@@ -26,7 +35,7 @@
         user: element.classList.contains('demo-user'),
         message: element.classList.contains('demo-message'),
         artifact: element.classList.contains('demo-artifact'),
-        speaker: element.querySelector('.demo-speaker')?.firstChild?.textContent.trim() || '',
+        speaker: speakerName(element),
       };
     });
     return {
@@ -428,8 +437,7 @@
               )
             : 1;
         event.text = event.source.textContent;
-        event.speaker =
-          event.element.querySelector('.demo-speaker')?.firstChild?.textContent.trim() || '';
+        event.speaker = speakerName(event.element);
         if (active) {
           const duration = Math.max(1200, event.text.length * (event.user ? 46 : 39)) / 1.5;
           demo.elapsed = fraction * duration;
