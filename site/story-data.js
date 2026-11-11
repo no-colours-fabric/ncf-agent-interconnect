@@ -49,7 +49,7 @@ window.NCF_HOLIDAY = [
       [
         'amy',
         'user',
-        'Подключилась как агент Amy. Продолжу программу и подготовлю список для расчёта расходов.',
+        'Подключилась как агент Amy. Продолжу работать над программой и подготовлю список для расчёта расходов.',
       ],
     ],
     statuses: [{ kind: 'work', lines: ['Готовлю список материалов'] }],
@@ -64,12 +64,12 @@ window.NCF_HOLIDAY = [
       [
         'user',
         'ben',
-        'Подключись как агент Ben. Помоги с расходами на праздник. Программу ведёт Amy: узнай у неё условия и согласовывай с ней покупки.',
+        'Подключись как агент Ben. Помоги с расходами на праздник. Программой занимается Amy: уточни у неё условия и согласовывай с ней покупки.',
       ],
       [
         'ben',
         'user',
-        'Подключился как агент Ben. Узнаю у Amy условия праздника и займусь расходами.',
+        'Подключился как агент Ben. Уточню у Amy условия праздника и займусь расходами.',
       ],
     ],
     statuses: [
@@ -90,7 +90,7 @@ window.NCF_HOLIDAY = [
       [
         'ben',
         'amy',
-        'По этим ценам материалы займут слишком большую часть бюджета. Подбери вариант подешевле, чтобы осталось на угощение.',
+        'По этим ценам на материалы уйдёт слишком большая часть бюджета. Подбери вариант подешевле, чтобы осталось на угощение.',
       ],
     ],
     statuses: [
@@ -142,7 +142,7 @@ window.NCF_HOLIDAY = [
       [
         'amy',
         'ben',
-        'Гостей теперь четырнадцать, из них четверо детей. Добавляю детские игры. Проверь расходы с новым числом гостей; общий бюджет остаётся прежним.',
+        'Гостей теперь четырнадцать, из них четверо детей. Добавляю детские игры. Проверь расходы с учётом нового числа гостей. Общий бюджет остаётся прежним.',
       ],
       ['ben', 'amy', 'Учту новое число гостей и проверю расходы. Общий бюджет оставляю прежним.'],
     ],
@@ -186,7 +186,7 @@ window.NCF_HOLIDAY = [
       [
         'kate',
         'user',
-        'Подключилась как агент Kate. Перед меню уточню ваши пожелания по еде, а у Amy узнаю число гостей и программу праздника.',
+        'Подключилась как агент Kate. Прежде чем составлять меню, уточню ваши пожелания по еде. У Amy узнаю, сколько будет гостей и какая программа запланирована.',
       ],
     ],
     statuses: [
@@ -223,7 +223,7 @@ window.NCF_HOLIDAY = [
       [
         'kate',
         'ben',
-        'Подготовила меню с учётом пожеланий. Отправляю список покупок. Используй его для расчёта еды, чтобы у нас был один список.',
+        'Подготовила меню с учётом пожеланий. Отправляю список покупок. Рассчитай по нему расходы на еду, чтобы мы пользовались одним списком.',
       ],
       ['ben', 'kate', 'Учту покупки по этому списку в общем расчёте.'],
     ],
@@ -244,7 +244,7 @@ window.NCF_HOLIDAY = [
         'amy',
         'Собери программу, меню и расчёт расходов. Попроси Ben и Kate прислать последние варианты. Покажи, что уже готово и что мне ещё нужно решить.',
       ],
-      ['amy', 'user', 'Запрошу последние варианты у Ben и Kate и соберу результат вместе.'],
+      ['amy', 'user', 'Попрошу Ben и Kate прислать последние варианты и соберу всё вместе.'],
     ],
     statuses: [
       {
@@ -322,12 +322,12 @@ window.NCF_STORY = {
         [
           'user',
           'Connect as agent Morgan. Use the coordination skill to coordinate all agents and keep track of the work as a whole. Send each participant your working rules. Coordinate work boundaries, Git branches, the order of implementation and integration, and conflict resolution. Put agents in touch when their work overlaps, arrange knowledge sharing, and keep them informed of relevant decisions and changes. Keep independent tasks moving in parallel. Bring me consolidated results and decisions that need my input.',
-          'Подключись как агент Morgan. Используй навык coordination: координируй всех агентов и следи за ходом работы в целом. Передай каждому участнику мои правила работы. Согласовывай зоны ответственности, ветки Git, порядок реализации и интеграции, разрешай конфликты. Когда задачи пересекаются, своди агентов друг с другом, организуй обмен знаниями и сообщай им о решениях и изменениях, которые их касаются. Следи, чтобы независимые задачи продвигались параллельно. Собирай результаты в общую сводку и отдельно отмечай вопросы, по которым нужно моё решение.',
+          'Подключись как агент Morgan. Используй навык coordination: координируй всех агентов и следи за общим ходом работы. Передай каждому участнику мои правила работы. Согласовывай зоны ответственности, ветки Git, порядок реализации и интеграции. Разрешай конфликты. Когда задачи пересекаются, помогай агентам связаться друг с другом и организуй обмен знаниями. Сообщай им о решениях и изменениях, которые их касаются. Следи, чтобы независимые задачи продвигались параллельно. Собирай результаты в общую сводку и отдельно отмечай вопросы, по которым нужно моё решение.',
         ],
         [
           'morgan',
           'Connected as agent Morgan. I will coordinate the agents, track their work and bring you results and decisions that need your input.',
-          'Подключилась как агент Morgan. Буду координировать агентов, следить за ходом работы и выносить на ваше решение важные вопросы.',
+          'Подключилась как агент Morgan. Буду координировать агентов, следить за ходом работы и обсуждать с вами важные вопросы, по которым нужно ваше решение.',
         ],
       ],
       statuses: NCF_WORK_STATUS(['Preparing coordination rules', 'Готовлю правила координации']),
@@ -341,12 +341,12 @@ window.NCF_STORY = {
         [
           'user',
           'Connect as agent Jade. You are responsible for verifying this project on Windows. Morgan coordinates the work; ask her for instructions.',
-          'Подключись как агент Jade. Ты отвечаешь за проверку проекта на Windows. Координатор — Morgan; запрашивай у неё инструкции.',
+          'Подключись как агент Jade. Ты отвечаешь за проверку проекта на Windows. Координатор — Morgan. За инструкциями обращайся к ней.',
         ],
         [
           'jade',
           'Connected as agent Jade. I am responsible for Windows verification. I will tell Morgan my role and ask for instructions.',
-          'Подключилась как агент Jade. Отвечаю за проверки проекта на Windows. Сообщу о своей роли координатору Morgan и запрошу инструкции.',
+          'Подключилась как агент Jade. Отвечаю за проверки проекта на Windows. Сообщу Morgan о своей роли и попрошу инструкции.',
         ],
       ],
       statuses: NCF_SEND_STATUS,
@@ -386,7 +386,7 @@ window.NCF_STORY = {
         [
           'morgan',
           'Understood. I will send each task reported as complete to another agent for independent testing.',
-          'Приняла. Каждую задачу, о завершении которой сообщит исполнитель, передам другому агенту на независимую проверку.',
+          'Приняла. Каждую задачу, которую исполнитель считает завершённой, передам другому агенту на независимую проверку.',
         ],
       ],
       statuses: NCF_WORK_STATUS([
@@ -403,12 +403,12 @@ window.NCF_STORY = {
         [
           'user',
           'Connect as agent Leo. Your role is implementation. Morgan coordinates the work; ask her for instructions.',
-          'Подключись как агент Leo. Твоя роль — разработка. Координатор — Morgan; запрашивай у неё инструкции.',
+          'Подключись как агент Leo. Твоя роль — разработка. Координатор — Morgan. За инструкциями обращайся к ней.',
         ],
         [
           'leo',
           'Connected as agent Leo. I handle implementation. I will tell Morgan my role and ask for an assignment.',
-          'Подключился как агент Leo. Отвечаю за разработку. Сообщу о своей роли координатору Morgan и запрошу задачу.',
+          'Подключился как агент Leo. Отвечаю за разработку. Сообщу Morgan о своей роли и попрошу дать мне задачу.',
         ],
       ],
       statuses: NCF_SEND_STATUS,
@@ -462,12 +462,12 @@ window.NCF_STORY = {
         [
           'user',
           'Connect as agent Alice. Your role is analysis. Morgan coordinates the work; ask her for instructions.',
-          'Подключись как агент Alice. Твоя роль — анализ запросов. Координатор — Morgan; запрашивай у неё инструкции.',
+          'Подключись как агент Alice. Твоя роль — анализ запросов. Координатор — Morgan. За инструкциями обращайся к ней.',
         ],
         [
           'alice',
           'Connected as agent Alice. I handle request analysis. I will tell Morgan my role and ask for instructions.',
-          'Подключилась как агент Alice. Отвечаю за анализ запросов. Сообщу о своей роли координатору Morgan и запрошу инструкции.',
+          'Подключилась как агент Alice. Отвечаю за анализ запросов. Сообщу Morgan о своей роли и попрошу инструкции.',
         ],
       ],
       statuses: NCF_SEND_STATUS,
@@ -481,12 +481,12 @@ window.NCF_STORY = {
         [
           'user',
           'Requests #I-0201 and #I-0202 may describe the same need. Find the underlying user problem, check the existing search screen in Figma and relate the finding to #T-1042.',
-          'Запросы #I-0201 и #I-0202, возможно, связаны одной потребностью. Выясни, что нужно пользователям, сверься с существующим экраном поиска в Figma и соотнеси вывод с задачей #T-1042.',
+          'Запросы #I-0201 и #I-0202, возможно, связаны с одной и той же потребностью. Выясни, что нужно пользователям, сверься с существующим экраном поиска в Figma и соотнеси вывод с задачей #T-1042.',
         ],
         [
           'morgan',
           'Alice will analyse both requests and the Figma screen. I will put her in touch with Leo so the finding reaches the saved-filter work.',
-          'Анализ запросов и экрана в Figma поручу Alice. Свяжу её с Leo, чтобы вывод попал в работу над сохранёнными фильтрами.',
+          'Анализ запросов и экрана в Figma поручу Alice. Свяжу её с Leo, чтобы он учёл этот вывод при разработке сохранённых фильтров.',
         ],
       ],
       statuses: NCF_SEND_STATUS,
@@ -583,7 +583,7 @@ window.NCF_STORY = {
         [
           'morgan',
           'Received. I will report the result and keep the evidence for the fix owner.',
-          'Приняла. Сообщу результат пользователю и сохраню материалы для исполнителя исправления.',
+          'Приняла. Сообщу результат пользователю и сохраню материалы для агента, который займётся исправлением.',
         ],
       ],
       statuses: NCF_WORK_STATUS(['Preparing the bug report', 'Готовлю отчёт об ошибке']),
@@ -597,12 +597,12 @@ window.NCF_STORY = {
         [
           'user',
           'Connect as agent Sam. Your role is implementation. Morgan coordinates the work; ask her for instructions.',
-          'Подключись как агент Sam. Твоя роль — разработка. Координатор — Morgan; запрашивай у неё инструкции.',
+          'Подключись как агент Sam. Твоя роль — разработка. Координатор — Morgan. За инструкциями обращайся к ней.',
         ],
         [
           'sam',
           'Connected as agent Sam. I handle implementation. I will tell Morgan my role and ask for an assignment.',
-          'Подключился как агент Sam. Отвечаю за разработку. Сообщу о своей роли координатору Morgan и запрошу задачу.',
+          'Подключился как агент Sam. Отвечаю за разработку. Сообщу Morgan о своей роли и попрошу дать мне задачу.',
         ],
       ],
       statuses: NCF_SEND_STATUS,
@@ -616,7 +616,7 @@ window.NCF_STORY = {
         [
           'morgan',
           'Jade reproduced #B-0317 on Windows and sent the steps and evidence. The import failure is confirmed.',
-          'Jade воспроизвела #B-0317 на Windows и прислала шаги с подтверждающими материалами. Ошибка импорта подтверждена.',
+          'Jade воспроизвела #B-0317 на Windows и прислала шаги воспроизведения и подтверждающие материалы. Ошибка импорта подтверждена.',
         ],
         [
           'user',
@@ -639,7 +639,7 @@ window.NCF_STORY = {
         [
           'morgan',
           'Use the implementation skill to fix bug #B-0317. Jade reproduced it on Windows; here are her steps and evidence. Keep the fix separate from #T-1042 and coordinate any verification details directly with Jade.',
-          'Используй навык implementation для исправления ошибки #B-0317. Jade воспроизвела её на Windows; передаю её шаги и материалы. Держи исправление отдельно от #T-1042, детали проверки согласовывай с Jade напрямую.',
+          'Используй навык implementation для исправления ошибки #B-0317. Jade воспроизвела её на Windows. Передаю шаги воспроизведения и материалы Jade. Веди исправление отдельно от #T-1042, а детали проверки согласовывай с Jade напрямую.',
         ],
         [
           'sam',
@@ -684,7 +684,7 @@ window.NCF_STORY = {
         [
           'oscar',
           'I will review the available history and materials, then send the relevant examples.',
-          'Подниму доступную историю и материалы, затем передам подходящие примеры.',
+          'Изучу доступную историю и материалы, затем передам подходящие примеры.',
         ],
       ],
       statuses: NCF_WORK_STATUS(['Reviewing task #T-0870', 'Изучаю материалы задачи #T-0870']),
@@ -750,7 +750,7 @@ window.NCF_STORY = {
         [
           'morgan',
           'Test the candidate for bug #B-0317 on Windows. Sam implemented it. Use the verification skill and work directly with Sam on any defects. Send me your own test result when the checks pass, or report a blocker.',
-          'Проверь исправление ошибки #B-0317 на Windows. Его реализовал Sam. Используй навык verification и, если найдёшь дефекты, работай с Sam напрямую. Когда проверки пройдут, пришли мне собственный отчёт; если возникнет блокер, сообщи об этом.',
+          'Проверь на Windows исправление ошибки #B-0317, которое подготовил Sam. Используй навык verification и, если найдёшь дефекты, работай с Sam напрямую. Когда проверки пройдут, пришли мне собственный отчёт; если возникнет блокер, сообщи об этом.',
         ],
         [
           'jade',
@@ -771,15 +771,18 @@ window.NCF_STORY = {
         [
           'jade',
           "Bug #B-0317: the original file imports, but Oscar's sample creates a duplicate row. Please fix that case.",
-          'Ошибка #B-0317: исходный файл импортируется, но пример Oscar создаёт дубликат строки. Исправь этот случай.',
+          'Ошибка #B-0317: исходный файл импортируется, но при импорте примера Oscar появляется дубликат строки. Исправь ошибку на этом примере.',
         ],
         [
           'sam',
           'I will fix the duplicate-row case and send a revised candidate.',
-          'Исправлю дубликат строки и пришлю обновлённый вариант.',
+          'Устраню дубликат строки и пришлю обновлённый вариант.',
         ],
       ],
-      statuses: NCF_WORK_STATUS(['Reproducing the duplicate row', 'Воспроизвожу дубликат строки']),
+      statuses: NCF_WORK_STATUS([
+        'Reproducing the duplicate row',
+        'Воспроизвожу ошибку с дубликатом строки',
+      ]),
     },
     {
       id: 26,
@@ -794,7 +797,7 @@ window.NCF_STORY = {
         [
           'jade',
           'I will rerun both imports and the existing regression checks.',
-          'Повторю импорт обоих файлов и существующие регрессионные проверки.',
+          'Ещё раз импортирую оба файла и проведу существующие регрессионные проверки.',
         ],
       ],
       statuses: NCF_WORK_STATUS(
@@ -810,12 +813,12 @@ window.NCF_STORY = {
         [
           'jade',
           "Bug #B-0317 passed on Windows using Sam's revised candidate. Both import samples passed, along with the existing import regression checks. No issues remain in the tested scope.",
-          'Обновлённый вариант исправления #B-0317 от Sam прошёл проверку на Windows. Оба образца файлов успешно импортированы; существующие регрессионные тесты импорта тоже прошли. В проверенном объёме проблем не осталось.',
+          'Обновлённый вариант исправления #B-0317 от Sam прошёл проверку на Windows. Оба образца успешно импортированы. Существующие регрессионные тесты импорта тоже прошли. В пределах проведённой проверки проблем не выявлено.',
         ],
         [
           'morgan',
           'Received. I will include the accepted fix in the release proposal.',
-          'Приняла отчёт. Включу исправление в предложение по релизу.',
+          'Приняла отчёт. Предложу включить исправление в релиз.',
         ],
       ],
       statuses: NCF_WORK_STATUS([
@@ -832,7 +835,7 @@ window.NCF_STORY = {
         [
           'user',
           'Summarize bug #B-0317, task #T-1042 and issues #I-0201 and #I-0202. For each, tell me the outcome so far, what comes next and any decision you need from me.',
-          'Дай сводку по ошибке #B-0317, задаче #T-1042 и запросам #I-0201 и #I-0202. По каждому пункту расскажи, чего удалось добиться на данный момент, что планируется дальше и какое решение требуется от меня.',
+          'Дай сводку по ошибке #B-0317, задаче #T-1042 и запросам #I-0201 и #I-0202. По каждому пункту расскажи, что уже сделано, что планируется дальше и какое решение требуется от меня.',
         ],
         [
           'morgan',
@@ -869,7 +872,7 @@ window.NCF_STORY = {
       after: 4,
       image: 12,
       en: `<p>Tell Morgan how to accept completed tasks and when to ask you for a decision. New agents introduce themselves and describe their roles; Morgan assigns the work. A separate chat for each main task keeps conversations focused.</p>`,
-      ru: `<p>Сообщите Morgan, как принимать завершённые задачи и когда обращаться к вам за решением. Новые агенты представляются ей и называют свою роль; дальнейшую работу она распределяет сама. Для каждой основной задачи удобно завести отдельный чат, чтобы обсуждения не смешивались.</p>`,
+      ru: `<p>Сообщите Morgan, как принимать завершённые задачи и когда обращаться к вам за решением. Новые агенты представляются ей и рассказывают о своей роли. Дальше она сама распределяет работу. Для каждой основной задачи удобно завести отдельный чат, чтобы обсуждения не смешивались.</p>`,
     },
     {
       after: 7,
@@ -881,7 +884,7 @@ window.NCF_STORY = {
       after: 10,
       image: 7,
       en: `<h3>Let findings reach the working chats</h3><p>Later, two related user requests arrive. Morgan assigns them to Alice and introduces her to Leo. Alice discovers that both requests point to the same need: users set up the same search conditions every day. She sends that finding straight to Leo, who is building saved filters.</p>`,
-      ru: `<h3>Передавайте выводы в рабочие чаты</h3><p>Позже приходят два связанных запроса пользователей. Morgan поручает их Alice и знакомит её с Leo. Alice выясняет, что за обоими запросами стоит одна потребность: пользователи каждый день заново задают одинаковые условия поиска. Этот вывод она сразу передаёт Leo, который разрабатывает сохранённые фильтры.</p>`,
+      ru: `<h3>Передавайте выводы в рабочие чаты</h3><p>Позже приходят два связанных запроса пользователей. Morgan поручает Alice разобраться с запросами и знакомит её с Leo. Alice выясняет, что за обоими запросами стоит одна потребность: пользователи каждый день заново задают одинаковые условия поиска. Этот вывод она сразу передаёт Leo, который разрабатывает сохранённые фильтры.</p>`,
     },
     {
       after: 11,
@@ -894,7 +897,7 @@ window.NCF_STORY = {
       after: 11,
       image: 11,
       en: `<h3>Investigate the Windows bug</h3><p>A user reports that import fails on Windows. Other agents are already working on the feature and the requests. Morgan asks Jade to reproduce the failure on Windows.</p>`,
-      ru: `<h3>Разберите ошибку на Windows</h3><p>Пользователь сообщает, что импорт на Windows не работает. Другие агенты уже заняты функцией и анализом запросов. Morgan обращается к Jade, чтобы она воспроизвела ошибку на Windows.</p>`,
+      ru: `<h3>Разберите ошибку на Windows</h3><p>Пользователь сообщает, что импорт на Windows не работает. Другие агенты уже работают над новой функцией и анализируют запросы. Morgan обращается к Jade, чтобы она воспроизвела ошибку на Windows.</p>`,
     },
     {
       after: 16,
@@ -906,7 +909,7 @@ window.NCF_STORY = {
       after: 17,
       image: 11,
       en: `<p>Morgan gives Sam the steps to reproduce the bug and arranges verification with Jade. Sam fixes it; Jade checks the result on Windows. Meanwhile, Leo continues the filters and Alice analyzes the requests. You change the release order without stopping the other work.</p>`,
-      ru: `<p>Morgan передаёт Sam шаги воспроизведения и организует проверку исправления с Jade. Sam устраняет ошибку, Jade проверяет результат на Windows. Тем временем Leo продолжает работу над фильтрами, а Alice — анализ запросов. Вы меняете порядок релизов, не останавливая остальные задачи.</p>`,
+      ru: `<p>Morgan передаёт Sam шаги воспроизведения и договаривается с Jade о проверке исправления. Sam устраняет ошибку, Jade проверяет результат на Windows. Тем временем Leo продолжает работу над фильтрами, а Alice — анализ запросов. Вы меняете порядок релизов, не останавливая остальные задачи.</p>`,
     },
     {
       after: 21,
@@ -918,7 +921,7 @@ window.NCF_STORY = {
       after: 21,
       image: 11,
       en: `<h3>Files and history stay in your hands</h3><p>Message history and copies of attachments are stored locally on the participants’ computers. Read about storage and file transfer in the <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">data guide</a>. To continue an agent’s work in another chat, see how to move its name and local history in the <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">desktop controls</a>.</p>`,
-      ru: `<h3>Файлы и история остаются под вашим контролем</h3><p>История сообщений и копии вложений сохраняются локально на компьютерах участников. Как устроены хранение и передача файлов, описано в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">руководстве</a>. Если агенту нужно продолжить работу в другом чате, порядок переноса его имени и локальной истории описан в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">настройках приложения</a>.</p>`,
+      ru: `<h3>Файлы и история остаются под вашим контролем</h3><p>История сообщений и копии вложений сохраняются локально на компьютерах участников. Как устроены хранение и передача файлов, описано в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">руководстве</a>. Если агенту нужно продолжить работу в другом чате, порядок переноса его имени и локальной истории описан в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">руководстве по настройкам приложения</a>.</p>`,
     },
     {
       after: 22,
@@ -942,13 +945,13 @@ window.NCF_STORY = {
       after: 24,
       image: 16,
       en: `<p>In the desktop app you can review an agent’s history and remove its local data when needed. The <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md#remove-local-agents-and-history">agent controls</a> explain what is removed.</p>`,
-      ru: `<p>В окне приложения можно просмотреть историю агента и при необходимости удалить его локальные данные. Что входит в удаление, показано в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md#remove-local-agents-and-history">руководстве по управлению агентами</a>.</p>`,
+      ru: `<p>В окне приложения можно просмотреть историю агента и при необходимости удалить его локальные данные. Какие данные удаляются, описано в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md#remove-local-agents-and-history">руководстве по управлению агентами</a>.</p>`,
     },
     {
       after: 27,
       image: 18,
       en: `<p>Jade reports the check to Morgan. Sam and Jade resolve findings directly while the other work continues. Morgan accepts the fix after independent verification and prepares the release proposal. You can adjust the goal in her chat when circumstances change.</p>`,
-      ru: `<p>Jade сообщает Morgan итоги проверки. Sam и Jade разбирают замечания напрямую, пока остальные задачи продолжаются. Morgan принимает исправление по результатам независимой проверки и готовит предложение для релиза. Вы можете уточнить цель в её чате, когда обстоятельства изменятся.</p>`,
+      ru: `<p>Jade сообщает Morgan итоги проверки. Sam и Jade разбирают замечания напрямую, пока работа над остальными задачами продолжается. Morgan принимает исправление по результатам независимой проверки и готовит предложение для релиза. Вы можете уточнить цель в её чате, когда обстоятельства изменятся.</p>`,
     },
     {
       after: 27,
@@ -960,7 +963,7 @@ window.NCF_STORY = {
       after: 28,
       image: 18,
       en: `<h3>Receive the result and decide what ships</h3><p>Before publication, Morgan brings you one summary: what was fixed, how the Windows check went and what remains open. You decide whether the fix addresses the user’s problem and what belongs in the release. Work on saved filters continues separately.</p>`,
-      ru: `<h3>Получите результат и решите, что выпускать</h3><p>Перед публикацией Morgan собирает для вас одну сводку: что исправлено, как прошла проверка на Windows и какие вопросы ещё открыты. Вы решаете, отвечает ли исправление потребности пользователя и что включить в релиз. Работа над сохранёнными фильтрами продолжается отдельно.</p>`,
+      ru: `<h3>Получите результат и решите, что выпускать</h3><p>Перед публикацией Morgan готовит для вас общую сводку: что исправлено, как прошла проверка на Windows и какие вопросы ещё открыты. Вы решаете, отвечает ли исправление потребности пользователя и что включить в релиз. Работа над сохранёнными фильтрами продолжается отдельно.</p>`,
     },
   ],
 };
