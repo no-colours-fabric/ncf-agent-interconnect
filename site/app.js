@@ -784,19 +784,12 @@ function localizeStatic(lang) {
     if (attribute) node.setAttribute(attribute, value);
     else node.textContent = value;
   };
-  document.title =
-    site.home && document.body.classList.contains('review-home')
-      ? site.home[0]
-      : document.body.classList.contains('review-holiday')
-        ? site.holiday[0]
-        : site.development[0];
+  document.title = document.body.classList.contains('review-holiday')
+    ? site.holiday[0]
+    : site.development[0];
   set(
     'meta[name="description"]',
-    document.body.classList.contains('review-home')
-      ? site.home[1]
-      : document.body.classList.contains('review-holiday')
-        ? site.holiday[1]
-        : site.development[1],
+    document.body.classList.contains('review-holiday') ? site.holiday[1] : site.development[1],
     'content',
   );
   set('.skip-link', COPY[lang].skip);
@@ -813,60 +806,7 @@ function localizeStatic(lang) {
     });
     set('.story-license', COPY[lang].license);
   }
-  if (document.body.classList.contains('review-home')) {
-    const home = site.home;
-    const nav = document.querySelectorAll('.main-nav a');
-    nav[0].textContent = shared[1];
-    nav[1].textContent = COPY[lang].navStart;
-    document.querySelectorAll('.review-home-copy > p').forEach((node, index) => {
-      node.textContent = home[2 + index];
-    });
-    set('#stories-title', home[4]);
-    document.querySelectorAll('.review-story-feature').forEach((article, index) => {
-      const offset = index === 0 ? 5 : 8;
-      article.querySelector('h3').textContent = home[offset];
-      article.querySelector('p').textContent = home[offset + 1];
-      article.querySelector('img').alt = home[offset + 2];
-      article.querySelector('.review-story-link').textContent = COPY[lang].readStory;
-    });
-    set('#home-more-title', home[11]);
-    set('.review-home-section-intro > p', home[12]);
-    document.querySelectorAll('.review-home-methods article').forEach((article, index) => {
-      article.querySelector('h3').textContent = home[13 + index * 2];
-      article.querySelector('p').textContent = home[14 + index * 2];
-    });
-    set('#home-conversation-title', home[21]);
-    document
-      .querySelectorAll('.review-home-conversation-inner > div > p')
-      .forEach((node, index) => {
-        node.textContent = home[22 + index];
-      });
-    set('#home-environments-title', home[24]);
-    document.querySelectorAll('.review-home-environments-copy > p').forEach((node, index) => {
-      node.textContent = home[25 + index];
-    });
-    set('.review-home-environments-copy > a', home[27]);
-    set('#home-materials-title', home[28]);
-    document.querySelectorAll('.review-home-materials-copy > p').forEach((node, index) => {
-      node.textContent = home[29 + index];
-    });
-    set('.review-home-materials-copy > a', home[31]);
-    set('.guide > .eyebrow', home[32]);
-    set('#guide-title', home[33]);
-    document.querySelectorAll('.guide-grid .guide-item').forEach((article, index) => {
-      article.querySelector('h3').textContent = home[34 + index * 3];
-      article.querySelector('p').textContent = home[35 + index * 3];
-      article.querySelector('a').textContent = home[36 + index * 3];
-    });
-    set('.start .eyebrow', home[46]);
-    set('#start-title', home[47]);
-    set('.start-copy > p:not(.eyebrow):not(.download-note)', home[48]);
-    set('.download-note', home[49]);
-    set('.start-actions .button-primary', shared[3]);
-    set('.start-actions .button-secondary', shared[2]);
-    set('.footer-links a:first-child', shared[4]);
-    set('.footer-links a:last-child', COPY[lang].license);
-  } else if (document.body.classList.contains('review-development')) {
+  if (document.body.classList.contains('review-development')) {
     const development = site.development;
     set('.hero .eyebrow', development[2]);
     set('#hero-title', development[3]);
