@@ -1,0 +1,65 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="510" viewBox="0 40 1200 510" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Agents working together across OpenCode and Codex</title>
+  <desc id="desc">Windows runs OpenCode with Amy, Ben and Joe. macOS runs Codex with Kate, Max and Sam. Joe coordinates five connections. Separate opposing arrows show two-way communication with Amy and Kate. Ben and Sam send results to Joe; Joe sends tasks to Max. Kate sends materials to Max, and Max to Sam. Parcel icons mark transfers from Ben to Amy and Sam.</desc>
+  <defs>
+    <marker id="arrow-blue" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto-start-reverse" markerUnits="userSpaceOnUse"><path d="m1 1 6 3.5L1 8" stroke="#a9d6f5" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <marker id="arrow-green" markerWidth="9" markerHeight="9" refX="7" refY="4.5" orient="auto" markerUnits="userSpaceOnUse"><path d="m1 1 6 3.5L1 8" stroke="#a1d8be" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></marker>
+    <g id="icon-interface" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="-18" y="-14" width="36" height="28" rx="4"/><path d="M-18-5h36M-7-5v19M-12-10h1m5 0h1M0 2h11M0 8h7"/></g>
+    <g id="icon-check" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M-9-15h20a4 4 0 0 1 4 4v25h-30v-25a4 4 0 0 1 4-4"/><rect x="-7" y="-19" width="14" height="8" rx="3"/><path d="m-8 2 6 6L9-4"/></g>
+    <g id="icon-coordinate" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cy="-12" r="6"/><circle cx="-15" cy="13" r="6"/><circle cx="15" cy="13" r="6"/><path d="M0-6v8m0 0-11 7M0 2l11 7"/></g>
+    <g id="icon-document" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M-13-18H4l10 10v26h-27zM4-18v10h10M-6-1H7M-6 6H7M-6 12h8"/></g>
+    <g id="icon-code" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m-10-11-10 11 10 11M10-11 20 0 10 11M5-17-5 17"/></g>
+    <g id="icon-build" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m0-19 18 10v20L0 21l-18-10V-9zM-18-9 0 1l18-10M0 1v20M-9-14 9-4v10"/></g>
+    <style>
+      text { font-family: 'Trebuchet MS', Arial, sans-serif; fill: #edf5fb; }
+      .os { font-size: 23px; font-weight: 700; }
+      .app { font-size: 22px; font-weight: 700; }
+      .name { font-size: 24px; font-weight: 700; }
+      .role { font-size: 15px; fill: #c8dce9; }
+      .card { fill: #365a72; stroke: #8bb1ca; stroke-width: 1.6; }
+      .icon { color: #a9d6f5; }
+      .blue-arrow { stroke: #a9d6f5; stroke-width: 2.6; marker-end: url(#arrow-blue); }
+      .one-way { stroke: #a1d8be; stroke-width: 2.6; marker-end: url(#arrow-green); }
+    </style>
+  </defs>
+  <!-- Windows desktop and macOS laptop, drawn with slightly irregular outlines. -->
+  <path d="m53 126 490-2q18 1 18 20l-2 317q-1 17-19 17l-484-1q-18-1-18-20l2-312q0-17 13-19Z" fill="#35566d" stroke="#94b8ce" stroke-width="2.2"/>
+  <path d="m54 138 490-1-1 308-488 1Z" fill="#203b50" stroke="#658ba5"/>
+  <path d="m269 478-4 35h71l-5-35M244 518q53-8 113 0" fill="#35566d" stroke="#94b8ce" stroke-width="2" stroke-linecap="round"/>
+  <circle cx="299" cy="462" r="3" fill="#a6c6da"/>
+  <path d="m655 125 488 1q17 0 17 20l-1 327-522-1 1-326q0-20 17-21Z" fill="#35566d" stroke="#94b8ce" stroke-width="2.2"/>
+  <path d="m653 140 491 1-1 314-490-1Z" fill="#203b50" stroke="#658ba5"/>
+  <path d="m622 476 551 1-17 25q-4 7-21 7l-470-1q-17 0-23-7Z" fill="#3c6078" stroke="#94b8ce" stroke-width="2.2"/>
+  <path d="M847 477v8h100v-8" stroke="#a2c4db" stroke-width="2"/>
+  <!-- OS labels and application chrome. -->
+  <g transform="translate(61 66)"><path d="M0 0h13v13H0zm17 0h13v13H17zM0 17h13v13H0zm17 0h13v13H17z" fill="#acd7f3"/><text class="os" x="44" y="24">Windows</text></g>
+  <g transform="translate(658 66)"><rect width="31" height="30" rx="8" fill="#466b83" stroke="#a2c4db"/><path d="M8 11h1m13 0h1M16 4l-3 15h6M8 23q8 5 15-1" stroke="#e0f0fa" stroke-width="1.7" stroke-linecap="round"/><text class="os" x="44" y="24">macOS</text></g>
+  <path d="M55 193h488M654 193h490" stroke="#50758e"/>
+  <g transform="translate(77 162)" stroke="#c0dff2" stroke-width="2" stroke-linecap="round"><path d="m0-6 7 6-7 6M12 7h9"/><text class="app" x="35" y="8" stroke="none">OpenCode</text></g>
+  <g transform="translate(676 162)" stroke="#c0dff2" stroke-width="2" stroke-linecap="round"><path d="m0-7-6 7 6 7m16-14 6 7-6 7M10-10 6 10"/><text class="app" x="37" y="8" stroke="none">Codex</text></g>
+  <g fill="#8eafc5"><circle cx="496" cy="164" r="3"/><circle cx="508" cy="164" r="3"/><circle cx="520" cy="164" r="3"/><circle cx="1097" cy="164" r="3"/><circle cx="1109" cy="164" r="3"/><circle cx="1121" cy="164" r="3"/></g>
+  <!-- Arrowheads describe actual direction; Joe is the hub of five connections. -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <path class="blue-arrow" d="M242 246C291 249 307 280 359 299"/>
+    <path class="blue-arrow" d="M359 321C299 302 282 274 240 269"/>
+    <path class="one-way" d="M242 383C300 385 301 365 359 352"/>
+    <path class="blue-arrow" d="M518 299C594 275 623 242 716 242"/>
+    <path class="blue-arrow" d="M716 266C626 266 600 298 517 322"/>
+    <path class="one-way" d="M520 339C665 332 801 343 946 339"/>
+    <path class="one-way" d="M716 386C618 395 596 377 517 361"/>
+    <path class="one-way" d="M870 247C958 224 1017 231 1022 279"/>
+    <path class="one-way" d="M1022 381C1020 422 958 419 868 400"/>
+    <path class="one-way" style="stroke-width: 3.2" d="M164 348C159 331 159 314 164 295"/>
+    <path class="one-way" d="M242 410C380 434 562 430 716 413"/>
+  </g>
+  <!-- Parcels identify material transfers on Ben's two direct connections. -->
+  <g transform="translate(160.5 322)"><circle r="12" fill="#5b493d" stroke="#e0bc94"/><use href="#icon-build" transform="scale(.42)" color="#f4d1a3"/></g>
+  <g transform="translate(478 426.4)"><circle r="17" fill="#5b493d" stroke="#e0bc94"/><use href="#icon-build" transform="scale(.56)" color="#f4d1a3"/></g>
+  <!-- Each card is an agent, with a role icon rather than a portrait. -->
+  <g transform="translate(90.2 206.5) scale(.9)"><rect x="4" y="5" width="164" height="90" rx="17" fill="#162d3e"/><rect class="card" width="164" height="90" rx="17"/><use class="icon" href="#icon-interface" transform="translate(37 35)"/><text class="name" x="70" y="43">Amy</text><text class="role" x="20" y="74">Interface</text></g>
+  <g transform="translate(90.2 350.5) scale(.9)"><rect x="4" y="5" width="164" height="90" rx="17" fill="#162d3e"/><rect class="card" width="164" height="90" rx="17"/><use class="icon" href="#icon-check" transform="translate(37 35)"/><text class="name" x="70" y="43">Ben</text><text class="role" x="20" y="74">Testing</text></g>
+  <g transform="translate(360.6 281.2) scale(.9)"><rect x="5" y="6" width="172" height="104" rx="19" fill="#152b3b" opacity=".55"/><rect width="172" height="104" rx="19" fill="#5b493d" stroke="#e2b27e" stroke-width="2.5"/><use href="#icon-coordinate" transform="translate(40 41)" color="#f4d1a3"/><text class="name" x="76" y="49">Joe</text><text x="20" y="85" font-size="16" font-weight="700" fill="#f4d1a3">Coordinator</text></g>
+  <g transform="translate(718.2 206.5) scale(.9)"><rect x="4" y="5" width="164" height="90" rx="17" fill="#162d3e"/><rect class="card" width="164" height="90" rx="17"/><use class="icon" href="#icon-document" transform="translate(37 35)"/><text class="name" x="70" y="43">Kate</text><text class="role" x="17" y="74">Documentation</text></g>
+  <g transform="translate(948.2 281.2) scale(.9)"><rect x="4" y="5" width="164" height="104" rx="17" fill="#162d3e"/><rect class="card" width="164" height="104" rx="17"/><use class="icon" href="#icon-code" transform="translate(37 41)"/><text class="name" x="70" y="49">Max</text><text class="role" x="20" y="85">Development</text></g>
+  <g transform="translate(718.2 350.5) scale(.9)"><rect x="4" y="5" width="164" height="90" rx="17" fill="#162d3e"/><rect class="card" width="164" height="90" rx="17"/><use class="icon" href="#icon-build" transform="translate(37 35)"/><text class="name" x="70" y="43">Sam</text><text class="role" x="20" y="74">Build</text></g>
+</svg>
