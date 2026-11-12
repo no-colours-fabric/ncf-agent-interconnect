@@ -1141,10 +1141,10 @@
   gap: 32px;
   max-width: var(--concept-width);
   margin: 0 auto;
-  padding: 12px 44px;
+  padding: 12px 44px 64px;
 }
 .concept-product-copy h1 {
-  margin: 0 0 16px;
+  margin: 0 0 32px;
   font-size: clamp(2.4rem, 4.3vw, 4.25rem);
   line-height: 1.08;
   letter-spacing: -0.04em;
@@ -1168,7 +1168,7 @@
   .concept-product-heading {
     grid-template-columns: minmax(0, 1fr) 140px;
     gap: 12px;
-    padding: 12px 24px;
+    padding: 12px 24px 48px;
   }
   .concept-product-banner {
     margin-bottom: 32px;
@@ -1185,7 +1185,7 @@
   }
   .concept-product-copy h1 {
     font-size: 1.85rem;
-    margin-bottom: 12px;
+    margin-bottom: 24px;
   }
   .concept-product-copy p {
     font-size: 0.95rem;
