@@ -1176,6 +1176,7 @@
   .concept-product-logo {
     width: 140px;
     height: 140px;
+    align-self: start;
   }
 }
 @media (max-width: 480px) {
@@ -1270,6 +1271,7 @@
     font-size: 2.2rem;
   }
   .concept-overview-image {
+    width: 100%;
     margin-bottom: 28px;
   }
   .concept-overview-steps {
