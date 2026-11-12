@@ -1168,7 +1168,7 @@
   .concept-product-heading {
     grid-template-columns: minmax(0, 1fr) 140px;
     gap: 12px;
-    padding: 80px 24px;
+    padding: 45px 24px;
   }
   .concept-product-banner {
     margin-bottom: 32px;
