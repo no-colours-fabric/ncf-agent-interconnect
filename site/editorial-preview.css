@@ -138,7 +138,7 @@
   margin: 10px 0 0;
 }
 .concept-section-1 .concept-demo {
-  margin-top: 35px;
+  margin-top: 0;
 }
 .demo-caption {
   display: flex;
@@ -1290,7 +1290,7 @@
 .concept-walkthrough-heading {
   max-width: var(--concept-width);
   margin: 0 auto 48px;
-  padding: 0 44px;
+  padding: 0;
 }
 .concept-walkthrough-heading h2 {
   margin: 0 0 12px;
@@ -1307,7 +1307,6 @@
 }
 @media (max-width: 800px) {
   .concept-walkthrough-heading {
-    padding: 0 24px;
     margin-bottom: 36px;
   }
   .concept-walkthrough-heading h2 {
@@ -1376,10 +1375,10 @@
 }
 
 .concept-section-1 {
-  padding-top: 96px;
+  padding-block: 128px;
 }
 @media (max-width: 800px) {
   .concept-section-1 {
-    padding-top: 64px;
+    padding-block: 96px;
   }
 }
