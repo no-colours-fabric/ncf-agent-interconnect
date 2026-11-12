@@ -1155,6 +1155,9 @@
   font-size: clamp(1.05rem, 1.7vw, 1.4rem);
   line-height: 1.5;
 }
+.concept-product-copy p + p {
+  margin-top: 1em;
+}
 .concept-product-logo {
   width: 240px;
   height: 240px;
