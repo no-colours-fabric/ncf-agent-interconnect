@@ -1141,7 +1141,7 @@
   gap: 32px;
   max-width: var(--concept-width);
   margin: 0 auto;
-  padding: 12px 44px 64px;
+  padding: 112px 44px;
 }
 .concept-product-copy h1 {
   margin: 0 0 32px;
@@ -1168,7 +1168,7 @@
   .concept-product-heading {
     grid-template-columns: minmax(0, 1fr) 140px;
     gap: 12px;
-    padding: 12px 24px 48px;
+    padding: 80px 24px;
   }
   .concept-product-banner {
     margin-bottom: 32px;
@@ -1375,10 +1375,10 @@
 }
 
 .concept-section-1 {
-  padding-block: 128px;
+  padding-top: 96px;
 }
 @media (max-width: 800px) {
   .concept-section-1 {
-    padding-block: 96px;
+    padding-top: 64px;
   }
 }
