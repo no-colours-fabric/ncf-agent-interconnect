@@ -5,6 +5,14 @@ on:
     branches: [main]
     paths:
       - 'site/**'
+      - 'README.md'
+      - 'llms.txt'
+      - 'docs/*.md'
+      - 'docs/scenarios/*.md'
+      - 'docs/assets/agents-preview.png'
+      - 'docs/assets/app-preview.png'
+      - 'distribution/README.md'
+      - 'scripts/pages/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -25,9 +33,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
       - uses: actions/configure-pages@v5
+      - name: Install documentation renderer
+        run: npm ci --prefix scripts/pages --ignore-scripts
+      - name: Build static documentation
+        run: node scripts/pages/build.mjs
       - uses: actions/upload-pages-artifact@v4
         with:
-          path: site
+          path: .local/pages-artifact
       - id: deployment
         uses: actions/deploy-pages@v4
