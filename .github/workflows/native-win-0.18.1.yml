@@ -1,0 +1,97 @@
+name: Windows native 0.18.1 acceptance (temporary)
+
+on:
+  push:
+    branches: [codex/native-win-0.18.1]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-win-0.18.1
+  cancel-in-progress: false
+
+jobs:
+  native:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+        working-directory: product
+    steps:
+      - name: Check out the temporary QA wrapper
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: wrapper
+          persist-credentials: false
+      - name: Check out the exact product freeze
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: b522648f9b52798c52bbf04f2f67b1312da53a2b
+          path: product
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: product/package-lock.json
+      - name: Install the product's pinned dependencies once
+        run: |
+          New-Item -ItemType Directory "$env:GITHUB_WORKSPACE/qa-results" -Force | Out-Null
+          $releaseSha = (git rev-parse HEAD).Trim()
+          if ($releaseSha -ne 'b522648f9b52798c52bbf04f2f67b1312da53a2b') { throw 'Wrong product source revision' }
+          npm ci --no-audit --no-fund 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/npm-ci.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Build and verify the native EXE without repeating the shared source pass
+        run: |
+          $env:GITHUB_SHA = (git rev-parse HEAD).Trim()
+          npm run build:release -- --win --skip-source-checks 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/native-build.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Retain the exact installer and compact package evidence before GUI acceptance
+        run: |
+          $installer = 'NCF-Agent-Interconnect-0.18.1-win-x64.exe'
+          $sourceInstaller = Join-Path 'release' $installer
+          $retainedDirectory = Join-Path 'release' '0.18.1'
+          $retainedInstaller = Join-Path $retainedDirectory $installer
+          New-Item -ItemType Directory $retainedDirectory -Force | Out-Null
+          if (Test-Path $retainedInstaller) { throw 'Refusing to replace a retained installer' }
+          [System.IO.File]::Copy((Resolve-Path $sourceInstaller).Path, (Join-Path (Get-Location).Path $retainedInstaller), $false)
+          $digest = (Get-FileHash $retainedInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
+          $checksumLine = Get-Content 'release/SHA256SUMS' | Where-Object { $_.EndsWith('  ' + $installer) }
+          if ($checksumLine -ne ($digest + '  ' + $installer)) { throw 'Retained installer hash mismatch' }
+          @{
+            sourceRevision = (git rev-parse HEAD).Trim()
+            wrapperRevision = '${{ github.sha }}'
+            version = '0.18.1'
+            platform = 'win32'
+            architecture = 'x64'
+            nativeBuildMachine = 'GitHub-hosted windows-latest'
+            installer = $installer
+            bytes = (Get-Item $retainedInstaller).Length
+            sha256 = $digest
+            liveClaudeCodeTested = $false
+          } | ConvertTo-Json | Set-Content "$env:GITHUB_WORKSPACE/qa-results/retained-win.json"
+          Copy-Item 'release/verification.json' "$env:GITHUB_WORKSPACE/qa-results/verification-x64.json"
+      - name: Smoke the same packaged EXE and observe natural main-process exit
+        env:
+          NCF_SMOKE_EXPECTED_SHA: b522648f9b52798c52bbf04f2f67b1312da53a2b
+          NCF_SMOKE_EXPECTED_VERSION: 0.18.1
+        run: |
+          $env:NCF_SMOKE_SOURCE_ROOT = (Get-Location).Path
+          $env:NCF_SMOKE_REPORT = "$env:GITHUB_WORKSPACE/qa-results/packaged-quit.json"
+          $env:INTERCONNECT_TEST_EXECUTABLE = (Resolve-Path 'release/win-unpacked/NCF Agent Interconnect.exe').Path
+          node --experimental-sqlite "$env:GITHUB_WORKSPACE/wrapper/.github/qa/native-packaged-smoke.mjs" 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/packaged-smoke.log"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Copy-Item 'release/preview-*.png' "$env:GITHUB_WORKSPACE/qa-results/"
+      - name: Preserve the installer and bounded QA outside the disposable runner
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-win-0.18.1-b522648
+          path: |
+            product/release/0.18.1/
+            qa-results/
+          if-no-files-found: error
+          retention-days: 14
+          compression-level: 0
