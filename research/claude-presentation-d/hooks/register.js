@@ -17,14 +17,16 @@ export function register(on) {
     if (e.props.isRunning) return textTree('NCF Agent Interconnect: receiving messages…');
     if (isOwnResult(e.props)) {
       const page = pageFrom(e.props.output);
-      return textTree(incomingText(page) + (e.props.isExpanded ? expandedMetadata(page) : ''));
+      return textTree(incomingText(page));
     }
     // Host errors, refusals, interruption and unknown result schemas stay intact.
     return next(e);
   });
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
     if (e.surface !== 'terminal' || !hasOwnReadIdentity(e) || !isOwnResult(e.props)) return next(e);
-    return textTree('');
+    // ToolUse.isExpanded includes forced group layout; this site's expansion
+    // denotes the explicit full transcript. Never copy the body into diagnostics.
+    return textTree(e.props.isExpanded === true ? expandedMetadata(pageFrom(e.props.output)) : '');
   });
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
     if (

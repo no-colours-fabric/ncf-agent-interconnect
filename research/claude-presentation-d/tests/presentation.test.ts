@@ -150,14 +150,17 @@ test('ToolUse is sole content site across collapsed expanded repeat remount and 
   for (const isExpanded of [false, true, false]) {
     const p = props({ isExpanded });
     const result = await render($, event('ToolResult', p));
-    expect(result.children).toEqual(['']);
+    if (isExpanded) {
+      expect(result.children[0]).toContain('Returned page metadata');
+      expect(result.children[0]).not.toContain('D-PROBE-001');
+    } else expect(result.children).toEqual(['']);
     const first = await render($, event('ToolUse', p));
     expect(first.children[0]).toContain('From: Боб 漢字');
     expect(first.children[0]).toContain('Точный текст 漢字');
     expect(await render($, event('ToolUse', p))).toEqual(first);
     expect(await render($, event('ToolResult', p))).toEqual(result);
     expect(first.children[0].split('D-PROBE-001').length).toBe(2);
-    if (isExpanded) expect(first.children[0]).toContain('Returned page metadata');
+    expect(first.children[0]).not.toContain('Returned page metadata');
   }
   const ui = await $.ui.mount({
     plugin: 'ncf-incoming-presentation-probe',
@@ -177,6 +180,21 @@ test('ToolUse is sole content site across collapsed expanded repeat remount and 
   });
   expect((await again.drawn()).children[0]).toContain('Incoming NCF Agent Interconnect');
   await again.unmount();
+});
+
+test('forced group expansion keeps diagnostics closed until explicit ToolResult expansion', async ($, on) => {
+  fallback(on);
+  const body = await render($, event('ToolUse', props({ isExpanded: true })));
+  const compact = await render($, event('ToolResult', props({ isExpanded: false })));
+  const full = await render($, event('ToolResult', props({ isExpanded: true })));
+  const joined = (result) => body.children[0] + result.children[0];
+  expect(joined(compact).split('D-PROBE-001').length - 1).toBe(1);
+  expect(joined(compact).split('Returned page metadata').length - 1).toBe(0);
+  expect(joined(full).split('D-PROBE-001').length - 1).toBe(1);
+  expect(joined(full).split('Returned page metadata').length - 1).toBe(1);
+  expect((await render($, event('ToolResult', props({ isExpanded: undefined })))).children).toEqual(
+    [''],
+  );
 });
 
 test('history foreign tool surface failures and unsupported output retain native content', async ($, on) => {

@@ -70,9 +70,23 @@ No auth, settings, raw input/proof/token, real conversation or personal paths.
 ## Rendering boundary
 
 ToolUse is the only Incoming body site, also when a group unfolds. A separate
-ToolResult is empty only for the same exact tool/request ID and valid actual
-page. There is no seen-ID cache. Expanded ToolUse preserves all page fields:
-body once in Incoming, other fields in metadata with an explicit text reference.
+ToolResult contains no body; for the same exact nonempty tool/request IDs and a
+valid actual page, it is empty in compact view and shows only page metadata
+when its own `isExpanded` is true. Forced ToolGroup layout expansion does not
+open diagnostics. There is no seen-ID cache. Body appears once in ToolUse;
+explicitly expanded ToolResult retains all other fields with a text reference.
 Errors, interruption, unknown shapes, history and foreign tools keep native
 rendering. The notification rewrite is display-only and never contains a body.
 Only terminal rendering is attempted; no Desktop/VS Code claim is made.
+
+### Follow-up after a prior native proof
+
+If the first/subsequent arrival and failure were already measured on `f5358eb`,
+retain those exact results. Do not repeat the entire campaign. On the corrected
+source, observe one missing compact-to-Ctrl+O transition and the strict identity
+gate: visible custom Incoming proves the nonempty IDs passed on that source;
+transcript IDs alone do not. Reuse a retained row if its actual output remains
+available; otherwise use at most one new synthetic arrival. Default view must
+show body once and no metadata JSON; expanded view body once and metadata once.
+Obtain the real owner's observation for that difference. If identity, result
+site or expansion flag is unavailable, record the boundary without relaxing it.
