@@ -11,6 +11,20 @@ import { z } from 'zod';
 import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
+import { helperHelloSchema, type ClaudeHelper, type WakeSink } from './claude-sessions.js';
+import {
+  canonicalInputHash,
+  claudeCallMetaKey,
+  claudeDeliveryMetaKey,
+} from '../integrations/claude-code.js';
+
+/** A read result released to a Claude Code helper under one delivery attempt. */
+class ClaudeRelease {
+  constructor(
+    readonly result: unknown,
+    readonly delivery?: string,
+  ) {}
+}
 
 export function createAgentMcp(
   service: NodeService,
@@ -39,22 +53,61 @@ export function createAgentMcp(
     readOnlyHint: boolean,
     handler: (
       args: z.infer<z.ZodObject<T>>,
-      extra: { _meta?: Record<string, unknown> },
+      extra: {
+        _meta?: Record<string, unknown>;
+        requestId?: string | number;
+        /** The admitted Claude Code call permit, when this is one. */
+        claudePermit?: string;
+      },
     ) => unknown | Promise<unknown>,
     destructiveHint = false,
   ): void {
     const callback = async (
       args: z.infer<z.ZodObject<T>>,
-      extra: { _meta?: Record<string, unknown> },
+      extra: { _meta?: Record<string, unknown>; requestId?: string | number },
     ): Promise<CallToolResult> => {
+      let delivery: string | undefined;
       try {
-        const result = await handler(args as z.infer<z.ZodObject<T>>, extra);
+        const currentCall = () => {
+          const client = mcp.server.getClientVersion()?.name;
+          const permit = extra._meta?.[claudeCallMetaKey];
+          if (client !== 'Claude Code' && permit === undefined) return;
+          if (
+            client !== 'Claude Code' ||
+            typeof permit !== 'string' ||
+            extra.requestId === undefined
+          )
+            throw new Error('The Claude Code call admission is unavailable.');
+          service.claude.assertCall(
+            permit,
+            name,
+            sessionKey,
+            extra.requestId,
+            (args as Record<string, unknown>).contextToken,
+          );
+        };
+        // This synchronous check is the final admission boundary. No await
+        // separates it from handler invocation or the result-release check.
+        currentCall();
+        const permit = extra._meta?.[claudeCallMetaKey];
+        const output = await handler(args as z.infer<z.ZodObject<T>>, {
+          ...extra,
+          ...(typeof permit === 'string' && mcp.server.getClientVersion()?.name === 'Claude Code'
+            ? { claudePermit: permit }
+            : {}),
+        });
+        const result = output instanceof ClaudeRelease ? output.result : output;
+        delivery = output instanceof ClaudeRelease ? output.delivery : undefined;
+        currentCall();
         touch();
         return {
           content: [{ type: 'text' as const, text: JSON.stringify(result) }],
           structuredContent: result as Record<string, unknown>,
+          ...(delivery ? { _meta: { [claudeDeliveryMetaKey]: delivery } } : {}),
         };
       } catch (e) {
+        // The error result carries no content, so the attempt ends without receipt.
+        if (delivery) service.store.cancelClaudeDelivery(delivery, 'The call lost its authority');
         return { isError: true, content: [{ type: 'text' as const, text: (e as Error).message }] };
       }
     };
@@ -121,7 +174,7 @@ export function createAgentMcp(
         .uuid()
         .optional()
         .describe(
-          'Integration-owned one-use current-chat context. The installed Cursor, OpenCode or AionUi integration injects this automatically; otherwise omit.',
+          'Integration-owned one-use current-chat context. The installed Cursor, OpenCode, AionUi or Claude Code integration injects this automatically; otherwise omit.',
         ),
     },
     false,
@@ -162,9 +215,17 @@ export function createAgentMcp(
     'Receive new messages and verified attachments. Returned messages are automatically marked received by the agent; no separate confirmation is needed. Paginate with nextCursor and hasMore.',
     read,
     false,
-    (args) => {
+    async (args, extra) => {
       touch(args.connectionId);
-      return service.read(args.connectionId, args.after, args.limit, true);
+      if (!extra.claudePermit) return service.read(args.connectionId, args.after, args.limit, true);
+      const released = await service.readClaude(
+        args.connectionId,
+        args.after,
+        args.limit,
+        true,
+        extra.claudePermit,
+      );
+      return new ClaudeRelease(released.result, released.delivery);
     },
   );
   register(
@@ -172,9 +233,18 @@ export function createAgentMcp(
     'Get persistent incoming and outgoing history. Incoming messages returned here are also marked received by the agent. Paginate with nextCursor and hasMore.',
     read,
     false,
-    (args) => {
+    async (args, extra) => {
       touch(args.connectionId);
-      return service.read(args.connectionId, args.after, args.limit, false);
+      if (!extra.claudePermit)
+        return service.read(args.connectionId, args.after, args.limit, false);
+      const released = await service.readClaude(
+        args.connectionId,
+        args.after,
+        args.limit,
+        false,
+        extra.claudePermit,
+      );
+      return new ClaudeRelease(released.result, released.delivery);
     },
   );
   register(
@@ -328,8 +398,23 @@ export class McpEndpoint {
       reject(401, 'Unauthorized');
       return;
     }
+    if (req.url === '/integrations/claude/helper' && req.method === 'POST') {
+      await this.claudeHelper(req, res, reject);
+      return;
+    }
+    if (req.url === '/integrations/claude/wake/stream' && req.method === 'POST') {
+      await this.claudeWakeStream(req, res, reject);
+      return;
+    }
     if (
       [
+        '/integrations/claude/hook',
+        '/integrations/claude/call',
+        '/integrations/claude/call/validate',
+        '/integrations/claude/wake/claim',
+        '/integrations/claude/wake/start',
+        '/integrations/claude/wake/dropped',
+        '/integrations/claude/delivery',
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
@@ -349,20 +434,38 @@ export class McpEndpoint {
         chunks.push(Buffer.from(chunk));
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+      if (req.url!.startsWith('/integrations/claude/') && !this.service.integrationsReady) {
+        reject(503, 'The node is not ready to accept connections');
+        return;
+      }
       const abort = new AbortController();
       res.on('close', () => {
         if (!res.writableEnded) abort.abort();
       });
       const result =
-        req.url === '/integrations/aionui/context'
-          ? await this.service.contexts.registerAionUi(body)
-          : req.url === '/integrations/cursor/context'
-            ? await this.service.contexts.registerCursor(body)
-            : req.url === '/integrations/cursor/hook'
-              ? await this.service.contexts.handleCursorHook(body, abort.signal)
-              : req.url!.endsWith('/release')
-                ? await this.service.contexts.releaseOpenCode(body)
-                : await this.service.contexts.registerOpenCode(body);
+        req.url === '/integrations/claude/hook'
+          ? await this.service.claude.hook(body)
+          : req.url === '/integrations/claude/call'
+            ? await this.service.claudeCall(body)
+            : req.url === '/integrations/claude/call/validate'
+              ? await this.service.claude.validateCall(body)
+              : req.url === '/integrations/claude/wake/claim'
+                ? await this.service.claudeWakeClaim(body)
+                : req.url === '/integrations/claude/wake/start'
+                  ? await this.service.claudeWakeStart(body)
+                  : req.url === '/integrations/claude/wake/dropped'
+                    ? this.service.claudeWakeDropped(body)
+                    : req.url === '/integrations/claude/delivery'
+                      ? await this.service.claudeDelivery(body)
+                      : req.url === '/integrations/aionui/context'
+                        ? await this.service.contexts.registerAionUi(body)
+                        : req.url === '/integrations/cursor/context'
+                          ? await this.service.contexts.registerCursor(body)
+                          : req.url === '/integrations/cursor/hook'
+                            ? await this.service.contexts.handleCursorHook(body, abort.signal)
+                            : req.url!.endsWith('/release')
+                              ? await this.service.contexts.releaseOpenCode(body)
+                              : await this.service.contexts.registerOpenCode(body);
       if (res.destroyed) return;
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
@@ -423,6 +526,39 @@ export class McpEndpoint {
         session.lastActivity = Date.now();
         this.service.touchClientSession(session.key);
       }
+      const call = body as {
+        method?: unknown;
+        id?: unknown;
+        params?: { name?: unknown; arguments?: unknown; _meta?: Record<string, unknown> };
+      };
+      if (Array.isArray(body) && session.mcp.server.getClientVersion()?.name === 'Claude Code')
+        throw new Error('Claude Code calls require individual request admission.');
+      if (call?.method === 'tools/call') {
+        const client = session.mcp.server.getClientVersion()?.name;
+        const permit = call.params?._meta?.[claudeCallMetaKey];
+        if (client === 'Claude Code' || permit !== undefined) {
+          if (
+            client !== 'Claude Code' ||
+            typeof permit !== 'string' ||
+            typeof call.params?.name !== 'string' ||
+            (typeof call.id !== 'string' && typeof call.id !== 'number')
+          )
+            throw new Error('The Claude Code call admission is unavailable.');
+          // Hash the actual wire arguments before the SDK supplies Zod defaults.
+          // The admission binds server-owned request/session identity; _meta
+          // contributes only the opaque capability, never a claimed identity.
+          this.service.claude.admitCall(
+            permit,
+            call.params.name,
+            canonicalInputHash(call.params.arguments ?? {}),
+            session.key,
+            call.id,
+            call.params.arguments && typeof call.params.arguments === 'object'
+              ? (call.params.arguments as Record<string, unknown>).contextToken
+              : undefined,
+          );
+        }
+      }
       await session.transport.handleRequest(req, res, body);
       const current = this.sessions.get(session.transport.sessionId ?? '');
       if (current) current.lastActivity = Date.now();
@@ -438,6 +574,81 @@ export class McpEndpoint {
       this.service.touchClientSession(session.key);
     }
     await session.transport.handleRequest(req, res);
+  }
+  /** One ndjson stream per live Claude Code helper; it carries wakes and keepalives only. */
+  private async claudeHelper(
+    req: IncomingMessage,
+    res: ServerResponse,
+    reject: (status: number, error: string) => void,
+  ): Promise<void> {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > 16384) {
+        reject(413, 'Request too large');
+        return;
+      }
+      chunks.push(Buffer.from(chunk));
+    }
+    if (!this.service.integrationsReady) {
+      reject(503, 'The node is not ready to accept connections');
+      return;
+    }
+    const body = helperHelloSchema.parse(JSON.parse(Buffer.concat(chunks).toString()));
+    res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' });
+    res.socket?.setKeepAlive(true, 15000);
+    let helper: ClaudeHelper | undefined;
+    const closed = () => {
+      if (helper) this.service.claude.detach(helper);
+    };
+    res.once('close', closed);
+    try {
+      helper = await this.service.claude.attach(body, {
+        write: (line) => res.write(line),
+        end: () => res.end(),
+      });
+      if (res.destroyed || res.writableEnded) this.service.claude.detach(helper);
+    } catch {
+      res.end(JSON.stringify({ type: 'error' }) + '\n');
+    }
+  }
+  /** One ndjson stream per mod-held wake sink: claimed wake notices and keepalives only. */
+  private async claudeWakeStream(
+    req: IncomingMessage,
+    res: ServerResponse,
+    reject: (status: number, error: string) => void,
+  ): Promise<void> {
+    let size = 0;
+    const chunks: Buffer[] = [];
+    for await (const chunk of req) {
+      size += (chunk as Buffer).length;
+      if (size > 4096) {
+        reject(413, 'Request too large');
+        return;
+      }
+      chunks.push(Buffer.from(chunk));
+    }
+    if (!this.service.integrationsReady) {
+      reject(503, 'The node is not ready to accept connections');
+      return;
+    }
+    const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+    res.writeHead(200, { 'content-type': 'application/x-ndjson', 'cache-control': 'no-store' });
+    res.socket?.setKeepAlive(true, 15000);
+    let sink: WakeSink | undefined;
+    res.once('close', () => {
+      if (sink) this.service.claude.detachWakeSink(sink);
+    });
+    try {
+      sink = await this.service.claude.attachWakeSink(body, {
+        write: (line) => res.write(line),
+        end: () => res.end(),
+      });
+      if (res.destroyed || res.writableEnded) this.service.claude.detachWakeSink(sink);
+    } catch {
+      res.end(JSON.stringify({ type: 'error' }) + '\n');
+    }
   }
   notify(event: unknown): void {
     for (const { mcp } of this.sessions.values())

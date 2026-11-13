@@ -29,6 +29,7 @@ import SyncProblemOutlined from '@mui/icons-material/SyncProblemOutlined';
 import ErrorOutlineOutlined from '@mui/icons-material/ErrorOutlineOutlined';
 import HelpOutlineOutlined from '@mui/icons-material/HelpOutlineOutlined';
 import {
+  claudeLaunchCommand,
   mcpSetupClients,
   type McpSetupClient,
   type McpSetupInvoke,
@@ -45,7 +46,13 @@ import type { Locale } from './i18n/index.js';
 
 import { AionUiAuthorization } from './AionUiSetup.js';
 
-const labels = { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex', aionui: 'AionUi' };
+const labels = {
+  cursor: 'Cursor',
+  opencode: 'OpenCode',
+  codex: 'Codex',
+  aionui: 'AionUi',
+  claude: 'Claude Code',
+};
 const keys = {
   cursor: {
     title: 'cursorTitle',
@@ -70,6 +77,12 @@ const keys = {
     description: 'codexDescription',
     next: 'codexNext',
     button: 'configureCodex',
+  },
+  claude: {
+    title: 'claudeTitle',
+    description: 'claudeDescription',
+    next: 'claudeNext',
+    button: 'configureClaude',
   },
 } as const;
 interface DialogProps {
@@ -232,7 +245,7 @@ function ClientSetupDialog({
                     color="text.secondary"
                     sx={{ mb: 0.5 }}
                   >
-                    {client === 'opencode' || client === 'cursor'
+                    {client === 'opencode' || client === 'cursor' || client === 'claude'
                       ? m.statusOpencodeConfig
                       : m.statusMcpConfig}
                   </Typography>
@@ -256,7 +269,9 @@ function ClientSetupDialog({
                         ? 'opencode-http'
                         : client === 'codex'
                           ? 'codex-desktop'
-                          : 'aionui'
+                          : client === 'claude'
+                            ? 'claude-code'
+                            : 'aionui'
                   }
                   snapshot={snapshot}
                   locale={locale}
@@ -586,6 +601,10 @@ export function CodexSetupDialog(props: DialogProps): React.JSX.Element {
   return <ClientSetupDialog {...props} client="codex" />;
 }
 
+export function ClaudeSetupDialog(props: DialogProps): React.JSX.Element {
+  return <ClientSetupDialog {...props} client="claude" />;
+}
+
 function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
   const configureMcp = React.useRef<() => void>(() => {});
   const registerConfigureMcp = React.useCallback((action: () => void) => {
@@ -654,6 +673,61 @@ export function McpSetupStatusIcon({
   );
 }
 
+function CopyCommand({
+  title,
+  text,
+  copyLabel,
+  invoke,
+  testId,
+}: {
+  title: string;
+  text: string;
+  copyLabel: string;
+  invoke: McpSetupInvoke;
+  testId: string;
+}): React.JSX.Element {
+  const [error, setError] = React.useState('');
+  return (
+    <Stack spacing={1.5} sx={{ p: { xs: 2, sm: 3 } }}>
+      <Typography variant="subtitle2" component="h3">
+        {title}
+      </Typography>
+      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+        <Box
+          component="code"
+          data-testid={testId}
+          sx={{
+            minWidth: 0,
+            px: 1.25,
+            py: 0.75,
+            borderRadius: 0.5,
+            bgcolor: 'action.hover',
+            fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+            fontSize: 14,
+            lineHeight: 1.6,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {text}
+        </Box>
+        <Tooltip title={copyLabel}>
+          <IconButton
+            size="small"
+            aria-label={copyLabel}
+            sx={{ flexShrink: 0 }}
+            onClick={() =>
+              void invoke('copy', { text }).catch((reason) => setError((reason as Error).message))
+            }
+          >
+            <ContentCopyOutlined fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
+      {error && <Alert severity="error">{error}</Alert>}
+    </Stack>
+  );
+}
+
 export function McpSetup({
   client,
   onClientChange,
@@ -677,6 +751,7 @@ export function McpSetup({
     opencode: OpenCodeSetupDialog,
     codex: CodexSetupDialog,
     aionui: AionUiSetupDialog,
+    claude: ClaudeSetupDialog,
   }[client];
   const [copyError, setCopyError] = React.useState('');
   const ownStatuses = useMcpSetupStatuses(invoke, !setupStatuses);
@@ -740,6 +815,17 @@ export function McpSetup({
           snapshot={snapshot}
           locale={locale}
         />
+        {client === 'claude' && (
+          <Box sx={{ mt: 3 }}>
+            <CopyCommand
+              title={m.claudeLaunch}
+              text={claudeLaunchCommand}
+              copyLabel={m.copyLaunch}
+              invoke={invoke}
+              testId="claude-launch-command"
+            />
+          </Box>
+        )}
         <Divider sx={{ mt: 3 }} />
         <Stack spacing={2} sx={{ pt: 3 }}>
           <Typography variant="subtitle2" component="h3">

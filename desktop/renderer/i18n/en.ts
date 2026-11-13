@@ -35,6 +35,8 @@ export const en: Messages = {
   mcpSetup_aionConfigureAccess: 'Configure access',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
   mcpSetup_aionContinue: 'Continue setting up AionUi. Follow the steps below.',
@@ -109,6 +111,14 @@ export const en: Messages = {
     'Reconnect MCP in the selected Codex instance or profile to use these settings.',
   mcpSetup_copyPrompt: 'Copy connection prompt',
   mcpSetup_connect: 'Connect an agent in the client',
+  mcpSetup_configureClaude: 'Configure Claude Code',
+  mcpSetup_claudeTitle: 'Configure Claude Code',
+  mcpSetup_claudeDescription:
+    'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables two plugins published by this app in the selected user settings file: the NCF plugin, with its MCP server, fixed lifecycle and tool-call hooks run by this app, and a mod that announces waiting messages in the exact chat; and the gate plugin it depends on, which lets an announcement start a turn only while it is current. Apply also allows agent_read without a prompt. Other permission decisions stay yours.',
+  mcpSetup_claudeNext:
+    'Start or resume Claude Code normally, then connect an agent. The agent status shows when automatic wake is verified in a chat; safe mode or an organization policy can turn it off.',
+  mcpSetup_claudeLaunch: 'Start Claude Code',
+  mcpSetup_copyLaunch: 'Copy launch command',
   mcpSetup_connectionPrompt: 'Connect as agent <a name you choose>.',
 
   agentsColumnName: 'Name',

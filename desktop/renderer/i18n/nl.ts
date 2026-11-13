@@ -36,6 +36,8 @@ export const nl: Messages = {
   mcpSetup_aionConfigureAccess: 'Toegang instellen',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'Verbind Cursor Agent in AionUi. Toegang, opgeslagen MCP-instellingen en een actieve bridge zijn aparte toestanden.',
   mcpSetup_aionContinue: 'Ga verder met het instellen van AionUi. Volg de stappen hieronder.',
@@ -112,6 +114,14 @@ export const nl: Messages = {
     'Verbind MCP opnieuw in de geselecteerde Codex-instantie of het profiel om deze instellingen te gebruiken.',
   mcpSetup_copyPrompt: 'Verbindingsprompt kopiëren',
   mcpSetup_connect: 'Een agent verbinden in de client',
+  mcpSetup_configureClaude: 'Claude Code instellen',
+  mcpSetup_claudeTitle: 'Claude Code instellen',
+  mcpSetup_claudeDescription:
+    'Verbind interactieve Claude Code met NCF Agent Interconnect. Toepassen schakelt in het gekozen gebruikersinstellingenbestand twee door deze app gepubliceerde plugins in: de NCF-plugin, met zijn MCP-server, vaste levenscyclus- en toolaanroep-hooks die deze app uitvoert en een mod die wachtende berichten in de juiste chat meldt; en de controleplugin waarvan hij afhangt, die een melding alleen een beurt laat starten zolang die actueel is. Toepassen staat ook agent_read toe zonder vraag. Andere machtigingsbeslissingen blijven bij u.',
+  mcpSetup_claudeNext:
+    'Start of hervat Claude Code zoals gewoonlijk en verbind daarna een agent. De agentstatus toont wanneer automatisch wekken in een chat is bevestigd; de veilige modus of een organisatiebeleid kan het uitschakelen.',
+  mcpSetup_claudeLaunch: 'Claude Code starten',
+  mcpSetup_copyLaunch: 'Startopdracht kopiëren',
   mcpSetup_connectionPrompt: 'Verbind als agent <een naam naar keuze>.',
 
   agentsColumnName: 'Naam',

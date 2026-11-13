@@ -35,6 +35,8 @@ export const tr: Messages = {
   mcpSetup_aionConfigureAccess: 'Erişimi yapılandır',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'AionUi içinde Cursor Agent bağlayın. Erişim, kaydedilmiş MCP ayarları ve etkin köprü ayrı durumlardır.',
   mcpSetup_aionContinue: 'AionUi kurulumuna devam edin. Aşağıdaki adımları izleyin.',
@@ -111,6 +113,14 @@ export const tr: Messages = {
     'Bu ayarları kullanmak için seçilen Codex örneğinde veya profilinde MCP bağlantısını yeniden kurun.',
   mcpSetup_copyPrompt: 'Bağlantı istemini kopyala',
   mcpSetup_connect: 'İstemcide bir ajan bağla',
+  mcpSetup_configureClaude: "Claude Code'u yapılandır",
+  mcpSetup_claudeTitle: "Claude Code'u yapılandır",
+  mcpSetup_claudeDescription:
+    "Etkileşimli Claude Code'u NCF Agent Interconnect'e bağlayın. Uygula, seçilen kullanıcı ayarları dosyasında bu uygulamanın yayımladığı iki eklentiyi etkinleştirir: MCP sunucusu, bu uygulamanın çalıştırdığı sabit yaşam döngüsü ve araç çağrısı kancaları ve bekleyen iletileri doğru sohbette duyuran bir mod içeren NCF eklentisi; ve bağlı olduğu, bir duyurunun yalnızca güncel olduğu sürece tur başlatmasına izin veren denetim eklentisi. Ayrıca agent_read'e sormadan izin verir. Diğer izin kararları size aittir.",
+  mcpSetup_claudeNext:
+    "Claude Code'u her zamanki gibi başlatın veya sürdürün, ardından bir ajan bağlayın. Ajan durumu, otomatik uyandırmanın bir sohbette doğrulandığını gösterir; güvenli mod veya bir kuruluş ilkesi bunu kapatabilir.",
+  mcpSetup_claudeLaunch: "Claude Code'u başlat",
+  mcpSetup_copyLaunch: 'Başlatma komutunu kopyala',
   mcpSetup_connectionPrompt: '<Seçtiğiniz bir ad> adlı ajan olarak bağlan.',
 
   agentsColumnName: 'Ad',

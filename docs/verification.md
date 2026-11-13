@@ -39,6 +39,9 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 - OpenCode support targets the v1 plugin/SDK contract. OpenCode v2 is not claimed.
 - Codex Desktop delivery is experimental and version-dependent. Protocol fixture
   coverage does not establish support for every installed desktop version.
+- Claude Code delivery uses the Channels research preview and is experimental.
+  Source checks use synthetic and real helper/hook processes, not a live
+  Claude Code session; see [Claude Code integration](claude-code-adapter.md).
 - Standard MCP clients can send and receive through tools. Idle wake-up needs a
   client adapter; Cursor has no reactive adapter in this release.
 

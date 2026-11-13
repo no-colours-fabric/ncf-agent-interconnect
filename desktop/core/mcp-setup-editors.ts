@@ -47,11 +47,105 @@ export interface McpSetupEdit {
   requiresReplacement: boolean;
 }
 
+/**
+ * Claude Code user settings: the local NCF marketplace, its enabled plugins (the
+ * NCF plugin and the gate it depends on) and one exact allow rule. Other
+ * settings, comments and formatting are preserved; MCP servers are never added
+ * outside the plugin.
+ */
+function editClaudeSettings(original: string, configuration: string): McpSetupEdit {
+  const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
+  const source = original.slice(bom.length);
+  let root: Record<string, unknown>;
+  let desired: Record<string, unknown>;
+  try {
+    root = json(source);
+    desired = json(configuration);
+  } catch {
+    throw new Error('The configuration contains invalid JSON');
+  }
+  // Claude Code rejects a settings file with comments or trailing commas and then
+  // ignores all of it, so such a file is refused instead of being edited.
+  const strict: ParseError[] = [];
+  parse(source.trim() ? source : '{}', strict, {
+    disallowComments: true,
+    allowTrailingComma: false,
+  });
+  if (strict.length)
+    throw new Error(
+      'Claude Code settings must be plain JSON without comments or trailing commas. Fix the file in Claude Code first.',
+    );
+  const wanted = (key: string) => {
+    const value = table(desired, key);
+    const entries = Object.entries(value);
+    if (entries.length !== 1) throw new Error('The generated Claude Code settings are invalid');
+    return entries[0];
+  };
+  const [marketplace, entry] = wanted('extraKnownMarketplaces');
+  const wantedPlugins = Object.entries(table(desired, 'enabledPlugins'));
+  const rules = own(table(desired, 'permissions'), 'allow');
+  if (
+    !object(entry) ||
+    !wantedPlugins.length ||
+    wantedPlugins.some(([, enabled]) => enabled !== true) ||
+    !Array.isArray(rules) ||
+    rules.length !== 1
+  )
+    throw new Error('The generated Claude Code settings are invalid');
+  const rule = rules[0] as string;
+  const markets = table(root, 'extraKnownMarketplaces');
+  const plugins = table(root, 'enabledPlugins');
+  const permissions = table(root, 'permissions');
+  const allow = own(permissions, 'allow') ?? [];
+  if (!Array.isArray(allow) || allow.some((value) => typeof value !== 'string'))
+    throw new Error('The permissions.allow setting must be an array of strings');
+  const previous = own(markets, marketplace);
+  const marketEqual = containsSettings(previous, entry);
+  const pluginStates = wantedPlugins.map(([plugin]) => [plugin, own(plugins, plugin)] as const);
+  const ruleExists = allow.includes(rule);
+  const changes: McpSetupEdit['changes'] = [
+    {
+      scope: 'extraKnownMarketplaces.' + marketplace,
+      action: marketEqual ? 'unchanged' : previous === undefined ? 'add' : 'replace',
+    },
+    ...pluginStates.map(([plugin, state]) => ({
+      scope: 'enabledPlugins.' + plugin,
+      action: (state === true ? 'unchanged' : state === undefined ? 'add' : 'replace') as
+        'unchanged' | 'add' | 'replace',
+    })),
+    { scope: 'permissions.allow', action: ruleExists ? 'unchanged' : 'add' },
+  ];
+  let content = source.trim() ? source : '{}';
+  const eol = source.includes('\r\n') ? '\r\n' : '\n';
+  const options = {};
+  if (!marketEqual)
+    content = applyEdits(
+      content,
+      modify(content, ['extraKnownMarketplaces', marketplace], entry, options),
+    );
+  for (const [plugin, state] of pluginStates)
+    if (state !== true)
+      content = applyEdits(content, modify(content, ['enabledPlugins', plugin], true, options));
+  if (!ruleExists)
+    content = applyEdits(content, modify(content, ['permissions', 'allow', -1], rule, options));
+  const parsed = json(content);
+  if (!source.trim()) content = JSON.stringify(parsed, null, 2) + eol;
+  if (!changes.some((change) => change.action !== 'unchanged')) content = source;
+  return {
+    content: bom + content,
+    changes,
+    requiresReplacement:
+      (previous !== undefined && !marketEqual) ||
+      pluginStates.some(([, state]) => state !== undefined && state !== true),
+  };
+}
+
 export function editMcpConfiguration(
   client: McpSetupClient,
   original: string,
   configuration: string,
 ): McpSetupEdit {
+  if (client === 'claude') return editClaudeSettings(original, configuration);
   const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
   const source = original.slice(bom.length);
   const toml = client === 'codex';

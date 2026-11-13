@@ -127,7 +127,7 @@ test('format 1 migration is atomic, idempotent and keeps legacy requests preserv
   f.reopen();
   assert.equal(
     (f.store.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    3,
+    4,
   );
   assert.throws(
     () => f.store.connect({ ...confirm(request), transferId: request.transferId }),

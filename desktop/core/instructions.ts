@@ -1,4 +1,6 @@
 import type { McpInstructions } from '../shared/contracts.js';
+import { claudePlugin, claudeToolPrefix } from '../integrations/claude-code.js';
+import { claudeLaunchCommand } from '../shared/mcp-setup.js';
 
 export function mcpInstructions(
   url: string,
@@ -7,8 +9,35 @@ export function mcpInstructions(
   openCodePlugin: string,
   aionConfiguration?: string,
   cursorIntegration?: Pick<McpInstructions, 'configuration' | 'managedFiles'>,
+  claudeMarketplace?: string,
 ): McpInstructions {
   const testPrompt = 'Connect as agent <a name you choose>.';
+  if (client === 'claude') {
+    if (!claudeMarketplace) throw new Error('The Claude Code plugin is unavailable.');
+    return {
+      client,
+      location: 'Claude Code user settings — ~/.claude/settings.json',
+      text: 'Apply enables two plugins from the marketplace published by this app: the NCF plugin (its MCP server, lifecycle and tool-call hooks, and a mod that announces waiting messages in the exact chat) and the NCF gate plugin it depends on, which lets an announcement start a turn only while its one-use claim is current. Apply also allows agent_read without a prompt; other permission decisions stay yours. Start or resume Claude Code normally. Announcements need Claude Code mods, which safe mode and some organization policies turn off; messages always remain available through agent_read. Do not poll.',
+      configuration: JSON.stringify(
+        {
+          extraKnownMarketplaces: {
+            [claudePlugin.marketplace]: {
+              source: { source: 'directory', path: claudeMarketplace },
+            },
+          },
+          enabledPlugins: {
+            [claudePlugin.name + '@' + claudePlugin.marketplace]: true,
+            [claudePlugin.gate + '@' + claudePlugin.marketplace]: true,
+          },
+          permissions: { allow: [claudeToolPrefix + 'agent_read'] },
+        },
+        null,
+        2,
+      ),
+      testPrompt,
+      launchCommand: claudeLaunchCommand,
+    };
+  }
   if (client === 'aionui') {
     if (!aionConfiguration) throw new Error('The AionUi bridge configuration is unavailable.');
     return {

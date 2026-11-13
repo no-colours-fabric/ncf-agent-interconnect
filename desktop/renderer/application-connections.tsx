@@ -215,37 +215,44 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
             </TableRow>
           </TableHead>
           <TableBody>
-            {(['cursor-hook', 'opencode-http', 'codex-desktop', 'aionui', 'manual'] as const).map(
-              (kind) => {
-                const { agents } = applicationStatus(kind, snapshot);
-                const activity = applicationActivity(kind, snapshot);
-                return (
-                  <TableRow key={kind} data-testid={'application-' + kind}>
-                    <TableCell component="th" scope="row">
-                      {t(
-                        locale,
-                        kind === 'opencode-http'
-                          ? 'clientsKindOpencode'
-                          : kind === 'cursor-hook'
-                            ? 'mcpClientCursor'
-                            : kind === 'codex-desktop'
-                              ? 'clientsKindCodex'
-                              : kind === 'aionui'
-                                ? 'clientsKindAionui'
+            {(
+              [
+                'cursor-hook',
+                'opencode-http',
+                'codex-desktop',
+                'aionui',
+                'claude-code',
+                'manual',
+              ] as const
+            ).map((kind) => {
+              const { agents } = applicationStatus(kind, snapshot);
+              const activity = applicationActivity(kind, snapshot);
+              return (
+                <TableRow key={kind} data-testid={'application-' + kind}>
+                  <TableCell component="th" scope="row">
+                    {t(
+                      locale,
+                      kind === 'opencode-http'
+                        ? 'clientsKindOpencode'
+                        : kind === 'cursor-hook'
+                          ? 'mcpClientCursor'
+                          : kind === 'codex-desktop'
+                            ? 'clientsKindCodex'
+                            : kind === 'aionui'
+                              ? 'clientsKindAionui'
+                              : kind === 'claude-code'
+                                ? 'clientsKindClaude'
                                 : 'clientsKindManual',
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {activity ? new Date(activity).toLocaleString(locale) : ''}
-                    </TableCell>
-                    <TableCell align="right">{agents.length}</TableCell>
-                    <TableCell align="right">
-                      <Button onClick={() => onSetup(kind)}>{t(locale, 'clientsCta')}</Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              },
-            )}
+                    )}
+                  </TableCell>
+                  <TableCell>{activity ? new Date(activity).toLocaleString(locale) : ''}</TableCell>
+                  <TableCell align="right">{agents.length}</TableCell>
+                  <TableCell align="right">
+                    <Button onClick={() => onSetup(kind)}>{t(locale, 'clientsCta')}</Button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>

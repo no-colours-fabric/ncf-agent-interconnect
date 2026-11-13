@@ -35,6 +35,7 @@ const setupLabels = {
     configureCursor: 'Configure Cursor',
     configureOpencode: 'Configure OpenCode',
     configureCodex: 'Configure Codex',
+    configureClaude: 'Configure Claude Code',
     pathLabel: 'Configuration file path',
     apply: 'Apply',
     cancel: 'Cancel',
@@ -53,6 +54,7 @@ const setupLabels = {
     configureCursor: 'Настроить Cursor',
     configureOpencode: 'Настроить OpenCode',
     configureCodex: 'Настроить Codex',
+    configureClaude: 'Настроить Claude Code',
     pathLabel: 'Путь к файлу конфигурации',
     apply: 'Применить',
     cancel: 'Отмена',
@@ -71,6 +73,7 @@ const setupLabels = {
     configureCursor: 'Cursor einrichten',
     configureOpencode: 'OpenCode einrichten',
     configureCodex: 'Codex einrichten',
+    configureClaude: 'Claude Code einrichten',
     pathLabel: 'Pfad der Konfigurationsdatei',
     apply: 'Anwenden',
     cancel: 'Abbrechen',
@@ -89,6 +92,7 @@ const setupLabels = {
     configureCursor: 'Configurer Cursor',
     configureOpencode: 'Configurer OpenCode',
     configureCodex: 'Configurer Codex',
+    configureClaude: 'Configurer Claude Code',
     pathLabel: 'Chemin du fichier de configuration',
     apply: 'Appliquer',
     cancel: 'Annuler',
@@ -107,6 +111,7 @@ const setupLabels = {
     configureCursor: 'Configurar Cursor',
     configureOpencode: 'Configurar OpenCode',
     configureCodex: 'Configurar Codex',
+    configureClaude: 'Configurar Claude Code',
     pathLabel: 'Ruta del archivo de configuración',
     apply: 'Aplicar',
     cancel: 'Cancelar',
@@ -125,6 +130,7 @@ const setupLabels = {
     configureCursor: 'Configura Cursor',
     configureOpencode: 'Configura OpenCode',
     configureCodex: 'Configura Codex',
+    configureClaude: 'Configura Claude Code',
     pathLabel: 'Percorso del file di configurazione',
     apply: 'Applica',
     cancel: 'Annulla',
@@ -143,6 +149,7 @@ const setupLabels = {
     configureCursor: 'Cursorを設定',
     configureOpencode: 'OpenCodeを設定',
     configureCodex: 'Codexを設定',
+    configureClaude: 'Claude Codeを設定',
     pathLabel: '設定ファイルのパス',
     apply: '適用',
     cancel: 'キャンセル',
@@ -161,6 +168,7 @@ const setupLabels = {
     configureCursor: 'Cursor баптау',
     configureOpencode: 'OpenCode баптау',
     configureCodex: 'Codex баптау',
+    configureClaude: 'Claude Code баптау',
     pathLabel: 'Конфигурация файлының жолы',
     apply: 'Қолдану',
     cancel: 'Бас тарту',
@@ -179,6 +187,7 @@ const setupLabels = {
     configureCursor: 'Cursor 설정',
     configureOpencode: 'OpenCode 설정',
     configureCodex: 'Codex 설정',
+    configureClaude: 'Claude Code 설정',
     pathLabel: '설정 파일 경로',
     apply: '적용',
     cancel: '취소',
@@ -196,6 +205,7 @@ const setupLabels = {
     configureCursor: 'Cursor instellen',
     configureOpencode: 'OpenCode instellen',
     configureCodex: 'Codex instellen',
+    configureClaude: 'Claude Code instellen',
     pathLabel: 'Pad naar configuratiebestand',
     apply: 'Toepassen',
     cancel: 'Annuleren',
@@ -214,6 +224,7 @@ const setupLabels = {
     configureCursor: 'Skonfiguruj Cursor',
     configureOpencode: 'Skonfiguruj OpenCode',
     configureCodex: 'Skonfiguruj Codex',
+    configureClaude: 'Skonfiguruj Claude Code',
     pathLabel: 'Ścieżka pliku konfiguracji',
     apply: 'Zastosuj',
     cancel: 'Anuluj',
@@ -232,6 +243,7 @@ const setupLabels = {
     configureCursor: 'Configurar Cursor',
     configureOpencode: 'Configurar OpenCode',
     configureCodex: 'Configurar Codex',
+    configureClaude: 'Configurar Claude Code',
     pathLabel: 'Caminho do arquivo de configuração',
     apply: 'Aplicar',
     cancel: 'Cancelar',
@@ -250,6 +262,7 @@ const setupLabels = {
     configureCursor: 'Cursor uygulamasını yapılandır',
     configureOpencode: 'OpenCode uygulamasını yapılandır',
     configureCodex: 'Codex uygulamasını yapılandır',
+    configureClaude: "Claude Code'u yapılandır",
     pathLabel: 'Yapılandırma dosyası yolu',
     apply: 'Uygula',
     cancel: 'İptal',
@@ -268,6 +281,7 @@ const setupLabels = {
     configureCursor: 'Налаштувати Cursor',
     configureOpencode: 'Налаштувати OpenCode',
     configureCodex: 'Налаштувати Codex',
+    configureClaude: 'Налаштувати Claude Code',
     pathLabel: 'Шлях до файлу конфігурації',
     apply: 'Застосувати',
     cancel: 'Скасувати',
@@ -286,6 +300,7 @@ const setupLabels = {
     configureCursor: '配置 Cursor',
     configureOpencode: '配置 OpenCode',
     configureCodex: '配置 Codex',
+    configureClaude: '配置 Claude Code',
     pathLabel: '配置文件路径',
     apply: '应用',
     cancel: '取消',
@@ -374,7 +389,7 @@ async function checkApplicationSummary(kind, locale) {
 async function checkMcpSetup(locale) {
   const expected = setupLabels[locale];
   assert.equal(await page.getByTestId('nav-clients').count(), 0);
-  assert.equal(await page.getByRole('tab').count(), 4);
+  assert.equal(await page.getByRole('tab').count(), 5);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
   await page.getByText(expected.userControl, { exact: true }).waitFor();
@@ -382,6 +397,7 @@ async function checkMcpSetup(locale) {
     ['cursor', 'Cursor', expected.configureCursor, 'manual'],
     ['opencode', 'OpenCode', expected.configureOpencode, 'opencode-http'],
     ['codex', 'Codex', expected.configureCodex, 'codex-desktop'],
+    ['claude', 'Claude Code', expected.configureClaude, 'claude-code'],
   ]) {
     await page.getByRole('tab', { name: label, exact: true }).click();
     await checkApplicationSummary(kind, locale);
@@ -523,9 +539,9 @@ try {
     results.push({
       locale,
       aionUiSetupLocalized: true,
-      mcpTabs: 4,
+      mcpTabs: 5,
       pages: 5,
-      applicationSummariesInMcp: 4,
+      applicationSummariesInMcp: 5,
       htmlLang: true,
       headerControlsVisible: true,
       headerControlBounds: await page.getByTestId('node-toggle').boundingBox(),

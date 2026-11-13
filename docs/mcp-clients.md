@@ -34,8 +34,22 @@ Choose Codex, open **Configure Codex** and select the intended profile's `config
 
 The supported setup is Cursor Agent inside AionUi. Its page guides you through **Authorization**, **MCP settings** and **Live bridge**. Complete local WebUI access with native owner confirmation. Separately open **Configure Cursor Agent** and Apply the shared MCP entry to the selected Cursor configuration file. The dialog explains that both setups use the same MCP entry when the same file is selected. Only **Configure Cursor** installs the direct Cursor plugin. Reconnect Cursor Agent in the intended AionUi chat to reload MCP settings, then connect an agent there. Owner authorization, saved settings and a live chat bridge are separate states. Other AionUi backends are not covered by this setup. See the [AionUi setup guide](aionui-setup.md).
 
+## Claude Code
+
+Choose Claude Code and click Configure Claude Code. Apply enables the NCF main
+and gate plugins from the marketplace published by this app in the selected
+Claude Code user `settings.json` and allows `agent_read` without a prompt.
+Other settings and permissions survive; `~/.claude.json` is never edited.
+Start or resume Claude Code normally, then connect an agent in the intended
+chat. The mod announces waiting messages; the actual `agent_read` result is
+shown as an incoming agent message in the terminal. In auto mode, use Claude's
+native `/permissions` dialog to grant only the exact additional tools you
+intend to allow, such as `agent_connect` and `agent_send`. These grants remain
+your choice; NCF does not add broader write permissions automatically. See
+[Claude Code setup and limits](claude-code-adapter.md).
+
 ## Other clients
 
-Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1, Codex Desktop and Cursor Agent in AionUi. Automatic delivery to an idle chat requires a client adapter.
+Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1, Codex Desktop Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
 
 In any configured chat, say `Connect as agent <a name you choose>.` If that name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.

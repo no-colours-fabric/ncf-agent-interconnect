@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { NodeService } from '../core/service.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
+import { UiServiceAccess } from './ui-service-access.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const dataArg = process.argv.indexOf('--data-dir');
@@ -169,8 +170,12 @@ function showWindow(tab?: string): void {
   void window.loadFile(path.join(directory, '../renderer/index.html'), { hash: tab ?? '' });
 }
 function setupIpc(): void {
+  const access = new UiServiceAccess(
+    () => service,
+    () => quitting,
+  );
   const mcpSetup = createMcpSetupHandler({
-    instructions: (client) => service!.clientInstructions(client),
+    instructions: (client) => access.current().clientInstructions(client),
     dialog,
     window: () => window,
     stateDirectory: app.getPath('userData'),
@@ -184,8 +189,7 @@ function setupIpc(): void {
       typeof method !== 'string'
     )
       throw new Error('Invalid operation source');
-    if (!service) throw new Error('The node is not running');
-    const setupResult = await mcpSetup(method, raw, String(event.sender.id));
+    const setupResult = await access.waitFor(() => mcpSetup(method, raw, String(event.sender.id)));
     if (setupResult.handled) return setupResult.result;
     if (method === 'appVersion') return app.getVersion();
     if (method === 'copy') {
@@ -202,12 +206,16 @@ function setupIpc(): void {
       return { openAtLogin: app.getLoginItemSettings().openAtLogin };
     }
     if (method === 'pickExportFolder') {
-      const result = await dialog.showOpenDialog(window, {
-        properties: ['openDirectory', 'createDirectory'],
-      });
+      const exportWindow = window;
+      const result = await access.waitFor(() =>
+        dialog.showOpenDialog(exportWindow, {
+          properties: ['openDirectory', 'createDirectory'],
+        }),
+      );
       if (result.canceled) return null;
-      return service.userCall('exportRoots', {
-        roots: [...new Set([...service.settings.value.exportRoots, ...result.filePaths])],
+      const active = access.current();
+      return active.userCall('exportRoots', {
+        roots: [...new Set([...active.settings.value.exportRoots, ...result.filePaths])],
       });
     }
     if (method === 'openAttachment' || method === 'saveAttachment') {
@@ -215,22 +223,27 @@ function setupIpc(): void {
         .object({ messageId: z.uuid(), fileId: z.string().regex(/^[a-f0-9]{64}$/) })
         .parse(raw);
       const attachmentWindow = window;
-      return service.withUserAttachment(messageId, fileId, async (file, local, assertCurrent) => {
-        if (method === 'openAttachment') {
-          assertCurrent();
-          const error = await shell.openPath(local);
-          if (error) throw new Error(error);
-          return { opened: true };
-        }
-        const destination = await dialog.showSaveDialog(attachmentWindow, {
-          defaultPath: file.name,
+      return access
+        .current()
+        .withUserAttachment(messageId, fileId, async (file, local, assertCurrent) => {
+          access.current();
+          if (method === 'openAttachment') {
+            assertCurrent();
+            const error = await shell.openPath(local);
+            if (error) throw new Error(error);
+            return { opened: true };
+          }
+          const destination = await access.waitFor(() =>
+            dialog.showSaveDialog(attachmentWindow, {
+              defaultPath: file.name,
+            }),
+          );
+          if (destination.filePath) {
+            assertCurrent();
+            await copyFile(local, destination.filePath);
+          }
+          return { saved: !!destination.filePath };
         });
-        if (destination.filePath) {
-          assertCurrent();
-          await copyFile(local, destination.filePath);
-        }
-        return { saved: !!destination.filePath };
-      });
     }
     if (
       ![
@@ -254,6 +267,6 @@ function setupIpc(): void {
       ].includes(method)
     )
       throw new Error('This operation is not allowed by the interface');
-    return service.userCall(method, raw, { requesterSession: String(event.sender.id) });
+    return access.current().userCall(method, raw, { requesterSession: String(event.sender.id) });
   });
 }

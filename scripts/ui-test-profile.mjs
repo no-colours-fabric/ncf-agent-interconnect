@@ -10,6 +10,7 @@ export async function createUiEnvironment(clientHome) {
     HOME: canonicalHome,
     USERPROFILE: canonicalHome,
     CODEX_HOME: path.join(canonicalHome, '.codex'),
+    CLAUDE_CONFIG_DIR: path.join(canonicalHome, '.claude'),
     XDG_CONFIG_HOME: path.join(canonicalHome, '.config'),
     OPENCODE_CONFIG: path.join(canonicalHome, '.config', 'opencode', 'opencode.json'),
     OPENCODE_CONFIG_DIR: path.join(canonicalHome, '.config', 'opencode'),
@@ -22,6 +23,7 @@ export async function createUiEnvironment(clientHome) {
     [
       canonicalHome,
       environment.CODEX_HOME,
+      environment.CLAUDE_CONFIG_DIR,
       environment.OPENCODE_CONFIG_DIR,
       environment.APPDATA,
       environment.LOCALAPPDATA,
@@ -36,6 +38,7 @@ export function uiClientConfigPaths(environment) {
     environment.OPENCODE_CONFIG,
     path.join(environment.OPENCODE_CONFIG_DIR, 'opencode.jsonc'),
     path.join(environment.CODEX_HOME, 'config.toml'),
+    path.join(environment.CLAUDE_CONFIG_DIR, 'settings.json'),
   ];
 }
 

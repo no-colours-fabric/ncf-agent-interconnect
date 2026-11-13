@@ -60,12 +60,13 @@ try {
   await mkdir('release', { recursive: true });
   await page.screenshot({ path: 'release/preview-overview.png' });
   await page.getByTestId('nav-mcp').click();
-  assert.equal(await page.getByRole('tab').count(), 4);
+  assert.equal(await page.getByRole('tab').count(), 5);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   for (const [client, label] of [
     ['cursor', 'Cursor'],
     ['opencode', 'OpenCode'],
     ['codex', 'Codex'],
+    ['claude', 'Claude Code'],
   ]) {
     await page.getByRole('tab', { name: label, exact: true }).click();
     await page.getByTestId('mcp-settings-status').waitFor();
@@ -333,7 +334,7 @@ try {
   console.log(
     JSON.stringify({
       aionUiReadOnlySetup: true,
-      mcpTabs: 4,
+      mcpTabs: 5,
       electron: '45.1.0',
       renderer: 'React + MUI 9.5.0',
       liveTlsMessage: sent.id,

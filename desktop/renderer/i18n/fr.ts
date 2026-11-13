@@ -36,6 +36,8 @@ export const fr: Messages = {
   mcpSetup_aionConfigureAccess: 'Configurer l’accès',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'Connecter Cursor Agent dans AionUi. L’accès, les réglages MCP enregistrés et un pont actif sont des états distincts.',
   mcpSetup_aionContinue: 'Poursuivez la configuration d’AionUi. Suivez les étapes ci-dessous.',
@@ -111,6 +113,14 @@ export const fr: Messages = {
     'Reconnectez MCP dans l’instance ou le profil Codex sélectionné pour utiliser ces réglages.',
   mcpSetup_copyPrompt: 'Copier la demande de connexion',
   mcpSetup_connect: 'Connecter un agent dans le client',
+  mcpSetup_configureClaude: 'Configurer Claude Code',
+  mcpSetup_claudeTitle: 'Configurer Claude Code',
+  mcpSetup_claudeDescription:
+    'Connectez Claude Code interactif à NCF Agent Interconnect. Appliquer active dans le fichier de paramètres utilisateur sélectionné deux plugins publiés par cette application : le plugin NCF, avec son serveur MCP, des hooks fixes de cycle de vie et d’appels d’outils exécutés par cette application, et un mod qui annonce les messages en attente dans la conversation exacte ; et le plugin de vérification dont il dépend, qui ne laisse une annonce démarrer un tour que tant qu’elle est actuelle. Appliquer autorise aussi agent_read sans demande. Les autres décisions d’autorisation restent les vôtres.',
+  mcpSetup_claudeNext:
+    'Démarrez ou reprenez Claude Code normalement, puis connectez un agent. L’état de l’agent indique quand le réveil automatique est vérifié dans une conversation ; le mode sans échec ou une politique de l’organisation peuvent le désactiver.',
+  mcpSetup_claudeLaunch: 'Démarrer Claude Code',
+  mcpSetup_copyLaunch: 'Copier la commande de lancement',
   mcpSetup_connectionPrompt: 'Connecte-toi en tant qu’agent <un nom de ton choix>.',
 
   agentsColumnName: 'Nom',

@@ -35,6 +35,8 @@ export const ja: Messages = {
   mcpSetup_aionConfigureAccess: 'アクセスを設定',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'AionUi内のCursor Agentを接続します。アクセス、保存済みMCP設定、稼働中のブリッジは別の状態です。',
   mcpSetup_aionContinue: 'AionUi の設定を続けてください。以下の手順に従ってください。',
@@ -109,6 +111,14 @@ export const ja: Messages = {
     'これらの設定を使用するには、選択したCodexインスタンスまたはプロファイルでMCPを再接続してください。',
   mcpSetup_copyPrompt: '接続プロンプトをコピー',
   mcpSetup_connect: 'クライアントでエージェントを接続',
+  mcpSetup_configureClaude: 'Claude Codeを設定',
+  mcpSetup_claudeTitle: 'Claude Codeを設定',
+  mcpSetup_claudeDescription:
+    '対話型 Claude Code を NCF Agent Interconnect に接続します。「適用」は、選択したユーザー設定ファイルで、このアプリが公開する 2 つのプラグインを有効にします。1 つは NCF プラグインで、MCP サーバー、このアプリが実行する固定のライフサイクルフックとツール呼び出しフック、そして待機中のメッセージを正確なチャットに通知する mod を含みます。もう 1 つはそれが依存するゲートプラグインで、通知が有効な間だけターンの開始を許可します。agent_read も確認なしで許可します。その他の権限の判断はあなたに委ねられます。',
+  mcpSetup_claudeNext:
+    'いつもどおり Claude Code を起動または再開し、エージェントを接続してください。エージェントの状態に、チャットで自動起動が確認されたかどうかが表示されます。セーフモードや組織のポリシーで無効になる場合があります。',
+  mcpSetup_claudeLaunch: 'Claude Code を起動',
+  mcpSetup_copyLaunch: '起動コマンドをコピー',
   mcpSetup_connectionPrompt: 'エージェント<任意の名前>として接続してください。',
 
   agentsColumnName: '名前',

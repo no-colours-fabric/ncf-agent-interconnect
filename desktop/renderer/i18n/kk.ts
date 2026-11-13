@@ -36,6 +36,8 @@ export const kk: Messages = {
   mcpSetup_aionConfigureAccess: 'Қол жеткізуді баптау',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'AionUi ішіндегі Cursor Agent қосу. Қол жеткізу, сақталған MCP баптаулары және белсенді көпір — бөлек күйлер.',
   mcpSetup_aionContinue: 'AionUi баптауын жалғастырыңыз. Төмендегі қадамдарды орындаңыз.',
@@ -112,6 +114,14 @@ export const kk: Messages = {
     'Бұл баптауларды пайдалану үшін таңдалған Codex данасында немесе профилінде MCP қосылымын қайта орнатыңыз.',
   mcpSetup_copyPrompt: 'Қосылу сұрауын көшіру',
   mcpSetup_connect: 'Клиентте агентті қосу',
+  mcpSetup_configureClaude: 'Claude Code баптау',
+  mcpSetup_claudeTitle: 'Claude Code баптау',
+  mcpSetup_claudeDescription:
+    'Интерактивті Claude Code-ты NCF Agent Interconnect-ке қосыңыз. «Қолдану» таңдалған пайдаланушы баптаулары файлында осы қолданба жариялаған екі плагинді қосады: MCP сервері, осы қолданба орындайтын тұрақты өмірлік цикл және құрал шақыру хуктары, сондай-ақ күтіп тұрған хабарлар туралы дәл сол чатта хабарлайтын моды бар NCF плагині; және ол тәуелді болатын, хабарламаға ол өзекті болғанда ғана жүрісті бастауға мүмкіндік беретін тексеру плагині. Сондай-ақ agent_read-ке сұраусыз рұқсат беріледі. Басқа рұқсат шешімдері сізде қалады.',
+  mcpSetup_claudeNext:
+    'Claude Code-ты әдеттегідей іске қосыңыз немесе жалғастырыңыз, содан кейін агентті қосыңыз. Агент күйі чатта автоматты ояту расталғанын көрсетеді; қауіпсіз режим немесе ұйым саясаты оны өшіруі мүмкін.',
+  mcpSetup_claudeLaunch: 'Claude Code-ты іске қосу',
+  mcpSetup_copyLaunch: 'Іске қосу командасын көшіру',
   mcpSetup_connectionPrompt: '<Өзіңіз таңдаған ат> атты агент ретінде қосыл.',
 
   agentsColumnName: 'Аты',

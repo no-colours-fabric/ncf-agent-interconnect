@@ -87,6 +87,14 @@ export const mcpSetupEnglish = {
   cursorNext: 'Restart Cursor once, then connect an agent in the intended chat.',
   opencodeNext: 'Restart OpenCode v1 to use these settings.',
   codexNext: 'Reconnect MCP in the selected Codex instance or profile to use these settings.',
+  configureClaude: 'Configure Claude Code',
+  claudeTitle: 'Configure Claude Code',
+  claudeDescription:
+    'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables two plugins published by this app in the selected user settings file: the NCF plugin, with its MCP server, fixed lifecycle and tool-call hooks run by this app, and a mod that announces waiting messages in the exact chat; and the gate plugin it depends on, which lets an announcement start a turn only while it is current. Apply also allows agent_read without a prompt. Other permission decisions stay yours.',
+  claudeNext:
+    'Start or resume Claude Code normally, then connect an agent. The agent status shows when automatic wake is verified in a chat; safe mode or an organization policy can turn it off.',
+  claudeLaunch: 'Start Claude Code',
+  copyLaunch: 'Copy launch command',
   copyPrompt: 'Copy connection prompt',
   connect: 'Connect an agent in the client',
   connectionPrompt: 'Connect as agent <a name you choose>.',

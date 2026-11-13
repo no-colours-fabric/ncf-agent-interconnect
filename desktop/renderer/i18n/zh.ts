@@ -35,6 +35,8 @@ export const zh: Messages = {
   mcpSetup_aionConfigureAccess: '配置访问',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     '连接 AionUi 内的 Cursor Agent。访问授权、已保存的 MCP 设置和活动桥接是独立状态。',
   mcpSetup_aionContinue: '继续设置 AionUi。请按照以下步骤操作。',
@@ -105,6 +107,14 @@ export const zh: Messages = {
   mcpSetup_codexNext: '要使用这些设置，请在所选 Codex 实例或配置文件中重新连接 MCP。',
   mcpSetup_copyPrompt: '复制连接提示词',
   mcpSetup_connect: '在客户端中连接代理',
+  mcpSetup_configureClaude: '配置 Claude Code',
+  mcpSetup_claudeTitle: '配置 Claude Code',
+  mcpSetup_claudeDescription:
+    '将交互式 Claude Code 连接到 NCF Agent Interconnect。“应用”会在所选的用户设置文件中启用本应用发布的两个插件：NCF 插件，包含其 MCP 服务器、由本应用执行的固定生命周期钩子和工具调用钩子，以及一个在对应聊天中通知等待中消息的 mod；以及它所依赖的检查插件，只在通知仍然有效时允许它开始一轮对话。同时允许无需确认即可使用 agent_read。其他权限决定仍由你做出。',
+  mcpSetup_claudeNext:
+    '像平常一样启动或恢复 Claude Code，然后连接代理。代理状态会显示自动唤醒是否已在聊天中得到确认；安全模式或组织策略可能会将其关闭。',
+  mcpSetup_claudeLaunch: '启动 Claude Code',
+  mcpSetup_copyLaunch: '复制启动命令',
   mcpSetup_connectionPrompt: '以代理<您选择的名称>的身份连接。',
 
   agentsColumnName: '名称',

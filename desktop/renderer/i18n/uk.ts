@@ -36,6 +36,8 @@ export const uk: Messages = {
   mcpSetup_aionConfigureAccess: 'Налаштувати доступ',
 
   clientsKindAionui: 'AionUi',
+
+  clientsKindClaude: 'Claude Code',
   mcpSetup_aionDescription:
     'Підключення Cursor Agent усередині AionUi. Доступ, збережені налаштування MCP та активний міст — окремі стани.',
   mcpSetup_aionContinue: 'Продовжте налаштування AionUi. Дотримуйтеся наведених нижче кроків.',
@@ -112,6 +114,14 @@ export const uk: Messages = {
     'Перепідключіть MCP у вибраному екземплярі або профілі Codex, щоб використовувати ці налаштування.',
   mcpSetup_copyPrompt: 'Скопіювати запит підключення',
   mcpSetup_connect: 'Підключити агента в клієнті',
+  mcpSetup_configureClaude: 'Налаштувати Claude Code',
+  mcpSetup_claudeTitle: 'Налаштувати Claude Code',
+  mcpSetup_claudeDescription:
+    'Підключіть інтерактивний Claude Code до NCF Agent Interconnect. «Застосувати» вмикає у вибраному файлі користувацьких налаштувань два плагіни, опубліковані цим застосунком: плагін NCF з MCP-сервером, фіксованими хуками життєвого циклу й викликів інструментів, які виконує цей застосунок, і модом, що повідомляє про повідомлення, які чекають, у потрібний чат; і плагін-перевірку, від якого він залежить і який дозволяє сповіщенню почати хід, лише поки воно актуальне. Також дозволяється agent_read без запиту. Інші рішення щодо дозволів залишаються за вами.',
+  mcpSetup_claudeNext:
+    'Запустіть або відновіть Claude Code як зазвичай, потім підключіть агента. Статус агента показує, коли автоматичне пробудження підтверджено в чаті; безпечний режим або політика організації можуть його вимкнути.',
+  mcpSetup_claudeLaunch: 'Запуск Claude Code',
+  mcpSetup_copyLaunch: 'Копіювати команду запуску',
   mcpSetup_connectionPrompt: 'Підключись як агент <вибране вами ім’я>.',
 
   agentsColumnName: 'Ім’я',

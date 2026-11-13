@@ -1,0 +1,2115 @@
+{
+  "candidate": "claude-code-candidate",
+  "environment": "Linux x86_64; installed candidate copy of the packaged runtime (release/linux-unpacked of the stated revision) with an isolated --data-dir; Claude Code 2.1.319 (Claude Code) native install; claude.ai personal account, no organization policy; dedicated CLAUDE_CONFIG_DIR set up by the owner's Apply in the product UI; no development or plugin-dir flags; tmux for owner keystrokes, owner answered dialogs and approved the transfer",
+  "redaction": "Sessions aliased; tokens, connection ids, paths, owner prompt text and model text omitted; synthetic message ids exported whole; delivery attempt ids cut to 8 characters; the node database itself is not exported.",
+  "cases": [
+    {
+      "case": "K0-setup-and-plugin-order",
+      "revision": "c4525c0",
+      "window": ["2026-11-09T17:34:00Z", "2026-11-09T17:36:10Z"],
+      "nativeTranscript": {
+        "CAND-STALE-FIRST-LAUNCH": [],
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:35:59.894Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T17:36:06.977Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_connect",
+            "toolUse": "vr9edrVo"
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-STALE-FIRST-LAUNCH": [
+          {
+            "at": "2026-11-09T17:35:16.920Z",
+            "line": "[DEBUG] Skipping orphaned enabledPlugins entry ncf-agent-interconnect-gate@ncf-agent-interconnect: not in marketplace catalog"
+          },
+          {
+            "at": "2026-11-09T17:35:18.948Z",
+            "line": "[DEBUG] Hooks: SessionStart:startup [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> --import file://<path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished "
+          },
+          {
+            "at": "2026-11-09T17:35:19.322Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 434ms"
+          }
+        ],
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:35:39.354Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T17:35:39.357Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T17:35:39.649Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 75058)"
+          },
+          {
+            "at": "2026-11-09T17:35:39.944Z",
+            "line": "[DEBUG] Hooks: SessionStart:startup [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (569ms)"
+          },
+          {
+            "at": "2026-11-09T17:35:40.076Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 495ms"
+          }
+        ]
+      },
+      "deliveryAttempts": [],
+      "messageStates": {}
+    },
+    {
+      "case": "K1-later-arrival-idle",
+      "revision": "c4525c0",
+      "window": ["2026-11-09T17:36:20Z", "2026-11-09T17:36:50Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:36:28.638Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:36:31.428Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "D177zVpK"
+          },
+          {
+            "at": "2026-11-09T17:36:32.275Z",
+            "row": "tool_result",
+            "toolUse": "D177zVpK",
+            "returnedIds": ["24e3f962-ce7b-4cfd-a8f2-c31cfbbeda77"],
+            "hasMore": false,
+            "nextCursor": 2
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-A": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "cbfac11f",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794245792155,
+          "updated": 1794245792274,
+          "ids": ["24e3f962-ce7b-4cfd-a8f2-c31cfbbeda77"]
+        }
+      ],
+      "messageStates": {
+        "24e3f962-ce7b-4cfd-a8f2-c31cfbbeda77": "processed"
+      }
+    },
+    {
+      "case": "K2-isolation-ABC",
+      "revision": "c4525c0",
+      "window": ["2026-11-09T17:38:00Z", "2026-11-09T17:38:27Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:38:04.786Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:38:06.317Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "6w6bZu7x"
+          },
+          {
+            "at": "2026-11-09T17:38:07.311Z",
+            "row": "tool_result",
+            "toolUse": "6w6bZu7x",
+            "returnedIds": ["93ee5bd5-dda7-4c73-894d-2d93cabf2c70"],
+            "hasMore": false,
+            "nextCursor": 4
+          }
+        ],
+        "CAND-B": [],
+        "CAND-C": []
+      },
+      "clientDebug": {
+        "CAND-A": [],
+        "CAND-B": [],
+        "CAND-C": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "86fc2dc6",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794245887183,
+          "updated": 1794245887307,
+          "ids": ["93ee5bd5-dda7-4c73-894d-2d93cabf2c70"]
+        }
+      ],
+      "messageStates": {
+        "93ee5bd5-dda7-4c73-894d-2d93cabf2c70": "processed"
+      }
+    },
+    {
+      "case": "K3-draft",
+      "revision": "c4525c0",
+      "window": ["2026-11-09T17:38:27Z", "2026-11-09T17:38:55Z"],
+      "nativeTranscript": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:38:29.014Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:38:33.553Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "h6rXQza7"
+          },
+          {
+            "at": "2026-11-09T17:38:34.322Z",
+            "row": "tool_result",
+            "toolUse": "h6rXQza7",
+            "returnedIds": ["1b69b703-b0b3-4001-9773-073f9006d70c"],
+            "hasMore": false,
+            "nextCursor": 6
+          },
+          {
+            "at": "2026-11-09T17:38:38.063Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_send",
+            "toolUse": "oyN5CtFF"
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-B": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "ef92dfee",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794245914193,
+          "updated": 1794245914319,
+          "ids": ["1b69b703-b0b3-4001-9773-073f9006d70c"]
+        }
+      ],
+      "messageStates": {
+        "1b69b703-b0b3-4001-9773-073f9006d70c": "processed"
+      }
+    },
+    {
+      "case": "K4-busy-52-pre-coalesce",
+      "revision": "c4525c0",
+      "window": ["2026-11-09T17:39:20Z", "2026-11-09T17:41:30Z"],
+      "nativeTranscript": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:39:22.231Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:39:22.663Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:39:24.351Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "Uz2KaQnJ"
+          },
+          {
+            "at": "2026-11-09T17:39:25.237Z",
+            "row": "tool_result",
+            "toolUse": "Uz2KaQnJ",
+            "returnedIds": [
+              "806aa6e1-baec-4597-b6b4-a8704fca991e",
+              "d938b99a-3675-4fe9-9d5e-a0526c69bb34",
+              "31ff014b-5749-4659-b32e-8238706a79df",
+              "7bb8fb32-dec8-400e-aeea-59fe0755062b",
+              "ad4e20e1-7f24-4671-9451-4322b49db097",
+              "45a2dd62-2b65-45da-b398-6c42d11b1a81",
+              "85596653-129d-44b2-ad1e-655954537ab1",
+              "ab89213f-1533-4f90-8ba1-397e104403de",
+              "33bdf33d-3b79-46b9-b1e0-f5aea0a1cf9d",
+              "c14522f3-be3c-4b3a-a28c-84706c3aeea1",
+              "0e879751-6a34-4bd2-8247-c2c3029ed54f",
+              "84bea271-241d-4665-8e43-87f0836e186f",
+              "7f575782-bbae-454f-b321-23cf07ce5a13",
+              "f4177320-53d9-4e47-9821-82f38302e14d",
+              "42011808-bb14-4346-86d4-efd7bdc2503a",
+              "99901448-e7a3-4dac-8905-ed75fab23556",
+              "5205d3f4-b749-48d3-9494-bb0f66729009",
+              "f9261473-950a-4bd3-b08a-3a3b4b2d93e6",
+              "62a0bbee-7ad1-4ba9-8683-ff569a4d5ffc",
+              "1b0b97ca-3691-44a6-9873-9dd79334cc67",
+              "91038433-4b34-4690-80fa-0dc6b7f6022d",
+              "33eb452a-f97f-43b1-a045-81ccf11b13ee",
+              "ba376879-c24d-4afe-a9fb-2c96c3743da5",
+              "7069688c-870a-4dc0-9524-ad7de64c380f",
+              "28736f04-d437-4f9b-899e-b5d23452b062",
+              "9c5a476c-8c2b-4ce4-a3e4-af3d54b3490e",
+              "e5ef9037-0251-4ff8-b306-788a8751baba",
+              "776b01b6-cbd5-4e95-8cfb-6c1931dd9889",
+              "cddeb2d5-b44f-4b98-8fde-42c2be7f80b4",
+              "36f9accc-dfb5-4c0b-a4d9-5860f46cb3c0",
+              "b5cd8edb-763f-4791-baf1-ade9973a4760",
+              "ae181e0d-c415-4a64-b543-7ee038b8c786",
+              "73cf4cae-629b-4e76-b23b-4ed1a524d1c0",
+              "30001f43-4e24-47c4-a042-f0e71018ffd1",
+              "c37854bd-b266-4d87-a894-f13422d0023d",
+              "72b7e8ba-1b97-42de-905e-98ed49bdacc7"
+            ],
+            "hasMore": false,
+            "nextCursor": 80
+          },
+          {
+            "at": "2026-11-09T17:39:27.166Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "988wYnQ1"
+          },
+          {
+            "at": "2026-11-09T17:39:28.303Z",
+            "row": "tool_result",
+            "toolUse": "988wYnQ1",
+            "returnedIds": [
+              "2ea8427c-740b-4d39-ae92-ef8820aa15b8",
+              "eced300d-0e8f-4a5a-a3f6-4d3706e2db67",
+              "982fbda2-834a-4501-998c-8e901e7846d4",
+              "58885ca0-37b3-480e-937f-61ceb37dd2af",
+              "25755e33-f1b9-4b45-a14b-62bbb6d225dd",
+              "c5260672-f0bb-4ac0-9748-e1df034d774a"
+            ],
+            "hasMore": false,
+            "nextCursor": 92
+          },
+          {
+            "at": "2026-11-09T17:39:32.954Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:39:33.402Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:39:34.997Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "yoxir2SH"
+          },
+          {
+            "at": "2026-11-09T17:39:35.977Z",
+            "row": "tool_result",
+            "toolUse": "yoxir2SH",
+            "returnedIds": [
+              "3f73ed90-249f-4c90-b9b6-ce9624b6a263",
+              "ae061e34-eb70-41b3-91ca-3fd69072c8c1",
+              "d0eb1d2b-3ffd-4acb-a29f-a4fe2b6975fb",
+              "62832493-4f87-4fd8-a4f4-51618c653b16",
+              "c653475f-1546-4f27-aa73-45ba85d24418",
+              "79f7f16e-8c43-4d21-b40b-6d28ab003158",
+              "c783facf-c741-4240-8401-9bd6af560caf",
+              "014a776c-ed7e-4ba0-ba6c-4e54011e7c9e",
+              "5a3663a0-8109-4b51-a250-99b0a01cb93e",
+              "8e3d8a83-b57f-42f8-9899-bae24238f38f"
+            ],
+            "hasMore": false,
+            "nextCursor": 112
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:39:21.780Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:21.794Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:21.803Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:21.811Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:21.816Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:21.831Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.059Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.077Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.082Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.088Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.094Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.098Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.102Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.109Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.113Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.118Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.125Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.129Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.133Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.140Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.145Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.149Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.155Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.160Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.165Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.170Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.176Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.181Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.185Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.192Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:22.230Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.576Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.589Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.594Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.598Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.604Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.612Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.855Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.872Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.879Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.885Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.891Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.895Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.900Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.905Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.910Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.914Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.918Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:32.953Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn (superseded). Messages stay unread.)"
+          },
+          {
+            "at": "2026-11-09T17:39:39.659Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn: the waiting messages were already read.)"
+          }
+        ]
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "cb100d7d",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794245965054,
+          "updated": 1794245965233,
+          "ids": [
+            "0e879751-6a34-4bd2-8247-c2c3029ed54f",
+            "1b0b97ca-3691-44a6-9873-9dd79334cc67",
+            "28736f04-d437-4f9b-899e-b5d23452b062",
+            "30001f43-4e24-47c4-a042-f0e71018ffd1",
+            "31ff014b-5749-4659-b32e-8238706a79df",
+            "33bdf33d-3b79-46b9-b1e0-f5aea0a1cf9d",
+            "33eb452a-f97f-43b1-a045-81ccf11b13ee",
+            "36f9accc-dfb5-4c0b-a4d9-5860f46cb3c0",
+            "42011808-bb14-4346-86d4-efd7bdc2503a",
+            "45a2dd62-2b65-45da-b398-6c42d11b1a81",
+            "5205d3f4-b749-48d3-9494-bb0f66729009",
+            "62a0bbee-7ad1-4ba9-8683-ff569a4d5ffc",
+            "7069688c-870a-4dc0-9524-ad7de64c380f",
+            "72b7e8ba-1b97-42de-905e-98ed49bdacc7",
+            "73cf4cae-629b-4e76-b23b-4ed1a524d1c0",
+            "776b01b6-cbd5-4e95-8cfb-6c1931dd9889",
+            "7bb8fb32-dec8-400e-aeea-59fe0755062b",
+            "7f575782-bbae-454f-b321-23cf07ce5a13",
+            "806aa6e1-baec-4597-b6b4-a8704fca991e",
+            "84bea271-241d-4665-8e43-87f0836e186f",
+            "85596653-129d-44b2-ad1e-655954537ab1",
+            "91038433-4b34-4690-80fa-0dc6b7f6022d",
+            "99901448-e7a3-4dac-8905-ed75fab23556",
+            "9c5a476c-8c2b-4ce4-a3e4-af3d54b3490e",
+            "ab89213f-1533-4f90-8ba1-397e104403de",
+            "ad4e20e1-7f24-4671-9451-4322b49db097",
+            "ae181e0d-c415-4a64-b543-7ee038b8c786",
+            "b5cd8edb-763f-4791-baf1-ade9973a4760",
+            "ba376879-c24d-4afe-a9fb-2c96c3743da5",
+            "c14522f3-be3c-4b3a-a28c-84706c3aeea1",
+            "c37854bd-b266-4d87-a894-f13422d0023d",
+            "cddeb2d5-b44f-4b98-8fde-42c2be7f80b4",
+            "d938b99a-3675-4fe9-9d5e-a0526c69bb34",
+            "e5ef9037-0251-4ff8-b306-788a8751baba",
+            "f4177320-53d9-4e47-9821-82f38302e14d",
+            "f9261473-950a-4bd3-b08a-3a3b4b2d93e6"
+          ]
+        },
+        {
+          "attempt": "9916e927",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794245968191,
+          "updated": 1794245968302,
+          "ids": [
+            "25755e33-f1b9-4b45-a14b-62bbb6d225dd",
+            "2ea8427c-740b-4d39-ae92-ef8820aa15b8",
+            "58885ca0-37b3-480e-937f-61ceb37dd2af",
+            "982fbda2-834a-4501-998c-8e901e7846d4",
+            "c5260672-f0bb-4ac0-9748-e1df034d774a",
+            "eced300d-0e8f-4a5a-a3f6-4d3706e2db67"
+          ]
+        },
+        {
+          "attempt": "24546b52",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794245975849,
+          "updated": 1794245975975,
+          "ids": [
+            "014a776c-ed7e-4ba0-ba6c-4e54011e7c9e",
+            "3f73ed90-249f-4c90-b9b6-ce9624b6a263",
+            "5a3663a0-8109-4b51-a250-99b0a01cb93e",
+            "62832493-4f87-4fd8-a4f4-51618c653b16",
+            "79f7f16e-8c43-4d21-b40b-6d28ab003158",
+            "8e3d8a83-b57f-42f8-9899-bae24238f38f",
+            "ae061e34-eb70-41b3-91ca-3fd69072c8c1",
+            "c653475f-1546-4f27-aa73-45ba85d24418",
+            "c783facf-c741-4240-8401-9bd6af560caf",
+            "d0eb1d2b-3ffd-4acb-a29f-a4fe2b6975fb"
+          ]
+        }
+      ],
+      "messageStates": {
+        "014a776c-ed7e-4ba0-ba6c-4e54011e7c9e": "processed",
+        "0e879751-6a34-4bd2-8247-c2c3029ed54f": "processed",
+        "1b0b97ca-3691-44a6-9873-9dd79334cc67": "processed",
+        "25755e33-f1b9-4b45-a14b-62bbb6d225dd": "processed",
+        "28736f04-d437-4f9b-899e-b5d23452b062": "processed",
+        "2ea8427c-740b-4d39-ae92-ef8820aa15b8": "processed",
+        "30001f43-4e24-47c4-a042-f0e71018ffd1": "processed",
+        "31ff014b-5749-4659-b32e-8238706a79df": "processed",
+        "33bdf33d-3b79-46b9-b1e0-f5aea0a1cf9d": "processed",
+        "33eb452a-f97f-43b1-a045-81ccf11b13ee": "processed",
+        "36f9accc-dfb5-4c0b-a4d9-5860f46cb3c0": "processed",
+        "3f73ed90-249f-4c90-b9b6-ce9624b6a263": "processed",
+        "42011808-bb14-4346-86d4-efd7bdc2503a": "processed",
+        "45a2dd62-2b65-45da-b398-6c42d11b1a81": "processed",
+        "5205d3f4-b749-48d3-9494-bb0f66729009": "processed",
+        "58885ca0-37b3-480e-937f-61ceb37dd2af": "processed",
+        "5a3663a0-8109-4b51-a250-99b0a01cb93e": "processed",
+        "62832493-4f87-4fd8-a4f4-51618c653b16": "processed",
+        "62a0bbee-7ad1-4ba9-8683-ff569a4d5ffc": "processed",
+        "7069688c-870a-4dc0-9524-ad7de64c380f": "processed",
+        "72b7e8ba-1b97-42de-905e-98ed49bdacc7": "processed",
+        "73cf4cae-629b-4e76-b23b-4ed1a524d1c0": "processed",
+        "776b01b6-cbd5-4e95-8cfb-6c1931dd9889": "processed",
+        "79f7f16e-8c43-4d21-b40b-6d28ab003158": "processed",
+        "7bb8fb32-dec8-400e-aeea-59fe0755062b": "processed",
+        "7f575782-bbae-454f-b321-23cf07ce5a13": "processed",
+        "806aa6e1-baec-4597-b6b4-a8704fca991e": "processed",
+        "84bea271-241d-4665-8e43-87f0836e186f": "processed",
+        "85596653-129d-44b2-ad1e-655954537ab1": "processed",
+        "8e3d8a83-b57f-42f8-9899-bae24238f38f": "processed",
+        "91038433-4b34-4690-80fa-0dc6b7f6022d": "processed",
+        "982fbda2-834a-4501-998c-8e901e7846d4": "processed",
+        "99901448-e7a3-4dac-8905-ed75fab23556": "processed",
+        "9c5a476c-8c2b-4ce4-a3e4-af3d54b3490e": "processed",
+        "ab89213f-1533-4f90-8ba1-397e104403de": "processed",
+        "ad4e20e1-7f24-4671-9451-4322b49db097": "processed",
+        "ae061e34-eb70-41b3-91ca-3fd69072c8c1": "processed",
+        "ae181e0d-c415-4a64-b543-7ee038b8c786": "processed",
+        "b5cd8edb-763f-4791-baf1-ade9973a4760": "processed",
+        "ba376879-c24d-4afe-a9fb-2c96c3743da5": "processed",
+        "c14522f3-be3c-4b3a-a28c-84706c3aeea1": "processed",
+        "c37854bd-b266-4d87-a894-f13422d0023d": "processed",
+        "c5260672-f0bb-4ac0-9748-e1df034d774a": "processed",
+        "c653475f-1546-4f27-aa73-45ba85d24418": "processed",
+        "c783facf-c741-4240-8401-9bd6af560caf": "processed",
+        "cddeb2d5-b44f-4b98-8fde-42c2be7f80b4": "processed",
+        "d0eb1d2b-3ffd-4acb-a29f-a4fe2b6975fb": "processed",
+        "d938b99a-3675-4fe9-9d5e-a0526c69bb34": "processed",
+        "e5ef9037-0251-4ff8-b306-788a8751baba": "processed",
+        "eced300d-0e8f-4a5a-a3f6-4d3706e2db67": "processed",
+        "f4177320-53d9-4e47-9821-82f38302e14d": "processed",
+        "f9261473-950a-4bd3-b08a-3a3b4b2d93e6": "processed"
+      }
+    },
+    {
+      "case": "K5-first-wake-exact-resume",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T17:49:55Z", "2026-11-09T17:51:30Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:50:05.434Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:50:07.945Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "tekGQJwY"
+          },
+          {
+            "at": "2026-11-09T17:50:08.712Z",
+            "row": "tool_result",
+            "toolUse": "tekGQJwY",
+            "error": "This native Claude Code session is not verified. Use the client controls to reconnect MCP."
+          },
+          {
+            "at": "2026-11-09T17:50:12.111Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:50:13.729Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "zweJWVKj"
+          },
+          {
+            "at": "2026-11-09T17:50:14.541Z",
+            "row": "tool_result",
+            "toolUse": "zweJWVKj",
+            "error": "This native Claude Code session is not verified. Use the client controls to reconnect MCP."
+          }
+        ],
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:50:06.869Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:50:08.472Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "AwU9G6Ec"
+          },
+          {
+            "at": "2026-11-09T17:50:09.545Z",
+            "row": "tool_result",
+            "toolUse": "AwU9G6Ec",
+            "returnedIds": ["bdf4899e-d07a-4a15-bd0f-dc23acc33d01"],
+            "hasMore": false,
+            "nextCursor": 116
+          }
+        ],
+        "CAND-C": [
+          {
+            "at": "2026-11-09T17:50:06.520Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:50:09.737Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "vg89QaRQ"
+          },
+          {
+            "at": "2026-11-09T17:50:11.504Z",
+            "row": "tool_result",
+            "toolUse": "vg89QaRQ",
+            "returnedIds": ["497adb09-3fc9-480a-8980-1336f15d3a99"],
+            "hasMore": false,
+            "nextCursor": 118
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:49:59.303Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T17:49:59.308Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T17:50:00.370Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 80383)"
+          },
+          {
+            "at": "2026-11-09T17:50:00.779Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 442ms"
+          },
+          {
+            "at": "2026-11-09T17:50:03.210Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (3880ms)"
+          }
+        ],
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:49:59.347Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T17:49:59.351Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T17:50:01.820Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 80505)"
+          },
+          {
+            "at": "2026-11-09T17:50:05.373Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (6003ms)"
+          },
+          {
+            "at": "2026-11-09T17:50:05.413Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 3658ms"
+          }
+        ],
+        "CAND-C": [
+          {
+            "at": "2026-11-09T17:49:59.350Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T17:49:59.354Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T17:50:00.889Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (1515ms)"
+          },
+          {
+            "at": "2026-11-09T17:50:01.764Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 80488)"
+          },
+          {
+            "at": "2026-11-09T17:50:05.398Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 3680ms"
+          }
+        ]
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "629138d5",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794246609380,
+          "updated": 1794246609544,
+          "ids": ["bdf4899e-d07a-4a15-bd0f-dc23acc33d01"]
+        },
+        {
+          "attempt": "50d3654f",
+          "state": "committed",
+          "agent": "cand-вера",
+          "created": 1794246611377,
+          "updated": 1794246611503,
+          "ids": ["497adb09-3fc9-480a-8980-1336f15d3a99"]
+        }
+      ],
+      "messageStates": {
+        "497adb09-3fc9-480a-8980-1336f15d3a99": "processed",
+        "bdf4899e-d07a-4a15-bd0f-dc23acc33d01": "processed"
+      }
+    },
+    {
+      "case": "K5b-A-second-exact-resume",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T17:52:35Z", "2026-11-09T17:53:30Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:52:42.871Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:52:44.735Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "sJLQM4FK"
+          },
+          {
+            "at": "2026-11-09T17:52:45.756Z",
+            "row": "tool_result",
+            "toolUse": "sJLQM4FK",
+            "returnedIds": ["4bb90960-979f-498c-8863-dab1e8285e0d"],
+            "hasMore": false,
+            "nextCursor": 114
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T17:52:37.588Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> ended (SIGTERM) in 157220ms, 2 chunks"
+          },
+          {
+            "at": "2026-11-09T17:52:41.581Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T17:52:41.585Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T17:52:42.003Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 81502)"
+          },
+          {
+            "at": "2026-11-09T17:52:42.182Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (580ms)"
+          },
+          {
+            "at": "2026-11-09T17:52:42.414Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 485ms"
+          }
+        ]
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "2147687c",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794246765605,
+          "updated": 1794246765750,
+          "ids": ["4bb90960-979f-498c-8863-dab1e8285e0d"]
+        }
+      ],
+      "messageStates": {
+        "4bb90960-979f-498c-8863-dab1e8285e0d": "processed"
+      }
+    },
+    {
+      "case": "K6-busy-coalesce-5",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T17:53:30Z", "2026-11-09T17:54:50Z"],
+      "nativeTranscript": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:54:03.480Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T17:54:13.218Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:54:15.330Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "4LRmXmmF"
+          },
+          {
+            "at": "2026-11-09T17:54:16.358Z",
+            "row": "tool_result",
+            "toolUse": "4LRmXmmF",
+            "returnedIds": [
+              "27efa2af-a17c-4bf4-8f75-cbfcffe1386b",
+              "99d5fd54-1afa-48b4-9c83-be4f6f91cbeb",
+              "f05a6706-e661-43ec-9c53-864e1f387f75",
+              "12b52e63-0f25-4bf2-a8a0-2b39ecc1b155",
+              "474496f3-ea30-4159-9fa9-c710daed715f"
+            ],
+            "hasMore": false,
+            "nextCursor": 128
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-B": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "d9a1746a",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794246856221,
+          "updated": 1794246856355,
+          "ids": [
+            "12b52e63-0f25-4bf2-a8a0-2b39ecc1b155",
+            "27efa2af-a17c-4bf4-8f75-cbfcffe1386b",
+            "474496f3-ea30-4159-9fa9-c710daed715f",
+            "99d5fd54-1afa-48b4-9c83-be4f6f91cbeb",
+            "f05a6706-e661-43ec-9c53-864e1f387f75"
+          ]
+        }
+      ],
+      "messageStates": {
+        "12b52e63-0f25-4bf2-a8a0-2b39ecc1b155": "processed",
+        "27efa2af-a17c-4bf4-8f75-cbfcffe1386b": "processed",
+        "474496f3-ea30-4159-9fa9-c710daed715f": "processed",
+        "99d5fd54-1afa-48b4-9c83-be4f6f91cbeb": "processed",
+        "f05a6706-e661-43ec-9c53-864e1f387f75": "processed"
+      }
+    },
+    {
+      "case": "K7-stop-esc-explicit-read-next-arrival",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T17:54:55Z", "2026-11-09T17:56:30Z"],
+      "nativeTranscript": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:55:01.719Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T17:55:42.777Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T17:55:44.587Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "FDBn38PB"
+          },
+          {
+            "at": "2026-11-09T17:55:45.749Z",
+            "row": "tool_result",
+            "toolUse": "FDBn38PB",
+            "returnedIds": ["4985341f-ff12-42b5-a91d-37fbfd90cd0e"],
+            "hasMore": false,
+            "nextCursor": 130
+          },
+          {
+            "at": "2026-11-09T17:56:03.319Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T17:56:04.847Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "QjNRU2Eo"
+          },
+          {
+            "at": "2026-11-09T17:56:05.927Z",
+            "row": "tool_result",
+            "toolUse": "QjNRU2Eo",
+            "returnedIds": ["7a1e3307-5bc8-410b-9aa1-4f6a3b00c51f"],
+            "hasMore": false,
+            "nextCursor": 132
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-B": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "8df29887",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794246945615,
+          "updated": 1794246945744,
+          "ids": ["4985341f-ff12-42b5-a91d-37fbfd90cd0e"]
+        },
+        {
+          "attempt": "520aef76",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794246965783,
+          "updated": 1794246965925,
+          "ids": ["7a1e3307-5bc8-410b-9aa1-4f6a3b00c51f"]
+        }
+      ],
+      "messageStates": {
+        "4985341f-ff12-42b5-a91d-37fbfd90cd0e": "processed",
+        "7a1e3307-5bc8-410b-9aa1-4f6a3b00c51f": "processed"
+      }
+    },
+    {
+      "case": "K8-dropped-notice-with-draft",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T17:56:30Z", "2026-11-09T17:57:40Z"],
+      "nativeTranscript": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:56:35.116Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T17:56:36.768Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "9wacnWmZ"
+          },
+          {
+            "at": "2026-11-09T17:56:37.661Z",
+            "row": "tool_result",
+            "toolUse": "9wacnWmZ",
+            "returnedIds": ["8b92eb21-649a-4caf-a3b3-85277f13cada"],
+            "hasMore": false,
+            "nextCursor": 134
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:56:46.130Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn: the waiting messages were already read.)"
+          }
+        ]
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "b7c0c845",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794246997530,
+          "updated": 1794246997660,
+          "ids": ["8b92eb21-649a-4caf-a3b3-85277f13cada"]
+        }
+      ],
+      "messageStates": {
+        "8b92eb21-649a-4caf-a3b3-85277f13cada": "processed"
+      }
+    },
+    {
+      "case": "K9-question-and-permission-dialogs",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T17:58:50Z", "2026-11-09T18:00:50Z"],
+      "nativeTranscript": {
+        "CAND-B": [
+          {
+            "at": "2026-11-09T17:58:57.237Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T17:58:59.005Z",
+            "row": "tool_use",
+            "tool": "AskUserQuestion",
+            "toolUse": "pLv65YQo"
+          },
+          {
+            "at": "2026-11-09T18:00:30.961Z",
+            "row": "tool_use",
+            "tool": "Bash",
+            "toolUse": "fxzodnsh"
+          },
+          {
+            "at": "2026-11-09T18:00:35.410Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:00:37.821Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "CgYg2sLg"
+          },
+          {
+            "at": "2026-11-09T18:00:38.308Z",
+            "row": "tool_result",
+            "toolUse": "CgYg2sLg",
+            "returnedIds": ["f831f561-b9fe-4781-a071-92c0a2a10fa5"],
+            "hasMore": false,
+            "nextCursor": 136
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-B": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "e20af440",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794247238191,
+          "updated": 1794247238307,
+          "ids": ["f831f561-b9fe-4781-a071-92c0a2a10fa5"]
+        }
+      ],
+      "messageStates": {
+        "f831f561-b9fe-4781-a071-92c0a2a10fa5": "processed"
+      }
+    },
+    {
+      "case": "K10-clear-resume-branch",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T18:01:10Z", "2026-11-09T18:03:15Z"],
+      "nativeTranscript": {
+        "CAND-C": [],
+        "CAND-C-AFTER-CLEAR": [
+          {
+            "at": "2026-11-09T18:01:18.867Z",
+            "row": "prompt",
+            "origin": "human",
+            "text": "[owner prompt omitted]"
+          },
+          {
+            "at": "2026-11-09T18:01:18.343Z",
+            "row": "prompt",
+            "origin": "human",
+            "text": "[owner prompt omitted]"
+          }
+        ],
+        "CAND-A": [],
+        "CAND-A-BRANCH": []
+      },
+      "clientDebug": {
+        "CAND-C": [
+          {
+            "at": "2026-11-09T18:01:18.853Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> stopped: the op was aborted"
+          }
+        ],
+        "CAND-C-AFTER-CLEAR": [
+          {
+            "at": "2026-11-09T18:01:19.379Z",
+            "line": "[DEBUG] Hooks: SessionStart:clear [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (513ms)"
+          },
+          {
+            "at": "2026-11-09T18:01:57.583Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (547ms)"
+          }
+        ],
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:02:36.147Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> stopped: the op was aborted"
+          },
+          {
+            "at": "2026-11-09T18:02:36.736Z",
+            "line": "[DEBUG] Hooks: SessionStart:fork [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (581ms)"
+          }
+        ],
+        "CAND-A-BRANCH": []
+      },
+      "deliveryAttempts": [],
+      "messageStates": {}
+    },
+    {
+      "case": "K11-recovery-exact-resume",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T18:03:20Z", "2026-11-09T18:04:10Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:03:32.911Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:03:34.671Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "2Mh5ACF3"
+          },
+          {
+            "at": "2026-11-09T18:03:35.637Z",
+            "row": "tool_result",
+            "toolUse": "2Mh5ACF3",
+            "returnedIds": ["fa5593af-3693-4ccd-a556-4034bac77616"],
+            "hasMore": false,
+            "nextCursor": 140
+          }
+        ],
+        "CAND-C": [
+          {
+            "at": "2026-11-09T18:03:33.451Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:03:35.225Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "DrfngNws"
+          },
+          {
+            "at": "2026-11-09T18:03:36.503Z",
+            "row": "tool_result",
+            "toolUse": "DrfngNws",
+            "returnedIds": ["b4e03a69-89bf-488e-aac8-d2ee696e0404"],
+            "hasMore": false,
+            "nextCursor": 138
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:03:31.036Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:03:31.042Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:03:31.406Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 84728)"
+          },
+          {
+            "at": "2026-11-09T18:03:31.777Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (718ms)"
+          },
+          {
+            "at": "2026-11-09T18:03:32.289Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 917ms"
+          }
+        ],
+        "CAND-C": [
+          {
+            "at": "2026-11-09T18:03:31.068Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:03:31.073Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:03:31.960Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 84829)"
+          },
+          {
+            "at": "2026-11-09T18:03:32.106Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (1017ms)"
+          },
+          {
+            "at": "2026-11-09T18:03:32.926Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 1148ms"
+          }
+        ]
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "d589b046",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794247415522,
+          "updated": 1794247415633,
+          "ids": ["fa5593af-3693-4ccd-a556-4034bac77616"]
+        },
+        {
+          "attempt": "250cd827",
+          "state": "committed",
+          "agent": "cand-вера",
+          "created": 1794247416359,
+          "updated": 1794247416497,
+          "ids": ["b4e03a69-89bf-488e-aac8-d2ee696e0404"]
+        }
+      ],
+      "messageStates": {
+        "b4e03a69-89bf-488e-aac8-d2ee696e0404": "processed",
+        "fa5593af-3693-4ccd-a556-4034bac77616": "processed"
+      }
+    },
+    {
+      "case": "K12-node-restart-live-chats",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T18:04:10Z", "2026-11-09T18:05:30Z"],
+      "nativeTranscript": {
+        "CAND-A": [],
+        "CAND-B": [
+          {
+            "at": "2026-11-09T18:05:20.879Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:05:23.025Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "Nh2FZa98"
+          },
+          {
+            "at": "2026-11-09T18:05:23.575Z",
+            "row": "tool_result",
+            "toolUse": "Nh2FZa98",
+            "returnedIds": ["aaa9ceb7-76d5-4e03-89df-a7507f9420e3"],
+            "hasMore": false,
+            "nextCursor": 142
+          }
+        ],
+        "CAND-C": []
+      },
+      "clientDebug": {
+        "CAND-A": [],
+        "CAND-B": [],
+        "CAND-C": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "53089c14",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794247523442,
+          "updated": 1794247523573,
+          "ids": ["aaa9ceb7-76d5-4e03-89df-a7507f9420e3"]
+        }
+      ],
+      "messageStates": {
+        "aaa9ceb7-76d5-4e03-89df-a7507f9420e3": "processed"
+      }
+    },
+    {
+      "case": "K13-gate-disabled",
+      "revision": "3d4593a",
+      "window": ["2026-11-09T18:05:30Z", "2026-11-09T18:06:40Z"],
+      "nativeTranscript": {
+        "CAND-GATE-CLI-CHECK": [],
+        "CAND-GATE-OFF": []
+      },
+      "clientDebug": {
+        "CAND-GATE-CLI-CHECK": [
+          {
+            "at": "2026-11-09T18:05:39.780Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:05:39.785Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:05:40.184Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 85591)"
+          },
+          {
+            "at": "2026-11-09T18:05:40.363Z",
+            "line": "[DEBUG] Hooks: SessionStart:startup [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (545ms)"
+          },
+          {
+            "at": "2026-11-09T18:05:40.650Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 501ms"
+          },
+          {
+            "at": "2026-11-09T18:06:01.859Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> ended (SIGTERM) in 21676ms, 0 chunks"
+          }
+        ],
+        "CAND-GATE-OFF": [
+          {
+            "at": "2026-11-09T18:06:04.511Z",
+            "line": "[DEBUG] Read hooks.json for plugin ncf-agent-interconnect-gate (enabled=false; will NOT register, plugin is disabled): <path>"
+          },
+          {
+            "at": "2026-11-09T18:06:04.517Z",
+            "line": "[DEBUG] Plugin not available for MCP: ncf-agent-interconnect@ncf-agent-interconnect - error type: dependency-unsatisfied"
+          },
+          {
+            "at": "2026-11-09T18:06:04.517Z",
+            "line": "[DEBUG] Plugin loading errors: Dependency \"ncf-agent-interconnect-gate@ncf-agent-interconnect\" is disabled — enable it or remove the dependency"
+          },
+          {
+            "at": "2026-11-09T18:06:04.517Z",
+            "line": "[DEBUG] Plugin loading errors: Dependency \"ncf-agent-interconnect-gate@ncf-agent-interconnect\" is disabled — enable it or remove the dependency"
+          },
+          {
+            "at": "2026-11-09T18:06:04.517Z",
+            "line": "[DEBUG] Plugin loading errors: Dependency \"ncf-agent-interconnect-gate@ncf-agent-interconnect\" is disabled — enable it or remove the dependency"
+          },
+          {
+            "at": "2026-11-09T18:06:04.518Z",
+            "line": "[DEBUG] Plugin loading errors: Dependency \"ncf-agent-interconnect-gate@ncf-agent-interconnect\" is disabled — enable it or remove the dependency"
+          },
+          {
+            "at": "2026-11-09T18:06:04.917Z",
+            "line": "[DEBUG] Plugin not available for MCP: ncf-agent-interconnect@ncf-agent-interconnect - error type: dependency-unsatisfied"
+          },
+          {
+            "at": "2026-11-09T18:06:04.917Z",
+            "line": "[DEBUG] Plugin not available for MCP: ncf-agent-interconnect@ncf-agent-interconnect - error type: dependency-unsatisfied"
+          },
+          {
+            "at": "2026-11-09T18:06:04.941Z",
+            "line": "[DEBUG] Plugin not available for MCP: ncf-agent-interconnect@ncf-agent-interconnect - error type: dependency-unsatisfied"
+          },
+          {
+            "at": "2026-11-09T18:06:05.050Z",
+            "line": "[DEBUG] Plugin loading errors: Dependency \"ncf-agent-interconnect-gate@ncf-agent-interconnect\" is disabled — enable it or remove the dependency"
+          },
+          {
+            "at": "2026-11-09T18:06:27.747Z",
+            "line": "[DEBUG] Plugin not available for MCP: ncf-agent-interconnect@ncf-agent-interconnect - error type: dependency-unsatisfied"
+          }
+        ]
+      },
+      "deliveryAttempts": [],
+      "messageStates": {}
+    },
+    {
+      "case": "K14-final-first-wake-exact-resume",
+      "revision": "c8aa41d",
+      "window": ["2026-11-09T18:13:55Z", "2026-11-09T18:14:45Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:14:01.048Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:14:03.318Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "aMrUGJKb"
+          },
+          {
+            "at": "2026-11-09T18:14:04.215Z",
+            "row": "tool_result",
+            "toolUse": "aMrUGJKb",
+            "returnedIds": ["d92b6544-2bd4-4f1a-b4db-14cf8500d195"],
+            "hasMore": false,
+            "nextCursor": 144
+          }
+        ],
+        "CAND-B": [
+          {
+            "at": "2026-11-09T18:14:02.593Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:14:05.007Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "zKMmwMvR"
+          },
+          {
+            "at": "2026-11-09T18:14:05.574Z",
+            "row": "tool_result",
+            "toolUse": "zKMmwMvR",
+            "returnedIds": ["552cfcc0-7713-4456-8c40-6b197231ee64"],
+            "hasMore": false,
+            "nextCursor": 146
+          }
+        ],
+        "CAND-C": [
+          {
+            "at": "2026-11-09T18:14:03.191Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:14:04.941Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "stBF1ZxX"
+          },
+          {
+            "at": "2026-11-09T18:14:06.300Z",
+            "row": "tool_result",
+            "toolUse": "stBF1ZxX",
+            "returnedIds": ["011b9169-a487-4c36-ada3-a5c2c44aa3d9"],
+            "hasMore": false,
+            "nextCursor": 148
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:13:58.853Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:13:58.859Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:13:59.558Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 88885)"
+          },
+          {
+            "at": "2026-11-09T18:13:59.626Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (738ms)"
+          },
+          {
+            "at": "2026-11-09T18:14:00.046Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 576ms"
+          }
+        ],
+        "CAND-B": [
+          {
+            "at": "2026-11-09T18:13:58.878Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:13:58.886Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:13:59.868Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (745ms)"
+          },
+          {
+            "at": "2026-11-09T18:14:00.738Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 88970)"
+          },
+          {
+            "at": "2026-11-09T18:14:01.548Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 842ms"
+          }
+        ],
+        "CAND-C": [
+          {
+            "at": "2026-11-09T18:13:58.875Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:13:58.879Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:14:00.034Z",
+            "line": "[DEBUG] Hooks: SessionStart:resume [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (882ms)"
+          },
+          {
+            "at": "2026-11-09T18:14:01.218Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 89034)"
+          },
+          {
+            "at": "2026-11-09T18:14:02.587Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 1414ms"
+          }
+        ]
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "3fa7e015",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794248044087,
+          "updated": 1794248044213,
+          "ids": ["d92b6544-2bd4-4f1a-b4db-14cf8500d195"]
+        },
+        {
+          "attempt": "2526b8f1",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794248045425,
+          "updated": 1794248045568,
+          "ids": ["552cfcc0-7713-4456-8c40-6b197231ee64"]
+        },
+        {
+          "attempt": "f4a0eeec",
+          "state": "committed",
+          "agent": "cand-вера",
+          "created": 1794248045856,
+          "updated": 1794248046297,
+          "ids": ["011b9169-a487-4c36-ada3-a5c2c44aa3d9"]
+        }
+      ],
+      "messageStates": {
+        "011b9169-a487-4c36-ada3-a5c2c44aa3d9": "processed",
+        "552cfcc0-7713-4456-8c40-6b197231ee64": "processed",
+        "d92b6544-2bd4-4f1a-b4db-14cf8500d195": "processed"
+      }
+    },
+    {
+      "case": "K15-final-isolation-coalesce-pagination",
+      "revision": "c8aa41d",
+      "window": ["2026-11-09T18:14:45Z", "2026-11-09T18:16:40Z"],
+      "nativeTranscript": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:14:52.048Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T18:15:01.191Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:15:04.620Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "EuxcuDjJ"
+          },
+          {
+            "at": "2026-11-09T18:15:05.645Z",
+            "row": "tool_result",
+            "toolUse": "EuxcuDjJ",
+            "returnedIds": [
+              "ac65a7b3-1b5b-48ff-817e-c752928bb5c0",
+              "ec36100f-4cd4-49fd-9088-49daeb9c0a9a",
+              "e96d202c-21a3-4048-9ace-5e55e85a8f92",
+              "c4e754b6-204c-4996-84ca-81af8c7a0fca",
+              "538c335d-3ca4-4f9d-a101-16f780d61c2f",
+              "487c09ac-1049-4063-900d-d8141090ea19",
+              "b41aae2f-9a37-47b2-9ce1-4dcd6a23649b",
+              "1f6176ab-d271-45a6-9712-8842740e48eb",
+              "d7addceb-5541-4e2a-8d76-5ef7e3b4cb9a",
+              "cd07ebf3-dbfd-47eb-8ed3-7543219e1b2f",
+              "8b48013b-bb89-4a94-b4ce-583179abfe37",
+              "ffe81189-0bc8-46d3-8b50-9f7db0dd45bd",
+              "cdbe295f-9556-4c00-b679-a8c5a9c092fe",
+              "ec194e3d-c4e6-4a9d-958f-5228b41be081",
+              "cacce80f-12a6-43af-b897-1272cc3ac808",
+              "0b89465c-f538-4817-a122-5efa18901c0d",
+              "f344c8bd-63ca-43b6-a371-50062a0786ab",
+              "965f0ea0-8a1a-40d2-80a8-df82bce7d38b",
+              "3aff02ae-2976-4252-9b3e-796ba5e69d15"
+            ],
+            "hasMore": false,
+            "nextCursor": 186
+          },
+          {
+            "at": "2026-11-09T18:15:07.602Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "RhmBCVjx"
+          },
+          {
+            "at": "2026-11-09T18:15:08.196Z",
+            "row": "tool_result",
+            "toolUse": "RhmBCVjx",
+            "returnedIds": [
+              "c05e9b03-5106-4f7e-9a18-4676063477f0",
+              "70e8f4bc-5905-4f12-83c3-bc84952ec904",
+              "b348f7e3-9fbe-4910-a264-d729635b83a5",
+              "0ed1b356-68aa-4eb7-bc3f-9a8370e5c0dd",
+              "f8874646-f8f2-45bc-b44d-1e678fe8791b"
+            ],
+            "hasMore": false,
+            "nextCursor": 196
+          },
+          {
+            "at": "2026-11-09T18:15:12.101Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:15:15.103Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "rPNNYk2T"
+          },
+          {
+            "at": "2026-11-09T18:15:15.958Z",
+            "row": "tool_result",
+            "toolUse": "rPNNYk2T",
+            "returnedIds": [
+              "74e9097d-4acc-436b-bed6-a43b579a048c",
+              "97dbd838-6a70-416a-a5df-5c91e70c9eb4",
+              "e2848ce9-8c92-4e5b-9bb7-1a728fffa273",
+              "9a8bb807-a604-4461-97af-7fb80f04ff19",
+              "e9a42df8-d9bc-4b49-bbbb-e4c2cc0cea6e",
+              "83dedaa8-213c-4fb0-9a02-f1878416f547",
+              "a2dac333-5db0-47e2-ae9b-6cfe2e656496",
+              "92ef1295-a18e-4c1f-8853-586ebc142b0a",
+              "b52a3000-116f-4e64-b3fa-c5aa81b86a5c",
+              "fb34638c-bd54-4ffa-b3e4-44d139d5cf47",
+              "b7111f65-77e7-4566-868f-f3194cb057d7",
+              "e1407ca5-1bcf-4d1f-8e7d-692123f3a06f",
+              "f5eeec21-8173-48ce-85e5-1e595201a35b"
+            ],
+            "hasMore": false,
+            "nextCursor": 222
+          },
+          {
+            "at": "2026-11-09T18:15:20.644Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:15:22.480Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "n78Mqy9P"
+          },
+          {
+            "at": "2026-11-09T18:15:23.721Z",
+            "row": "tool_result",
+            "toolUse": "n78Mqy9P",
+            "returnedIds": [
+              "f4c5cd68-eef8-4ae4-bbf3-cad8190329fd",
+              "12d8bd9b-9f97-46ff-ac8e-c4a559540808",
+              "6d18a5e8-229d-4348-bd94-435519609034",
+              "33ed1e91-97a2-43da-a577-4b031ec735ac",
+              "6748ca6c-0db1-4237-8050-d936963697ae",
+              "5ff69efe-49aa-4f89-971e-471490e0767d",
+              "6b485fc1-c5d8-496a-9f4f-1934bcb6ac12",
+              "deb33429-4614-4d0c-9019-7a8358e8ac10",
+              "fd6f708f-e28d-4699-98db-3408e70c1475",
+              "5f4addb6-76c1-4009-a177-eb9a02ea91b7",
+              "ccdb86d2-a5dc-44c6-bf86-8a87981b8a56",
+              "2f4627b1-1a33-4b82-9ece-2781d96b7ac7",
+              "57e3d76a-444c-45e9-a543-b42ca18f32b3"
+            ],
+            "hasMore": false,
+            "nextCursor": 248
+          },
+          {
+            "at": "2026-11-09T18:15:26.798Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:15:28.622Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "zJufc4KB"
+          },
+          {
+            "at": "2026-11-09T18:15:29.533Z",
+            "row": "tool_result",
+            "toolUse": "zJufc4KB",
+            "returnedIds": [
+              "d690a9b4-be41-4601-8274-530c8df30e43",
+              "d045cf64-cf9c-4cda-9088-fb8e064363b1"
+            ],
+            "hasMore": false,
+            "nextCursor": 252
+          }
+        ],
+        "CAND-B": [],
+        "CAND-C": []
+      },
+      "clientDebug": {
+        "CAND-A": [
+          {
+            "at": "2026-11-09T18:15:19.516Z",
+            "line": "[WARN] hook failed closed: ncf-agent-interconnect-gate: errorKind=HooksError errorChars=252 (prompt.submit; its .catch answered)"
+          },
+          {
+            "at": "2026-11-09T18:15:19.519Z",
+            "line": "[DEBUG] prompt.submit: dropped (NCF wake notice withdrawn: the check failed. Messages stay unread.)"
+          }
+        ],
+        "CAND-B": [],
+        "CAND-C": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "c8ce8ba5",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794248105536,
+          "updated": 1794248105644,
+          "ids": [
+            "0b89465c-f538-4817-a122-5efa18901c0d",
+            "1f6176ab-d271-45a6-9712-8842740e48eb",
+            "3aff02ae-2976-4252-9b3e-796ba5e69d15",
+            "487c09ac-1049-4063-900d-d8141090ea19",
+            "538c335d-3ca4-4f9d-a101-16f780d61c2f",
+            "8b48013b-bb89-4a94-b4ce-583179abfe37",
+            "965f0ea0-8a1a-40d2-80a8-df82bce7d38b",
+            "ac65a7b3-1b5b-48ff-817e-c752928bb5c0",
+            "b41aae2f-9a37-47b2-9ce1-4dcd6a23649b",
+            "c4e754b6-204c-4996-84ca-81af8c7a0fca",
+            "cacce80f-12a6-43af-b897-1272cc3ac808",
+            "cd07ebf3-dbfd-47eb-8ed3-7543219e1b2f",
+            "cdbe295f-9556-4c00-b679-a8c5a9c092fe",
+            "d7addceb-5541-4e2a-8d76-5ef7e3b4cb9a",
+            "e96d202c-21a3-4048-9ace-5e55e85a8f92",
+            "ec194e3d-c4e6-4a9d-958f-5228b41be081",
+            "ec36100f-4cd4-49fd-9088-49daeb9c0a9a",
+            "f344c8bd-63ca-43b6-a371-50062a0786ab",
+            "ffe81189-0bc8-46d3-8b50-9f7db0dd45bd"
+          ]
+        },
+        {
+          "attempt": "26a678f1",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794248108087,
+          "updated": 1794248108195,
+          "ids": [
+            "0ed1b356-68aa-4eb7-bc3f-9a8370e5c0dd",
+            "70e8f4bc-5905-4f12-83c3-bc84952ec904",
+            "b348f7e3-9fbe-4910-a264-d729635b83a5",
+            "c05e9b03-5106-4f7e-9a18-4676063477f0",
+            "f8874646-f8f2-45bc-b44d-1e678fe8791b"
+          ]
+        },
+        {
+          "attempt": "769774dc",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794248115852,
+          "updated": 1794248115957,
+          "ids": [
+            "74e9097d-4acc-436b-bed6-a43b579a048c",
+            "83dedaa8-213c-4fb0-9a02-f1878416f547",
+            "92ef1295-a18e-4c1f-8853-586ebc142b0a",
+            "97dbd838-6a70-416a-a5df-5c91e70c9eb4",
+            "9a8bb807-a604-4461-97af-7fb80f04ff19",
+            "a2dac333-5db0-47e2-ae9b-6cfe2e656496",
+            "b52a3000-116f-4e64-b3fa-c5aa81b86a5c",
+            "b7111f65-77e7-4566-868f-f3194cb057d7",
+            "e1407ca5-1bcf-4d1f-8e7d-692123f3a06f",
+            "e2848ce9-8c92-4e5b-9bb7-1a728fffa273",
+            "e9a42df8-d9bc-4b49-bbbb-e4c2cc0cea6e",
+            "f5eeec21-8173-48ce-85e5-1e595201a35b",
+            "fb34638c-bd54-4ffa-b3e4-44d139d5cf47"
+          ]
+        },
+        {
+          "attempt": "e316953a",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794248123610,
+          "updated": 1794248123720,
+          "ids": [
+            "12d8bd9b-9f97-46ff-ac8e-c4a559540808",
+            "2f4627b1-1a33-4b82-9ece-2781d96b7ac7",
+            "33ed1e91-97a2-43da-a577-4b031ec735ac",
+            "57e3d76a-444c-45e9-a543-b42ca18f32b3",
+            "5f4addb6-76c1-4009-a177-eb9a02ea91b7",
+            "5ff69efe-49aa-4f89-971e-471490e0767d",
+            "6748ca6c-0db1-4237-8050-d936963697ae",
+            "6b485fc1-c5d8-496a-9f4f-1934bcb6ac12",
+            "6d18a5e8-229d-4348-bd94-435519609034",
+            "ccdb86d2-a5dc-44c6-bf86-8a87981b8a56",
+            "deb33429-4614-4d0c-9019-7a8358e8ac10",
+            "f4c5cd68-eef8-4ae4-bbf3-cad8190329fd",
+            "fd6f708f-e28d-4699-98db-3408e70c1475"
+          ]
+        },
+        {
+          "attempt": "944b1595",
+          "state": "committed",
+          "agent": "cand-анна",
+          "created": 1794248129394,
+          "updated": 1794248129532,
+          "ids": ["d045cf64-cf9c-4cda-9088-fb8e064363b1", "d690a9b4-be41-4601-8274-530c8df30e43"]
+        }
+      ],
+      "messageStates": {
+        "0b89465c-f538-4817-a122-5efa18901c0d": "processed",
+        "0ed1b356-68aa-4eb7-bc3f-9a8370e5c0dd": "processed",
+        "12d8bd9b-9f97-46ff-ac8e-c4a559540808": "processed",
+        "1f6176ab-d271-45a6-9712-8842740e48eb": "processed",
+        "2f4627b1-1a33-4b82-9ece-2781d96b7ac7": "processed",
+        "33ed1e91-97a2-43da-a577-4b031ec735ac": "processed",
+        "3aff02ae-2976-4252-9b3e-796ba5e69d15": "processed",
+        "487c09ac-1049-4063-900d-d8141090ea19": "processed",
+        "538c335d-3ca4-4f9d-a101-16f780d61c2f": "processed",
+        "57e3d76a-444c-45e9-a543-b42ca18f32b3": "processed",
+        "5f4addb6-76c1-4009-a177-eb9a02ea91b7": "processed",
+        "5ff69efe-49aa-4f89-971e-471490e0767d": "processed",
+        "6748ca6c-0db1-4237-8050-d936963697ae": "processed",
+        "6b485fc1-c5d8-496a-9f4f-1934bcb6ac12": "processed",
+        "6d18a5e8-229d-4348-bd94-435519609034": "processed",
+        "70e8f4bc-5905-4f12-83c3-bc84952ec904": "processed",
+        "74e9097d-4acc-436b-bed6-a43b579a048c": "processed",
+        "83dedaa8-213c-4fb0-9a02-f1878416f547": "processed",
+        "8b48013b-bb89-4a94-b4ce-583179abfe37": "processed",
+        "92ef1295-a18e-4c1f-8853-586ebc142b0a": "processed",
+        "965f0ea0-8a1a-40d2-80a8-df82bce7d38b": "processed",
+        "97dbd838-6a70-416a-a5df-5c91e70c9eb4": "processed",
+        "9a8bb807-a604-4461-97af-7fb80f04ff19": "processed",
+        "a2dac333-5db0-47e2-ae9b-6cfe2e656496": "processed",
+        "ac65a7b3-1b5b-48ff-817e-c752928bb5c0": "processed",
+        "b348f7e3-9fbe-4910-a264-d729635b83a5": "processed",
+        "b41aae2f-9a37-47b2-9ce1-4dcd6a23649b": "processed",
+        "b52a3000-116f-4e64-b3fa-c5aa81b86a5c": "processed",
+        "b7111f65-77e7-4566-868f-f3194cb057d7": "processed",
+        "c05e9b03-5106-4f7e-9a18-4676063477f0": "processed",
+        "c4e754b6-204c-4996-84ca-81af8c7a0fca": "processed",
+        "cacce80f-12a6-43af-b897-1272cc3ac808": "processed",
+        "ccdb86d2-a5dc-44c6-bf86-8a87981b8a56": "processed",
+        "cd07ebf3-dbfd-47eb-8ed3-7543219e1b2f": "processed",
+        "cdbe295f-9556-4c00-b679-a8c5a9c092fe": "processed",
+        "d045cf64-cf9c-4cda-9088-fb8e064363b1": "processed",
+        "d690a9b4-be41-4601-8274-530c8df30e43": "processed",
+        "d7addceb-5541-4e2a-8d76-5ef7e3b4cb9a": "processed",
+        "deb33429-4614-4d0c-9019-7a8358e8ac10": "processed",
+        "e1407ca5-1bcf-4d1f-8e7d-692123f3a06f": "processed",
+        "e2848ce9-8c92-4e5b-9bb7-1a728fffa273": "processed",
+        "e96d202c-21a3-4048-9ace-5e55e85a8f92": "processed",
+        "e9a42df8-d9bc-4b49-bbbb-e4c2cc0cea6e": "processed",
+        "ec194e3d-c4e6-4a9d-958f-5228b41be081": "processed",
+        "ec36100f-4cd4-49fd-9088-49daeb9c0a9a": "processed",
+        "f344c8bd-63ca-43b6-a371-50062a0786ab": "processed",
+        "f4c5cd68-eef8-4ae4-bbf3-cad8190329fd": "processed",
+        "f5eeec21-8173-48ce-85e5-1e595201a35b": "processed",
+        "f8874646-f8f2-45bc-b44d-1e678fe8791b": "processed",
+        "fb34638c-bd54-4ffa-b3e4-44d139d5cf47": "processed",
+        "fd6f708f-e28d-4699-98db-3408e70c1475": "processed",
+        "ffe81189-0bc8-46d3-8b50-9f7db0dd45bd": "processed"
+      }
+    },
+    {
+      "case": "K16-final-approved-transfer",
+      "revision": "c8aa41d",
+      "window": ["2026-11-09T18:16:40Z", "2026-11-09T18:20:30Z"],
+      "nativeTranscript": {
+        "CAND-D": [
+          {
+            "at": "2026-11-09T18:17:03.374Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T18:17:06.534Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_connect",
+            "toolUse": "K9UM7KPK"
+          },
+          {
+            "at": "2026-11-09T18:17:11.980Z",
+            "row": "tool_use",
+            "tool": "AskUserQuestion",
+            "toolUse": "jjZofppH"
+          },
+          {
+            "at": "2026-11-09T18:18:29.665Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_connect",
+            "toolUse": "TvCjRuMT"
+          },
+          {
+            "at": "2026-11-09T18:18:46.129Z",
+            "row": "prompt",
+            "origin": "plugin",
+            "plugin": "ncf-agent-interconnect"
+          },
+          {
+            "at": "2026-11-09T18:18:49.409Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "W2fazsYX"
+          },
+          {
+            "at": "2026-11-09T18:18:50.176Z",
+            "row": "tool_result",
+            "toolUse": "W2fazsYX",
+            "returnedIds": ["431e75b6-2bf2-4ee2-9c5f-6c7015849d09"],
+            "hasMore": false,
+            "nextCursor": 254
+          }
+        ],
+        "CAND-B": [
+          {
+            "at": "2026-11-09T18:19:22.101Z",
+            "row": "prompt",
+            "origin": "human",
+            "plugin": null
+          },
+          {
+            "at": "2026-11-09T18:19:24.303Z",
+            "row": "tool_use",
+            "tool": "ncf:agent_read",
+            "toolUse": "31zqoM2L"
+          },
+          {
+            "at": "2026-11-09T18:19:24.707Z",
+            "row": "tool_result",
+            "toolUse": "31zqoM2L",
+            "error": "This connection belongs to another Claude Code chat."
+          }
+        ]
+      },
+      "clientDebug": {
+        "CAND-D": [
+          {
+            "at": "2026-11-09T18:16:51.332Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect@ncf-agent-interconnect loaded (worker, environment 1, tier user); events: session.start,session.end"
+          },
+          {
+            "at": "2026-11-09T18:16:51.335Z",
+            "line": "[DEBUG] hooks module ncf-agent-interconnect-gate@ncf-agent-interconnect loaded (worker, environment 2, tier user); events: session.start,session.end,prompt.submit"
+          },
+          {
+            "at": "2026-11-09T18:16:51.679Z",
+            "line": "[DEBUG] $.process.spawn (ncf-agent-interconnect): <path> with 6 args in <path> (pid 90655)"
+          },
+          {
+            "at": "2026-11-09T18:16:51.965Z",
+            "line": "[DEBUG] Hooks: SessionStart:startup [/usr/bin/env ELECTRON_RUN_AS_NODE=1 <path> <path> --hook --node-file <path> (plugin ncf-agent-interconnect@ncf-agent-interconnect) finished with status 0 (612ms)"
+          },
+          {
+            "at": "2026-11-09T18:16:52.143Z",
+            "line": "[DEBUG] MCP server \"plugin:ncf-agent-interconnect:ncf\": Successfully connected (transport: stdio) in 496ms"
+          }
+        ],
+        "CAND-B": []
+      },
+      "deliveryAttempts": [
+        {
+          "attempt": "31079d37",
+          "state": "committed",
+          "agent": "cand-борис",
+          "created": 1794248330045,
+          "updated": 1794248330174,
+          "ids": ["431e75b6-2bf2-4ee2-9c5f-6c7015849d09"]
+        }
+      ],
+      "messageStates": {
+        "431e75b6-2bf2-4ee2-9c5f-6c7015849d09": "processed"
+      }
+    }
+  ]
+}

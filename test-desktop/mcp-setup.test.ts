@@ -30,6 +30,8 @@ const instructions = (client: McpSetupClient) =>
         },
       },
     }),
+    undefined,
+    '/isolated/claude-marketplace',
   );
 const instructionsWithCursorPlugin = (client: McpSetupClient) => {
   const base = instructions(client);

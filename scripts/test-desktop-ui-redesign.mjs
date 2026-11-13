@@ -192,6 +192,7 @@ async function verifyApplicationSummaries() {
     ['OpenCode', 'opencode-http'],
     ['Codex', 'codex-desktop'],
     ['AionUi', 'aionui'],
+    ['Claude Code', 'claude-code'],
   ]) {
     await page.getByRole('tab', { name: client, exact: true }).click();
     const expected = agents.filter((agent) => agent.fixtureAdapterKind === kind).length;
@@ -451,7 +452,7 @@ contextBridge.exposeInMainWorld('interconnect',{
         );
       }
       if (screen === 'mcp') {
-        assert.equal(await page.getByRole('tab').count(), 4);
+        assert.equal(await page.getByRole('tab').count(), 5);
         await verifyApplicationSummaries();
         await page.getByTestId('mcp-settings-status').waitFor();
         await capture('mcp', viewport.width);
@@ -475,7 +476,7 @@ contextBridge.exposeInMainWorld('interconnect',{
       ...viewport,
       windowSize,
       screens: 5,
-      applicationSummariesInMcp: 4,
+      applicationSummariesInMcp: 5,
       drawerAtWindowEdge: true,
       composerVisible: true,
     });

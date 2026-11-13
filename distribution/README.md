@@ -116,6 +116,16 @@ chat to reload MCP settings, then use the connection command. No session IDs or 
 Authorization, saved settings and a connected bridge are distinct states.
 See the included `guides/AionUi.md` for instructions and verification limits.
 
+## Claude Code
+
+Open Applications → Claude Code and configure it with the owner-operated file
+dialog and Apply. This enables the bundled NCF plugin and its gate plugin in the
+selected Claude Code user settings and allows `agent_read` without a prompt.
+Start or resume Claude Code normally, then use the connection command. Waiting
+messages are announced in the exact chat by an NCF mod; safe mode or an
+organization policy that turns mods off leaves messages available through
+`agent_read`. See the included `guides/ClaudeCode.md` for limits.
+
 ## History and attachments
 
 Agents shows complete message text, participants and attachments. Open or save

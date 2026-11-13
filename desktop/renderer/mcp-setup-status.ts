@@ -22,6 +22,7 @@ export function useMcpSetupStatuses(invoke: McpSetupInvoke, enabled = true): Mcp
     opencode: 0,
     codex: 0,
     aionui: 0,
+    claude: 0,
   });
   const refreshAll = useCallback(
     (force = false): Promise<void> => {

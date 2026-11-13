@@ -40,7 +40,13 @@ import { createAppTheme, designTokens, surfaceSx } from './theme.js';
 import { loadThemeMode, persistThemeMode, type ThemeMode } from './theme-preference.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
-const appLabels = { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex', aionui: 'AionUi' };
+const appLabels = {
+  cursor: 'Cursor',
+  opencode: 'OpenCode',
+  codex: 'Codex',
+  aionui: 'AionUi',
+  claude: 'Claude Code',
+};
 const normalizePage = (value: string): Page => (value === 'clients' ? 'mcp' : (value as Page));
 
 function App({

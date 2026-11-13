@@ -68,7 +68,7 @@ export class AgentStore {
     const version = Number(
       (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
     );
-    if (version !== 0 && version !== 1 && version !== 2 && version !== 3) {
+    if (version !== 0 && version !== 1 && version !== 2 && version !== 3 && version !== 4) {
       this.db.close();
       throw new Error('Unsupported agent storage format');
     }
@@ -96,7 +96,19 @@ export class AgentStore {
       CREATE TABLE IF NOT EXISTS dispatches (message_id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, state TEXT NOT NULL, error TEXT);
       UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching';
       UPDATE system_events SET dispatch_state='uncertain' WHERE dispatch_state='dispatching';
-      PRAGMA user_version=3;`);
+      -- A wake signal carries no content: an interrupted offer is stale, not uncertain.
+      UPDATE dispatches SET state='offered',error=NULL WHERE state='offering';
+      UPDATE system_events SET dispatch_state='pending' WHERE dispatch_state='offering';
+      -- Claude Code delivery attempts: the node picks the exact IDs; only the helper's
+      -- report of a completed frame write commits receipt.
+      CREATE TABLE IF NOT EXISTS claude_deliveries (id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, agent_key TEXT NOT NULL, incarnation TEXT NOT NULL, binding_generation INTEGER NOT NULL, helper_id TEXT NOT NULL, scope TEXT NOT NULL, state TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, error TEXT);
+      CREATE TABLE IF NOT EXISTS claude_delivery_items (delivery_id TEXT NOT NULL, message_id TEXT NOT NULL, PRIMARY KEY(delivery_id,message_id));
+      CREATE INDEX IF NOT EXISTS claude_delivery_message ON claude_delivery_items(message_id);
+      -- Reserved content never left the node, so no write was possible; issued content
+      -- may have been written by the helper, so its receipt stays uncertain.
+      UPDATE claude_deliveries SET state='cancelled',error='The app stopped before the content left the node' WHERE state='reserved';
+      UPDATE claude_deliveries SET state='uncertain',error='The app stopped after the content was handed to the Claude Code helper' WHERE state='issued';
+      PRAGMA user_version=4;`);
         if (version === 1)
           this.db.exec("ALTER TABLE transfers ADD COLUMN mode TEXT NOT NULL DEFAULT 'transfer'");
         if (version === 1 || version === 2) {
@@ -651,10 +663,11 @@ export class AgentStore {
     after = 0,
     limit = 50,
     unread = false,
+    unfenced = false,
   ): { messages: Message[]; nextCursor: number; hasMore: boolean } {
     const rows = this.db
       .prepare(
-        `SELECT m.*,t.cursor AS sequence FROM timeline t JOIN messages m ON m.id=t.message_id AND m.direction=t.direction WHERE m.local_key=? AND t.cursor>? ${unread ? "AND m.direction='in' AND m.state='ready'" : ''} ORDER BY t.cursor LIMIT ?`,
+        `SELECT m.*,t.cursor AS sequence FROM timeline t JOIN messages m ON m.id=t.message_id AND m.direction=t.direction WHERE m.local_key=? AND t.cursor>? ${unread ? "AND m.direction='in' AND m.state='ready'" : ''} ${unfenced ? `AND NOT (m.direction='in' AND ${fenced('m.id')})` : ''} ORDER BY t.cursor LIMIT ?`,
       )
       .all(key, after, limit + 1) as Row[];
     const messages = rows.slice(0, limit).map((r) => this.message(r));
@@ -731,6 +744,10 @@ export class AgentStore {
         )
           throw new Error('The message does not belong to this agent or is not ready');
         if (row.state === 'processed') continue;
+        if (this.claudeFenced(id))
+          throw new Error(
+            'The message is being delivered to Claude Code or its delivery is uncertain',
+          );
         // Terminal transport receipt: the client received the message. It is
         // independent of whether the model completed the requested work.
         this.db
@@ -760,11 +777,207 @@ export class AgentStore {
       .get(id) as Row | undefined;
     return row ? { connectionId: String(row.connection_id), state: String(row.state) } : null;
   }
+  /** A message held by an active or uncertain Claude Code delivery attempt. */
+  claudeFenced(id: string): boolean {
+    return !!this.db
+      .prepare(`SELECT 1 FROM (SELECT ? AS fenced_id) WHERE ${fenced('fenced_id')}`)
+      .get(id);
+  }
+  /**
+   * Reserve the node-chosen IDs for one Claude Code request before any
+   * asynchronous preparation. Concurrent reads, history, attachments and
+   * automatic dispatch skip fenced IDs; a fenced ID cannot be reserved twice.
+   */
+  reserveClaudeDelivery(input: {
+    connectionId: string;
+    ids: string[];
+    helperId: string;
+    scope: Record<string, unknown>;
+  }): string {
+    return this.transaction(() => {
+      const owner = this.assertOwner(input.connectionId);
+      const row = this.db.prepare('SELECT incarnation FROM agents WHERE key=?').get(owner.key) as
+        Row | undefined;
+      const active = this.db
+        .prepare(
+          "SELECT COUNT(*) AS count FROM claude_deliveries WHERE connection_id=? AND state IN ('reserved','issued')",
+        )
+        .get(input.connectionId) as { count: number };
+      if (active.count >= 32) throw new Error('Too many Claude Code deliveries are in progress');
+      for (const id of input.ids) {
+        const message = this.get(id, 'in');
+        if (
+          !message ||
+          nicknameKey(message.envelope.toNickname) !== owner.key ||
+          message.state !== 'ready'
+        )
+          throw new Error('The message does not belong to this agent or is not ready');
+        if (this.claudeFenced(id)) throw new Error('The message is already being delivered');
+        if (['dispatching', 'uncertain'].includes(this.dispatchState(id)?.state ?? ''))
+          throw new Error('Message delivery is in progress or uncertain; content is not repeated');
+      }
+      const id = randomUUID(),
+        now = Date.now();
+      this.db
+        .prepare(
+          "INSERT INTO claude_deliveries(id,connection_id,agent_key,incarnation,binding_generation,helper_id,scope,state,created,updated) VALUES(?,?,?,?,?,?,?,'reserved',?,?)",
+        )
+        .run(
+          id,
+          input.connectionId,
+          owner.key,
+          String(row?.incarnation ?? ''),
+          owner.binding.generation,
+          input.helperId,
+          JSON.stringify(input.scope),
+          now,
+          now,
+        );
+      for (const message of input.ids)
+        this.db
+          .prepare('INSERT INTO claude_delivery_items(delivery_id,message_id) VALUES(?,?)')
+          .run(id, message);
+      return id;
+    });
+  }
+  private claudeTransition(id: string, from: string[], to: string, error: string | null): boolean {
+    return (
+      Number(
+        this.db
+          .prepare(
+            `UPDATE claude_deliveries SET state=?,error=?,updated=? WHERE id=? AND state IN (${from.map(() => '?').join(',')})`,
+          )
+          .run(to, error, Date.now(), id, ...from).changes,
+      ) === 1
+    );
+  }
+  /** Intent persisted: from here on the content may leave the node. */
+  issueClaudeDelivery(id: string): void {
+    if (!this.transaction(() => this.claudeTransition(id, ['reserved'], 'issued', null)))
+      throw new Error('The Claude Code delivery is no longer reserved');
+  }
+  /** Only when ordering proves the content was not written to Claude Code. */
+  cancelClaudeDelivery(id: string, reason: string): boolean {
+    return this.transaction(() =>
+      this.claudeTransition(id, ['reserved', 'issued'], 'cancelled', reason),
+    );
+  }
+  /** The content may have been written; receipt stays unknown and the IDs stay fenced. */
+  uncertainClaudeDelivery(id: string, reason: string): boolean {
+    return this.transaction(() => {
+      if (!this.claudeTransition(id, ['issued'], 'uncertain', reason)) return false;
+      for (const item of this.claudeDeliveryItems(id))
+        this.db
+          .prepare("UPDATE messages SET error=? WHERE id=? AND direction='in' AND state='ready'")
+          .run('Delivery to Claude Code is uncertain; it will not be repeated automatically', item);
+      return true;
+    });
+  }
+  private claudeDeliveryItems(id: string): string[] {
+    return (
+      this.db
+        .prepare('SELECT message_id FROM claude_delivery_items WHERE delivery_id=? ORDER BY rowid')
+        .all(id) as Row[]
+    ).map((row) => String(row.message_id));
+  }
+  claudeDelivery(
+    id: string,
+  ):
+    | { connectionId: string; helperId: string; scope: Record<string, unknown>; state: string }
+    | undefined {
+    const row = this.db.prepare('SELECT * FROM claude_deliveries WHERE id=?').get(id) as
+      Row | undefined;
+    return row
+      ? {
+          connectionId: String(row.connection_id),
+          helperId: String(row.helper_id),
+          scope: JSON.parse(String(row.scope)) as Record<string, unknown>,
+          state: String(row.state),
+        }
+      : undefined;
+  }
+  /** Captured mailbox and binding authority must still belong to this attempt. */
+  assertClaudeDeliveryCurrent(id: string): void {
+    const row = this.db.prepare('SELECT * FROM claude_deliveries WHERE id=?').get(id) as
+      Row | undefined;
+    if (!row) throw new Error('The Claude Code delivery is unknown');
+    const owner = this.assertOwner(String(row.connection_id));
+    const agent = this.db.prepare('SELECT incarnation FROM agents WHERE key=?').get(owner.key) as
+      Row | undefined;
+    if (
+      owner.key !== row.agent_key ||
+      owner.binding.generation !== Number(row.binding_generation) ||
+      !agent ||
+      agent.incarnation !== row.incarnation
+    )
+      throw new Error('The Claude Code delivery binding is no longer current');
+  }
+  /**
+   * The helper wrote the complete response frame: record receipt for the IDs the
+   * node chose. A cleared or reset mailbox is never revived, and receipt
+   * requires the captured binding to remain current. A revoked write whose
+   * ordering cannot be proved stays uncertain instead of creating receipt.
+   */
+  commitClaudeDelivery(id: string): string[] {
+    return this.transaction(() => {
+      const row = this.db.prepare('SELECT * FROM claude_deliveries WHERE id=?').get(id) as
+        Row | undefined;
+      if (!row || row.state !== 'issued') return [];
+      this.assertClaudeDeliveryCurrent(id);
+      if (!this.claudeTransition(id, ['issued'], 'committed', null)) return [];
+      const agent = this.db
+        .prepare('SELECT incarnation FROM agents WHERE key=?')
+        .get(String(row.agent_key)) as Row | undefined;
+      if (!agent || String(agent.incarnation) !== String(row.incarnation)) return [];
+      const delivered: string[] = [];
+      for (const item of this.claudeDeliveryItems(id)) {
+        const message = this.get(item, 'in');
+        if (!message || nicknameKey(message.envelope.toNickname) !== String(row.agent_key))
+          continue;
+        if (message.state !== 'ready') continue;
+        this.db
+          .prepare("UPDATE messages SET state='processed',error=NULL WHERE id=? AND direction='in'")
+          .run(item);
+        this.dispatch(item, String(row.connection_id), 'admitted');
+        if (message.envelope.fromNode === message.envelope.toNode) this.receipt(item, 'processed');
+        delivered.push(item);
+      }
+      return delivered;
+    });
+  }
+  /** Issued attempts of a helper that can no longer report its write become uncertain. */
+  claudeHelperGone(helperId: string, epoch?: string): number {
+    const rows = this.db
+      .prepare("SELECT id FROM claude_deliveries WHERE helper_id=? AND state='issued'")
+      .all(helperId) as Row[];
+    const affected = rows.filter(
+      (row) => !epoch || this.claudeDelivery(String(row.id))?.scope.epoch === epoch,
+    );
+    for (const row of affected)
+      this.uncertainClaudeDelivery(
+        String(row.id),
+        'The Claude Code helper disconnected before confirming the response write',
+      );
+    return affected.length;
+  }
+  /** Unresolved attempts per agent key, for inspection; nothing here resolves them. */
+  claudeUncertain(): Map<string, number> {
+    const rows = this.db
+      .prepare(
+        "SELECT d.agent_key AS key, COUNT(i.message_id) AS count FROM claude_deliveries d JOIN claude_delivery_items i ON i.delivery_id=d.id WHERE d.state='uncertain' GROUP BY d.agent_key",
+      )
+      .all() as Row[];
+    return new Map(rows.map((row) => [String(row.key), Number(row.count)]));
+  }
   close(): void {
     this.clearRequests.clear();
     this.db.close();
   }
 }
+
+/** SQL: the message ID column is held by a reserved, issued or uncertain Claude delivery. */
+const fenced = (column: string) =>
+  `EXISTS (SELECT 1 FROM claude_delivery_items fi JOIN claude_deliveries fd ON fd.id=fi.delivery_id WHERE fi.message_id=${column} AND fd.state IN ('reserved','issued','uncertain'))`;
 
 // Field order is canonical; user text, Unicode, case and attachment order stay intact.
 function envelopeDigest(envelope: Envelope): string {

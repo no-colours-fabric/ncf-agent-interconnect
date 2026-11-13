@@ -19,21 +19,47 @@ import {
   type SendResult,
   type AgentDirectory,
   type NicknameConflict,
+  type Message,
+  type Binding,
 } from '../shared/contracts.js';
 import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { PeerNetwork, type Frame } from './peer.js';
-import { AdapterRegistry, CursorHookAdapter } from './adapters.js';
+import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
+import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
 import { AionUiSessions } from './aionui-sessions.js';
+import { ClaudeSessions, helperCallSchema, type ClaudeProofLease } from './claude-sessions.js';
+import {
+  claudePluginFiles,
+  publishClaudePlugin,
+  type ClaudePluginRuntime,
+} from './claude-plugin.js';
+import { WakeClaims, wakePending } from './claude-wake.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
 import { cursorIntegration } from './cursor-integration.js';
+import { traceClaude } from '../integrations/claude-diagnostics.js';
+
+interface ClaudeDispatchSnapshot {
+  connectionId: string;
+  bindingGeneration: number;
+  adapterId: string;
+  adapter: AgentAdapter;
+  sessionId: string | undefined;
+  lifecycle: string;
+  revision: number;
+  backlogUntil: number;
+  finalCursor: number;
+  page: Message[];
+  index: number;
+  after: number;
+}
 
 export class NodeService extends EventEmitter {
   store!: AgentStore;
@@ -43,13 +69,18 @@ export class NodeService extends EventEmitter {
   readonly settings: SettingsFile;
   readonly adapters: AdapterRegistry;
   readonly aionui: AionUiSessions;
+  readonly claude: ClaudeSessions;
   readonly contexts = new ClientContexts(this);
+  /** One-use claims for wake notices submitted by the installed Claude Code mod. */
+  readonly wakeClaims: WakeClaims;
+  private claudeContextLeases = new Map<string, { lease: ClaudeProofLease; expires: number }>();
   private readonly presence: AgentPresence;
   running = false;
   private receiving: Promise<void> | null = null;
   private receiveAgain = false;
   private dispatching = new Set<string>();
   private adapterRedrain = new Set<string>();
+  private claudeDispatchSnapshots = new Map<string, ClaudeDispatchSnapshot>();
   private jobs = new Set<Promise<void>>();
   private fileJobs = new Set<Promise<unknown>>();
   private cleaningFiles: Promise<void> | null = null;
@@ -112,7 +143,41 @@ export class NodeService extends EventEmitter {
     super();
     this.settings = new SettingsFile(directory);
     this.aionui = new AionUiSessions(directory);
-    this.adapters = new AdapterRegistry(this.aionui);
+    this.claude = new ClaudeSessions(directory);
+    this.adapters = new AdapterRegistry(this.aionui, this.claude);
+    this.wakeClaims = new WakeClaims({
+      claude: this.claude,
+      profiles: () => this.settings.value.adapters,
+      store: {
+        list: () => this.store.list(),
+        get: (id, direction) => this.store.get(id, direction),
+        history: (key, after, limit, unread, unfenced) =>
+          this.store.history(key, after, limit, unread, unfenced),
+      },
+    });
+    this.claude.wakeIssuer = (session) => {
+      const pending = wakePending(
+        { claude: this.claude, profiles: () => this.settings.value.adapters, store: this.store },
+        session,
+      );
+      if (typeof pending === 'string') return;
+      try {
+        const claim = this.wakeClaims.issue(session, pending);
+        return { claim: claim.id, notice: claim.notice };
+      } catch {
+        return;
+      }
+    };
+    this.claude.wakeQueued = (session) => this.wakeClaims.queued(session);
+    this.claude.on('problem', (message: string) => this.problem(message));
+    this.claude.on('helperGone', (helperId: string, epoch: string) => {
+      if (this.store && this.store.claudeHelperGone(helperId, epoch)) this.emit('change');
+    });
+    this.claude.on('change', () => {
+      for (const [key, snapshot] of this.claudeDispatchSnapshots)
+        if (snapshot.lifecycle !== this.claudeDispatchLifecycle(snapshot.sessionId))
+          this.claudeDispatchSnapshots.delete(key);
+    });
     this.aionui.on('change', () => this.emit('change'));
     this.presence = new AgentPresence(
       () => this.refreshPresence(),
@@ -137,10 +202,32 @@ export class NodeService extends EventEmitter {
       url: this.snapshot().mcpUrl,
       token: this.settings.value.localToken,
     });
+    await publishClaudePlugin(this.claudePluginRoot, claudePluginFiles(await this.claudeRuntime()));
+  }
+  get claudePluginRoot(): string {
+    return path.join(this.directory, 'Integrations', 'claude-code');
+  }
+  async claudeRuntime(): Promise<ClaudePluginRuntime> {
+    const manifest = JSON.parse(
+      await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as { version: string };
+    return {
+      execPath: process.execPath,
+      // Source checks run the TypeScript entry; packages run plain JavaScript.
+      runtimeArgs:
+        this.integrationExtension === 'ts' ? ['--import', import.meta.resolve('tsx')] : [],
+      script: fileURLToPath(
+        new URL('../integrations/claude-code.' + this.integrationExtension, import.meta.url),
+      ),
+      nodeFile: path.join(this.directory, 'Integrations', 'node.json'),
+      platform: process.platform,
+      version: manifest.version,
+    };
   }
   async open(): Promise<void> {
     await this.settings.load();
     await this.aionui.load();
+    await this.claude.load();
     this.store = new AgentStore(this.directory);
     this.files = new FileStore(this.directory, this.settings.value.exportRoots);
     await this.files.init();
@@ -248,12 +335,10 @@ export class NodeService extends EventEmitter {
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),
       agents: this.store.list().map((agent) => {
-        if (
-          !agent.binding ||
-          this.settings.value.adapters.find((a) => a.id === agent.binding!.adapterId)?.kind !==
-            'aionui'
-        )
-          return agent;
+        const kind = this.settings.value.adapters.find(
+          (a) => a.id === agent.binding?.adapterId,
+        )?.kind;
+        if (!agent.binding || (kind !== 'aionui' && kind !== 'claude-code')) return agent;
         return {
           ...agent,
           binding: { ...agent.binding, chatId: '[private]', connectionId: '[private]' },
@@ -283,7 +368,7 @@ export class NodeService extends EventEmitter {
       input.adapterId ?? this.settings.value.adapters.find((a) => a.kind === 'manual')!.id;
     const profile = this.settings.value.adapters.find((a) => a.id === adapterId);
     if (
-      (['opencode-http', 'cursor-hook', 'aionui'].includes(profile?.kind ?? '') &&
+      (['opencode-http', 'cursor-hook', 'aionui', 'claude-code'].includes(profile?.kind ?? '') &&
         input.chatId !== profile?.sessionId) ||
       (profile?.kind === 'codex-desktop' && input.chatId !== profile.threadId)
     )
@@ -308,7 +393,8 @@ export class NodeService extends EventEmitter {
           (profile.kind === 'cursor-hook' && prior.sessionId === profile.sessionId) ||
           (profile.kind === 'aionui' &&
             prior.aionConnectionId === profile.aionConnectionId &&
-            prior.sessionId === profile.sessionId))
+            prior.sessionId === profile.sessionId) ||
+          (profile.kind === 'claude-code' && prior.sessionId === profile.sessionId))
       )
         throw new Error('A fresh start requires another exact chat');
     }
@@ -370,6 +456,8 @@ export class NodeService extends EventEmitter {
   }
   disconnect(connectionId: string): { disconnected: true } {
     this.store.disconnect(connectionId);
+    for (const [key, snapshot] of this.claudeDispatchSnapshots)
+      if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
     this.refreshPresence();
     this.emit('change');
     return { disconnected: true };
@@ -397,11 +485,12 @@ export class NodeService extends EventEmitter {
           {
             nickname: agent.nickname,
             availability: online ? ('online' as const) : ('unknown' as const),
-            delivery: !online
-              ? ('unknown' as const)
-              : automatic
-                ? ('automatic' as const)
-                : ('mcp' as const),
+            delivery:
+              adapter?.kind === 'claude-code' || !online
+                ? ('unknown' as const)
+                : automatic
+                  ? ('automatic' as const)
+                  : ('mcp' as const),
           },
         ];
       }),
@@ -559,8 +648,24 @@ export class NodeService extends EventEmitter {
         await this.aionui.verify(profile.aionConnectionId);
         if (this.adapters.get(profile.id).status().state !== 'ready')
           throw new Error('The AionUi realtime connection is unavailable.');
-      } else if (context.client === 'Cursor' && host.client !== 'Cursor')
-        throw new Error('The Cursor context belongs to another client.');
+      } else if (context.client === 'Cursor') {
+        if (host.client !== 'Cursor')
+          throw new Error('The Cursor context belongs to another client.');
+      } else if (context.client === 'Claude Code') {
+        const proof = this.claudeContextLeases.get(contextToken);
+        this.claudeContextLeases.delete(contextToken);
+        if (host.client !== 'Claude Code')
+          throw new Error('The Claude Code context belongs to another client.');
+        if (!proof || proof.expires < Date.now())
+          throw new Error('The Claude Code context expired. Reconnect from this chat.');
+        await this.claude.validateCurrent(proof.lease);
+        if (this.adapters.get(context.adapterId).status().state === 'error')
+          throw new Error('This Claude Code chat is not connected through the NCF plugin.');
+      }
+    } else if (host.client === 'Claude Code') {
+      throw new Error(
+        'The NCF Claude Code plugin did not confirm this chat. Restart Claude Code after setup.',
+      );
     } else if (/codex/i.test(host.client)) {
       let metadata = host.meta?.['x-codex-turn-metadata'];
       if (typeof metadata === 'string') {
@@ -634,8 +739,10 @@ export class NodeService extends EventEmitter {
       )
         input.connectionId = existing.connectionId;
     }
-    const result = this.connect({ ...input, ...context }),
-      adapter = this.adapters.get(context.adapterId),
+    const result = this.connect({ ...input, ...context });
+    // A Claude wake offer does not establish an automatic-delivery admission.
+    if (context.client === 'Claude Code') return result;
+    const adapter = this.adapters.get(context.adapterId),
       adapterStatus = adapter.status(),
       cursor =
         this.settings.value.adapters.find((profile) => profile.id === context.adapterId)?.kind ===
@@ -653,6 +760,107 @@ export class NodeService extends EventEmitter {
             ? 'This exact Cursor chat is saved. Automatic delivery becomes ready when the current Cursor response finishes.'
             : 'This client uses standard MCP. Automatic wake-up is not supported; history is available in the app and through MCP.',
       },
+    };
+  }
+  /** Verifies a Claude Code helper call before the helper forwards it to MCP. */
+  /** The installed mod consumes a wake claim immediately before it submits the notice. */
+  async claudeWakeClaim(raw: unknown): Promise<{ consumed: boolean; reason?: string }> {
+    const input = z
+      .object({ sessionId: z.uuid(), claim: z.string().regex(/^[0-9a-f]{64}$/) })
+      .strict()
+      .parse(raw);
+    const result = await this.wakeClaims.consume(input.sessionId.toLowerCase(), input.claim);
+    traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'wake.claim', {
+      session: input.sessionId,
+      outcome: result.ok ? 'consumed' : 'rejected',
+    });
+    return { consumed: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
+  }
+  /** The installed mod reports that Claude Code dropped its submitted notice. */
+  claudeWakeDropped(raw: unknown): { recorded: boolean } {
+    const input = z
+      .object({ sessionId: z.uuid(), claim: z.string().regex(/^[0-9a-f]{64}$/) })
+      .strict()
+      .parse(raw);
+    const session = input.sessionId.toLowerCase();
+    const recorded = this.wakeClaims.dropped(session, input.claim);
+    if (recorded) this.claude.wakeDropped(session);
+    return { recorded };
+  }
+  /** The installed gate starts the claim of the exact notice right before its turn. */
+  async claudeWakeStart(raw: unknown): Promise<{ started: boolean; reason?: string }> {
+    const input = z
+      .object({ sessionId: z.uuid(), notice: z.string().regex(/^[0-9a-f]{64}$/) })
+      .strict()
+      .parse(raw);
+    const session = input.sessionId.toLowerCase();
+    const result = await this.wakeClaims.start(session, input.notice);
+    traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'wake.gate', {
+      session,
+      outcome: result.ok ? 'started' : 'rejected',
+    });
+    return { started: result.ok, ...(result.reason ? { reason: result.reason } : {}) };
+  }
+  async claudeCall(raw: unknown): Promise<{ contextToken?: string; callToken: string }> {
+    if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
+    const input = helperCallSchema.parse(raw);
+    const { session, lease } = await this.claude.correlate(input);
+    // agent_connect names the occupied binding when the owner approves a transfer;
+    // its authority is the transfer issued to this chat, checked by the store.
+    if (input.connectionId && input.tool !== 'agent_connect') {
+      const agent = this.store
+        .list()
+        .find((value) => value.binding?.connectionId === input.connectionId);
+      const profile = this.settings.value.adapters.find(
+        (value) => value.id === agent?.binding?.adapterId,
+      );
+      if (profile?.kind !== 'claude-code')
+        throw new Error('This connection belongs to another Claude Code chat.');
+      if (profile?.kind === 'claude-code') {
+        if (profile.sessionId !== session)
+          throw new Error('This connection belongs to another Claude Code chat.');
+      }
+    }
+    if (input.tool !== 'agent_connect')
+      return { callToken: this.claude.issueCall(lease, input.tool, input.inputHash) };
+    const work = this.adapterSetup.then(async () => {
+      if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
+      await this.claude.validateCurrent(lease);
+      let profile = this.settings.value.adapters.find(
+        (value) => value.kind === 'claude-code' && value.sessionId === session,
+      );
+      if (!profile) {
+        profile = {
+          id: randomUUID(),
+          label: 'Claude Code',
+          kind: 'claude-code',
+          sessionId: session,
+        };
+        await this.installAdapter(profile);
+      }
+      await this.claude.validateCurrent(lease);
+      if (!this.integrationsReady) throw new Error('The node is not ready to accept connections');
+      const contextToken = this.contexts.issue({
+        client: 'Claude Code',
+        chatId: session,
+        adapterId: profile.id,
+      });
+      const now = Date.now();
+      for (const [key, value] of this.claudeContextLeases)
+        if (value.expires < now) this.claudeContextLeases.delete(key);
+      if (this.claudeContextLeases.size >= 512)
+        this.claudeContextLeases.delete(this.claudeContextLeases.keys().next().value!);
+      this.claudeContextLeases.set(contextToken, { lease, expires: now + 30000 });
+      return contextToken;
+    });
+    this.adapterSetup = work.then(
+      () => {},
+      () => {},
+    );
+    const contextToken = await work;
+    return {
+      contextToken,
+      callToken: this.claude.issueCall(lease, input.tool, input.inputHash, contextToken),
     };
   }
   async connectCodex(
@@ -720,20 +928,44 @@ export class NodeService extends EventEmitter {
         : undefined);
     return this.connect({ ...args, connectionId, chatId: validated.threadId, adapterId });
   }
+  /**
+   * A fenced incoming message (held by an active or uncertain Claude Code
+   * delivery) appears in history without its content, so no path repeats it.
+   */
+  private withheld(row: Message): Record<string, unknown> {
+    const { text: _text, attachments: _files, ...envelope } = row.envelope;
+    return {
+      direction: row.direction,
+      sequence: row.sequence,
+      envelope,
+      withheld: 'Delivery to Claude Code is in progress or uncertain; content is not repeated',
+    };
+  }
   async read(connectionId: string, after = 0, limit = 50, unread = false): Promise<unknown> {
     return this.fileOperation(async () => {
       const owner = this.store.assertOwner(connectionId),
-        page = this.store.history(owner.key, after, limit, unread);
+        adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
+      adapter?.beforeRead?.(connectionId);
+      const page = this.store.history(owner.key, after, limit, unread);
+      if (unread && page.messages.some((row) => this.store.claudeFenced(row.envelope.id)))
+        throw new Error('Message delivery is in progress or uncertain; content is not repeated');
+      const fenced = new Set(
+        page.messages
+          .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
+          .map((row) => row.envelope.id),
+      );
       const prepared = await allFileResults(
-        page.messages.map(async (row) => ({
-          ...row,
-          files: await allFileResults(
-            row.envelope.attachments.map(async (file) => ({
-              ...file,
-              localPath: await this.files.materialize(row.envelope.id, file),
-            })),
-          ),
-        })),
+        page.messages
+          .filter((row) => !fenced.has(row.envelope.id))
+          .map(async (row) => ({
+            ...row,
+            files: await allFileResults(
+              row.envelope.attachments.map(async (file) => ({
+                ...file,
+                localPath: await this.files.materialize(row.envelope.id, file),
+              })),
+            ),
+          })),
       );
       this.store.assertOwner(connectionId);
       for (const row of prepared)
@@ -749,22 +981,223 @@ export class NodeService extends EventEmitter {
       for (const row of prepared)
         if (!this.store.get(row.envelope.id, row.direction))
           throw new Error('The message was cleared');
-      const messages = prepared
+      const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+      const messages = page.messages
         .filter((row) => !unread || delivered.has(row.envelope.id))
-        .map(({ state, error: _error, ...message }) => ({
-          ...message,
-          ...(message.direction === 'in'
-            ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
-            : {}),
-          delivery: deliveryStatus(
-            this.store.get(message.envelope.id, message.direction)?.state ?? state,
-          ),
-        }));
+        .map((row) => {
+          const ready = released.get(row.envelope.id + row.direction);
+          if (!ready) return this.withheld(row);
+          const { state, error: _error, ...message } = ready;
+          return {
+            ...message,
+            ...(message.direction === 'in'
+              ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+              : {}),
+            delivery: deliveryStatus(
+              this.store.get(message.envelope.id, message.direction)?.state ?? state,
+            ),
+          };
+        });
+      adapter?.afterRead?.(
+        connectionId,
+        this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+      );
       return { ...page, messages };
     });
   }
+  /**
+   * agent_read and agent_history through the exact Claude Code call. The node
+   * chooses the page and reserves its ready incoming IDs before any asynchronous
+   * preparation, revalidates the call's authority, persists the intent and only
+   * then releases content to the helper. Receipt is not recorded here: the
+   * helper commits it after it has written the complete response frame to
+   * Claude Code, or cancels when it can prove it wrote nothing.
+   */
+  async readClaude(
+    connectionId: string,
+    after: number,
+    limit: number,
+    unread: boolean,
+    callToken: string,
+  ): Promise<{ result: unknown; delivery?: string }> {
+    return this.fileOperation(async () => {
+      const scope = this.claude.callScope(callToken);
+      const authorized = () => {
+        this.claude.assertCall(callToken, scope.tool, scope.sessionKey, scope.requestId);
+        this.claude.validateCurrentSync(scope.lease);
+      };
+      const owner = this.store.assertOwner(connectionId),
+        adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
+      adapter?.beforeRead?.(connectionId);
+      const page = this.store.history(owner.key, after, limit, unread);
+      if (unread && page.messages.some((row) => this.store.claudeFenced(row.envelope.id)))
+        throw new Error('Message delivery is in progress or uncertain; content is not repeated');
+      const fenced = new Set(
+        page.messages
+          .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
+          .map((row) => row.envelope.id),
+      );
+      const ids = page.messages
+        .filter(
+          (row) => row.direction === 'in' && row.state === 'ready' && !fenced.has(row.envelope.id),
+        )
+        .map((row) => row.envelope.id);
+      authorized();
+      const delivery = ids.length
+        ? this.store.reserveClaudeDelivery({
+            connectionId,
+            ids,
+            helperId: scope.lease.helperId,
+            scope: {
+              helperId: scope.lease.helperId,
+              epoch: scope.lease.epoch,
+              generation: scope.lease.generation,
+              session: scope.lease.session,
+              nativeLeaseNonce: scope.lease.nativeLeaseNonce,
+              sessionKey: scope.sessionKey,
+              requestId: scope.requestId,
+              tool: scope.tool,
+              permit: scope.permit,
+            },
+          })
+        : undefined;
+      try {
+        const prepared = await allFileResults(
+          page.messages
+            .filter((row) => !fenced.has(row.envelope.id))
+            .map(async (row) => ({
+              ...row,
+              files: await allFileResults(
+                row.envelope.attachments.map(async (file) => ({
+                  ...file,
+                  localPath: await this.files.materialize(row.envelope.id, file),
+                })),
+              ),
+            })),
+        );
+        this.store.assertOwner(connectionId);
+        for (const row of prepared)
+          if (!this.store.get(row.envelope.id, row.direction))
+            throw new Error('The message was cleared');
+        // The last check before content may leave the node; no await follows.
+        authorized();
+        if (delivery) this.store.issueClaudeDelivery(delivery);
+        const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+        const messages = page.messages.map((row) => {
+          const ready = released.get(row.envelope.id + row.direction);
+          if (!ready) return this.withheld(row);
+          const { state, error: _error, ...message } = ready;
+          return {
+            ...message,
+            ...(message.direction === 'in'
+              ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+              : {}),
+            delivery: deliveryStatus(
+              this.store.get(message.envelope.id, message.direction)?.state ?? state,
+            ),
+          };
+        });
+        // With a delivery, the adapter learns the outcome when the helper reports it.
+        if (!delivery)
+          adapter?.afterRead?.(
+            connectionId,
+            this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+          );
+        return { result: { ...page, messages }, ...(delivery ? { delivery } : {}) };
+      } catch (error) {
+        // Nothing was released: the reservation ends without receipt.
+        if (delivery && this.store.claudeDelivery(delivery)?.state === 'reserved')
+          this.store.cancelClaudeDelivery(delivery, (error as Error).message);
+        throw error;
+      }
+    });
+  }
+  /**
+   * The helper's report for one delivery attempt it received: commit after a
+   * complete frame write, cancel when no write started, uncertain otherwise.
+   * Only the helper the attempt was issued to can report, with its secret.
+   */
+  async claudeDelivery(raw: unknown): Promise<{ state: string }> {
+    const input = z
+      .object({
+        helperId: z.uuid(),
+        secret: z.string().regex(/^[a-f0-9]{64}$/),
+        delivery: z.uuid(),
+        phase: z.enum(['validate', 'commit', 'cancel', 'uncertain']),
+      })
+      .strict()
+      .parse(raw);
+    const helper = this.claude.authenticateHelper(input.helperId, input.secret);
+    const attempt = this.store.claudeDelivery(input.delivery);
+    const trace = (outcome: string) =>
+      traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'delivery.report', {
+        helper: input.helperId,
+        attempt: input.delivery,
+        phase: input.phase,
+        outcome,
+      });
+    if (!attempt || attempt.helperId !== helper.id || attempt.scope.epoch !== helper.epoch)
+      throw new Error('The delivery does not belong to this Claude Code helper');
+    if (input.phase === 'validate' || (input.phase === 'commit' && attempt.state === 'issued')) {
+      try {
+        this.store.assertClaudeDeliveryCurrent(input.delivery);
+        await this.claude.assertCapturedCall(attempt.scope);
+        this.store.assertClaudeDeliveryCurrent(input.delivery);
+      } catch (error) {
+        if (input.phase === 'commit')
+          this.store.uncertainClaudeDelivery(
+            input.delivery,
+            'Authority changed before the complete response write could be confirmed',
+          );
+        trace('rejected');
+        throw error;
+      }
+      if (input.phase === 'validate') {
+        if (attempt.state !== 'issued') throw new Error('The Claude Code delivery is not writable');
+        trace('validated');
+        return { state: 'issued' };
+      }
+    }
+    if (input.phase === 'cancel')
+      this.store.cancelClaudeDelivery(input.delivery, 'The helper wrote nothing');
+    else if (input.phase === 'uncertain')
+      this.store.uncertainClaudeDelivery(input.delivery, 'The response write failed');
+    else {
+      const delivered = this.store.commitClaudeDelivery(input.delivery);
+      if (delivered.length) {
+        for (const [key, snapshot] of this.claudeDispatchSnapshots)
+          if (snapshot.connectionId === attempt.connectionId)
+            this.claudeDispatchSnapshots.delete(key);
+        await Promise.all(
+          delivered.map(async (id) => {
+            const row = this.store.get(id, 'in')!;
+            if (row.envelope.fromNode !== this.settings.value.nodeId)
+              await this.network.receipt(row.envelope.fromNode, id, 'processed').catch(() => {});
+          }),
+        );
+      }
+    }
+    // As after any read: remaining unread messages are offered again, event driven.
+    try {
+      const owner = this.store.assertOwner(attempt.connectionId);
+      this.adapters
+        .get(owner.binding.adapterId)
+        .afterRead?.(
+          attempt.connectionId,
+          this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+        );
+    } catch {
+      // The binding moved on; its new owner is offered by its own lifecycle.
+    }
+    this.emit('change');
+    trace(this.store.claudeDelivery(input.delivery)?.state ?? 'unknown');
+    return { state: this.store.claudeDelivery(input.delivery)?.state ?? 'unknown' };
+  }
   private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
     const delivered = this.store.recordDelivery(connectionId, ids);
+    if (delivered.size)
+      for (const [key, snapshot] of this.claudeDispatchSnapshots)
+        if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
     await Promise.all(
       [...delivered].map(async (id) => {
         const row = this.store.get(id, 'in')!;
@@ -940,10 +1373,14 @@ export class NodeService extends EventEmitter {
         row.state === 'received'
       )
         throw new Error('The attachment does not belong to this agent or is not ready');
+      if (row.direction === 'in' && this.store.claudeFenced(messageId))
+        throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       const file = row.envelope.attachments.find((f) => f.id === fileId);
       if (!file) throw new Error('Attachment not found');
       const localPath = await this.files.materialize(messageId, file);
       this.store.assertOwner(connectionId);
+      if (row.direction === 'in' && this.store.claudeFenced(messageId))
+        throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       if (!this.store.get(messageId, row.direction)) throw new Error('The message was cleared');
       return { ...file, localPath };
     });
@@ -1081,6 +1518,20 @@ export class NodeService extends EventEmitter {
     return this.receiving;
   }
   private messageReady(envelope: Envelope): void {
+    const key = nicknameKey(envelope.toNickname);
+    const incoming = this.store.get(envelope.id, 'in');
+    if (
+      incoming?.state === 'ready' &&
+      incoming.envelope.toNode === this.settings.value.nodeId &&
+      nicknameKey(incoming.envelope.toNickname) === key
+    ) {
+      this.claudeDispatchSnapshots.delete(key);
+      const binding = this.store.list().find((identity) => identity.key === key)?.binding;
+      if (binding) {
+        const adapter = this.adapters.get(binding.adapterId);
+        if (adapter instanceof ClaudeCodeAdapter) adapter.messageReady(binding.connectionId);
+      }
+    }
     this.mcp.notify({
       source: 'application',
       type: 'message_ready',
@@ -1090,6 +1541,99 @@ export class NodeService extends EventEmitter {
     this.emit('change');
     this.drainAdapters();
   }
+  private claudeDispatchLifecycle(sessionId: string | undefined): string {
+    const helper = sessionId ? this.claude.route(sessionId).helper : undefined;
+    return JSON.stringify([
+      sessionId,
+      helper?.id,
+      helper?.epoch,
+      helper?.generation,
+      helper?.nativeLeaseNonce,
+      this.claude.wakeSink(sessionId)?.id,
+    ]);
+  }
+  private claudeDispatchCandidate(
+    key: string,
+    binding: Binding,
+    adapter: AgentAdapter,
+    sessionId: string | undefined,
+    eligible: (message: Message) => boolean,
+  ): { row: Message; backlogUntil: number } | undefined {
+    const lifecycle = this.claudeDispatchLifecycle(sessionId);
+    const revision = adapter instanceof ClaudeCodeAdapter ? adapter.offerRevision : 0;
+    let snapshot = this.claudeDispatchSnapshots.get(key);
+    if (
+      !snapshot ||
+      snapshot.connectionId !== binding.connectionId ||
+      snapshot.bindingGeneration !== binding.generation ||
+      snapshot.adapterId !== binding.adapterId ||
+      snapshot.adapter !== adapter ||
+      snapshot.lifecycle !== lifecycle
+    ) {
+      let page = this.store.history(key, 0, 200, true);
+      if (!page.messages.length) {
+        this.claudeDispatchSnapshots.delete(key);
+        return;
+      }
+      snapshot = {
+        connectionId: binding.connectionId,
+        bindingGeneration: binding.generation,
+        adapterId: binding.adapterId,
+        adapter,
+        sessionId,
+        lifecycle,
+        revision,
+        backlogUntil: 0,
+        finalCursor: 0,
+        page: [],
+        index: 0,
+        after: 0,
+      };
+      let selected = false;
+      // Census the backlog once. Retain only the first eligible page for the
+      // dispatch sweep; later coalesced offers reuse the same maximum.
+      for (;;) {
+        for (const [index, message] of page.messages.entries()) {
+          const current = this.store.get(message.envelope.id, 'in');
+          if (current?.state !== 'ready') continue;
+          snapshot.backlogUntil = Math.max(snapshot.backlogUntil, current.sequence);
+          if (!selected && eligible(message)) {
+            selected = true;
+            snapshot.page = page.messages;
+            snapshot.index = index;
+            snapshot.after = page.nextCursor;
+          }
+        }
+        snapshot.finalCursor = page.nextCursor;
+        if (!page.hasMore) break;
+        page = this.store.history(key, page.nextCursor, 200, true);
+      }
+      if (!selected) snapshot.after = snapshot.finalCursor;
+      this.claudeDispatchSnapshots.set(key, snapshot);
+    } else if (snapshot.revision !== revision) {
+      snapshot.revision = revision;
+      snapshot.page = [];
+      snapshot.index = 0;
+      snapshot.after = 0;
+    }
+    for (;;) {
+      while (snapshot.index < snapshot.page.length) {
+        const row = snapshot.page[snapshot.index];
+        if (this.store.get(row.envelope.id, 'in')?.state === 'ready' && eligible(row))
+          return { row, backlogUntil: snapshot.backlogUntil };
+        snapshot.index++;
+      }
+      if (snapshot.after >= snapshot.finalCursor) return;
+      const page = this.store.history(key, snapshot.after, 200, true);
+      snapshot.page = page.messages.filter((message) => message.sequence <= snapshot.finalCursor);
+      snapshot.index = 0;
+      if (page.nextCursor <= snapshot.after) {
+        snapshot.after = snapshot.finalCursor;
+        return;
+      }
+      snapshot.after = Math.min(page.nextCursor, snapshot.finalCursor);
+    }
+  }
   private drainAdapters(adapterWake = false): void {
     if (!this.running) return;
     for (const event of this.store.pendingSystemEvents()) {
@@ -1098,7 +1642,7 @@ export class NodeService extends EventEmitter {
       if (this.dispatching.has(key) || !adapter.status().capabilities.wakeIdle) continue;
       this.dispatching.add(key);
       const job = (async () => {
-        this.store.systemDispatch(event.id, 'dispatching');
+        this.store.systemDispatch(event.id, adapter.wakeOnly ? 'offering' : 'dispatching');
         try {
           const result = await adapter.deliver({
             nickname: event.nickname,
@@ -1108,7 +1652,11 @@ export class NodeService extends EventEmitter {
           });
           this.store.systemDispatch(event.id, result.state, result.error ?? null);
         } catch (e) {
-          this.store.systemDispatch(event.id, 'uncertain', (e as Error).message);
+          this.store.systemDispatch(
+            event.id,
+            adapter.wakeOnly ? 'failed' : 'uncertain',
+            (e as Error).message,
+          );
         } finally {
           this.dispatching.delete(key);
           this.emit('change');
@@ -1117,7 +1665,22 @@ export class NodeService extends EventEmitter {
       this.jobs.add(job);
       void job.finally(() => this.jobs.delete(job));
     }
-    for (const identity of this.store.list()) {
+    const identities = this.store.list();
+    const active = new Map(identities.map((identity) => [identity.key, identity.binding]));
+    for (const [key, snapshot] of this.claudeDispatchSnapshots) {
+      const binding = active.get(key);
+      if (
+        !binding ||
+        binding.connectionId !== snapshot.connectionId ||
+        binding.generation !== snapshot.bindingGeneration ||
+        binding.adapterId !== snapshot.adapterId ||
+        this.settings.value.adapters.find((profile) => profile.id === binding.adapterId)?.kind !==
+          'claude-code' ||
+        this.adapters.get(binding.adapterId) !== snapshot.adapter
+      )
+        this.claudeDispatchSnapshots.delete(key);
+    }
+    for (const identity of identities) {
       if (!identity.binding) continue;
       const binding = identity.binding,
         dispatchKey = identity.key + ':' + identity.binding.connectionId,
@@ -1126,24 +1689,53 @@ export class NodeService extends EventEmitter {
         if (adapterWake) this.adapterRedrain.add(dispatchKey);
         continue;
       }
-      if (!adapter.status().capabilities.wakeIdle) continue;
-      const ready = this.store.history(identity.key, 0, 200, true).messages;
-      const row = ready.find((message) => {
+      const status = adapter.status();
+      if (!status.capabilities.wakeIdle) continue;
+      const eligible = (message: Message) => {
+        // Content held by a Claude Code delivery is never admitted elsewhere.
+        if (this.store.claudeFenced(message.envelope.id)) return false;
         const previous = this.store.dispatchState(message.envelope.id);
         return (
           !previous ||
           previous.connectionId !== binding.connectionId ||
-          ['waiting', 'failed', 'admitted'].includes(previous.state)
+          ['waiting', 'failed', 'admitted'].includes(previous.state) ||
+          (previous.state === 'offered' && !adapter.offerCurrent?.(message.envelope.id))
         );
-      });
+      };
+      let ready: Message[] = [];
+      let selected: Message | undefined;
+      let claudeBacklogUntil: number | undefined;
+      if (status.kind === 'claude-code') {
+        const candidate = this.claudeDispatchCandidate(
+          identity.key,
+          binding,
+          adapter,
+          this.settings.value.adapters.find((profile) => profile.id === binding.adapterId)
+            ?.sessionId,
+          eligible,
+        );
+        selected = candidate?.row;
+        claudeBacklogUntil = candidate?.backlogUntil;
+      } else {
+        this.claudeDispatchSnapshots.delete(identity.key);
+        ready = this.store.history(identity.key, 0, 200, true).messages;
+        selected = ready.find(eligible);
+      }
+      const row = selected;
       if (!row) continue;
+      const snapshot = this.claudeDispatchSnapshots.get(identity.key);
       this.dispatching.add(dispatchKey);
       const job = (async () => {
         let admitted = false,
+          offered = false,
           submitting = false;
         try {
           this.store.assertOwner(binding.connectionId);
-          this.store.dispatch(row.envelope.id, binding.connectionId, 'dispatching');
+          this.store.dispatch(
+            row.envelope.id,
+            binding.connectionId,
+            adapter.wakeOnly ? 'offering' : 'dispatching',
+          );
           const files = await this.fileOperation(() =>
             allFileResults(
               row.envelope.attachments.map(async (file) => ({
@@ -1153,6 +1745,10 @@ export class NodeService extends EventEmitter {
             ),
           );
           this.store.assertOwner(binding.connectionId);
+          if (this.store.claudeFenced(row.envelope.id))
+            throw new Error(
+              'Message delivery is in progress or uncertain; content is not repeated',
+            );
           if (!this.store.get(row.envelope.id, 'in')) throw new Error('The message was cleared');
           submitting = true;
           const result = await adapter.deliver({
@@ -1160,6 +1756,12 @@ export class NodeService extends EventEmitter {
             binding,
             messageId: row.envelope.id,
             replyRef: 'r' + this.store.get(row.envelope.id, 'in')!.sequence.toString(36),
+            sequence: this.store.get(row.envelope.id, 'in')!.sequence,
+            backlogUntil:
+              claudeBacklogUntil ??
+              Math.max(
+                ...ready.map((message) => this.store.get(message.envelope.id, 'in')?.sequence ?? 0),
+              ),
             message: {
               fromNode: row.envelope.fromNode,
               fromNickname: row.envelope.fromNickname,
@@ -1169,34 +1771,64 @@ export class NodeService extends EventEmitter {
             isCurrent: () => {
               try {
                 this.store.assertOwner(binding.connectionId);
-                return this.store.get(row.envelope.id, 'in')?.state === 'ready';
+                return (
+                  !this.store.claudeFenced(row.envelope.id) &&
+                  this.store.get(row.envelope.id, 'in')?.state === 'ready'
+                );
               } catch {
                 return false;
               }
             },
           });
+          if (
+            snapshot &&
+            this.claudeDispatchSnapshots.get(identity.key) !== snapshot &&
+            adapter instanceof ClaudeCodeAdapter
+          ) {
+            const current = this.store
+              .list()
+              .find((candidate) => candidate.key === identity.key)?.binding;
+            if (
+              current?.connectionId === binding.connectionId &&
+              current.generation === binding.generation &&
+              current.adapterId === binding.adapterId
+            )
+              adapter.messageReady(binding.connectionId);
+          }
+          if (result.state === 'admitted' && adapter.wakeOnly)
+            throw new Error('A wake-only adapter cannot record message receipt');
           if (result.state === 'admitted') {
             await this.recordDelivery(binding.connectionId, [row.envelope.id]);
             admitted = true;
-          } else
+          } else {
+            // A concurrent agent_read may already have recorded receipt; keep it.
+            if (!adapter.wakeOnly || this.store.get(row.envelope.id, 'in')?.state === 'ready')
+              this.store.dispatch(
+                row.envelope.id,
+                binding.connectionId,
+                result.state,
+                result.error ?? null,
+              );
+            offered = result.state === 'offered';
+          }
+        } catch (e) {
+          if (this.store.claudeFenced(row.envelope.id))
+            this.store.error(
+              row.envelope.id,
+              'Message delivery is in progress or uncertain; content is not repeated',
+            );
+          else
             this.store.dispatch(
               row.envelope.id,
               binding.connectionId,
-              result.state,
-              result.error ?? null,
+              submitting && !adapter.wakeOnly ? 'uncertain' : 'failed',
+              (e as Error).message,
             );
-        } catch (e) {
-          this.store.dispatch(
-            row.envelope.id,
-            binding.connectionId,
-            submitting ? 'uncertain' : 'failed',
-            (e as Error).message,
-          );
         } finally {
           this.dispatching.delete(dispatchKey);
           const redrain = this.adapterRedrain.delete(dispatchKey);
           this.emit('change');
-          if (admitted || redrain) this.drainAdapters();
+          if (admitted || offered || redrain) this.drainAdapters();
         }
       })();
       this.jobs.add(job);
@@ -1235,6 +1867,7 @@ export class NodeService extends EventEmitter {
       pathToFileURL(this.openCodePlugin).href,
       commonConfiguration,
       { ...cursorPlugin, configuration: commonConfiguration },
+      this.claudePluginRoot,
     );
   }
   async userCall(
@@ -1402,16 +2035,19 @@ export class NodeService extends EventEmitter {
   private async stopNow(): Promise<void> {
     if (!this.running) return;
     this.running = false;
+    this.claudeDispatchSnapshots.clear();
     clearTimeout(this.directoryPublish);
     this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
     this.contexts.clear();
+    this.claudeContextLeases.clear();
     this.store.invalidateClearRequests();
     await this.adapters.close();
     await this.network.close();
     await this.receiving;
     await Promise.all([...this.jobs]);
     this.adapterRedrain.clear();
+    await this.claude.close();
     await this.mcp.close();
     this.emit('change');
   }

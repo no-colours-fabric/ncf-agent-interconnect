@@ -1,4 +1,6 @@
-export const mcpSetupClients = ['cursor', 'opencode', 'codex', 'aionui'] as const;
+export const mcpSetupClients = ['cursor', 'opencode', 'codex', 'aionui', 'claude'] as const;
+/** Claude Code starts normally; the NCF mod announces messages without development flags. */
+export const claudeLaunchCommand = 'claude';
 export type McpSetupClient = (typeof mcpSetupClients)[number];
 export type McpSetupApplication = McpSetupClient;
 export type McpSetupFormat = 'jsonc' | 'toml';

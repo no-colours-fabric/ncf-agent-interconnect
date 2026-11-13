@@ -46,7 +46,8 @@ export class ClientContexts {
   private tickets = new Map<string, { context: ClientContext; expires: number }>();
   private setup: Promise<unknown> = Promise.resolve();
   constructor(private readonly service: NodeService) {}
-  private issue(context: ClientContext): string {
+  /** A one-use ticket for context that the node has already verified itself. */
+  issue(context: ClientContext): string {
     const now = Date.now();
     for (const [key, value] of this.tickets) if (value.expires < now) this.tickets.delete(key);
     if (this.tickets.size >= 512) this.tickets.delete(this.tickets.keys().next().value!);
