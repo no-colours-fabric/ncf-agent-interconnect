@@ -1,0 +1,7 @@
+{
+  "name": "ncf-incoming-presentation-probe",
+  "version": "0.0.1",
+  "description": "Isolated rendering proof for actual NCF agent_read results.",
+  "author": { "name": "no-colours-fabric" },
+  "license": "BSD-3-Clause"
+}
