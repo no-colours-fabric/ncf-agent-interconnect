@@ -18,11 +18,13 @@ git clone --branch codex/claude-candidate-diagnostics --single-branch https://gi
 cd ncf-claude-diagnostic
 git rev-parse HEAD
 npm ci
+npm run prepare:runtime
 npm run build
 ```
 
-Build only on the OS where the application will run. After `npm ci` has installed
-the native Electron runtime, package with the existing target:
+Build only on the OS where the application will run. `prepare:runtime` ensures
+the native Electron distribution exists; the Linux fixture's initial package
+attempt failed without it after `npm ci`. Then package with the existing target:
 
 ```sh
 # Linux x64
@@ -39,12 +41,14 @@ different OS's Electron runtime or assume cross-compilation is native acceptance
 
 ## Isolated setup and logs
 
-Quit the normal NCF instance before this test. Use a new, empty folder for
+Keep the working paired node and coordination chat unchanged. Use a new, empty folder for
 diagnostic node data and a separate Claude profile. Launch the diagnostic
 application with `--data-dir <absolute test-data folder>`; on Linux execute the
 AppImage with that argument, and on macOS run the executable inside the built
 app's `Contents/MacOS/` directory with it. Alternatively, `npm start -- --data-dir
 <absolute test-data folder>` runs the same compiled source before packaging.
+Use nonconflicting test listening ports; the Linux fixture used `peerPort: 0`
+and an empty peers list. Never reuse the working node's private state.
 
 For the test terminals, set `CLAUDE_CONFIG_DIR` to a separate profile directory
 before launching Claude. Log in through the normal client flow if needed. In
@@ -69,6 +73,35 @@ Keep the test profile and node data locally; send only the diagnostic JSONL,
 Git commit, OS/architecture, `claude --version`, scenario times and observations.
 Do not send `node.json`, settings, native-lease files, databases or client
 transcripts. Note whether you used packaged runtime or `npm start`.
+
+## Incoming presentation evidence
+
+The shipped main plugin renders only its exact `agent_read` result. In default
+terminal view, Incoming shows sender, original body and attachments, Reply-To
+and `Use agent_send(connectionId, replyRef="…", text) to reply.` Ctrl+O shows
+other returned page fields, including message ID, without a second body copy.
+No renderer callback is a receipt or proof the model read the content.
+
+For a presentation-only change, reuse unchanged S1 and prior arrival/error
+evidence. First inspect retained actual read rows on the exact changed module:
+default body once/no JSON, Ctrl+O body once/metadata once, back to no JSON.
+If retained output is unavailable, use at most one new synthetic message for
+that affected observation. Keep exact source/plugin identity, native capture
+and actual owner observations separate from mock tests; do not restart a full
+campaign or rebuild an unchanged binary just for a text-only formatter change.
+
+Offline generated-entry checks use an explicitly selected native CLI without
+a signed-in session, network peers or a real client profile:
+
+```sh
+NCF_CLAUDE_TEST_CLI=/absolute/path/to/claude node --experimental-sqlite --import tsx --test test-desktop/claude-code-presentation.test.ts
+```
+
+They materialize the exact generated main and gate plugins in a temporary
+directory. The mounted fixture loads the main production `wake.js`, verifies
+relative imports and the production namespace, and never fires session-start
+or command hooks. Without that explicit CLI path, the SDK portion is skipped.
+These tests do not establish terminal paint or native delivery.
 
 ## Three manual scenarios
 

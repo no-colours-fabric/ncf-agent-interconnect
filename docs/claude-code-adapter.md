@@ -4,13 +4,21 @@ NCF announces incoming agent messages in the exact interactive Claude Code chat
 that connected under a user-chosen agent name. The announcement is a short
 notice without message content, submitted by an NCF Claude Code mod with plugin
 attribution. Claude then receives the message, attachments and Reply-To through
-the ordinary `agent_read` tool. Claude Desktop, claude.ai, Agent SDK sessions
+the ordinary `agent_read` tool. In the terminal, the NCF mod renders the actual
+returned read as **Incoming NCF Agent Interconnect** with sender, original body,
+attachments, Reply-To and the standard `agent_send` reply instruction. The
+notification shows a short pending label instead of the internal read command.
+Ctrl+O exposes the returned page metadata; ordinary group expansion does not.
+This changes presentation only, never the stored/model-facing notice or receipt.
+Claude Desktop, claude.ai, Agent SDK sessions
 and Claude inside other applications are not covered.
 
 ## Requirements
 
 - Interactive Claude Code with mods (enabled by default from version 2.1.287).
   Versions 2.1.318 and 2.1.319 on Linux were used for native verification.
+  The terminal renderer was checked against the generated declarations and
+  native behavior of 2.1.319; other render surfaces are not verified.
 - Mods must not be turned off. `--safe-mode`, `disableAllHooks`, the managed
   settings `allowManagedModsOnly` or `allowManagedHooksOnly`, and Claude Desktop
   WSL sessions turn them off. Then NCF reports automatic wake as unavailable;
@@ -107,6 +115,14 @@ Missing, foreign, replayed or expired proofs fail closed. A separate private
 call permit keeps the same authority across awaited work and result handling.
 The hook does not change permission decisions.
 
+In the isolated 2.1.319 default-auto fixture, two `agent_connect` calls were
+refused by the host with no usable auto-mode answer before reaching NCF. The
+cause remains open; changed input alone does not establish it. An actual owner
+changed to manual mode and approved the initial connection for the diagnostic
+cases. Reading that existing binding later succeeded in auto with the narrow
+Apply-installed `agent_read` allow rule. That does not verify fresh auto-connect.
+NCF does not add a broader allow rule or bypass the host's decision.
+
 ## Lifecycle
 
 | Situation                                         | Behaviour                                                                                                                                                                                                                                                                                         |
@@ -159,6 +175,30 @@ commands, the native campaign with its case table and the open items. Sanitized
 native evidence is in `docs/evidence/claude-code-candidate-native.json`. macOS,
 Windows, Claude Desktop and organization policies were not verified by the
 submitter.
+
+Subsequent corrective evidence has narrower provenance:
+
+- Exact `a00294d3`: Linux x64 AppImage and Claude Code 2.1.319; first pending
+  exact-resume read and fixture-node restart passed in manual mode after actual
+  owner approval. One existing-binding auto-read passed separately. These three
+  bounded runs do not establish the cause of historical K5 or fresh auto-connect.
+- Research `437c5f5`: retained actual read rows after exact resume showed the
+  guarded terminal Incoming once, default metadata hidden, Ctrl+O metadata
+  visible, then hidden again. The owner confirmed the switching behavior; sender
+  and body on this revision were checked in terminal capture. This was not a new
+  first-delivery or a new receipt/model acknowledgement proof.
+- Research `6db26af` changed only the reply footer to the standard instruction;
+  a pure formatter regression covered that change. The shipped modules use that
+  formatter and the `437c5f5` registration layout. Generated-entry tests run them
+  through the production `wake.js` and plugin name, not a standalone probe.
+- In the isolated Linux run, SIGTERM closed the node service but Electron was
+  still alive after three seconds and was then killed. Normal owner Quit was
+  not compared; this remains an open lifecycle observation.
+
+Rendering is downstream of the same tool result. It makes no inbox or network
+call, records no receipt, and does not promote automatic-delivery status. Errors,
+interruption, unknown results, foreign tools and `agent_history` keep native
+rendering. No irreversible seen-ID cache suppresses later redraws.
 
 ## Targeted development checks
 

@@ -79,6 +79,12 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
     { name: 'ncf-agent-interconnect-gate', version: '=0.12.0' },
   ]);
   assert.deepEqual(JSON.parse(posix['plugin/hooks/hooks.json']).modules, ['./wake.js']);
+  assert.ok(posix['plugin/hooks/incoming.js'].includes("from './incoming-format.js'"));
+  assert.ok(posix['plugin/hooks/incoming-format.js'].includes('Use agent_send(connectionId'));
+  assert.equal(
+    (posix['plugin/hooks/wake.js'].match(/registerIncomingPresentation\(on\);/g) ?? []).length,
+    1,
+  );
   assert.equal(JSON.parse(posix['gate/.claude-plugin/plugin.json']).version, '0.12.0');
   assert.deepEqual(JSON.parse(posix['gate/hooks/hooks.json']), {
     description: 'NCF wake notice gate.',
