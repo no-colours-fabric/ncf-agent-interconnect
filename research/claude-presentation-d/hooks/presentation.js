@@ -126,8 +126,9 @@ export function incomingText(page) {
       (files.length ? '\n\n' + files.join('\n') : '') +
       '\n\nReply-To: ' +
       printable(row.replyRef) +
-      '\nMessage ID: ' +
-      e.id
+      '\nUse agent_send(connectionId, replyRef="' +
+      row.replyRef +
+      '", text) to reply.'
     );
   });
   return rows.join('\n\n') + (page.hasMore ? '\n\nMore incoming messages are available.' : '');

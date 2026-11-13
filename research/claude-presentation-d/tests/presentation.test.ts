@@ -1,5 +1,11 @@
 import { expect, test } from 'claude-code/testing';
-import { ownRead, pageFrom, incomingText, printable } from '../hooks/presentation.js';
+import {
+  ownRead,
+  pageFrom,
+  incomingText,
+  expandedMetadata,
+  printable,
+} from '../hooks/presentation.js';
 import { register } from '../hooks/register.js';
 
 const page = () => ({
@@ -68,6 +74,10 @@ test('actual MCP wrappers retain original sender body route and ID; malformed mi
   ])
     expect(incomingText(pageFrom(output))).toContain('From: Боб 漢字\n\nD-PROBE-001');
   expect(incomingText(p)).toContain('Reply-To: r1');
+  expect(incomingText(p)).toContain('Use agent_send(connectionId, replyRef="r1", text) to reply.');
+  expect(incomingText(p)).not.toContain('Message ID:');
+  expect(incomingText(p)).not.toContain(p.messages[0].envelope.id);
+  expect(expandedMetadata(p)).toContain(p.messages[0].envelope.id);
   expect(pageFrom({ ...p, messages: [{ ...p.messages[0], direction: 'out' }] })).toBeUndefined();
   expect(
     pageFrom({ content: [{ type: 'text', text: JSON.stringify(p) }], structuredContent: {} }),
