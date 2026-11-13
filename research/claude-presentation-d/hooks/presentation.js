@@ -4,6 +4,28 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const integer = (v) => Number.isSafeInteger(v) && v >= 0;
 const string = (v) => typeof v === 'string';
+const attachment = (v) =>
+  object(v) &&
+  string(v.id) &&
+  /^[a-f0-9]{64}$/.test(v.id) &&
+  string(v.name) &&
+  v.name.length > 0 &&
+  v.name.length <= 255 &&
+  !/[\\/\x00-\x1f]/.test(v.name) &&
+  integer(v.size) &&
+  v.size <= 100 * 1024 * 1024;
+const actualId = (v) => string(v) && v.trim().length > 0;
+
+export function hasOwnReadIdentity(e) {
+  return (
+    object(e) &&
+    object(e.props) &&
+    e.props.tool === ownRead &&
+    actualId(e.requestId) &&
+    actualId(e.props.tool_use_id) &&
+    e.props.tool_use_id === e.requestId
+  );
+}
 
 // Keep Unicode and line breaks; expose terminal controls instead of executing them.
 export const printable = (v) =>
@@ -67,21 +89,24 @@ export function pageFrom(output) {
       !e.toNickname ||
       !string(e.text) ||
       !Array.isArray(e.attachments) ||
+      e.attachments.length > 16 ||
+      !e.attachments.every(attachment) ||
       !Array.isArray(row.files) ||
       row.files.length !== e.attachments.length
     )
       return undefined;
+    // A full multiset match preserves duplicates only when both lists contain
+    // them. One file cannot stand in for two different attachments.
+    const unmatched = [...e.attachments];
     for (const file of row.files) {
-      if (
-        !object(file) ||
-        !string(file.name) ||
-        !string(file.localPath) ||
-        !integer(file.size) ||
-        !/^[a-f0-9]{64}$/.test(file.id ?? '') ||
-        !e.attachments.some((a) => a.id === file.id && a.name === file.name && a.size === file.size)
-      )
-        return undefined;
+      if (!attachment(file) || !string(file.localPath) || !file.localPath) return undefined;
+      const match = unmatched.findIndex(
+        (a) => a.id === file.id && a.name === file.name && a.size === file.size,
+      );
+      if (match < 0) return undefined;
+      unmatched.splice(match, 1);
     }
+    if (unmatched.length) return undefined;
   }
   return value;
 }

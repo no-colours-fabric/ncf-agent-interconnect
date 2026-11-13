@@ -1,5 +1,6 @@
 import { expect, test } from 'claude-code/testing';
 import { ownRead, pageFrom, incomingText, printable } from '../hooks/presentation.js';
+import { register } from '../hooks/register.js';
 
 const page = () => ({
   messages: [
@@ -72,6 +73,76 @@ test('actual MCP wrappers retain original sender body route and ID; malformed mi
     pageFrom({ content: [{ type: 'text', text: JSON.stringify(p) }], structuredContent: {} }),
   ).toBeUndefined();
   expect(pageFrom({ isError: true, ...p })).toBeUndefined();
+});
+
+test('malformed attachment entries refuse without throwing and preserve native output', async ($, on) => {
+  fallback(on);
+  const file = { id: 'a'.repeat(64), name: 'valid.txt', size: 1, localPath: '/fixture/valid.txt' };
+  for (const entry of [
+    null,
+    undefined,
+    'not-an-object',
+    {},
+    { ...file, id: 1 },
+    { ...file, name: '' },
+    { ...file, size: -1 },
+  ]) {
+    const p = page();
+    p.messages[0].envelope.attachments = [entry];
+    p.messages[0].files = [file];
+    expect(pageFrom(p)).toBeUndefined();
+    for (const site of ['ToolUse', 'ToolResult'])
+      expect((await render($, event(site, props({ output: p })))).children).toEqual(
+        native.children,
+      );
+  }
+});
+
+test('attachment mapping is a complete multiset match including duplicate multiplicity', () => {
+  const a = { id: 'a'.repeat(64), name: 'A.txt', size: 1 };
+  const b = { id: 'b'.repeat(64), name: 'B.txt', size: 2 };
+  const file = (a) => ({ ...a, localPath: '/fixture/' + a.name });
+  const p = page();
+  p.messages[0].envelope.attachments = [a, b];
+  p.messages[0].files = [file(a), file(a)];
+  expect(pageFrom(p)).toBeUndefined();
+  p.messages[0].files = [file(b), file(a)];
+  expect(pageFrom(p)).toEqual(p);
+  p.messages[0].envelope.attachments = [a, a];
+  expect(pageFrom(p)).toBeUndefined();
+  p.messages[0].files = [file(a), file(a)];
+  expect(pageFrom(p)).toEqual(p);
+});
+
+test('missing empty nonstring and mismatched native IDs cannot render or suppress', async ($, on) => {
+  fallback(on);
+  const handlers = {};
+  register((_name, matcher, hook) => {
+    handlers[matcher.component] = hook;
+  });
+  for (const [requestId, toolId] of [
+    [undefined, undefined],
+    [null, null],
+    ['', ''],
+    [' ', ' '],
+    [0, 0],
+    ['same', undefined],
+    [undefined, 'same'],
+    ['one', 'two'],
+  ]) {
+    for (const site of ['ToolUse', 'ToolResult']) {
+      const e = { ...event(site, props({ tool_use_id: toolId })), requestId };
+      // A direct handler call preserves absent IDs; native mock mount otherwise
+      // mints a request ID. Both must refuse, including undefined === undefined.
+      expect(await handlers[site]({}, e, async () => native)).toEqual(native);
+      if (typeof requestId === 'string' && requestId.length)
+        expect((await render($, e)).children).toEqual(native.children);
+    }
+  }
+  for (const site of ['ToolUse', 'ToolResult']) {
+    const result = await handlers[site]({}, event(site, props()), async () => native);
+    expect(result.children[0]).toBe(site === 'ToolResult' ? '' : incomingText(page()));
+  }
 });
 
 test('ToolUse is sole content site across collapsed expanded repeat remount and reversed callbacks', async ($, on) => {

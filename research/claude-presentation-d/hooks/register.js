@@ -5,6 +5,7 @@ import {
   expandedMetadata,
   textTree,
   isOwnResult,
+  hasOwnReadIdentity,
 } from './presentation.js';
 
 export function register(on) {
@@ -12,8 +13,7 @@ export function register(on) {
   // ToolResult below draws no second copy only for the same valid actual page.
   // No seen-ID state: offscreen callbacks, remount and callback order are harmless.
   on('ui.render', { component: 'ToolUse' }, async ($, e, next) => {
-    if (e.surface !== 'terminal' || e.props.tool !== ownRead || e.props.tool_use_id !== e.requestId)
-      return next(e);
+    if (e.surface !== 'terminal' || !hasOwnReadIdentity(e)) return next(e);
     if (e.props.isRunning) return textTree('NCF Agent Interconnect: receiving messages…');
     if (isOwnResult(e.props)) {
       const page = pageFrom(e.props.output);
@@ -23,8 +23,7 @@ export function register(on) {
     return next(e);
   });
   on('ui.render', { component: 'ToolResult' }, async ($, e, next) => {
-    if (e.surface !== 'terminal' || e.props.tool_use_id !== e.requestId || !isOwnResult(e.props))
-      return next(e);
+    if (e.surface !== 'terminal' || !hasOwnReadIdentity(e) || !isOwnResult(e.props)) return next(e);
     return textTree('');
   });
   on('ui.render', { component: 'ToolGroup' }, async ($, e, next) => {
