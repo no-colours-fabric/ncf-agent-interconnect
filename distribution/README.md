@@ -15,6 +15,10 @@ was not run on Intel hardware.
 
 Windows x64: use the Windows installer. Packages are unsigned.
 
+Linux x86_64: mark the AppImage executable and run it. Quit the old instance
+before replacing its AppImage; keep the existing node data and private profiles.
+See [installation](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/installation.md#linux).
+
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional
 under Settings.

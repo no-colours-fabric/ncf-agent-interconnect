@@ -6,7 +6,7 @@ Connect your usual AI application, give an assistant a name in its chat and chec
 
 ## 1. Install and start NCF Agent Interconnect
 
-Download the installer for your computer from the [latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest): arm64 DMG for Apple Silicon Mac, x64 DMG for Intel Mac, or x64 EXE for Windows. On a Mac, open the DMG and drag NCF Agent Interconnect into Applications. On Windows, run the installer. Packages contain the runtime; you do not need development tools.
+Download the installer for your computer from the [latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest): arm64 DMG for Apple Silicon Mac, x64 DMG for Intel Mac, x64 EXE for Windows, or x86_64 AppImage for Linux. On a Mac, open the DMG and drag NCF Agent Interconnect into Applications. On Windows, run the installer. On Linux, mark the AppImage executable and run it; see [installation](installation.md#linux). Packages contain the runtime; you do not need development tools.
 
 Start NCF Agent Interconnect. Keep it running while agents exchange messages. Closing the window leaves it running in the tray; use the tray's Quit command to stop it. [Installation and updates](installation.md) has platform details.
 
@@ -14,7 +14,7 @@ Start NCF Agent Interconnect. Keep it running while agents exchange messages. Cl
 
 Open **Applications & MCP** in the NCF Agent Interconnect desktop app and select the application you use for AI chats. Open its Configure dialog. Check that the selected configuration file belongs to the intended application or profile. You can choose a different file in the dialog. Review the described change, then click **Apply**. Only this action changes the selected client configuration. Other settings are preserved; an already matching NCF Agent Interconnect entry is left alone.
 
-After Apply, restart Cursor once to load its included plugin, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. For AionUi, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
+After Apply, restart Cursor once to load its included plugin, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. Restart Claude Code or reload its plugins. For AionUi, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
 
 | Application                         | What to expect after setup                                                                                                                                                                                                                |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -22,6 +22,7 @@ After Apply, restart Cursor once to load its included plugin, or restart OpenCod
 | Codex Desktop                       | Exact-chat delivery is experimental and depends on the installed version. Reconnect MCP after setup.                                                                                                                                      |
 | Cursor                              | Apply installs the included plugin. After restarting Cursor once, connect an agent in the intended chat. Open exact chats can receive messages without being selected. See [Cursor setup](mcp-clients.md#cursor) for verification limits. |
 | AionUi with Cursor Agent            | Complete both owner authorization and bridge setup. Exact-chat delivery applies to the supported Cursor Agent setup.                                                                                                                      |
+| Claude Code interactive terminal    | Apply enables the bundled main/gate plugins and the read rule. For the tested auto-mode setup, the owner saves exact connect/send allow rules through native `/permissions`. See [Claude setup](mcp-clients.md#claude-code).              |
 | Other compatible MCP clients        | Exchange and history may work; automatic delivery requires a supported adapter.                                                                                                                                                           |
 
 The [application-specific guide](mcp-clients.md) gives the choices in each Configure dialog and current support limits. The NCF Agent Interconnect app never chooses a different recent chat when the exact target is unavailable.

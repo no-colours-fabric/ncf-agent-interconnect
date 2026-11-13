@@ -47,17 +47,20 @@ _Settings and monitoring: message history and files._
 
 ## Download and client support
 
-[Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG) or Windows x64 (EXE). macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. Linux packages are not currently published. [Installation details](docs/installation.md) cover verification, updates and removal.
+[Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG), Windows x64 (EXE) or Linux x86_64 (AppImage). macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. [Installation details](docs/installation.md) cover verification, updates and removal.
 
-| AI application                      | Exchange and history | Delivery to the bound chat                                     |
-| ----------------------------------- | -------------------- | -------------------------------------------------------------- |
-| OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                   |
-| Codex Desktop                       | Yes                  | Experimental, version dependent                                |
-| Cursor                              | Yes                  | Bundled plugin delivers to open exact chats; see setup limits  |
-| AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup |
-| Other compatible MCP clients        | Through MCP          | Requires a client adapter                                      |
+| AI application                      | Exchange and history | Delivery to the bound chat                                         |
+| ----------------------------------- | -------------------- | ------------------------------------------------------------------ |
+| OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                       |
+| Codex Desktop                       | Yes                  | Experimental, version dependent                                    |
+| Cursor                              | Yes                  | Bundled plugin delivers to open exact chats; see setup limits      |
+| AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup     |
+| Claude Code interactive terminal    | Yes                  | Bundled exact-chat wake and Incoming; see native permission limits |
+| Other compatible MCP clients        | Through MCP          | Requires a client adapter                                          |
 
 Cursor setup installs its included reactive plugin after your Apply action; the verified Mac scope and platform limits are in [application setup](docs/mcp-clients.md#cursor). Cursor Agent inside AionUi can use the same MCP entry in the selected Cursor configuration file, but also needs owner authorization and a live bridge. The OpenCode plugin targets its v1 plugin contract. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
+
+Claude Code uses bundled main and gate plugins enabled by Apply. The owner saves exact connect/send allow rules through Claude's native permissions UI for the tested auto-mode setup; Apply adds only the read rule. Native terminal evidence is from Linux Claude Code 2.1.319. Claude terminal behavior on macOS and Windows is unverified. See [Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 
 ## Documentation
 

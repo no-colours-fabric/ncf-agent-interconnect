@@ -12,6 +12,10 @@ Electron stores product data in the NCF Agent Interconnect user-data directory:
 
 - macOS: `~/Library/Application Support/NCF Agent Interconnect/`
 - Windows: `%APPDATA%\NCF Agent Interconnect\`
+- Linux: `$XDG_CONFIG_HOME/NCF Agent Interconnect/`, or `~/.config/NCF Agent Interconnect/` when unset.
+
+An explicit `--data-dir` selects another node data directory. Keep the path used
+by the existing installation when updating or backing it up.
 
 This directory contains settings, agent history, verified file snapshots,
 received copies, integration descriptors and local credentials. The application

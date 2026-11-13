@@ -8,6 +8,7 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 - Show actual returned agent messages as Incoming with sender, original text, attachments and the standard reply instruction. Keep internal wake notices separate; Ctrl+O reveals response metadata.
 - Persist Claude read attempts before releasing content and record receipt after the helper completes its response frame. Fence busy or uncertain attempts across restart and transfer without blind replay.
 - Guard desktop IPC and delayed dialog continuations during shutdown before they can access a closed node.
+- Publish a Linux x86_64 AppImage alongside the two macOS DMGs and Windows x64 EXE.
 
 Claude Code native evidence is from Linux CLI 2.1.319. Configured auto mode requires owner-saved exact connect/send allow rules in Claude's native permissions UI; Apply adds only the read rule. Other tools and unconfigured auto mode are not covered by that result. Claude terminal behavior on macOS and Windows is not verified. A first-resume failure in an earlier candidate was not reproduced in three later bounded reads; its cause remains unproven. See the [Claude guide](docs/claude-code-adapter.md) for exact evidence and lifecycle limits.
 

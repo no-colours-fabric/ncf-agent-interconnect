@@ -73,10 +73,10 @@ a native platform verification. Report verification limits accurately.
 - Run additional locale, history, attachment, adapter and installer checks only
   for affected changes or a concrete failure. After a test-harness correction,
   rerun its failed check on the same binary; do not rebuild unchanged software.
-- Publish three installers: macOS Apple Silicon DMG, macOS Intel DMG and
-  Windows x64 EXE. No Universal package. Build both macOS architectures on macOS
+- Publish four installers: macOS Apple Silicon DMG, macOS Intel DMG,
+  Windows x64 EXE and Linux x86_64 AppImage. No Universal package. Build both macOS architectures on macOS
   with matching Electron runtimes. Run native acceptance
-  on the available Apple Silicon Mac and Windows machine. An Intel runtime test
+  on the available Apple Silicon Mac, Windows and Linux machines. Build Linux packages on Linux. An Intel runtime test
   is not required and must not block publication; state that it was not run.
 - Do not upload ZIP alternatives, reports, checksum manifests, screenshots or
   README copies as routine release assets. Keep diagnostics locally and put
@@ -84,13 +84,14 @@ a native platform verification. Report verification limits accurately.
 - Starting with the next release, retain built installers in the primary
   repository checkout's `release/<version>/` on each native build machine.
   On this Mac, use `/Users/a.prokopenko/dev/agent-interconnect-mcp/release/<version>/`;
-  use the corresponding repository-root directory on Windows and, when supported,
-  Linux. Copy installers out of disposable worktrees before removing them. These
+  use the corresponding repository-root directory on Windows and Linux.
+  Copy installers out of disposable worktrees before removing them. These
   version directories are owner-managed: never automatically delete or replace
   their contents, and exclude them from release/worktree cleanup. Clean temporary
   build/evidence archives such as `.local/windows-evidence-archive` after retaining
-  the installers and any necessary compact QA history. Do not add Linux packaging
-  as part of this retention rule.
+  the installers and any necessary compact QA history. Export installers and compact
+  QA from disposable CI runners before their teardown; retain the downloaded
+  installers in the primary version directory.
 - After the new release is published with all required installers, remove
   uploaded assets from older releases. Keep their Git tags, source history and
   release descriptions. Never remove the last available installers before the

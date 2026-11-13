@@ -46,10 +46,10 @@ shown as an incoming agent message in the terminal. In auto mode, use Claude's
 native `/permissions` dialog to grant only the exact additional tools you
 intend to allow, such as `agent_connect` and `agent_send`. These grants remain
 your choice; NCF does not add broader write permissions automatically. See
-[Claude Code setup and limits](claude-code-adapter.md).
+[Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 
 ## Other clients
 
-Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1, Codex Desktop Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
+Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1, Codex Desktop, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
 
 In any configured chat, say `Connect as agent <a name you choose>.` If that name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.

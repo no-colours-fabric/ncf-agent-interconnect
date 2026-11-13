@@ -4,6 +4,7 @@
 - Render actual returned agent messages as Incoming with sender, original body, attachments and the standard reply instruction. Ctrl+O shows response metadata.
 - Persist Claude delivery intent before releasing content; commit receipt after the helper completes its MCP response frame. Keep uncertain attempts fenced across restart and transfer without blind replay.
 - Prevent new desktop calls and delayed dialogs from accessing the node after shutdown begins. Retain the current Codex, Cursor and AionUi fixes.
+- Publish a Linux x86_64 AppImage alongside the Apple Silicon DMG, Intel DMG and Windows x64 EXE.
 
 Quit the app before replacing it. Existing history, bindings, attachments, peers and AionUi authorization are preserved. First start upgrades storage to format 4; older releases cannot open it. Keep a stopped pre-upgrade profile backup if rollback is required. At an unchanged installation path, existing clients need no new Apply. Claude Code setup requires Apply and a plugin reload or restart.
 
