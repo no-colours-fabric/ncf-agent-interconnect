@@ -74,6 +74,39 @@ Git commit, OS/architecture, `claude --version`, scenario times and observations
 Do not send `node.json`, settings, native-lease files, databases or client
 transcripts. Note whether you used packaged runtime or `npm start`.
 
+## Native saved permissions for auto mode
+
+In the isolated Claude profile, the actual owner opens `/permissions` and saves
+these exact allow rules in **User** scope:
+
+```text
+mcp__plugin_ncf-agent-interconnect_ncf__agent_connect
+mcp__plugin_ncf-agent-interconnect_ncf__agent_send
+```
+
+Keep the exact `mcp__plugin_ncf-agent-interconnect_ncf__agent_read` rule already
+installed by NCF Apply. Confirm the selected profile/scope in the native UI.
+Do not use a server wildcard, remove deny/ask rules or replace managed policy.
+Agents do not write the permission settings, and Apply does not automatically
+add connect/send. Other tools remain subject to their normal permissions.
+See [native rule management](https://code.claude.com/docs/en/permissions#manage-permissions)
+and [exact MCP tool rules](https://code.claude.com/docs/en/permissions#mcp).
+
+This configuration was natively checked on Linux with the `a00294d3` AppImage
+and Claude Code 2.1.319, whose protected-call pipeline is unchanged in `407f967`.
+The owner saved the rules, a new chat remained in auto mode, a fresh connect
+succeeded and two sequential synthetic local sends reached the existing fixture
+recipient exactly once with no new dialogs. There was also one earlier
+empty-input connect validation error, making four native calls total. PreToolUse
+still changed input; no forced ask/allow mod, manual mode or proof reuse was used.
+Saved rule evidence and use in that scenario do not establish all other tools,
+future restart persistence, or installed `407f967` native verification.
+
+Without these explicit rules, the earlier native errors confirmed changed input
+after auto review as the reason for refusal. Keep that unconfigured limitation
+separate from configured success. Reuse the bounded result; do not repeat a
+campaign to remove the invalid model call from its history.
+
 ## Incoming presentation evidence
 
 The shipped main plugin renders only its exact `agent_read` result. In default

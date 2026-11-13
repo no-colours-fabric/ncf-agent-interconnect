@@ -61,7 +61,23 @@ and Claude inside other applications are not covered.
    other tool, wildcard, Bash rule or bypass mode is added. Cancel writes
    nothing.
 
-4. Start or resume Claude Code normally. In the chat, write
+4. Start or resume Claude Code normally. To connect and send in auto mode without
+   repeated permission prompts, open `/permissions` and save allow rules for
+   these exact tools in **User** scope for the current Claude profile:
+
+   ```text
+   mcp__plugin_ncf-agent-interconnect_ncf__agent_connect
+   mcp__plugin_ncf-agent-interconnect_ncf__agent_send
+   ```
+
+   The exact `mcp__plugin_ncf-agent-interconnect_ncf__agent_read` rule already
+   comes from NCF Apply. The owner saves connect/send in Claude's native UI;
+   NCF does not add them to Apply. No server wildcard is needed. Each saved
+   rule permits that tool's calls within its settings scope; other tools need
+   their own permission. Preserve existing deny/ask and managed rules, which
+   retain priority. See [Claude Code permissions](https://code.claude.com/docs/en/permissions#manage-permissions).
+
+5. In the chat, write
    `Connect as agent <a name you choose>.` Never enter session IDs or tokens.
 
 After NCF moves to another location, reopen the dialog and Apply again. Restart
@@ -115,13 +131,18 @@ Missing, foreign, replayed or expired proofs fail closed. A separate private
 call permit keeps the same authority across awaited work and result handling.
 The hook does not change permission decisions.
 
-In the isolated 2.1.319 default-auto fixture, two `agent_connect` calls were
-refused by the host with no usable auto-mode answer before reaching NCF. The
-cause remains open; changed input alone does not establish it. An actual owner
-changed to manual mode and approved the initial connection for the diagnostic
-cases. Reading that existing binding later succeeded in auto with the narrow
-Apply-installed `agent_read` allow rule. That does not verify fresh auto-connect.
-NCF does not add a broader allow rule or bypass the host's decision.
+Without explicit tool allow rules, auto mode can refuse the changed input after
+the server reviewed the model's original arguments. Full native error results
+confirmed that cause for two earlier fixture connect attempts; the short UI
+label alone had not established it. Repeating an old proof is not a recovery.
+
+In the isolated Linux 2.1.319 fixture, actual owner-saved exact connect/send
+rules then permitted a fresh connection and two sends in auto with no new
+dialogs while the changed-input hook stayed active. This is configured auto
+compatibility, not unconfigured auto or every-tool acceptance. The existing
+Apply-installed read rule had independently allowed an auto read. No permission
+hook override, broader rule or manual-mode switch was used in the configured
+scenario. Moving an occupied name still needs the separate NCF owner approval.
 
 ## Lifecycle
 
@@ -182,6 +203,14 @@ Subsequent corrective evidence has narrower provenance:
   exact-resume read and fixture-node restart passed in manual mode after actual
   owner approval. One existing-binding auto-read passed separately. These three
   bounded runs do not establish the cause of historical K5 or fresh auto-connect.
+- Configured auto on the same `a00294d3` AppImage: the owner saved exact
+  connect/send rules in fixture user scope, then a new chat made a successful
+  fresh connection and two sequential local sends with no new permission
+  dialogs. The recipient read exactly the two matching message IDs once. One
+  preceding empty-input connect failed nickname validation: four native calls
+  total, not a clean three-call run, and no claim of zero internal preflight
+  effects. The protected-call pipeline is unchanged in `407f967`; this is not
+  installed-product `407f967` native evidence or a restart-persistence test.
 - Research `437c5f5`: retained actual read rows after exact resume showed the
   guarded terminal Incoming once, default metadata hidden, Ctrl+O metadata
   visible, then hidden again. The owner confirmed the switching behavior; sender
@@ -191,9 +220,12 @@ Subsequent corrective evidence has narrower provenance:
   a pure formatter regression covered that change. The shipped modules use that
   formatter and the `437c5f5` registration layout. Generated-entry tests run them
   through the production `wake.js` and plugin name, not a standalone probe.
-- In the isolated Linux run, SIGTERM closed the node service but Electron was
-  still alive after three seconds and was then killed. Normal owner Quit was
-  not compared; this remains an open lifecycle observation.
+- In the old isolated Linux run, SIGTERM was followed by a failed HTTP probe
+  and a successful `kill -0` at about four seconds, then SIGKILL. No process
+  state or exit status was captured; PID existence does not prove executing
+  rather than zombie state. Closed-store IPC errors were logged during
+  teardown. An infinite hang and a three-second shutdown SLA are not established;
+  actual natural Quit/exit remains a final native acceptance check.
 
 Rendering is downstream of the same tool result. It makes no inbox or network
 call, records no receipt, and does not promote automatic-delivery status. Errors,
