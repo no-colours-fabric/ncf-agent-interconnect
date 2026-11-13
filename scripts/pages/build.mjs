@@ -83,6 +83,7 @@ function localTarget(source, target) {
   }
 
   const { pathname, search, hash } = splitTarget(sourcePath);
+  if (pathname === 'llms.txt') return `${base}raw/llms.txt${search}${hash}`;
   if (sourceSet.has(pathname)) return `${pageUrl(pathname)}${search}${hash}`;
   if (assets.has(pathname)) return `${base}${pathname}${search}${hash}`;
   return `${repository}${sourcePath}`;
