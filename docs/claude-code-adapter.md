@@ -41,7 +41,7 @@ and Claude inside other applications are not covered.
    Bun and a source checkout are not required. Startup only publishes these
    files; it never writes Claude Code settings.
 
-2. Open **MCP setup → Claude Code** and click **Configure Claude Code**. The
+2. Open **Applications & MCP → Claude Code** and click **Configure Claude Code**. The
    dialog selects `$CLAUDE_CONFIG_DIR/settings.json`, or
    `~/.claude/settings.json` when that variable is unset. Choose another user
    settings file with the picker if needed. `~/.claude.json` is managed by
@@ -113,7 +113,7 @@ Claude Code or run `/reload-plugins` after Apply.
   start permits a notice but does not prove that its native read will succeed.
   The first-resume failure reported in campaign K5 remains under native
   investigation. MCP initialization, gate starts and ordinary reads never
-  promote this diagnostic candidate to confirmed automatic delivery.
+  promote the chat to confirmed automatic delivery.
 
 ## How the chat is identified
 

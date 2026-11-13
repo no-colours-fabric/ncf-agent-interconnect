@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.17.3
+# NCF Agent Interconnect 0.18.0
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -118,13 +118,23 @@ See the included `guides/AionUi.md` for instructions and verification limits.
 
 ## Claude Code
 
-Open Applications → Claude Code and configure it with the owner-operated file
+Open Applications & MCP → Claude Code and configure it with the owner-operated file
 dialog and Apply. This enables the bundled NCF plugin and its gate plugin in the
 selected Claude Code user settings and allows `agent_read` without a prompt.
 Start or resume Claude Code normally, then use the connection command. Waiting
 messages are announced in the exact chat by an NCF mod; safe mode or an
 organization policy that turns mods off leaves messages available through
-`agent_read`. See the included `guides/ClaudeCode.md` for limits.
+`agent_read`. Actual returned messages appear as Incoming with sender, body and
+the standard reply instruction; Ctrl+O shows response metadata.
+
+For the tested auto-mode setup, the owner saves exact allow rules for
+`mcp__plugin_ncf-agent-interconnect_ncf__agent_connect` and
+`mcp__plugin_ncf-agent-interconnect_ncf__agent_send` through Claude's native
+`/permissions` UI in User scope for the selected profile. Apply adds only the
+exact read rule. Preserve existing deny/ask and managed rules; no wildcard is
+needed. Unconfigured auto mode can reject hook-updated arguments. Linux Claude
+Code 2.1.319 was checked; Claude terminal behavior on macOS and Windows was not.
+See the included `guides/ClaudeCode.md` for evidence and lifecycle limits.
 
 ## History and attachments
 
@@ -141,6 +151,21 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Upgrade from 0.17.3
+
+Quit the app from its tray menu before replacing it, then start the updated app.
+Existing names, bindings, history, attachments, peers and AionUi authorization
+are preserved. The first start upgrades storage from format 3 to format 4;
+older releases cannot open format 4. Keep a stopped pre-upgrade profile backup
+if rollback is required. Do not use an older app against the upgraded profile.
+Peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
+Existing client configurations need no new Apply when installation paths stay
+the same. To enable Claude Code, use its setup dialog and Apply, then restart
+Claude Code or reload its plugins. If the app path changes, update affected
+client paths through their setup dialogs and Apply. Pending requests whose
+admission is uncertain remain fenced and are not replayed automatically.
 
 ## Upgrade from 0.17.2
 

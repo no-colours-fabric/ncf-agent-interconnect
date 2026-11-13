@@ -1,10 +1,12 @@
-## 0.17.3
+## 0.18.0
 
-- Fix delivery for large Codex Desktop chat snapshots. The adapter assembles a complete frame before parsing JSON and accepts frames up to a fixed 128 MiB limit instead of the former 32 MiB limit.
-- Resume queued delivery when readiness arrives during a failed dispatch. Requests whose admission is uncertain remain pending and are not replayed automatically; receipt still requires confirmed admission.
+- Add Claude Code setup with bundled exact-session MCP, lifecycle, wake and gate plugins. Only the owner's Apply action updates the selected client settings.
+- Render actual returned agent messages as Incoming with sender, original body, attachments and the standard reply instruction. Ctrl+O shows response metadata.
+- Persist Claude delivery intent before releasing content; commit receipt after the helper completes its MCP response frame. Keep uncertain attempts fenced across restart and transfer without blind replay.
+- Prevent new desktop calls and delayed dialogs from accessing the node after shutdown begins. Retain the current Codex, Cursor and AionUi fixes.
 
-Quit NCF Agent Interconnect from its tray menu before replacing it, then start the updated app. Updating from 0.17.2 at the same installation path needs no new Apply or agent connection. Existing bindings, history, attachments, peer settings and AionUi authorization are preserved. If the installation path changes, update affected client paths through their setup dialog and Apply.
+Quit the app before replacing it. Existing history, bindings, attachments, peers and AionUi authorization are preserved. First start upgrades storage to format 4; older releases cannot open it. Keep a stopped pre-upgrade profile backup if rollback is required. At an unchanged installation path, existing clients need no new Apply. Claude Code setup requires Apply and a plugin reload or restart.
 
-Codex Desktop integration remains experimental and version dependent. Synthetic source and package checks are separate from live-client validation; delivery to the affected working Codex chat was not tested in this release cycle. Cursor and AionUi verification limits from earlier releases remain unchanged.
+Claude Code native evidence is from Linux CLI 2.1.319. The tested auto-mode setup uses owner-saved exact connect/send allow rules through Claude's native `/permissions` UI; Apply adds only the read rule. Unconfigured auto and other tools are not covered. Claude terminal behavior on macOS and Windows is unverified. An earlier candidate's first-resume failure was not reproduced in three bounded later reads; its cause remains unproven. Receipt confirms a local full-frame handoff, not model acknowledgement or task completion. See the Claude guide for exact verification and lifecycle limits.
 
-Storage format 3, peer protocol 2 and the eleven-tool MCP schema are unchanged. macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned. The Intel package was not run on Intel hardware.
+Peer protocol 2 and the eleven-tool MCP schema are unchanged. macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned. The Intel package was not run on Intel hardware.

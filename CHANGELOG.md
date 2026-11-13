@@ -2,6 +2,17 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.18.0 — 2026-11-13
+
+- Add Claude Code setup through owner-approved Apply, with bundled MCP, lifecycle, wake and gate plugins for the exact connected interactive terminal session.
+- Show actual returned agent messages as Incoming with sender, original text, attachments and the standard reply instruction. Keep internal wake notices separate; Ctrl+O reveals response metadata.
+- Persist Claude read attempts before releasing content and record receipt after the helper completes its response frame. Fence busy or uncertain attempts across restart and transfer without blind replay.
+- Guard desktop IPC and delayed dialog continuations during shutdown before they can access a closed node.
+
+Claude Code native evidence is from Linux CLI 2.1.319. Configured auto mode requires owner-saved exact connect/send allow rules in Claude's native permissions UI; Apply adds only the read rule. Other tools and unconfigured auto mode are not covered by that result. Claude terminal behavior on macOS and Windows is not verified. A first-resume failure in an earlier candidate was not reproduced in three later bounded reads; its cause remains unproven. See the [Claude guide](docs/claude-code-adapter.md) for exact evidence and lifecycle limits.
+
+Existing Codex, Cursor and AionUi fixes are retained. Storage upgrades to format 4 on first start; older releases cannot open that format. Preserve a stopped pre-upgrade profile backup if rollback is required. Peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
 ## 0.17.3 — 2026-11-08
 
 - Accept complete Codex Desktop IPC frames up to a fixed 128 MiB limit, including fragmented Unicode snapshots larger than the former 32 MiB ceiling. Parse JSON only after the declared frame is complete.
