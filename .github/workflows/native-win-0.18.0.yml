@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: native-win-0.18.0
@@ -36,61 +37,73 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: product/package-lock.json
-      - name: Install the product's pinned dependencies once
+      - name: Prepare only the smoke harness dependencies
         run: |
           New-Item -ItemType Directory "$env:GITHUB_WORKSPACE/qa-results" -Force | Out-Null
           $releaseSha = (git rev-parse HEAD).Trim()
           if ($releaseSha -ne '7cc412351e12860b65c901ce340356e1208de410') { throw 'Wrong product source revision' }
-          npm ci --no-audit --no-fund 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/npm-ci.log"
+          npm ci --ignore-scripts --no-audit --no-fund 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/npm-ci.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Build and verify the native EXE without repeating the shared source pass
+      - name: Recover the already verified installer without a rebuild
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          $env:GITHUB_SHA = (git rev-parse HEAD).Trim()
-          npm run build:release -- --win --skip-source-checks 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/native-build.log"
+          gh run download 43477251552 --repo no-colours-fabric/ncf-agent-interconnect --name native-win-0.18.0-7cc4123 --dir "$env:GITHUB_WORKSPACE/prior"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Retain the exact installer and compact package evidence before GUI acceptance
+          $identityPath = "$env:GITHUB_WORKSPACE/prior/qa-results/retained-win.json"
+          $identity = Get-Content $identityPath -Raw | ConvertFrom-Json
+          if ($identity.sourceRevision -ne '7cc412351e12860b65c901ce340356e1208de410') { throw 'Wrong installer source' }
+          $installer = "$env:GITHUB_WORKSPACE/prior/product/release/0.18.0/NCF-Agent-Interconnect-0.18.0-win-x64.exe"
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash.ToLowerInvariant() -ne $identity.sha256) { throw 'Installer transfer mismatch' }
+          Copy-Item $identityPath "$env:GITHUB_WORKSPACE/qa-results/retained-win.json"
+          $packageLines = @(Get-Content "$env:GITHUB_WORKSPACE/prior/qa-results/native-build.log" | Where-Object { $_.StartsWith('{"version":"0.18.0"') })
+          if ($packageLines.Count -ne 1) { throw 'Expected one original package result' }
+          $package = $packageLines[0] | ConvertFrom-Json
+          if ($package.sourceRevision -ne $identity.sourceRevision -or -not $package.claudeWriteCommitReceipt -or -not $package.codexOwnAsar -or -not $package.cursorOwnAsar) { throw 'Original package result is incomplete' }
+          $packageLines[0] | Set-Content "$env:GITHUB_WORKSPACE/qa-results/original-package-result.json"
+      - name: Extract the same installer and reuse its compiled fixture modules
         run: |
-          $installer = 'NCF-Agent-Interconnect-0.18.0-win-x64.exe'
-          $sourceInstaller = Join-Path 'release' $installer
-          $retainedDirectory = Join-Path 'release' '0.18.0'
-          $retainedInstaller = Join-Path $retainedDirectory $installer
-          New-Item -ItemType Directory $retainedDirectory -Force | Out-Null
-          if (Test-Path $retainedInstaller) { throw 'Refusing to replace a retained installer' }
-          [System.IO.File]::Copy((Resolve-Path $sourceInstaller).Path, (Join-Path (Get-Location).Path $retainedInstaller), $false)
-          $digest = (Get-FileHash $retainedInstaller -Algorithm SHA256).Hash.ToLowerInvariant()
-          $checksumLine = Get-Content 'release/SHA256SUMS' | Where-Object { $_.EndsWith('  ' + $installer) }
-          if ($checksumLine -ne ($digest + '  ' + $installer)) { throw 'Retained installer hash mismatch' }
-          @{
-            sourceRevision = (git rev-parse HEAD).Trim()
-            wrapperRevision = '${{ github.sha }}'
-            version = '0.18.0'
-            platform = 'win32'
-            architecture = 'x64'
-            nativeBuildMachine = 'GitHub-hosted windows-latest'
-            installer = $installer
-            bytes = (Get-Item $retainedInstaller).Length
-            sha256 = $digest
-            liveClaudeCodeTested = $false
-          } | ConvertTo-Json | Set-Content "$env:GITHUB_WORKSPACE/qa-results/retained-win.json"
-          Copy-Item 'release/verification-x64.json' "$env:GITHUB_WORKSPACE/qa-results/verification-x64.json"
+          $sevenZip = (Get-Command 7z -ErrorAction Stop).Source
+          $installer = "$env:GITHUB_WORKSPACE/prior/product/release/0.18.0/NCF-Agent-Interconnect-0.18.0-win-x64.exe"
+          $installerStage = "$env:RUNNER_TEMP/ncf-installer-payload"
+          $applicationStage = "$env:RUNNER_TEMP/ncf-packaged-app"
+          & $sevenZip x -y "-o$installerStage" $installer | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Installer extraction failed' }
+          $packages = @(Get-ChildItem $installerStage -Recurse -File -Filter '*.7z')
+          if ($packages.Count -ne 1) { throw 'Expected exactly one architecture payload' }
+          & $sevenZip x -y "-o$applicationStage" $packages[0].FullName | Out-Null
+          if ($LASTEXITCODE -ne 0) { throw 'Application extraction failed' }
+          $executables = @(Get-ChildItem $applicationStage -Recurse -File -Filter 'NCF Agent Interconnect.exe')
+          if ($executables.Count -ne 1) { throw 'Expected one packaged main executable' }
+          $mainExecutable = $executables[0].FullName
+          $archivePath = Join-Path $executables[0].DirectoryName 'resources/app.asar'
+          $modulesPath = Join-Path (Get-Location).Path '.local/installed-asar'
+          $extractScript = @'
+          import * as asar from '@electron/asar';
+          import { cpSync, existsSync } from 'node:fs';
+          import path from 'node:path';
+          asar.extractAll(process.argv[1], process.argv[2]);
+          if (existsSync('build')) throw new Error('Refusing to replace compiled fixtures');
+          cpSync(path.join(process.argv[2], 'build'), 'build', { recursive: true, force: false, errorOnExist: true });
+          '@
+          node --input-type=module -e $extractScript $archivePath $modulesPath
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "INTERCONNECT_TEST_EXECUTABLE=$mainExecutable" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Smoke the same packaged EXE and observe natural main-process exit
         env:
           NCF_SMOKE_EXPECTED_SHA: 7cc412351e12860b65c901ce340356e1208de410
         run: |
           $env:NCF_SMOKE_SOURCE_ROOT = (Get-Location).Path
           $env:NCF_SMOKE_REPORT = "$env:GITHUB_WORKSPACE/qa-results/packaged-quit.json"
-          $env:INTERCONNECT_TEST_EXECUTABLE = (Resolve-Path 'release/win-unpacked/NCF Agent Interconnect.exe').Path
           node --experimental-sqlite "$env:GITHUB_WORKSPACE/wrapper/.github/qa/native-packaged-smoke.mjs" 2>&1 | Tee-Object -FilePath "$env:GITHUB_WORKSPACE/qa-results/packaged-smoke.log"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           Copy-Item 'release/preview-*.png' "$env:GITHUB_WORKSPACE/qa-results/"
-      - name: Preserve the installer and bounded QA outside the disposable runner
+      - name: Preserve the smoke outcome outside the disposable runner
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: native-win-0.18.0-7cc4123
-          path: |
-            product/release/0.18.0/
-            qa-results/
+          name: native-win-0.18.0-7cc4123-smoke
+          path: qa-results/
           if-no-files-found: error
           retention-days: 14
           compression-level: 0
