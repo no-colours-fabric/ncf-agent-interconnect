@@ -784,8 +784,10 @@ export async function runClaudeHook(
     phase: event.toLowerCase(),
     outcome: input.source === 'resume' ? 'resume' : undefined,
   });
+  // Compaction continues the same native lifetime; it cannot create or revive a lease.
+  const startsNativeLifetime = event === 'SessionStart' && input.source !== 'compact';
   const lease =
-    event === 'SessionStart' || event === 'SessionEnd'
+    startsNativeLifetime || event === 'SessionEnd'
       ? await updateNativeLease(nodeFile, input.session_id, event)
       : await readNativeLease(nodeFile, input.session_id);
   if (!lease || (event !== 'SessionEnd' && !lease.active)) return;
