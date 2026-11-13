@@ -57,7 +57,7 @@ separate from the app binary. Reconnect MCP after an update to refresh tool and
 server instructions. Restart Cursor or OpenCode if its included plugin changed.
 Restart Claude Code or reload its plugins after changing its NCF setup.
 
-Version 0.18.0 upgrades the stored history to format 4 on first start. Earlier
+Version 0.18.1 upgrades the stored history to format 4 on first start. Earlier
 releases cannot open format 4. Keep a backup of the stopped pre-upgrade data
 folder if rollback is required; do not open an upgraded profile with an older app.
 History, names, bindings, attachments, peers and AionUi authorization are preserved.

@@ -1,4 +1,4 @@
-## 0.18.0
+## 0.18.1
 
 - Add Claude Code setup with bundled exact-session MCP, lifecycle, wake and gate plugins. Only the owner's Apply action updates the selected client settings.
 - Render actual returned agent messages as Incoming with sender, original body, attachments and the standard reply instruction. Ctrl+O shows response metadata.

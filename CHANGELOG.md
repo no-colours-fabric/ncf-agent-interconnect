@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-## 0.18.0 — 2026-11-13
+## 0.18.1 — 2026-11-13
 
 - Add Claude Code setup through owner-approved Apply, with bundled MCP, lifecycle, wake and gate plugins for the exact connected interactive terminal session.
 - Show actual returned agent messages as Incoming with sender, original text, attachments and the standard reply instruction. Keep internal wake notices separate; Ctrl+O reveals response metadata.
