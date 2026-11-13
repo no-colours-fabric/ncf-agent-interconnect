@@ -2195,19 +2195,21 @@ h3 {
   }
   .review-page.review-holiday .holiday-before-agent .scene-stage {
     max-width: none;
-    grid-template-columns: calc(
+    grid-template-columns:
+      calc(
         (
             1000px - 2 * var(--story-scene-padding) - var(--story-scene-inset) -
               var(--story-scene-gap)
           ) *
           0.320754717
-      ) minmax(0, 1fr);
+      )
+      minmax(0, 1fr);
   }
   .review-development .reading-scene .scene-stage {
     max-width: none;
-    grid-template-columns: calc(
-        (1000px - 2 * var(--story-scene-padding) - clamp(12px, 1.5vw, 24px)) / 2
-      ) minmax(0, 1fr);
+    grid-template-columns:
+      calc((1000px - 2 * var(--story-scene-padding) - clamp(12px, 1.5vw, 24px)) / 2)
+      minmax(0, 1fr);
   }
   .review-holiday .review-story-hero {
     grid-template-columns: minmax(0, 1fr) calc((860px - clamp(20px, 3vw, 45px)) * 0.4594594595);
