@@ -45,6 +45,7 @@ import { useMcpSetupStatuses, type McpSetupStatuses } from './mcp-setup-status.j
 import type { Locale } from './i18n/index.js';
 
 import { AionUiAuthorization } from './AionUiSetup.js';
+import { ClientSetupHelp, hasUsableClientSetup } from './ClientSetupHelp.js';
 
 const labels = {
   cursor: 'Cursor',
@@ -200,6 +201,13 @@ function ClientSetupDialog({
             />
           )}
         </Stack>
+        {hasUsableClientSetup(
+          client,
+          check?.status ?? status,
+          check?.error,
+          snapshot,
+          aionUiComplete,
+        ) && <ClientSetupHelp client={client} locale={locale} messages={m} />}
         {client === 'aionui' ? (
           <Paper
             sx={{ ...surfaceSx('soft'), p: 2.5 }}
