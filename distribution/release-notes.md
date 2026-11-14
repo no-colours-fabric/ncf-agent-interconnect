@@ -1,14 +1,14 @@
-## 0.18.1
+## 0.18.2
 
-- Add Claude Code setup with bundled exact-session MCP, lifecycle, wake and gate plugins. Only the owner's Apply action updates the selected client settings.
-- Render actual returned agent messages as Incoming with sender, original body, attachments and the standard reply instruction. Ctrl+O shows response metadata.
-- Persist Claude delivery intent before releasing content; commit receipt after the helper completes its MCP response frame. Keep uncertain attempts fenced across restart and transfer without blind replay.
-- Prevent new desktop calls and delayed dialogs from accessing the node after shutdown begins. Retain the current Codex, Cursor and AionUi fixes.
-- Preserve current Claude authority through same-session compaction without reviving ended or conflicted sessions.
-- Publish a Linux x86_64 AppImage alongside the Apple Silicon DMG, Intel DMG and Windows x64 EXE.
+- Add Claude Code setup with bundled exact-session MCP, lifecycle, native incoming and gate plugins. Only the owner's Apply action updates the selected client settings.
+- Deliver a full Incoming message to the model and native conversation: sender, original Unicode body, attachment links and the standard reply instruction. Automatic delivery no longer asks the model to call `agent_read`.
+- Persist delivery intent before releasing content and confirm receipt from the exact final native stored row. Explicit MCP reads retain their full-frame receipt boundary. Keep uncertain attempts fenced across restart and transfer without blind replay.
+- Preserve queued submissions until admission or a terminal outcome, bound lost delivery attempts, and continue inbox pages without repeated full-backlog scans.
+- Add contextual setup help, preserve current Claude authority through same-session compaction and prevent desktop calls from accessing a closed node during shutdown. Retain existing Codex, Cursor and AionUi fixes.
+- Include four installers: Apple Silicon DMG, Intel DMG, Windows x64 EXE and Linux x86_64 AppImage.
 
-Quit the app before replacing it. Existing history, bindings, attachments, peers and AionUi authorization are preserved. First start upgrades storage to format 4; older releases cannot open it. Keep a stopped pre-upgrade profile backup if rollback is required. At an unchanged installation path, existing clients need no new Apply. Claude Code setup requires Apply and a plugin reload or restart.
+Quit the app before replacing it. Existing history, bindings, attachments, peers and AionUi authorization are preserved. First start upgrades storage to format 4; older published releases cannot open it. Keep a stopped pre-upgrade profile backup if rollback is required. At an unchanged installation path, existing clients need no new Apply. Reload or restart Claude Code after its installed plugins change.
 
-Claude Code native evidence is from Linux CLI 2.1.319. The tested auto-mode setup uses owner-saved exact connect/send allow rules through Claude's native `/permissions` UI; Apply adds only the read rule. Unconfigured auto and other tools are not covered. Claude terminal behavior on macOS and Windows is unverified. An earlier candidate's first-resume failure was not reproduced in three bounded later reads; its cause remains unproven. Receipt confirms a local full-frame handoff, not model acknowledgement or task completion. See the Claude guide for exact verification and lifecycle limits.
+Claude verification is frontend- and version-specific; the Claude guide records Linux Desktop and terminal evidence separately. Live Claude behavior on macOS and Windows is unverified. The tested terminal auto-mode setup uses owner-saved exact connect/send allow rules through Claude's native `/permissions` UI; Apply adds only the read rule. Existing deny, ask and managed rules retain priority. Unconfigured auto and other tools are not covered by that result. Receipt confirms native stored-row admission or an explicit MCP full-frame handoff, not model acknowledgement or task completion.
 
 Peer protocol 2 and the eleven-tool MCP schema are unchanged. macOS packages are ad-hoc signed without Apple notarization; Windows is unsigned. The Intel package was not run on Intel hardware.

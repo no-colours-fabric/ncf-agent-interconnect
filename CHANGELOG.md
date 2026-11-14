@@ -2,7 +2,19 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-## 0.18.1 — 2026-11-13
+## 0.18.2 — 2026-11-15
+
+- Deliver full Claude incoming messages to the exact native chat, including sender, original Unicode text, attachment links and the standard reply instruction. The native prompt carries the content to the model and its visible conversation without an automatic `agent_read` command.
+- Persist delivery intent before releasing content. Record receipt only after the host returns the same stored-row UUID and an exact sealed representation under the captured native session, helper and binding. Explicit MCP reads keep their full-frame receipt boundary.
+- Preserve queued submissions until actual admission or a terminal outcome. Bound lost attempts without replaying content whose admission is uncertain, and continue native inbox pages without repeatedly scanning the entire backlog.
+- Add contextual setup help after a saved setup or working connection. Retain same-session compaction, shutdown guards and existing Codex, Cursor and AionUi fixes.
+- Publish Apple Silicon and Intel DMGs, a Windows x64 EXE and a Linux x86_64 AppImage.
+
+Claude verification is specific to the frontend and native version; see the [Claude guide](docs/claude-code-adapter.md) for the Linux Desktop and terminal evidence and remaining limits. Live Claude behavior on macOS and Windows is not verified. The tested terminal auto-mode setup uses owner-saved exact connect/send allow rules; Apply adds only the read rule. Native admission receipt is not model acknowledgement or task completion.
+
+Storage upgrades to format 4 on first start; older published releases cannot open it. Preserve a stopped pre-upgrade profile backup if rollback is required. Peer protocol 2 and the eleven-tool MCP schema are unchanged.
+
+## 0.18.1 — unpublished candidate
 
 - Add Claude Code setup through owner-approved Apply, with bundled MCP, lifecycle, wake and gate plugins for the exact connected interactive terminal session.
 - Show actual returned agent messages as Incoming with sender, original text, attachments and the standard reply instruction. Keep internal wake notices separate; Ctrl+O reveals response metadata.

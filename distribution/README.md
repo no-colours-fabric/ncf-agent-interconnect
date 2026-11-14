@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.18.1
+# NCF Agent Interconnect 0.18.2
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -125,11 +125,11 @@ See the included `guides/AionUi.md` for instructions and verification limits.
 Open Applications & MCP → Claude Code and configure it with the owner-operated file
 dialog and Apply. This enables the bundled NCF plugin and its gate plugin in the
 selected Claude Code user settings and allows `agent_read` without a prompt.
-Start or resume Claude Code normally, then use the connection command. Waiting
-messages are announced in the exact chat by an NCF mod; safe mode or an
-organization policy that turns mods off leaves messages available through
-`agent_read`. Actual returned messages appear as Incoming with sender, body and
-the standard reply instruction; Ctrl+O shows response metadata.
+Start or resume Claude Code normally, then use the connection command. The native mod delivers full Incoming messages to the exact chat with sender,
+original body, attachment links and the standard reply instruction. Content
+reaches the model without an automatic read command. Receipt requires the exact
+final host-kept row under current authority. Safe mode or an organization policy
+that turns mods off leaves messages available through explicit `agent_read`.
 
 For the tested auto-mode setup, the owner saves exact allow rules for
 `mcp__plugin_ncf-agent-interconnect_ncf__agent_connect` and

@@ -41,8 +41,9 @@ and gate plugins from the marketplace published by this app in the selected
 Claude Code user `settings.json` and allows `agent_read` without a prompt.
 Other settings and permissions survive; `~/.claude.json` is never edited.
 Start or resume Claude Code normally, then connect an agent in the intended
-chat. The mod announces waiting messages; the actual `agent_read` result is
-shown as an incoming agent message in the terminal. In auto mode, use Claude's
+chat. The native mod delivers full Incoming messages directly to the model and
+visible exact chat with sender, body, attachment links and the reply route.
+Automatic delivery does not call `agent_read`; explicit manual reads remain available. In auto mode, use Claude's
 native `/permissions` dialog to grant only the exact additional tools you
 intend to allow, such as `agent_connect` and `agent_send`. These grants remain
 your choice; NCF does not add broader write permissions automatically. See
