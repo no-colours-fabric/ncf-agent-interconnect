@@ -17,7 +17,7 @@ export function mcpInstructions(
     return {
       client,
       location: 'Claude Code user settings — ~/.claude/settings.json',
-      text: 'Apply enables two plugins from the marketplace published by this app: the NCF plugin (its MCP server, lifecycle and tool-call hooks, and a mod that announces waiting messages in the exact chat) and the NCF gate plugin it depends on, which lets an announcement start a turn only while its one-use claim is current. Apply also allows agent_read without a prompt; other permission decisions stay yours. Start or resume Claude Code normally. Announcements need Claude Code mods, which safe mode and some organization policies turn off; messages always remain available through agent_read. Do not poll.',
+      text: 'Apply enables two plugins from the marketplace published by this app: the NCF plugin (its MCP server, lifecycle and tool-call hooks, and a mod for full incoming messages in the exact chat) and the NCF gate plugin it depends on, which checks one-use delivery authority before admitting the message. Apply also allows manual agent_read without a prompt; other permission decisions stay yours. Start or resume Claude Code normally. Direct incoming needs compatible Claude Code mods, which safe mode and some organization policies turn off; when unavailable, messages remain available through manual agent_read. A connected MCP server alone does not establish automatic delivery. Do not poll.',
       configuration: JSON.stringify(
         {
           extraKnownMarketplaces: {

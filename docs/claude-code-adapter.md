@@ -1,40 +1,39 @@
 # Claude Code integration
 
-NCF announces incoming agent messages in the exact interactive Claude Code chat
-that connected under a user-chosen agent name. The announcement is a short
-notice without message content, submitted by an NCF Claude Code mod with plugin
-attribution. Claude then receives the message, attachments and Reply-To through
-the ordinary `agent_read` tool. In the terminal, the NCF mod renders the actual
-returned read as **Incoming NCF Agent Interconnect** with sender, original body,
-attachments, Reply-To and the standard `agent_send` reply instruction. The
-notification shows a short pending label instead of the internal read command.
-Ctrl+O exposes the returned page metadata; ordinary group expansion does not.
-This changes presentation only, never the stored/model-facing notice or receipt.
-Claude Desktop, claude.ai, Agent SDK sessions
-and Claude inside other applications are not covered.
+The direct-incoming candidate delivers a full **Incoming NCF Agent Interconnect**
+message to the exact connected Claude chat: original sender, body, attachment
+links, `Reply-To` and `Use agent_send(connectionId, replyRef="…", text) to reply.`
+There is no model instruction to fetch the body, and no Message ID in the main
+message. The native host retains plugin attribution; NCF never impersonates a
+human user. Manual MCP reads remain available as a separate explicit action.
+
+This is a source candidate, not a verified release of direct incoming. The
+previous terminal notification/read renderer and its retained-row evidence do
+not establish this new path. A real-account Desktop 2.1.309 synthetic capability
+probe demonstrated a full plugin-attributed prompt and an unchanged final stored
+row UUID; the same-session compaction/protected-call check passed separately.
+The complete node-owned native delivery and receipt still require verification.
+Other Claude frontends, claude.ai and Agent SDK sessions are not established by
+these observations.
 
 ## Requirements
 
-- Interactive Claude Code with mods (enabled by default from version 2.1.287).
-  Versions 2.1.318 and 2.1.319 on Linux were used for native verification.
-  The terminal renderer was checked against the generated declarations and
-  native behavior of 2.1.319; other render surfaces are not verified.
-- Mods must not be turned off. `--safe-mode`, `disableAllHooks`, the managed
-  settings `allowManagedModsOnly` or `allowManagedHooksOnly`, and Claude Desktop
-  WSL sessions turn them off. Then NCF reports automatic wake as unavailable;
-  messages stay available through `agent_read`. NCF never changes organization
-  policy.
-- No development flag is needed. Claude Code channels are no longer used for
-  announcements; the legacy channel event is sent only when the mod's stream is
-  absent, and Claude Code ignores it without
-  `--dangerously-load-development-channels`.
+- Compatible Claude Code mods and the generated NCF main and gate plugins.
+  The current emitted files passed offline compiler validation with native
+  2.1.309 and 2.1.319. Compiler validation is not live client acceptance.
+- Mods must not be turned off by safe mode, `disableAllHooks`, managed policy or
+  the frontend. NCF does not change organization policy. Without the exact
+  native stream, automatic incoming stays unavailable and manual `agent_read`
+  remains possible. MCP initialization alone never proves automatic delivery.
+- No development channel flag is required. The automatic incoming path has no
+  channel notification or read-command fallback.
 
 ## Set up
 
 1. Start NCF Agent Interconnect. At startup it publishes a local marketplace to
    `<user data>/Integrations/claude-code` with two plugins:
    - `ncf-agent-interconnect`: the MCP server, the lifecycle and tool-call
-     command hooks, and the wake mod;
+     command hooks, and the direct-incoming mod;
    - `ncf-agent-interconnect-gate`: the gate mod.
 
    Both run the installed NCF executable with `ELECTRON_RUN_AS_NODE=1`. Node.js,
@@ -52,8 +51,8 @@ and Claude inside other applications are not covered.
    - `enabledPlugins["ncf-agent-interconnect@ncf-agent-interconnect"]: true`;
    - `enabledPlugins["ncf-agent-interconnect-gate@ncf-agent-interconnect"]: true`;
    - one entry in `permissions.allow`:
-     `mcp__plugin_ncf-agent-interconnect_ncf__agent_read`. It lets announced
-     messages be received without a prompt.
+     `mcp__plugin_ncf-agent-interconnect_ncf__agent_read`. It permits explicit manual
+     reads without a prompt; direct incoming does not call this tool.
 
    Other settings, comments, hooks, plugins and permissions stay as they were.
    Matching settings are left byte-for-byte unchanged. Updates keep a private
@@ -85,35 +84,33 @@ Claude Code or run `/reload-plugins` after Apply.
 
 ## How the plugins work together
 
-- **Order.** The NCF plugin declares the gate as a dependency with the exact
-  application version. In Claude Code's documented mod order, a mod runs before
-  the mods it lists under `dependencies`, so the gate sees every notice the NCF
-  mod submits. If the gate is missing, disabled or from another NCF version,
-  Claude Code does not load the NCF plugin at all. NCF then shows the chat as
-  not connected instead of letting notices start turns unchecked.
-- **Wake stream.** At session start the NCF mod reads the private node
-  descriptor and spawns the installed runtime as the wake stream of this exact
-  native session. The stream is pinned to the session's native lease and to the
-  helper route the node already trusts. The mod's lifecycle scope exists before
-  its first await and is rechecked after each one; `session.end` ends the
-  stream.
-- **Claim and notice.** For each wake the node issues a one-use claim bound to
-  the native session, node incarnation, helper epoch and generation, native
-  lease, agent binding and the captured backlog. It also composes the notice
-  text with a random wake reference. The mod consumes the claim and immediately
-  submits that exact text, never as the user and never again after a drop.
-- **Gate.** A mod's own hooks never see its own submission, so the gate runs in
-  the separate plugin. When the queued notice is dequeued, right before its
-  turn, the gate names it to the node by the SHA-256 of its text. The node
-  starts only that notice's claim, once, and only while it is still current. A
-  failed or timed-out check drops the notice. Owner prompts pass unchanged. An
-  older queued notice cannot start a newer claim, carry an old identity under a
-  new binding or spend a new owner's wake.
-- **Status.** A connected wake stream remains _set up but not verified_. A gate
-  start permits a notice but does not prove that its native read will succeed.
-  The first-resume failure reported in campaign K5 remains under native
-  investigation. MCP initialization, gate starts and ordinary reads never
-  promote the chat to confirmed automatic delivery.
+- **Order.** The main plugin depends on the exact-version gate plugin. A mod's
+  own prompt hook cannot guard its own submit, so the separate gate checks it.
+  Missing or mismatched dependencies cannot authorize content delivery.
+- **Private stream.** The installed main mod opens an event-driven stream for
+  its exact native session. Its scope exists before the first await and is
+  rechecked after asynchronous work. It never polls MCP or another chat.
+- **Prepare.** A one-use claim binds the current session, native lease, unique
+  helper/epoch/generation, stream incarnation, connection, binding generation
+  and backlog. The node reserves its own ready IDs before preparing attachments.
+  It seals the exact canonical body and allowed final representation hashes in
+  the existing durable delivery ledger. The mod receives an opaque delivery
+  trigger and a private report capability, not the body.
+- **Admission.** The main mod submits that trigger once with plugin attribution,
+  never `asUser`. The gate obtains its actual current native session and lease,
+  and exchanges that exact delivery ID at the node. Only current authority can
+  persist write intent and release the full body. A final synchronous check
+  precedes the HTTP body write. The gate forwards the returned body without
+  selecting another pending notice or issuing a model tool call.
+- **Stored row.** The main mod observes only its own prompt-origin, main-loop
+  user row. After the host keeps it, the returned UUID must equal the pinned
+  input UUID and the complete representation must match a node-sealed digest.
+  Only that witness can commit the node's captured IDs. Queue records, matching
+  substrings, submit resolution and turn starts never create receipt.
+- **Status.** Availability remains conservative: stored legacy confirmation,
+  MCP initialization, stream attachment and ordinary successful reads do not
+  promote the chat to verified automatic delivery. Historical K5 evidence and
+  native platform limits remain separate from this source candidate.
 
 ## How the chat is identified
 
@@ -146,24 +143,39 @@ scenario. Moving an occupied name still needs the separate NCF owner approval.
 
 ## Lifecycle
 
-| Situation                                         | Behaviour                                                                                                                                                                                                                                                                                         |
-| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Launch or exact `claude --resume <id>`            | Supported. The mod's stream attaches to the exact session; messages already waiting are announced without a prompt or a second message.                                                                                                                                                           |
-| Later arrivals, busy turns                        | Supported. A notice waits until the session is idle. A newer wake supersedes an older queued notice; one read drains the backlog.                                                                                                                                                                 |
-| Compaction in the same session                    | Keeps the current active native lease and exact binding. It never creates or revives a missing, ended or conflicted lease. New native starts keep their separate lifetime checks.                                                                                                                 |
-| Stop or Esc                                       | The queued notice is dropped by Claude Code and never resubmitted. A turn that ends with a message still unread is announced once more; nothing polls.                                                                                                                                            |
-| Draft in the input, permission or question dialog | The notice waits for the session to be idle and leaves the draft and the dialog unchanged.                                                                                                                                                                                                        |
-| In-process `/clear`, `/resume` or `/branch`       | `session.end` ends the old stream and its notices. Claude Code does not start mods again for the new context, so it stays unbound and no name moves automatically. Recovery: quit Claude Code and start it again (`claude --resume <id>` for an existing chat), then connect if it is a new chat. |
-| NCF restart                                       | The helper keeps its pinned native incarnation; the mod's stream reconnects as transport recovery. Claims of the previous NCF run are void.                                                                                                                                                       |
-| Name transfer                                     | Requires explicit owner approval and revokes the former binding; claims of the former binding are refused.                                                                                                                                                                                        |
-| Mods off, plugin missing or gate disabled         | No automatic wake; status says so. Messages stay readable with `agent_read`.                                                                                                                                                                                                                      |
+- Startup or exact resume creates a current native scope; pending inbox is
+  offered through its event stream. First-resume behavior of the new direct
+  content path requires native acceptance.
+- Compaction within the same session keeps only an already active native lease
+  and exact binding. It never creates, revives or rotates an ended, missing or
+  conflicted lease. The real-account Desktop 2.1.309 protected-call check passed;
+  that check did not establish the new direct content path.
+- Busy input, drafts and dialogs remain subject to the host's prompt scheduler.
+  A dropped or ambiguous submission is not automatically repeated. Content
+  released under durable intent can remain uncertain even if no receipt exists.
+- In-process clear, resume, branch or session end revokes the old scope. A new
+  context does not inherit an occupied agent name. Restart the client normally
+  and use the normal explicit connect/transfer flow when required.
+- Node or helper/stream replacement never reauthorizes an old operation.
+  Name transfer requires owner approval and revokes the previous binding.
+- With no compatible mod/stream, manual reads remain available. NCF does not
+  substitute a recent chat, a read instruction, timed retries or polling.
 
 ## Delivery and receipt
 
-- A wake carries only the agent name. It is never a receipt. Issued or consumed
-  claims, a submitted notice and a reported turn never mark messages received
-  and never hide them.
-- Receipt means that the complete `agent_read` or `agent_history` response frame
+- For **direct native incoming**, receipt means that the exact host-kept row
+  returned the pinned UUID and full expected representation, and the node
+  committed the same captured IDs under still-current authority. It is not a
+  model acknowledgement, proof of native disk persistence or task completion.
+  A denied/replaced row cannot receipt the expected body.
+- Before intent and content release, a prepared attempt may be cancelled. Once
+  native write intent is durable, lost/partial HTTP, host drop, scope revocation,
+  crash or missing stored-row report leaves durable **uncertainty**. Missing
+  commit is never proof that content was not sent. No automatic replay or
+  rollback is permitted. The stored-row UUID and possibly admitted canonical
+  envelope cannot be spent by another delivery.
+- For **explicit manual MCP reads**, receipt means that the complete
+  `agent_read` or `agent_history` response frame
   was written by the exact Claude Code helper to its stdio connection with
   Claude Code. For each such read the node chooses the page, reserves its ready
   incoming IDs before preparing files, revalidates the call's native authority
@@ -187,7 +199,7 @@ scenario. Moving an occupied name still needs the separate NCF owner approval.
 - Reads through other MCP clients keep their receipt behaviour, except that
   blocked unread pages also report busy or uncertain rather than an empty inbox.
 
-For the corrective branch, build instructions, diagnostics and three native
+For candidate build instructions, diagnostics and historical native
 manual cases are in [Claude diagnostic testing](claude-code-diagnostic-testing.md).
 
 ## Verification

@@ -43,15 +43,23 @@ test('Generated Claude delivery preserves setup, MCP, command hooks and static U
     // These two entries now implement direct full-body admission. Their actual
     // generated behavior is verified in claude-native-plugin.test.ts.
     if (name === 'plugin/hooks/wake.js' || name === 'gate/hooks/gate.js') continue;
-    const text =
-      name === 'plugin/hooks/wake.js'
-        ? files[name]
-            .replace(
-              "import { register as registerIncomingPresentation } from './incoming.js';\n",
-              '',
-            )
-            .replace('  registerIncomingPresentation(on);\n', '')
-        : files[name];
+    // Only the descriptions changed in these manifests. Compare the remaining
+    // generated setup, dependencies, permissions and command hooks byte-exact.
+    const originalDescriptions: Record<string, string> = {
+      '.claude-plugin/marketplace.json': 'Checks NCF wake notices right before they start a turn.',
+      'plugin/.claude-plugin/plugin.json':
+        'Messages for agents connected through NCF Agent Interconnect, announced by a channel and received with agent_read.',
+      'plugin/hooks/hooks.json':
+        'Trusted current-chat evidence and wake notices for NCF Agent Interconnect.',
+      'gate/.claude-plugin/plugin.json':
+        'Lets an NCF Agent Interconnect wake notice start a turn only while its one-use claim is current.',
+      'gate/hooks/hooks.json': 'NCF wake notice gate.',
+    };
+    const value = JSON.parse(files[name]);
+    if (name === '.claude-plugin/marketplace.json')
+      value.plugins[1].description = originalDescriptions[name];
+    else value.description = originalDescriptions[name];
+    const text = JSON.stringify(value, null, 2) + '\n';
     assert.equal(digest(text), expected, name);
   }
   for (const name of added) {

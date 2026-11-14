@@ -137,12 +137,10 @@ async function run($, own) {
 }
 
 /**
- * The gate plugin's mod. A mod's own hooks never see its own submission; this
- * gate runs after the main plugin and sees its notice when it is dequeued,
- * right before the turn. It names the exact notice to the node by the SHA-256
- * of its text and lets it through only if the node starts that notice's claim
- * and this lifecycle is still current after the last await. Owner prompts pass
- * unchanged; a failed or timed-out check drops the notice.
+ * The separate plugin sees the main mod's submission. It exchanges an exact
+ * opaque delivery trigger for the node-owned full message immediately before
+ * forwarding to the host. Typed owner input passes unchanged. The legacy
+ * notice guard remains for system notices; it is not an incoming-body fallback.
  */
 function gateModule(runtime: ClaudePluginRuntime): string {
   const paths = runtime.platform === 'win32' ? path.win32 : path.posix;
@@ -275,7 +273,7 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
         {
           name: claudePlugin.gate,
           source: './gate',
-          description: 'Checks NCF wake notices right before they start a turn.',
+          description: 'Checks exact-chat authority before admitting NCF incoming messages.',
         },
       ],
     }),
@@ -284,7 +282,7 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
       displayName: 'NCF Agent Interconnect',
       version: runtime.version,
       description:
-        'Messages for agents connected through NCF Agent Interconnect, announced by a channel and received with agent_read.',
+        'Full incoming agent messages admitted to their exact Claude chat with sender, body and reply route.',
       author: { name: 'no-colours-fabric' },
       license: 'BSD-3-Clause',
       mcpServers: {
@@ -301,7 +299,8 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
       dependencies: [{ name: claudePlugin.gate, version: '=' + runtime.version }],
     }),
     'plugin/hooks/hooks.json': json({
-      description: 'Trusted current-chat evidence and wake notices for NCF Agent Interconnect.',
+      description:
+        'Trusted current-chat evidence and native incoming messages for NCF Agent Interconnect.',
       modules: ['./wake.js'],
       hooks: {
         // Native lifecycle evidence is private command-hook state. A model-visible
@@ -321,12 +320,12 @@ export function claudePluginFiles(runtime: ClaudePluginRuntime): Record<string, 
       displayName: 'NCF Agent Interconnect gate',
       version: runtime.version,
       description:
-        'Lets an NCF Agent Interconnect wake notice start a turn only while its one-use claim is current.',
+        'Admits an NCF incoming message only while its exact one-use delivery authority is current.',
       author: { name: 'no-colours-fabric' },
       license: 'BSD-3-Clause',
     }),
     'gate/hooks/hooks.json': json({
-      description: 'NCF wake notice gate.',
+      description: 'NCF exact-chat incoming gate.',
       modules: ['./gate.js'],
     }),
     'gate/hooks/gate.js': gateModule(runtime),

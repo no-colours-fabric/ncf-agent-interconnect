@@ -1,11 +1,11 @@
 # Claude Code corrective branch: build and manual testing
 
-Branch: `codex/claude-candidate-diagnostics` in
+Branch: `codex/claude-direct-delivery` in
 `https://github.com/no-colours-fabric/ncf-agent-interconnect`.
-This branch starts at candidate `d329e9958e6464887995f16928fd3b92f7216fd5`,
-not current main. Its historical application version is still 0.12.0; record
-the Git commit as the test identity. Do not install its data over a working node.
-The branch is a diagnostic candidate, not a published release.
+Base: `b522648f9b52798c52bbf04f2f67b1312da53a2b` (0.18.1).
+Record the exact HEAD and packaged `sourceRevision`; the unchanged version label
+alone does not identify this unreleased direct-incoming candidate. No main
+integration, publication or working-node replacement follows from source checks.
 
 ## Build from GitHub
 
@@ -14,7 +14,7 @@ the ordinary platform build prerequisites. No source archive or binary transfer
 is needed:
 
 ```sh
-git clone --branch codex/claude-candidate-diagnostics --single-branch https://github.com/no-colours-fabric/ncf-agent-interconnect.git ncf-claude-diagnostic
+git clone --branch codex/claude-direct-delivery --single-branch https://github.com/no-colours-fabric/ncf-agent-interconnect.git ncf-claude-diagnostic
 cd ncf-claude-diagnostic
 git rev-parse HEAD
 npm ci
@@ -107,21 +107,37 @@ after auto review as the reason for refusal. Keep that unconfigured limitation
 separate from configured success. Reuse the bounded result; do not repeat a
 campaign to remove the invalid model call from its history.
 
-## Incoming presentation evidence
+## Direct incoming acceptance
 
-The shipped main plugin renders only its exact `agent_read` result. In default
-terminal view, Incoming shows sender, original body and attachments, Reply-To
-and `Use agent_send(connectionId, replyRef="…", text) to reply.` Ctrl+O shows
-other returned page fields, including message ID, without a second body copy.
-No renderer callback is a receipt or proof the model read the content.
+The new path submits a node-authorized full message, not a notice requesting
+`agent_read`. The main view must contain the exact sender/body/attachment links,
+`Reply-To` and standard `Use agent_send(...) to reply.` footer, with one body
+copy. It must not expose an opaque admission trigger, Message ID or metadata
+JSON as the incoming message. Native plugin attribution remains visible.
 
-For a presentation-only change, reuse unchanged S1 and prior arrival/error
-evidence. First inspect retained actual read rows on the exact changed module:
-default body once/no JSON, Ctrl+O body once/metadata once, back to no JSON.
-If retained output is unavailable, use at most one new synthetic message for
-that affected observation. Keep exact source/plugin identity, native capture
-and actual owner observations separate from mock tests; do not restart a full
-campaign or rebuild an unchanged binary just for a text-only formatter change.
+Source tests cover reservation, authority races, durable intent, exact final row
+witness, uncertainty, fencing and generated main/gate behavior. Earlier terminal
+read-renderer captures, the a002 manual/auto scenarios and the synthetic Desktop
+2.1.309 visible-body capability are separate evidence. They do not prove the
+complete new production path.
+
+On the exact built candidate, use the operator-authorized separate real-account
+chat named `Клод Linux`. Preserve working agent names and unrelated settings.
+Perform one fresh synthetic delivery after recording source/runtime identity;
+observe the actual human-visible full envelope and automatic reaction. Correlate
+one message ID internally through native stored-row report and committed receipt,
+without reading or exporting chat correspondence. The node may log bounded
+hashed phase metadata, never body, tokens or configuration. A queue/start event
+is not receipt. If the outcome becomes uncertain, stop and preserve it; do not
+send the same content again to manufacture a pass.
+
+Any working-runtime switch requires exact app-owned file provenance and an
+explicit rollback plan; do not modify auth, copy profiles or weaken permissions.
+The currently installed 0.18.1 is not silently treated as this candidate.
+
+The legacy manual-read renderer still applies only to an actual exact own
+`agent_read` result: compact sender/body/footer, expanded metadata without a
+second body copy. Its retained-row evidence does not establish direct delivery.
 
 Offline generated-entry checks use an explicitly selected native CLI without
 a signed-in session, network peers or a real client profile:
@@ -136,7 +152,10 @@ relative imports and the production namespace, and never fires session-start
 or command hooks. Without that explicit CLI path, the SDK portion is skipped.
 These tests do not establish terminal paint or native delivery.
 
-## Three manual scenarios
+## Historical manual scenarios — reuse unchanged evidence
+
+Do not rerun this historical matrix merely for the new content path. Reuse its
+recorded revision-specific results and run only the affected acceptance above.
 
 ### 1. First pending message after exact resume
 
