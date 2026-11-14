@@ -278,6 +278,12 @@ test('native pages preserve a late low-physical row beyond two hundred earlier o
   );
   assert.equal(page.messages.at(-1)?.envelope.id, low.id);
   assert.ok(page.nextCursor > physical);
+  const originalHistory = f.service.store.history.bind(f.service.store);
+  let pageScans = 0;
+  f.service.store.history = (...args) => {
+    if (args[2] === 200) pageScans++;
+    return originalHistory(...args);
+  };
   const completed: string[] = [];
   for (const expectedCount of [...Array<number>(11).fill(20), 2]) {
     const wake = f.wakes().at(-1)!;
@@ -314,6 +320,10 @@ test('native pages preserve a late low-physical row beyond two hundred earlier o
     assert.deepEqual(report.body, { state: 'committed' });
     if (expectedCount === 20) await until(() => f.wakes().length > before);
   }
+  assert.ok(
+    pageScans <= 4,
+    `native page commits must not recensus the remaining inbox: ${pageScans}`,
+  );
   assert.equal(completed.length, 222);
   assert.equal(new Set(completed).size, 222);
   assert.equal(f.service.store.get(low.id, 'in')?.state, 'processed');

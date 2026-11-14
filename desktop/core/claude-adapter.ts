@@ -198,6 +198,21 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   messageReady(connectionId: string): void {
     this.current().helper?.outstanding.delete(connectionId);
   }
+  /** Continue a native page without invalidating or recensus of unchanged ready rows. */
+  nativeCommitted(connectionId: string, ids: string[], remaining: boolean): void {
+    for (const id of ids) {
+      if (this.offers.get(id)?.connectionId === connectionId) this.offers.delete(id);
+      if (this.renewed.get(id)?.connectionId === connectionId) this.renewed.delete(id);
+    }
+    const helper = this.current().helper;
+    if (!helper) return;
+    helper.outstanding.delete(connectionId);
+    // This commit is the event. The issuer captures a fresh bounded private
+    // page under the same current connection; it never replays fenced content.
+    if (remaining && this.sessions.wakeSink(helper.proven)?.nativeIncoming === 1)
+      this.sessions.sendWake(helper, connectionId);
+  }
+
   /** Called before agent_read queries the inbox, so later arrivals get a new wake. */
   beforeRead(connectionId: string): void {
     this.current().helper?.outstanding.delete(connectionId);

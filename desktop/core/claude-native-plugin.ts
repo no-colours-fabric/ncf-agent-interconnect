@@ -38,7 +38,13 @@ async function report($, own, pending, phase, witness = {}) {
   return result;
 }
 
+function expireNative(own) {
+  for (const [id, pending] of own.nativePending)
+    if (pending.expiresAt <= Date.now()) own.nativePending.delete(id);
+}
+
 export async function submitNative($, own, descriptor, sessionId, wake) {
+  expireNative(own);
   if (!current(own) || typeof wake.claim !== 'string' || !key.test(wake.claim) ||
       own.nativePreparing.has(wake.claim)) return;
   own.nativePreparing.add(wake.claim);
@@ -48,6 +54,7 @@ export async function submitNative($, own, descriptor, sessionId, wake) {
     if (typeof prepared.delivery !== 'string' || !uuid.test(prepared.delivery) ||
         prepared.trigger !== triggerPrefix + prepared.delivery ||
         typeof prepared.reportKey !== 'string' || !key.test(prepared.reportKey) ||
+        !Number.isSafeInteger(prepared.expiresAt) || prepared.expiresAt <= Date.now() ||
         !Array.isArray(prepared.representationHashes) || prepared.representationHashes.length < 1 ||
         prepared.representationHashes.length > 4 ||
         !prepared.representationHashes.every((hash) => typeof hash === 'string' && key.test(hash)))
@@ -62,11 +69,9 @@ export async function submitNative($, own, descriptor, sessionId, wake) {
     // with a node-owned full message. Never submit a read instruction or asUser.
     const result = await $.prompt.submit({ text: prepared.trigger });
     if (result && typeof result.drop === 'string') await report($, own, pending, 'dropped');
-    // Queue/start/submit resolution never creates receipt. The stored-row hook does.
-    if (own.nativePending.get(pending.delivery) === pending) {
-      await report($, own, pending, 'uncertain').catch(() => {});
-      own.nativePending.delete(pending.delivery);
-    }
+    // Resolution can mean only queued. Keep correlation for the later gate and
+    // stored row, bounded by the node's existing claim deadline. A queue is
+    // neither receipt nor evidence of failure; never cancel it on this result.
   } catch {
     if (pending) {
       await report($, own, pending, 'uncertain').catch(() => {});
@@ -93,6 +98,7 @@ async function rowHash(message) {
 export function registerNative(on, getScope) {
   on('session.append', async ($, e, next) => {
     const own = getScope();
+    if (own) expireNative(own);
     if (!current(own) || e.door !== 'prompt' || e.agentId ||
         e.origin?.kind !== 'plugin' || e.origin.name !== source || e.origin.asUser === true ||
         typeof e.uuid !== 'string' || !e.uuid || !e.message ||

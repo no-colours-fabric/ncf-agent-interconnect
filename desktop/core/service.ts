@@ -237,8 +237,6 @@ export class NodeService extends EventEmitter {
     this.nativeIncoming.validateRelease(raw);
   }
   private async nativeClaudeCommitted(connectionId: string, ids: string[]): Promise<void> {
-    for (const [key, snapshot] of this.claudeDispatchSnapshots)
-      if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
     await Promise.all(
       ids.map(async (id) => {
         const row = this.store.get(id, 'in');
@@ -249,11 +247,12 @@ export class NodeService extends EventEmitter {
     try {
       const owner = this.store.assertOwner(connectionId);
       const adapter = this.adapters.get(owner.binding.adapterId);
-      adapter.beforeRead?.(connectionId);
-      adapter.afterRead?.(
-        connectionId,
-        this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
-      );
+      if (adapter instanceof ClaudeCodeAdapter)
+        adapter.nativeCommitted(
+          connectionId,
+          ids,
+          this.store.claudeIncomingIds(owner.key, 1).length > 0,
+        );
     } catch {
       // An owner that changed during the receipt notification has its own lifecycle.
     }

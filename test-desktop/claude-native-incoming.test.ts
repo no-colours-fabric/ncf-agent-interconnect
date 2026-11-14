@@ -18,10 +18,12 @@ function deferred() {
 }
 
 /** Real store transactions with a deliberately controllable native authority. */
-async function fixture(t: test.TestContext) {
+async function fixture(t: test.TestContext, startLifetime = 600000) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-native-incoming-'));
   const store = new AgentStore(directory);
   t.after(async () => {
+    current = false;
+    incoming.observe();
     store.close();
     await rm(directory, { recursive: true, force: true });
   });
@@ -80,7 +82,7 @@ async function fixture(t: test.TestContext) {
       },
     },
   };
-  const claims = new WakeClaims(authority);
+  const claims = new WakeClaims(authority, Date.now, { claim: 15000, start: startLifetime });
   const incoming = new ClaudeNativeIncoming({
     claude: claude as never,
     claims,
@@ -387,3 +389,36 @@ test('bounded native selection skips fenced old pages and finds a new arrival wi
   );
   assert.equal(f.store.claudeFenced(old[0].id), true);
 });
+
+for (const released of [false, true]) {
+  test(`lost ${released ? 'terminal report' : 'prepare response'} retires coverage without replaying released content`, async (t) => {
+    const f = await fixture(t, 150);
+    const old = f.message('old reserved body');
+    const prepared = await f.prepare();
+    if (released)
+      await f.incoming.admit({
+        sessionId: f.session,
+        delivery: prepared.delivery,
+        nativeLeaseNonce: f.lease.nativeLeaseNonce,
+      });
+    assert.equal(f.incoming.queued(f.session, f.connectionId), true);
+    await new Promise((resolve) => setTimeout(resolve, 210));
+    assert.equal(f.incoming.queued(f.session, f.connectionId), false);
+    assert.equal(
+      f.store.claudeDelivery(prepared.delivery)?.state,
+      released ? 'uncertain' : 'cancelled',
+    );
+    assert.equal(f.store.claudeFenced(old.id), released);
+    assert.equal(f.store.get(old.id, 'in')?.state, 'ready');
+    const fresh = f.message('fresh later arrival');
+    const next = await f.prepare();
+    const admitted = await f.incoming.admit({
+      sessionId: f.session,
+      delivery: next.delivery,
+      nativeLeaseNonce: f.lease.nativeLeaseNonce,
+    });
+    assert.ok(admitted.body.includes(fresh.text));
+    if (released) assert.ok(!admitted.body.includes(old.text));
+    assert.deepEqual(f.committed, []);
+  });
+}

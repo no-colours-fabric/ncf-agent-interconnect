@@ -44,6 +44,7 @@ interface Operation {
   body: string;
   receiverContext: string;
   retired: boolean;
+  expiresAt: number;
   cleanup(): void;
 }
 
@@ -68,6 +69,7 @@ interface NativePrepared {
   trigger: string;
   envelopeHash: string;
   representationHashes: string[];
+  expiresAt: number;
 }
 
 /** Claude-private native admissions using the existing durable receipt ledger. */
@@ -80,6 +82,7 @@ export class ClaudeNativeIncoming {
     if (
       !this.authority.ready() ||
       operation.retired ||
+      operation.expiresAt <= Date.now() ||
       this.operations.get(operation.id) !== operation ||
       claude.wakeSink(operation.claim.session)?.id !== operation.sinkId ||
       (requireClaim && claims.get(operation.claim.id) !== operation.claim)
@@ -162,6 +165,7 @@ export class ClaudeNativeIncoming {
   }
 
   queued(session: string, connectionId?: string): boolean {
+    this.observe();
     return [...this.operations.values()].some(
       (operation) =>
         !operation.retired &&
@@ -247,9 +251,20 @@ export class ClaudeNativeIncoming {
       body: '',
       receiverContext: '',
       retired: false,
-      cleanup: () => signal.removeEventListener('abort', aborted),
+      expiresAt: claim.startBy,
+      cleanup: () => {
+        signal.removeEventListener('abort', aborted);
+        clearTimeout(deadline);
+      },
     };
     const aborted = () => this.lost(operation);
+    // One-shot retirement only: no wake, polling, replay or release of INTENT.
+    // Existing consumed-claim expiry bounds both lost prepare and lost reports.
+    const deadline = setTimeout(
+      () => this.lost(operation),
+      Math.max(0, operation.expiresAt - Date.now()),
+    );
+    deadline.unref();
     this.operations.set(id, operation);
     this.authority.trace?.(id, 'reserved');
     signal.addEventListener('abort', aborted, { once: true });
@@ -312,6 +327,7 @@ export class ClaudeNativeIncoming {
         trigger: nativeClaudeTrigger + id,
         envelopeHash,
         representationHashes,
+        expiresAt: operation.expiresAt,
       };
     } catch (error) {
       this.lost(operation);

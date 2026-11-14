@@ -70,6 +70,7 @@ async function fixture(t: test.TestContext, bare = false) {
         if (url.endsWith('/prepare'))
           value = {
             delivery,
+            expiresAt: Date.now() + 600000,
             reportKey,
             trigger,
             representationHashes: [nativeClaudeRowHash(body, undefined, !bare)],
@@ -137,6 +138,7 @@ async function fixture(t: test.TestContext, bare = false) {
     delivery,
     reportKey,
     reports,
+    appends,
     calls,
     files,
     mutate(fn: typeof mutate) {
@@ -193,12 +195,39 @@ test('typed and foreign-plugin lookalike triggers pass unchanged without node au
   assert.deepEqual(f.calls, []);
 });
 
-test('a submit result without the exact stored row cannot create receipt or leak pending capability memory', async (t) => {
+test('queued submit keeps its exact correlation until the later gate and stored row', async (t) => {
   const f = await fixture(t);
-  f.$.prompt.submit = async ({ text }) => ({ text });
+  let queued = '';
+  f.$.prompt.submit = async ({ text }) => {
+    queued = text;
+    return { text };
+  };
   await f.main.submitNative(f.$, f.own, f.descriptor, f.sessionId, { claim: 'b'.repeat(64) });
+  assert.equal(f.reports.length, 0, 'queue resolution is neither failure nor receipt');
+  assert.equal(f.own.nativePending.size, 1);
+  const origin = { kind: 'plugin', name: 'ncf-agent-interconnect' };
+  await f.gates.get('prompt.submit')!(
+    f.$,
+    { text: queued, origin },
+    Object.assign(
+      async (event: any) => {
+        const uuid = randomUUID();
+        const message = {
+          type: 'user',
+          role: 'user',
+          content: [{ type: 'text', text: nativeClaudeFrame(event.text) }],
+        };
+        await f.appends.get('session.append')!(
+          f.$,
+          { door: 'prompt', origin, uuid, message },
+          async (e: any) => ({ uuid: e.uuid, message: e.message }),
+        );
+        return event;
+      },
+      { origin: { plugin: 'ncf-agent-interconnect' } },
+    ),
+  );
   assert.equal(f.reports.length, 1);
-  assert.equal(f.reports[0].phase, 'uncertain');
-  assert.equal(f.reports[0].storedRowId, undefined);
+  assert.equal(f.reports[0].phase, 'stored');
   assert.equal(f.own.nativePending.size, 0);
 });
