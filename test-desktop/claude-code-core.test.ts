@@ -52,7 +52,7 @@ test('Two Claude Code chats in one folder and a second instance receive wakes on
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
   assert.match(
     String(adapterOf(f, bob.binding.connectionId).error),
-    /^Automatic wake is unavailable in this chat/,
+    /^Automatic wake is set up in this chat but not verified yet/,
   );
   // The snapshot hides Claude Code chat identifiers like other exact-chat integrations.
   const snapshotBinding = f.service.snapshot().agents.find((x) => x.nickname === 'Боб')!.binding!;

@@ -87,7 +87,7 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
   );
   assert.equal(JSON.parse(posix['gate/.claude-plugin/plugin.json']).version, '0.12.0');
   assert.deepEqual(JSON.parse(posix['gate/hooks/hooks.json']), {
-    description: 'NCF wake notice gate.',
+    description: 'NCF exact-chat incoming gate.',
     modules: ['./gate.js'],
   });
   // Paths reach the mods as JSON string literals and an argument vector, never a shell line.
