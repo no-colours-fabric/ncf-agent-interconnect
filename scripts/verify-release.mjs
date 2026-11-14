@@ -41,6 +41,8 @@ assert.ok(entries.includes('/build/integrations/cursor-hook.js'));
 assert.ok(entries.includes('/build/main/preload.cjs'));
 assert.ok(entries.includes('/build/renderer/index.html'));
 assert.ok(entries.includes('/build/integrations/claude-code.js'));
+for (const name of ['claude-native-content', 'claude-native-incoming', 'claude-native-plugin'])
+  assert.ok(entries.includes('/build/core/' + name + '.js'));
 assert.ok(entries.includes('/build/core/client-contexts.js'));
 assert.ok(entries.includes('/node_modules/fast-srp-hap/LICENSE'));
 assert.ok(!entries.includes('/build/core/store.js'));
@@ -328,11 +330,13 @@ import { NodeService } from './build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport, getDefaultEnvironment } from '@modelcontextprotocol/sdk/client/stdio.js';
 const helper = process.env.NCF_INSTALLED_CLAUDE_HELPER;
+const { nativeClaudeRowHash } = await import('./build/core/claude-native-content.js');
+const { readNativeLease } = await import('./build/integrations/claude-native-lease.js');
 const directory = path.resolve('../isolated-claude-data'), service = new NodeService(directory);
 const nodeFile = path.join(directory, 'Integrations', 'node.json');
 const prefix = 'mcp__plugin_ncf-agent-interconnect_ncf__';
 const session = randomUUID();
-let client;
+let client, nativeChild;
 // Asynchronous: the node in this process must keep serving the hook's HTTP request.
 const hook = (input) =>
   new Promise((resolve, reject) => {
@@ -349,6 +353,9 @@ const hook = (input) =>
   });
 try {
   assert.ok(process.versions.electron, 'Use the runtime shipped in the package');
+  await service.settings.load();
+  Object.assign(service.settings.value, { peerPort: 0, mcpPort: 0, listenHost: '127.0.0.1', peers: [] });
+  await service.settings.save();
   await service.open();
   const plugin = JSON.parse(await readFile(path.join(directory, 'Integrations/claude-code/plugin/.claude-plugin/plugin.json'), 'utf8'));
   assert.equal(plugin.mcpServers.ncf.command, process.execPath);
@@ -371,6 +378,8 @@ try {
   assert.equal(JSON.parse(await readFile(path.join(root, 'gate/.claude-plugin/plugin.json'), 'utf8')).version, version);
   const wakeModule = await readFile(path.join(root, 'plugin/hooks/wake.js'), 'utf8');
   assert.ok(wakeModule.includes(JSON.stringify(process.execPath)) && wakeModule.includes(JSON.stringify(nodeFile)));
+  assert.ok(wakeModule.includes('--native-incoming') && wakeModule.includes('./native-incoming.js'));
+  assert.ok((await readFile(path.join(root, 'plugin/hooks/native-incoming.js'), 'utf8')).includes('storedRowId'));
   assert.ok((await readFile(path.join(root, 'gate/hooks/gate.js'), 'utf8')).includes('ncf-agent-interconnect'));
   const args = { nickname: 'Пакет 漢字' };
   // The helper's route is proven once its node stream is attached, as before any model tool call.
@@ -382,24 +391,9 @@ try {
   const sender = service.connect({ nickname: 'Package sender', client: 'MCP' });
   const sent = await service.send({ connectionId: sender.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Пакет 漢字', text: 'Packaged Claude wake' });
   const deadline = Date.now() + 10000;
-  while (!wakes.length) { if (Date.now() > deadline) throw new Error('No packaged channel wake'); await new Promise((resolve) => setTimeout(resolve, 20)); }
-  assert.ok(!wakes[0].content.includes('Packaged Claude wake'));
+  while (service.store.dispatchState(sent.id)?.state !== 'waiting') { if (Date.now() > deadline) throw new Error('No packaged waiting state'); await new Promise((resolve) => setTimeout(resolve, 20)); }
+  assert.equal(wakes.length, 0, 'A missing native mod must not emit a read-command fallback');
   assert.equal(service.store.get(sent.id, 'in').state, 'ready');
-  // The installed mod's child: the packaged runtime holds this session's wake stream.
-  const child = spawn(process.execPath, [helper, '--wake-stream', '--node-file', nodeFile, '--session', session], { env: { ...getDefaultEnvironment(), ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
-  let streamed = '';
-  child.stdout.on('data', (chunk) => { streamed += chunk; });
-  const streamDeadline = Date.now() + 15000;
-  while (!streamed.includes('\\n')) { if (Date.now() > streamDeadline) throw new Error('No packaged mod wake'); await new Promise((resolve) => setTimeout(resolve, 20)); }
-  child.kill();
-  const wake = JSON.parse(streamed.split('\\n')[0]);
-  assert.equal(wake.type, 'wake'); assert.match(wake.claim, /^[0-9a-f]{64}$/);
-  assert.ok(!streamed.includes('Packaged Claude wake'));
-  const descriptor = JSON.parse(await readFile(nodeFile, 'utf8'));
-  const postNode = async (route, body) => (await fetch(new URL(route, descriptor.url), { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + descriptor.token }, body: JSON.stringify(body) })).json();
-  assert.deepEqual(await postNode('/integrations/claude/wake/claim', { sessionId: session, claim: wake.claim }), { consumed: true });
-  const noticeHash = createHash('sha256').update(wake.notice, 'utf8').digest('hex');
-  assert.deepEqual(await postNode('/integrations/claude/wake/start', { sessionId: session, notice: noticeHash }), { started: true });
   // Receipt through the packaged bridge: committed only after its frame write.
   const readArgs = { connectionId: connected.structuredContent.binding.connectionId };
   const readInput = await hook({ hook_event_name: 'PreToolUse', session_id: session, tool_name: prefix + 'agent_read', tool_input: readArgs });
@@ -409,9 +403,34 @@ try {
   assert.ok(!JSON.stringify(read).includes('ncf/claude-delivery'));
   const receiptDeadline = Date.now() + 10000;
   while (service.store.get(sent.id, 'in').state !== 'processed') { if (Date.now() > receiptDeadline) throw new Error('No packaged write-commit receipt'); await new Promise((resolve) => setTimeout(resolve, 20)); }
-  console.log(JSON.stringify({ claudeHelperFromArchive: true, claudeHooksExitQuietly: true, claudeChannelWake: true, claudeModWakeStream: true, claudeGateStart: true, claudeWriteCommitReceipt: true, claudeReceiptWithoutRead: false, liveClaudeCodeContacted: false }));
+  // Package-only synthetic native witness. This is not native Claude UI evidence.
+  nativeChild = spawn(process.execPath, [helper, '--wake-stream', '--native-incoming', '--node-file', nodeFile, '--session', session], { env: { ...getDefaultEnvironment(), ELECTRON_RUN_AS_NODE: '1' }, stdio: ['ignore', 'pipe', 'pipe'] });
+  let streamed = '';
+  nativeChild.stdout.on('data', (chunk) => { streamed += chunk; });
+  const nativeMessage = await service.send({ connectionId: sender.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Пакет 漢字', text: 'Packaged full native incoming' });
+  const streamDeadline = Date.now() + 15000;
+  while (!streamed.includes('\\n')) { if (Date.now() > streamDeadline) throw new Error('No packaged native offer'); await new Promise((resolve) => setTimeout(resolve, 20)); }
+  const wake = JSON.parse(streamed.split('\\n')[0]);
+  assert.equal(wake.type, 'wake'); assert.match(wake.claim, /^[0-9a-f]{64}$/);
+  assert.ok(!streamed.includes('Packaged full native incoming'));
+  const descriptor = JSON.parse(await readFile(nodeFile, 'utf8'));
+  const postNode = async (route, body) => {
+    const response = await fetch(new URL(route, descriptor.url), { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + descriptor.token }, body: JSON.stringify(body) });
+    const value = await response.json(); assert.equal(response.status, 200, JSON.stringify(value)); return value;
+  };
+  const prepared = await postNode('/integrations/claude/native/prepare', { sessionId: session, claim: wake.claim });
+  assert.ok(!('body' in prepared));
+  const lease = await readNativeLease(nodeFile, session);
+  const admitted = await postNode('/integrations/claude/native/admit', { sessionId: session, delivery: prepared.delivery, nativeLeaseNonce: lease.nonce });
+  assert.ok(admitted.body.startsWith('**Incoming NCF Agent Interconnect**'));
+  assert.ok(admitted.body.includes('Packaged full native incoming') && admitted.body.includes('Use agent_send(connectionId, replyRef='));
+  assert.equal(service.store.get(nativeMessage.id, 'in').state, 'ready');
+  assert.deepEqual(await postNode('/integrations/claude/native/report', { sessionId: session, delivery: prepared.delivery, reportKey: prepared.reportKey, phase: 'stored', storedRowId: randomUUID(), representationHash: nativeClaudeRowHash(admitted.body) }), { state: 'committed' });
+  assert.equal(service.store.get(nativeMessage.id, 'in').state, 'processed');
+  assert.equal(wakes.length, 0);
+  console.log(JSON.stringify({ claudeHelperFromArchive: true, claudeHooksExitQuietly: true, claudeNoReadCommandFallback: true, claudeModWakeStream: true, claudeNativeStoredRowReceiptSynthetic: true, claudeWriteCommitReceipt: true, liveClaudeCodeContacted: false }));
 } finally {
-  await client?.close(); await service.close();
+  nativeChild?.kill(); await client?.close(); await service.close();
 }
 `,
   );

@@ -6,13 +6,13 @@ import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { NodeService } from '../desktop/core/service.js';
-import { claudeToolPrefix } from '../desktop/core/claude-sessions.js';
+import { claudeToolPrefix, type WakeSink } from '../desktop/core/claude-sessions.js';
 import { canonicalInputHash, claudeCallMetaKey } from '../desktop/integrations/claude-code.js';
 import { readNativeLease, updateNativeLease } from '../desktop/integrations/claude-native-lease.js';
 
 export { canonicalInputHash };
 
-/** A synthetic helper speaking the node side of the helper protocol; no Claude Code is involved. */
+/** Synthetic helper plus optional mod stream; never submits a native prompt or claims native evidence. */
 export class FakeHelper {
   readonly id = randomUUID();
   readonly secret = randomBytes(32).toString('hex');
@@ -22,12 +22,42 @@ export class FakeHelper {
   private reading?: Promise<void>;
   private nativeLeaseNonce?: string;
   private leasePinned = false;
+  private modSink?: WakeSink;
   constructor(
     readonly f: ClaudeFixture,
     public spawnSession: string | null,
     public session: string | null = spawnSession,
     private readonly leaseOverride?: string,
+    private readonly withNativeMod = true,
   ) {}
+  /** Synthetic installed mod stream, separate from MCP helper authority. */
+  async attachNativeMod(): Promise<void> {
+    if (!this.withNativeMod || !this.spawnSession) return;
+    const route = this.f.service.claude.route(this.spawnSession);
+    if (route.helper?.id !== this.id) return;
+    if (this.modSink && this.f.service.claude.wakeSink(this.spawnSession)?.id === this.modSink.id)
+      return;
+    const lease = await readNativeLease(this.f.nodeFile, this.spawnSession);
+    if (!lease?.active || lease.conflicted) return;
+    this.modSink = await this.f.service.claude.attachWakeSink(
+      {
+        sessionId: this.spawnSession,
+        nativeLeaseNonce: lease.nonce,
+        nativeIncoming: 1,
+      },
+      {
+        write: (line) => {
+          const value = JSON.parse(line);
+          if (value.type === 'wake') {
+            const claim = this.f.service.wakeClaims.get(value.claim);
+            this.lines.push({ ...value, nickname: claim?.nickname });
+          }
+          return true;
+        },
+        end() {},
+      },
+    );
+  }
   wakes(): string[] {
     return this.lines.filter((line) => line.type === 'wake').map((line) => String(line.nickname));
   }
@@ -109,6 +139,7 @@ export class FakeHelper {
         }
       })();
       await started;
+      await this.attachNativeMod();
     } catch (error) {
       controller.abort();
       throw error;
@@ -117,6 +148,7 @@ export class FakeHelper {
     }
   }
   async detach(): Promise<void> {
+    if (this.modSink) this.f.service.claude.detachWakeSink(this.modSink);
     this.controller?.abort();
     await this.reading;
   }
@@ -261,6 +293,7 @@ export async function claudeFixture(t: test.TestContext): Promise<ClaudeFixture>
         _meta: { [claudeCallMetaKey]: verified.body.callToken },
       });
       if (result.isError) throw new Error(JSON.stringify(result.content));
+      await helper.attachNativeMod();
       return result.structuredContent as Record<string, any>;
     },
     async restart() {

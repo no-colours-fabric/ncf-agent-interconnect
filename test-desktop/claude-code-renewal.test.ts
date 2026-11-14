@@ -27,6 +27,22 @@ async function fixture(t: TestContext) {
     if (result) writes.push({ helper: target, type: message.type });
     return result;
   };
+  const sendWake = f.service.claude.sendWake.bind(f.service.claude);
+  f.service.claude.sendWake = (target, connectionId) => {
+    const sink = f.service.claude.wakeSink(target.proven);
+    if (!sink) return sendWake(target, connectionId);
+    const write = sink.writer.write;
+    sink.writer.write = (line) => {
+      const result = write.call(sink.writer, line);
+      if (result && JSON.parse(line).type === 'wake') writes.push({ helper: target, type: 'wake' });
+      return result;
+    };
+    try {
+      return sendWake(target, connectionId);
+    } finally {
+      sink.writer.write = write;
+    }
+  };
   const settle = async () => {
     const pending = (f.service as unknown as { jobs: Set<Promise<void>> }).jobs;
     for (let round = 0; round < 50; round++) {

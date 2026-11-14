@@ -239,7 +239,10 @@ test('A late low-sequence ready row survives an older materializing job without 
     x.f.service.files.materialize = materialize;
   }
   await x.offered([delayed.id, pending.id]);
-  await until(() => x.helper.wakes().filter((name) => name === x.nickname).length === 3);
+  // Native prepare captures a fresh page after the held offer completes. Both
+  // ready events are therefore covered by one new trigger; commit offers the
+  // later pages. No stale channel snapshot needs a third read-command wake.
+  await until(() => x.helper.wakes().filter((name) => name === x.nickname).length === 2);
   assert.equal(x.helper.wakes().filter((name) => name === foreignName).length, 1);
   assert.equal(routed.outstanding.get(foreign.binding.connectionId), foreignCovered);
   x.unread([...first, delayed.id, pending.id, foreignMessage.id]);

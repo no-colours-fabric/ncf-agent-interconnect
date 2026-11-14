@@ -679,6 +679,7 @@ export async function runWakeStream(
   session: string,
   write: (line: string) => void = (line) => void process.stdout.write(line),
   parent: () => number = () => process.ppid,
+  nativeIncoming = false,
 ): Promise<void> {
   const sessionId = sessionValue.parse(session);
   const parentPid = parent();
@@ -710,7 +711,11 @@ export async function runWakeStream(
       const response = await fetch(new URL('/integrations/claude/wake/stream', config.url), {
         method: 'POST',
         headers: { 'content-type': 'application/json', authorization: 'Bearer ' + config.token },
-        body: JSON.stringify({ sessionId, nativeLeaseNonce: lease.nonce }),
+        body: JSON.stringify({
+          sessionId,
+          nativeLeaseNonce: lease.nonce,
+          ...(nativeIncoming ? { nativeIncoming: 1 } : {}),
+        }),
         redirect: 'error',
         signal: stream.signal,
       });
@@ -845,7 +850,13 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     process.exitCode = process.argv.includes('--hook') ? 0 : 1;
   } else if (process.argv.includes('--wake-stream')) {
     const session = process.argv[process.argv.indexOf('--session') + 1] ?? '';
-    runWakeStream(nodeFile, session)
+    runWakeStream(
+      nodeFile,
+      session,
+      undefined,
+      undefined,
+      process.argv.includes('--native-incoming'),
+    )
       .catch(() => {})
       .finally(() => {
         process.exitCode = 0;

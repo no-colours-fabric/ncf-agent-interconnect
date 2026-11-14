@@ -32,11 +32,17 @@ const baseline = {
   'gate/hooks/gate.js': 'f1e68d49a9e95c5a81a5c2f5a6ff29f101a8431d21ada4a7bca57558cdcf80c7',
 };
 
-test('Generated Claude UI adds only static modules and preserves the original authority artifacts', () => {
+test('Generated Claude delivery preserves setup, MCP, command hooks and static UI assets', () => {
   const files = claudePluginFiles(runtime);
   const added = ['plugin/hooks/incoming-format.js', 'plugin/hooks/incoming.js'];
-  assert.deepEqual(Object.keys(files).sort(), [...Object.keys(baseline), ...added].sort());
+  assert.deepEqual(
+    Object.keys(files).sort(),
+    [...Object.keys(baseline), ...added, 'plugin/hooks/native-incoming.js'].sort(),
+  );
   for (const [name, expected] of Object.entries(baseline)) {
+    // These two entries now implement direct full-body admission. Their actual
+    // generated behavior is verified in claude-native-plugin.test.ts.
+    if (name === 'plugin/hooks/wake.js' || name === 'gate/hooks/gate.js') continue;
     const text =
       name === 'plugin/hooks/wake.js'
         ? files[name]
@@ -87,7 +93,8 @@ test('Actual generated wake entry imports relative assets and registers presenta
   );
   assert.equal(entries.filter((e) => e.name === 'session.start').length, 1);
   assert.equal(entries.filter((e) => e.name === 'session.end').length, 1);
-  assert.equal(entries.length, 6);
+  assert.equal(entries.filter((e) => e.name === 'session.append').length, 1);
+  assert.equal(entries.length, 7);
 });
 
 test(

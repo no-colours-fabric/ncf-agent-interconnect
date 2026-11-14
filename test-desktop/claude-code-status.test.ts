@@ -64,7 +64,7 @@ test('Claude missing, failed, empty and successful manual reads never promote au
   const f = await claudeFixture(t);
   const session = randomUUID();
   await f.hook('SessionStart', session, { source: 'startup' });
-  const helper = new FakeHelper(f, session);
+  const helper = new FakeHelper(f, session, session, undefined, false);
   await helper.attach();
   const connected = await f.connect(helper, session, 'Боб');
   assert.ok(!('delivery' in connected));
@@ -91,7 +91,12 @@ test('Claude missing, failed, empty and successful manual reads never promote au
     text: 'Status fixture',
     files: [file],
   });
-  await until(() => helper.wakes().length === 1);
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  assert.equal(
+    helper.wakes().length,
+    0,
+    'missing native mod must not fall back to a read instruction',
+  );
   const originalMaterialize = f.service.files.materialize;
   f.service.files.materialize = async () => {
     throw new Error('Synthetic attachment preparation failure');
@@ -121,7 +126,7 @@ test('A stored Claude confirmed flag does not become automatic-delivery authorit
   const f = await claudeFixture(t);
   const session = randomUUID();
   await f.hook('SessionStart', session, { source: 'startup' });
-  const helper = new FakeHelper(f, session);
+  const helper = new FakeHelper(f, session, session, undefined, false);
   await helper.attach();
   const connected = await f.connect(helper, session, 'Боб');
   const active = f.service.claude.route(session).helper;

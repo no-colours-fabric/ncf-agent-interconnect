@@ -415,6 +415,9 @@ export class McpEndpoint {
         '/integrations/claude/wake/start',
         '/integrations/claude/wake/dropped',
         '/integrations/claude/delivery',
+        '/integrations/claude/native/prepare',
+        '/integrations/claude/native/admit',
+        '/integrations/claude/native/report',
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
@@ -443,30 +446,38 @@ export class McpEndpoint {
         if (!res.writableEnded) abort.abort();
       });
       const result =
-        req.url === '/integrations/claude/hook'
-          ? await this.service.claude.hook(body)
-          : req.url === '/integrations/claude/call'
-            ? await this.service.claudeCall(body)
-            : req.url === '/integrations/claude/call/validate'
-              ? await this.service.claude.validateCall(body)
-              : req.url === '/integrations/claude/wake/claim'
-                ? await this.service.claudeWakeClaim(body)
-                : req.url === '/integrations/claude/wake/start'
-                  ? await this.service.claudeWakeStart(body)
-                  : req.url === '/integrations/claude/wake/dropped'
-                    ? this.service.claudeWakeDropped(body)
-                    : req.url === '/integrations/claude/delivery'
-                      ? await this.service.claudeDelivery(body)
-                      : req.url === '/integrations/aionui/context'
-                        ? await this.service.contexts.registerAionUi(body)
-                        : req.url === '/integrations/cursor/context'
-                          ? await this.service.contexts.registerCursor(body)
-                          : req.url === '/integrations/cursor/hook'
-                            ? await this.service.contexts.handleCursorHook(body, abort.signal)
-                            : req.url!.endsWith('/release')
-                              ? await this.service.contexts.releaseOpenCode(body)
-                              : await this.service.contexts.registerOpenCode(body);
+        req.url === '/integrations/claude/native/prepare'
+          ? await this.service.claudeNativePrepare(body, abort.signal)
+          : req.url === '/integrations/claude/native/admit'
+            ? await this.service.claudeNativeAdmit(body)
+            : req.url === '/integrations/claude/native/report'
+              ? await this.service.claudeNativeReport(body)
+              : req.url === '/integrations/claude/hook'
+                ? await this.service.claude.hook(body)
+                : req.url === '/integrations/claude/call'
+                  ? await this.service.claudeCall(body)
+                  : req.url === '/integrations/claude/call/validate'
+                    ? await this.service.claude.validateCall(body)
+                    : req.url === '/integrations/claude/wake/claim'
+                      ? await this.service.claudeWakeClaim(body)
+                      : req.url === '/integrations/claude/wake/start'
+                        ? await this.service.claudeWakeStart(body)
+                        : req.url === '/integrations/claude/wake/dropped'
+                          ? this.service.claudeWakeDropped(body)
+                          : req.url === '/integrations/claude/delivery'
+                            ? await this.service.claudeDelivery(body)
+                            : req.url === '/integrations/aionui/context'
+                              ? await this.service.contexts.registerAionUi(body)
+                              : req.url === '/integrations/cursor/context'
+                                ? await this.service.contexts.registerCursor(body)
+                                : req.url === '/integrations/cursor/hook'
+                                  ? await this.service.contexts.handleCursorHook(body, abort.signal)
+                                  : req.url!.endsWith('/release')
+                                    ? await this.service.contexts.releaseOpenCode(body)
+                                    : await this.service.contexts.registerOpenCode(body);
       if (res.destroyed) return;
+      if (req.url === '/integrations/claude/native/admit')
+        this.service.claudeNativeValidateRelease(body);
       res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(result));
       return;

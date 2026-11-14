@@ -99,6 +99,7 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
           "/Applications/NCF O'Brien $HOME.app/Contents/MacOS/NCF",
           '/Applications/NCF.app/Contents/Resources/app.asar/build/integrations/claude-code.js',
           '--wake-stream',
+          '--native-incoming',
           '--node-file',
           '/Users/Пользователь 漢字/Library/Application Support/NCF/Integrations/node.json',
         ]) +
@@ -306,9 +307,8 @@ test('Source helper and command-hook processes require native proofs, reject mod
     recipientNickname: 'Боб 漢字',
     text: 'Секретный текст',
   });
-  await until(() => wakes.length === 1);
-  assert.equal(wakes[0].meta?.agent, 'Боб 漢字');
-  assert.ok(!wakes[0].content.includes('Секретный текст'));
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  assert.equal(wakes.length, 0, 'Without the native mod, never send an agent_read instruction');
   assert.equal(f.service.store.get(sent.id, 'out')!.state, 'ready');
 
   // Without a native proof the call is refused before reaching the inbox.
@@ -349,7 +349,7 @@ test('Source helper and command-hook processes require native proofs, reject mod
     text: 'После clear',
   });
   await until(() => f.service.store.dispatchState(later.id)?.state === 'waiting');
-  assert.equal(wakes.length, 1);
+  assert.equal(wakes.length, 0);
 
   await f.restart();
   assert.equal(
@@ -376,7 +376,8 @@ test('Source helper and command-hook processes require native proofs, reject mod
     recipientNickname: 'Новый Боб 漢字',
     text: 'Только новому native context',
   });
-  await until(() => fresh.wakes.length === 1);
+  await until(() => f.service.store.dispatchState(freshMessage.id)?.state === 'waiting');
+  assert.equal(fresh.wakes.length, 0);
   const freshRead = await prepareCall(nodeFile, s2, 'agent_read', {
     connectionId: freshBinding.connectionId,
   });
@@ -384,7 +385,7 @@ test('Source helper and command-hook processes require native proofs, reject mod
   assert.equal(freshReceipt.isError, undefined);
   await until(() => f.service.store.get(freshMessage.id, 'out')!.state === 'processed');
   assert.equal(f.service.store.get(later.id, 'out')!.state, 'ready');
-  assert.equal(wakes.length, 1);
+  assert.equal(wakes.length, 0);
 });
 
 for (const invalidation of ['native-end', 'route-replacement'] as const)
@@ -418,7 +419,8 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
       recipientNickname: 'Получатель',
       text: body,
     });
-    await until(() => wakes.length === 1);
+    await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+    assert.equal(wakes.length, 0);
 
     let reached = false;
     let release!: () => void;
@@ -789,7 +791,8 @@ test('An old source helper cannot recapture a resumed session incarnation after 
   assert.equal(f.service.store.get(queued.id, 'out')!.state, 'ready');
 
   const fresh = await launchHelper(t, f, session);
-  await until(() => fresh.wakes.length === 1);
+  await until(() => f.service.claude.route(session).helper?.nativeLeaseNonce === resumed?.nonce);
+  assert.equal(fresh.wakes.length, 0);
   const freshRead = await prepareCall(f.nodeFile, session, 'agent_read', {
     connectionId: binding.connectionId,
   });
@@ -857,7 +860,7 @@ test('A lifecycle hook persists revocation even when its node HTTP request canno
   assert.ok(revoked?.nonce !== initial?.nonce, 'Revocation must replace the native incarnation');
 });
 
-test('A source helper reconnects after a node restart and receives the stale offer again without user action', async (t) => {
+test('A source helper reconnects after a node restart without sending a read-command fallback', async (t) => {
   const f = await claudeFixture(t);
   const nodeFile = path.join(f.directory, 'Integrations', 'node.json');
   const s1 = randomUUID();
@@ -870,16 +873,20 @@ test('A source helper reconnects after a node restart and receives the stale off
   );
   const sender = f.service.connect({ nickname: 'Отправитель', client: 'MCP' });
   if (sender.status !== 'connected') throw new Error();
-  await f.service.send({
+  const sent = await f.service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: f.service.settings.value.nodeId,
     recipientNickname: 'Боб',
     text: 'Через рестарт',
   });
-  await until(() => wakes.length === 1);
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  const oldEpoch = f.service.claude.route(s1).helper?.epoch;
   await f.restart();
-  await until(() => wakes.length === 2, 15000);
-  assert.equal(wakes[1].meta?.agent, 'Боб');
+  await until(() => {
+    const helper = f.service.claude.route(s1).helper;
+    return !!helper && helper.epoch !== oldEpoch;
+  }, 15000);
+  assert.equal(wakes.length, 0);
   // The first read after the restart must reach the new node lifecycle (on-site T11 regression).
   const agent = f.service.store.list().find((value) => value.nickname === 'Боб')!;
   const read = await prepareCall(nodeFile, s1, 'agent_read', {
@@ -932,9 +939,7 @@ test('A source helper offers its route only after the synthetic MCP client initi
   assert.ok(!received.some((message) => message.method === 'notifications/claude/channel'));
   assert.equal(f.service.store.dispatchState(sent.id)?.state, 'waiting');
   await client.send({ jsonrpc: '2.0', method: 'notifications/initialized' });
-  await until(
-    () => received.some((message) => message.method === 'notifications/claude/channel'),
-    10000,
-  );
-  assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
+  await until(() => !!f.service.claude.route(s1).helper, 10000);
+  assert.ok(!received.some((message) => message.method === 'notifications/claude/channel'));
+  assert.equal(f.service.store.dispatchState(sent.id)?.state, 'waiting');
 });

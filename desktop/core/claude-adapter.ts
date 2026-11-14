@@ -8,11 +8,11 @@ import {
 import type { ClaudeHelper, ClaudeSessions } from './claude-sessions.js';
 
 /**
- * Wake-only delivery to one exact Claude Code session. The installed NCF mod
- * holds a wake stream for the session; each wake carries a one-use claim and
- * the mod submits a notice that the NCF gate plugin checks right before it
- * starts a turn. Without that stream the legacy channel notification is sent.
- * Neither is a receipt: the message content is obtained through agent_read.
+ * Offers node-owned content to one exact Claude Code session. The installed
+ * main/gate modules admit a full incoming prompt and report its stored row.
+ * Offers alone never create receipt. Without the current native content stream,
+ * keep the inbox available for explicit MCP reads; never replace delivery with
+ * an automatic instruction telling the model to read it.
  */
 export class ClaudeCodeAdapter implements AgentAdapter {
   readonly wakeOnly = true;
@@ -25,13 +25,18 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   get offerRevision(): number {
     return this.revision;
   }
+  get nativeIncomingAvailable(): boolean {
+    return this.sessions.wakeSink(this.profile.sessionId)?.nativeIncoming === 1;
+  }
   private readonly listener = () => this.observe();
   /** A dropped notice no longer covers the backlog; nothing is announced until the next event. */
-  private readonly wakeDropped = (session: string) => {
+  private readonly wakeDropped = (session: string, connectionId?: string) => {
     if (session !== this.profile.sessionId) return;
     const helper = this.current().helper;
-    helper?.outstanding.clear();
-    for (const [id, offer] of this.offers) if (helper) this.offers.delete(id);
+    if (connectionId) helper?.outstanding.delete(connectionId);
+    else helper?.outstanding.clear();
+    for (const [id, offer] of this.offers)
+      if (helper && (!connectionId || offer.connectionId === connectionId)) this.offers.delete(id);
     this.revision++;
   };
   /**
@@ -149,6 +154,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
           : 'Claude Code is not connected',
       };
     const helper = route.helper;
+    if (!input.systemEvent && this.sessions.wakeSink(helper.proven)?.nativeIncoming !== 1)
+      return {
+        state: 'waiting',
+        error:
+          'The native incoming-message mod is unavailable; reconnect the NCF plugin in this exact chat',
+      };
     const lifecycleKey = this.lifecycle(helper);
     if (input.isCurrent && !input.isCurrent()) return { state: 'revoked' };
     const key = input.binding.connectionId;
@@ -163,17 +174,12 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       this.offers.set(input.messageId, { lifecycleKey, connectionId: key });
       return { state: 'offered' };
     }
-    const viaMod = input.systemEvent ? 'none' : this.sessions.sendWake(helper);
+    const viaMod = input.systemEvent ? 'none' : this.sessions.sendWake(helper, key);
     if (viaMod === 'failed')
       return { state: 'failed', error: 'The NCF wake stream is unavailable' };
-    const sent =
-      viaMod === 'sent' ||
-      this.sessions.send(
-        helper,
-        input.systemEvent
-          ? { type: 'notice', text: agentMessageText(input) }
-          : { type: 'wake', nickname: input.nickname },
-      );
+    const sent = input.systemEvent
+      ? this.sessions.send(helper, { type: 'notice', text: agentMessageText(input) })
+      : viaMod === 'sent';
     if (!sent) return { state: 'failed', error: 'The Claude Code helper disconnected' };
     if (!input.systemEvent)
       helper.outstanding.set(

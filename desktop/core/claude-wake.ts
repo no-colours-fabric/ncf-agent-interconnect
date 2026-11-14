@@ -5,16 +5,18 @@ import type { ClaudeProofLease, ClaudeSessions } from './claude-sessions.js';
 
 /**
  * Wake claims for the installed Claude Code mod path. A claim is a node-owned,
- * one-use right to submit one wake notice in one exact native session. It is
+ * one-use right to prepare an incoming delivery in one exact native session. It is
  * bound to this node incarnation, the helper lifecycle with its native lease,
  * the agent binding and the backlog captured when it was issued. It authorizes
- * a notice, never message content: every read still passes the native proof,
- * call permit and tool admission, and nothing here reads, receipts or hides
- * messages.
+ * not a receipt. The native coordinator reserves the captured IDs before
+ * releasing content; explicit MCP reads retain their native proof, call permit
+ * and tool admission. This claim ledger itself never processes messages.
  */
 export interface WakeClaim {
   id: string;
   session: string;
+  /** Exact installed mod stream that received this node-issued capability. */
+  sinkId?: string;
   incarnation: string;
   lease: ClaudeProofLease;
   binding: { agentKey: string; connectionId: string; adapterId: string; generation: number };
@@ -58,25 +60,48 @@ export function wakeNoticeText(nickname: string, reference: string): string {
 export const wakeNoticeHash = (text: string) =>
   createHash('sha256').update(text, 'utf8').digest('hex');
 
-function unread(store: WakeAuthority['store'], agentKey: string): string[] {
+interface WakeSelection {
+  limit: number;
+  eligible(id: string): boolean;
+  select?(key: string): string[];
+  connectionId?: string;
+}
+
+function unread(
+  store: WakeAuthority['store'],
+  agentKey: string,
+  selection?: WakeSelection,
+): string[] {
   const ids: string[] = [];
   let after = 0;
   for (;;) {
-    const page = store.history(agentKey, after, 200, true);
-    ids.push(...page.messages.map((message) => message.envelope.id));
+    const page = store.history(agentKey, after, 200, true, !!selection);
+    for (const message of page.messages) {
+      if (selection && !selection.eligible(message.envelope.id)) continue;
+      ids.push(message.envelope.id);
+      if (selection && ids.length >= selection.limit) return ids;
+    }
     if (!page.hasMore) return ids;
     after = page.nextCursor;
   }
 }
 
 /** The pending backlog of one exact native session, or the reason there is none. */
-export function wakePending(authority: WakeAuthority, sessionId: string): WakePending | string {
+export function wakePending(
+  authority: WakeAuthority,
+  sessionId: string,
+  selection?: WakeSelection,
+): WakePending | string {
   const profiles = authority
     .profiles()
     .filter((profile) => profile.kind === 'claude-code' && profile.sessionId === sessionId);
   const agents = authority.store
     .list()
-    .filter((agent) => profiles.some((profile) => profile.id === agent.binding?.adapterId));
+    .filter(
+      (agent) =>
+        profiles.some((profile) => profile.id === agent.binding?.adapterId) &&
+        (!selection?.connectionId || agent.binding?.connectionId === selection.connectionId),
+    );
   if (!agents.length) return 'no-binding';
   if (agents.length > 1) return 'ambiguous-binding';
   const route = authority.claude.route(sessionId);
@@ -84,7 +109,9 @@ export function wakePending(authority: WakeAuthority, sessionId: string): WakePe
   const helper = route.helper;
   if (!helper || helper.proven !== sessionId || !helper.nativeLeaseNonce) return 'no-route';
   const agent = agents[0];
-  const backlog = unread(authority.store, agent.key);
+  const backlog = selection?.select
+    ? selection.select(agent.key)
+    : unread(authority.store, agent.key, selection);
   if (!backlog.length) return 'none-pending';
   const binding = agent.binding!;
   return {
@@ -143,17 +170,24 @@ export class WakeClaims {
         this.finish(claim, 'void', 'expired');
   }
   /** Issued synchronously from the snapshot that found the backlog. */
-  issue(session: string, pending: WakePending): WakeClaim {
+  issue(session: string, pending: WakePending, sinkId?: string): WakeClaim {
     this.reclaim();
     // A new wake for this session supersedes its earlier unfinished claims.
     for (const claim of [...this.claims.values()])
-      if (claim.session === session) this.finish(claim, 'void', 'superseded');
+      if (
+        claim.session === session &&
+        (!sinkId ||
+          claim.binding.connectionId === pending.binding.connectionId ||
+          claim.sinkId !== sinkId)
+      )
+        this.finish(claim, 'void', 'superseded');
     if (this.claims.size >= activeLimit) throw new Error('Too many active wake claims');
     const now = this.now();
     const notice = wakeNoticeText(pending.nickname, randomBytes(12).toString('hex'));
     const claim: WakeClaim = {
       id: randomBytes(32).toString('hex'),
       session,
+      ...(sinkId ? { sinkId } : {}),
       incarnation: this.incarnation,
       lease: pending.lease,
       binding: pending.binding,
@@ -169,7 +203,7 @@ export class WakeClaims {
     return claim;
   }
   /** Why this claim no longer describes the current lifecycle, or null. Synchronous. */
-  private stale(claim: WakeClaim): string | null {
+  private stale(claim: WakeClaim, prepared = false): string | null {
     if (claim.incarnation !== this.incarnation) return 'incarnation';
     try {
       this.authority.claude.validateCurrentSync(claim.lease);
@@ -191,7 +225,11 @@ export class WakeClaims {
       return 'revoked:binding';
     // The notice tells Claude to read until nothing is left, so it stays useful
     // while any message of this agent is unread and not already being delivered.
-    if (!this.authority.store.history(claim.binding.agentKey, 0, 1, true, true).messages.length)
+    if (
+      prepared
+        ? !claim.backlog.some((id) => this.authority.store.get(id, 'in')?.state === 'ready')
+        : !this.authority.store.history(claim.binding.agentKey, 0, 1, true, true).messages.length
+    )
       return 'backlog-read';
     return null;
   }
@@ -199,10 +237,14 @@ export class WakeClaims {
    * A notice of this session is queued in Claude Code and still current: a
    * later arrival is covered by it instead of queueing another notice.
    */
-  queued(session: string): boolean {
+  queued(session: string, connectionId?: string): boolean {
     this.reclaim();
     return [...this.claims.values()].some(
-      (claim) => claim.session === session && claim.state === 'consumed' && !this.stale(claim),
+      (claim) =>
+        claim.session === session &&
+        (!connectionId || claim.binding.connectionId === connectionId) &&
+        claim.state === 'consumed' &&
+        !this.stale(claim),
     );
   }
   /** Claude Code dropped the submitted notice (Stop, Esc or a refusal); it is never resubmitted. */
@@ -247,10 +289,19 @@ export class WakeClaims {
     }
     return this.transition(found, 'consumed', 'started');
   }
+  /**
+   * The native coordinator already reserved its node-selected IDs and checked
+   * that same reservation. Its own fence must not look like an empty inbox.
+   * Only the captured object, never a client-supplied ID, can take this path.
+   */
+  startPrepared(claim: WakeClaim): { ok: boolean; reason?: string } {
+    return this.transition(claim, 'consumed', 'started', true);
+  }
   private transition(
     claim: WakeClaim,
     from: WakeClaim['state'],
     to: 'consumed' | 'started',
+    prepared = false,
   ): { ok: boolean; reason?: string } {
     if (claim.state !== from || this.claims.get(claim.id) !== claim)
       return { ok: false, reason: 'replayed' };
@@ -259,7 +310,7 @@ export class WakeClaims {
       this.finish(claim, 'void', 'expired');
       return { ok: false, reason: 'expired' };
     }
-    const reason = this.stale(claim);
+    const reason = this.stale(claim, prepared);
     if (reason) {
       this.finish(claim, 'void', reason);
       return { ok: false, reason };

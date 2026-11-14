@@ -104,6 +104,8 @@ export class AgentStore {
       CREATE TABLE IF NOT EXISTS claude_deliveries (id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, agent_key TEXT NOT NULL, incarnation TEXT NOT NULL, binding_generation INTEGER NOT NULL, helper_id TEXT NOT NULL, scope TEXT NOT NULL, state TEXT NOT NULL, created INTEGER NOT NULL, updated INTEGER NOT NULL, error TEXT);
       CREATE TABLE IF NOT EXISTS claude_delivery_items (delivery_id TEXT NOT NULL, message_id TEXT NOT NULL, PRIMARY KEY(delivery_id,message_id));
       CREATE INDEX IF NOT EXISTS claude_delivery_message ON claude_delivery_items(message_id);
+      CREATE UNIQUE INDEX IF NOT EXISTS claude_native_stored_row ON claude_deliveries(lower(json_extract(scope,'$.nativePrompt.storedRowId'))) WHERE json_extract(scope,'$.nativePrompt.storedRowId') IS NOT NULL;
+      CREATE UNIQUE INDEX IF NOT EXISTS claude_native_admitted_envelope ON claude_deliveries(json_extract(scope,'$.nativePrompt.envelopeHash')) WHERE json_extract(scope,'$.nativePrompt.envelopeHash') IS NOT NULL AND state IN ('issued','uncertain','committed');
       -- Reserved content never left the node, so no write was possible; issued content
       -- may have been written by the helper, so its receipt stays uncertain.
       UPDATE claude_deliveries SET state='cancelled',error='The app stopped before the content left the node' WHERE state='reserved';
@@ -677,6 +679,20 @@ export class AgentStore {
       hasMore: rows.length > limit,
     };
   }
+  /** Claude-private bounded selection; uncertain dispatch is never replayed. */
+  claudeIncomingIds(key: string, limit = 20): string[] {
+    return (
+      this.db
+        .prepare(
+          `SELECT m.id FROM timeline t JOIN messages m ON m.id=t.message_id AND m.direction=t.direction
+         WHERE m.local_key=? AND m.direction='in' AND m.state='ready'
+         AND NOT ${fenced('m.id')}
+         AND NOT EXISTS (SELECT 1 FROM dispatches d WHERE d.message_id=m.id AND d.state IN ('dispatching','uncertain'))
+         ORDER BY t.cursor LIMIT ?`,
+        )
+        .all(key, Math.min(20, Math.max(1, limit))) as Row[]
+    ).map((row) => String(row.id));
+  }
   chatHistory(key: string, before?: number, limit = 100): ChatHistoryPage {
     const rows = this.db
       .prepare(
@@ -853,14 +869,60 @@ export class AgentStore {
   }
   /** Intent persisted: from here on the content may leave the node. */
   issueClaudeDelivery(id: string): void {
-    if (!this.transaction(() => this.claudeTransition(id, ['reserved'], 'issued', null)))
+    if (
+      !this.transaction(() => {
+        const attempt = this.claudeDelivery(id);
+        if (attempt?.scope.transport === 'native-prompt-v1' && !attempt.scope.nativePrompt)
+          throw new Error('The native Claude Code envelope has not been sealed');
+        return this.claudeTransition(id, ['reserved'], 'issued', null);
+      })
+    )
       throw new Error('The Claude Code delivery is no longer reserved');
+  }
+  /** Node-owned expected content is immutable before the native body is released. */
+  sealClaudeNativeDelivery(id: string, envelopeHash: string, representationHashes: string[]): void {
+    const hash = /^[a-f0-9]{64}$/;
+    if (
+      !hash.test(envelopeHash) ||
+      !representationHashes.length ||
+      representationHashes.length > 4 ||
+      representationHashes.some((value) => !hash.test(value))
+    )
+      throw new Error('The native Claude Code envelope metadata is invalid');
+    const expected = {
+      envelopeHash,
+      representationHashes: [...new Set(representationHashes)].sort(),
+    };
+    this.transaction(() => {
+      const attempt = this.claudeDelivery(id);
+      if (!attempt || attempt.scope.transport !== 'native-prompt-v1')
+        throw new Error('This is not a native Claude Code delivery');
+      if (attempt.scope.nativePrompt) {
+        const previous = attempt.scope.nativePrompt as typeof expected;
+        if (
+          previous.envelopeHash !== expected.envelopeHash ||
+          JSON.stringify(previous.representationHashes) !==
+            JSON.stringify(expected.representationHashes)
+        )
+          throw new Error('The native Claude Code envelope is already sealed');
+        return;
+      }
+      if (attempt.state !== 'reserved')
+        throw new Error('The native Claude Code delivery is no longer reserved');
+      this.assertClaudeDeliveryCurrent(id);
+      this.db
+        .prepare("UPDATE claude_deliveries SET scope=?,updated=? WHERE id=? AND state='reserved'")
+        .run(JSON.stringify({ ...attempt.scope, nativePrompt: expected }), Date.now(), id);
+    });
   }
   /** Only when ordering proves the content was not written to Claude Code. */
   cancelClaudeDelivery(id: string, reason: string): boolean {
-    return this.transaction(() =>
-      this.claudeTransition(id, ['reserved', 'issued'], 'cancelled', reason),
-    );
+    return this.transaction(() => {
+      const attempt = this.claudeDelivery(id);
+      if (attempt?.scope.transport === 'native-prompt-v1' && attempt.state === 'issued')
+        throw new Error('Released native content cannot be cancelled; admission is uncertain');
+      return this.claudeTransition(id, ['reserved', 'issued'], 'cancelled', reason);
+    });
   }
   /** The content may have been written; receipt stays unknown and the IDs stay fenced. */
   uncertainClaudeDelivery(id: string, reason: string): boolean {
@@ -913,17 +975,60 @@ export class AgentStore {
       throw new Error('The Claude Code delivery binding is no longer current');
   }
   /**
-   * The helper wrote the complete response frame: record receipt for the IDs the
-   * node chose. A cleared or reset mailbox is never revived, and receipt
+   * The helper wrote the complete MCP frame, or the native host kept the sealed
+   * exact content row: record receipt for node-chosen IDs. A cleared or reset mailbox is never revived, and receipt
    * requires the captured binding to remain current. A revoked write whose
    * ordering cannot be proved stays uncertain instead of creating receipt.
    */
-  commitClaudeDelivery(id: string): string[] {
+  commitClaudeDelivery(
+    id: string,
+    nativeWitness?: { storedRowId: string; representationHash: string },
+  ): string[] {
     return this.transaction(() => {
       const row = this.db.prepare('SELECT * FROM claude_deliveries WHERE id=?').get(id) as
         Row | undefined;
-      if (!row || row.state !== 'issued') return [];
+      if (!row) return [];
+      const scope = JSON.parse(String(row.scope)) as Record<string, unknown>;
+      if (scope.transport === 'native-prompt-v1') {
+        const expected = scope.nativePrompt as
+          | { representationHashes: string[]; storedRowId?: string; representationHash?: string }
+          | undefined;
+        if (
+          !nativeWitness ||
+          !nativeWitness.storedRowId ||
+          nativeWitness.storedRowId.length > 200 ||
+          /[\x00-\x1f\x7f]/.test(nativeWitness.storedRowId) ||
+          !Array.isArray(expected?.representationHashes) ||
+          !expected.representationHashes.includes(nativeWitness.representationHash)
+        )
+          throw new Error('The stored Claude Code row does not match this delivery');
+        if (
+          expected.storedRowId !== undefined &&
+          (expected.storedRowId !== nativeWitness.storedRowId ||
+            expected.representationHash !== nativeWitness.representationHash)
+        )
+          throw new Error('The native Claude Code delivery already names another row');
+      } else if (nativeWitness) {
+        throw new Error('A native stored row cannot commit an MCP response delivery');
+      }
+      if (row.state !== 'issued') return [];
       this.assertClaudeDeliveryCurrent(id);
+      if (nativeWitness) {
+        const foreign = this.db
+          .prepare(
+            "SELECT id FROM claude_deliveries WHERE id<>? AND lower(json_extract(scope,'$.nativePrompt.storedRowId'))=lower(?)",
+          )
+          .get(id, nativeWitness.storedRowId);
+        if (foreign)
+          throw new Error('The stored Claude Code row already belongs to another delivery');
+        this.db.prepare('UPDATE claude_deliveries SET scope=? WHERE id=?').run(
+          JSON.stringify({
+            ...scope,
+            nativePrompt: { ...(scope.nativePrompt as object), ...nativeWitness },
+          }),
+          id,
+        );
+      }
       if (!this.claudeTransition(id, ['issued'], 'committed', null)) return [];
       const agent = this.db
         .prepare('SELECT incarnation FROM agents WHERE key=?')

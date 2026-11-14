@@ -23,7 +23,13 @@ export const helperHelloSchema = z
   })
   .strict();
 /** The installed mod's wake stream for one exact native session. */
-export const wakeSinkHelloSchema = z.object({ sessionId, nativeLeaseNonce: z.uuid() }).strict();
+export const wakeSinkHelloSchema = z
+  .object({
+    sessionId,
+    nativeLeaseNonce: z.uuid(),
+    nativeIncoming: z.literal(1).optional(),
+  })
+  .strict();
 export const helperCallSchema = z
   .object({
     helperId: z.uuid(),
@@ -97,6 +103,7 @@ export interface WakeSink {
   writer: HelperWriter;
   /** The gate started a notice of this stream: the mod and gate run in order. */
   verified: boolean;
+  nativeIncoming?: 1;
 }
 export interface IssuedWake {
   claim: string;
@@ -146,9 +153,9 @@ export class ClaudeSessions extends EventEmitter {
   private helpers = new Map<string, ClaudeHelper>();
   private sinks = new Map<string, WakeSink>();
   /** Installed by the node: issues a one-use claim for the session's pending backlog. */
-  wakeIssuer?: (session: string) => IssuedWake | undefined;
+  wakeIssuer?: (session: string, sinkId: string, connectionId?: string) => IssuedWake | undefined;
   /** Installed by the node: whether a current notice of the session is already queued. */
-  wakeQueued?: (session: string) => boolean;
+  wakeQueued?: (session: string, connectionId?: string) => boolean;
   private holders = new Map<string, Holder>();
   private routes: Route[] = [];
   private proofs = new Map<string, ToolProof>();
@@ -590,6 +597,7 @@ export class ClaudeSessions extends EventEmitter {
       nativeLeaseNonce: hello.nativeLeaseNonce,
       writer,
       verified: false,
+      ...(hello.nativeIncoming ? { nativeIncoming: hello.nativeIncoming } : {}),
     };
     this.sinks.set(sink.session, sink);
     if (previous)
@@ -617,12 +625,12 @@ export class ClaudeSessions extends EventEmitter {
     return sink && helper?.nativeLeaseNonce === sink.nativeLeaseNonce ? sink : undefined;
   }
   /** Sends a claimed wake notice through the session's mod stream, or reports that none exists. */
-  sendWake(helper: ClaudeHelper): 'sent' | 'none' | 'failed' {
+  sendWake(helper: ClaudeHelper, connectionId?: string): 'sent' | 'none' | 'failed' {
     const sink = this.wakeSink(helper.proven);
     if (!sink || !this.wakeIssuer) return 'none';
     // Coalesce: the queued notice reads everything that is unread when it runs.
-    if (this.wakeQueued?.(sink.session)) return 'sent';
-    const issued = this.wakeIssuer(sink.session);
+    if (this.wakeQueued?.(sink.session, connectionId)) return 'sent';
+    const issued = this.wakeIssuer(sink.session, sink.id, connectionId);
     if (!issued) return 'failed';
     try {
       return sink.writer.write(JSON.stringify({ type: 'wake', ...issued }) + '\n')
@@ -634,8 +642,8 @@ export class ClaudeSessions extends EventEmitter {
     }
   }
   /** A dropped notice ends its coverage; the next event may wake again, nothing is resubmitted. */
-  wakeDropped(session: string): void {
-    this.emit('wakeDropped', session);
+  wakeDropped(session: string, connectionId?: string): void {
+    this.emit('wakeDropped', session, connectionId);
   }
   /** The gate started a notice of this session's current stream. */
   markWakeVerified(session: string): void {

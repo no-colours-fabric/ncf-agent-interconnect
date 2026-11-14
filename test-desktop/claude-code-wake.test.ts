@@ -21,7 +21,11 @@ class FakeSink {
     const response = await fetch(this.f.url('/integrations/claude/wake/stream'), {
       method: 'POST',
       headers: this.f.headers(),
-      body: JSON.stringify({ sessionId: this.session, nativeLeaseNonce: nonce ?? lease?.nonce }),
+      body: JSON.stringify({
+        sessionId: this.session,
+        nativeLeaseNonce: nonce ?? lease?.nonce,
+        nativeIncoming: 1,
+      }),
       signal: this.controller.signal,
     });
     let ready!: (value: boolean) => void;
@@ -59,7 +63,7 @@ class FakeSink {
 
 async function bound(f: ClaudeFixture, nickname: string) {
   const session = randomUUID();
-  const helper = new FakeHelper(f, session);
+  const helper = new FakeHelper(f, session, session, undefined, false);
   await f.hook('SessionStart', session, { source: 'startup' });
   await helper.attach();
   const connected = await f.connect(helper, session, nickname);
@@ -88,9 +92,10 @@ test('A pending backlog is announced through the mod stream once it attaches, no
   const f = await claudeFixture(t);
   const { session, helper, connectionId } = await bound(f, 'Боб 漢字');
   const send = sender(f);
-  // Pending before the stream exists: the legacy channel offer goes to the helper.
+  // Pending before the native content stream exists stays unread without a read-command fallback.
   const sent = await send('Боб 漢字', 'pending before the mod');
-  await until(() => helper.wakes().length === 1);
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  assert.equal(helper.wakes().length, 0);
   assert.match(String(adapterState(f, connectionId).error), /Automatic wake is unavailable/);
   // A wrong native lease is refused.
   const wrong = new FakeSink(f, session);
@@ -100,7 +105,7 @@ test('A pending backlog is announced through the mod stream once it attaches, no
   t.after(() => sink.detach());
   assert.equal(await sink.attach(), true);
   await until(() => sink.wakes().length === 1);
-  assert.equal(helper.wakes().length, 1);
+  assert.equal(helper.wakes().length, 0);
   const [wake] = sink.wakes();
   assert.match(wake.claim, /^[0-9a-f]{64}$/);
   assert.ok(wake.notice.startsWith(wakeNoticePrefix + JSON.stringify('Боб 漢字') + ' '));
@@ -258,6 +263,7 @@ test('The mod child relays claimed wakes as lines and ends with its native sessi
     session,
     (line) => void lines.push(line),
     () => parent.pid,
+    true,
   );
   await until(() => !!f.service.claude.wakeSink(session));
   const send = sender(f);
@@ -284,10 +290,11 @@ test('The mod child waits for a native lease the SessionStart hook has not writt
     session,
     (line) => void lines.push(line),
     () => parent.pid,
+    true,
   );
   await new Promise((resolve) => setTimeout(resolve, 300));
   await f.hook('SessionStart', session, { source: 'resume' });
-  const helper = new FakeHelper(f, session);
+  const helper = new FakeHelper(f, session, session, undefined, false);
   await helper.attach();
   await f.connect(helper, session, 'Поздний');
   await until(() => !!f.service.claude.wakeSink(session));

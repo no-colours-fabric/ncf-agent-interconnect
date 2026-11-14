@@ -40,6 +40,7 @@ import {
   type ClaudePluginRuntime,
 } from './claude-plugin.js';
 import { WakeClaims, wakePending } from './claude-wake.js';
+import { ClaudeNativeIncoming } from './claude-native-incoming.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
@@ -73,6 +74,7 @@ export class NodeService extends EventEmitter {
   readonly contexts = new ClientContexts(this);
   /** One-use claims for wake notices submitted by the installed Claude Code mod. */
   readonly wakeClaims: WakeClaims;
+  private readonly nativeIncoming: ClaudeNativeIncoming;
   private claudeContextLeases = new Map<string, { lease: ClaudeProofLease; expires: number }>();
   private readonly presence: AgentPresence;
   running = false;
@@ -155,25 +157,63 @@ export class NodeService extends EventEmitter {
           this.store.history(key, after, limit, unread, unfenced),
       },
     });
-    this.claude.wakeIssuer = (session) => {
+    this.nativeIncoming = new ClaudeNativeIncoming({
+      claude: this.claude,
+      claims: this.wakeClaims,
+      store: () => this.store,
+      profiles: () => this.settings.value.adapters,
+      ready: () => this.integrationsReady,
+      materialize: (message) =>
+        allFileResults(
+          message.envelope.attachments.map(async (file) => ({
+            ...file,
+            localPath: await this.files.materialize(message.envelope.id, file),
+          })),
+        ),
+      committed: (connectionId, ids) => this.nativeClaudeCommitted(connectionId, ids),
+      changed: () => this.emit('change'),
+      trace: (id, state) => {
+        const attempt = this.store.claudeDelivery(id);
+        traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'native.delivery', {
+          attempt: id,
+          helper: attempt?.helperId,
+          session: typeof attempt?.scope.session === 'string' ? attempt.scope.session : undefined,
+          epoch: typeof attempt?.scope.epoch === 'string' ? attempt.scope.epoch : undefined,
+          outcome: state,
+        });
+      },
+    });
+    this.claude.wakeIssuer = (session, sinkId, connectionId) => {
+      const native = this.claude.wakeSink(session)?.nativeIncoming === 1;
       const pending = wakePending(
         { claude: this.claude, profiles: () => this.settings.value.adapters, store: this.store },
         session,
+        native
+          ? {
+              limit: 20,
+              eligible: () => true,
+              select: (key) => this.store.claudeIncomingIds(key),
+              connectionId,
+            }
+          : undefined,
       );
       if (typeof pending === 'string') return;
       try {
-        const claim = this.wakeClaims.issue(session, pending);
+        const claim = this.wakeClaims.issue(session, pending, native ? sinkId : undefined);
         return { claim: claim.id, notice: claim.notice };
       } catch {
         return;
       }
     };
-    this.claude.wakeQueued = (session) => this.wakeClaims.queued(session);
+    this.claude.wakeQueued = (session, connectionId) =>
+      this.nativeIncoming.queued(session, connectionId) ||
+      this.wakeClaims.queued(session, connectionId);
     this.claude.on('problem', (message: string) => this.problem(message));
     this.claude.on('helperGone', (helperId: string, epoch: string) => {
       if (this.store && this.store.claudeHelperGone(helperId, epoch)) this.emit('change');
     });
     this.claude.on('change', () => {
+      this.nativeIncoming.observe();
       for (const [key, snapshot] of this.claudeDispatchSnapshots)
         if (snapshot.lifecycle !== this.claudeDispatchLifecycle(snapshot.sessionId))
           this.claudeDispatchSnapshots.delete(key);
@@ -183,6 +223,45 @@ export class NodeService extends EventEmitter {
       () => this.refreshPresence(),
       integrationOptions.clientLeaseMs,
     );
+  }
+  claudeNativePrepare(raw: unknown, signal: AbortSignal) {
+    return this.fileOperation(() => this.nativeIncoming.prepare(raw, signal));
+  }
+  claudeNativeAdmit(raw: unknown) {
+    return this.fileOperation(() => this.nativeIncoming.admit(raw));
+  }
+  claudeNativeReport(raw: unknown) {
+    return this.fileOperation(() => this.nativeIncoming.report(raw));
+  }
+  claudeNativeValidateRelease(raw: unknown): void {
+    this.nativeIncoming.validateRelease(raw);
+  }
+  private async nativeClaudeCommitted(connectionId: string, ids: string[]): Promise<void> {
+    for (const [key, snapshot] of this.claudeDispatchSnapshots)
+      if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
+    await Promise.all(
+      ids.map(async (id) => {
+        const row = this.store.get(id, 'in');
+        if (row && row.envelope.fromNode !== this.settings.value.nodeId)
+          await this.network.receipt(row.envelope.fromNode, id, 'processed').catch(() => {});
+      }),
+    );
+    try {
+      const owner = this.store.assertOwner(connectionId);
+      const adapter = this.adapters.get(owner.binding.adapterId);
+      adapter.beforeRead?.(connectionId);
+      adapter.afterRead?.(
+        connectionId,
+        this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+      );
+    } catch {
+      // An owner that changed during the receipt notification has its own lifecycle.
+    }
+    traceClaude(path.join(this.directory, 'Integrations', 'node.json'), 'native.delivery', {
+      outcome: 'committed',
+      count: ids.length,
+    });
+    this.emit('change');
   }
   private get integrationExtension(): string {
     return import.meta.url.endsWith('.ts') ? 'ts' : 'js';
@@ -405,6 +484,7 @@ export class NodeService extends EventEmitter {
       adapterId,
     });
     if (result.status === 'connected') {
+      this.nativeIncoming.observe();
       this.mcp.notify({
         source: 'application',
         type: 'binding_changed',
@@ -433,6 +513,7 @@ export class NodeService extends EventEmitter {
       .parse(args);
     const result = this.store.clearAgents(input, requester);
     if (result.status === 'cleared') {
+      this.nativeIncoming.observe();
       this.refreshPresence();
       this.mcp.notify({ source: 'application', type: 'agents_cleared', scope: result.scope });
       this.emit('change');
@@ -456,6 +537,7 @@ export class NodeService extends EventEmitter {
   }
   disconnect(connectionId: string): { disconnected: true } {
     this.store.disconnect(connectionId);
+    this.nativeIncoming.observe();
     for (const [key, snapshot] of this.claudeDispatchSnapshots)
       if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
     this.refreshPresence();
@@ -622,6 +704,7 @@ export class NodeService extends EventEmitter {
     else this.settings.value.adapters.push(profile);
     await this.settings.save();
     await this.adapters.add(profile);
+    this.nativeIncoming.observe();
     this.emit('change');
     this.drainAdapters();
   }
@@ -1138,6 +1221,8 @@ export class NodeService extends EventEmitter {
       });
     if (!attempt || attempt.helperId !== helper.id || attempt.scope.epoch !== helper.epoch)
       throw new Error('The delivery does not belong to this Claude Code helper');
+    if (attempt.scope.transport === 'native-prompt-v1')
+      throw new Error('A native content admission cannot be reported as an MCP frame');
     if (input.phase === 'validate' || (input.phase === 'commit' && attempt.state === 'issued')) {
       try {
         this.store.assertClaudeDeliveryCurrent(input.delivery);
@@ -1691,6 +1776,19 @@ export class NodeService extends EventEmitter {
       }
       const status = adapter.status();
       if (!status.capabilities.wakeIdle) continue;
+      if (adapter instanceof ClaudeCodeAdapter && !adapter.nativeIncomingAvailable) {
+        // No content stream can take this mailbox. A bounded private lookup
+        // records waiting without materializing files or censusing the backlog.
+        const id = this.store.claudeIncomingIds(identity.key, 1)[0];
+        if (id)
+          this.store.dispatch(
+            id,
+            binding.connectionId,
+            'waiting',
+            'The native incoming-message mod is unavailable; reconnect NCF in this exact chat',
+          );
+        continue;
+      }
       const eligible = (message: Message) => {
         // Content held by a Claude Code delivery is never admitted elsewhere.
         if (this.store.claudeFenced(message.envelope.id)) return false;
@@ -1783,7 +1881,11 @@ export class NodeService extends EventEmitter {
           if (
             snapshot &&
             this.claudeDispatchSnapshots.get(identity.key) !== snapshot &&
-            adapter instanceof ClaudeCodeAdapter
+            adapter instanceof ClaudeCodeAdapter &&
+            // Native admission captures a fresh bounded node-owned page. Its
+            // commit resets coverage before offering remaining IDs; an older
+            // offer snapshot must not fabricate another ready arrival.
+            this.claude.wakeSink(adapter.profile.sessionId)?.nativeIncoming !== 1
           ) {
             const current = this.store
               .list()
@@ -2035,6 +2137,7 @@ export class NodeService extends EventEmitter {
   private async stopNow(): Promise<void> {
     if (!this.running) return;
     this.running = false;
+    this.nativeIncoming.observe();
     this.claudeDispatchSnapshots.clear();
     clearTimeout(this.directoryPublish);
     this.directoryPublish = undefined;
