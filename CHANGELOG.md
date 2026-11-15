@@ -2,6 +2,13 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.18.3 — 2026-11-15
+
+- Submit Claude native Incoming messages without the host's explanatory prefix and suffix, while retaining engine-owned plugin provenance, the exact agent sender and reply route.
+- Require the complete first body block to match the node-sealed canonical envelope before and after native storage. A wrapped or rewritten row cannot create a positive receipt, even when it matches a historical framed representation.
+
+The current verification scope is recorded in the [Claude guide](docs/claude-code-adapter.md). Earlier framed results do not establish acceptance of this bare-message change. Storage format 4, peer protocol 2, MCP tools, settings, permissions and delivery recovery are unchanged from 0.18.2.
+
 ## 0.18.2 — 2026-11-15
 
 - Deliver full Claude incoming messages to the exact native chat, including sender, original Unicode text, attachment links and the standard reply instruction. The native prompt carries the content to the model and its visible conversation without an automatic `agent_read` command.
