@@ -227,8 +227,11 @@ Subsequent corrective evidence has narrower provenance:
   under the configured Claude heading and stayed hidden for an unconfigured
   client. Ordinary Ctrl+Q ended the actual supervised Electron main with code
   zero, no signal or closed-store error; the same binary was then started on
-  the same working data, peers and bindings. Three existing client configuration
-  hashes stayed unchanged. No live Claude account was tested on macOS or Windows.
+  the same working data, peers and bindings. All three checked configuration
+  hashes stayed unchanged immediately after NCF startup; selected settings and
+  marketplace hashes stayed unchanged throughout. Claude updated its own global
+  state during native use; NCF did not write it or inspect its contents. No live
+  Claude account was tested on macOS or Windows.
   The tagged follow-up changes only test expectations and documentation; all
   installers identify the actual build source above.
 
