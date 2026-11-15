@@ -54,6 +54,7 @@ export async function submitNative($, own, descriptor, sessionId, wake) {
     if (typeof prepared.delivery !== 'string' || !uuid.test(prepared.delivery) ||
         prepared.trigger !== triggerPrefix + prepared.delivery ||
         typeof prepared.reportKey !== 'string' || !key.test(prepared.reportKey) ||
+        typeof prepared.envelopeHash !== 'string' || !key.test(prepared.envelopeHash) ||
         !Number.isSafeInteger(prepared.expiresAt) || prepared.expiresAt <= Date.now() ||
         !Array.isArray(prepared.representationHashes) || prepared.representationHashes.length < 1 ||
         prepared.representationHashes.length > 4 ||
@@ -83,6 +84,11 @@ export async function submitNative($, own, descriptor, sessionId, wake) {
   }
 }
 
+async function textHash(value) {
+  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
 async function rowHash(message) {
   if (message.name !== undefined || !Array.isArray(message.content) ||
       !message.content.every((block) => block && block.type === 'text' &&
@@ -92,8 +98,7 @@ async function rowHash(message) {
     type: message.type, role: message.role, isMeta: message.isMeta === true,
     content: message.content.map((block) => ({ type: block.type, text: block.text })),
   });
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(hash)].map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return textHash(value);
 }
 
 export function registerNative(on, getScope) {
@@ -106,13 +111,15 @@ export function registerNative(on, getScope) {
         e.message.type !== 'user' || e.message.role !== 'user' || e.message.isMeta === true)
       return next(e);
     const inputHash = await rowHash(e.message);
+    const inputEnvelopeHash = inputHash && await textHash(e.message.content[0]?.text ?? '');
     if (!current(own)) return next(e);
     const pending = [...own.nativePending.values()].find((value) =>
       !value.observing && value.representationHashes.includes(inputHash));
     if (!pending) return next(e);
     pending.observing = true;
     try {
-      if (!current(own) || !pending.representationHashes.includes(inputHash)) {
+      if (!current(own) || !pending.representationHashes.includes(inputHash) ||
+          inputEnvelopeHash !== pending.envelopeHash) {
         const result = await next(e);
         await report($, own, pending, 'uncertain').catch(() => {});
         return result;
@@ -128,8 +135,10 @@ export function registerNative(on, getScope) {
         return result;
       }
       const representationHash = await rowHash(result.message);
+      const envelopeHash = representationHash && await textHash(result.message.content[0]?.text ?? '');
       if (!current(own)) return result;
-      if (!pending.representationHashes.includes(representationHash)) {
+      if (!pending.representationHashes.includes(representationHash) ||
+          envelopeHash !== pending.envelopeHash) {
         await report($, own, pending, 'uncertain').catch(() => {});
         return result;
       }

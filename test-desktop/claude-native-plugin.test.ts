@@ -8,6 +8,7 @@ import { pathToFileURL } from 'node:url';
 import { claudePluginFiles, publishClaudePlugin } from '../desktop/core/claude-plugin.js';
 import {
   nativeClaudeFrame,
+  nativeClaudeHash,
   nativeClaudeRowHash,
   nativeClaudeTrigger,
 } from '../desktop/core/claude-native-content.js';
@@ -73,7 +74,13 @@ async function fixture(t: test.TestContext, bare = true) {
             expiresAt: Date.now() + 600000,
             reportKey,
             trigger,
-            representationHashes: [nativeClaudeRowHash(body, undefined, !bare)],
+            envelopeHash: nativeClaudeHash(body),
+            representationHashes: [
+              nativeClaudeRowHash(body),
+              nativeClaudeRowHash(body, 'node-owned current-chat context'),
+              nativeClaudeRowHash(body, undefined, false),
+              nativeClaudeRowHash(body, 'node-owned current-chat context', false),
+            ],
           };
         else if (url.endsWith('/admit')) {
           assert.deepEqual(input, { sessionId, delivery, nativeLeaseNonce });
@@ -184,6 +191,21 @@ test('a downstream native rewrite cannot create receipt for the expected message
   assert.equal(f.reports.length, 1);
   assert.equal(f.reports[0].phase, 'uncertain');
   assert.equal(f.reports[0].storedRowId, undefined);
+});
+
+test('wrapped own-plugin rows cannot commit bare delivery before or after downstream storage', async (t) => {
+  for (const beforeStorage of [true, false]) {
+    const f = await fixture(t, !beforeStorage);
+    if (!beforeStorage)
+      f.mutate((message) => ({
+        ...message,
+        content: [{ type: 'text', text: nativeClaudeFrame(message.content[0].text) }],
+      }));
+    await f.main.submitNative(f.$, f.own, f.descriptor, f.sessionId, { claim: 'b'.repeat(64) });
+    assert.equal(f.reports.length, 1);
+    assert.equal(f.reports[0].phase, 'uncertain');
+    assert.equal(f.reports[0].storedRowId, undefined);
+  }
 });
 
 test('a complete bare plugin-origin row uses the same strict witness and canonical text-block field order', async (t) => {
