@@ -4,8 +4,9 @@ The integration delivers a full **Incoming NCF Agent Interconnect**
 message to the exact connected Claude chat: original sender, body, attachment
 links, `Reply-To` and `Use agent_send(connectionId, replyRef="…", text) to reply.`
 There is no model instruction to fetch the body, and no Message ID in the main
-message. The native host retains plugin attribution; NCF never impersonates a
-human user. Manual MCP reads remain available as a separate explicit action.
+message. The mod requests unframed text with `asUser: true`; the engine-owned
+plugin origin remains available to the gate and receipt checks. Manual MCP
+reads remain available as a separate explicit action.
 
 Release 0.18.2 direct incoming passed a bounded real-account check on Linux x64
 with Claude Desktop 4.4212.0, Claude Code backend 2.1.309 and Auto mode. One message
@@ -13,7 +14,8 @@ from an actual agent reached its exact bound chat, committed receipt from the
 matching final native stored row, and produced an automatic agent_send reply that
 the sender actually received. There was no receiver prompt, manual read, second
 arrival or duplicate body. This is separate from the earlier terminal renderer
-and synthetic capability probes.
+and synthetic capability probes. That 0.18.2 check used the earlier framed
+submission and does not establish native acceptance of the unframed change.
 
 The check covers one existing bound Linux Desktop chat. Live Claude delivery on
 macOS and Windows, other frontends, claude.ai and Agent SDK sessions is not
@@ -101,8 +103,10 @@ Claude Code or run `/reload-plugins` after Apply.
   It seals the exact canonical body and allowed final representation hashes in
   the existing durable delivery ledger. The mod receives an opaque delivery
   trigger and a private report capability, not the body.
-- **Admission.** The main mod submits that trigger once with plugin attribution,
-  never `asUser`. The gate obtains its actual current native session and lease,
+- **Admission.** The main mod submits that trigger once with `asUser: true` to
+  omit the host's explanatory frame. Its engine-owned origin remains the NCF
+  plugin; typed or foreign-plugin text cannot authorize delivery. The gate
+  obtains its actual current native session and lease,
   and exchanges that exact delivery ID at the node. Only current authority can
   persist write intent and release the full body. A final synchronous check
   precedes the HTTP body write. The gate forwards the returned body without

@@ -13,7 +13,7 @@ import {
 } from '../desktop/core/claude-native-content.js';
 
 type Handler = ($: any, event: any, next: any) => Promise<any>;
-async function fixture(t: test.TestContext, bare = false) {
+async function fixture(t: test.TestContext, bare = true) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'ncf-native-mod-'));
   t.after(() => rm(root, { recursive: true, force: true }));
   const files = claudePluginFiles({
@@ -86,13 +86,14 @@ async function fixture(t: test.TestContext, bare = false) {
       },
     },
     prompt: {
-      submit: async ({ text }: { text: string }) => {
+      submit: async ({ text, asUser }: { text: string; asUser?: true }) => {
+        assert.equal(asUser, true, 'native incoming must omit the host framing');
         assert.equal(
           text,
           trigger,
           'the main module must not submit a read notice or a second body',
         );
-        const origin = { kind: 'plugin', name: 'ncf-agent-interconnect' };
+        const origin = { kind: 'plugin', name: 'ncf-agent-interconnect', asUser };
         const forward = Object.assign(
           async (event: any) => {
             assert.equal(event.text, body);
@@ -160,6 +161,14 @@ test('actual emitted main/gate modules turn one opaque trigger into the canonica
   assert.equal(f.reports[0].delivery, f.delivery);
   assert.equal(f.reports[0].reportKey, f.reportKey);
   assert.ok(f.reports[0].storedRowId);
+  assert.equal(
+    f.reports[0].representationHash,
+    nativeClaudeRowHash(
+      '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(connectionId, replyRef="r9", text) to reply.',
+      undefined,
+      false,
+    ),
+  );
   assert.equal(f.own.nativePending.size, 0);
   assert.match(f.files['plugin/hooks/wake.js'], /registerNative\(on, \(\) => scope\)/);
   assert.match(f.files['plugin/hooks/wake.js'], /--native-incoming/);
@@ -198,14 +207,15 @@ test('typed and foreign-plugin lookalike triggers pass unchanged without node au
 test('queued submit keeps its exact correlation until the later gate and stored row', async (t) => {
   const f = await fixture(t);
   let queued = '';
-  f.$.prompt.submit = async ({ text }) => {
+  f.$.prompt.submit = async ({ text, asUser }) => {
+    assert.equal(asUser, true);
     queued = text;
     return { text };
   };
   await f.main.submitNative(f.$, f.own, f.descriptor, f.sessionId, { claim: 'b'.repeat(64) });
   assert.equal(f.reports.length, 0, 'queue resolution is neither failure nor receipt');
   assert.equal(f.own.nativePending.size, 1);
-  const origin = { kind: 'plugin', name: 'ncf-agent-interconnect' };
+  const origin = { kind: 'plugin', name: 'ncf-agent-interconnect', asUser: true };
   await f.gates.get('prompt.submit')!(
     f.$,
     { text: queued, origin },
@@ -215,7 +225,7 @@ test('queued submit keeps its exact correlation until the later gate and stored 
         const message = {
           type: 'user',
           role: 'user',
-          content: [{ type: 'text', text: nativeClaudeFrame(event.text) }],
+          content: [{ type: 'text', text: event.text }],
         };
         await f.appends.get('session.append')!(
           f.$,
@@ -229,5 +239,54 @@ test('queued submit keeps its exact correlation until the later gate and stored 
   );
   assert.equal(f.reports.length, 1);
   assert.equal(f.reports[0].phase, 'stored');
+  assert.equal(f.own.nativePending.size, 0);
+});
+
+test('bare incoming receipt still requires the exact plugin origin and asUser mode', async (t) => {
+  const f = await fixture(t);
+  f.$.prompt.submit = async () => ({ text: 'queued' });
+  await f.main.submitNative(f.$, f.own, f.descriptor, f.sessionId, { claim: 'b'.repeat(64) });
+  const message = {
+    type: 'user',
+    role: 'user',
+    content: [
+      {
+        type: 'text',
+        text: '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(connectionId, replyRef="r9", text) to reply.',
+      },
+    ],
+  };
+  for (const origin of [
+    { kind: 'composer' },
+    { kind: 'plugin', name: 'foreign', asUser: true },
+    { kind: 'plugin', name: 'ncf-agent-interconnect' },
+    { kind: 'plugin', name: 'ncf-agent-interconnect', asUser: false },
+  ]) {
+    await f.appends.get('session.append')!(
+      f.$,
+      { door: 'prompt', origin, uuid: randomUUID(), message },
+      async (e: any) => ({ message: e.message, uuid: e.uuid }),
+    );
+    assert.equal(
+      f.reports.length,
+      0,
+      'lookalike or wrong-mode rows cannot spend the pending delivery',
+    );
+    assert.equal(f.own.nativePending.size, 1);
+  }
+  const uuid = randomUUID();
+  await f.appends.get('session.append')!(
+    f.$,
+    {
+      door: 'prompt',
+      origin: { kind: 'plugin', name: 'ncf-agent-interconnect', asUser: true },
+      uuid,
+      message,
+    },
+    async (e: any) => ({ message: e.message, uuid: e.uuid }),
+  );
+  assert.equal(f.reports.length, 1);
+  assert.equal(f.reports[0].phase, 'stored');
+  assert.equal(f.reports[0].storedRowId, uuid);
   assert.equal(f.own.nativePending.size, 0);
 });

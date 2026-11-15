@@ -66,8 +66,9 @@ export async function submitNative($, own, descriptor, sessionId, wake) {
     }
     own.nativePending.set(pending.delivery, pending);
     // Only the separate native gate can replace this exact one-use trigger
-    // with a node-owned full message. Never submit a read instruction or asUser.
-    const result = await $.prompt.submit({ text: prepared.trigger });
+    // with a node-owned full message. asUser omits host framing while every
+    // hook still receives the engine-owned plugin origin.
+    const result = await $.prompt.submit({ text: prepared.trigger, asUser: true });
     if (result && typeof result.drop === 'string') await report($, own, pending, 'dropped');
     // Resolution can mean only queued. Keep correlation for the later gate and
     // stored row, bounded by the node's existing claim deadline. A queue is
@@ -100,7 +101,7 @@ export function registerNative(on, getScope) {
     const own = getScope();
     if (own) expireNative(own);
     if (!current(own) || e.door !== 'prompt' || e.agentId ||
-        e.origin?.kind !== 'plugin' || e.origin.name !== source || e.origin.asUser === true ||
+        e.origin?.kind !== 'plugin' || e.origin.name !== source || e.origin.asUser !== true ||
         typeof e.uuid !== 'string' || !e.uuid || !e.message ||
         e.message.type !== 'user' || e.message.role !== 'user' || e.message.isMeta === true)
       return next(e);

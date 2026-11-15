@@ -107,6 +107,11 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
     ),
   );
   assert.ok(!wake.includes('asUser'));
+  assert.ok(
+    posix['plugin/hooks/native-incoming.js'].includes(
+      '$.prompt.submit({ text: prepared.trigger, asUser: true })',
+    ),
+  );
   assert.ok(posix['gate/hooks/gate.js'].includes('const source = "ncf-agent-interconnect";'));
 
   const windows = claudePluginFiles({
