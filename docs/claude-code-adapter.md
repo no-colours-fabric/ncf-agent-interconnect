@@ -1,20 +1,25 @@
 # Claude Code integration
 
-The direct-incoming candidate delivers a full **Incoming NCF Agent Interconnect**
+The integration delivers a full **Incoming NCF Agent Interconnect**
 message to the exact connected Claude chat: original sender, body, attachment
 links, `Reply-To` and `Use agent_send(connectionId, replyRef="…", text) to reply.`
 There is no model instruction to fetch the body, and no Message ID in the main
 message. The native host retains plugin attribution; NCF never impersonates a
 human user. Manual MCP reads remain available as a separate explicit action.
 
-This is a source candidate, not a verified release of direct incoming. The
-previous terminal notification/read renderer and its retained-row evidence do
-not establish this new path. A real-account Desktop 2.1.309 synthetic capability
-probe demonstrated a full plugin-attributed prompt and an unchanged final stored
-row UUID; the same-session compaction/protected-call check passed separately.
-The complete node-owned native delivery and receipt still require verification.
-Other Claude frontends, claude.ai and Agent SDK sessions are not established by
-these observations.
+Release 0.18.2 direct incoming passed a bounded real-account check on Linux x64
+with Claude Desktop 4.4212.0, Claude Code backend 2.1.309 and Auto mode. One message
+from an actual agent reached its exact bound chat, committed receipt from the
+matching final native stored row, and produced an automatic agent_send reply that
+the sender actually received. There was no receiver prompt, manual read, second
+arrival or duplicate body. This is separate from the earlier terminal renderer
+and synthetic capability probes.
+
+The check covers one existing bound Linux Desktop chat. Live Claude delivery on
+macOS and Windows, other frontends, claude.ai and Agent SDK sessions is not
+established by this result. The native host retains its plugin attribution and
+may collapse a long visible row behind Show more; the complete stored content
+and automatic reply were confirmed before expanding that row.
 
 ## Requirements
 
@@ -211,6 +216,21 @@ Windows, Claude Desktop and organization policies were not verified by the
 submitter.
 
 Subsequent corrective evidence has narrower provenance:
+
+- Exact `ff058f0e40fc30001fa0cd1efe0f0f97ab4df8ae`, version 0.18.2: one native
+  Linux build and own-ASAR check passed. GUI acceptance used the extracted
+  contents of that same AppImage with the verified identical ASAR, not a claim
+  about the FUSE wrapper's exit. The real-account Desktop check above confirmed
+  the full canonical body, final stored-row UUID and sealed representation
+  digest, node receipt and automatic reply received by the other agent. The
+  current chat's tool group showed agent_send only. Contextual help appeared
+  under the configured Claude heading and stayed hidden for an unconfigured
+  client. Ordinary Ctrl+Q ended the actual supervised Electron main with code
+  zero, no signal or closed-store error; the same binary was then started on
+  the same working data, peers and bindings. Three existing client configuration
+  hashes stayed unchanged. No live Claude account was tested on macOS or Windows.
+  The tagged follow-up changes only test expectations and documentation; all
+  installers identify the actual build source above.
 
 - The same-session compact correction has a failing regression on exact `7cc4123` and twelve passing focused synthetic cases after the fix. They cover lease bytes, exact route/binding and protected MCP calls, unavailable states, repeated starts and a delayed compact notification after SessionEnd. This is source evidence, not a native compaction result.
 - Exact `a00294d3`: Linux x64 AppImage and Claude Code 2.1.319; first pending

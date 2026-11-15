@@ -133,7 +133,7 @@ send the same content again to manufacture a pass.
 
 Any working-runtime switch requires exact app-owned file provenance and an
 explicit rollback plan; do not modify auth, copy profiles or weaken permissions.
-The currently installed 0.18.1 is not silently treated as this candidate.
+The earlier installed 0.18.1 was not silently treated as this candidate.
 
 The legacy manual-read renderer still applies only to an actual exact own
 `agent_read` result: compact sender/body/footer, expanded metadata without a
