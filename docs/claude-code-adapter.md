@@ -8,6 +8,19 @@ message. The mod requests unframed text with `asUser: true`; the engine-owned
 plugin origin remains available to the gate and receipt checks. Manual MCP
 reads remain available as a separate explicit action.
 
+Release 0.18.3 unframed incoming passed a real-account exchange in a new, empty
+Claude Desktop chat on Linux x64 (Desktop 4.4212.0, Claude Code backend 2.1.309,
+Auto mode). The owner chose the name; Claude connected itself after the user's
+ordinary setup request. Its new mailbox contained no messages and no old history
+was imported. Another agent then sent an ordinary question whose body specified
+neither a reply tool nor an expected answer. Claude received the complete message
+without the explanatory plugin wrapper and sent its own answer through NCF; the
+sending agent actually received it. The standard NCF reply footer was retained.
+For that same incoming ID, exactly one committed native delivery matched the
+final stored-row UUID and complete bare representation digest. The owner inspected
+and accepted the displayed exchange. This establishes this bounded exchange,
+not task completion or exactly-once model execution.
+
 Release 0.18.2 direct incoming passed a bounded real-account check on Linux x64
 with Claude Desktop 4.4212.0, Claude Code backend 2.1.309 and Auto mode. One message
 from an actual agent reached its exact bound chat, committed receipt from the
@@ -17,11 +30,12 @@ arrival or duplicate body. This is separate from the earlier terminal renderer
 and synthetic capability probes. That 0.18.2 check used the earlier framed
 submission and does not establish native acceptance of the unframed change.
 
-The check covers one existing bound Linux Desktop chat. Live Claude delivery on
-macOS and Windows, other frontends, claude.ai and Agent SDK sessions is not
-established by this result. The native host retains its plugin attribution and
-may collapse a long visible row behind Show more; the complete stored content
-and automatic reply were confirmed before expanding that row.
+These checks cover the existing Linux installation and real account, including
+a new chat and mailbox in 0.18.3; they are not new-account first-run acceptance.
+Live Claude delivery on macOS and Windows, other frontends, claude.ai and Agent
+SDK sessions is not established. Claude may collapse a long visible row behind
+Show more. The earlier 0.18.2 framed result retained host plugin attribution;
+the 0.18.3 exchange confirmed the canonical body without that explanatory frame.
 
 ## Requirements
 
@@ -114,6 +128,8 @@ Claude Code or run `/reload-plugins` after Apply.
 - **Stored row.** The main mod observes only its own prompt-origin, main-loop
   user row. After the host keeps it, the returned UUID must equal the pinned
   input UUID and the complete representation must match a node-sealed digest.
+  The entire canonical body block must also match the node's envelope hash both
+  before and after storage; a wrapped or rewritten row remains uncertain.
   Only that witness can commit the node's captured IDs. Queue records, matching
   substrings, submit resolution and turn starts never create receipt.
 - **Status.** Availability remains conservative: stored legacy confirmation,
@@ -221,6 +237,16 @@ submitter.
 
 Subsequent corrective evidence has narrower provenance:
 
+- Exact `586385d0655cd632747219a368ceada4744bbfa8`, version 0.18.3: one native
+  Linux package and own-ASAR verification passed. The real-account, new-chat
+  exchange above confirmed unframed incoming, an unscripted reply received by
+  the actual sender, and receipt for the same message and final stored row.
+  An earlier fixed-marker exchange on this package proves routing and format
+  only; it is not the basis for the unscripted-dialogue result. Ordinary Ctrl+Q
+  ended the supervised Electron main with code zero, no signal or closed-store
+  error; the same version then resumed on the original working data. Selected
+  settings and marketplace hashes stayed unchanged. All four installers use
+  this build source; the tagged follow-up only records verification in docs.
 - Exact `ff058f0e40fc30001fa0cd1efe0f0f97ab4df8ae`, version 0.18.2: one native
   Linux build and own-ASAR check passed. GUI acceptance used the extracted
   contents of that same AppImage with the verified identical ASAR, not a claim
