@@ -108,7 +108,7 @@ The service should remain running while a TUI session is used for administration
 
 ## R-0007 — Discover installed AI applications
 
-- [ ] Open
+- [x] Done — released in [v0.18.5](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/tag/v0.18.5).
 
 Detect supported AI applications installed on the user's computer.
 
@@ -117,6 +117,7 @@ Detect supported AI applications installed on the user's computer.
 - Show the setup offer only once for each application.
 - Display discovered applications as compact tiles with their official icons or logos.
 
+Coverage: discovery checks known installation locations. Unsupported AppImage and unrecognized layouts remain unknown. Acceptance did not include a positive scan of an installed Windows client or a Linux GUI run.
 ---
 
 ## R-0008 — Distribute client adapters as plugins
