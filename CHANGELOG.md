@@ -2,6 +2,15 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.18.5 — 2026-11-16
+
+- Discover known installations of Cursor, OpenCode, Codex, AionUi and Claude on macOS, Windows and Linux without running the applications or reading their account and configuration files.
+- Show installation status and source coverage separately from configuration, connection and delivery readiness. Refresh the scan or select an installation manually; Configure and Apply remain explicit owner actions.
+- Offer setup for newly detected applications once after the offer becomes visible. Preserve the app-owned offer state across restarts and application updates, and show official local application icons.
+- Reject nonlocal discovery link targets and prevent one installation's metadata from identifying an unrelated runtime outside its directory.
+
+Coverage is limited to verified installation layouts. AppImage, unverified portable and wrapper candidates can remain Unknown. OpenCode setup remains v1; Claude Desktop discovery does not verify its Claude Code backend. A crash before durable visible-offer acknowledgement can repeat an offer. Existing source, metadata and isolated UI checks are reused with their stated platform limits; native package acceptance is reported with the release. Storage format 4, peer protocol 2, MCP tools, permissions and delivery behavior are unchanged.
+
 ## 0.18.4 — 2026-11-16
 
 - Preserve uncertain native-delivery attempts when an agent name moves to another chat with history retained. A new binding cannot replay a body that may already have reached the previous chat.

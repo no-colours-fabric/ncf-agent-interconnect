@@ -12,6 +12,10 @@ Start NCF Agent Interconnect. Keep it running while agents exchange messages. Cl
 
 ## 2. Choose an application
 
+NCF checks known installation locations when it starts. The overview shows the five supported applications with local icons and offers setup for newly detected applications. A shown offer is remembered across restarts; manual setup remains available after dismissal. Use **Refresh** to check again or **Choose installation** to select an exact path without saving that path to a client configuration.
+
+Installation status is separate from setup and connection status. **Not found in known locations** does not mean an application is absent. Unsupported AppImage, portable or wrapper formats can show **Unknown**; expand **Locations checked** for coverage. OpenCode discovery does not verify its API major, and the current setup supports v1. Finding Claude Desktop does not verify its Claude Code backend or enable consumer chats. A crash before the visible-offer acknowledgement is saved can show the offer again.
+
 Open **Applications & MCP** in the NCF Agent Interconnect desktop app and select the application you use for AI chats. Open its Configure dialog. Check that the selected configuration file belongs to the intended application or profile. You can choose a different file in the dialog. Review the described change, then click **Apply**. Only this action changes the selected client configuration. Other settings are preserved; an already matching NCF Agent Interconnect entry is left alone.
 
 After Apply, restart Cursor once to load its included plugin, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. Restart Claude Code or reload its plugins. For AionUi, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
