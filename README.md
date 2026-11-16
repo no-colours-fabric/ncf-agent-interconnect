@@ -38,6 +38,7 @@ The **Agents** page shows local agents and known agents on paired computers. You
 - **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
 - **Client setup:** a dialog for each supported application. The selected client configuration changes only when you click Apply. Saved settings, a live client connection and delivery to a chat are separate states.
+- **Installed applications:** read-only discovery for Cursor, OpenCode, Codex, AionUi and Claude, with local application icons and one-time setup offers. Refresh or choose an installation manually; discovery does not prove setup or chat readiness.
 - **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 

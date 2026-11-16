@@ -1,0 +1,47 @@
+{
+  "retrieved": "2026-11-16",
+  "assets": {
+    "cursor": {
+      "file": "cursor.svg",
+      "owner": "Anysphere",
+      "source": "https://cursor.com/favicon.svg",
+      "license": "Proprietary brand asset; https://cursor.com/brand",
+      "transformations": "Unmodified official asset",
+      "sha256": "0375fe0bba07813d31cdac4a3bdd45f60669273ecf9bdb1ae34dd5935d1f4612"
+    },
+    "opencode": {
+      "file": "opencode.svg",
+      "owner": "Anomaly",
+      "source": "https://opencode.ai/brand/files/opencode-logo-light.svg",
+      "license": "Brand asset; https://opencode.ai/brand",
+      "transformations": "Unmodified official asset",
+      "sha256": "0192e1384d474d2d2d4fef81c02bf6aa0d75d2d47b28a529e86c01a1664c842a"
+    },
+    "aionui": {
+      "file": "aionui.svg",
+      "owner": "AionUi",
+      "source": "https://github.com/iOfficeAI/AionUi/blob/main/resources/aionui_logo_black_bg.svg",
+      "license": "Apache-2.0 repository; AionUi trademarks retained",
+      "transformations": "XML declaration and comments removed; official artwork unchanged",
+      "sha256": "7360728f6c6bf362ca19dd74446b8959222cf44d2031c3ecd9b47232dc28643b",
+      "upstreamBlob": "32bd0ee0b153a1592e05340a784a634e01edd00a"
+    },
+    "claude": {
+      "file": "claude.png",
+      "owner": "Anthropic",
+      "source": "https://code.claude.com/docs/mintlify-assets/_mintlify/favicons/claude-code/pLsy-mRpNksna2sx/_generated/favicon/android-chrome-192x192.png",
+      "license": "Proprietary brand asset; Anthropic Trademark Guidelines",
+      "transformations": "Unmodified official asset",
+      "sha256": "d4e5e8e9990ac52f147a74ae80b9e69cdc612264b84a76cdb5c43b53b73a1707"
+    },
+    "codex": {
+      "file": "codex.png",
+      "owner": "OpenAI",
+      "source": "Official ChatGPT desktop 26.1027.51404, bundle com.openai.codex, Contents/Resources/electron.icns",
+      "reference": "https://learn.chatgpt.com/docs/app",
+      "license": "Proprietary OpenAI application icon; OpenAI trademarks retained",
+      "transformations": "ICNS to PNG using macOS sips, downsampled to 128 px; no design changes",
+      "sha256": "3724f6ef090109e5dc6f14c103ff5fbec43fa78953aa049ef2af122ad9b482e1"
+    }
+  }
+}
