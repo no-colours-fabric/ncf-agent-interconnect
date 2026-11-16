@@ -118,6 +118,7 @@ Detect supported AI applications installed on the user's computer.
 - Display discovered applications as compact tiles with their official icons or logos.
 
 Coverage: discovery checks known installation locations. Unsupported AppImage and unrecognized layouts remain unknown. Acceptance did not include a positive scan of an installed Windows client or a Linux GUI run.
+
 ---
 
 ## R-0008 — Distribute client adapters as plugins
