@@ -35,6 +35,8 @@ import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
 import { mcpSetupClients } from '../shared/mcp-setup.js';
+import { ApplicationDiscovery } from './ApplicationDiscovery.js';
+import { useApplicationDiscovery } from './useApplicationDiscovery.js';
 import { AppShell, type Page } from './AppShell.js';
 import { createAppTheme, designTokens, surfaceSx } from './theme.js';
 import { loadThemeMode, persistThemeMode, type ThemeMode } from './theme-preference.js';
@@ -82,6 +84,7 @@ function App({
     [],
   );
   const setupStatuses = useMcpSetupStatuses(call);
+  const discovery = useApplicationDiscovery(call);
   const snapshotRequest = useRef(0);
   const run = async (work: () => Promise<unknown>, success = '') => {
     setBusy(true);
@@ -215,6 +218,14 @@ function App({
                 </Paper>
               ))}
             </Box>
+            <ApplicationDiscovery
+              model={discovery}
+              locale={locale}
+              onSetup={(application) => {
+                setClient(application);
+                setPage('mcp');
+              }}
+            />
             <Paper data-testid="overview-applications" sx={{ p: 2.5 }}>
               <Typography variant="h6" sx={{ mb: 1.5 }}>
                 {t(locale, 'navClients')}
@@ -461,6 +472,7 @@ function App({
         )}
         {page === 'mcp' && (
           <McpSetup
+            discovery={discovery}
             client={client}
             onClientChange={setClient}
             invoke={call}

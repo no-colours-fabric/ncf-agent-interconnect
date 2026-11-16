@@ -1,3 +1,5 @@
+import { ApplicationDiscovery } from './ApplicationDiscovery.js';
+import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import React, { useEffect, useMemo, useSyncExternalStore } from 'react';
 import {
   Alert,
@@ -737,6 +739,7 @@ function CopyCommand({
 }
 
 export function McpSetup({
+  discovery,
   client,
   onClientChange,
   invoke,
@@ -745,6 +748,7 @@ export function McpSetup({
   locale = 'en',
   setupStatuses,
 }: {
+  discovery?: ApplicationDiscoveryModel;
   client: McpSetupApplication;
   onClientChange: (client: McpSetupApplication) => void;
   invoke: McpSetupInvoke;
@@ -770,6 +774,7 @@ export function McpSetup({
   }, [refreshShared]);
   return (
     <Box sx={{ minWidth: 0 }}>
+      {discovery && <ApplicationDiscovery model={discovery} locale={locale} client={client} />}
       <Tabs
         value={client}
         onChange={(_event, value: McpSetupApplication) => {
