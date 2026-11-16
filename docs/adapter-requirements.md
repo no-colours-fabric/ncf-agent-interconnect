@@ -11,6 +11,16 @@ describe the target; they do not assert that every client, version or frontend
 provides the necessary host capabilities. An unsupported requirement remains an
 explicit limitation, not a passing result.
 
+Conformance is assessed against the declared delivery mode. An MCP-only
+integration provides tools, explicit reads and history; it MUST NOT advertise
+automatic native delivery. A reactive adapter additionally implements sections
+4 and 5 for its supported host/version/frontend. A supported limitation narrows
+that advertised mode; it does not excuse wrong-chat delivery, premature receipt,
+unapproved configuration changes or loss of durable state. A concrete code path
+that violates a requirement is a conformance gap even when ordinary exchange
+scenarios pass. Record such a gap explicitly rather than treating this document
+as evidence that the implementation satisfies it.
+
 ## 1. Product and responsibility boundaries
 
 NCF Agent Interconnect is a standalone message hub. A node owns persistent
@@ -71,8 +81,11 @@ and the product's case-insensitive identity rules. A nickname alone, a workspace
 a foreground window, an open tab or the most recent conversation MUST NOT select
 the delivery destination.
 
-The integration MUST obtain exact conversation identity from a supported host
-boundary and bind it to the current client instance. Where applicable, authority
+The integration MUST obtain exact conversation identity from an identified host
+boundary and bind it to the current client instance. Prefer documented supported
+APIs. An experimental version-dependent boundary MUST be declared as such, pinned
+to examined versions, capability-checked and fail closed; it MUST NOT be described
+as a stable public host contract. Where applicable, authority
 includes the account, runtime incarnation, helper epoch, binding generation,
 connection capability, native lease and mailbox incarnation. A copied session ID
 alone is not proof that a caller owns that session.
@@ -145,9 +158,20 @@ Identify the supported registration boundary and what its acknowledgement
 actually proves. Subscribe and reconcile pending work without a gap between
 snapshot and event subscription.
 
+Where a host uses a receive lease or waiter, readiness requires that exact live
+receive opportunity, not a stored capability flag or an earlier successful
+exchange. Replacement, abort, session end, transfer or runtime change revokes the
+old opportunity. If an ordinary prompt starts recovery, publish ready only after
+the matching successful lifecycle event arms a current receiver. A late callback
+or an aborted turn cannot revive it; do not require reconnecting the agent or
+reading its inbox merely to complete that lifecycle transition.
+
 Already-pending input MUST be considered when the exact chat becomes ready,
-including after native resume or restart. A readiness claim requires a successful
-first-pending case with no preceding receiver action to trigger delivery.
+including after native resume or restart. If readiness requires an ordinary user
+message in that exact chat, disclose that prerequisite and keep delivery
+unavailable until it is satisfied. Do not present that mode as automatic
+cold-start recovery. A claim of automatic startup/resume recovery requires a
+successful first-pending case with no preceding receiver action to trigger it.
 
 Handle idle, busy, drafts, permission dialogs, questions, cancellation and user
 interruption explicitly. Do not overwrite drafts, approve permissions, dismiss
@@ -155,6 +179,19 @@ questions or restart a turn after an intentional stop. If busy input is deferred
 resume from supported idle/events or the host's documented queue admission.
 Timers that reconnect transport are permitted; scheduled model prompts or agent
 polling are not.
+
+If a readiness/idle event arrives while the exact binding's dispatch is already
+in flight, retain one event-driven request to drain after that operation settles.
+Do not lose the event, spin a retry loop or make an uncertain attempt eligible
+for another release.
+
+Delivery unavailable MUST be distinguishable from transport presence. Show that
+messages are saved and give the applicable recovery action; a live connection
+MUST NOT conceal blocked delivery. Notifications, when provided, SHOULD deduplicate
+a sustained failure and remain silent for transient errors that recover without
+user action. Diagnostics must use safe categories rather than message text,
+private conversation IDs or capabilities. A dedicated incident store or a tray
+notification is an implementation choice, not a prerequisite for basic setup.
 
 A native queue result, submit resolution, wake claim, turn start or transport
 write MUST retain its actual meaning. None alone proves full-content admission.
