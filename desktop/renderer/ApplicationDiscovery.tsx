@@ -9,6 +9,42 @@ import {
   installationLabel,
 } from './i18n/application-discovery.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
+import type { McpSetupStatuses } from './mcp-setup-status.js';
+import { mcpSetupMessages } from './i18n/mcp-setup.js';
+
+const logos: Record<McpSetupClient, string> = {
+  cursor: new URL('../assets/client-logos/cursor.svg', import.meta.url).href,
+  opencode: new URL('../assets/client-logos/opencode.svg', import.meta.url).href,
+  codex: new URL('../assets/client-logos/codex.png', import.meta.url).href,
+  aionui: new URL('../assets/client-logos/aionui.svg', import.meta.url).href,
+  claude: new URL('../assets/client-logos/claude.png', import.meta.url).href,
+};
+
+function ClientLogo({
+  client,
+  size = 32,
+}: {
+  client: McpSetupClient;
+  size?: number;
+}): React.JSX.Element {
+  return (
+    <Box
+      component="img"
+      src={logos[client]}
+      alt=""
+      width={size}
+      height={size}
+      sx={{
+        objectFit: 'contain',
+        flexShrink: 0,
+        bgcolor: '#ffffff',
+        borderRadius: 0.75,
+        p: 0.5,
+        boxSizing: 'border-box',
+      }}
+    />
+  );
+}
 
 export function ApplicationOffers({
   model,
@@ -25,19 +61,33 @@ export function ApplicationOffers({
   useEffect(() => {
     const target = element.current;
     if (!target || !visible) return;
-    let intersecting = false;
+    const intersecting = new Set<McpSetupClient>();
     const acknowledge = () => {
-      if (intersecting && document.visibilityState === 'visible')
-        void model.acknowledge(visible.split(',') as McpSetupClient[]);
+      if (document.visibilityState === 'visible' && !target.closest('[aria-hidden="true"]'))
+        void model.acknowledge([...intersecting]);
     };
-    const observer = new IntersectionObserver((entries) => {
-      intersecting = entries.some((entry) => entry.isIntersecting);
-      acknowledge();
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const client = entry.target.getAttribute('data-offer-client') as McpSetupClient;
+          if (entry.isIntersecting && entry.intersectionRatio >= 1) intersecting.add(client);
+          else intersecting.delete(client);
+        }
+        acknowledge();
+      },
+      { threshold: 1 },
+    );
+    for (const button of target.querySelectorAll('[data-offer-client]')) observer.observe(button);
+    const modalChanges = new MutationObserver(acknowledge);
+    modalChanges.observe(document.body, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ['aria-hidden'],
     });
-    observer.observe(target);
     document.addEventListener('visibilitychange', acknowledge);
     return () => {
       observer.disconnect();
+      modalChanges.disconnect();
       document.removeEventListener('visibilitychange', acknowledge);
     };
   }, [visible, model.acknowledge]);
@@ -54,7 +104,6 @@ export function ApplicationOffers({
             <Button
               size="small"
               onClick={() => {
-                void model.acknowledge(model.offers);
                 model.dismiss();
               }}
             >
@@ -70,12 +119,14 @@ export function ApplicationOffers({
                 variant="outlined"
                 size="small"
                 key={client}
+                data-offer-client={client}
                 onClick={() => {
-                  void model.acknowledge(model.offers);
+                  void model.acknowledge([client]);
                   model.dismiss();
                   onSetup(client);
                 }}
               >
+                <ClientLogo client={client} size={24} />
                 {applicationNames[client]}
               </Button>
             ))}
@@ -136,13 +187,16 @@ export function ApplicationDiscovery({
   locale,
   client,
   onSetup,
+  setupStatuses,
 }: {
   model: ApplicationDiscoveryModel;
   locale: Locale;
   client?: McpSetupClient;
   onSetup?: (client: McpSetupClient) => void;
+  setupStatuses?: McpSetupStatuses;
 }): React.JSX.Element {
   const messages = discoveryMessages(locale);
+  const setupMessages = mcpSetupMessages(locale);
   const applications =
     model.snapshot?.applications.filter((item) => !client || item.client === client) ?? [];
   return (
@@ -169,7 +223,7 @@ export function ApplicationDiscovery({
           display: 'grid',
           gridTemplateColumns: client
             ? '1fr'
-            : { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', xl: 'repeat(3, minmax(0, 1fr))' },
+            : { xs: '1fr', sm: 'repeat(2, minmax(0, 1fr))', md: 'repeat(3, minmax(0, 1fr))' },
           gap: 1,
         }}
       >
@@ -187,16 +241,39 @@ export function ApplicationDiscovery({
             }}
           >
             {!client && (
-              <Typography variant="body2" sx={{ fontWeight: 500 }}>
-                {applicationNames[application.client]}
-              </Typography>
+              <Stack direction="row" sx={{ gap: 1.25, alignItems: 'center', mb: 0.75 }}>
+                <ClientLogo client={application.client} />
+                <Typography variant="body2" sx={{ fontWeight: 500 }}>
+                  {applicationNames[application.client]}
+                </Typography>
+              </Stack>
             )}
             <Typography variant="caption" component="p" sx={{ mt: 0.5 }}>
               {installationLabel(application.status, messages)}
+              {client &&
+              application.client === 'claude' &&
+              application.instances.some((item) => item.form === 'desktop') &&
+              !application.instances.some((item) => item.form === 'cli')
+                ? ' · ' + messages.desktop
+                : ''}
             </Typography>
+            {setupStatuses && (
+              <Typography variant="caption" component="p" color="text.secondary">
+                {setupMessages.statusMcpConfig}:{' '}
+                {setupStatuses.errors[application.client]
+                  ? setupMessages.unavailable
+                  : setupStatuses.statuses[application.client]
+                    ? setupMessages[setupStatuses.statuses[application.client]!.state]
+                    : setupMessages.checking}
+              </Typography>
+            )}
             <Stack direction="row" sx={{ gap: 1, my: 0.5, flexWrap: 'wrap' }}>
               {onSetup && (
-                <Button size="small" onClick={() => onSetup(application.client)}>
+                <Button
+                  size="small"
+                  data-testid={'overview-application-' + application.client}
+                  onClick={() => onSetup(application.client)}
+                >
                   {messages.setup}
                 </Button>
               )}
@@ -208,13 +285,14 @@ export function ApplicationDiscovery({
                 {messages.choose}
               </Button>
             </Stack>
-            {application.client === 'claude' &&
+            {client &&
+              application.client === 'claude' &&
               application.instances.some((item) => item.form === 'desktop') && (
                 <Typography variant="caption" component="p" sx={{ mb: 1 }}>
                   {messages.claude}
                 </Typography>
               )}
-            {application.client === 'opencode' && application.status === 'detected' && (
+            {client && application.client === 'opencode' && application.status === 'detected' && (
               <Typography variant="caption" component="p" sx={{ mb: 1 }}>
                 {messages.opencode}
               </Typography>
