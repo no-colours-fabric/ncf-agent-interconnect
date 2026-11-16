@@ -16,6 +16,7 @@ import { z } from 'zod';
 import { NodeService } from '../core/service.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
+import { createApplicationDiscoveryHandler } from './application-discovery-ipc.js';
 import { UiServiceAccess } from './ui-service-access.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
@@ -181,6 +182,11 @@ function setupIpc(): void {
     stateDirectory: app.getPath('userData'),
     openPath: (filename) => shell.openPath(filename),
   });
+  const applicationDiscovery = createApplicationDiscoveryHandler({
+    dialog,
+    window: () => window,
+    stateDirectory: app.getPath('userData'),
+  });
   ipcMain.handle('interconnect:call', async (event, method: unknown, raw: unknown) => {
     if (
       !window ||
@@ -189,6 +195,8 @@ function setupIpc(): void {
       typeof method !== 'string'
     )
       throw new Error('Invalid operation source');
+    const discoveryResult = await applicationDiscovery(method, raw, String(event.sender.id));
+    if (discoveryResult.handled) return discoveryResult.result;
     const setupResult = await access.waitFor(() => mcpSetup(method, raw, String(event.sender.id)));
     if (setupResult.handled) return setupResult.result;
     if (method === 'appVersion') return app.getVersion();

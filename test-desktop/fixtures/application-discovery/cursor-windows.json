@@ -1,0 +1,11 @@
+{
+  "source": "Read-only standard Windows user installation; collected by Луна and forwarded by Боб on 2026-11-16",
+  "location": "%LOCALAPPDATA%/Programs/cursor/resources/app/product.json",
+  "version": "3.29.9",
+  "metadata": {
+    "nameShort": "Cursor",
+    "applicationName": "cursor",
+    "win32AppUserModelId": "Anysphere.Cursor"
+  },
+  "limits": "Installation metadata provenance only; the discovery implementation was not run on Windows. No client execution, configuration or authentication reads."
+}

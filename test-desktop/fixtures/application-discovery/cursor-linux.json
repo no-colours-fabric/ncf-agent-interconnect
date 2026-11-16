@@ -1,0 +1,17 @@
+{
+  "source": "https://api2.cursor.sh/updates/download/golden/linux-x64-deb/cursor/3.30",
+  "artifactSha256": "c8003e009f96a6e4fd7185f7016c66d7e36e03d8fa2e2394197511907bcd8226",
+  "metadata": {
+    "desktop": "[Desktop Entry]\nName=Cursor\nComment=The AI Code Editor.\nGenericName=Text Editor\nExec=/usr/share/cursor/cursor %F\nIcon=co.anysphere.cursor\nType=Application\nStartupNotify=false\nStartupWMClass=Cursor\nCategories=TextEditor;Development;IDE;\nMimeType=application/x-cursor-workspace;\nActions=new-empty-window;\nKeywords=cursor;\n\n[Desktop Action new-empty-window]\nName=New Empty Window\nName[cs]=Nové prázdné okno\nName[de]=Neues leeres Fenster\nName[es]=Nueva ventana vacía\nName[fr]=Nouvelle fenêtre vide\nName[it]=Nuova finestra vuota\nName[ja]=新しい空のウィンドウ\nName[ko]=새 빈 창\nName[ru]=Новое пустое окно\nName[zh_CN]=新建空窗口\nName[zh_TW]=開新空視窗\nExec=/usr/share/cursor/cursor --new-window %F\nIcon=co.anysphere.cursor\n",
+    "package": {
+      "name": "Cursor",
+      "version": "3.30.14"
+    },
+    "product": {
+      "nameShort": "Cursor",
+      "applicationName": "cursor",
+      "linuxIconName": "co.anysphere.cursor",
+      "win32AppUserModelId": "Anysphere.Cursor"
+    }
+  }
+}
