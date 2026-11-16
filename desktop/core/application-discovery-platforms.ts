@@ -145,18 +145,72 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     return found;
   }
   async canonical(filename: string): Promise<string | undefined> {
-    if (!path.isAbsolute(filename) || filename.startsWith('\\\\'))
-      throw new DiscoveryError('source-unavailable');
-    let linked = false;
+    const paths = this.platform === 'win32' ? path.win32 : path.posix;
+    const reference = (value: string) => {
+      if (
+        !value ||
+        value.length > 8192 ||
+        /[\0\r\n]/.test(value) ||
+        /^[\\/]{2}/.test(value) ||
+        value.startsWith('\\')
+      )
+        throw new DiscoveryError('source-unavailable');
+      if (/^[A-Za-z]:/.test(value) && !paths.isAbsolute(value))
+        throw new DiscoveryError('source-unavailable');
+    };
+    const local = (value: string) => {
+      reference(value);
+      if (
+        !paths.isAbsolute(value) ||
+        (this.platform === 'win32' &&
+          (!/^[A-Za-z]:[\\/]/.test(value) ||
+            value.slice(2).includes(':') ||
+            /(?:^|[\\/])(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:[ .]|$)/i.test(value)))
+      )
+        throw new DiscoveryError('source-unavailable');
+      return value;
+    };
+    local(filename);
+    const parts = (value: string, linked: boolean) =>
+      value
+        .slice(paths.parse(value).root.length)
+        .split(this.platform === 'win32' ? /[\\/]+/ : /\//)
+        .filter(Boolean)
+        .map((name) => ({ name, linked }));
+    let target = paths.parse(filename).root;
+    let pending = parts(filename, false);
+    let linked = false,
+      hops = 0,
+      operations = 0;
     try {
-      let target = filename;
-      for (let depth = 0; depth < 16; depth++) {
-        const info = await this.fs.lstat(target);
-        if (!info.isSymbolicLink()) return await this.fs.realpath(target);
+      // Observe parent junctions too: lstat/realpath of a whole path can follow them implicitly.
+      while (pending.length) {
+        if (++operations > 512) throw new DiscoveryError('limit-exceeded');
+        const next = pending.shift()!;
+        linked = next.linked;
+        if (next.name === '.') continue;
+        if (next.name === '..') {
+          target = paths.dirname(target);
+          continue;
+        }
+        const candidate = local(paths.join(target, next.name));
+        const info = await this.fs.lstat(candidate);
+        if (!info.isSymbolicLink()) {
+          target = candidate;
+          continue;
+        }
+        if (++hops > 16) throw new DiscoveryError('limit-exceeded');
         linked = true;
-        target = path.resolve(path.dirname(target), await this.fs.readlink(target));
+        const destination = await this.fs.readlink(local(candidate));
+        reference(destination);
+        if (paths.isAbsolute(destination)) {
+          local(destination);
+          target = paths.parse(destination).root;
+        }
+        pending = [...parts(destination, true), ...pending];
       }
-      throw new DiscoveryError('limit-exceeded');
+      const canonical = await this.fs.realpath(local(target));
+      return local(canonical);
     } catch (error) {
       if (['ENOENT', 'ENOTDIR'].includes((error as NodeJS.ErrnoException).code ?? ''))
         if (!linked) return undefined;

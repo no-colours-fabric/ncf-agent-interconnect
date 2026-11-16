@@ -338,6 +338,16 @@ export class ApplicationDiscovery {
     const runtime = executable
       ? await this.files.canonical(this.paths.join(root, executable))
       : root;
+    if (runtime && executable) {
+      const relative = this.paths.relative(root, runtime);
+      if (
+        !relative ||
+        relative === '..' ||
+        relative.startsWith('..' + this.paths.sep) ||
+        this.paths.isAbsolute(relative)
+      )
+        throw new DiscoveryError('unverified-identity');
+    }
     if (!runtime || !(await this.files.executable(runtime)))
       throw new DiscoveryError('missing-runtime');
     const installation = executable ? root : this.paths.dirname(runtime);

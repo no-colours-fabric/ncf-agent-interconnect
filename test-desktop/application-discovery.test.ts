@@ -370,3 +370,114 @@ test('native Claude launcher hardlinks require the same file identity in the ver
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+for (const platform of ['win32', 'linux', 'darwin'] as const) {
+  test(`R7-A ${platform}: local links and parent junctions reject nonlocal hops before filesystem access`, async () => {
+    const paths = platform === 'win32' ? path.win32 : path.posix;
+    const root = platform === 'win32' ? 'C:\\Apps' : '/fixture';
+    const alias = paths.join(root, 'Alias');
+    const runtime = paths.join(alias, 'Cursor.exe');
+    const destinations = [
+      String.raw`\\server\share\Cursor.exe`,
+      '//server/share/Cursor.exe',
+      String.raw`\\?\UNC\server\share\Cursor.exe`,
+      String.raw`\\.\PhysicalDrive0`,
+      String.raw`\??\C:\Cursor.exe`,
+    ];
+    if (platform === 'win32') destinations.push(String.raw`C:\NUL`, String.raw`C:Cursor.exe`);
+    for (const link of [alias, runtime]) {
+      for (const destination of destinations) {
+        const calls: { operation: string; filename: string }[] = [];
+        const files = new NativeDiscoveryFiles(platform, {
+          async lstat(filename: string) {
+            calls.push({ operation: 'lstat', filename });
+            return { isSymbolicLink: () => filename === link };
+          },
+          async readlink(filename: string) {
+            calls.push({ operation: 'readlink', filename });
+            return destination;
+          },
+          async realpath(filename: string) {
+            calls.push({ operation: 'realpath', filename });
+            return filename;
+          },
+        } as unknown as NonNullable<ConstructorParameters<typeof NativeDiscoveryFiles>[1]>);
+        await assert.rejects(files.canonical(runtime), /source-unavailable/);
+        assert.deepEqual(calls.at(-1), { operation: 'readlink', filename: link });
+        assert.ok(
+          calls.every(
+            (call) => call.filename === link || link.startsWith(call.filename + paths.sep),
+          ),
+        );
+        assert.equal(
+          calls.some((call) => call.operation === 'realpath'),
+          false,
+        );
+      }
+    }
+    for (const destination of destinations) {
+      const calls: string[] = [];
+      const files = new NativeDiscoveryFiles(platform, {
+        async lstat(filename: string) {
+          calls.push(filename);
+          return { isSymbolicLink: () => false };
+        },
+        async realpath(filename: string) {
+          calls.push(filename);
+          return destination;
+        },
+      } as unknown as NonNullable<ConstructorParameters<typeof NativeDiscoveryFiles>[1]>);
+      await assert.rejects(files.canonical(runtime), /source-unavailable/);
+      assert.equal(calls.at(-1), runtime);
+      assert.equal(calls.includes(destination), false);
+    }
+  });
+}
+
+for (const platform of ['linux', 'win32'] as const) {
+  test(`R7-B ${platform}: desktop metadata cannot identify an out-of-root runtime; whole-install aliases remain valid`, async () => {
+    const f = fixtures(platform);
+    const root = f.roots.get('cursor')!;
+    const executable =
+      discoveryCatalog.cursor[platform === 'win32' ? 'windows' : 'linux'][0].executable;
+    const runtime = f.paths.join(root, executable);
+    const external = platform === 'win32' ? 'D:\\Unrelated\\node.exe' : '/usr/bin/node';
+    f.files.add(external);
+    f.files.binaries.add(external);
+    f.files.links.set(runtime, external);
+    const checked: string[] = [];
+    const originalExecutable = f.files.executable.bind(f.files);
+    f.files.executable = async (filename) => {
+      checked.push(filename);
+      return originalExecutable(filename);
+    };
+    const rejected = (await f.detector().scan()).applications.find(
+      (app) => app.client === 'cursor',
+    )!;
+    assert.equal(rejected.status, 'unknown');
+    assert.equal(rejected.instances.length, 0);
+    assert.ok(rejected.coverage.some((source) => source.reason === 'unverified-identity'));
+    assert.equal(checked.includes(external), false);
+    assert.equal(f.files.reads.includes(external), false);
+
+    const physical = platform === 'win32' ? 'D:\\Приложения\\Cursor' : '/opt/Приложения/Cursor';
+    for (const [filename, contents] of [...f.files.entries]) {
+      if (!filename.startsWith(root + f.paths.sep)) continue;
+      const relocated = f.paths.join(physical, f.paths.relative(root, filename));
+      f.files.add(relocated, contents);
+      if (f.files.binaries.has(filename)) f.files.binaries.add(relocated);
+      f.files.entries.delete(filename);
+    }
+    f.files.links.delete(runtime);
+    f.files.links.set(root, physical);
+    const accepted = (await f.detector().scan()).applications.find(
+      (app) => app.client === 'cursor',
+    )!;
+    assert.equal(accepted.status, 'detected');
+    assert.deepEqual(
+      accepted.instances.map((instance) => instance.path),
+      [physical],
+    );
+    assert.ok(checked.includes(f.paths.join(physical, executable)));
+  });
+}
