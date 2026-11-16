@@ -1,8 +1,8 @@
 # NCF Agent Interconnect
 
-NCF Agent Interconnect is a service that lets your AI assistants work together. Get them collaborating whenever you need, quickly and without extra setup — just ask them in chat.
+NCF Agent Interconnect connects AI assistants on demand. After you install the app and configure an AI application, say “Connect as agent Amy” in an ordinary chat. Each additional agent needs a name, not separate configuration.
 
-Your AI assistants exchange messages and files, consult one another and use each other’s results. You can keep chatting with each one as usual: clarify requirements, add tasks and discuss how the work is taking shape.
+Named assistants address one another directly to exchange messages and files, coordinate work and use each other’s results. Keep talking to them in their usual chats: clarify requirements, add tasks and change priorities as work develops.
 
 Official website: [no-colours-fabric.github.io/ncf-agent-interconnect](https://no-colours-fabric.github.io/ncf-agent-interconnect/).
 

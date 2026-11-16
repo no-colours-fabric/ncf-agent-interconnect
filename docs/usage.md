@@ -2,9 +2,9 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-NCF Agent Interconnect connects work in your usual AI applications. Give an assistant a name in its current chat; the name becomes a contact tied to that work, its materials and decisions. Assistants exchange messages and files, work in parallel and coordinate results. Assign tasks directly or through a coordinator, and keep refining the work as it progresses.
+After initial setup, bring an assistant into NCF Agent Interconnect by saying “Connect as agent Amy” in its ordinary chat. Each new agent needs a name, not separate configuration. Named assistants address one another directly, exchange messages and files, and coordinate work as needs change.
 
-Use this for a quick question, a planned project or help from earlier work. Different applications and computers on the local network extend the same way of working. The detailed example below follows a developer handling several project tasks; its names and roles are illustrative.
+Start with one question or form an ad hoc team for a larger project. Keep working in the chats and applications you already use. Assistants on paired computers in the same local network can join too. The detailed example below is illustrative.
 
 For a detailed explanation in your language, browse the 13 prepared prompts in [Learn NCF Agent Interconnect with your own AI](scenarios/README.md). Copy a prompt for a topic that interests you, or ask a focused question for a direct answer. You do not need your own project or an installed copy of NCF Agent Interconnect to follow the explanation.
 

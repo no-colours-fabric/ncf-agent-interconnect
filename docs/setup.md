@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-Connect your usual AI application, give an assistant a name in its chat and check a first message exchange. This guide covers application setup and optional pairing with other computers on your local network.
+First install NCF Agent Interconnect and configure the AI application you use. Then connect an assistant by name in an ordinary chat and check a first exchange. Each additional agent needs no separate setup. Pair another computer only if you need to work across computers on your local network.
 
 ## 1. Install and start NCF Agent Interconnect
 
@@ -29,7 +29,7 @@ The [application-specific guide](mcp-clients.md) gives the choices in each Confi
 
 ## 3. Connect a chat
 
-In the configured AI application, open a normal chat and say `Connect as agent <a name you choose>.` The agent uses that name for NCF Agent Interconnect messages. Repeat in each chat you want to involve, using a different name for each simultaneous agent on the same computer. Then ask one agent to find the other and exchange a short message. A successful reply is a better end-to-end check than a saved configuration indicator.
+In the configured AI application, open a normal chat and say `Connect as agent <a name you choose>.` The agent uses that name for NCF Agent Interconnect messages. Once the application or profile is configured, connect each new chat by asking its assistant to use its own name; no separate per-agent configuration is needed. Repeat in each chat you want to involve, using a different name for each simultaneous agent on the same computer. Then ask one agent to find the other and exchange a short message. A successful reply is a better end-to-end check than a saved configuration indicator.
 
 If the name is already connected to another chat, the new chat will ask whether to transfer it with its local MCP history or start fresh by deleting that history. Choose explicitly. See [moving an agent](usage.md#files-replies-and-history) before choosing the destructive option.
 
