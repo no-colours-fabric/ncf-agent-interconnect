@@ -25,7 +25,10 @@ export interface DiscoveryFiles {
   bytes(filename: string, size: number, offset?: number): Promise<Buffer>;
   executable(filename: string): Promise<boolean>;
   plist(filename: string): Promise<Record<string, unknown>>;
-  packageIdentity(name: string): Promise<{ name: string; publisher: string } | undefined>;
+  packageIdentity(
+    name: string,
+    runtime?: string,
+  ): Promise<{ name: string; publisher: string } | undefined>;
   windowsCodex?(): Promise<{ root: string; executable: string }[]>;
 }
 
@@ -57,7 +60,7 @@ export async function peIdentity(
     const data = await files.bytes(filename, size, start);
     if (data.length !== size) throw new DiscoveryError('invalid-metadata');
     const text = data.toString('utf16le');
-    const field = (key: string) => text.match(new RegExp(key + '\\0+([^\\0]{1,160})'))?.[1];
+    const field = (key: string) => text.match(new RegExp(key + '\\0+([^\\0]{1,160})'))?.[1]?.trim();
     const product = field('ProductName'),
       publisher = field('CompanyName');
     if (product && publisher) return { product, publisher };
@@ -67,11 +70,12 @@ export async function peIdentity(
 
 /** Only known OS metadata readers run here; discovered applications never execute. */
 export class NativeDiscoveryFiles implements DiscoveryFiles {
+  constructor(private readonly platform: NodeJS.Platform = process.platform) {}
   async windowsCodex(): Promise<{ root: string; executable: string }[]> {
     const system = process.env.SystemRoot ?? 'C:\\Windows';
     const command = path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe');
     const script =
-      "$ErrorActionPreference='Stop'; @(Get-AppxPackage -Name 'OpenAI.Codex' | Select-Object Name,Publisher,InstallLocation) | ConvertTo-Json -Compress";
+      "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; @(Get-AppxPackage -Name 'OpenAI.Codex' | Select-Object Name,Publisher,InstallLocation) | ConvertTo-Json -Compress";
     const { stdout } = await runFile(
       command,
       ['-NoProfile', '-NonInteractive', '-Command', script],
@@ -159,15 +163,15 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
 
   async executable(filename: string): Promise<boolean> {
     if (!(await lstat(filename)).isFile()) return false;
-    await access(filename, process.platform === 'win32' ? constants.F_OK : constants.X_OK);
+    await access(filename, this.platform === 'win32' ? constants.F_OK : constants.X_OK);
     const head = await this.bytes(filename, 64);
-    if (process.platform === 'win32') {
+    if (this.platform === 'win32') {
       if (head.length < 64 || head.toString('ascii', 0, 2) !== 'MZ') return false;
       const offset = head.readUInt32LE(60);
       if (offset > 4 * 1024 * 1024) throw new DiscoveryError('invalid-metadata');
       return (await this.bytes(filename, 4, offset)).equals(Buffer.from('PE\0\0'));
     }
-    if (process.platform === 'linux') return head.subarray(0, 4).equals(Buffer.from('\x7fELF'));
+    if (this.platform === 'linux') return head.subarray(0, 4).equals(Buffer.from('\x7fELF'));
     return (
       head.length >= 4 &&
       [0xfeedface, 0xfeedfacf, 0xcefaedfe, 0xcffaedfe, 0xcafebabe, 0xbebafeca].includes(
@@ -209,7 +213,10 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     return jsonObject(stdout);
   }
 
-  async packageIdentity(name: string): Promise<{ name: string; publisher: string } | undefined> {
+  async packageIdentity(
+    name: string,
+    runtime?: string,
+  ): Promise<{ name: string; publisher: string } | undefined> {
     // Fixed package IDs and argv: no shell, package scripts, installation, or client execution.
     if (!['opencode', 'aionui', 'chatgpt', 'codex', 'claude-code'].includes(name))
       throw new DiscoveryError('invalid-metadata');
@@ -224,8 +231,31 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
           maxBuffer: 8192,
         });
         const [status, installed, publisher] = stdout.trim().split('\n');
-        if (status === 'install ok installed' && installed === name && publisher)
-          return { name, publisher };
+        if (status === 'install ok installed' && installed === name && publisher) {
+          if (!runtime || !path.posix.isAbsolute(runtime) || /[\r\n\0*?\[\]]/.test(runtime))
+            throw new DiscoveryError('unverified-identity');
+          const ownershipArgs =
+            command === '/usr/bin/dpkg-query'
+              ? ['-S', runtime]
+              : ['-q', '--queryformat', '%{NAME}', '-f', runtime];
+          const ownership = await runFile(command, ownershipArgs, {
+            shell: false,
+            timeout: 1500,
+            maxBuffer: 8192,
+          });
+          const owns =
+            command === '/usr/bin/dpkg-query'
+              ? ownership.stdout
+                  .trim()
+                  .split('\n')
+                  .some(
+                    (line) =>
+                      line === name + ': ' + runtime ||
+                      (line.startsWith(name + ':') && line.endsWith(': ' + runtime)),
+                  )
+              : ownership.stdout.trim() === name;
+          if (owns) return { name, publisher };
+        }
       } catch (error) {
         if (errorReason(error) === 'access-denied') throw error;
       }
@@ -235,7 +265,25 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
 }
 
 export function jsonObject(text: string): Record<string, unknown> {
-  const value: unknown = JSON.parse(text);
+  let depth = 0,
+    quoted = false,
+    escaped = false;
+  for (const char of text) {
+    if (quoted) {
+      if (escaped) escaped = false;
+      else if (char === '\\') escaped = true;
+      else if (char === '"') quoted = false;
+    } else if (char === '"') quoted = true;
+    else if (char === '{' || char === '[') {
+      if (++depth > 64) throw new DiscoveryError('limit-exceeded');
+    } else if (char === '}' || char === ']') depth--;
+  }
+  let value: unknown;
+  try {
+    value = JSON.parse(text);
+  } catch {
+    throw new DiscoveryError('invalid-metadata');
+  }
   if (!value || typeof value !== 'object' || Array.isArray(value))
     throw new DiscoveryError('invalid-metadata');
   return value as Record<string, unknown>;

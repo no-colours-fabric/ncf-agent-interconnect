@@ -89,3 +89,17 @@ test('corrupt, oversized, future-version, and symlink state never silently reset
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('corruption appearing after startup is preserved when an offer is acknowledged', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-discovery-state-'));
+  try {
+    const state = new ApplicationDiscoveryState(directory);
+    await state.offers(applications());
+    const filename = path.join(directory, 'application-discovery.json');
+    await writeFile(filename, 'owner data changed');
+    assert.equal(await state.markOffered(['cursor']), false);
+    assert.equal(await readFile(filename, 'utf8'), 'owner data changed');
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

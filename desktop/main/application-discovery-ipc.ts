@@ -21,6 +21,8 @@ export function createApplicationDiscoveryHandler(
   const state = new ApplicationDiscoveryState(options.stateDirectory, options.now);
   let generation = 0;
   let current: Promise<ApplicationDiscoverySnapshot>;
+  let servedOwner = '';
+  const servedOffers = new Set<string>();
   const refresh = () => {
     const requested = ++generation;
     const scan = discovery.scan().then(async (result): Promise<ApplicationDiscoverySnapshot> => ({
@@ -40,6 +42,10 @@ export function createApplicationDiscoveryHandler(
     if (!(applicationDiscoveryMethods as readonly string[]).includes(method))
       return { handled: false };
     if (!owner) throw new Error('The desktop interface session is missing');
+    if (servedOwner !== owner) {
+      servedOwner = owner;
+      servedOffers.clear();
+    }
     let result: unknown;
     if (method === 'applicationDiscovery') {
       z.object({}).strict().parse(raw);
@@ -70,11 +76,13 @@ export function createApplicationDiscoveryHandler(
       const parent = options.window();
       if (!parent || parent.isDestroyed() || !parent.isVisible())
         throw new Error('Application offers must be visible in the desktop interface');
-      const snapshot = await current;
-      if (clients.some((client) => !snapshot.offers.includes(client)))
+      if (clients.some((client) => !servedOffers.has(client)))
         throw new Error('The application offer is no longer available');
       result = { saved: await state.markOffered(clients) };
     }
+    if (method !== 'applicationDiscoveryOffered')
+      for (const client of (result as ApplicationDiscoverySnapshot).offers)
+        servedOffers.add(client);
     return { handled: true, result };
   };
 }

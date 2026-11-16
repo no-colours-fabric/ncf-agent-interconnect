@@ -8,6 +8,7 @@ import {
   type DiscoveryFiles,
   asarManifest,
   peIdentity,
+  jsonObject,
 } from '../desktop/core/application-discovery-platforms.js';
 import {
   discoveryCatalog,
@@ -270,6 +271,25 @@ test('ASAR and PE readers reject forged offsets and metadata links', async () =>
   await assert.rejects(peIdentity(files, '/app/app.exe'), /invalid-metadata/);
 });
 
+test('PE identity trims padded vendor resource strings observed in the official Windows installer', async () => {
+  const files = new FixtureFiles();
+  const resource = Buffer.from('ProductName\0Cursor    \0CompanyName\0Anysphere    \0', 'utf16le');
+  const executable = Buffer.alloc(256 + resource.length);
+  executable.write('MZ');
+  executable.writeUInt32LE(64, 60);
+  executable.write('PE\0\0', 64);
+  executable.writeUInt16LE(1, 70);
+  executable.write('.rsrc', 88);
+  executable.writeUInt32LE(resource.length, 104);
+  executable.writeUInt32LE(256, 108);
+  resource.copy(executable, 256);
+  files.add('/fixture/Cursor.exe', executable);
+  assert.deepEqual(await peIdentity(files, '/fixture/Cursor.exe'), {
+    product: 'Cursor',
+    publisher: 'Anysphere',
+  });
+});
+
 test('official Cursor DEB metadata confirms the Linux identity and desktop locator', async () => {
   const fixture = JSON.parse(
     await readFile(
@@ -280,4 +300,28 @@ test('official Cursor DEB metadata confirms the Linux identity and desktop locat
   assert.equal(matchesDesktopMetadata('cursor', fixture.metadata.product), true);
   assert.equal(desktopExecutable(fixture.metadata.desktop), '/usr/share/cursor/cursor');
   assert.match(fixture.artifactSha256, /^[a-f0-9]{64}$/);
+});
+
+test('Windows Cursor metadata is independently sourced from the standard Windows installation', async () => {
+  const fixture = JSON.parse(
+    await readFile(
+      new URL('./fixtures/application-discovery/cursor-windows.json', import.meta.url),
+      'utf8',
+    ),
+  );
+  assert.equal(matchesDesktopMetadata('cursor', fixture.metadata), true);
+  assert.equal(fixture.metadata.win32AppUserModelId, 'Anysphere.Cursor');
+  assert.equal(fixture.version, '3.29.9');
+});
+
+test('metadata nesting and truncated PATH coverage fail to unknown instead of false absence', async () => {
+  assert.throws(() => jsonObject('['.repeat(65) + '0' + ']'.repeat(65)), /limit-exceeded/);
+  assert.throws(() => jsonObject('{invalid'), /invalid-metadata/);
+  const scan = await new ApplicationDiscovery({
+    platform: 'linux',
+    home: '/fixture',
+    env: { PATH: Array.from({ length: 65 }, (_, i) => '/bin' + i).join(':') },
+    files: new FixtureFiles(),
+  }).scan();
+  assert.ok(scan.applications.every((app) => app.status === 'unknown'));
 });

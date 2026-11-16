@@ -75,7 +75,7 @@ export class ApplicationDiscovery {
     this.paths = this.platform === 'win32' ? path.win32 : path.posix;
     this.home = options.home ?? os.homedir();
     this.env = options.env ?? process.env;
-    this.files = options.files ?? new NativeDiscoveryFiles();
+    this.files = options.files ?? new NativeDiscoveryFiles(this.platform);
     this.now = options.now ?? Date.now;
   }
 
@@ -115,6 +115,21 @@ export class ApplicationDiscovery {
       coverage: DiscoveryCoverage[] = [];
     const visited = new Set<string>();
     const deadline = this.now() + 12000;
+    if (
+      (this.env.PATH ?? this.env.Path ?? '').split(this.platform === 'win32' ? ';' : ':').length >
+      64
+    )
+      coverage.push({
+        source: 'Inherited PATH locations',
+        state: 'partial',
+        reason: 'limit-exceeded',
+      });
+    if (this.platform === 'linux' && (this.env.XDG_DATA_DIRS ?? '').split(':').length > 15)
+      coverage.push({
+        source: 'XDG application directories',
+        state: 'partial',
+        reason: 'limit-exceeded',
+      });
     const probe = async (
       source: string,
       check: () => Promise<InstallationInstance | undefined>,
@@ -319,7 +334,7 @@ export class ApplicationDiscovery {
       (await manifest(this.files, installation, 'resources/app/package.json')) ??
       (await asarManifest(this.files, installation));
     if (!metadata || !matchesDesktopMetadata(client, metadata)) {
-      if (this.platform === 'win32') {
+      if (this.platform === 'win32' && executable) {
         const identity = await peIdentity(this.files, runtime);
         const expected = {
           cursor: [/^Cursor$/, /Anysphere/i],
@@ -332,7 +347,7 @@ export class ApplicationDiscovery {
           return { path: installation, form: 'desktop', evidence: 'product-metadata' };
       }
       if (this.platform === 'linux' && client === 'opencode') {
-        const identity = await this.files.packageIdentity('opencode');
+        const identity = await this.files.packageIdentity('opencode', runtime);
         if (identity && /OpenCode|Anomaly|SST/i.test(identity.publisher))
           return { path: installation, form: 'desktop', evidence: 'package-metadata' };
       }

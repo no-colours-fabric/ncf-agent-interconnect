@@ -33,17 +33,7 @@ export class ApplicationDiscoveryState {
     if (this.loading) return this.loading;
     this.loading = (async () => {
       try {
-        const info = await lstat(this.filename);
-        if (!info.isFile() || info.size > 32768) throw new Error('Invalid discovery state');
-        const file = await open(this.filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-        try {
-          const data = Buffer.alloc(32769);
-          const { bytesRead } = await file.read(data, 0, data.length, 0);
-          if (bytesRead > 32768) throw new Error('Invalid discovery state');
-          this.state = schema.parse(JSON.parse(data.subarray(0, bytesRead).toString('utf8')));
-        } finally {
-          await file.close();
-        }
+        this.state = await this.read();
       } catch (error) {
         if ((error as NodeJS.ErrnoException).code === 'ENOENT')
           this.state = { version: 1, offered: {} };
@@ -51,6 +41,25 @@ export class ApplicationDiscoveryState {
       }
     })();
     return this.loading;
+  }
+
+  private async read(): Promise<State> {
+    try {
+      const info = await lstat(this.filename);
+      if (!info.isFile() || info.size > 32768) throw new Error('Invalid discovery state');
+      const file = await open(this.filename, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
+      try {
+        const data = Buffer.alloc(32769);
+        const { bytesRead } = await file.read(data, 0, data.length, 0);
+        if (bytesRead > 32768) throw new Error('Invalid discovery state');
+        return schema.parse(JSON.parse(data.subarray(0, bytesRead).toString('utf8')));
+      } finally {
+        await file.close();
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'ENOENT') return { version: 1, offered: {} };
+      throw error;
+    }
   }
 
   async offers(applications: ApplicationInstallation[]): Promise<McpSetupClient[]> {
@@ -66,7 +75,14 @@ export class ApplicationDiscoveryState {
     const work = this.writing.then(async () => {
       await this.load();
       if (this.error || !this.state) return false;
-      const next = schema.parse(this.state);
+      let next: State;
+      try {
+        const disk = await this.read();
+        next = schema.parse({ version: 1, offered: { ...disk.offered, ...this.state.offered } });
+      } catch {
+        this.error = true;
+        return false;
+      }
       let changed = false;
       for (const client of clients)
         if (!next.offered[client]) {
