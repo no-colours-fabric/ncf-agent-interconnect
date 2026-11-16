@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile, readFile, access, copyFile } from 'node:fs/promises';
@@ -386,7 +387,7 @@ test('MCP advertises two choices; reset revokes old tools, clears refs, preserve
     recipientNickname: 'Филипп',
     text: 'Old',
   });
-  const history = page(await service.read(old.binding.connectionId));
+  const history = page(await mcpRead(service, old.binding.connectionId));
   const ref = history.messages[0].replyRef!;
   const request = pending(await callConnect(second, { nickname: 'ФИЛИПП' }));
   const args = confirm(request);
@@ -401,7 +402,7 @@ test('MCP advertises two choices; reset revokes old tools, clears refs, preserve
   );
   assert.equal(fresh.historyCleared, true);
   assert.match(fresh.resetLimits!, /remote queues.*In-flight/);
-  assert.equal(page(await service.read(fresh.binding.connectionId)).messages.length, 0);
+  assert.equal(page(await mcpRead(service, fresh.binding.connectionId)).messages.length, 0);
   assert.throws(
     () => service.resolveReplyAddress(fresh.binding.connectionId, { replyRef: ref }),
     /does not identify/,
@@ -430,7 +431,7 @@ test('MCP advertises two choices; reset revokes old tools, clears refs, preserve
     recipientNickname: 'филипп',
     text: 'New',
   });
-  const received = page(await service.read(fresh.binding.connectionId, 0, 50, true)).messages;
+  const received = page(await mcpRead(service, fresh.binding.connectionId, 0, 50, true)).messages;
   assert.equal(received[0].envelope.id, next.id);
   assert.notEqual(received[0].replyRef, ref);
 });
@@ -490,7 +491,7 @@ test('reset during MCP materialize waits for siblings and prevents old read or f
     await barrier.wait();
     return copy;
   };
-  const reading = assert.rejects(service.read(old.binding.connectionId), /agent_moved/);
+  const reading = assert.rejects(mcpRead(service, old.binding.connectionId), /agent_moved/);
   const receiving = assert.rejects(
     service.receiveFile(old.binding.connectionId, sent.id, file.id),
     /agent_moved/,
@@ -799,7 +800,7 @@ test('remote replay after reset/restart remains suppressed and cannot report fal
     await a.network.message(original);
     await until(() => retried);
     assert.equal(reopened.store.get(sent.id, 'in'), undefined);
-    assert.equal(page(await reopened.read(fresh.binding.connectionId)).messages.length, 0);
+    assert.equal(page(await mcpRead(reopened, fresh.binding.connectionId)).messages.length, 0);
     assert.notEqual(a.store.get(sent.id, 'out')!.state, 'processed');
   } finally {
     await reopened.close();
@@ -829,7 +830,7 @@ test('a failed materialize waits for still-writing siblings before reset cleanup
     return materialize(id, file);
   };
   let settled = false;
-  const reading = service.read(old.binding.connectionId);
+  const reading = mcpRead(service, old.binding.connectionId);
   void reading.then(
     () => {
       settled = true;

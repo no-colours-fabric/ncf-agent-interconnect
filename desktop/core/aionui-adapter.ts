@@ -15,6 +15,7 @@ const accepted = z.object({
   data: z.object({ msg_id: z.string().min(1).max(200), turn_id: z.string().min(1).max(200) }),
 });
 export class AionUiAdapter implements AgentAdapter {
+  readonly contentGate = true;
   private state: AdapterState;
   private socket?: WebSocket;
   private retry?: NodeJS.Timeout;
@@ -258,11 +259,11 @@ export class AionUiAdapter implements AgentAdapter {
     const version = this.idleVersion;
     try {
       const { http, signal } = this.sessions.access(this.id());
-      const response = await http.request(
-        this.route() + '/messages',
-        { method: 'POST', body: JSON.stringify({ content: agentMessageText(input) }) },
-        signal,
-      );
+      const text = agentMessageText(input);
+      const route = this.route() + '/messages',
+        body = JSON.stringify({ content: text });
+      input.beforeRelease?.(body);
+      const response = await http.request(route, { method: 'POST', body }, signal);
       if (response.status === 409) {
         this.blocked = version === this.idleVersion;
         if (!this.blocked) setImmediate(() => this.idle());

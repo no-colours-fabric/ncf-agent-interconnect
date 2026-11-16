@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
 import type { NodeService } from './service.js';
+import { McpResponseHandoff, type ResponseInvocation } from './mcp-response-handoff.js';
 import { helperHelloSchema, type ClaudeHelper, type WakeSink } from './claude-sessions.js';
 import {
   canonicalInputHash,
@@ -30,6 +31,7 @@ export function createAgentMcp(
   service: NodeService,
   sessionKey = randomUUID(),
   isActive: () => boolean = () => true,
+  handoffs?: McpResponseHandoff,
 ): McpServer {
   const touch = (connectionId?: string) => {
     if (isActive()) service.touchClientSession(sessionKey, connectionId);
@@ -58,6 +60,7 @@ export function createAgentMcp(
         requestId?: string | number;
         /** The admitted Claude Code call permit, when this is one. */
         claudePermit?: string;
+        handoff?: ResponseInvocation;
       },
     ) => unknown | Promise<unknown>,
     destructiveHint = false,
@@ -67,6 +70,7 @@ export function createAgentMcp(
       extra: { _meta?: Record<string, unknown>; requestId?: string | number },
     ): Promise<CallToolResult> => {
       let delivery: string | undefined;
+      const handoff = handoffs?.context.getStore();
       try {
         const currentCall = () => {
           const client = mcp.server.getClientVersion()?.name;
@@ -92,6 +96,7 @@ export function createAgentMcp(
         const permit = extra._meta?.[claudeCallMetaKey];
         const output = await handler(args as z.infer<z.ZodObject<T>>, {
           ...extra,
+          ...(handoff ? { handoff } : {}),
           ...(typeof permit === 'string' && mcp.server.getClientVersion()?.name === 'Claude Code'
             ? { claudePermit: permit }
             : {}),
@@ -100,15 +105,21 @@ export function createAgentMcp(
         delivery = output instanceof ClaudeRelease ? output.delivery : undefined;
         currentCall();
         touch();
-        return {
+        const response: CallToolResult = {
           content: [{ type: 'text' as const, text: JSON.stringify(result) }],
           structuredContent: result as Record<string, unknown>,
           ...(delivery ? { _meta: { [claudeDeliveryMetaKey]: delivery } } : {}),
         };
+        return handoff ? handoffs!.seal(handoff, response) : response;
       } catch (e) {
         // The error result carries no content, so the attempt ends without receipt.
         if (delivery) service.store.cancelClaudeDelivery(delivery, 'The call lost its authority');
-        return { isError: true, content: [{ type: 'text' as const, text: (e as Error).message }] };
+        handoff?.discardDelivery();
+        const response: CallToolResult = {
+          isError: true,
+          content: [{ type: 'text' as const, text: (e as Error).message }],
+        };
+        return handoff ? handoffs!.seal(handoff, response) : response;
       }
     };
     mcp.registerTool<z.ZodRawShape, z.ZodObject<T>>(
@@ -217,7 +228,8 @@ export function createAgentMcp(
     false,
     async (args, extra) => {
       touch(args.connectionId);
-      if (!extra.claudePermit) return service.read(args.connectionId, args.after, args.limit, true);
+      if (!extra.claudePermit)
+        return service.read(args.connectionId, args.after, args.limit, true, extra.handoff);
       const released = await service.readClaude(
         args.connectionId,
         args.after,
@@ -236,7 +248,7 @@ export function createAgentMcp(
     async (args, extra) => {
       touch(args.connectionId);
       if (!extra.claudePermit)
-        return service.read(args.connectionId, args.after, args.limit, false);
+        return service.read(args.connectionId, args.after, args.limit, false, extra.handoff);
       const released = await service.readClaude(
         args.connectionId,
         args.after,
@@ -330,8 +342,11 @@ export class McpEndpoint {
     }
   >();
   private heartbeat?: NodeJS.Timeout;
+  private readonly responses: McpResponseHandoff;
   port = 0;
-  constructor(readonly service: NodeService) {}
+  constructor(readonly service: NodeService) {
+    this.responses = new McpResponseHandoff(service.deliveryIncarnation);
+  }
   async start(port: number): Promise<void> {
     this.server = http.createServer((req, res) => {
       void this.handle(req, res).catch((e) => {
@@ -515,6 +530,7 @@ export class McpEndpoint {
             this.service,
             key,
             () => this.sessions.get(transport.sessionId ?? '')?.key === key,
+            this.responses,
           );
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
@@ -523,13 +539,16 @@ export class McpEndpoint {
           },
           onsessionclosed: (id) => {
             this.sessions.delete(id);
+            this.responses.closeSession(key);
             this.service.closeClientSession(key);
           },
         });
         transport.onclose = () => {
           if (transport.sessionId) this.sessions.delete(transport.sessionId);
+          this.responses.closeSession(key);
           this.service.closeClientSession(key);
         };
+        this.responses.wrap(transport, key);
         await mcp.connect(transport);
         session = { transport, mcp, key, lastActivity: Date.now() };
       }
@@ -570,7 +589,20 @@ export class McpEndpoint {
           );
         }
       }
-      await session.transport.handleRequest(req, res, body);
+      if (call?.method === 'notifications/cancelled') {
+        const id = (call.params as { requestId?: unknown } | undefined)?.requestId;
+        if (typeof id === 'string' || typeof id === 'number')
+          this.responses.cancel(session.key, id);
+      }
+      if (
+        call?.method === 'tools/call' &&
+        (typeof call.id === 'string' || typeof call.id === 'number')
+      ) {
+        const scope = this.responses.begin(session.transport, session.key, call.id, res);
+        await this.responses.context.run(scope, () =>
+          session.transport.handleRequest(req, res, body),
+        );
+      } else await session.transport.handleRequest(req, res, body);
       const current = this.sessions.get(session.transport.sessionId ?? '');
       if (current) current.lastActivity = Date.now();
       return;
@@ -668,6 +700,7 @@ export class McpEndpoint {
         .catch(() => {});
   }
   async close(): Promise<void> {
+    this.invalidate();
     clearInterval(this.heartbeat);
     await Promise.all(
       [...this.sessions.values()].map(async (s) => {
@@ -680,5 +713,9 @@ export class McpEndpoint {
       this.server.closeIdleConnections();
       await new Promise<void>((resolve) => this.server!.close(() => resolve()));
     }
+  }
+  /** Stop queued writes before the service can close/reopen in this process. */
+  invalidate(): void {
+    this.responses.close();
   }
 }

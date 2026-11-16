@@ -17,6 +17,8 @@ import { CodexDesktopAdapter } from './codex-adapter.js';
 export type Admission = {
   state: 'admitted' | 'offered' | 'waiting' | 'failed' | 'uncertain' | 'revoked';
   error?: string;
+  /** A contract rejection proves no body was accepted; never inferred from revoke/timeout. */
+  definiteNoBody?: true;
 };
 export interface AgentMessageInput {
   fromNode: string;
@@ -29,6 +31,8 @@ export type EventInput = {
   binding: Binding;
   messageId: string;
   isCurrent?: () => boolean;
+  /** Synchronous, one-shot node-owned gate immediately before content leaves. */
+  beforeRelease?: (actualRepresentation: string) => void;
 } & (
   | {
       message: AgentMessageInput;
@@ -72,6 +76,7 @@ export interface AgentAdapter {
   stop(): Promise<void>;
   /** Wake-only adapters signal waiting messages; content arrives through agent_read. */
   readonly wakeOnly?: boolean;
+  readonly contentGate?: boolean;
   /** Whether an earlier offer still stands in the current transport lifecycle. */
   offerCurrent?(messageId: string): boolean;
   /** Wake-only adapters observe agent_read to coalesce and renew their signals. */
@@ -116,6 +121,7 @@ type CursorAdmission = {
 
 /** Event-driven exact-chat delivery through Cursor's native Agent hooks. */
 export class CursorHookAdapter implements AgentAdapter {
+  readonly contentGate = true;
   private state: AdapterState;
   private waiter?: CursorWaiter;
   private admission?: CursorAdmission;
@@ -235,6 +241,8 @@ export class CursorHookAdapter implements AgentAdapter {
     this.changed();
     const admissionId = randomUUID();
     const text = `${agentMessageText(input)}\n\nNCF-Admission-ID: ${admissionId}`;
+    const response = { followup_message: text };
+    const representation = JSON.stringify(response);
     return new Promise<Admission>((resolve) => {
       const timer = setTimeout(() => {
         if (this.admission?.id !== admissionId) return;
@@ -246,7 +254,16 @@ export class CursorHookAdapter implements AgentAdapter {
       }, 30000);
       timer.unref();
       this.admission = { id: admissionId, isCurrent: input.isCurrent, resolve, timer };
-      waiter.resolve({ followup_message: text });
+      try {
+        input.beforeRelease?.(representation);
+      } catch (error) {
+        clearTimeout(timer);
+        this.admission = undefined;
+        waiter.resolve({});
+        resolve({ state: 'failed', error: (error as Error).message });
+        return;
+      }
+      waiter.resolve(response);
     });
   }
   async stop(): Promise<void> {
@@ -259,6 +276,7 @@ export class CursorHookAdapter implements AgentAdapter {
 }
 
 export class OpenCodeAdapter implements AgentAdapter {
+  readonly contentGate = true;
   private state: AdapterState;
   private controller = new AbortController();
   private streamTask?: Promise<void>;
@@ -457,10 +475,10 @@ export class OpenCodeAdapter implements AgentAdapter {
     if (input.isCurrent && !input.isCurrent()) return { state: 'revoked' };
     try {
       const text = agentMessageText(input);
-      const response = await this.request(
-        '/session/' + encodeURIComponent(this.profile.sessionId!) + '/prompt_async',
-        { method: 'POST', body: JSON.stringify({ parts: [{ type: 'text', text }] }) },
-      );
+      const route = '/session/' + encodeURIComponent(this.profile.sessionId!) + '/prompt_async';
+      const body = JSON.stringify({ parts: [{ type: 'text', text }] });
+      input.beforeRelease?.(body);
+      const response = await this.request(route, { method: 'POST', body });
       if ([409, 429].includes(response.status)) return { state: 'waiting' };
       if (!response.ok)
         return this.failure(

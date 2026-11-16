@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -180,14 +181,14 @@ test('A dropped wake never records receipt; a queued backlog gets one wake and a
   const proof = await f.preTool(s1, 'agent_read', read);
   assert.equal((await a.verify('agent_read', read, proof)).status, 200);
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
-  const page = (await f.service.read(read.connectionId, 0, 1, true)) as { hasMore: boolean };
+  const page = (await mcpRead(f.service, read.connectionId, 0, 1, true)) as { hasMore: boolean };
   assert.equal(page.hasMore, true);
   // A completed MCP read does not establish that an idle channel event caused it.
   assert.equal(adapterOf(f, bob.binding.connectionId).state, 'manual');
   await until(() => a.wakes().length === 2);
   await settle();
   assert.equal(a.wakes().length, 2);
-  await f.service.read(read.connectionId, 0, 50, true);
+  await mcpRead(f.service, read.connectionId, 0, 50, true);
   await settle();
   assert.equal(a.wakes().length, 2);
   for (const id of ids) assert.equal(f.service.store.get(id, 'out')!.state, 'processed');

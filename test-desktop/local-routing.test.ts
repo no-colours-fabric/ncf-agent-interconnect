@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
@@ -224,7 +225,7 @@ test('queued local delivery and both histories survive a full restart, even befo
     if (Date.now() > deadline) throw new Error('Local recovery timed out');
     await new Promise((r) => setTimeout(r, 10));
   }
-  const incoming = page(await service.read(recipient.binding.connectionId)).messages[0];
+  const incoming = page(await mcpRead(service, recipient.binding.connectionId)).messages[0];
   assert.equal(incoming.envelope.id, sent.id);
   const attachment = (await service.receiveFile(
     recipient.binding.connectionId,
@@ -240,7 +241,7 @@ test('queued local delivery and both histories survive a full restart, even befo
     recipientNickname: 'Второй',
     text: 'Себе',
   });
-  const selfHistory = page(await service.read(recipient.binding.connectionId));
+  const selfHistory = page(await mcpRead(service, recipient.binding.connectionId));
   assert.deepEqual(
     selfHistory.messages.filter((m) => m.envelope.id === self.id).map((m) => m.direction),
     ['out', 'in'],
@@ -312,7 +313,7 @@ test('explicit local mailbox retries are atomic and self replies choose the inco
   assert.equal(service.store.list().find((agent) => agent.nickname === 'Будущий')!.binding, null);
   const recipient = service.connect({ nickname: 'БУДУЩИЙ', client: 'MCP' });
   if (recipient.status !== 'connected') throw new Error();
-  await service.read(recipient.binding.connectionId);
+  await mcpRead(service, recipient.binding.connectionId);
   assert.equal((await service.send(args)).delivery, 'received_by_agent');
   assert.equal(service.store.history(nicknameKey('Будущий')).messages.length, 1);
   await assert.rejects(

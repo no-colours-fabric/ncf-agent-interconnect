@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -112,7 +113,7 @@ test('An offer is not a receipt; a current offer is not repeated and a new lifec
   f.drain();
   await until(() => f.wake.offers.length === 2);
   assert.equal(f.service.store.dispatchState(sent.id)?.state, 'offered');
-  const read = (await f.service.read(f.recipient.binding.connectionId, 0, 50, true)) as {
+  const read = (await mcpRead(f.service, f.recipient.binding.connectionId, 0, 50, true)) as {
     messages: { envelope: { id: string; text: string } }[];
   };
   assert.deepEqual(

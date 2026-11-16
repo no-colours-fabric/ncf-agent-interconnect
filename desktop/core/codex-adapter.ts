@@ -136,11 +136,13 @@ export async function codexExchange(
       discoverId = randomUUID(),
       admissionId = randomUUID();
     const connection = net.createConnection(endpoint);
-    const write = (message: object): void => {
-      const bytes = Buffer.from(JSON.stringify(message)),
+    const write = (message: object, beforeWrite?: (representation: string) => void): void => {
+      const representation = JSON.stringify(message);
+      const bytes = Buffer.from(representation),
         frame = Buffer.alloc(bytes.length + 4);
       frame.writeUInt32LE(bytes.length);
       bytes.copy(frame, 4);
+      beforeWrite?.(representation);
       connection.write(frame);
     };
     const broadcast = (value: boolean): void =>
@@ -163,7 +165,11 @@ export async function codexExchange(
       if (following && connection.writable) broadcast(false);
       connection.end();
       connection.destroy();
-      resolve({ state, ...(error ? { error } : {}) });
+      resolve({
+        state,
+        ...(error ? { error } : {}),
+        ...(!submitted && state !== 'admitted' ? { definiteNoBody: true as const } : {}),
+      });
     };
     const fail = (reason: string): void => finish(submitted ? 'uncertain' : 'failed', reason);
     const abort = (): void => fail('The Codex connection stopped before confirming receipt');
@@ -177,18 +183,22 @@ export async function codexExchange(
       version: number,
       params: object,
       targetClientId?: string,
+      beforeWrite?: (representation: string) => void,
     ): void => {
       arm();
-      write({
-        type: 'request',
-        sourceClientId: clientId,
-        targetClientId,
-        method,
-        requestId,
-        version,
-        params,
-        timeoutMs,
-      });
+      write(
+        {
+          type: 'request',
+          sourceClientId: clientId,
+          targetClientId,
+          method,
+          requestId,
+          version,
+          params,
+          timeoutMs,
+        },
+        beforeWrite,
+      );
     };
     const submit = (runtime: unknown): void => {
       if (!input || settled || submitted || !['idle', 'active'].includes(String(runtime))) return;
@@ -197,7 +207,10 @@ export async function codexExchange(
         return;
       }
       const text = agentMessageText(input);
-      submitted = true;
+      const beforeWrite = (representation: string) => {
+        input.beforeRelease?.(representation);
+        submitted = true;
+      };
       if (runtime === 'active') {
         const clientUserMessageId = randomUUID();
         request(
@@ -223,6 +236,7 @@ export async function codexExchange(
             },
           },
           owner,
+          beforeWrite,
         );
         return;
       }
@@ -238,6 +252,7 @@ export async function codexExchange(
           },
         },
         owner,
+        beforeWrite,
       );
     };
     const receive = (message: Wire): void => {
@@ -391,6 +406,7 @@ export async function codexExchange(
 }
 
 export class CodexDesktopAdapter implements AgentAdapter {
+  readonly contentGate = true;
   private controller = new AbortController();
   private jobs = new Set<Promise<Admission>>();
   private state: AdapterState;
