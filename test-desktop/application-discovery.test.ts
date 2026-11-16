@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import path from 'node:path';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdtemp, mkdir, writeFile, link, rm } from 'node:fs/promises';
+import os from 'node:os';
 import { ApplicationDiscovery, desktopExecutable } from '../desktop/core/application-discovery.js';
 import {
   DiscoveryError,
@@ -9,6 +10,7 @@ import {
   asarManifest,
   peIdentity,
   jsonObject,
+  NativeDiscoveryFiles,
 } from '../desktop/core/application-discovery-platforms.js';
 import {
   discoveryCatalog,
@@ -65,6 +67,11 @@ class FixtureFiles implements DiscoveryFiles {
   }
   async windowsCodex() {
     return [];
+  }
+  async installationEntries(directory: string) {
+    return [...this.entries.keys()].filter(
+      (filename) => this.paths.dirname(filename) === directory,
+    );
   }
 }
 
@@ -324,4 +331,42 @@ test('metadata nesting and truncated PATH coverage fail to unknown instead of fa
     files: new FixtureFiles(),
   }).scan();
   assert.ok(scan.applications.every((app) => app.status === 'unknown'));
+});
+
+test('Windows Claude Desktop version directories are found without claiming backend readiness', async () => {
+  const f = fixtures('win32');
+  const old = f.roots.get('claude')!;
+  for (const filename of f.files.entries.keys())
+    if (filename.startsWith(old)) f.files.entries.delete(filename);
+  const root = f.paths.join(f.env.LOCALAPPDATA!, 'AnthropicClaude/app-1.1.7');
+  const runtime = f.paths.join(root, 'claude.exe');
+  f.files.add(runtime);
+  f.files.binaries.add(runtime);
+  f.files.add(f.paths.join(root, 'resources/app/package.json'), { name: 'claude-desktop' });
+  const result = (await f.detector().scan()).applications.find((app) => app.client === 'claude')!;
+  assert.equal(result.status, 'detected');
+  assert.deepEqual(
+    result.instances.map((entry) => entry.form),
+    ['desktop'],
+  );
+  assert.equal('ready' in result, false);
+});
+
+test('native Claude launcher hardlinks require the same file identity in the versioned install root', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-discovery-links-'));
+  try {
+    const versions = path.join(directory, 'versions');
+    await mkdir(versions);
+    const target = path.join(versions, '2.1.319');
+    await writeFile(target, 'native binary fixture');
+    const launcher = path.join(directory, 'claude.exe');
+    await link(target, launcher);
+    const files = new NativeDiscoveryFiles();
+    assert.equal(await files.linkedClaudeRuntime(launcher, versions), true);
+    const unrelated = path.join(directory, 'unrelated.exe');
+    await writeFile(unrelated, 'native binary fixture');
+    assert.equal(await files.linkedClaudeRuntime(unrelated, versions), false);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

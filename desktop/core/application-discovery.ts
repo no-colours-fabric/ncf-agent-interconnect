@@ -206,6 +206,19 @@ export class ApplicationDiscovery {
             ? { path: found[0].root, form: 'desktop', evidence: 'package-metadata' }
             : undefined;
         });
+      if (client === 'claude' && this.env.LOCALAPPDATA) {
+        const root = this.paths.join(this.env.LOCALAPPDATA, 'AnthropicClaude');
+        let entries: string[] = [];
+        await probe(root, async () => {
+          if (!this.files.installationEntries) throw new DiscoveryError('source-unavailable');
+          entries = await this.files.installationEntries(root);
+          return undefined;
+        });
+        for (const entry of entries.filter((filename) =>
+          /^app-\d+\.\d+/.test(this.paths.basename(filename)),
+        ))
+          await probe(entry, () => this.desktop(client, entry, 'claude.exe'));
+      }
     } else if (this.platform === 'linux') {
       for (const install of descriptor.linux)
         await probe(install.directory, () =>
@@ -419,6 +432,8 @@ export class ApplicationDiscovery {
       if (canonical.startsWith(nativeRoot + this.paths.sep) || homebrewLayout)
         return { path: canonical, form: 'cli', evidence: 'native-install-layout' };
       if (client === 'claude' && this.platform === 'win32') {
+        if (await this.files.linkedClaudeRuntime?.(canonical, nativeRoot))
+          return { path: canonical, form: 'cli', evidence: 'native-install-layout' };
         const identity = await peIdentity(this.files, canonical);
         if (identity && /Claude/.test(identity.product) && /Anthropic/.test(identity.publisher))
           return { path: canonical, form: 'cli', evidence: 'product-metadata' };

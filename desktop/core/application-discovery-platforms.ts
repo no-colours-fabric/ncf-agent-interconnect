@@ -1,5 +1,5 @@
 import { constants } from 'node:fs';
-import { access, lstat, open, readlink, realpath } from 'node:fs/promises';
+import { access, lstat, open, readlink, realpath, opendir } from 'node:fs/promises';
 import path from 'node:path';
 import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
@@ -30,6 +30,8 @@ export interface DiscoveryFiles {
     runtime?: string,
   ): Promise<{ name: string; publisher: string } | undefined>;
   windowsCodex?(): Promise<{ root: string; executable: string }[]>;
+  installationEntries?(directory: string): Promise<string[]>;
+  linkedClaudeRuntime?(launcher: string, versions: string): Promise<boolean>;
 }
 
 const runFile = promisify(execFile);
@@ -74,9 +76,29 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     private readonly platform: NodeJS.Platform = process.platform,
     private readonly fs: Pick<
       typeof import('node:fs/promises'),
-      'access' | 'lstat' | 'open' | 'readlink' | 'realpath'
-    > = { access, lstat, open, readlink, realpath },
+      'access' | 'lstat' | 'open' | 'readlink' | 'realpath' | 'opendir'
+    > = { access, lstat, open, readlink, realpath, opendir },
   ) {}
+  async installationEntries(directory: string): Promise<string[]> {
+    const canonical = await this.canonical(directory);
+    if (!canonical) return [];
+    const result: string[] = [];
+    for await (const entry of await this.fs.opendir(canonical)) {
+      if (result.length >= 64) throw new DiscoveryError('limit-exceeded');
+      result.push(path.join(canonical, entry.name));
+    }
+    return result;
+  }
+  async linkedClaudeRuntime(launcher: string, versions: string): Promise<boolean> {
+    const source = await this.fs.lstat(launcher, { bigint: true });
+    if (!source.isFile() || !source.ino) return false;
+    for (const candidate of await this.installationEntries(versions)) {
+      if (!/^v?\d+\.\d+\.\d+(?:[-+.][\w.-]+)?(?:\.exe)?$/.test(path.basename(candidate))) continue;
+      const target = await this.fs.lstat(candidate, { bigint: true });
+      if (target.isFile() && target.dev === source.dev && target.ino === source.ino) return true;
+    }
+    return false;
+  }
   async windowsCodex(): Promise<{ root: string; executable: string }[]> {
     const system = process.env.SystemRoot ?? 'C:\\Windows';
     const command = path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe');
