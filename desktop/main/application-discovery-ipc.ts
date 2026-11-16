@@ -95,9 +95,16 @@ export function createApplicationDiscoveryHandler(
         throw new Error('The application offer is no longer available');
       result = { saved: await state.markOffered(clients) };
     }
-    if (method !== 'applicationDiscoveryOffered')
+    if (method !== 'applicationDiscoveryOffered') {
+      const snapshot = result as ApplicationDiscoverySnapshot;
+      result = {
+        ...snapshot,
+        offers: await state.offers(snapshot.applications),
+        stateError: state.error,
+      };
       for (const client of (result as ApplicationDiscoverySnapshot).offers)
         servedOffers.add(client);
+    }
     return { handled: true, result };
   };
 }

@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-## 0.18.5 — 2026-11-16
+## 0.18.5 — 2026-11-17
 
 - Discover known installations of Cursor, OpenCode, Codex, AionUi and Claude on macOS, Windows and Linux without running the applications or reading their account and configuration files.
 - Show installation status and source coverage separately from configuration, connection and delivery readiness. Refresh the scan or select an installation manually; Configure and Apply remain explicit owner actions.

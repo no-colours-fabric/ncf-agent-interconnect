@@ -135,3 +135,55 @@ test('offers persist only after an exact owner window becomes visible', async ()
     await rm(directory, { recursive: true, force: true });
   }
 });
+
+test('acknowledged offers stay consumed when the owner renderer remounts without a new scan', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-discovery-remount-'));
+  let metadataChecks = 0;
+  const known = new Set([
+    '/usr/share/cursor',
+    '/usr/share/cursor/cursor',
+    '/usr/share/cursor/resources/app/product.json',
+  ]);
+  try {
+    const handler = createApplicationDiscoveryHandler({
+      stateDirectory: directory,
+      platform: 'linux',
+      home: '/isolated',
+      env: { PATH: '' },
+      files: {
+        ...emptyFiles,
+        canonical: async (filename) => {
+          metadataChecks++;
+          return known.has(filename) ? filename : undefined;
+        },
+        executable: async (filename) => filename === '/usr/share/cursor/cursor',
+        bytes: async () =>
+          Buffer.from(JSON.stringify({ applicationName: 'cursor', nameShort: 'Cursor' })),
+      },
+      dialog: {
+        showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+      } as unknown as Pick<Dialog, 'showOpenDialog'>,
+      window: () => ({ isDestroyed: () => false, isVisible: () => true }) as BrowserWindow,
+    });
+    const first = await handler('applicationDiscovery', {}, 'owner');
+    assert.ok(first.handled);
+    assert.deepEqual((first.result as ApplicationDiscoverySnapshot).offers, ['cursor']);
+    await handler('applicationDiscoveryOffered', { clients: ['cursor'] }, 'owner');
+    const filename = path.join(directory, 'application-discovery.json');
+    const saved = await readFile(filename, 'utf8');
+    const checksBefore = metadataChecks;
+    for (const owner of ['owner', 'replacement-owner']) {
+      const reopened = await handler('applicationDiscovery', {}, owner);
+      assert.ok(reopened.handled);
+      assert.deepEqual((reopened.result as ApplicationDiscoverySnapshot).offers, []);
+      assert.equal(
+        (reopened.result as ApplicationDiscoverySnapshot).checkedAt,
+        (first.result as ApplicationDiscoverySnapshot).checkedAt,
+      );
+    }
+    assert.equal(metadataChecks, checksBefore, 'The cached installation scan is reused');
+    assert.equal(await readFile(filename, 'utf8'), saved);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
