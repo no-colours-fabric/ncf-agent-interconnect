@@ -8,6 +8,18 @@ import {
 } from '../shared/application-discovery.js';
 import { mcpSetupClients } from '../shared/mcp-setup.js';
 import { ApplicationDiscoveryState } from '../core/application-discovery-state.js';
+import { NativeDiscoveryFiles } from '../core/application-discovery-platforms.js';
+import { createRequire } from 'node:module';
+
+/** Raw archives need original-fs; never disable ASAR support for the application globally. */
+export function createNativeDiscoveryFiles(
+  platform: NodeJS.Platform = process.platform,
+): NativeDiscoveryFiles {
+  const fs = process.versions.electron
+    ? (createRequire(import.meta.url)('original-fs') as typeof import('node:fs'))
+    : (createRequire(import.meta.url)('node:fs') as typeof import('node:fs'));
+  return new NativeDiscoveryFiles(platform, fs.promises);
+}
 
 /** The caller must validate the exact owner window and main frame before dispatch. */
 export function createApplicationDiscoveryHandler(
@@ -17,7 +29,10 @@ export function createApplicationDiscoveryHandler(
     stateDirectory: string;
   },
 ) {
-  const discovery = new ApplicationDiscovery(options);
+  const discovery = new ApplicationDiscovery({
+    ...options,
+    files: options.files ?? createNativeDiscoveryFiles(options.platform),
+  });
   const state = new ApplicationDiscoveryState(options.stateDirectory, options.now);
   let generation = 0;
   let current: Promise<ApplicationDiscoverySnapshot>;

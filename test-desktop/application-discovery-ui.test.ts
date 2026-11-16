@@ -7,7 +7,7 @@ import { mcpSetupClients } from '../desktop/shared/mcp-setup.js';
 import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
-import { readFile, mkdtemp, writeFile, rm } from 'node:fs/promises';
+import { readFile, mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import os from 'node:os';
@@ -111,6 +111,22 @@ test(
         coverage: [],
       })),
     };
+    const packageData = Buffer.from(JSON.stringify({ name: 'AionUi', productName: 'AionUi' }));
+    const headerData = Buffer.from(
+      JSON.stringify({ files: { 'package.json': { offset: '0', size: packageData.length } } }),
+    );
+    const header = Buffer.alloc(8 + Math.ceil(headerData.length / 4) * 4);
+    header.writeUInt32LE(header.length - 4, 0);
+    header.writeUInt32LE(headerData.length, 4);
+    headerData.copy(header, 8);
+    const prefix = Buffer.alloc(8);
+    prefix.writeUInt32LE(4);
+    prefix.writeUInt32LE(header.length, 4);
+    await mkdir(path.join(directory, 'resources'));
+    await writeFile(
+      path.join(directory, 'resources/app.asar'),
+      Buffer.concat([prefix, header, packageData]),
+    );
     const main = `const {app,BrowserWindow,ipcMain}=require('electron');
     app.setPath('userData',${JSON.stringify(path.join(directory, 'profile'))});
     const snapshot=${JSON.stringify(snapshot)}, discovery=${JSON.stringify(discovery)};
@@ -120,6 +136,12 @@ test(
       if(method==='appVersion')return 'discovery-fixture';
       if(method==='applicationDiscovery')return discovery;
       if(method==='fixtureOfferCount')return global.counts.offered;
+      if(method==='fixtureAsarManifest'){
+        const core=await import(${JSON.stringify(new URL('../build/core/application-discovery-platforms.js', import.meta.url).href)});
+        const boundary=await import(${JSON.stringify(new URL('../build/main/application-discovery-ipc.js', import.meta.url).href)});
+        const files=boundary.createNativeDiscoveryFiles();
+        return core.asarManifest(files,await files.canonical(${JSON.stringify(directory)}));
+      }
       if(method==='applicationDiscoveryRefresh'){global.counts.refresh++;return discovery;}
       if(method==='applicationDiscoveryOffered'){global.counts.offered++;discovery.offers=[];return {saved:true};}
       if(method==='mcpSetupStatus')return {client:p.client,remembered:false,state:'missing',files:[]};
@@ -140,6 +162,10 @@ test(
     });
     try {
       const page = await application.firstWindow();
+      assert.deepEqual(
+        await page.evaluate(() => window.interconnect.invoke('fixtureAsarManifest')),
+        { name: 'AionUi', productName: 'AionUi' },
+      );
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
       await page.getByTestId('application-offers').waitFor();

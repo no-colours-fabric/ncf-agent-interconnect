@@ -70,7 +70,13 @@ export async function peIdentity(
 
 /** Only known OS metadata readers run here; discovered applications never execute. */
 export class NativeDiscoveryFiles implements DiscoveryFiles {
-  constructor(private readonly platform: NodeJS.Platform = process.platform) {}
+  constructor(
+    private readonly platform: NodeJS.Platform = process.platform,
+    private readonly fs: Pick<
+      typeof import('node:fs/promises'),
+      'access' | 'lstat' | 'open' | 'readlink' | 'realpath'
+    > = { access, lstat, open, readlink, realpath },
+  ) {}
   async windowsCodex(): Promise<{ root: string; executable: string }[]> {
     const system = process.env.SystemRoot ?? 'C:\\Windows';
     const command = path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe');
@@ -123,10 +129,10 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     try {
       let target = filename;
       for (let depth = 0; depth < 16; depth++) {
-        const info = await lstat(target);
-        if (!info.isSymbolicLink()) return await realpath(target);
+        const info = await this.fs.lstat(target);
+        if (!info.isSymbolicLink()) return await this.fs.realpath(target);
         linked = true;
-        target = path.resolve(path.dirname(target), await readlink(target));
+        target = path.resolve(path.dirname(target), await this.fs.readlink(target));
       }
       throw new DiscoveryError('limit-exceeded');
     } catch (error) {
@@ -146,7 +152,7 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
       offset < 0
     )
       throw new DiscoveryError('limit-exceeded');
-    const file = await open(
+    const file = await this.fs.open(
       filename,
       constants.O_RDONLY | (constants.O_NONBLOCK ?? 0) | (constants.O_NOFOLLOW ?? 0),
     );
@@ -162,8 +168,8 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
   }
 
   async executable(filename: string): Promise<boolean> {
-    if (!(await lstat(filename)).isFile()) return false;
-    await access(filename, this.platform === 'win32' ? constants.F_OK : constants.X_OK);
+    if (!(await this.fs.lstat(filename)).isFile()) return false;
+    await this.fs.access(filename, this.platform === 'win32' ? constants.F_OK : constants.X_OK);
     const head = await this.bytes(filename, 64);
     if (this.platform === 'win32') {
       if (head.length < 64 || head.toString('ascii', 0, 2) !== 'MZ') return false;
