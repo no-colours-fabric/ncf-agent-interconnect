@@ -128,3 +128,19 @@ Make client adapters plugins that can be developed independently of NCF Agent In
 One possible distribution model is a GitHub repository containing plugin packages. An npm registry is another option. The distribution model remains open for discussion.
 
 ---
+
+## R-0009 — Restore Codex delivery after Windows sleep
+
+- [ ] Open
+
+Observed on Windows only; other operating systems have not been checked.
+
+After the computer resumes from sleep or hibernation, Codex loses its agent connection. Activating the tab does not restore it. Asking the agent to connect restores the connection, but queued messages are not delivered until the user separately asks the agent to retrieve them.
+
+Preferred behavior: activating the Codex tab reconnects the agent and delivers queued messages.
+
+Acceptable fallback: one user message reconnects the agent and retrieves queued messages, as with Cursor.
+
+The preferred behavior is the goal.
+
+---
