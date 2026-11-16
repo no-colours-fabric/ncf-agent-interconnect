@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import type { LanDiscoverySnapshot } from './lan-discovery.js';
 
 export const nicknameSchema = z
   .string()
@@ -202,6 +203,7 @@ export interface Snapshot {
   peerUrl: string;
   listenHost: string;
   localAddresses: string[];
+  lanDiscovery?: LanDiscoverySnapshot;
   peers: { id: string; label: string; address: string; connected: boolean; error: string | null }[];
   agents: AgentIdentity[];
   directories: AgentDirectory[];

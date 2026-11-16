@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { AgentsPage } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
+import { DiscoveredLanNodes } from './DiscoveredLanNodes.js';
 import { McpSetup } from './McpSetup.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import type { McpSetupApplication } from '../shared/mcp-setup.js';
@@ -318,6 +319,12 @@ function App({
         )}
         {page === 'network' && (
           <Stack spacing={3}>
+            <DiscoveredLanNodes
+              discovery={snapshot.lanDiscovery}
+              running={snapshot.running}
+              locale={locale}
+              invoke={call}
+            />
             <Box
               data-testid="network-forms"
               sx={{
