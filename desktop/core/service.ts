@@ -1792,6 +1792,14 @@ export class NodeService extends EventEmitter {
         // Content held by a Claude Code delivery is never admitted elsewhere.
         if (this.store.claudeFenced(message.envelope.id)) return false;
         const previous = this.store.dispatchState(message.envelope.id);
+        // Possible content admission belongs to the message, not the current
+        // connection. A transfer cannot erase that uncertainty or overtake an
+        // old release. If it is still running, revisit after its real outcome.
+        if (previous && ['dispatching', 'uncertain'].includes(previous.state)) {
+          const priorKey = identity.key + ':' + previous.connectionId;
+          if (this.dispatching.has(priorKey)) this.adapterRedrain.add(priorKey);
+          return false;
+        }
         return (
           !previous ||
           previous.connectionId !== binding.connectionId ||
@@ -1877,6 +1885,10 @@ export class NodeService extends EventEmitter {
               }
             },
           });
+          // Some native adapters observe revocation only after the host has
+          // admitted the body. Losing the old owner cannot prove no release.
+          if (result.state === 'revoked' && !adapter.wakeOnly)
+            this.store.assertOwner(binding.connectionId);
           if (
             snapshot &&
             this.claudeDispatchSnapshots.get(identity.key) !== snapshot &&

@@ -74,6 +74,7 @@ Claude Code uses bundled main and gate plugins enabled by Apply. The owner saves
 **Develop and verify the product**
 
 - [Developer documentation](docs/development.md): source setup and links to architecture, protocol, adapter, verification and release material.
+- [Adapter development manifest](docs/adapter-requirements.md): required behavior, acceptance evidence and conditional integration techniques for independent adapter developers.
 - [Contributing](CONTRIBUTING.md), [changelog](CHANGELOG.md) and [security reports](SECURITY.md).
 
 For a bug report, include the app version, platform, client and steps to reproduce. Exclude credentials and private chats. See [Security](SECURITY.md) for vulnerability reports.
