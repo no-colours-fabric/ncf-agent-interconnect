@@ -10,6 +10,10 @@ import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 
 test('all five tiles distinguish installation from setup and expose manual setup for unknown/missing', () => {
   const model: ApplicationDiscoveryModel = {
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
     busy: false,
     failed: false,
     refresh: async () => {},

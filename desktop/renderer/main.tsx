@@ -35,7 +35,7 @@ import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
 import { mcpSetupClients } from '../shared/mcp-setup.js';
-import { ApplicationDiscovery } from './ApplicationDiscovery.js';
+import { ApplicationDiscovery, ApplicationOffers } from './ApplicationDiscovery.js';
 import { useApplicationDiscovery } from './useApplicationDiscovery.js';
 import { AppShell, type Page } from './AppShell.js';
 import { createAppTheme, designTokens, surfaceSx } from './theme.js';
@@ -175,6 +175,14 @@ function App({
           void run(() => call(snapshot.running ? 'stop' : 'start'));
         }}
       >
+        <ApplicationOffers
+          model={discovery}
+          locale={locale}
+          onSetup={(application) => {
+            setClient(application);
+            setPage('mcp');
+          }}
+        />
         {page === 'overview' && (
           <Stack spacing={3} data-testid="overview-sections">
             <Box

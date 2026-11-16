@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { BrowserWindow, Dialog } from 'electron';
+import os from 'node:os';
+import path from 'node:path';
+import { randomUUID } from 'node:crypto';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { createApplicationDiscoveryHandler } from '../desktop/main/application-discovery-ipc.js';
 import type { DiscoveryFiles } from '../desktop/core/application-discovery-platforms.js';
 import type { ApplicationDiscoverySnapshot } from '../desktop/shared/application-discovery.js';
@@ -16,6 +20,7 @@ const emptyFiles: DiscoveryFiles = {
 function harness(files = emptyFiles, now?: () => number) {
   let picks = 0;
   const handler = createApplicationDiscoveryHandler({
+    stateDirectory: path.join(os.tmpdir(), 'ncf-discovery-ipc-' + randomUUID()),
     platform: 'linux',
     home: '/isolated',
     env: { PATH: '' },
@@ -27,7 +32,7 @@ function harness(files = emptyFiles, now?: () => number) {
         return { canceled: true, filePaths: [] };
       },
     } as unknown as Pick<Dialog, 'showOpenDialog'>,
-    window: () => ({ isDestroyed: () => false }) as BrowserWindow,
+    window: () => ({ isDestroyed: () => false, isVisible: () => true }) as BrowserWindow,
   });
   return { handler, picks: () => picks };
 }
@@ -76,4 +81,57 @@ test('late startup scan cannot overwrite a newer manual refresh', async () => {
     (initial.result as ApplicationDiscoverySnapshot).checkedAt,
     '1970-01-01T00:00:02.000Z',
   );
+});
+
+test('offers persist only after an exact owner window becomes visible', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-discovery-owner-'));
+  try {
+    const known = new Set([
+      '/usr/share/cursor',
+      '/usr/share/cursor/cursor',
+      '/usr/share/cursor/resources/app/product.json',
+    ]);
+    const files: DiscoveryFiles = {
+      ...emptyFiles,
+      canonical: async (filename) => (known.has(filename) ? filename : undefined),
+      executable: async (filename) => filename === '/usr/share/cursor/cursor',
+      bytes: async () =>
+        Buffer.from(JSON.stringify({ applicationName: 'cursor', nameShort: 'Cursor' })),
+    };
+    let visible = false;
+    const options = {
+      platform: 'linux' as const,
+      stateDirectory: directory,
+      home: '/isolated',
+      env: { PATH: '' },
+      files,
+      dialog: {
+        showOpenDialog: async () => ({ canceled: true, filePaths: [] }),
+      } as unknown as Pick<Dialog, 'showOpenDialog'>,
+      window: () => ({ isDestroyed: () => false, isVisible: () => visible }) as BrowserWindow,
+    };
+    const handler = createApplicationDiscoveryHandler(options);
+    const snapshot = await handler('applicationDiscovery', {}, 'owner');
+    assert.ok(snapshot.handled);
+    assert.deepEqual((snapshot.result as ApplicationDiscoverySnapshot).offers, ['cursor']);
+    const filename = path.join(directory, 'application-discovery.json');
+    await assert.rejects(readFile(filename), { code: 'ENOENT' });
+    await assert.rejects(
+      handler('applicationDiscoveryOffered', { clients: ['cursor'] }, 'owner'),
+      /must be visible/,
+    );
+    await assert.rejects(readFile(filename), { code: 'ENOENT' });
+    visible = true;
+    await assert.rejects(
+      handler('applicationDiscoveryOffered', { clients: ['codex'] }, 'owner'),
+      /no longer available/,
+    );
+    await handler('applicationDiscoveryOffered', { clients: ['cursor'] }, 'owner');
+    const restarted = createApplicationDiscoveryHandler(options);
+    const next = await restarted('applicationDiscovery', {}, 'owner');
+    assert.ok(next.handled);
+    assert.deepEqual((next.result as ApplicationDiscoverySnapshot).offers, []);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

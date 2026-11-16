@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import { applicationNames, type ApplicationInstallation } from '../shared/application-discovery.js';
@@ -9,6 +9,85 @@ import {
   installationLabel,
 } from './i18n/application-discovery.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
+
+export function ApplicationOffers({
+  model,
+  locale,
+  onSetup,
+}: {
+  model: ApplicationDiscoveryModel;
+  locale: Locale;
+  onSetup: (client: McpSetupClient) => void;
+}): React.JSX.Element | null {
+  const messages = discoveryMessages(locale);
+  const element = useRef<HTMLDivElement>(null);
+  const visible = model.offers.join(',');
+  useEffect(() => {
+    const target = element.current;
+    if (!target || !visible) return;
+    let intersecting = false;
+    const acknowledge = () => {
+      if (intersecting && document.visibilityState === 'visible')
+        void model.acknowledge(visible.split(',') as McpSetupClient[]);
+    };
+    const observer = new IntersectionObserver((entries) => {
+      intersecting = entries.some((entry) => entry.isIntersecting);
+      acknowledge();
+    });
+    observer.observe(target);
+    document.addEventListener('visibilitychange', acknowledge);
+    return () => {
+      observer.disconnect();
+      document.removeEventListener('visibilitychange', acknowledge);
+    };
+  }, [visible, model.acknowledge]);
+  if (!model.offers.length && !model.snapshot?.stateError && !model.offerError) return null;
+  return (
+    <Paper ref={element} data-testid="application-offers" sx={{ p: 2, mb: 3 }}>
+      {model.offers.length > 0 && (
+        <>
+          <Stack
+            direction="row"
+            sx={{ justifyContent: 'space-between', gap: 2, alignItems: 'center' }}
+          >
+            <Typography variant="subtitle2">{messages.offer}</Typography>
+            <Button
+              size="small"
+              onClick={() => {
+                void model.acknowledge(model.offers);
+                model.dismiss();
+              }}
+            >
+              {messages.dismiss}
+            </Button>
+          </Stack>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            {messages.offerHelp}
+          </Typography>
+          <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
+            {model.offers.map((client) => (
+              <Button
+                variant="outlined"
+                size="small"
+                key={client}
+                onClick={() => {
+                  void model.acknowledge(model.offers);
+                  model.dismiss();
+                  onSetup(client);
+                }}
+              >
+                {applicationNames[client]}
+              </Button>
+            ))}
+          </Stack>
+        </>
+      )}
+      {(model.offerError || model.snapshot?.stateError) && (
+        <Alert severity="warning">{messages.stateError}</Alert>
+      )}
+    </Paper>
+  );
+}
 
 export function InstallationDetails({
   application,

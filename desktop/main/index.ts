@@ -182,7 +182,11 @@ function setupIpc(): void {
     stateDirectory: app.getPath('userData'),
     openPath: (filename) => shell.openPath(filename),
   });
-  const applicationDiscovery = createApplicationDiscoveryHandler({ dialog, window: () => window });
+  const applicationDiscovery = createApplicationDiscoveryHandler({
+    dialog,
+    window: () => window,
+    stateDirectory: app.getPath('userData'),
+  });
   ipcMain.handle('interconnect:call', async (event, method: unknown, raw: unknown) => {
     if (
       !window ||
