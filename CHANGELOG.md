@@ -2,6 +2,14 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.18.4 — 2026-11-16
+
+- Preserve uncertain native-delivery attempts when an agent name moves to another chat with history retained. A new binding cannot replay a body that may already have reached the previous chat.
+- Wait for an old in-flight attempt to settle before considering the transferred message. A definite pre-release failure can resume the new binding without another idle event; a late revoked result does not erase possible admission.
+- Publish an independent adapter development manifest covering setup, exact-chat authority, canonical incoming messages, receipts and conditional host-specific techniques.
+
+Ten new isolated regressions cover transfer, late completion, restart and safe retry. Existing client evidence is reused; this change does not add a new live-client verification. Storage format 4, peer protocol 2, MCP tools, settings and permissions are unchanged. Shared MCP response-handoff and concurrent native/MCP reservation work remains separate; this release does not claim those gaps are closed.
+
 ## 0.18.3 — 2026-11-15
 
 - Submit Claude native Incoming messages without the host's explanatory prefix and suffix, while retaining engine-owned plugin provenance, the exact agent sender and reply route.
