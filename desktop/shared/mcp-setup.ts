@@ -111,3 +111,13 @@ export interface OpenCodeV2SetupRequests {
   opencodeV2SetupStatus: { target?: OpenCodeV2SetupTarget };
   opencodeV2SetupOpen: { target: OpenCodeV2SetupTarget };
 }
+export interface OpenCodeV2SetupResponses {
+  opencodeV2SetupDefaults: OpenCodeV2SetupDefaults;
+  /** Backend canonicalizes the new path and returns all captured target fields. */
+  opencodeV2SetupBrowse: OpenCodeV2SetupTarget | null;
+  opencodeV2SetupPreview: OpenCodeV2SetupPreview;
+  opencodeV2SetupApply: OpenCodeV2SetupApplyResult;
+  opencodeV2SetupDiscard: { discarded: true };
+  opencodeV2SetupStatus: OpenCodeV2SetupStatus;
+  opencodeV2SetupOpen: { opened: true };
+}
