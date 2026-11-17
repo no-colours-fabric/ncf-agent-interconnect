@@ -308,7 +308,17 @@ export function openCodeV2ConfigurationHash(source: string): string {
     matches[0].options.generation !== match[2]
   )
     throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
+  const canonical = (value: unknown): unknown =>
+    Array.isArray(value)
+      ? value.map(canonical)
+      : object(value)
+        ? Object.fromEntries(
+            Object.keys(value)
+              .sort()
+              .map((key) => [key, canonical(value[key])]),
+          )
+        : value;
   return createHash('sha256')
-    .update(JSON.stringify({ server, plugin: matches[0] }))
+    .update(JSON.stringify(canonical({ server, plugin: matches[0] })))
     .digest('hex');
 }
