@@ -7,6 +7,15 @@ The application owns transport, persistent history and client adapters. Users
 configure supported MCP clients through client-specific setup dialogs. Only
 the owner's Apply action may write the selected client configuration file.
 
+## Project and brand naming
+
+- `NCF Agent Interconnect` is the name of the application and project.
+- `NCF` is the abbreviation of our brand, `No Colours Fabric`.
+- Preserve these exact names and distinguish the product name from the brand in
+  documentation, UI, prototypes, articles, listings and project communication.
+- Include this rule when onboarding or handing off work to agents on this project.
+  Notify only the current project team; do not broadcast it to unrelated agents.
+
 ## Language and structure
 
 - Write public documentation, UI text, errors, tool instructions and comments in English.
