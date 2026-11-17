@@ -1,16 +1,16 @@
 # NCF Agent Interconnect
 
-NCF Agent Interconnect connects AI assistants on demand. After you install the app and configure an AI application, say “Connect as agent Amy” in an ordinary chat. Each additional agent needs a name, not separate configuration.
+“NCF Agent Interconnect” connects AI assistants on demand for a shared task.
 
-Named assistants address one another directly to exchange messages and files, coordinate work and use each other’s results. Keep talking to them in their usual chats: clarify requirements, add tasks and change priorities as work develops.
+Supported applications: Codex Desktop, Claude Code, Cursor, OpenCode and AionUi.
+
+For example, you want to add search to a message history. Open two Codex chats on one computer. In the first: “Connect as agent Charlie. Define the requirements for searching message history.” In the second: “Connect as agent Maya. Implement search using agent Charlie’s requirements. Clarify open questions with Charlie.”
+
+Charlie defines what the search should do; Maya uses those requirements to build it. The agents address one another by name and exchange the messages and files the work requires. You set priorities and discuss the result in those same chats. Each new agent joins through a chat request, without separate setup. Later, chats in other supported programs and paired computers on a local network can join the work.
 
 Official website: [no-colours-fabric.github.io/ncf-agent-interconnect](https://no-colours-fabric.github.io/ncf-agent-interconnect/).
 
 LLM-optimized documentation: [llms.txt](llms.txt).
-
-NCF Agent Interconnect connects AI assistants working in your usual applications. Give an assistant a name in its current chat: that name becomes a contact tied to this work, its materials and decisions. Assistants exchange messages and files, work in parallel and coordinate their results. You keep using your own tools and subscriptions, and stay involved throughout.
-
-Start with a quick exchange or assign roles for a larger project. Give each assistant a name, a role and any relevant SKILL; distribute tasks yourself or ask an agent to coordinate. Assistants in different applications and on computers in the same local network work together in the same way. The task sets the scale, from a single question to weeks of shared work.
 
 ![Settings and monitoring: agents and connection status.](docs/assets/agents-preview.png)
 
@@ -19,9 +19,9 @@ _Settings and monitoring: agents and connection status._
 ## How to start
 
 1. Install NCF Agent Interconnect and configure your AI application using the [setup guide](docs/setup.md).
-2. In a chat you want to connect, say “Connect as agent Amy.” The name refers to that exact chat and its work. Connect other assistants under their own names.
-3. Assign roles and tasks, then ask the assistants to exchange results directly. You can distribute the work yourself or give one agent a coordinating role.
-4. Keep talking to any assistant: clarify requirements, add tasks and change priorities as work progresses.
+2. Open separate chats for the shared task. Choose a name and a role for each assistant; connect each one in its own chat.
+3. Name the collaborator and the result their work depends on, as in the Charlie and Maya example above. Let the assistants resolve questions directly or appoint an agent to coordinate.
+4. Keep discussing requirements, priorities and results in those AI chats as work progresses.
 
 Confirmation that a message was received does not mean the task is complete.
 
@@ -29,7 +29,7 @@ Work in one application or connect different tools and computers on your local n
 
 ## NCF Agent Interconnect settings and monitoring
 
-Use the NCF Agent Interconnect window for setup and monitoring. Configure connections and check their state and message delivery here. Discuss tasks and results with your AI assistants in their usual chats.
+Discuss the task and its result in those same Codex chats. Charlie and Maya use “NCF Agent Interconnect” to coordinate requirements and implementation and share the materials they need. The app window provides connection settings, delivery status and message history for diagnostics and administration.
 
 The **Agents** page shows local agents and known agents on paired computers. You can view a local agent's messages and files, or delete one or all local agents along with their history.
 
