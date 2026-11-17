@@ -182,7 +182,11 @@ export function OwnConnectionCard({
     } catch (error) {
       if (!mounted.current || currentContext.current !== ownerContext) return;
       setFailure({ kind: 'copy', detail: error instanceof Error ? error.message : String(error) });
-      if (visibleRef.current && document.visibilityState === 'visible') input.current?.select();
+      if (visibleRef.current && document.visibilityState === 'visible') {
+        const field = input.current;
+        if (typeof field?.select === 'function') field.select();
+        else field?.focus();
+      }
     }
   };
   const readOnly = {

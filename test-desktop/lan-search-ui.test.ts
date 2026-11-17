@@ -1,3 +1,4 @@
+import { computeNetworkInterfacePolicy } from '../desktop/core/network-interfaces.js';
 import { networkInterfaceMessages } from '../desktop/renderer/i18n/network-interfaces.js';
 import { OwnConnectionCard } from '../desktop/renderer/OwnConnectionCard.js';
 import { lanDiscoveryMessages } from '../desktop/renderer/i18n/lan-discovery.js';
@@ -452,6 +453,7 @@ root.render(<App key={generation} patch={{}}/>);
           );
           await own.getByRole('button', { name: 'Copy address', exact: true }).click();
           await own.getByRole('alert').filter({ hasText: lanSearchEnglish.copyFailed }).waitFor();
+          assert.deepEqual(errors, [], 'A failed copy from the address selector must not throw');
           await update(page, {
             ownCode: { code: 'ABCD2345', expiresAt: new Date(Date.now() - 1000).toISOString() },
           });
@@ -1150,6 +1152,21 @@ test(
         const page = await browser!.newPage({ viewport: { width: 1280, height: 1000 } });
         page.on('pageerror', (error) => errors.push(error.message));
         const initial = snapshot();
+        initial.networkInterfaces = {
+          ...computeNetworkInterfacePolicy({
+            'Fixture interface': [
+              {
+                address: '127.0.0.1',
+                netmask: '255.0.0.0',
+                family: 'IPv4',
+                internal: true,
+                mac: '00:00:00:00:00:00',
+              },
+            ],
+          }),
+          listeners: [{ address: '127.0.0.1', port: 7336, state: 'listening', error: null }],
+          inventoryError: null,
+        };
         initial.peers = [
           {
             id: 'authenticated-fixture-peer',
@@ -1192,6 +1209,7 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
  if(method==='instructions')return {client:input.client,location:'/isolated/fixture',text:'Fixture instructions',configuration:'{}',testPrompt:'Fixture test prompt'};
  if(method==='aionUiStatus')return {state:'not-paired',url:'http://127.0.0.1:1/fixture',bridgeConnected:false};
  if(method==='aionUiInstructions')return {testPrompt:'Fixture access prompt'};
+ if(method==='saveNode'){value.nodeLabel=input.nodeLabel;value.networkInterfaces.exclusions=input.networkExclusions.map(exclusion=>({exclusion,matchingNames:[exclusion.name],absent:false,ambiguous:false}));changed();return {saved:true};}
  if(method==='copy')return {copied:true};
  if(method==='accessCode')return {code:'ABCD2345',expiresAt:new Date(Date.now()+600000).toISOString()};
  if(method==='connectPeer')return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};
@@ -1426,6 +1444,52 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               ),
             );
             await capture(page, 'combined-network-dark-1024');
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'network interface drafts survive theme/navigation and only explicit Save writes exclusions',
+        {
+          skip: !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'network',
+        },
+        async () => {
+          const page = await open([], 'settings');
+          try {
+            const toggle = page.getByRole('switch', {
+              name: 'Fixture interface: Listening enabled',
+              exact: true,
+            });
+            await toggle.uncheck();
+            const name = page.getByRole('textbox', {
+              name: translate('en', 'settingsNodeName'),
+              exact: true,
+            });
+            await name.fill('Unsaved network name');
+            await page
+              .getByRole('switch', { name: translate('en', 'settingsDarkTheme'), exact: true })
+              .uncheck();
+            assert.equal(await toggle.isChecked(), false);
+            assert.equal((await calls(page, 'saveNode')).length, 0);
+            await page.getByTestId('nav-network').click();
+            await page.getByTestId('nav-settings').click();
+            assert.equal(await toggle.isChecked(), false);
+            assert.equal(await name.inputValue(), 'Unsaved network name');
+            await page
+              .getByRole('button', { name: translate('en', 'btnSave'), exact: true })
+              .click();
+            await until(
+              async () => (await calls(page, 'saveNode')).length === 1,
+              'Explicit owner Save sends one network update',
+            );
+            assert.deepEqual((await calls(page, 'saveNode'))[0].input, {
+              nodeLabel: 'Unsaved network name',
+              networkExclusions: [{ name: 'Fixture interface' }],
+            });
+            assert.equal((await calls(page, 'mcpSetupApply')).length, 0);
+            assert.deepEqual(errors, []);
           } finally {
             await page.close();
           }

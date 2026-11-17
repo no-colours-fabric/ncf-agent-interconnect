@@ -21,6 +21,17 @@ export async function createUiEnvironment(clientHome) {
   };
   delete environment.ELECTRON_RUN_AS_NODE;
   delete environment.OPENCODE_CONFIG_CONTENT;
+  const inventoryPreload = path.join(canonicalHome, 'ncf-test-network.cjs');
+  await writeFile(
+    inventoryPreload,
+    `const os = require('node:os');
+os.networkInterfaces = () => ({ loopback: [{ address: '127.0.0.1', netmask: '255.0.0.0', family: 'IPv4', mac: '00:00:00:00:00:00', internal: true, cidr: '127.0.0.1/8' }] });
+require('node:module').syncBuiltinESMExports();
+`,
+    { mode: 0o600 },
+  );
+  environment.NODE_OPTIONS =
+    `${environment.NODE_OPTIONS ?? ''} --require=${JSON.stringify(inventoryPreload)}`.trim();
   await Promise.all(
     [
       canonicalHome,
