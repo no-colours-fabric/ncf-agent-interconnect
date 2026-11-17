@@ -73,3 +73,13 @@ export interface NetworkInterfacePolicy {
   readonly listenAddresses: readonly string[];
   readonly exclusions: readonly NetworkInterfaceExclusionState[];
 }
+
+export interface NetworkInterfaceStatus extends NetworkInterfacePolicy {
+  readonly listeners: readonly {
+    address: string;
+    port: number;
+    state: 'listening' | 'error';
+    error: string | null;
+  }[];
+  readonly inventoryError: string | null;
+}

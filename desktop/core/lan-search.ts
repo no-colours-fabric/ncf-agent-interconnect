@@ -220,7 +220,21 @@ export class LanSearch {
 
   private transportChanged(): void {
     const state = this.discovery.snapshot();
+    if (state.state === 'searching') {
+      this.opened = true;
+      if (this.phase === 'unavailable') {
+        this.phase = 'stopped';
+        this.reason = null;
+      }
+      this.notify();
+      return;
+    }
     if (state.state !== 'unavailable') return;
+    if (state.reason === 'no-interfaces' && this.phase === 'searching') {
+      this.opened = false;
+      this.notify();
+      return;
+    }
     this.opened = false;
     this.refresh(this.now());
     this.phase = 'unavailable';

@@ -1,3 +1,4 @@
+import { networkInterfaces } from 'node:os';
 import { mkdir, realpath, writeFile } from 'node:fs/promises';
 import { randomBytes, randomUUID } from 'node:crypto';
 import path from 'node:path';
@@ -57,6 +58,14 @@ export async function createUiProfile(directory, nodeLabel = 'Isolated interface
       mcpPort: 0,
       peerPort: 0,
       listenHost: '127.0.0.1',
+      networkExclusions: Object.entries(networkInterfaces())
+        .filter(
+          ([, entries]) =>
+            !(entries ?? []).some(
+              (entry) => entry.family === 'IPv4' && entry.address === '127.0.0.1',
+            ),
+        )
+        .map(([name]) => ({ name })),
       exportRoots: [files],
       peers: [],
       adapters: [{ id: randomUUID(), kind: 'manual', label: 'Standard MCP' }],

@@ -1,3 +1,6 @@
+import { NetworkInterfacesSettings } from './NetworkInterfacesSettings.js';
+import type { NetworkInterfaceExclusion } from '../shared/network-interfaces.js';
+import { networkInterfaceMessages } from './i18n/network-interfaces.js';
 import React, {
   useEffect,
   useState,
@@ -81,7 +84,7 @@ function App({
   const [manualClient, setManualClient] = useState<McpSetupApplication | null>(null);
   const [applicationsMounted, setApplicationsMounted] = useState(page === 'mcp');
   const [nodeLabel, setNodeLabel] = useState(''),
-    [listenHost, setListenHost] = useState('');
+    [networkExclusions, setNetworkExclusions] = useState<NetworkInterfaceExclusion[]>([]);
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
   const [busy, setBusy] = useState(false);
   const [locale, setLocale] = useState<Locale>(() => loadLocale(() => window.localStorage));
@@ -162,9 +165,14 @@ function App({
   useEffect(() => {
     if (snapshot) {
       setNodeLabel(snapshot.nodeLabel);
-      setListenHost(snapshot.listenHost);
+      setNetworkExclusions(
+        snapshot.networkInterfaces?.exclusions.map((record) => record.exclusion) ?? [],
+      );
     }
-  }, [snapshot?.nodeLabel, snapshot?.listenHost, snapshot?.agents.length]);
+  }, [
+    snapshot?.nodeLabel,
+    JSON.stringify(snapshot?.networkInterfaces?.exclusions.map((record) => record.exclusion)),
+  ]);
   useEffect(() => {
     if (page === 'settings')
       void call<typeof login>('loginState')
@@ -519,26 +527,30 @@ function App({
                     value={nodeLabel}
                     onChange={(e) => setNodeLabel(e.target.value)}
                   />
-                  <TextField
-                    select
-                    label={t(locale, 'settingsLocalIp')}
-                    value={listenHost}
-                    onChange={(e) => setListenHost(e.target.value)}
-                  >
-                    {snapshot.localAddresses.map((ip) => (
-                      <MenuItem key={ip} value={ip}>
-                        {ip}
-                        {ip === '127.0.0.1' ? t(locale, 'settingsLocalOnly') : ''}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  {snapshot.networkInterfaces && (
+                    <NetworkInterfacesSettings
+                      status={snapshot.networkInterfaces}
+                      value={networkExclusions}
+                      onChange={setNetworkExclusions}
+                      locale={locale}
+                      disabled={busy}
+                    />
+                  )}
                   <Box>
                     <Button
                       variant="contained"
                       disabled={busy}
                       onClick={() =>
                         run(
-                          () => call('saveNode', { nodeLabel, listenHost }),
+                          async () => {
+                            try {
+                              await call('saveNode', { nodeLabel, networkExclusions });
+                            } catch (error) {
+                              throw new Error(
+                                `${networkInterfaceMessages(locale).saveFailed} ${error instanceof Error ? error.message : String(error)}`,
+                              );
+                            }
+                          },
                           t(locale, 'settingsSaved'),
                         )
                       }

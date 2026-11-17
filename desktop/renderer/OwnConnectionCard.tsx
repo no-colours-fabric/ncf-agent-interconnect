@@ -1,3 +1,5 @@
+import { MenuItem } from '@mui/material';
+import { networkInterfaceMessages } from './i18n/network-interfaces.js';
 import React, { useEffect, useId, useRef, useState } from 'react';
 import {
   Alert,
@@ -24,7 +26,7 @@ export interface OwnConnectionCode {
   expiresAt: string;
 }
 export interface OwnConnectionCardProps {
-  node: Pick<Snapshot, 'nodeId' | 'running' | 'peerUrl' | 'listenHost'>;
+  node: Pick<Snapshot, 'nodeId' | 'running' | 'peerUrl' | 'listenHost' | 'peerUrls'>;
   announcement?: LanDiscoverySnapshot['announcement'];
   code: OwnConnectionCode | null;
   onCodeChange: (value: OwnConnectionCode | null) => void;
@@ -45,6 +47,14 @@ export function OwnConnectionCard({
   visible = true,
 }: OwnConnectionCardProps): React.JSX.Element {
   const m = lanSearchMessages(locale);
+  const networkMessages = networkInterfaceMessages(locale);
+  const urls = node.peerUrls ?? (node.peerUrl ? [node.peerUrl] : []);
+  const [selectedAddress, setSelectedAddress] = useState(node.peerUrl);
+  const effectiveAddress = urls.includes(selectedAddress)
+    ? selectedAddress
+    : urls.includes(node.peerUrl)
+      ? node.peerUrl
+      : (urls[0] ?? '');
   const legacy = lanDiscoveryMessages(locale);
   const announcementDetail = announcement?.available
     ? legacy.announcing
@@ -71,7 +81,7 @@ export function OwnConnectionCard({
   const codeInput = useRef<HTMLInputElement>(null);
   const copyCodeButton = useRef<HTMLButtonElement>(null);
   const focusCopy = useRef(false);
-  const context = `${node.nodeId}\n${node.peerUrl}\n${node.running}`;
+  const context = `${node.nodeId}\n${node.running}`;
   const currentContext = useRef(context);
   currentContext.current = context;
   const previousContext = useRef(context);
@@ -83,8 +93,8 @@ export function OwnConnectionCard({
   const expired = !!code && !remaining;
   const local =
     announcement?.reason === 'listener-local' ||
-    node.listenHost === '127.0.0.1' ||
-    node.listenHost === '::1';
+    /^wss:\/\/127\./.test(effectiveAddress) ||
+    effectiveAddress.startsWith('wss://[::1]');
   const time = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
 
   useEffect(() => {
@@ -206,22 +216,38 @@ export function OwnConnectionCard({
           <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
             <TextField
               fullWidth
-              label={m.ownAddress}
-              value={node.peerUrl}
+              label={networkMessages.addressLabel}
+              select={urls.length > 1}
+              value={effectiveAddress}
+              onChange={(event) => setSelectedAddress(event.target.value)}
+              placeholder={networkMessages.emptyEndpoint}
               inputRef={addressInput}
-              slotProps={readOnly}
+              slotProps={urls.length > 1 ? { inputLabel: readOnly.inputLabel } : readOnly}
               sx={{ '& input': { fontFamily: 'monospace' } }}
-            />
+            >
+              {urls.length > 1 &&
+                urls.map((url) => (
+                  <MenuItem key={url} value={url}>
+                    {url}
+                  </MenuItem>
+                ))}
+            </TextField>
             <Tooltip title={m.copyAddress}>
               <IconButton
                 aria-label={m.copyAddress}
-                onClick={() => void copy(node.peerUrl, addressInput)}
+                disabled={!effectiveAddress}
+                onClick={() => void copy(effectiveAddress, addressInput)}
                 sx={{ width: 44, height: 44, flexShrink: 0 }}
               >
                 <ContentCopyOutlined sx={{ fontSize: 18 }} />
               </IconButton>
             </Tooltip>
           </Stack>
+          {!effectiveAddress && (
+            <Typography role="status" variant="body2">
+              {networkMessages.emptyEndpoint}
+            </Typography>
+          )}
           <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
             {local && (
               <Typography variant="caption" color="text.secondary">

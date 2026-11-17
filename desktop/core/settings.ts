@@ -4,6 +4,7 @@ import { networkInterfaces, hostname } from 'node:os';
 import path from 'node:path';
 import { isIP } from 'node:net';
 import { z } from 'zod';
+import { normalizeInterfaceExclusions } from './network-interfaces.js';
 import type { Peer, Settings } from '../shared/contracts.js';
 
 export const adapterSchema = z
@@ -70,6 +71,9 @@ const peerSchema = z
     certificate: z.string().max(20000),
   })
   .strict();
+export const networkExclusionsSchema = z
+  .array(z.object({ name: z.string().min(1), mac: z.string().optional() }).strict())
+  .transform((value) => normalizeInterfaceExclusions(value));
 export const settingsSchema = z
   .object({
     version: z.literal(1),
@@ -79,6 +83,7 @@ export const settingsSchema = z
     mcpPort: z.number().int().min(0).max(65535),
     peerPort: z.number().int().min(0).max(65535),
     listenHost: z.string().min(1).max(255),
+    networkExclusions: networkExclusionsSchema.default([]),
     exportRoots: z.array(z.string()).min(1),
     peers: z.array(peerSchema),
     adapters: z.array(adapterSchema).min(1),
@@ -147,6 +152,7 @@ export class SettingsFile {
         mcpPort: 0,
         peerPort: 7336,
         listenHost: '127.0.0.1',
+        networkExclusions: [],
         exportRoots: [files],
         peers: [],
         adapters: [

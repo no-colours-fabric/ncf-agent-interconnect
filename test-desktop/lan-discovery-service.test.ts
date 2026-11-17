@@ -207,11 +207,9 @@ test('only the actual bound listener supplies announcement host and port, includ
       );
       actualPort = bound.port;
       // Simulate a bound LAN address without binding a socket on the owner's LAN.
-      t.mock.method(server, 'address', () => ({
-        address: '192.0.2.10',
-        family: 'IPv4',
-        port: actualPort,
-      }));
+      t.mock.getter(service.network, 'endpoints', () => [
+        { address: '192.0.2.10', port: actualPort },
+      ]);
       service.settings.value.peerPort = 1;
     },
   );
@@ -310,7 +308,7 @@ test('failure before discovery startup creates no transport and closes the peer 
   });
   await assert.rejects(service.open(), /Isolated adapter startup failure/);
   assert.equal(discovery.transports.length, 0);
-  assert.equal(service.network.server!.listening, false);
+  assert.equal(service.network.server?.listening ?? false, false);
   assert.equal(service.running, false);
 });
 
@@ -326,7 +324,7 @@ test('startup cleanup cancels discovery if a later startup observer fails', asyn
   await assert.rejects(service.open(), /Isolated startup observer failure/);
   assert.equal(discovery.transport.closed, true);
   assert.equal(discovery.ticks.size, 0);
-  assert.equal(service.network.server!.listening, false);
+  assert.equal(service.network.server?.listening ?? false, false);
   assert.equal(service.running, false);
 });
 
@@ -494,4 +492,38 @@ test('search-ui: explicit retry reopens failed transport and retains prior obser
   assert.equal(retried.nodes[0].key, key);
   discovery.transport.announce();
   assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 1);
+});
+
+test('interface exclusion closes peer listeners while local MCP, identity and local messages survive', async (t) => {
+  const service = await serviceFixture(t);
+  await service.open();
+  const before = service.snapshot();
+  const certificate = await readFile(path.join(service.directory, 'node-cert.pem'), 'utf8');
+  const sender = service.connect({ nickname: 'Local sender', client: 'manual' });
+  const receiver = service.connect({ nickname: 'Local receiver', client: 'manual' });
+  if (sender.status !== 'connected' || receiver.status !== 'connected')
+    throw new Error('Fixture binding failed');
+  await service.userCall('saveNode', {
+    nodeLabel: before.nodeLabel,
+    networkExclusions: [{ name: 'loopback' }],
+  });
+  assert.equal(service.snapshot().running, true);
+  assert.equal(service.snapshot().mcpUrl, before.mcpUrl);
+  assert.deepEqual(service.snapshot().peerUrls, []);
+  assert.equal(service.network.server, undefined);
+  const sent = await service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: before.nodeId,
+    recipientNickname: 'Local receiver',
+    text: 'Local exchange while peer listeners are disabled',
+  });
+  assert.equal(sent.accepted, true);
+  assert.equal(
+    service.store.get(sent.id, 'in')?.envelope.text,
+    'Local exchange while peer listeners are disabled',
+  );
+  await service.userCall('saveNode', { nodeLabel: before.nodeLabel, networkExclusions: [] });
+  assert.deepEqual(service.snapshot().peerUrls, before.peerUrls);
+  assert.equal(service.snapshot().nodeId, before.nodeId);
+  assert.equal(await readFile(path.join(service.directory, 'node-cert.pem'), 'utf8'), certificate);
 });

@@ -3,7 +3,14 @@ import tls from 'node:tls';
 import { readFile, writeFile } from 'node:fs/promises';
 import { X509Certificate, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
-import { hostname } from 'node:os';
+import { hostname, networkInterfaces } from 'node:os';
+import type { Socket } from 'node:net';
+import { PeerListeners } from './peer-listeners.js';
+import { computeNetworkInterfacePolicy } from './network-interfaces.js';
+import type {
+  NetworkInterfaceSnapshot,
+  NetworkInterfaceStatus,
+} from '../shared/network-interfaces.js';
 import { EventEmitter } from 'node:events';
 import selfsigned from 'selfsigned';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
@@ -103,7 +110,50 @@ function pinned(certificate: string): {
   };
 }
 export class PeerNetwork extends EventEmitter {
-  server?: https.Server;
+  private servers = new Map<string, https.Server>();
+  private readonly peerListeners: PeerListeners;
+  private inventoryTimer?: NodeJS.Timeout;
+  private inventoryError: string | null = null;
+  private policy = computeNetworkInterfacePolicy({});
+  private requestGuards = new WeakMap<import('node:http').IncomingMessage, () => boolean>();
+  get server(): https.Server | undefined {
+    return [...this.servers.values()].find((server) => server.listening);
+  }
+  get endpoints(): { address: string; port: number }[] {
+    return this.peerListeners
+      .snapshot()
+      .filter((value) => value.state === 'listening')
+      .map(({ address, port }) => ({ address, port }));
+  }
+  networkStatus(): NetworkInterfaceStatus {
+    return {
+      ...this.policy,
+      listeners: this.peerListeners.snapshot(),
+      inventoryError: this.inventoryError,
+    };
+  }
+  async refreshInterfaces(): Promise<void> {
+    if (this.stopped) return;
+    try {
+      const policy = computeNetworkInterfacePolicy(
+        this.inventory(),
+        this.settings.value.networkExclusions ?? [],
+      );
+      const changed =
+        JSON.stringify(policy) !== JSON.stringify(this.policy) || this.inventoryError !== null;
+      this.policy = policy;
+      this.inventoryError = null;
+      await this.peerListeners.update(policy.listenAddresses);
+      this.port = this.peerListeners.port;
+      if (changed) this.emit('change');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (this.inventoryError !== message) {
+        this.inventoryError = message;
+        this.emit('change');
+      }
+    }
+  }
   private wss?: WebSocketServer;
   private links = new Map<string, Link>();
   private sockets = new Set<WebSocket>();
@@ -132,8 +182,23 @@ export class PeerNetwork extends EventEmitter {
   onFrame: (peerId: string, frame: Frame) => Promise<void> = async () => {};
   onIdentity: (peerId: string, label: string, isCurrent: () => boolean) => Promise<void> =
     async () => {};
-  constructor(readonly settings: SettingsFile) {
+  constructor(
+    readonly settings: SettingsFile,
+    private readonly inventory: () => NetworkInterfaceSnapshot = networkInterfaces,
+  ) {
     super();
+    this.peerListeners = new PeerListeners({
+      bind: (address, port) => this.bindServer(address, port),
+      changed: () => {
+        this.port = this.peerListeners.port;
+        this.emit('change');
+      },
+      fallback: () =>
+        this.emit(
+          'problem',
+          'The listening port was in use. A free port was selected; use an address shown under Remote nodes.',
+        ),
+    });
   }
   async start(): Promise<void> {
     this.stopped = false;
@@ -165,13 +230,6 @@ export class PeerNetwork extends EventEmitter {
       await writeFile(certFile, this.certificate, { mode: 0o600 });
       await writeFile(keyFile, this.key, { mode: 0o600 });
     }
-    this.server = https.createServer({ cert: this.certificate, key: this.key }, (req, res) => {
-      void this.pair(req, res).catch(() => {
-        if (!res.headersSent) res.writeHead(400);
-        res.end();
-      });
-    });
-    this.server.requestTimeout = 10000;
     this.wss = new WebSocketServer({
       noServer: true,
       maxPayload: 512 * 1024,
@@ -182,7 +240,57 @@ export class PeerNetwork extends EventEmitter {
         headers.push('X-NCF-Features: ' + directoryFeature);
       headers.push('X-NCF-Node-Label: ' + encodedNodeLabel(this.settings.value.nodeLabel));
     });
-    this.server.on('upgrade', (req, socket, head) => {
+    this.policy = computeNetworkInterfacePolicy(
+      this.inventory(),
+      this.settings.value.networkExclusions ?? [],
+    );
+    await this.peerListeners.start(this.policy.listenAddresses, this.settings.value.peerPort);
+    this.port = this.peerListeners.port;
+    this.inventoryTimer = setInterval(() => {
+      void this.refreshInterfaces();
+    }, 2000);
+    this.inventoryTimer.unref();
+    const alive = new WeakMap<WebSocket, boolean>();
+    this.heartbeat = setInterval(() => {
+      for (const ws of this.sockets) {
+        if (alive.get(ws) === false) {
+          ws.terminate();
+          continue;
+        }
+        alive.set(ws, false);
+        ws.once('pong', () => alive.set(ws, true));
+        if (ws.readyState === WebSocket.OPEN) ws.ping();
+      }
+    }, 15000);
+    this.heartbeat.unref();
+    for (const peer of this.settings.value.peers) this.connect(peer);
+  }
+  private async bindServer(address: string, port: number) {
+    let active = true;
+    const sockets = new Set<Socket>();
+    const admitted = () => active && !this.stopped && this.peerListeners.allows(address);
+    const server = https.createServer({ cert: this.certificate, key: this.key }, (req, res) => {
+      if (!admitted()) {
+        req.socket.destroy();
+        return;
+      }
+      this.requestGuards.set(req, admitted);
+      void this.pair(req, res).catch(() => {
+        if (!res.headersSent) res.writeHead(400);
+        res.end();
+      });
+    });
+    server.requestTimeout = 10000;
+    server.on('connection', (socket: Socket) => {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+      if (!admitted()) socket.destroy();
+    });
+    server.on('upgrade', (req, socket, head) => {
+      if (!admitted()) {
+        socket.destroy();
+        return;
+      }
       const peer = this.settings.value.peers.find((p) => p.id === req.headers['x-node-id']);
       if (
         !peer ||
@@ -203,40 +311,38 @@ export class PeerNetwork extends EventEmitter {
         ),
       );
     });
-    const listen = (port: number) =>
-      new Promise<void>((resolve, reject) => {
-        this.server!.once('error', reject);
-        this.server!.listen(port, this.settings.value.listenHost, () => {
-          this.server!.off('error', reject);
-          resolve();
-        });
-      });
+
+    const close = async () => {
+      active = false;
+      if (this.servers.get(address) === server) this.servers.delete(address);
+      const closing = server.listening
+        ? new Promise<void>((resolve) => server.close(() => resolve()))
+        : Promise.resolve();
+      for (const socket of sockets) socket.destroy();
+      server.closeAllConnections();
+      await closing;
+    };
     try {
-      await listen(this.settings.value.peerPort);
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw e;
-      await listen(0);
-      this.emit(
-        'problem',
-        'The listening port was in use. A free port was selected; use the address shown under Remote nodes.',
-      );
+      await new Promise<void>((resolve, reject) => {
+        const failed = (error: Error) => {
+          server.off('listening', listening);
+          reject(error);
+        };
+        const listening = () => {
+          server.off('error', failed);
+          resolve();
+        };
+        server.once('error', failed);
+        server.once('listening', listening);
+        server.listen(port, address);
+      });
+    } catch (error) {
+      await close();
+      throw error;
     }
-    this.server.on('error', (e) => this.emit('problem', e.message));
-    this.port = (this.server.address() as { port: number }).port;
-    const alive = new WeakMap<WebSocket, boolean>();
-    this.heartbeat = setInterval(() => {
-      for (const ws of this.sockets) {
-        if (alive.get(ws) === false) {
-          ws.terminate();
-          continue;
-        }
-        alive.set(ws, false);
-        ws.once('pong', () => alive.set(ws, true));
-        if (ws.readyState === WebSocket.OPEN) ws.ping();
-      }
-    }, 15000);
-    this.heartbeat.unref();
-    for (const peer of this.settings.value.peers) this.connect(peer);
+    server.on('error', (error) => this.emit('problem', error.message));
+    this.servers.set(address, server);
+    return { port: (server.address() as { port: number }).port, close };
   }
   private link(peerId: string): Link {
     let value = this.links.get(peerId);
@@ -622,6 +728,8 @@ export class PeerNetwork extends EventEmitter {
         try {
           saved = await this.savePeer(identity, undefined, () => {
             lease.check();
+            if (!this.requestGuards.get(req)?.())
+              throw new PairingError('The receiving interface is no longer enabled', 409);
             beforeWrite();
           });
         } finally {
@@ -760,6 +868,8 @@ export class PeerNetwork extends EventEmitter {
     this.pairingLeases.clear();
     this.pairingHost.reset();
     clearInterval(this.heartbeat);
+    clearInterval(this.inventoryTimer);
+    await this.peerListeners.close();
     for (const link of this.links.values()) {
       link.generation++;
       clearTimeout(link.timer);
@@ -776,9 +886,5 @@ export class PeerNetwork extends EventEmitter {
     }
     this.requests.clear();
     if (this.wss) await new Promise<void>((resolve) => this.wss!.close(() => resolve()));
-    if (this.server?.listening) {
-      this.server.closeIdleConnections();
-      await new Promise<void>((resolve) => this.server!.close(() => resolve()));
-    }
   }
 }
