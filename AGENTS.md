@@ -18,7 +18,15 @@ the owner's Apply action may write the selected client configuration file.
 
 ## Language and structure
 
-- Write public documentation, UI text, errors, tool instructions and comments in English.
+- Write public documentation, tool instructions and source comments in English.
+- Provide professional-quality, context-appropriate translations for all new or
+  changed product-controlled UI text in every supported locale (currently 15;
+  see `desktop/renderer/i18n/index.ts`). Include actions, help, dialogs, empty,
+  loading, error and diagnostic states, tooltips and accessibility labels.
+  English is the source locale, not a fallback for another supported locale.
+  Preserve literal product/client names, placeholders and existing localized
+  name-transfer and history guidance. Raw user content and technical diagnostic
+  data retain their original language; user-facing summaries remain localized.
 - Preserve user messages, filenames and agent names in their original language.
   Keep Unicode and case-insensitive identity tests.
 - Keep the typed core in `desktop/core`, Electron boundaries in `desktop/main`,
