@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.18.5
+# NCF Agent Interconnect 0.18.6
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -156,13 +156,14 @@ client names and message statistics stay empty. Typed application metrics report
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
 
-## Upgrade from 0.17.3
+## Upgrade from an earlier release
 
 Quit the app from its tray menu before replacing it, then start the updated app.
 Existing names, bindings, history, attachments, peers and AionUi authorization
-are preserved. The first start upgrades storage from format 3 to format 4;
-older releases cannot open format 4. Keep a stopped pre-upgrade profile backup
-if rollback is required. Do not use an older app against the upgraded profile.
+are preserved. The first start upgrades storage to format 5. Quit NCF and retain
+a complete stopped pre-upgrade profile backup before updating. Older releases
+cannot open format 5. Do not use an older app against the upgraded profile;
+rollback requires that backup while preserving any post-upgrade data.
 Peer protocol 2 and the eleven-tool MCP schema are unchanged.
 
 Existing client configurations need no new Apply when installation paths stay

@@ -78,6 +78,10 @@ a native platform verification. Report verification limits accurately.
   with matching Electron runtimes. Run native acceptance
   on the available Apple Silicon Mac, Windows and Linux machines. Build Linux packages on Linux. An Intel runtime test
   is not required and must not block publication; state that it was not run.
+- When a release changes the interface, include images demonstrating the changes
+  in its release description. Actual UI images from one operating system are
+  sufficient. Keep private data out of the images; the four installers remain
+  the routine release assets.
 - Do not upload ZIP alternatives, reports, checksum manifests, screenshots or
   README copies as routine release assets. Keep diagnostics locally and put
   short changes and material limitations in the release description.

@@ -2,6 +2,14 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.18.6 — 2026-11-17
+
+- Reserve ready incoming messages before attachment preparation so native delivery and MCP inbox/history reads cannot concurrently release the same body. Preserve uncertainty across restart and binding transfer.
+- Record MCP receipt only after the complete response has been written. Reject stale or cancelled responses before body release, and revalidate every history page against its current owner and saved messages.
+- Support Codex Desktop thread stream versions 11 and 13. Require a valid exact-chat runtime snapshot before advertising automatic readiness; unsupported stream versions and malformed snapshots produce explicit diagnostics.
+
+Storage upgrades to format 5 on first start. Quit NCF and preserve a complete stopped pre-upgrade profile backup before updating; older binaries cannot open format 5. Never open the upgraded profile with an older app. Peer protocol 2, the eleven MCP tools, client setup permissions and existing paired identities remain unchanged. Transport handoff receipt is not client/model acknowledgement or task completion. The compatibility fix does not by itself close every Windows sleep/resume failure tracked in [issue #1](https://github.com/no-colours-fabric/ncf-agent-interconnect/issues/1). LAN discovery and OpenCode v2 are not included.
+
 ## 0.18.5 — 2026-11-17
 
 - Discover known installations of Cursor, OpenCode, Codex, AionUi and Claude on macOS, Windows and Linux without running the applications or reading their account and configuration files.
