@@ -12,7 +12,7 @@ import {
   CodexDesktopAdapter,
   codexExchange,
 } from '../desktop/core/codex-adapter.js';
-import { AdapterRegistry } from '../desktop/core/adapters.js';
+import { AdapterRegistry, type EventInput } from '../desktop/core/adapters.js';
 import { NodeService } from '../desktop/core/service.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
 
@@ -24,6 +24,7 @@ interface Request {
   targetClientId?: string;
   params: Record<string, unknown>;
 }
+type MessageEvent = Extract<EventInput, { message: unknown }>;
 interface HeldReply {
   release(): void;
   disconnect(): void;
@@ -185,7 +186,7 @@ async function fixture(t: test.TestContext) {
     holdAdmission: () => nextReply(admissionGates),
   };
 }
-function input(profile: AdapterProfile) {
+function input(profile: AdapterProfile): MessageEvent {
   return {
     message: {
       fromNode: '11111111-1111-4111-8111-111111111111',
@@ -384,13 +385,21 @@ test('Codex active admission has required restore metadata; revoked binding neve
   assert.equal(revoked.state, 'revoked');
   assert.ok(!f.requests.some((r) => r.method.startsWith('thread-follower-')));
   const event = input(f.profile);
+  const deliveredAt = 1731846907000;
+  const presented = 'R-0011 Codex active body';
+  let presentationCalls = 0;
+  event.presentMessage = () => {
+    presentationCalls++;
+    return { text: presented, deliveredAt };
+  };
   assert.equal((await codexExchange(f.profile, event)).state, 'admitted');
+  assert.equal(presentationCalls, 1);
   const request = f.requests.find((r) => r.method === 'thread-follower-steer-turn')!;
   assert.equal(request.version, 1);
   assert.deepEqual(request.params.input, [
     {
       type: 'text',
-      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
+      text: presented,
       text_elements: [],
     },
   ]);
@@ -399,10 +408,8 @@ test('Codex active admission has required restore metadata; revoked binding neve
     (request.params.restoreMessage as { id: string }).id,
     request.params.clientUserMessageId,
   );
-  assert.equal(
-    (request.params.restoreMessage as { text: string }).text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
-  );
+  assert.equal((request.params.restoreMessage as { text: string }).text, presented);
+  assert.equal((request.params.restoreMessage as { createdAt: number }).createdAt, deliveredAt);
   assert.ok(!('toolOutput' in request.params));
   f.state.admission = 'lost';
   assert.equal((await codexExchange(f.profile, input(f.profile))).state, 'uncertain');

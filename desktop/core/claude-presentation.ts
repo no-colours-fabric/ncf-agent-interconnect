@@ -8,6 +8,7 @@ const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i;
 const object = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
 const integer = (v) => Number.isSafeInteger(v) && v >= 0;
 const string = (v) => typeof v === 'string';
+const presentation = (v) => string(v) && v.length > 0 && v.length <= 384 * 1024;
 const attachment = (v) =>
   object(v) &&
   string(v.id) &&
@@ -82,6 +83,7 @@ export function pageFrom(output) {
       row.direction !== 'in' ||
       !integer(row.sequence) ||
       !/^r[1-9a-z][0-9a-z]{0,10}$/.test(row.replyRef ?? '') ||
+      !presentation(row.presentation) ||
       !object(e) ||
       e.protocol !== 2 ||
       !uuid.test(e.id ?? '') ||
@@ -117,24 +119,7 @@ export function pageFrom(output) {
 
 export function incomingText(page) {
   if (!page.messages.length) return 'NCF Agent Interconnect: no new messages in this read.';
-  const rows = page.messages.map((row) => {
-    const e = row.envelope;
-    const files = row.files.map(
-      (file) => 'Attachment: ' + printable(file.name) + '\n' + printable(file.localPath),
-    );
-    return (
-      'Incoming NCF Agent Interconnect\nFrom: ' +
-      printable(e.fromNickname) +
-      '\n\n' +
-      printable(e.text) +
-      (files.length ? '\n\n' + files.join('\n') : '') +
-      '\n\nReply-To: ' +
-      printable(row.replyRef) +
-      '\nUse agent_send(connectionId, replyRef="' +
-      row.replyRef +
-      '", text) to reply.'
-    );
-  });
+  const rows = page.messages.map((row) => printable(row.presentation));
   return rows.join('\n\n') + (page.hasMore ? '\n\nMore incoming messages are available.' : '');
 }
 
@@ -149,6 +134,7 @@ export function expandedMetadata(page) {
           ...page,
           messages: page.messages.map((row) => ({
             ...row,
+            presentation: '[shown in Incoming above]',
             envelope: { ...row.envelope, text: '[shown in Incoming above]' },
           })),
         },

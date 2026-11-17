@@ -206,7 +206,8 @@ export async function codexExchange(
         finish('revoked');
         return;
       }
-      const text = agentMessageText(input);
+      const presentation = 'presentMessage' in input ? input.presentMessage?.() : undefined;
+      const text = presentation?.text ?? agentMessageText(input);
       const beforeWrite = (representation: string) => {
         input.beforeRelease?.(representation);
         submitted = true;
@@ -225,7 +226,7 @@ export async function codexExchange(
             restoreMessage: {
               id: clientUserMessageId,
               text,
-              createdAt: Date.now(),
+              createdAt: presentation?.deliveredAt ?? Date.now(),
               context: {
                 prompt: text,
                 addedFiles: [],

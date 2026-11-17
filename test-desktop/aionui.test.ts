@@ -35,6 +35,18 @@ function connected(result: ConnectResult) {
 
 test('AionUi binds the native exact chat, preserves Unicode, attachments, IDs and automatic local receipt', async (t) => {
   const f = await setup(t);
+  let presentationCalls = 0;
+  const options = f.service as unknown as {
+    integrationOptions: {
+      presentationNow: () => number;
+      messageDisplayContext: () => { locale: string; timeZone: string };
+    };
+  };
+  options.integrationOptions.presentationNow = () => {
+    presentationCalls++;
+    return Date.UTC(2026, 10, 17, 12, 35, 7);
+  };
+  options.integrationOptions.messageDisplayContext = () => ({ locale: 'en-GB', timeZone: 'UTC' });
   const recipient = connected(await f.connect());
   assert.equal(recipient.chatId, 'fixture-chat-a');
   const sender = connected(f.service.connect({ nickname: 'Боб', client: 'fixture' }));
@@ -53,9 +65,12 @@ test('AionUi binds the native exact chat, preserves Unicode, attachments, IDs an
   assert.equal(f.posts.length, 1);
   assert.equal(f.posts[0].chat, 'fixture-chat-a');
   assert.match(f.posts[0].content, /From: "Боб"/);
+  assert.match(f.posts[0].content, /Sent: .+\nDelivered: 17\/11\/2026, 12:35:07\n/);
   assert.match(f.posts[0].content, /Первая строка\nSecond line/);
   assert.match(f.posts[0].content, /Пример 漢字/);
-  assert.match(f.posts[0].content, /Reply-To: r[0-9a-z]+/);
+  assert.match(f.posts[0].content, /Reply-To "Боб": r[0-9a-z]+/);
+  assert.doesNotMatch(f.posts[0].content, /estimated|approximate/i);
+  assert.equal(presentationCalls, 1);
   assert.equal(f.service.store.get(id, 'in')?.state, 'processed');
   assert.equal(f.service.store.get(id, 'in')?.envelope.id, id);
   assert.equal(f.service.store.list().find((a) => a.nickname === 'Тигр 漢字')?.unread, 0);

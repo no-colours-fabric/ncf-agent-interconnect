@@ -14,6 +14,7 @@ import { runCursorHook } from '../desktop/integrations/cursor-hook.js';
 import type { ConnectResult } from '../desktop/core/agent-store.js';
 
 const conversationId = '11111111-2222-4333-8444-555555555555';
+type MessageEvent = Extract<EventInput, { message: unknown }>;
 
 async function until(check: () => boolean): Promise<void> {
   const deadline = Date.now() + 5000;
@@ -23,7 +24,7 @@ async function until(check: () => boolean): Promise<void> {
   }
 }
 
-function event(isCurrent: () => boolean = () => true): EventInput {
+function event(isCurrent: () => boolean = () => true): MessageEvent {
   return {
     nickname: 'Получатель',
     messageId: randomUUID(),
@@ -162,7 +163,8 @@ test(
 );
 
 test('Cursor hook adapter admits only the matching exact-chat follow-up confirmation', async () => {
-  let idle = 0;
+  let idle = 0,
+    presentationCalls = 0;
   const adapter = new CursorHookAdapter(
     {
       id: randomUUID(),
@@ -177,12 +179,24 @@ test('Cursor hook adapter admits only the matching exact-chat follow-up confirma
   );
   await adapter.start();
   assert.equal(adapter.status().state, 'error');
-  assert.equal((await adapter.deliver(event())).state, 'waiting');
+  const withoutWaiter = event();
+  withoutWaiter.presentMessage = () => {
+    presentationCalls++;
+    return { text: 'must not be presented without a waiter', deliveredAt: 1 };
+  };
+  assert.equal((await adapter.deliver(withoutWaiter)).state, 'waiting');
+  assert.equal(presentationCalls, 0);
   const abort = new AbortController();
   const wait = adapter.wait('completed', abort.signal);
-  const delivery = adapter.deliver(event());
+  const exact = event();
+  exact.presentMessage = () => {
+    presentationCalls++;
+    return { text: 'R-0011 Cursor body', deliveredAt: 1731846907000 };
+  };
+  const delivery = adapter.deliver(exact);
   const output = await wait;
-  assert.match(output.followup_message!, /Incoming NCF Agent Interconnect/);
+  assert.match(output.followup_message!, /^R-0011 Cursor body\n\nNCF-Admission-ID: /);
+  assert.equal(presentationCalls, 1);
   const admissionId = output.followup_message!.match(/NCF-Admission-ID: ([0-9a-f-]+)/)![1];
   adapter.acknowledge(randomUUID());
   let settled = false;

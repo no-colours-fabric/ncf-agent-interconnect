@@ -53,6 +53,9 @@ async function fixture(t: test.TestContext, startLifetime = 600000) {
   let validate = async () => {};
   let materialize = async (_message: Message) => [];
   let scans = 0;
+  let presentationCalls = 0;
+  const sentAt = '2026-11-17T12:34:56.000Z';
+  const deliveredAt = Date.UTC(2026, 10, 17, 12, 35, 7);
   const committed: string[][] = [];
   const claude = {
     validateCurrentSync(captured: ClaudeProofLease) {
@@ -89,6 +92,11 @@ async function fixture(t: test.TestContext, startLifetime = 600000) {
     profiles: authority.profiles,
     store: () => store,
     ready: () => true,
+    presentationNow: () => {
+      presentationCalls++;
+      return deliveredAt;
+    },
+    messageDisplayContext: () => ({ locale: 'en-GB', timeZone: 'UTC' }),
     materialize: (message) => materialize(message),
     committed: async (_connectionId, ids) => {
       committed.push(ids);
@@ -103,7 +111,7 @@ async function fixture(t: test.TestContext, startLifetime = 600000) {
       toNode: node,
       fromNickname: 'Отправитель 漢字',
       toNickname: connected.nickname,
-      createdAt: new Date().toISOString(),
+      createdAt: sentAt,
       text,
       replyTo: null,
       attachments: [],
@@ -137,6 +145,9 @@ async function fixture(t: test.TestContext, startLifetime = 600000) {
     get scans() {
       return scans;
     },
+    get presentationCalls() {
+      return presentationCalls;
+    },
     revoke() {
       current = false;
     },
@@ -168,10 +179,13 @@ test('native preparation releases only an exact trigger; admission returns the s
   const ref = 'r' + f.store.get(message.id, 'in')!.sequence.toString(36);
   assert.equal(
     admitted.body,
-    '**Incoming NCF Agent Interconnect**\nFrom: "Отправитель 漢字"\n\n' +
+    '**Incoming NCF Agent Interconnect**\nFrom: "Отправитель 漢字"\n' +
+      'Sent: 17/11/2026, 12:34:56\n' +
+      'Delivered: 17/11/2026, 12:35:07\n\n' +
       message.text +
-      `\n\nReply-To: ${ref}\nUse agent_send(connectionId, replyRef="${ref}", text) to reply.`,
+      `\n\nReply-To "Отправитель 漢字": ${ref}\nUse agent_send(connectionId, replyRef="${ref}", text) to reply.`,
   );
+  assert.equal(f.presentationCalls, 1);
   assert.ok(!admitted.body.includes('Message ID'));
   assert.ok(!admitted.body.includes('agent_read'));
   assert.equal(f.store.claudeDelivery(prepared.delivery)?.state, 'issued');

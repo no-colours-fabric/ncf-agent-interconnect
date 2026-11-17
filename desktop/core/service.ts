@@ -50,6 +50,11 @@ import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
 import { cursorIntegration } from './cursor-integration.js';
 import { traceClaude } from '../integrations/claude-diagnostics.js';
+import {
+  formatAgentMessagePresentation,
+  type MessageDisplayContext,
+  type MessagePresentationFile,
+} from './message-presentation.js';
 
 interface ClaudeDispatchSnapshot {
   connectionId: string;
@@ -65,6 +70,8 @@ interface ClaudeDispatchSnapshot {
   index: number;
   after: number;
 }
+
+const messagePresentationLimit = 384 * 1024;
 
 export class NodeService extends EventEmitter {
   store!: AgentStore;
@@ -150,6 +157,8 @@ export class NodeService extends EventEmitter {
       codexSockets?: () => string[];
       clientLeaseMs?: number;
       lanDiscovery?: Omit<LanSearchOptions, 'local' | 'changed' | 'pairedNodeIds'>;
+      presentationNow?: () => number;
+      messageDisplayContext?: () => MessageDisplayContext;
     } = {},
   ) {
     super();
@@ -173,6 +182,8 @@ export class NodeService extends EventEmitter {
       store: () => this.store,
       profiles: () => this.settings.value.adapters,
       ready: () => this.integrationsReady,
+      presentationNow: () => this.presentationNow(),
+      messageDisplayContext: () => this.messageDisplayContext(),
       materialize: (message) =>
         allFileResults(
           message.envelope.attachments.map(async (file) => ({
@@ -233,6 +244,53 @@ export class NodeService extends EventEmitter {
       () => this.refreshPresence(),
       integrationOptions.clientLeaseMs,
     );
+  }
+  private presentationNow(): number {
+    return this.integrationOptions.presentationNow?.() ?? Date.now();
+  }
+  private messageDisplayContext(): MessageDisplayContext {
+    if (this.integrationOptions.messageDisplayContext)
+      return this.integrationOptions.messageDisplayContext();
+    const { locale, timeZone } = new Intl.DateTimeFormat().resolvedOptions();
+    return { locale, timeZone };
+  }
+  private formatMessagePresentation(
+    envelope: Envelope,
+    files: readonly MessagePresentationFile[],
+    replyRef: string,
+    deliveredAt: number,
+    display = this.messageDisplayContext(),
+  ): string {
+    const text = formatAgentMessagePresentation({
+      fromNickname: envelope.fromNickname,
+      sentAt: envelope.createdAt,
+      deliveredAt,
+      locale: display.locale,
+      timeZone: display.timeZone,
+      text: envelope.text,
+      files,
+      replyRef,
+    });
+    if (text.length > messagePresentationLimit)
+      throw new Error('The incoming message presentation is too large');
+    return text;
+  }
+  private presentMessage(
+    envelope: Envelope,
+    files: readonly MessagePresentationFile[],
+    replyRef: string,
+  ): () => { text: string; deliveredAt: number } {
+    let presentation: { text: string; deliveredAt: number } | undefined;
+    return () => {
+      if (!presentation) {
+        const deliveredAt = this.presentationNow();
+        presentation = {
+          deliveredAt,
+          text: this.formatMessagePresentation(envelope, files, replyRef, deliveredAt),
+        };
+      }
+      return presentation;
+    };
   }
   claudeNativePrepare(raw: unknown, signal: AbortSignal) {
     return this.fileOperation(() => this.nativeIncoming.prepare(raw, signal));
@@ -1178,18 +1236,30 @@ export class NodeService extends EventEmitter {
         assertPageCurrent();
         if (attempt) this.store.assertDeliveryCurrent(attempt.id);
         const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+        let pageDeliveredAt: number | undefined;
+        let pageDisplay: MessageDisplayContext | undefined;
         const result = {
           ...page,
           messages: page.messages.map((row) => {
             const ready = released.get(row.envelope.id + row.direction);
             if (!ready) return this.withheld(row);
             const { state, error: _error, ...message } = ready;
+            const replyRef =
+              message.direction === 'in'
+                ? 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36)
+                : undefined;
             return {
               ...message,
-              ...(message.direction === 'in'
+              ...(replyRef
                 ? {
-                    replyRef:
-                      'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36),
+                    replyRef,
+                    presentation: this.formatMessagePresentation(
+                      message.envelope,
+                      message.files,
+                      replyRef,
+                      (pageDeliveredAt ??= this.presentationNow()),
+                      (pageDisplay ??= this.messageDisplayContext()),
+                    ),
                   }
                 : {}),
               delivery: deliveryStatus(ids.includes(row.envelope.id) ? 'processed' : state),
@@ -1317,14 +1387,29 @@ export class NodeService extends EventEmitter {
         authorized();
         if (delivery) this.store.issueClaudeDelivery(delivery);
         const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+        let pageDeliveredAt: number | undefined;
+        let pageDisplay: MessageDisplayContext | undefined;
         const messages = page.messages.map((row) => {
           const ready = released.get(row.envelope.id + row.direction);
           if (!ready) return this.withheld(row);
           const { state, error: _error, ...message } = ready;
+          const replyRef =
+            message.direction === 'in'
+              ? 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36)
+              : undefined;
           return {
             ...message,
-            ...(message.direction === 'in'
-              ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
+            ...(replyRef
+              ? {
+                  replyRef,
+                  presentation: this.formatMessagePresentation(
+                    message.envelope,
+                    message.files,
+                    replyRef,
+                    (pageDeliveredAt ??= this.presentationNow()),
+                    (pageDisplay ??= this.messageDisplayContext()),
+                  ),
+                }
               : {}),
             delivery: deliveryStatus(
               this.store.get(message.envelope.id, message.direction)?.state ?? state,
@@ -2040,6 +2125,8 @@ export class NodeService extends EventEmitter {
             this.store.issueDelivery(attempt.id);
             submitting = true;
           }
+          const currentRow = this.store.get(row.envelope.id, 'in')!;
+          const replyRef = 'r' + currentRow.sequence.toString(36);
           const result = await adapter.deliver({
             beforeRelease: attempt
               ? (representation) => {
@@ -2053,8 +2140,8 @@ export class NodeService extends EventEmitter {
             nickname: identity.nickname,
             binding,
             messageId: row.envelope.id,
-            replyRef: 'r' + this.store.get(row.envelope.id, 'in')!.sequence.toString(36),
-            sequence: this.store.get(row.envelope.id, 'in')!.sequence,
+            replyRef,
+            sequence: currentRow.sequence,
             backlogUntil:
               claudeBacklogUntil ??
               Math.max(
@@ -2066,6 +2153,7 @@ export class NodeService extends EventEmitter {
               text: row.envelope.text,
               files,
             },
+            presentMessage: this.presentMessage(row.envelope, files, replyRef),
             isCurrent: () => {
               try {
                 currentDelivery();

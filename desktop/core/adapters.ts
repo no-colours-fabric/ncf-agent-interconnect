@@ -26,6 +26,10 @@ export interface AgentMessageInput {
   text: string;
   files: (Attachment & { localPath: string })[];
 }
+export interface PresentedAgentMessage {
+  text: string;
+  deliveredAt: number;
+}
 export type EventInput = {
   nickname: string;
   binding: Binding;
@@ -40,6 +44,8 @@ export type EventInput = {
       /** Mailbox order of this message and the newest message ready for the binding. */
       sequence?: number;
       backlogUntil?: number;
+      /** Node-owned, memoized presentation created at the exact serialization boundary. */
+      presentMessage?: () => PresentedAgentMessage;
       systemEvent?: never;
     }
   | { systemEvent: SystemEvent; message?: never }
@@ -52,6 +58,8 @@ export function agentMessageText(input: EventInput): string {
       : input.systemEvent.historyCleared
         ? `Agent ${markdownName(input.nickname)} was reset by the user. Its previous MCP history was deleted. This connection is disabled.`
         : `Agent ${markdownName(input.nickname)} was moved to another chat by the user. This connection is disabled.`;
+  const presented = input.presentMessage?.();
+  if (presented) return presented.text;
   const { fromNickname, text, files } = input.message;
   const attachments = files.length
     ? '\n\nAttachments:\n' +

@@ -79,6 +79,59 @@ async function materialize(t: test.TestContext) {
   return root;
 }
 
+test('Claude uses the bounded node presentation while preserving strict MCP page equality', async (t) => {
+  const root = await materialize(t);
+  const format = await import(
+    pathToFileURL(path.join(root, 'plugin/hooks/incoming-format.js')).href
+  );
+  const presentation =
+    '**Incoming NCF Agent Interconnect**\nFrom: "Боб 漢字"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nD-PROBE-001\nТочный текст 漢字\n\nReply-To "Боб 漢字": r1\nUse agent_send(connectionId, replyRef="r1", text) to reply.';
+  const page = {
+    messages: [
+      {
+        direction: 'in',
+        sequence: 1,
+        replyRef: 'r1',
+        presentation,
+        files: [],
+        envelope: {
+          protocol: 2,
+          id: '00000000-0000-4000-8000-000000000001',
+          fromNode: '00000000-0000-4000-8000-000000000002',
+          toNode: '00000000-0000-4000-8000-000000000003',
+          fromNickname: 'Боб 漢字',
+          toNickname: 'Борис',
+          text: 'D-PROBE-001\nТочный текст 漢字',
+          attachments: [],
+        },
+      },
+    ],
+    nextCursor: 1,
+    hasMore: false,
+  };
+  const wrapped = {
+    content: [{ type: 'text', text: JSON.stringify(page) }],
+    structuredContent: page,
+  };
+  assert.deepEqual(format.pageFrom(wrapped), page);
+  assert.equal(format.incomingText(page), presentation);
+  const expanded = format.expandedMetadata(page);
+  assert.ok(!expanded.includes('D-PROBE-001'));
+  assert.ok(!expanded.includes('Delivered:'));
+  assert.equal(
+    format.pageFrom({ ...page, messages: [{ ...page.messages[0], presentation: '' }] }),
+    undefined,
+  );
+  assert.equal(
+    format.pageFrom({
+      ...page,
+      messages: [{ ...page.messages[0], presentation: 'x'.repeat(384 * 1024 + 1) }],
+    }),
+    undefined,
+  );
+  assert.equal(format.pageFrom({ ...wrapped, structuredContent: {} }), undefined);
+});
+
 test('Actual generated wake entry imports relative assets and registers presentation exactly once', async (t) => {
   const root = await materialize(t);
   const { register } = await import(pathToFileURL(path.join(root, 'plugin/hooks/wake.js')).href);
