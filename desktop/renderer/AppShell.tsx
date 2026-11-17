@@ -86,7 +86,7 @@ export function AppShell({
           display: 'flex',
           flexDirection: 'column',
           p: 1.5,
-          py: 2.5,
+          py: 2,
           background: designTokens.sidebarGradient,
           backdropFilter: 'blur(24px)',
           borderRight: `1px solid ${designTokens.sidebarBorder}`,
@@ -94,7 +94,7 @@ export function AppShell({
           overflowY: 'auto',
         }}
       >
-        <Stack sx={{ px: 1.5, pt: 1, pb: 4 }}>
+        <Stack sx={{ px: 1.5, pt: 0.5, pb: 3 }}>
           <Box sx={{ minWidth: 0 }}>
             <Typography sx={{ fontSize: 17, fontWeight: 500, lineHeight: 1.35 }}>
               NCF Agent
@@ -216,8 +216,8 @@ export function AppShell({
             position: 'sticky',
             top: 0,
             zIndex: (theme) => theme.zIndex.appBar,
-            px: { xs: 3, lg: 4 },
-            py: 3,
+            px: 3,
+            py: 1.5,
             borderBottom: `1px solid ${designTokens.headerBorder}`,
             boxShadow: designTokens.headerShadow,
             background: designTokens.headerGradient,
@@ -240,7 +240,7 @@ export function AppShell({
               <Typography
                 variant="caption"
                 color="text.secondary"
-                sx={{ display: 'block', mb: 1, overflowWrap: 'anywhere' }}
+                sx={{ display: 'block', mb: 0.5, overflowWrap: 'anywhere' }}
               >
                 {t(locale, 'headerPrefix', { node: snapshot.nodeLabel })}
               </Typography>
@@ -248,7 +248,7 @@ export function AppShell({
                 data-testid="page-title"
                 variant="h4"
                 component="h1"
-                sx={{ overflowWrap: 'anywhere', fontSize: 36, lineHeight: 1.2 }}
+                sx={{ overflowWrap: 'anywhere', fontSize: 26, lineHeight: 1.25 }}
               >
                 {pageTitle}
               </Typography>
@@ -264,7 +264,7 @@ export function AppShell({
             </Button>
           </Stack>
         </Box>
-        <Box sx={{ px: { xs: 3, lg: 4 }, py: 3.5 }}>
+        <Box sx={{ px: 3, py: 2.5 }}>
           <Box
             data-testid="page-content"
             sx={{ width: '100%', maxWidth: contentWidth, mx: 'auto' }}

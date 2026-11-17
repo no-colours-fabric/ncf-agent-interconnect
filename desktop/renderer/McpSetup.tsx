@@ -1342,8 +1342,8 @@ export function McpSetup({
                 />
               </Box>
             )}
-            <Divider sx={{ mt: 3 }} />
-            <Stack spacing={2} sx={{ pt: 3 }}>
+            <Divider sx={{ mt: 2 }} />
+            <Stack spacing={1} sx={{ pt: 2 }}>
               <Typography variant="subtitle2" component="h3">
                 {m.connect}
               </Typography>
@@ -1352,10 +1352,6 @@ export function McpSetup({
                   component="code"
                   sx={{
                     minWidth: 0,
-                    ...surfaceSx('inset'),
-                    flex: 1,
-                    px: 1.75,
-                    py: 1.25,
                     fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
                     fontSize: 13,
                     lineHeight: 1.6,

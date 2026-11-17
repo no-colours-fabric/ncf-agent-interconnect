@@ -256,13 +256,16 @@ function App({
         }}
       >
         {page === 'overview' && (
-          <Stack spacing={3} data-testid="overview-sections">
+          <Stack spacing={2.5} data-testid="overview-sections">
             <Box
               data-testid="overview-statistics"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))' },
-                gap: 2,
+                gap: 0,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                pb: 2,
               }}
             >
               {[
@@ -282,24 +285,21 @@ function App({
                   hint: t(locale, 'statInboxHint'),
                 },
               ].map((item) => (
-                <Paper key={item.label} sx={{ p: 2.5, minWidth: 0 }}>
+                <Box key={item.label} sx={{ minWidth: 0, pr: 2 }} title={item.hint}>
                   <Typography color="text.secondary" variant="body2">
                     {item.label}
                   </Typography>
                   <Typography
-                    variant="h4"
-                    sx={{ my: 1.5, fontSize: 40, fontVariantNumeric: 'tabular-nums' }}
+                    variant="h6"
+                    sx={{ mt: 0.5, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}
                   >
                     {item.value}
                   </Typography>
-                  <Typography color="text.secondary" variant="caption">
-                    {item.hint}
-                  </Typography>
-                </Paper>
+                </Box>
               ))}
             </Box>
             <Stack spacing={2} data-testid="overview-applications">
-              <Typography variant="h5" component="h2">
+              <Typography variant="h6" component="h2">
                 {applicationSetupMessages(locale).applications}
               </Typography>
               <ApplicationTiles
@@ -323,47 +323,51 @@ function App({
               <Paper
                 sx={{
                   ...surfaceSx('raised'),
-                  p: 3,
+                  p: 2,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
-                  minHeight: 228,
                 }}
               >
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'connectAgentsTitle')}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {applicationSetupMessages(locale).intro}
-                </Typography>
-                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => navigate('mcp')}>
+                <Button variant="text" sx={{ minHeight: 44 }} onClick={() => navigate('mcp')}>
                   {t(locale, 'connectAgentsCta')}
                 </Button>
+                <Box component="details" sx={{ mt: 0.5, color: 'text.secondary', fontSize: 12 }}>
+                  <summary>{applicationSetupMessages(locale).details}</summary>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {applicationSetupMessages(locale).intro}
+                  </Typography>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {t(locale, 'overviewIntro')}
+                  </Typography>
+                </Box>
               </Paper>
               <Paper
                 sx={{
                   ...surfaceSx('soft'),
-                  p: 3,
+                  p: 2,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
-                  minHeight: 228,
                 }}
               >
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'connectPeerTitle')}
                 </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {t(locale, 'connectPeerBody')}
-                </Typography>
-                <Button sx={{ mt: 'auto' }} variant="outlined" onClick={() => setPage('network')}>
+                <Button variant="text" sx={{ minHeight: 44 }} onClick={() => setPage('network')}>
                   {t(locale, 'connectPeerCta')}
                 </Button>
+                <Box component="details" sx={{ mt: 0.5, color: 'text.secondary', fontSize: 12 }}>
+                  <summary>{applicationSetupMessages(locale).details}</summary>
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {t(locale, 'connectPeerBody')}
+                  </Typography>
+                </Box>
               </Paper>
             </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
-              {t(locale, 'overviewIntro')}
-            </Typography>
             {snapshot.errors.map((e, i) => (
               <Alert key={i} severity="error">
                 {e}
@@ -488,17 +492,23 @@ function App({
           </Box>
         )}
         {page === 'settings' && (
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: { xs: '1fr', md: 'minmax(0, 1.5fr) minmax(0, 1fr)' },
-              alignItems: 'start',
-              gap: 3,
-            }}
+          <Stack
+            spacing={2}
+            data-testid="settings-sections"
+            sx={{ '& .MuiButton-root': { minHeight: 44 } }}
           >
-            <Stack spacing={3}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
+            <Paper sx={{ p: 2 }}>
+              <Stack
+                direction="row"
+                useFlexGap
+                sx={{
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 2,
+                }}
+              >
+                <Typography component="h2" variant="subtitle1">
                   {t(locale, 'settingsAppearance')}
                 </Typography>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
@@ -540,76 +550,92 @@ function App({
                     </Typography>
                   </Stack>
                 </Stack>
-              </Paper>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  {t(locale, 'settingsNodeTitle')}
-                </Typography>
-                <Stack spacing={2}>
-                  <TextField
-                    label={t(locale, 'settingsNodeName')}
-                    value={nodeLabel}
-                    onChange={(e) => setNodeLabel(e.target.value)}
+              </Stack>
+            </Paper>
+            <Paper sx={{ p: 2 }}>
+              <Stack
+                direction="row"
+                useFlexGap
+                sx={{ alignItems: 'flex-end', flexWrap: 'wrap', gap: 2 }}
+              >
+                <TextField
+                  label={t(locale, 'settingsNodeName')}
+                  value={nodeLabel}
+                  onChange={(e) => setNodeLabel(e.target.value)}
+                  sx={{ width: 360, maxWidth: '100%' }}
+                />
+              </Stack>
+              <Divider sx={{ my: 2 }} />
+              <Typography component="h2" variant="subtitle1" sx={{ mb: 1 }}>
+                {lanSearchMessages(locale).networkSettings}
+              </Typography>
+              <Stack spacing={1.5}>
+                {snapshot.networkInterfaces && (
+                  <NetworkInterfacesSettings
+                    status={snapshot.networkInterfaces}
+                    value={networkExclusions}
+                    onChange={setNetworkExclusions}
+                    locale={locale}
+                    disabled={busy}
                   />
-                  {snapshot.networkInterfaces && (
-                    <NetworkInterfacesSettings
-                      status={snapshot.networkInterfaces}
-                      value={networkExclusions}
-                      onChange={setNetworkExclusions}
-                      locale={locale}
-                      disabled={busy}
-                    />
-                  )}
-                  {networkSaveError !== null && (
-                    <Alert
-                      severity="error"
-                      data-testid="network-save-error"
-                      onClose={() => setNetworkSaveError(null)}
-                      closeText={t(locale, 'mcpSetup_close')}
-                    >
-                      <Typography data-testid="network-save-summary">
-                        {networkInterfaceMessages(locale).saveFailed}
+                )}
+                {networkSaveError !== null && (
+                  <Alert
+                    severity="error"
+                    data-testid="network-save-error"
+                    onClose={() => setNetworkSaveError(null)}
+                    closeText={t(locale, 'mcpSetup_close')}
+                  >
+                    <Typography data-testid="network-save-summary">
+                      {networkInterfaceMessages(locale).saveFailed}
+                    </Typography>
+                    <Box component="details">
+                      <summary>{networkInterfaceMessages(locale).details}</summary>
+                      <Typography
+                        component="pre"
+                        sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                      >
+                        {networkSaveError}
                       </Typography>
-                      <Box component="details">
-                        <summary>{networkInterfaceMessages(locale).details}</summary>
-                        <Typography
-                          component="pre"
-                          sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-                        >
-                          {networkSaveError}
-                        </Typography>
-                      </Box>
-                    </Alert>
-                  )}
-                  <Box>
-                    <Button
-                      variant="contained"
-                      disabled={busy}
-                      onClick={() => {
-                        setBusy(true);
-                        setNetworkSaveError(null);
-                        setNotice('');
-                        void call('saveNode', { nodeLabel, networkExclusions })
-                          .then(() => setNotice(t(locale, 'settingsSaved')))
-                          .catch((error: unknown) =>
-                            setNetworkSaveError(
-                              error instanceof Error ? error.message : String(error),
-                            ),
-                          )
-                          .finally(() => setBusy(false));
-                      }}
-                    >
-                      {t(locale, 'btnSave')}
-                    </Button>
-                  </Box>
-                </Stack>
-              </Paper>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
+                    </Box>
+                  </Alert>
+                )}
+                <Box>
+                  <Button
+                    variant="contained"
+                    disabled={busy}
+                    onClick={() => {
+                      setBusy(true);
+                      setNetworkSaveError(null);
+                      setNotice('');
+                      void call('saveNode', { nodeLabel, networkExclusions })
+                        .then(() => setNotice(t(locale, 'settingsSaved')))
+                        .catch((error: unknown) =>
+                          setNetworkSaveError(
+                            error instanceof Error ? error.message : String(error),
+                          ),
+                        )
+                        .finally(() => setBusy(false));
+                    }}
+                  >
+                    {t(locale, 'btnSave')}
+                  </Button>
+                </Box>
+              </Stack>
+            </Paper>
+            <Paper sx={{ p: 2 }}>
+              <Stack
+                direction="row"
+                useFlexGap
+                sx={{
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: 1,
+                }}
+              >
+                <Typography component="h2" variant="subtitle1">
                   {t(locale, 'settingsBackground')}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsBackgroundBody')}
                 </Typography>
                 <FormControlLabel
                   control={
@@ -633,11 +659,23 @@ function App({
                     {t(locale, 'settingsStartAtLoginUnavailable')}
                   </Typography>
                 )}
-              </Paper>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsExportRoots')}
+              </Stack>
+              <Box component="details" sx={{ color: 'text.secondary', fontSize: 12 }}>
+                <summary>{applicationSetupMessages(locale).details}</summary>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {t(locale, 'settingsBackgroundBody')}
                 </Typography>
+              </Box>
+            </Paper>
+            <Paper component="details" sx={{ px: 2, py: 1 }}>
+              <Typography
+                component="summary"
+                variant="subtitle1"
+                sx={{ cursor: 'pointer', py: 0.5 }}
+              >
+                {t(locale, 'settingsExportRoots')}
+              </Typography>
+              <Box sx={{ pt: 1 }}>
                 {snapshot.exportRoots.map((root) => (
                   <Typography key={root} variant="body2" sx={{ py: 0.5, overflowWrap: 'anywhere' }}>
                     {root}
@@ -650,61 +688,67 @@ function App({
                 >
                   {t(locale, 'btnAddFolder')}
                 </Button>
-              </Paper>
-            </Stack>
-            <Paper sx={{ ...surfaceSx('glass'), p: 3, minWidth: 0 }}>
-              <Typography variant="h6" sx={{ mb: 2 }}>
+              </Box>
+            </Paper>
+            <Paper component="details" sx={{ px: 2, py: 1 }}>
+              <Typography
+                component="summary"
+                variant="subtitle1"
+                sx={{ cursor: 'pointer', py: 0.5 }}
+              >
                 {t(locale, 'settingsDiagnostics')}
               </Typography>
-              <Stack component="dl" spacing={2} sx={{ m: 0 }}>
-                {(
-                  [
-                    ['settingsDiagnosticNode', snapshot.nodeId],
-                    ['settingsDiagnosticMcp', snapshot.mcpUrl],
-                    ['settingsDiagnosticListening', snapshot.peerUrl],
-                  ] as const
-                ).map(([label, value]) => (
-                  <Box key={label}>
-                    <Typography component="dt" variant="caption" color="text.secondary">
-                      {t(locale, label)}
-                    </Typography>
-                    <Typography
-                      component="dd"
-                      variant="body2"
-                      sx={{ m: 0, mt: 0.5, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
-                    >
-                      {value}
-                    </Typography>
-                  </Box>
-                ))}
-              </Stack>
-              <Divider sx={{ my: 2 }} />
-              {snapshot.errors.length ? (
-                snapshot.errors.map((e, i) => (
-                  <Alert severity="error" key={i} sx={{ mt: 1 }}>
-                    {e}
-                  </Alert>
-                ))
-              ) : (
-                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                  <Box
-                    aria-hidden="true"
-                    sx={{
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      flexShrink: 0,
-                      bgcolor: 'success.main',
-                      boxShadow: designTokens.statusGlow,
-                    }}
-                  />
-                  <Typography variant="body2" color="success.main">
-                    {t(locale, 'settingsNoErrors')}
-                  </Typography>
+              <Box sx={{ pt: 1 }}>
+                <Stack component="dl" spacing={2} sx={{ m: 0 }}>
+                  {(
+                    [
+                      ['settingsDiagnosticNode', snapshot.nodeId],
+                      ['settingsDiagnosticMcp', snapshot.mcpUrl],
+                      ['settingsDiagnosticListening', snapshot.peerUrl],
+                    ] as const
+                  ).map(([label, value]) => (
+                    <Box key={label}>
+                      <Typography component="dt" variant="caption" color="text.secondary">
+                        {t(locale, label)}
+                      </Typography>
+                      <Typography
+                        component="dd"
+                        variant="body2"
+                        sx={{ m: 0, mt: 0.5, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
+                      >
+                        {value}
+                      </Typography>
+                    </Box>
+                  ))}
                 </Stack>
-              )}
+                <Divider sx={{ my: 2 }} />
+                {snapshot.errors.length ? (
+                  snapshot.errors.map((e, i) => (
+                    <Alert severity="error" key={i} sx={{ mt: 1 }}>
+                      {e}
+                    </Alert>
+                  ))
+                ) : (
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Box
+                      aria-hidden="true"
+                      sx={{
+                        width: 6,
+                        height: 6,
+                        borderRadius: '50%',
+                        flexShrink: 0,
+                        bgcolor: 'success.main',
+                        boxShadow: designTokens.statusGlow,
+                      }}
+                    />
+                    <Typography variant="body2" color="success.main">
+                      {t(locale, 'settingsNoErrors')}
+                    </Typography>
+                  </Stack>
+                )}
+              </Box>
             </Paper>
-          </Box>
+          </Stack>
         )}
       </AppShell>
       <ApplicationSetup
