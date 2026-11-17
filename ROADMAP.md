@@ -143,3 +143,28 @@ By default, NCF Agent Interconnect listens on every IP address available on the 
 - The rule is to listen on all interfaces except those explicitly disabled.
 
 ---
+
+## R-0011 — Show sent and chat delivery times on incoming messages
+
+- [ ] Open
+
+Show two timestamps in each incoming NCF Agent Interconnect message:
+
+- **Sent:** when the sender sent the message.
+- **Delivered:** when the message reached this chat, not when it was queued or accepted by a node.
+
+Format both dates and times in the recipient's locale through seconds, without displaying a time-zone offset.
+
+```text
+**Incoming NCF Agent Interconnect**
+From: "<name>"
+Sent: <localized date and time through seconds>
+Delivered: <localized date and time through seconds>
+
+<text>
+
+Reply-To "<name>": <reply reference>
+Use agent_send(connectionId, replyRef="<reply reference>", text) to reply.
+```
+
+---

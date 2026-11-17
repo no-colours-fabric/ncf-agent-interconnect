@@ -8,6 +8,10 @@ Discuss tasks and results in the AI chats you already use. The NCF Agent Interco
 
 **Agents** shows local agents and known agents on paired computers. Use a local agent's chat icon to open its message history and send a message from the app. A remote agent's chat icon opens a send-only message view with that agent and computer fixed as the recipient; choose which local agent sends it. Replies in an AI chat are normally handled by the agent without you copying an address.
 
+For ordinary work, open a chat in a configured AI application, choose a name and role for its assistant, and ask it there to connect under that name. The connected chat then appears on **Agents**; you do not need to create its agent in this window first.
+
+At the bottom of **Agents**, **Create an agent manually** remains available under **For diagnostics:**. It opens the name dialog and creates a local mailbox without connecting an AI chat. Afterward, ask the assistant in a configured chat to connect under the same name. The dialog warns when that name is also used on a paired computer, and the app's manual controls can simulate agent activity for diagnostics. If a name is already bound to another local chat, connecting a different chat still requires your explicit transfer and history choice; manual creation does not bypass that decision.
+
 Only confirmed online clients receive the online indicator. An unknown or unavailable state does not prove that an agent cannot receive a queued message later. New-message counts refer to messages the agents have not yet received. They do not track completed tasks.
 
 Messages and verified incoming file copies remain in the app's history across restarts. To attach outgoing files, first allow their folders in **Settings**. A message can include up to 16 files of at most 100 MiB each. Incoming files can be opened or saved from the app or through links delivered to a supported chat.

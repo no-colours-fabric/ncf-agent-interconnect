@@ -54,7 +54,7 @@ directories. Unknown clients are included only when requested.
 
 Remote names are visible under Agents and Remote nodes. Selecting a remote entry
 sets both recipient fields. Matching a name on another ready node produces a
-nonblocking warning in the Add agent dialog and `agent_connect` result. Names are
+nonblocking warning in the **Create an agent manually** dialog and `agent_connect` result. Names are
 compared with the existing Unicode normalization and case folding. The selected
 name remains available locally. An unavailable or incomplete directory does not
 establish uniqueness.
@@ -84,7 +84,7 @@ Commands read parameters from private JSON files. `pairing` writes a private
 participant and use it as the `join` parameters. `connect` accepts `nickname`,
 `handle` and `session`; two names can share one test session. `catalog` accepts a
 `query` for `agents_list`. `ui` captures the Remote nodes page and visible text;
-`warning` checks the Add agent warning without creating a mailbox. `close` cleanly
+`warning` checks the duplicate-name warning in the **Create an agent manually** dialog without creating a mailbox. `close` cleanly
 terminates one SDK session; `crash` kills that SDK process. `transfer` confirms a
 pending transfer only between these synthetic test handles. `stop`/`start` control
 only the test node. To reconnect a saved handle after restart, use `connect` with

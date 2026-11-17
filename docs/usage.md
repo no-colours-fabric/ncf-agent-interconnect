@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications are Codex Desktop, Claude Code, Cursor, OpenCode and AionUi. After initial application setup, connect each new agent by name in its own chat without separate per-agent configuration.
+“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications are Codex Desktop, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. After initial application setup, connect each new agent by name in its own chat without separate per-agent configuration.
 
 Give the agents related roles: one produces a result that another needs. They coordinate questions, messages and files directly or through an agent you ask to coordinate. You set the direction and priorities and discuss the outcome in the same AI chats. Start with several chats in one program on one computer; later, other supported programs and paired computers on a local network can join. The examples below are illustrative.
 
@@ -131,7 +131,7 @@ Set up each application or profile once. New chats then join by connecting under
 
 Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too and pair the two computers using the explicit address and temporary access code under **Remote nodes**. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
-The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported AionUi bridge also deliver to their connected chats. Codex Desktop delivery is experimental and version dependent. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
+The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported Cursor Agent bridge in AionUi also deliver to their connected chats. Codex Desktop delivery is experimental and version dependent. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
 
 ## 3. Administration when you need it
 

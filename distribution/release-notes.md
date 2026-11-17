@@ -1,11 +1,11 @@
-## 0.18.6
+## 0.18.7
 
-- Prevent a ready incoming message from being released concurrently by native delivery and MCP inbox/history reads. One shared reservation protects the complete message group before files are prepared.
-- Record MCP receipt after the full real response write, with current invocation, binding and message checks before body release. Cancelled, partial and uncertain attempts cannot silently become retryable; processed history remains available to its current owner without another receipt.
-- Restore compatibility with Codex Desktop thread stream v13 while retaining v11. An exact owner alone no longer makes the adapter ready: a supported exact-chat runtime snapshot is required. Unsupported versions and malformed snapshots show a specific error.
+- Agents now explains how to connect assistants from chats in AI applications. The application list uses actual local bindings; unknown availability is not presented as a ready connection.
+- Manual agent creation remains available through a diagnostic link. Its dialog explains the normal chat connection and diagnostic simulation while preserving name-transfer approval and history guidance. All fifteen interface languages are included.
+- Remove the decorative arrow from inline AionUi setup actions. Public supported-application lists explicitly qualify AionUi with Cursor Agent.
 
-Existing data, agent names, bindings, messages, attachments and paired peers are retained. Storage upgrades to format 5 on first start. Quit NCF and retain a complete stopped pre-upgrade profile backup before updating. Older binaries reject format 5; do not open an upgraded profile with an older app. Rollback requires the stopped backup and must preserve any data created after the upgrade. Client settings need no new Apply when installation paths remain the same.
+Existing messages, files, agents, bindings, paired nodes, client configuration and storage format 5 are retained. Updates from versions before 0.18.6 require a complete stopped pre-upgrade profile backup; older binaries cannot open format 5. Use the normal installer to update the application.
 
-Receipt is a complete local transport handoff or the existing adapter admission witness, not model acknowledgement or task completion. Peer protocol 2, the eleven MCP tools and client permission rules remain unchanged. Existing Claude frontend/version limits remain; no new live Claude account verification is claimed. The v13 compatibility repair does not by itself close the broader Windows sleep/resume scenario in issue #1. OpenCode v2 and LAN node discovery are not included.
+This release does not include LAN discovery, OpenCode v2 or the broader setup redesign. The Windows sleep/resume scenario in issue #1, offer-state warning in issue #2 and the white-window investigation in issue #3 remain separate; this release does not claim to resolve them.
 
-Source and isolated transport checks are reused for unchanged code; package/native outcomes are reported with the published release. Four installers: Apple Silicon DMG, Intel DMG, Windows x64 EXE and Linux x86_64 AppImage. macOS packages are ad-hoc signed without notarization; Windows is unsigned. Intel runtime execution is not required or claimed.
+Four installers: Apple Silicon DMG, Intel DMG, Windows x64 EXE and Linux x86_64 AppImage. macOS packages are ad-hoc signed without notarization; Windows is unsigned. Intel runtime execution is not claimed. Platform verification and actual interface images are included in the published release description.

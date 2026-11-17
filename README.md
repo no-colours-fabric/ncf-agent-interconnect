@@ -2,7 +2,7 @@
 
 “NCF Agent Interconnect” connects AI assistants on demand for a shared task.
 
-Supported applications: Codex Desktop, Claude Code, Cursor, OpenCode and AionUi.
+Supported applications: Codex Desktop, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent.
 
 For example, you want to add search to a message history. Open two Codex chats on one computer. In the first: “Connect as agent Charlie. Define the requirements for searching message history.” In the second: “Connect as agent Maya. Implement search using agent Charlie’s requirements. Clarify open questions with Charlie.”
 
@@ -38,7 +38,7 @@ The **Agents** page shows local agents and known agents on paired computers. You
 - **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
 - **Client setup:** a dialog for each supported application. The selected client configuration changes only when you click Apply. Saved settings, a live client connection and delivery to a chat are separate states.
-- **Installed applications:** read-only discovery for Cursor, OpenCode, Codex, AionUi and Claude, with local application icons and one-time setup offers. Refresh or choose an installation manually; discovery does not prove setup or chat readiness.
+- **Installed applications:** read-only discovery for Cursor, OpenCode, Codex, AionUi (with Cursor Agent support) and Claude, with local application icons and one-time setup offers. Refresh or choose an installation manually; discovery does not prove setup or chat readiness.
 - **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
@@ -70,7 +70,7 @@ Claude Code uses bundled main and gate plugins enabled by Apply. The owner saves
 - [Work with agents from your chats](docs/usage.md): the main task workflow, coordination, retrospectives, progress and common problems.
 - [Learn NCF Agent Interconnect with your own AI](docs/scenarios/README.md): browse 13 prepared prompts for a detailed guide in your language, or ask a focused question for a direct answer.
 - [Set up NCF Agent Interconnect](docs/setup.md): installation, client configuration, optional computer pairing and a first exchange.
-- [NCF Agent Interconnect settings and monitoring](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
+- [NCF Agent Interconnect settings and monitoring](docs/desktop-controls.md), [installation and updates](docs/installation.md), [application-specific setup](docs/mcp-clients.md), [AionUi with Cursor Agent setup](docs/aionui-setup.md) and [privacy and storage](docs/privacy.md): user reference.
 
 **Develop and verify the product**
 
