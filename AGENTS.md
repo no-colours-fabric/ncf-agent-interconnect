@@ -124,6 +124,12 @@ a native platform verification. Report verification limits accurately.
   in its release description. Actual UI images from one operating system are
   sufficient. Keep private data out of the images; the four installers remain
   the routine release assets.
+- Prefer building installers on the available target-platform machines and upload
+  those completed, verified files to GitHub Releases. Use the existing local Linux
+  build environment when available and state its native or emulated limits. Do
+  not rebuild completed installers in GitHub CI/CD. Keep source validation
+  separate; use hosted package builders only when a target environment is
+  unavailable.
 - Prioritize completing and publishing substantial features. Schedule small
   improvements between substantial feature releases; do not let them repeatedly
   interrupt implementation, extend a frozen release or block a larger feature.
