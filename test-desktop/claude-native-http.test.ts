@@ -306,7 +306,9 @@ test('native pages preserve a late low-physical row beyond two hundred earlier o
     assert.equal(admit.status, 200, JSON.stringify(admit.body));
     if (expectedCount === 2) {
       assert.ok(String(admit.body.body).includes(low.text));
-      assert.ok(String(admit.body.body).includes('Reply-To: r' + physical.toString(36)));
+      assert.ok(
+        String(admit.body.body).includes('Reply-To "Отправитель 漢字": r' + physical.toString(36)),
+      );
     }
     const before = f.wakes().length;
     const report = await f.post('/integrations/claude/native/report', {
