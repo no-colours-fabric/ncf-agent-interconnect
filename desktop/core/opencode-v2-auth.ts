@@ -39,6 +39,7 @@ const registrySchema = z
 type Registry = z.infer<typeof registrySchema>;
 export type OpenCodeV2AuthRow = z.infer<typeof rowSchema>;
 export interface OpenCodeV2PrivateFiles {
+  available?: () => Promise<boolean>;
   protect(filename: string, directory: boolean): Promise<void>;
   verify(filename: string, directory: boolean): Promise<void>;
 }
@@ -140,6 +141,26 @@ export function openCodeV2PrivateFiles(root: string): OpenCodeV2PrivateFiles {
     }
   };
   return {
+    available: async () => {
+      if (process.platform === 'darwin' || process.platform === 'linux')
+        return typeof process.getuid === 'function';
+      if (process.platform !== 'win32') return false;
+      try {
+        return (
+          await lstat(
+            path.join(
+              process.env.SystemRoot ?? 'C:\\Windows',
+              'System32',
+              'WindowsPowerShell',
+              'v1.0',
+              'powershell.exe',
+            ),
+          )
+        ).isFile();
+      } catch {
+        return false;
+      }
+    },
     protect: (file, directory) => inspect(file, directory, true),
     verify: (file, directory) => inspect(file, directory, false),
   };
@@ -174,6 +195,13 @@ export class OpenCodeV2Auth {
     return () => {
       publications.off(this.root, listener);
     };
+  }
+  async provisioningAvailable(): Promise<boolean> {
+    try {
+      return this.security.available ? await this.security.available() : false;
+    } catch {
+      return false;
+    }
   }
   private async checkedDirectory(directory: string): Promise<void> {
     const parent = path.dirname(directory);
@@ -271,7 +299,12 @@ export class OpenCodeV2Auth {
   ): Promise<OpenCodeV2Provision> {
     const folder = this.generation(row);
     const raw = await this.readPrivate(path.join(folder, 'ncf-target.json'));
-    const provision = parseOpenCodeV2Provision(JSON.parse(raw));
+    let provision: OpenCodeV2Provision;
+    try {
+      provision = parseOpenCodeV2Provision(JSON.parse(raw));
+    } catch {
+      throw new Error('V2_TARGET_DESCRIPTOR_MISMATCH');
+    }
     if (
       provision.targetId !== row.targetId ||
       provision.generation !== row.generation ||

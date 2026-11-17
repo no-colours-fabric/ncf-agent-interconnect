@@ -147,7 +147,9 @@ test('explicit owner config-drift repair creates a new generation without startu
   const registryFile = path.join(state, 'Integrations', 'opencode-v2', 'targets.json');
   const old = JSON.parse(await readFile(registryFile, 'utf8')).targets[0];
   await writeFile(target.configurationPath, source);
-  assert.equal((await setup.v2Status(target)).state, 'unavailable');
+  const drift = await setup.v2Status(target);
+  assert.equal(drift.state, 'unavailable');
+  assert.equal(drift.setupAvailability.state, 'available');
   assert.equal(await readFile(target.configurationPath, 'utf8'), source);
   const repair = await setup.v2Preview('window', target);
   assert.equal(await readFile(target.configurationPath, 'utf8'), source);
@@ -157,6 +159,74 @@ test('explicit owner config-drift repair creates a new generation without startu
   assert.notEqual(current.generation, old.generation);
   assert.notEqual(current.credentialVerifier, old.credentialVerifier);
   assert.equal((await setup.v2Status(target)).state, 'configured');
+});
+
+test('readonly v2 setup capability is independent of installation evidence and runtime delivery', async (t) => {
+  const { state, target, source, setup } = await fixture(t);
+  const status = await setup.v2Status(target);
+  assert.equal(status.state, 'not-configured');
+  assert.deepEqual(status.setupAvailability, { state: 'available' });
+  const defaults = await setup.v2Defaults();
+  assert.equal(defaults.target.installationId, null);
+  assert.equal(defaults.target.installationPath, null);
+  assert.equal(defaults.setupAvailability.state, 'available');
+  assert.equal(
+    (
+      await setup.v2Status({
+        ...target,
+        installationId: 'owner-selected',
+        installationPath: '/must-not-execute/opencode',
+      })
+    ).setupAvailability.state,
+    'available',
+  );
+  assert.equal(await readFile(target.configurationPath, 'utf8'), source);
+  await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2')), { code: 'ENOENT' });
+  assert.equal(JSON.stringify(status).includes('Bearer '), false);
+});
+test('readonly v2 capability rejects canonical v1 collision and an unresolved file target', async (t) => {
+  const { state, target, setup } = await fixture(t);
+  const unresolved = await setup.v2Status({
+    ...target,
+    configurationPath: path.join(target.configurationPath, 'child.json'),
+  });
+  assert.deepEqual(unresolved.setupAvailability, {
+    state: 'unavailable',
+    reason: 'target-unresolved',
+  });
+  await new McpSetupPaths(state).remember('opencode', target.configurationPath);
+  assert.deepEqual((await setup.v2Status(target)).setupAvailability, {
+    state: 'unavailable',
+    reason: 'v1-collision',
+  });
+});
+test('unsupported secure provisioning disables v2 automatic configuration before any write', async (t) => {
+  const { state, target, source, root } = await fixture(t);
+  const setup = new OpenCodeV2SetupService({
+    stateDirectory: state,
+    home: root,
+    env: {},
+    instructions: () => {
+      throw new Error('unused');
+    },
+    asset: async () => 'asset',
+    security: {
+      available: async () => false,
+      protect: async () => {
+        throw new Error('unsupported');
+      },
+      verify: async () => {
+        throw new Error('unsupported');
+      },
+    },
+  });
+  assert.deepEqual((await setup.v2Status(target)).setupAvailability, {
+    state: 'unavailable',
+    reason: 'secure-provision-unavailable',
+  });
+  await assert.rejects(setup.v2Preview('window', target), /private-file protection is unavailable/);
+  assert.equal(await readFile(target.configurationPath, 'utf8'), source);
+  await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2')), { code: 'ENOENT' });
 });
 
 test('selected managed config changed after write cannot become the activated verifier baseline', async (t) => {
