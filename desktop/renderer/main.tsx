@@ -1,8 +1,17 @@
-import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+  useMemo,
+  useSyncExternalStore,
+} from 'react';
 import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { AgentsPage } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
+import { NetworkPage, lanSearchNavigation } from './NetworkPage.js';
+import { lanSearchMessages } from './i18n/lan-search.js';
 import { McpSetup } from './McpSetup.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import type { McpSetupApplication } from '../shared/mcp-setup.js';
@@ -27,21 +36,25 @@ import {
   Switch,
   CircularProgress,
 } from '@mui/material';
-import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
+import { applicationSetupMessages } from './i18n/application-setup.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
-import { ApplicationDiscovery, ApplicationOffers } from './ApplicationDiscovery.js';
+import { ApplicationDiscovery } from './ApplicationDiscovery.js';
+import {
+  ApplicationSetup,
+  useApplicationSetup,
+  useApplicationSetupStartup,
+} from './ApplicationSetup.js';
 import { useApplicationDiscovery } from './useApplicationDiscovery.js';
 import { AppShell, type Page } from './AppShell.js';
 import { createAppTheme, designTokens, surfaceSx } from './theme.js';
 import { loadThemeMode, persistThemeMode, type ThemeMode } from './theme-preference.js';
 
-const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
 const normalizePage = (value: string): Page => (value === 'clients' ? 'mcp' : (value as Page));
 
 function App({
@@ -57,12 +70,16 @@ function App({
   const [error, setError] = useState(''),
     [notice, setNotice] = useState('');
   const [appVersion, setAppVersion] = useState('');
+  const [windowVisible, setWindowVisible] = useState(false);
+  const stopSearchPending = useRef(false);
   const [nicknameDialog, setNicknameDialog] = useState(false),
     [nickname, setNickname] = useState('');
   const [address, setAddress] = useState(''),
     [access, setAccess] = useState(''),
     [ownCode, setOwnCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [client, setClient] = useState<McpSetupApplication>('cursor');
+  const [manualClient, setManualClient] = useState<McpSetupApplication | null>(null);
+  const [applicationsMounted, setApplicationsMounted] = useState(page === 'mcp');
   const [nodeLabel, setNodeLabel] = useState(''),
     [listenHost, setListenHost] = useState('');
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
@@ -78,6 +95,26 @@ function App({
   );
   const setupStatuses = useMcpSetupStatuses(call);
   const discovery = useApplicationDiscovery(call);
+  const applicationSetup = useApplicationSetup(call, () => setupStatuses.refreshAll(true));
+  const applicationStartup = useApplicationSetupStartup(discovery);
+  const applicationSetupStates = useSyncExternalStore(
+    applicationSetup.subscribe,
+    applicationSetup.getSnapshot,
+    applicationSetup.getSnapshot,
+  );
+  const openManualSetup = (application: McpSetupApplication) => {
+    setClient(application);
+    setManualClient(application);
+    setApplicationsMounted(true);
+    setPage('mcp');
+  };
+  const navigate = (next: Page) => {
+    if (next === 'mcp') {
+      setManualClient(null);
+      setApplicationsMounted(true);
+    }
+    setPage(next);
+  };
   const snapshotRequest = useRef(0);
   const run = async (work: () => Promise<unknown>, success = '') => {
     setBusy(true);
@@ -93,9 +130,17 @@ function App({
   const refresh = useCallback(async () => {
     const request = ++snapshotRequest.current;
     try {
-      const value = await call<Snapshot>('snapshot');
-      if (request === snapshotRequest.current) setSnapshot(value);
+      const [value, state] = await Promise.all([
+        call<Snapshot>('snapshot'),
+        call<{ visible: boolean }>('windowState', {}),
+      ]);
+      if (request === snapshotRequest.current) {
+        setSnapshot(value);
+        setWindowVisible(state.visible === true);
+      }
     } catch (e) {
+      if (request !== snapshotRequest.current) return;
+      setWindowVisible(false);
       setError((e as Error).message);
     }
   }, [call]);
@@ -107,8 +152,9 @@ function App({
     const off = window.interconnect.onChange(() => {
       void refresh();
     });
-    const nav = window.interconnect.onNavigate((tab) => setPage(normalizePage(tab)));
+    const nav = window.interconnect.onNavigate((tab) => navigate(normalizePage(tab)));
     return () => {
+      snapshotRequest.current++;
       off();
       nav();
     };
@@ -148,7 +194,15 @@ function App({
       return [];
     }
   })();
-  const copy = (value: string) => run(() => call('copy', { text: value }), t(locale, 'copied'));
+  const stopSearch = () => {
+    if (stopSearchPending.current) return;
+    stopSearchPending.current = true;
+    void call('stopLanSearch', {})
+      .catch(() => setError(lanSearchMessages(locale).unavailableHelp))
+      .finally(() => {
+        stopSearchPending.current = false;
+      });
+  };
   const changeLocale = (next: unknown) => {
     if (!isLocale(next)) return;
     setLocale(next);
@@ -162,20 +216,17 @@ function App({
         page={page}
         appVersion={appVersion}
         busy={busy}
-        onNavigate={setPage}
+        networkDiscovery={{
+          ...lanSearchNavigation(snapshot, locale),
+          onStopSearch: stopSearch,
+          stopLabel: lanSearchMessages(locale).stopSearch,
+        }}
+        onNavigate={navigate}
         onLocaleChange={changeLocale}
         onToggle={() => {
           void run(() => call(snapshot.running ? 'stop' : 'start'));
         }}
       >
-        <ApplicationOffers
-          model={discovery}
-          locale={locale}
-          onSetup={(application) => {
-            setClient(application);
-            setPage('mcp');
-          }}
-        />
         {page === 'overview' && (
           <Stack spacing={3} data-testid="overview-sections">
             <Box
@@ -225,8 +276,7 @@ function App({
                 locale={locale}
                 setupStatuses={setupStatuses}
                 onSetup={(application) => {
-                  setClient(application);
-                  setPage('mcp');
+                  openManualSetup(application);
                 }}
               />
             </Box>
@@ -253,9 +303,9 @@ function App({
                   {t(locale, 'connectAgentsTitle')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {t(locale, 'connectAgentsBody')}
+                  {applicationSetupMessages(locale).intro}
                 </Typography>
-                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => setPage('mcp')}>
+                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => navigate('mcp')}>
                   {t(locale, 'connectAgentsCta')}
                 </Button>
               </Paper>
@@ -317,123 +367,93 @@ function App({
             }}
           />
         )}
-        {page === 'network' && (
-          <Stack spacing={3}>
-            <Box
-              data-testid="network-forms"
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-                gap: 2.5,
-              }}
-            >
-              <Paper sx={{ ...surfaceSx('soft'), p: 3, minWidth: 0 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'networkThisNode')}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  {t(locale, 'networkListening', { url: snapshot.peerUrl })}
-                </Typography>
-                {snapshot.listenHost === '127.0.0.1' && (
-                  <Alert severity="info" sx={{ mb: 2 }}>
-                    {t(locale, 'networkLocalIpHint')}
-                  </Alert>
-                )}
-                <Button
-                  variant="outlined"
-                  disabled={busy || !snapshot.running}
-                  onClick={() => run(async () => setOwnCode(await call('accessCode')))}
-                >
-                  {t(locale, 'btnAccessCode')}
-                </Button>
-                {ownCode && (
-                  <Box sx={{ mt: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      {t(locale, 'networkCodeExpires', { time: time(ownCode.expiresAt, locale) })}
-                    </Typography>
-                    <TextField
-                      label={t(locale, 'networkCodeLabel')}
-                      value={ownCode.code}
-                      fullWidth
-                      slotProps={{
-                        input: { readOnly: true },
-                        htmlInput: {
-                          style: { fontFamily: 'monospace', fontSize: 24, letterSpacing: '0.15em' },
-                        },
-                      }}
-                    />
-                    <Button startIcon={<ContentCopyOutlined />} onClick={() => copy(ownCode.code)}>
-                      {t(locale, 'btnCopyCode')}
-                    </Button>
-                  </Box>
-                )}
-              </Paper>
-              <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                  {t(locale, 'networkConnectTitle')}
-                </Typography>
-                <Stack spacing={2}>
-                  <TextField
-                    label={t(locale, 'networkAddressLabel')}
-                    placeholder={t(locale, 'networkAddressPlaceholder')}
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    fullWidth
-                  />
-                  <TextField
-                    label={t(locale, 'networkAccessLabel')}
-                    placeholder={t(locale, 'networkAccessPlaceholder')}
-                    helperText={t(locale, 'networkAccessHelper')}
-                    value={access}
-                    onChange={(e) =>
-                      setAccess(e.target.value.replace(/[a-z]/g, (letter) => letter.toUpperCase()))
+        <NetworkPage
+          active={page === 'network'}
+          windowVisible={windowVisible}
+          obscured={
+            nicknameDialog ||
+            applicationStartup.open ||
+            Object.values(applicationSetupStates).some((state) => state.phase === 'confirmation')
+          }
+          snapshot={snapshot}
+          locale={locale}
+          invoke={call}
+          onSettings={() => navigate('settings')}
+          ownCode={ownCode}
+          onOwnCodeChange={setOwnCode}
+          manual={{
+            address,
+            code: access,
+            onAddressChange: setAddress,
+            onCodeChange: setAccess,
+            content: (
+              <Stack spacing={2}>
+                <TextField
+                  label={t(locale, 'networkAddressLabel')}
+                  placeholder={t(locale, 'networkAddressPlaceholder')}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  fullWidth
+                />
+                <TextField
+                  label={t(locale, 'networkAccessLabel')}
+                  placeholder={t(locale, 'networkAccessPlaceholder')}
+                  helperText={t(locale, 'networkAccessHelper')}
+                  value={access}
+                  onChange={(e) =>
+                    setAccess(e.target.value.replace(/[a-z]/g, (letter) => letter.toUpperCase()))
+                  }
+                  slotProps={{
+                    htmlInput: {
+                      maxLength: 8,
+                      autoCapitalize: 'characters',
+                      autoComplete: 'off',
+                      spellCheck: false,
+                    },
+                  }}
+                  fullWidth
+                />
+                <Box>
+                  <Button
+                    disabled={
+                      busy || !address.trim() || access.trim().length !== 8 || !snapshot.running
                     }
-                    slotProps={{
-                      htmlInput: {
-                        maxLength: 8,
-                        autoCapitalize: 'characters',
-                        autoComplete: 'off',
-                        spellCheck: false,
-                      },
-                    }}
-                    fullWidth
-                  />
-                  <Box>
-                    <Button
-                      disabled={
-                        busy || !address.trim() || access.trim().length !== 8 || !snapshot.running
-                      }
-                      variant="contained"
-                      onClick={() =>
-                        run(
-                          async () => {
-                            await call('connectPeer', { address, code: access.trim() });
-                            setAccess('');
-                          },
-                          t(locale, 'networkConnectOk'),
-                        )
-                      }
-                    >
-                      {t(locale, 'btnConnect')}
-                    </Button>
-                  </Box>
-                </Stack>
-              </Paper>
-            </Box>
-            <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
-          </Stack>
-        )}
-        {page === 'mcp' && (
-          <McpSetup
-            discovery={discovery}
-            client={client}
-            onClientChange={setClient}
-            invoke={call}
-            messages={mcpSetupMessages(locale)}
-            snapshot={snapshot}
-            locale={locale}
-            setupStatuses={setupStatuses}
-          />
+                    variant="contained"
+                    onClick={() =>
+                      run(
+                        async () => {
+                          await call('connectPeer', { address, code: access.trim() });
+                          setAccess('');
+                        },
+                        t(locale, 'networkConnectOk'),
+                      )
+                    }
+                  >
+                    {t(locale, 'btnConnect')}
+                  </Button>
+                </Box>
+              </Stack>
+            ),
+          }}
+        >
+          <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
+        </NetworkPage>
+        {(page === 'mcp' || applicationsMounted) && (
+          <Box hidden={page !== 'mcp'}>
+            <McpSetup
+              discovery={discovery}
+              client={client}
+              onClientChange={openManualSetup}
+              setupFlow={applicationSetup}
+              manualClient={manualClient}
+              onCloseManual={() => setManualClient(null)}
+              invoke={call}
+              messages={mcpSetupMessages(locale)}
+              snapshot={snapshot}
+              locale={locale}
+              setupStatuses={setupStatuses}
+            />
+          </Box>
         )}
         {page === 'settings' && (
           <Box
@@ -631,6 +651,16 @@ function App({
           </Box>
         )}
       </AppShell>
+      <ApplicationSetup
+        discovery={discovery}
+        flow={applicationSetup}
+        startup={applicationStartup}
+        statuses={setupStatuses}
+        invoke={call}
+        locale={locale}
+        snapshot={snapshot}
+        onManualSetup={openManualSetup}
+      />
       <Dialog
         open={nicknameDialog}
         onClose={() => setNicknameDialog(false)}

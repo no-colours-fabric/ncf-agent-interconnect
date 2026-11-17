@@ -26,6 +26,8 @@ import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './setti
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { PeerNetwork, type Frame } from './peer.js';
+import type { LocalLanNode } from './lan-discovery.js';
+import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.js';
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
@@ -79,6 +81,9 @@ export class NodeService extends EventEmitter {
   private readonly nativeIncoming: ClaudeNativeIncoming;
   private claudeContextLeases = new Map<string, { lease: ClaudeProofLease; expires: number }>();
   private readonly presence: AgentPresence;
+  private lanSearch?: LanSearch;
+  private lanDiscoveryStarting?: Promise<void>;
+  private lanSearchRequest = 0;
   running = false;
   private receiving: Promise<void> | null = null;
   private receiveAgain = false;
@@ -144,6 +149,7 @@ export class NodeService extends EventEmitter {
     private readonly integrationOptions: {
       codexSockets?: () => string[];
       clientLeaseMs?: number;
+      lanDiscovery?: Omit<LanSearchOptions, 'local' | 'changed' | 'pairedNodeIds'>;
     } = {},
   ) {
     super();
@@ -387,21 +393,79 @@ export class NodeService extends EventEmitter {
       void this.drainIncoming();
       this.drainAdapters();
       this.drainFileCleanup();
+      this.startLanDiscovery();
       this.emit('change');
     } catch (e) {
       this.running = false;
       this.acceptingIntegrations = false;
+      if (this.lanSearch) await this.stopLanDiscovery();
       await this.adapters.close();
       await this.network.close();
       await this.mcp.close();
       throw e;
     }
   }
+  private localLanNode(): LocalLanNode {
+    const server = this.network?.server;
+    const bound = server?.listening ? server.address() : null;
+    return {
+      nodeId: this.settings.value.nodeId,
+      label: this.settings.value.nodeLabel,
+      listener:
+        bound && typeof bound !== 'string' ? { address: bound.address, port: bound.port } : null,
+    };
+  }
+  private startLanDiscovery(): void {
+    const options = this.integrationOptions.lanDiscovery;
+    if (!options) return;
+    const search = new LanSearch({
+      ...options,
+      local: this.localLanNode(),
+      pairedNodeIds: () => this.settings.value.peers.map((peer) => peer.id),
+      changed: () => {
+        if (this.lanSearch === search) this.emit('change');
+      },
+    });
+    this.lanSearch = search;
+    this.lanDiscoveryStarting = search.open();
+  }
+  private async stopLanDiscovery(): Promise<void> {
+    this.lanSearchRequest++;
+    const search = this.lanSearch;
+    const starting = this.lanDiscoveryStarting;
+    search?.close();
+    await starting;
+    if (this.lanSearch === search && this.lanDiscoveryStarting === starting)
+      this.lanDiscoveryStarting = undefined;
+  }
+  private async startLanSearch(): Promise<boolean> {
+    const request = ++this.lanSearchRequest;
+    const search = this.lanSearch;
+    const current = () =>
+      !!search &&
+      this.running &&
+      !this.closing &&
+      this.lanSearch === search &&
+      this.lanSearchRequest === request;
+    if (!current() || !search) return false;
+    await this.lanDiscoveryStarting;
+    if (!current()) return false;
+    if (search.startSearch()) return true;
+    const starting = search.open();
+    this.lanDiscoveryStarting = starting;
+    try {
+      await starting;
+    } finally {
+      if (this.lanSearch === search && this.lanDiscoveryStarting === starting)
+        this.lanDiscoveryStarting = undefined;
+    }
+    return current() && search.startSearch();
+  }
   private problem(message: string): void {
     this.errors = [...this.errors.slice(-19), message];
     this.emit('change');
   }
-  snapshot(): Snapshot {
+  snapshot(options: { lanDiscovery?: boolean } = {}): Snapshot {
     return {
       running: this.running,
       nodeId: this.settings.value.nodeId,
@@ -410,6 +474,12 @@ export class NodeService extends EventEmitter {
       peerUrl: `wss://${this.settings.value.listenHost}:${this.settings.value.peerPort}/peer`,
       listenHost: this.settings.value.listenHost,
       localAddresses: localAddresses(),
+      ...(options.lanDiscovery && this.lanSearch
+        ? {
+            lanDiscovery: this.lanSearch.discoverySnapshot(),
+            lanSearch: this.lanSearch.snapshot(),
+          }
+        : {}),
       peers: this.settings.value.peers.map((p) => ({
         id: p.id,
         label: p.label,
@@ -2163,7 +2233,27 @@ export class NodeService extends EventEmitter {
       };
       return result;
     }
-    if (method === 'snapshot') return this.snapshot();
+    if (method === 'snapshot') return this.snapshot({ lanDiscovery: true });
+    if (method === 'startLanSearch') {
+      z.object({}).strict().parse(raw);
+      return { started: await this.startLanSearch() };
+    }
+    if (method === 'stopLanSearch') {
+      z.object({}).strict().parse(raw);
+      this.lanSearchRequest++;
+      this.lanSearch?.stopSearch();
+      return { stopped: true };
+    }
+    if (method === 'ackLanSearch') {
+      const { keys } = z
+        .object({
+          keys: z.array(z.string().min(1).max(128)).max(lanSearchLimits.entries),
+        })
+        .strict()
+        .parse(raw);
+      this.lanSearch?.acknowledge(keys);
+      return { acknowledged: true };
+    }
     if (method === 'clearAgents')
       return this.clearAgents(raw as AgentClearInput, {
         channel: 'interface',
@@ -2238,6 +2328,7 @@ export class NodeService extends EventEmitter {
       await this.settings.save();
       if (restart) await this.start();
       else if (renamed) await this.network.publishIdentity(input.nodeLabel);
+      if (renamed) this.lanSearch?.updateLocal(this.localLanNode());
       if (renamed)
         this.mcp.notify({
           source: 'application',
@@ -2301,6 +2392,7 @@ export class NodeService extends EventEmitter {
     this.contexts.clear();
     this.claudeContextLeases.clear();
     this.store.invalidateClearRequests();
+    if (this.lanSearch) await this.stopLanDiscovery();
     await this.adapters.close();
     await this.network.close();
     await this.receiving;
