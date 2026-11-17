@@ -572,97 +572,23 @@ export function ApplicationRows({
   );
 }
 
-export interface ApplicationStartup {
-  open: boolean;
-  clients: readonly McpSetupClient[];
-  close: () => void;
-}
-
-export function useApplicationSetupStartup(
-  discovery: ApplicationDiscoveryModel,
-): ApplicationStartup {
-  const [initialOffers, setInitialOffers] = useState<McpSetupClient[] | null>(null);
-  const [closed, setClosed] = useState(false);
-  useEffect(() => {
-    if (initialOffers !== null) return;
-    if (discovery.snapshot) setInitialOffers([...discovery.snapshot.offers]);
-    else if (discovery.failed) setInitialOffers([]);
-  }, [initialOffers, discovery.snapshot, discovery.failed]);
-  const clients = initialOffers ?? discovery.snapshot?.offers ?? [];
-  return {
-    open: !closed && clients.length > 0,
-    clients,
-    close: () => {
-      setClosed(true);
-      discovery.dismiss();
-    },
-  };
-}
-
-export function ApplicationSetup({
+export function ApplicationTiles({
   discovery,
   flow,
   statuses,
   invoke,
   locale,
   onManualSetup,
-  snapshot,
-  startup,
-}: SetupProps & { snapshot?: Pick<Snapshot, 'adapters' | 'agents'>; startup: ApplicationStartup }) {
+  disabled = false,
+  offers = [],
+  context = 'overview',
+}: SetupProps & { offers?: readonly McpSetupClient[]; context?: 'startup' | 'overview' }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
   const [showV1, setShowV1] = useState(false);
-  const [content, setContent] = useState<HTMLDivElement | null>(null);
-  const startupOffers = startup.clients;
-  const visibleOffers = startupOffers.join(',');
-  const open = startup.open;
-  const busy = applicationSetupClients.some((client) => flow.busy(client));
-  const operationBusy = applicationSetupClients.some((client) =>
-    ['preparing', 'rechecking', 'applying'].includes(states[client].phase),
-  );
-  const saved = applicationSetupClients.some((client) => states[client].phase === 'succeeded');
-  const ready = applicationSetupClients.some((client) => hasConnectedClientChat(client, snapshot));
-  useEffect(() => {
-    const target = content;
-    if (!open || !target) return;
-    const visible = new Set<McpSetupClient>();
-    const acknowledge = () => {
-      if (document.visibilityState === 'visible' && !target.closest('[aria-hidden="true"]'))
-        void discovery.acknowledge([...visible]);
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const client = entry.target.getAttribute('data-offer-client') as McpSetupClient;
-          if (entry.isIntersecting && entry.intersectionRatio >= 1) visible.add(client);
-          else visible.delete(client);
-        }
-        acknowledge();
-      },
-      { threshold: 1 },
-    );
-    for (const item of target.querySelectorAll('[data-offer-client]')) observer.observe(item);
-    const changes = new MutationObserver(acknowledge);
-    changes.observe(document.body, {
-      attributes: true,
-      subtree: true,
-      attributeFilter: ['aria-hidden'],
-    });
-    document.addEventListener('visibilitychange', acknowledge);
-    return () => {
-      observer.disconnect();
-      changes.disconnect();
-      document.removeEventListener('visibilitychange', acknowledge);
-    };
-  }, [content, open, visibleOffers, discovery.acknowledge]);
-  const close = () => {
-    if (!operationBusy) {
-      startup.close();
-    }
-  };
+  const busy = disabled || applicationSetupClients.some((client) => flow.busy(client));
   const manual = (client: ApplicationSetupClient) => {
-    close();
     if (client === 'opencode' || client === 'opencode-v2')
       flow.openCodeV2.selectManualMajor(client === 'opencode' ? 1 : 2);
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
@@ -680,7 +606,7 @@ export function ApplicationSetup({
       <Box
         component={grouped ? 'div' : Paper}
         key={client}
-        data-testid={'startup-application-' + client}
+        data-testid={context + '-application-' + client}
         sx={{
           p: 3,
           minWidth: 0,
@@ -688,9 +614,13 @@ export function ApplicationSetup({
           flexDirection: 'column',
           ...(grouped && client === 'opencode'
             ? {
-                borderLeft: { sm: '1px solid' },
-                borderTop: { xs: '1px solid', sm: 0 },
+                borderTop: '1px solid',
                 borderColor: 'divider',
+                '@container application-tiles (min-width: 560px)': {
+                  borderTop: 0,
+                  borderLeft: '1px solid',
+                  borderColor: 'divider',
+                },
               }
             : {}),
         }}
@@ -698,7 +628,7 @@ export function ApplicationSetup({
         <Stack
           spacing={1.5}
           data-offer-client={
-            client !== 'opencode' && startupOffers.includes(offerClient as McpSetupClient)
+            client !== 'opencode' && offers.includes(offerClient as McpSetupClient)
               ? offerClient
               : undefined
           }
@@ -742,7 +672,7 @@ export function ApplicationSetup({
                 disabled={
                   busy || checking || state.phase === 'confirmation' || (!hasStatus && !retry)
                 }
-                data-testid={'startup-connect-' + client}
+                data-testid={context + '-connect-' + client}
                 onClick={() => void flow.connect(client)}
               >
                 {setupActionLabel(state, locale, flow.busy(client))}
@@ -751,7 +681,7 @@ export function ApplicationSetup({
               <Button
                 onClick={() => manual(client)}
                 disabled={busy}
-                data-testid={'startup-manual-' + client}
+                data-testid={context + '-manual-' + client}
               >
                 {copy.manual}
               </Button>
@@ -766,6 +696,159 @@ export function ApplicationSetup({
         <SetupDetails state={state} locale={locale} />
       </Box>
     );
+  };
+  return (
+    <Box
+      data-testid={context + '-application-tiles'}
+      sx={{ containerType: 'inline-size', containerName: 'application-tiles', minWidth: 0 }}
+    >
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '1fr',
+          '@container application-tiles (min-width: 560px)': {
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          },
+          '@container application-tiles (min-width: 860px)': {
+            gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
+          },
+          gap: 2,
+          '& .MuiButton-root': { minHeight: 44, fontSize: 14, whiteSpace: 'normal' },
+        }}
+      >
+        {mcpSetupClients.map((client) =>
+          client === 'opencode' ? (
+            <Paper
+              key="opencode"
+              data-testid={context + '-group-opencode'}
+              sx={{
+                minWidth: 0,
+                '@container application-tiles (min-width: 560px)': {
+                  gridColumn: showV1 ? 'span 2' : 'auto',
+                },
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <Box
+                sx={{
+                  flex: 1,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  '@container application-tiles (min-width: 560px)': {
+                    gridTemplateColumns: showV1 ? 'repeat(2, minmax(0, 1fr))' : '1fr',
+                  },
+                }}
+              >
+                {card('opencode-v2', true)}
+                {showV1 && card('opencode', true)}
+              </Box>
+              <OpenCodeV1Toggle
+                expanded={showV1}
+                onChange={setShowV1}
+                disabled={busy}
+                locale={locale}
+              />
+            </Paper>
+          ) : (
+            card(client)
+          ),
+        )}
+      </Box>
+    </Box>
+  );
+}
+
+export interface ApplicationStartup {
+  open: boolean;
+  clients: readonly McpSetupClient[];
+  close: () => void;
+}
+
+export function useApplicationSetupStartup(
+  discovery: ApplicationDiscoveryModel,
+): ApplicationStartup {
+  const [initialOffers, setInitialOffers] = useState<McpSetupClient[] | null>(null);
+  const [closed, setClosed] = useState(false);
+  useEffect(() => {
+    if (initialOffers !== null) return;
+    if (discovery.snapshot) setInitialOffers([...discovery.snapshot.offers]);
+    else if (discovery.failed) setInitialOffers([]);
+  }, [initialOffers, discovery.snapshot, discovery.failed]);
+  const clients = initialOffers ?? discovery.snapshot?.offers ?? [];
+  return {
+    open: !closed && clients.length > 0,
+    clients,
+    close: () => {
+      setClosed(true);
+      discovery.dismiss();
+    },
+  };
+}
+
+export function ApplicationSetup({
+  discovery,
+  flow,
+  statuses,
+  invoke,
+  locale,
+  onManualSetup,
+  snapshot,
+  startup,
+}: SetupProps & { snapshot?: Pick<Snapshot, 'adapters' | 'agents'>; startup: ApplicationStartup }) {
+  const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  const copy = applicationSetupMessages(locale);
+  const m = mcpSetupMessages(locale);
+  const [content, setContent] = useState<HTMLDivElement | null>(null);
+  const startupOffers = startup.clients;
+  const visibleOffers = startupOffers.join(',');
+  const open = startup.open;
+  const operationBusy = applicationSetupClients.some((client) =>
+    ['preparing', 'rechecking', 'applying'].includes(states[client].phase),
+  );
+  const saved = applicationSetupClients.some((client) => states[client].phase === 'succeeded');
+  const ready = applicationSetupClients.some((client) => hasConnectedClientChat(client, snapshot));
+  useEffect(() => {
+    const target = content;
+    if (!open || !target) return;
+    const visible = new Set<McpSetupClient>();
+    const acknowledge = () => {
+      if (document.visibilityState === 'visible' && !target.closest('[aria-hidden="true"]'))
+        void discovery.acknowledge([...visible]);
+    };
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          const client = entry.target.getAttribute('data-offer-client') as McpSetupClient;
+          if (entry.isIntersecting && entry.intersectionRatio >= 1) visible.add(client);
+          else visible.delete(client);
+        }
+        acknowledge();
+      },
+      { threshold: 1 },
+    );
+    for (const item of target.querySelectorAll('[data-offer-client]')) observer.observe(item);
+    const changes = new MutationObserver(acknowledge);
+    changes.observe(document.body, {
+      attributes: true,
+      subtree: true,
+      attributeFilter: ['aria-hidden'],
+    });
+    document.addEventListener('visibilitychange', acknowledge);
+    return () => {
+      observer.disconnect();
+      changes.disconnect();
+      document.removeEventListener('visibilitychange', acknowledge);
+    };
+  }, [content, open, visibleOffers, discovery.acknowledge]);
+  const close = () => {
+    if (!operationBusy) {
+      startup.close();
+    }
+  };
+  const manual = (client: McpSetupClient) => {
+    close();
+    onManualSetup(client);
   };
   return (
     <>
@@ -847,54 +930,16 @@ export function ApplicationSetup({
               {ready ? copy.readyHelp : saved ? copy.savedHelp : copy.startupHelp}
             </Typography>
           </Box>
-          <Box
-            sx={{
-              display: 'grid',
-              gridTemplateColumns: {
-                xs: '1fr',
-                sm: 'repeat(2, minmax(0, 1fr))',
-                md: 'repeat(3, minmax(0, 1fr))',
-              },
-              gap: 2,
-            }}
-          >
-            {mcpSetupClients.map((client) =>
-              client === 'opencode' ? (
-                <Paper
-                  key="opencode"
-                  data-testid="startup-group-opencode"
-                  sx={{
-                    minWidth: 0,
-                    gridColumn: { xs: 'auto', sm: showV1 ? 'span 2' : 'auto' },
-                    display: 'flex',
-                    flexDirection: 'column',
-                  }}
-                >
-                  <Box
-                    sx={{
-                      flex: 1,
-                      display: 'grid',
-                      gridTemplateColumns: {
-                        xs: '1fr',
-                        sm: showV1 ? 'repeat(2, minmax(0, 1fr))' : '1fr',
-                      },
-                    }}
-                  >
-                    {card('opencode-v2', true)}
-                    {showV1 && card('opencode', true)}
-                  </Box>
-                  <OpenCodeV1Toggle
-                    expanded={showV1}
-                    onChange={setShowV1}
-                    disabled={busy}
-                    locale={locale}
-                  />
-                </Paper>
-              ) : (
-                card(client)
-              ),
-            )}
-          </Box>
+          <ApplicationTiles
+            discovery={discovery}
+            flow={flow}
+            statuses={statuses}
+            invoke={invoke}
+            locale={locale}
+            onManualSetup={manual}
+            offers={startupOffers}
+            context="startup"
+          />
           {operationBusy && (
             <Stack direction="row" spacing={2} role="status" sx={{ alignItems: 'center' }}>
               <CircularProgress size={20} />

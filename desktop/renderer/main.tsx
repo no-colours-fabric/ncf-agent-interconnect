@@ -44,9 +44,9 @@ import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/inde
 import { applicationSetupMessages } from './i18n/application-setup.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
-import { ApplicationDiscovery } from './ApplicationDiscovery.js';
 import {
   ApplicationSetup,
+  ApplicationTiles,
   useApplicationSetup,
   useApplicationSetupStartup,
 } from './ApplicationSetup.js';
@@ -270,16 +270,19 @@ function App({
                 </Paper>
               ))}
             </Box>
-            <Box data-testid="overview-applications">
-              <ApplicationDiscovery
-                model={discovery}
+            <Stack spacing={2} data-testid="overview-applications">
+              <Typography variant="h5" component="h2">
+                {applicationSetupMessages(locale).applications}
+              </Typography>
+              <ApplicationTiles
+                discovery={discovery}
+                flow={applicationSetup}
+                statuses={setupStatuses}
+                invoke={call}
                 locale={locale}
-                setupStatuses={setupStatuses}
-                onSetup={(application) => {
-                  openManualSetup(application);
-                }}
+                onManualSetup={openManualSetup}
               />
-            </Box>
+            </Stack>
             <Box
               data-testid="overview-connections"
               sx={{
