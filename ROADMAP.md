@@ -168,3 +168,18 @@ Use agent_send(connectionId, replyRef="<reply reference>", text) to reply.
 ```
 
 ---
+
+## R-0012 — Plan release signing for target platforms
+
+- [ ] Open
+
+Prepare a developer signing and distribution-trust plan for NCF Agent Interconnect on all target operating systems after v0.19.0. This planning work does not block that release.
+
+- macOS: identify Developer ID signing and notarization requirements.
+- Windows: identify trusted code-signing and reputation requirements.
+- Linux: define how to sign the actual AppImage or another selected distribution format.
+- Record required accounts, certificates, release-process changes, and verification evidence for each platform before implementation.
+
+The availability of developer accounts and certificates is not yet known. Planning does not include account registration, payments, or handling private keys.
+
+---
