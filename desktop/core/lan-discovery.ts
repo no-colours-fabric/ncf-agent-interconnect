@@ -282,7 +282,9 @@ export class LanDiscovery {
       this.failed();
       return Promise.resolve();
     }
-    if (!force && this.reconciling) return this.reconciling;
+    const sameInterfaces = JSON.stringify(interfaces) === JSON.stringify(this.interfaces);
+    if (!force && sameInterfaces && this.reconciling) return this.reconciling;
+    if (!force && sameInterfaces && this.reason === 'no-interfaces') return Promise.resolve();
     if (
       !force &&
       this.state === 'searching' &&

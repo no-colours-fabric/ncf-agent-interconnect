@@ -2324,10 +2324,14 @@ export class NodeService extends EventEmitter {
     }
     if (method === 'connectPeer') {
       const args = z
-        .object({ address: z.string().min(1).max(1000), code: z.string().max(30000) })
+        .object({
+          address: z.string().min(1).max(1000),
+          code: z.string().max(30000),
+          expectedNodeId: z.uuid().optional(),
+        })
         .strict()
         .parse(raw);
-      const peer = await this.network.join(args.address, args.code);
+      const peer = await this.network.join(args.address, args.code, args.expectedNodeId);
       return { id: peer.id, label: peer.label };
     }
     if (method === 'registerAgent') {

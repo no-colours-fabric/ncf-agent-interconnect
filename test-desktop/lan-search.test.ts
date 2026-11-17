@@ -336,3 +336,43 @@ test('explicit retry after transport failure retains prior results and requires 
   assert.equal(f.search.snapshot().foundCount, 1);
   assert.equal(f.search.snapshot().nodes[0].address, original.address);
 });
+
+test('multiple addresses of one claimed node form one unverified result, count and unseen badge', async (t) => {
+  const f = fixture(t);
+  await f.search.open();
+  f.search.startSearch();
+  f.transport.receive(0, '192.0.2.20');
+  f.transport.receive(0, '192.0.2.21');
+  const result = f.search.snapshot();
+  assert.equal(result.foundCount, 1);
+  assert.equal(result.nodes.length, 1);
+  assert.equal(result.nodes[0].endpoints?.length, 2);
+  assert.equal(result.unseenKeys.length, 1);
+  const key = result.nodes[0].key;
+  f.search.acknowledge([key]);
+  f.transport.receive(0, '192.0.2.22');
+  assert.equal(f.search.snapshot().nodes[0].key, key);
+  assert.equal(f.search.snapshot().nodes[0].endpoints?.length, 3);
+  assert.deepEqual(f.search.snapshot().unseenKeys, []);
+  f.transport.receive(1, '192.0.2.23');
+  assert.equal(f.search.snapshot().nodes.length, 2, 'Equal labels do not merge distinct UUIDs');
+});
+
+test('listener hotplug preserves the owner search deadline and stopped state', async (t) => {
+  const f = fixture(t);
+  await f.search.open();
+  f.search.startSearch();
+  f.transport.receive();
+  f.advance(10000);
+  f.search.updateLocal({ nodeId: localId, label: 'Local computer', listener: null, listeners: [] });
+  assert.equal(f.search.snapshot().elapsedMs, 10000);
+  f.advance(20000);
+  assert.equal(f.search.snapshot().phase, 'complete');
+  assert.equal(f.search.snapshot().nodes.length, 1);
+  f.search.updateLocal({
+    nodeId: localId,
+    label: 'Local computer',
+    listener: { address: '192.0.2.10', port: 7336 },
+  });
+  assert.equal(f.search.snapshot().phase, 'complete');
+});

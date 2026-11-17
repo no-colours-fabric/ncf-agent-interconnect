@@ -716,6 +716,8 @@ export class PeerNetwork extends EventEmitter {
       chunks.push(Buffer.from(chunk));
     }
     try {
+      if (!this.requestGuards.get(req)?.())
+        throw new PairingError('The receiving interface is no longer enabled', 409);
       let input: unknown;
       try {
         input = JSON.parse(Buffer.concat(chunks).toString());
@@ -798,7 +800,7 @@ export class PeerNetwork extends EventEmitter {
       req.end(JSON.stringify(input));
     });
   }
-  async join(address: string, code: string): Promise<Peer> {
+  async join(address: string, code: string, expectedNodeId?: string): Promise<Peer> {
     const generation = this.pairingGeneration;
     const beforeWrite = () => {
       if (this.stopped || generation !== this.pairingGeneration)
@@ -819,6 +821,8 @@ export class PeerNetwork extends EventEmitter {
     endpoint.pathname = '/pair';
     const challenge = await this.pairRequest(endpoint, client.start());
     const request = client.prove(challenge.body, challenge.certificate);
+    if (expectedNodeId && client.nodeId() !== expectedNodeId.toLowerCase())
+      throw new PairingError('The remote node does not match the selected discovery result', 409);
     beforeWrite();
     const lease = this.holdPeer(client.nodeId());
     try {

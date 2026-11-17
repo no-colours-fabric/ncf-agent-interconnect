@@ -419,6 +419,19 @@ root.render(<App key={generation} patch={{}}/>);
             'ABCD2345',
           );
           assert.equal((await callList(page, 'accessCode')).length, 1);
+          await update(page, {
+            snapshot: {
+              ...snapshot(),
+              peerUrl: 'wss://192.0.2.10:7336/peer',
+              listenHost: '192.0.2.10',
+              peerUrls: ['wss://192.0.2.10:7336/peer', 'wss://198.51.100.10:7336/peer'],
+            },
+          });
+          assert.equal(
+            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
+            'ABCD2345',
+          );
+          assert.equal((await callList(page, 'accessCode')).length, 1);
           await own.getByRole('button', { name: 'Create new code', exact: true }).click();
           await settle(page, 'accessCode', { code: 'BCDE3456', expiresAt });
           await until(
@@ -453,6 +466,38 @@ root.render(<App key={generation} patch={{}}/>);
           await own.getByText(lanSearchEnglish.startNodeHint, { exact: true }).waitFor();
           await own.getByRole('button', { name: 'Network settings', exact: true }).click();
           assert.equal((await callList(page, 'settings')).length, 1);
+        },
+      );
+
+      await runCase(
+        'group',
+        'one claimed UUID has one card with explicit frozen endpoint choices',
+        async () => {
+          await reset(page);
+          const value = snapshot();
+          value.lanSearch!.nodes = [
+            { ...first },
+            { ...first, key: 'alternate', address: 'wss://192.0.2.21:7336/peer' },
+            { ...second },
+          ];
+          await update(page, { snapshot: value });
+          assert.equal(await page.locator('[data-lan-key]').count(), 2);
+          const row = page.locator('[data-lan-key]').filter({ hasText: first.label });
+          await row.getByTestId('node-endpoints').locator('summary').click();
+          assert.ok((await row.textContent())?.includes('Unverified'));
+          await row
+            .getByRole('button', { name: 'Connect wss://192.0.2.21:7336/peer', exact: true })
+            .click();
+          value.lanSearch!.nodes = [];
+          await update(page, { snapshot: value });
+          await codeInput().fill('ABCD2345');
+          await submit().click();
+          assert.deepEqual((await callList(page, 'connectPeer')).at(-1)?.input, {
+            address: 'wss://192.0.2.21:7336/peer',
+            code: 'ABCD2345',
+            expectedNodeId: first.nodeId,
+          });
+          await settle(page, 'connectPeer', { id: first.nodeId });
         },
       );
 
@@ -522,7 +567,10 @@ root.render(<App key={generation} patch={{}}/>);
               form.requestSubmit();
             });
           assert.deepEqual(await callList(page, 'connectPeer'), [
-            { method: 'connectPeer', input: { address: first.address, code: 'ABCD2345' } },
+            {
+              method: 'connectPeer',
+              input: { address: first.address, code: 'ABCD2345', expectedNodeId: first.nodeId },
+            },
           ]);
           await settle(page, 'connectPeer', undefined, 'Pairing confirmation is uncertain.');
           await dialog()

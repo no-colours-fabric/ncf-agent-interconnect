@@ -216,7 +216,7 @@ export function OwnConnectionCard({
           <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
             <TextField
               fullWidth
-              label={networkMessages.addressLabel}
+              label={m.ownAddress}
               select={urls.length > 1}
               value={effectiveAddress}
               onChange={(event) => setSelectedAddress(event.target.value)}

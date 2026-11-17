@@ -1,3 +1,5 @@
+import { groupLanSearchNodes } from '../shared/lan-search.js';
+import { networkInterfaceMessages } from './i18n/network-interfaces.js';
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import {
   Alert,
@@ -54,7 +56,7 @@ export interface NetworkPageProps {
 export function unpairedLanNodes(snapshot: Snapshot): LanSearchNode[] {
   const ids = new Set(snapshot.peers.map((peer) => peer.id));
   const addresses = new Set(snapshot.peers.map((peer) => peer.address).filter(Boolean));
-  return (snapshot.lanSearch?.nodes ?? []).filter(
+  return groupLanSearchNodes(snapshot.lanSearch?.nodes ?? []).filter(
     (node) => !ids.has(node.nodeId) && !addresses.has(node.address),
   );
 }
@@ -64,11 +66,14 @@ export function lanSearchNavigation(
   locale: Locale,
 ): { searching: boolean; unseenCount: number; statusLabel: string } {
   const search = snapshot.lanSearch;
-  const keys = new Set(unpairedLanNodes(snapshot).map((node) => node.key));
+  const visibleNodes = unpairedLanNodes(snapshot);
+  const unseen = new Set(search?.unseenKeys ?? []);
   const searching = search?.phase === 'searching';
   return {
     searching,
-    unseenCount: search?.unseenKeys.filter((key) => keys.has(key)).length ?? 0,
+    unseenCount: visibleNodes.filter((node) =>
+      [node, ...(node.endpoints ?? [])].some((endpoint) => unseen.has(endpoint.key)),
+    ).length,
     statusLabel: searching
       ? formatLanSearch(lanSearchMessages(locale).sidebarStatus, {
           seconds: Math.max(0, Math.ceil((search.durationMs - search.elapsedMs) / 1000)),
@@ -125,7 +130,13 @@ export function NetworkPage({
   );
   const search = snapshot.lanSearch;
   const nodes = useMemo(
-    () => unpairedLanNodes(snapshot).filter((node) => !authenticatedAddresses.has(node.address)),
+    () =>
+      unpairedLanNodes(snapshot).filter(
+        (node) =>
+          ![node, ...(node.endpoints ?? [])].some((endpoint) =>
+            authenticatedAddresses.has(endpoint.address),
+          ),
+      ),
     [snapshot, authenticatedAddresses],
   );
   const covered = obscured || !!selected || manualOpen;
@@ -326,7 +337,11 @@ export function NetworkPage({
       uncertainAttempts.current.get(address) === value
     )
       return;
-    const input = Object.freeze({ address, code: value });
+    const input = Object.freeze({
+      address,
+      code: value,
+      ...(!isManual && selected ? { expectedNodeId: selected.nodeId } : {}),
+    });
     const request = ++attempt.current;
     const nodeId = snapshot.nodeId;
     pairFence.current = true;
@@ -596,6 +611,9 @@ export function NetworkPage({
                         >
                           {node.label}
                         </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {networkInterfaceMessages(locale).unverified}
+                        </Typography>
                         {node.newlyFound && (
                           <Typography variant="caption" color="success.main">
                             {m.newLabel}
@@ -607,6 +625,44 @@ export function NetworkPage({
                           ? m.available
                           : m.previous}
                       </Typography>
+                      {node.endpoints && (
+                        <Box component="details" data-testid="node-endpoints">
+                          <summary>
+                            {m.details} ({node.endpoints.length})
+                          </summary>
+                          {node.endpoints.map((endpoint) => (
+                            <Stack
+                              key={endpoint.address}
+                              direction="row"
+                              spacing={1}
+                              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                            >
+                              <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
+                                {endpoint.address} —{' '}
+                                {endpoint.lastSeenAgoMs < 30000 ? m.available : m.previous}
+                              </Typography>
+                              <Button
+                                disabled={!snapshot.running || pairPending}
+                                aria-label={`${t(locale, 'btnConnect')} ${endpoint.address}`}
+                                onClick={() => {
+                                  setSelected(
+                                    Object.freeze({
+                                      key: endpoint.key,
+                                      nodeId: endpoint.nodeId,
+                                      label: endpoint.label,
+                                      address: endpoint.address,
+                                    }),
+                                  );
+                                  setCode('');
+                                  setPairError(null);
+                                }}
+                              >
+                                {t(locale, 'btnConnect')}
+                              </Button>
+                            </Stack>
+                          ))}
+                        </Box>
+                      )}
                     </Box>
                     <Button
                       variant="contained"
