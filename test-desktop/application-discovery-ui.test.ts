@@ -6,7 +6,7 @@ import { ApplicationDiscovery } from '../desktop/renderer/ApplicationDiscovery.j
 import { mcpSetupClients } from '../desktop/shared/mcp-setup.js';
 import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
-import { supportedLocales } from '../desktop/renderer/i18n/index.js';
+import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
 import { readFile, mkdtemp, writeFile, rm, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -231,7 +231,7 @@ test(
         0,
       );
       await page.getByTestId('nav-settings').click();
-      const name = page.getByRole('textbox', { name: 'Node name', exact: true });
+      const name = page.getByRole('textbox', { name: t('en', 'settingsNodeName'), exact: true });
       await name.fill('Unsaved fixture name');
       await page.getByLabel('Dark theme', { exact: true }).click();
       assert.equal(await name.inputValue(), 'Unsaved fixture name');

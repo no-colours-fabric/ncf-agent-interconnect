@@ -342,7 +342,7 @@ function App({
                   {t(locale, 'connectAgentsTitle')}
                 </Typography>
                 <Button variant="text" sx={{ minHeight: 44 }} onClick={() => navigate('mcp')}>
-                  {t(locale, 'connectAgentsCta')}
+                  {applicationSetupMessages(locale).applications}
                 </Button>
                 <Box component="details" sx={{ mt: 0.5, color: 'text.secondary', fontSize: 12 }}>
                   <summary>{applicationSetupMessages(locale).details}</summary>
