@@ -29,7 +29,9 @@ const en = {
   uncertain:
     'The result is not confirmed. Retry checks the same setup attempt; it does not start a new one.',
   details: 'Setup details',
-  copyFailed: 'Could not copy the prompt. Try again.',
+  copyFailed: 'Could not copy the text. Try again.',
+  checkSetupResult: 'Check setup result',
+  aionUiName: 'AionUi with Cursor Agent',
   nextStep: 'Next step',
   confirmQuestion: 'What may I need to confirm?',
   confirmAnswer:
@@ -77,7 +79,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Результат не подтверждён. Повторная попытка проверит тот же запрос настройки, не создавая новый.',
     details: 'Подробности настройки',
-    copyFailed: 'Не удалось скопировать запрос. Повторите попытку.',
+    copyFailed: 'Не удалось скопировать текст. Повторите попытку.',
+    checkSetupResult: 'Проверить результат прежней попытки',
+    aionUiName: 'AionUi с Cursor Agent',
     nextStep: 'Следующий шаг',
     confirmQuestion: 'Что может потребовать моего подтверждения?',
     confirmAnswer:
@@ -116,7 +120,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     failed: '未能完成配置。请重试或手动配置。',
     uncertain: '结果尚未确认。重试会检查同一次配置请求，不会发起新的请求。',
     details: '配置详情',
-    copyFailed: '无法复制提示词，请重试。',
+    copyFailed: '无法复制文本，请重试。',
+    checkSetupResult: '检查上次配置的结果',
+    aionUiName: '使用 Cursor Agent 的 AionUi',
     nextStep: '下一步',
     confirmQuestion: '可能需要确认哪些操作？',
     confirmAnswer: '请按提示登录、信任工作区并批准客户端请求。转移已占用的智能体名称需要你的批准。',
@@ -161,7 +167,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Le résultat n’est pas confirmé. Réessayer vérifie la même opération de configuration sans en lancer une nouvelle.',
     details: 'Détails de la configuration',
-    copyFailed: 'Impossible de copier la consigne. Réessayez.',
+    copyFailed: 'Impossible de copier le texte. Réessayez.',
+    checkSetupResult: 'Vérifier le résultat de la tentative précédente',
+    aionUiName: 'AionUi avec Cursor Agent',
     nextStep: 'Prochaine étape',
     confirmQuestion: 'Que devrai-je éventuellement confirmer ?',
     confirmAnswer:
@@ -208,7 +216,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Das Ergebnis ist nicht bestätigt. Ein erneuter Versuch prüft denselben Einrichtungsvorgang, ohne einen neuen zu starten.',
     details: 'Einrichtungsdetails',
-    copyFailed: 'Die Anweisung konnte nicht kopiert werden. Versuchen Sie es erneut.',
+    copyFailed: 'Der Text konnte nicht kopiert werden. Versuchen Sie es erneut.',
+    checkSetupResult: 'Ergebnis des ursprünglichen Versuchs prüfen',
+    aionUiName: 'AionUi mit Cursor Agent',
     nextStep: 'Nächster Schritt',
     confirmQuestion: 'Was muss ich gegebenenfalls bestätigen?',
     confirmAnswer:
@@ -253,7 +263,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Il risultato non è confermato. Un nuovo tentativo verifica la stessa operazione senza avviarne un’altra.',
     details: 'Dettagli della configurazione',
-    copyFailed: 'Impossibile copiare il messaggio. Riprova.',
+    copyFailed: 'Impossibile copiare il testo. Riprova.',
+    checkSetupResult: 'Verifica l’esito del tentativo precedente',
+    aionUiName: 'AionUi con Cursor Agent',
     nextStep: 'Passaggio successivo',
     confirmQuestion: 'Che cosa potrei dover confermare?',
     confirmAnswer:
@@ -299,7 +311,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'El resultado no está confirmado. Reintentar comprueba la misma operación de configuración sin iniciar otra.',
     details: 'Detalles de configuración',
-    copyFailed: 'No se pudo copiar la instrucción. Vuelve a intentarlo.',
+    copyFailed: 'No se pudo copiar el texto. Vuelve a intentarlo.',
+    checkSetupResult: 'Comprobar el resultado del intento anterior',
+    aionUiName: 'AionUi con Cursor Agent',
     nextStep: 'Próximo paso',
     confirmQuestion: '¿Qué podría tener que confirmar?',
     confirmAnswer:
@@ -345,7 +359,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Нәтиже расталмады. Қайта әрекет жасау жаңа сұрау жібермей, сол баптау сұрауын тексереді.',
     details: 'Баптау туралы мәліметтер',
-    copyFailed: 'Сұрауды көшіру мүмкін болмады. Қайталап көріңіз.',
+    copyFailed: 'Мәтінді көшіру мүмкін болмады. Қайталап көріңіз.',
+    checkSetupResult: 'Алдыңғы әрекеттің нәтижесін тексеру',
+    aionUiName: 'Cursor Agent қолданылатын AionUi',
     nextStep: 'Келесі қадам',
     confirmQuestion: 'Нені растауым қажет болуы мүмкін?',
     confirmAnswer:
@@ -388,7 +404,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       '結果を確認できていません。再試行では同じ設定処理を確認し、新しい処理は開始しません。',
     details: '設定の詳細',
-    copyFailed: 'プロンプトをコピーできませんでした。再試行してください。',
+    copyFailed: 'テキストをコピーできませんでした。もう一度お試しください。',
+    checkSetupResult: '前回の設定結果を確認',
+    aionUiName: 'Cursor Agent を使用する AionUi',
     nextStep: '次の手順',
     confirmQuestion: 'どのような確認が必要ですか？',
     confirmAnswer:
@@ -434,7 +452,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'O resultado não foi confirmado. Tentar novamente verifica a mesma operação de configuração, sem iniciar outra.',
     details: 'Detalhes da configuração',
-    copyFailed: 'Não foi possível copiar a instrução. Tente novamente.',
+    copyFailed: 'Não foi possível copiar o texto. Tente novamente.',
+    checkSetupResult: 'Verificar o resultado da tentativa anterior',
+    aionUiName: 'AionUi com Cursor Agent',
     nextStep: 'Próxima etapa',
     confirmQuestion: 'O que posso precisar confirmar?',
     confirmAnswer:
@@ -476,7 +496,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       '결과가 확인되지 않았습니다. 다시 시도하면 새 작업을 시작하지 않고 동일한 설정 작업을 확인합니다.',
     details: '설정 세부 정보',
-    copyFailed: '프롬프트를 복사하지 못했습니다. 다시 시도하세요.',
+    copyFailed: '텍스트를 복사하지 못했습니다. 다시 시도하세요.',
+    checkSetupResult: '이전 설정 결과 확인',
+    aionUiName: 'Cursor Agent를 사용하는 AionUi',
     nextStep: '다음 단계',
     confirmQuestion: '어떤 내용을 확인해야 하나요?',
     confirmAnswer:
@@ -521,7 +543,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Sonuç doğrulanmadı. Yeniden deneme, yeni bir işlem başlatmadan aynı kurulum işlemini kontrol eder.',
     details: 'Kurulum ayrıntıları',
-    copyFailed: 'İstem kopyalanamadı. Yeniden deneyin.',
+    copyFailed: 'Metin kopyalanamadı. Yeniden deneyin.',
+    checkSetupResult: 'Önceki girişimin sonucunu kontrol et',
+    aionUiName: 'Cursor Agent kullanan AionUi',
     nextStep: 'Sonraki adım',
     confirmQuestion: 'Neleri onaylamam gerekebilir?',
     confirmAnswer:
@@ -566,7 +590,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Wynik nie został potwierdzony. Ponowna próba sprawdza tę samą operację konfiguracji, nie rozpoczynając nowej.',
     details: 'Szczegóły konfiguracji',
-    copyFailed: 'Nie udało się skopiować polecenia. Spróbuj ponownie.',
+    copyFailed: 'Nie udało się skopiować tekstu. Spróbuj ponownie.',
+    checkSetupResult: 'Sprawdź wynik poprzedniej próby',
+    aionUiName: 'AionUi z Cursor Agent',
     nextStep: 'Następny krok',
     confirmQuestion: 'Co może wymagać mojego potwierdzenia?',
     confirmAnswer:
@@ -610,7 +636,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Het resultaat is niet bevestigd. Opnieuw proberen controleert dezelfde configuratiepoging en start geen nieuwe.',
     details: 'Configuratiedetails',
-    copyFailed: 'De instructie kon niet worden gekopieerd. Probeer het opnieuw.',
+    copyFailed: 'De tekst kon niet worden gekopieerd. Probeer het opnieuw.',
+    checkSetupResult: 'Resultaat van vorige poging controleren',
+    aionUiName: 'AionUi met Cursor Agent',
     nextStep: 'Volgende stap',
     confirmQuestion: 'Wat moet ik mogelijk bevestigen?',
     confirmAnswer:
@@ -655,7 +683,9 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     uncertain:
       'Результат не підтверджено. Повторна спроба перевірить той самий запит налаштування, не створюючи нового.',
     details: 'Подробиці налаштування',
-    copyFailed: 'Не вдалося скопіювати запит. Повторіть спробу.',
+    copyFailed: 'Не вдалося скопіювати текст. Спробуйте ще раз.',
+    checkSetupResult: 'Перевірити результат попередньої спроби',
+    aionUiName: 'AionUi з Cursor Agent',
     nextStep: 'Наступний крок',
     confirmQuestion: 'Що може потребувати мого підтвердження?',
     confirmAnswer:

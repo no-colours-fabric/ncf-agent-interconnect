@@ -100,15 +100,17 @@ function SetupErrorNote({
   summary,
   error,
   locale,
+  severity = 'error',
 }: {
   summary: string;
   error: string;
   locale: Locale;
+  severity?: 'error' | 'warning';
 }): React.JSX.Element {
   const copy = applicationSetupMessages(locale);
   return (
     <Stack spacing={1}>
-      <Alert severity="error">{summary}</Alert>
+      <Alert severity={severity}>{summary}</Alert>
       <Box component="details">
         <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
           {copy.details}
@@ -207,6 +209,8 @@ function ClientSetupDialog({
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   const result: McpSetupApplyResult | undefined =
     state.result ?? (state.verified ? { status: 'unchanged', files: [] } : undefined);
+  const checkingOriginalResult =
+    !!state.uncertain && !result && state.preview?.planId === state.uncertain.preview.planId;
   useEffect(() => {
     registerConfigureMcp?.(() => {
       void flow.begin();
@@ -274,7 +278,7 @@ function ClientSetupDialog({
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
               <ClientLogo client={client} size={44} />
               <Typography variant="h5" component="h2">
-                {labels[client]}
+                {client === 'aionui' ? copy.aionUiName : labels[client]}
               </Typography>
             </Stack>
           </Box>
@@ -656,10 +660,23 @@ function ClientSetupDialog({
                 label={state.reviewRequired ? copy.reviewHelp : copy.confirmHelp}
               />
             )}
-            {state.error && (
-              <SetupErrorNote summary={m.failed} error={state.error} locale={locale} />
+            {checkingOriginalResult ? (
+              <SetupErrorNote
+                summary={copy.uncertain}
+                error={
+                  state.error && state.error !== state.uncertain!.error
+                    ? state.uncertain!.error + '\n' + state.error
+                    : state.uncertain!.error
+                }
+                locale={locale}
+                severity="warning"
+              />
+            ) : (
+              state.error && (
+                <SetupErrorNote summary={m.failed} error={state.error} locale={locale} />
+              )
             )}
-            {state.uncertain && (
+            {state.uncertain && !checkingOriginalResult && (
               <Box component="details">
                 <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
                   {copy.details}
@@ -743,7 +760,7 @@ function ClientSetupDialog({
                 })
               }
             >
-              {m.apply}
+              {checkingOriginalResult ? copy.checkSetupResult : m.apply}
             </Button>
           )}
         </DialogActions>
