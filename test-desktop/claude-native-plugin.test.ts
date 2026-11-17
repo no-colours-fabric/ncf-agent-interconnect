@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -17,6 +17,7 @@ type Handler = ($: any, event: any, next: any) => Promise<any>;
 async function fixture(t: test.TestContext, bare = true) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'ncf-native-mod-'));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'package.json'), '{"type":"module"}\n');
   const files = claudePluginFiles({
     execPath: '/fixture/NCF',
     runtimeArgs: [],
