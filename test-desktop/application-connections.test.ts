@@ -38,8 +38,19 @@ test('applications show one row per application, total agents and no agent or co
       onSetup: () => assert.fail('render must not trigger setup'),
     }),
   );
-  assert.equal((html.match(/data-testid="application-/g) ?? []).length, 6);
-  assert.ok(html.includes('data-testid="application-claude-code"'));
+  const applicationKinds = [
+    'cursor-hook',
+    'opencode-http',
+    'opencode-v2',
+    'codex-desktop',
+    'aionui',
+    'claude-code',
+    'manual',
+  ];
+  assert.equal((html.match(/data-testid="application-/g) ?? []).length, applicationKinds.length);
+  for (const kind of applicationKinds)
+    assert.ok(html.includes(`data-testid="application-${kind}"`), kind);
+  assert.ok(html.includes('>OpenCode v2</'));
   assert.ok(html.includes(t('ru', 'clientsKindClaude')));
   assert.ok(html.includes(t('ru', 'clientsLastActivity')));
   assert.ok(html.includes(t('ru', 'clientsKindCodex')));
@@ -54,7 +65,7 @@ test('applications show one row per application, total agents and no agent or co
     t('ru', 'clientsNeedsReview'),
   ])
     assert.ok(!html.includes(value), value);
-  assert.equal((html.match(/<button/g) ?? []).length, 6);
+  assert.equal((html.match(/<button/g) ?? []).length, applicationKinds.length);
 });
 
 test('last activity is the latest observed message or exact-chat verification, including failed profiles', () => {

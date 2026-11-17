@@ -7,8 +7,12 @@ import { randomUUID } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { NodeService } from '../desktop/core/service.js';
+import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
 import { NCFAgentInterconnect } from '../desktop/integrations/opencode.js';
 import type { ConnectResult } from '../desktop/core/agent-store.js';
+
+const deliveredAt = Date.UTC(2026, 10, 17, 9, 35, 7);
+const display = { locale: 'en-GB', timeZone: 'Europe/Moscow' };
 
 async function until(check: () => boolean): Promise<void> {
   const end = Date.now() + 5000;
@@ -19,7 +23,10 @@ async function until(check: () => boolean): Promise<void> {
 }
 async function fixture(t: test.TestContext) {
   const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-auto-')),
-    service = new NodeService(directory);
+    service = new NodeService(directory, {
+      presentationNow: () => deliveredAt,
+      messageDisplayContext: () => display,
+    });
   await service.open();
   const client = new Client({ name: 'opencode', version: '1' });
   await client.connect(
@@ -142,9 +149,11 @@ test('one OpenCode integration connects any chat without user session settings a
     f.prompts.map((p) => p.id),
     ['ses_second'],
   );
+  const stored = f.service.store.get(message.id, 'in')!;
+  const ref = 'r' + stored.sequence.toString(36);
   assert.equal(
     f.prompts[0].text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\nДоставить локально\n\nReply-To: ${'r' + f.service.store.get(message.id, 'in')!.sequence.toString(36)}\nUse agent_send(connectionId, replyRef="${'r' + f.service.store.get(message.id, 'in')!.sequence.toString(36)}", text) to reply.`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(stored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nДоставить локально\n\nReply-To "Автор": ${ref}\nUse agent_send(connectionId, replyRef="${ref}", text) to reply.`,
   );
   assert.ok(!f.prompts[0].text.includes(b.binding.connectionId));
   assert.ok(!f.prompts[0].text.includes(a.binding.connectionId));
@@ -197,16 +206,19 @@ test('queued messages and attachment links arrive as complete chat messages with
     f.prompts.map((prompt) => prompt.id),
     ['ses_second', 'ses_second'],
   );
+  const firstStored = f.service.store.get(first.id, 'in')!;
   assert.ok(
     f.prompts[0].text.startsWith(
-      `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\nИзучи план.\nПодготовь расчёт.\n\nAttachments:\n- [`,
+      `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(firstStored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nИзучи план.\nПодготовь расчёт.\n\nAttachments:\n- [`,
     ),
   );
   const target = f.prompts[0].text.match(/\]\(<([^>]+)>\)/)![1];
   assert.equal(await readFile(target, 'utf8'), 'Содержимое плана');
+  const secondStored = f.service.store.get(second.id, 'in')!;
+  const secondRef = 'r' + secondStored.sequence.toString(36);
   assert.equal(
     f.prompts[1].text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\n\nСравни два варианта.\n\nReply-To: ${'r' + f.service.store.get(second.id, 'in')!.sequence.toString(36)}\nUse agent_send(connectionId, replyRef="${'r' + f.service.store.get(second.id, 'in')!.sequence.toString(36)}", text) to reply.`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(secondStored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nСравни два варианта.\n\nReply-To "Автор": ${secondRef}\nUse agent_send(connectionId, replyRef="${secondRef}", text) to reply.`,
   );
   for (const prompt of f.prompts)
     for (const noise of [
