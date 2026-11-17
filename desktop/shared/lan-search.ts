@@ -26,21 +26,19 @@ export function groupLanSearchNodes(nodes: readonly LanSearchNode[]): LanSearchN
       else if (copy.lastSeenAgoMs < values[previous].lastSeenAgoMs) values[previous] = copy;
     }
   }
-  return [...groups.values()]
-    .map((endpoints) => {
-      const key = rowKeys.get(endpoints[0].nodeId.toLowerCase())!;
-      const sorted = [...endpoints].sort(
-        (a, b) => a.lastSeenAgoMs - b.lastSeenAgoMs || a.address.localeCompare(b.address, 'en'),
-      );
-      return {
-        ...sorted[0],
-        key,
-        observedInRun: endpoints.some((value) => value.observedInRun),
-        newlyFound: endpoints.every((value) => value.newlyFound),
-        ...(endpoints.length > 1 ? { endpoints: sorted } : {}),
-      };
-    })
-    .sort((a, b) => a.nodeId.localeCompare(b.nodeId, 'en'));
+  return [...groups.values()].map((endpoints) => {
+    const key = rowKeys.get(endpoints[0].nodeId.toLowerCase())!;
+    const sorted = [...endpoints].sort(
+      (a, b) => a.lastSeenAgoMs - b.lastSeenAgoMs || a.address.localeCompare(b.address, 'en'),
+    );
+    return {
+      ...sorted[0],
+      key,
+      observedInRun: endpoints.some((value) => value.observedInRun),
+      newlyFound: endpoints.every((value) => value.newlyFound),
+      ...(endpoints.length > 1 ? { endpoints: sorted } : {}),
+    };
+  });
 }
 
 /** UI-only observations; never a paired-node or authenticated directory. */

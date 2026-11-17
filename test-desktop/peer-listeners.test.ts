@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { PeerListeners } from '../desktop/core/peer-listeners.js';
@@ -108,4 +109,18 @@ test('late bind completions after exclusion and stop are closed, never published
   assert.equal(closed, 1);
   assert.equal(manager.allows('192.0.2.1'), false);
   assert.deepEqual(manager.snapshot(), []);
+});
+
+test('test-only inventory isolation also reaches explicit Node child-process fixtures', () => {
+  const child = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '-e',
+      "import { networkInterfaces } from 'node:os'; process.stdout.write(JSON.stringify(Object.values(networkInterfaces()).flat().map(entry => entry.address)));",
+    ],
+    { encoding: 'utf8' },
+  );
+  assert.equal(child.status, 0, child.stderr);
+  assert.deepEqual(JSON.parse(child.stdout), ['127.0.0.1']);
 });

@@ -434,6 +434,10 @@ export class NodeService extends EventEmitter {
       ...options,
       local: this.localLanNode(),
       pairedNodeIds: () => this.settings.value.peers.map((peer) => peer.id),
+      observed: (node) => {
+        if (this.lanSearch === search && this.running) this.network.observeEndpoint(node);
+        options.observed?.(node);
+      },
       changed: () => {
         if (this.lanSearch === search) this.emit('change');
       },
@@ -507,6 +511,8 @@ export class NodeService extends EventEmitter {
         id: p.id,
         label: p.label,
         address: p.address,
+        activeAddress:
+          this.network?.states().find((state) => state.id === p.id)?.activeAddress ?? null,
         connected: this.running && !!this.network.states().find((s) => s.id === p.id)?.connected,
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),

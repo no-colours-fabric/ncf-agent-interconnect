@@ -1,3 +1,4 @@
+import { networkInterfaceMessages } from '../desktop/renderer/i18n/network-interfaces.js';
 import { OwnConnectionCard } from '../desktop/renderer/OwnConnectionCard.js';
 import { lanDiscoveryMessages } from '../desktop/renderer/i18n/lan-discovery.js';
 import test from 'node:test';
@@ -153,7 +154,7 @@ test('search UI: actual announcement reasons remain separate from search results
   const legacy = lanDiscoveryMessages('en');
   const reasons = {
     stopped: legacy.stopped,
-    'listener-local': legacy.listenerLocal,
+    'listener-local': networkInterfaceMessages('en').localHelp,
     'listener-unavailable': legacy.listenerUnavailable,
     'no-interfaces': legacy.noInterfaces,
     'transport-error': legacy.transportError,
@@ -212,7 +213,7 @@ test('search UI correction: all15 responder labels describe this search and loca
         onSettings() {},
       }),
     );
-    assert.ok(own.includes(escaped(legacy.listenerLocal)), locale);
+    assert.ok(own.includes(escaped(networkInterfaceMessages(locale).localHelp)), locale);
     assert.ok(!own.includes(escaped(messages.ownHelp)), locale);
     assert.ok(own.includes(escaped(messages.createCode)), locale);
     const html = renderToStaticMarkup(
@@ -497,6 +498,21 @@ root.render(<App key={generation} patch={{}}/>);
             code: 'ABCD2345',
             expectedNodeId: first.nodeId,
           });
+          await settle(page, 'connectPeer', undefined, 'Pairing confirmation is uncertain.');
+          await dialog().getByRole('button', { name: 'Cancel', exact: true }).click();
+          value.lanSearch!.nodes = [
+            { ...first },
+            { ...first, key: 'alternate', address: 'wss://192.0.2.21:7336/peer' },
+          ];
+          await update(page, { snapshot: value });
+          await connectButton().click();
+          await codeInput().fill('ABCD2345');
+          assert.ok(
+            await submit().isDisabled(),
+            'Uncertain admission stays fenced across addresses of the same UUID',
+          );
+          await codeInput().fill('BCDE3456');
+          await submit().click();
           await settle(page, 'connectPeer', { id: first.nodeId });
         },
       );
@@ -764,7 +780,7 @@ root.render(<App key={generation} patch={{}}/>);
           await reset(page, { snapshot: value });
           const own = page.getByTestId('own-connection-card');
           await own
-            .getByText(lanDiscoveryMessages('en').listenerLocal, { exact: true })
+            .getByText(networkInterfaceMessages('en').localHelp, { exact: true })
             .first()
             .waitFor();
           assert.equal(await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).count(), 0);
@@ -802,8 +818,12 @@ root.render(<App key={generation} patch={{}}/>);
           };
           await update(page, { snapshot: unavailable });
           assert.equal(
-            await own.getByRole('button', { name: 'Create code', exact: true }).isEnabled(),
+            await own.getByRole('button', { name: 'Create new code', exact: true }).isEnabled(),
             true,
+          );
+          assert.equal(
+            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
+            'BCDE3456',
           );
           await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
         },

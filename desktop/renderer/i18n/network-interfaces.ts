@@ -19,6 +19,8 @@ const translations = {
     addressLabel: 'Connection address',
     unverified: 'Unverified',
     saveFailed: 'Network settings could not be saved.',
+    localHelp:
+      'Only this computer has a listening address. Enable a network interface in Settings.',
   },
   ru: {
     title: 'Сетевые интерфейсы',
@@ -38,6 +40,8 @@ const translations = {
     addressLabel: 'Адрес подключения',
     unverified: 'Не проверен',
     saveFailed: 'Не удалось сохранить настройки сети.',
+    localHelp:
+      'Прослушиваемый адрес есть только на этом компьютере. Разрешите сетевой интерфейс в настройках.',
   },
   'zh-CN': {
     title: '网络接口',
@@ -55,6 +59,7 @@ const translations = {
     addressLabel: '连接地址',
     unverified: '未经验证',
     saveFailed: '无法保存网络设置。',
+    localHelp: '仅此计算机具有监听地址。请在设置中启用网络接口。',
   },
   fr: {
     title: 'Interfaces réseau',
@@ -74,6 +79,8 @@ const translations = {
     addressLabel: 'Adresse de connexion',
     unverified: 'Non vérifié',
     saveFailed: 'Impossible d’enregistrer les paramètres réseau.',
+    localHelp:
+      'Seul cet ordinateur dispose d’une adresse d’écoute. Activez une interface réseau dans les paramètres.',
   },
   de: {
     title: 'Netzwerkschnittstellen',
@@ -93,6 +100,8 @@ const translations = {
     addressLabel: 'Verbindungsadresse',
     unverified: 'Nicht verifiziert',
     saveFailed: 'Netzwerkeinstellungen konnten nicht gespeichert werden.',
+    localHelp:
+      'Nur dieser Computer hat eine überwachte Adresse. Aktivieren Sie eine Netzwerkschnittstelle in den Einstellungen.',
   },
   it: {
     title: 'Interfacce di rete',
@@ -112,6 +121,8 @@ const translations = {
     addressLabel: 'Indirizzo di connessione',
     unverified: 'Non verificato',
     saveFailed: 'Impossibile salvare le impostazioni di rete.',
+    localHelp:
+      'Solo questo computer ha un indirizzo in ascolto. Abilita un’interfaccia di rete nelle impostazioni.',
   },
   es: {
     title: 'Interfaces de red',
@@ -131,6 +142,8 @@ const translations = {
     addressLabel: 'Dirección de conexión',
     unverified: 'Sin verificar',
     saveFailed: 'No se pudo guardar la configuración de red.',
+    localHelp:
+      'Solo este equipo tiene una dirección de escucha. Habilita una interfaz de red en la configuración.',
   },
   kk: {
     title: 'Желілік интерфейстер',
@@ -150,6 +163,8 @@ const translations = {
     addressLabel: 'Қосылу мекенжайы',
     unverified: 'Тексерілмеген',
     saveFailed: 'Желі параметрлерін сақтау мүмкін болмады.',
+    localHelp:
+      'Тыңдалатын мекенжай тек осы компьютерде бар. Параметрлерде желілік интерфейске рұқсат беріңіз.',
   },
   ja: {
     title: 'ネットワークインターフェース',
@@ -169,6 +184,8 @@ const translations = {
     addressLabel: '接続先アドレス',
     unverified: '未確認',
     saveFailed: 'ネットワーク設定を保存できませんでした。',
+    localHelp:
+      'このコンピューター内でのみ待ち受けています。設定でネットワークインターフェースを有効にしてください。',
   },
   'pt-BR': {
     title: 'Interfaces de rede',
@@ -188,6 +205,8 @@ const translations = {
     addressLabel: 'Endereço de conexão',
     unverified: 'Não verificado',
     saveFailed: 'Não foi possível salvar as configurações de rede.',
+    localHelp:
+      'Apenas este computador tem um endereço de escuta. Ative uma interface de rede nas configurações.',
   },
   ko: {
     title: '네트워크 인터페이스',
@@ -207,6 +226,7 @@ const translations = {
     addressLabel: '연결 주소',
     unverified: '확인되지 않음',
     saveFailed: '네트워크 설정을 저장하지 못했습니다.',
+    localHelp: '이 컴퓨터에서만 수신할 수 있습니다. 설정에서 네트워크 인터페이스를 활성화하세요.',
   },
   tr: {
     title: 'Ağ arayüzleri',
@@ -226,6 +246,8 @@ const translations = {
     addressLabel: 'Bağlantı adresi',
     unverified: 'Doğrulanmamış',
     saveFailed: 'Ağ ayarları kaydedilemedi.',
+    localHelp:
+      'Dinleme adresi yalnızca bu bilgisayarda kullanılabilir. Ayarlardan bir ağ arayüzünü etkinleştirin.',
   },
   pl: {
     title: 'Interfejsy sieciowe',
@@ -245,6 +267,8 @@ const translations = {
     addressLabel: 'Adres połączenia',
     unverified: 'Niezweryfikowany',
     saveFailed: 'Nie udało się zapisać ustawień sieci.',
+    localHelp:
+      'Adres nasłuchiwania jest dostępny tylko na tym komputerze. Włącz interfejs sieciowy w ustawieniach.',
   },
   nl: {
     title: 'Netwerkinterfaces',
@@ -264,6 +288,8 @@ const translations = {
     addressLabel: 'Verbindingsadres',
     unverified: 'Niet geverifieerd',
     saveFailed: 'Netwerkinstellingen konden niet worden opgeslagen.',
+    localHelp:
+      'Alleen deze computer heeft een luisteradres. Schakel een netwerkinterface in via de instellingen.',
   },
   uk: {
     title: 'Мережеві інтерфейси',
@@ -283,6 +309,8 @@ const translations = {
     addressLabel: 'Адреса підключення',
     unverified: 'Не перевірено',
     saveFailed: 'Не вдалося зберегти налаштування мережі.',
+    localHelp:
+      'Адреса прослуховування є лише на цьому комп’ютері. Дозвольте мережевий інтерфейс у налаштуваннях.',
   },
 } satisfies Record<
   Locale,
@@ -301,7 +329,8 @@ const translations = {
     | 'emptyEndpoint'
     | 'addressLabel'
     | 'unverified'
-    | 'saveFailed',
+    | 'saveFailed'
+    | 'localHelp',
     string
   >
 >;

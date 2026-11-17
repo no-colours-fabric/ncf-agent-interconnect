@@ -15,3 +15,10 @@ os.networkInterfaces = () => ({
   ],
 });
 syncBuiltinESMExports();
+
+// Explicit child-process fixtures do not inherit execArgv; propagate the same test-only preload.
+const preload = import.meta.url;
+if (!(process.env.NODE_OPTIONS ?? '').includes(preload)) {
+  process.env.NODE_OPTIONS =
+    `${process.env.NODE_OPTIONS ?? ''} --import=${import.meta.resolve('tsx')} --import=${preload}`.trim();
+}

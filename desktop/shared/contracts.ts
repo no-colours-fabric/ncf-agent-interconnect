@@ -210,7 +210,14 @@ export interface Snapshot {
   networkInterfaces?: NetworkInterfaceStatus;
   lanDiscovery?: LanDiscoverySnapshot;
   lanSearch?: LanSearchSnapshot;
-  peers: { id: string; label: string; address: string; connected: boolean; error: string | null }[];
+  peers: {
+    id: string;
+    label: string;
+    address: string;
+    activeAddress?: string | null;
+    connected: boolean;
+    error: string | null;
+  }[];
   agents: AgentIdentity[];
   directories: AgentDirectory[];
   adapters: AdapterState[];

@@ -10,10 +10,7 @@ export const lanSearchLimits = Object.freeze({
   retentionMs: 10 * 60 * 1000,
 });
 
-export interface LanSearchOptions extends Omit<
-  LanDiscoveryOptions,
-  'changed' | 'observed' | 'querying'
-> {
+export interface LanSearchOptions extends Omit<LanDiscoveryOptions, 'changed' | 'querying'> {
   changed?: () => void;
   pairedNodeIds?: () => readonly string[];
 }
@@ -46,7 +43,10 @@ export class LanSearch {
       ...options,
       now: () => this.now(),
       querying: false,
-      observed: (node) => this.observe(node),
+      observed: (node) => {
+        options.observed?.(node);
+        this.observe(node);
+      },
       changed: () => this.transportChanged(),
     });
   }

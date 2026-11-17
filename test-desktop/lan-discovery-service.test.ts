@@ -1,3 +1,4 @@
+import https from 'node:https';
 import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import dgram from 'node:dgram';
@@ -526,4 +527,123 @@ test('interface exclusion closes peer listeners while local MCP, identity and lo
   assert.deepEqual(service.snapshot().peerUrls, before.peerUrls);
   assert.equal(service.snapshot().nodeId, before.nodeId);
   assert.equal(await readFile(path.join(service.directory, 'node-cert.pem'), 'utf8'), certificate);
+});
+
+async function waitFor(check: () => boolean, timeout = 10000): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error('Isolated network check timed out');
+    await new Promise((resolve) => setTimeout(resolve, 15));
+  }
+}
+
+test('alternate proof verifies the pinned certificate and exact UUID without sending secrets', async (t) => {
+  const a = await serviceFixture(t),
+    b = await serviceFixture(t);
+  await a.open();
+  await b.open();
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  const peer = a.settings.value.peers[0];
+  const probe = a.network as unknown as {
+    verifyAlternate(value: typeof peer, address: string): Promise<void>;
+  };
+  const headers: import('node:http').IncomingHttpHeaders[] = [];
+  let claimed = a.snapshot().nodeId;
+  const server = https.createServer(
+    { key: await readFile(path.join(b.directory, 'node-key.pem')), cert: peer.certificate },
+    (request, response) => {
+      headers.push(request.headers);
+      response.writeHead(200);
+      response.end(JSON.stringify({ nodeId: claimed }));
+    },
+  );
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = `wss://127.0.0.1:${(server.address() as { port: number }).port}/peer`;
+  await assert.rejects(probe.verifyAlternate(peer, address), /does not match/);
+  assert.ok(headers.every((value) => !value.authorization && !value['x-node-id']));
+  claimed = peer.id;
+  await probe.verifyAlternate(peer, address);
+  assert.equal(a.settings.value.peers[0].address, peer.address);
+  const wrongPin = {
+    ...peer,
+    certificate: await readFile(path.join(a.directory, 'node-cert.pem'), 'utf8'),
+  };
+  const before = headers.length;
+  await assert.rejects(probe.verifyAlternate(wrongPin, address));
+  assert.equal(
+    headers.length,
+    before,
+    'A rejected TLS pin must prevent even the public HTTP request',
+  );
+});
+
+test('authenticated alternate recovery keeps the configured route and logical peer after a port change', async (t) => {
+  const a = await serviceFixture(t),
+    b = await serviceFixture(t);
+  await a.open();
+  await b.open();
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await waitFor(() => a.snapshot().peers[0]?.connected === true);
+  const originalAddress = a.settings.value.peers[0].address;
+  const certificate = a.settings.value.peers[0].certificate;
+  const id = b.snapshot().nodeId;
+  await b.stop();
+  b.settings.value.peerPort = 0;
+  await b.start();
+  const alternate = b.snapshot().peerUrl;
+  assert.notEqual(alternate, originalAddress);
+  a.network.observeEndpoint({ nodeId: id, address: alternate });
+  await waitFor(
+    () =>
+      a.snapshot().peers[0]?.connected === true &&
+      a.snapshot().peers[0]?.activeAddress === alternate,
+  );
+  assert.equal(a.settings.value.peers.length, 1);
+  assert.equal(a.settings.value.peers[0].address, originalAddress);
+  assert.equal(a.settings.value.peers[0].certificate, certificate);
+  assert.equal(a.snapshot().directories.filter((directory) => directory.nodeId === id).length, 1);
+});
+
+test('a saved exclusion is enforced against the last inventory when OS enumeration fails', async (t) => {
+  const service = await serviceFixture(t);
+  await service.open();
+  t.mock.method(service.network as unknown as { inventory(): never }, 'inventory', () => {
+    throw new Error('Isolated inventory failure');
+  });
+  await service.userCall('saveNode', {
+    nodeLabel: service.snapshot().nodeLabel,
+    networkExclusions: [{ name: 'loopback' }],
+  });
+  assert.deepEqual(service.network.endpoints, []);
+  assert.equal(service.network.networkStatus().interfaces[0].excluded, true);
+  assert.equal(service.network.networkStatus().inventoryError, 'Isolated inventory failure');
+  assert.equal(service.snapshot().running, true);
+});
+
+test('discovered Pair rejects a changed claimed UUID before either peer is saved', async (t) => {
+  const a = await serviceFixture(t),
+    b = await serviceFixture(t);
+  await a.open();
+  await b.open();
+  const code = b.network.accessCode().code;
+  await assert.rejects(
+    a.userCall('connectPeer', {
+      address: b.snapshot().peerUrl,
+      code,
+      expectedNodeId: a.snapshot().nodeId,
+    }),
+    /does not match the selected/,
+  );
+  assert.equal(a.settings.value.peers.length, 0);
+  assert.equal(b.settings.value.peers.length, 0);
+  await a.userCall('connectPeer', {
+    address: b.snapshot().peerUrl,
+    code,
+    expectedNodeId: b.snapshot().nodeId,
+  });
+  assert.equal(a.settings.value.peers[0].id, b.snapshot().nodeId);
 });

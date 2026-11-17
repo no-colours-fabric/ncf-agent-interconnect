@@ -329,12 +329,14 @@ export function NetworkPage({
   };
   const connect = async (address: string, access: string, isManual: boolean) => {
     const value = access.trim();
+    const identityKey = !isManual && selected ? `node:${selected.nodeId}` : address;
     if (
       pairFence.current ||
       !snapshot.running ||
       !address.trim() ||
       !/^[A-HJ-NP-Z2-9]{8}$/.test(value) ||
-      uncertainAttempts.current.get(address) === value
+      uncertainAttempts.current.get(address) === value ||
+      uncertainAttempts.current.get(identityKey) === value
     )
       return;
     const input = Object.freeze({
@@ -357,6 +359,7 @@ export function NetworkPage({
       )
         return;
       uncertainAttempts.current.delete(address);
+      uncertainAttempts.current.delete(identityKey);
       setAuthenticatedAddresses((previous) => {
         const next = new Set(previous);
         next.add(address);
@@ -376,6 +379,7 @@ export function NetworkPage({
         );
       if (uncertain) {
         uncertainAttempts.current.set(address, value);
+        uncertainAttempts.current.set(identityKey, value);
         if (uncertainAttempts.current.size > 128)
           uncertainAttempts.current.delete(uncertainAttempts.current.keys().next().value!);
       }
@@ -415,9 +419,17 @@ export function NetworkPage({
         ? m.noInterfaces
         : '';
   const blockedSelection =
-    !!selected && uncertainAttempts.current.get(selected.address) === code.trim();
+    !!selected &&
+    (uncertainAttempts.current.get(selected.address) === code.trim() ||
+      uncertainAttempts.current.get(`node:${selected.nodeId}`) === code.trim());
   const blockedManual = uncertainAttempts.current.get(manual.address.trim()) === manual.code.trim();
-  const selectionMissing = !!selected && !search?.nodes.some((node) => node.key === selected.key);
+  const selectionMissing =
+    !!selected &&
+    !search?.nodes.some(
+      (node) =>
+        node.nodeId === selected.nodeId &&
+        [node, ...(node.endpoints ?? [])].some((endpoint) => endpoint.address === selected.address),
+    );
   const diagnostics = (detail: string) => (
     <Box component="details" sx={{ mt: 1 }}>
       <summary>{m.details}</summary>
@@ -537,6 +549,18 @@ export function NetworkPage({
         {snapshot.peers.length > 0 && (
           <Box component="section" aria-label={m.pairedTitle} data-testid="retained-paired-content">
             {children}
+            {snapshot.peers
+              .filter((peer) => peer.connected && peer.activeAddress)
+              .map((peer) => (
+                <Typography
+                  key={peer.id}
+                  variant="caption"
+                  sx={{ display: 'block', mt: 1, overflowWrap: 'anywhere' }}
+                >
+                  {peer.label} · {networkInterfaceMessages(locale).addressLabel}:{' '}
+                  {peer.activeAddress}
+                </Typography>
+              ))}
           </Box>
         )}
         <Box component="section" aria-labelledby={id + '-nearby-title'}>

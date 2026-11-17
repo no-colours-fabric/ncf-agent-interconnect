@@ -61,7 +61,7 @@ export function OwnConnectionCard({
     : announcement?.reason === 'stopped'
       ? legacy.stopped
       : announcement?.reason === 'listener-local'
-        ? legacy.listenerLocal
+        ? networkMessages.localHelp
         : announcement?.reason === 'listener-unavailable'
           ? legacy.listenerUnavailable
           : announcement?.reason === 'no-interfaces'
@@ -202,7 +202,7 @@ export function OwnConnectionCard({
         {m.ownTitle}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-        {local ? legacy.listenerLocal : m.ownHelp}
+        {local ? networkMessages.localHelp : m.ownHelp}
       </Typography>
       <Box
         sx={{
