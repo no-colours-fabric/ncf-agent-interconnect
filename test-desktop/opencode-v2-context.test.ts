@@ -164,3 +164,47 @@ test('node lifecycle restart leaves old issued attempt uncertain and never repla
   assert.equal(service.store.dispatchState(sent.id)?.state, 'uncertain');
   assert.equal(host.prompts.length, 1);
 });
+
+test('native session deletion and same-ID recreation cannot silently adopt the old named mailbox', async (t) => {
+  const { service, host, call } = await openCodeV2ProductFixture(t);
+  const id = host.addSession('ses_reused');
+  const first = await call(id, 'agent_connect', { nickname: 'Lifetime fixture' });
+  assert.equal(first.isError, undefined, JSON.stringify(first));
+  const binding = (
+    first.structuredContent as { binding: { adapterId: string; connectionId: string } }
+  ).binding;
+  const wait = (condition: () => boolean) =>
+    new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        service.off('change', check);
+        reject(new Error('Missing lifecycle transition'));
+      }, 1000);
+      const check = () => {
+        if (!condition()) return;
+        clearTimeout(timer);
+        service.off('change', check);
+        resolve();
+      };
+      service.on('change', check);
+      check();
+    });
+  await wait(() => service.adapters.get(binding.adapterId).status().state === 'ready');
+  host.sessions.delete(id);
+  host.events.publish({
+    id: 'evt_deleted_session',
+    created: 1,
+    type: 'session.deleted',
+    location: { directory: host.workspace },
+    data: { sessionID: id },
+  });
+  await wait(() => service.adapters.get(binding.adapterId).status().state !== 'ready');
+  host.addSession(id);
+  host.sessions.set(id, { ...host.sessions.get(id)!, time: { created: 2, updated: 2 } });
+  const recreated = await call(id, 'agent_connect', { nickname: 'Lifetime fixture' });
+  assert.equal(recreated.isError, undefined, JSON.stringify(recreated));
+  assert.equal((recreated.structuredContent as { status: string })?.status, 'nickname_in_use');
+  assert.equal(
+    service.store.assertOwner(binding.connectionId).binding.connectionId,
+    binding.connectionId,
+  );
+});

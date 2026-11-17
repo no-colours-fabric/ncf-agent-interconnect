@@ -183,6 +183,19 @@ export class NodeService extends EventEmitter {
         epoch: this.deliveryIncarnation,
         ready: this.integrationsReady,
       }),
+      (id) => {
+        const profile = this.settings.value.adapters.find(
+          (profile) => profile.id === id && profile.kind === 'opencode-v2',
+        );
+        if (!profile) return;
+        profile.released = true;
+        if (!this.integrationsReady) return;
+        const save = this.settings.save().catch(() => {
+          if (this.running) this.problem('The ended OpenCode v2 session could not be saved');
+        });
+        this.jobs.add(save);
+        void save.finally(() => this.jobs.delete(save));
+      },
     );
     this.adapters = new AdapterRegistry(this.aionui, this.claude, this.opencodeV2);
     this.wakeClaims = new WakeClaims({
@@ -969,6 +982,7 @@ export class NodeService extends EventEmitter {
     let profile = this.settings.value.adapters.find(
       (profile) =>
         profile.kind === 'opencode-v2' &&
+        !profile.released &&
         profile.setupTargetId === identity.scope.targetId &&
         profile.instanceId === identity.scope.bootId &&
         profile.sessionId === identity.sessionID,

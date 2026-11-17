@@ -80,6 +80,7 @@ export class OpenCodeV2Bridges {
   constructor(
     readonly auth: OpenCodeV2Auth,
     private readonly node: () => { id: string; epoch: string; ready: boolean },
+    private readonly profileRetired?: (id: string) => void,
   ) {}
   start(): void {
     this.unobserve?.();
@@ -87,6 +88,10 @@ export class OpenCodeV2Bridges {
       const bridge = this.bridges.get(id);
       if (bridge) this.retire(bridge);
     });
+  }
+  sessionEnded(profile: AdapterProfile): void {
+    profile.released = true;
+    this.profileRetired?.(profile.id);
   }
   private current(bridge: Bridge): boolean {
     const node = this.node();
@@ -399,6 +404,11 @@ export class OpenCodeV2Adapter implements AgentAdapter {
     if (!this.stopped) this.changed();
   }
   async start(): Promise<void> {
+    if (this.profile.released) {
+      this.state.released = true;
+      this.unavailable();
+      return;
+    }
     try {
       this.unlisten = this.bridges.listen(
         this.profile,
@@ -419,6 +429,7 @@ export class OpenCodeV2Adapter implements AgentAdapter {
     identity.assertCurrent();
     if (
       this.stopped ||
+      this.profile.released ||
       identity.scope.bootId !== this.profile.instanceId ||
       identity.scope.targetId !== this.profile.setupTargetId ||
       owner.chatId !== this.profile.sessionId ||
@@ -465,6 +476,10 @@ export class OpenCodeV2Adapter implements AgentAdapter {
       return;
     }
     if (event.kind === 'revoked') {
+      if (event.reasonCode === 'V2_SESSION_ENDED') {
+        this.bridges.sessionEnded(this.profile);
+        this.state.released = true;
+      }
       this.arm = undefined;
       this.state.capabilities.wakeIdle = false;
       this.state.capabilities.receiveActive = false;
