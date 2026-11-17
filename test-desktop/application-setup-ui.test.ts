@@ -425,3 +425,79 @@ test('Applications manual routes retain actual installation selection, coverage,
       assert.ok(html.includes(text), client + ':' + text);
   }
 });
+
+test('alignment fixture preserves mixed manual-only, configured, busy and error content in the correct application row', async () => {
+  for (const locale of ['en', 'ru', 'de'] as const) {
+    for (const mode of ['mixed', 'busy', 'error'] as const) {
+      const calls: string[] = [];
+      const invoke = (async (method: string) => {
+        calls.push(method);
+        assert.equal(method, 'mcpSetupDefaults');
+        if (mode === 'busy') return new Promise(() => {});
+        throw new Error('Isolated alignment fixture read failure');
+      }) as McpSetupInvoke;
+      const flow = new ApplicationSetupFlow(invoke);
+      if (mode !== 'mixed') {
+        const result = flow.connect('cursor');
+        if (mode === 'error') await result;
+      }
+      const html = renderToStaticMarkup(
+        React.createElement(ApplicationRows, {
+          discovery: {
+            ...discovery,
+            snapshot: {
+              ...discovery.snapshot!,
+              applications: discovery.snapshot!.applications.map((app) => ({
+                ...app,
+                status:
+                  app.client === 'cursor' || app.client === 'aionui'
+                    ? ('detected' as const)
+                    : ('unknown' as const),
+              })),
+            },
+          },
+          statuses: {
+            ...statuses,
+            statuses: {
+              ...statuses.statuses,
+              codex: { client: 'codex', remembered: true, state: 'configured', files: [] },
+            },
+            errors: { claude: 'Isolated status read failure' },
+          },
+          invoke,
+          flow,
+          locale,
+          onManualSetup: () => {},
+        }),
+      );
+      const rowId = (client: string) => (client === 'opencode' ? 'opencode-v2' : client);
+      const row = (client: string, next?: string) =>
+        html.slice(
+          html.indexOf('data-testid="application-row-' + rowId(client) + '"'),
+          next ? html.indexOf('data-testid="application-row-' + rowId(next) + '"') : undefined,
+        );
+      assert.equal(html.match(/data-testid="application-connect-/g)?.length, 2, locale + mode);
+      assert.ok(row('cursor', 'opencode').includes('data-testid="application-connect-cursor"'));
+      assert.ok(!row('opencode', 'codex').includes('data-testid="application-connect-'));
+      assert.ok(row('codex', 'aionui').includes(mcpSetupMessages(locale).configured));
+      assert.ok(row('claude').includes(mcpSetupMessages(locale).unavailable));
+      for (const client of mcpSetupClients) {
+        const current = row(client, mcpSetupClients[mcpSetupClients.indexOf(client) + 1]);
+        assert.ok(
+          current.includes(applicationSetupMessages(locale).manual),
+          client + locale + mode,
+        );
+      }
+      if (mode === 'busy') {
+        assert.ok(row('cursor', 'opencode').includes(applicationSetupMessages(locale).connecting));
+        assert.equal(html.match(/<button[^>]*disabled=""/g)?.length, 8);
+      }
+      if (mode === 'error') {
+        assert.equal(html.match(/role="alert"/g)?.length, 1);
+        assert.ok(row('cursor', 'opencode').includes(applicationSetupMessages(locale).failed));
+      }
+      assert.deepEqual(calls, mode === 'mixed' ? [] : ['mcpSetupDefaults']);
+      flow.dispose();
+    }
+  }
+});

@@ -404,16 +404,16 @@ export function ApplicationRows({
           boxSizing: 'border-box',
           borderTop: border ? '1px solid' : 0,
           borderColor: 'divider',
+          display: 'grid',
+          gridTemplateColumns: 'subgrid',
+          gridColumn: '1 / -1',
+          '& > *': { gridColumn: '1 / -1' },
         }}
       >
         <Box
           sx={{
             display: 'grid',
-            gridTemplateColumns: {
-              xs: '44px minmax(0, 1fr)',
-              md: '44px minmax(0, 1fr) auto',
-              lg: '44px minmax(140px, 1fr) minmax(120px, .8fr) auto',
-            },
+            gridTemplateColumns: 'subgrid',
             columnGap: 2.5,
             rowGap: 1,
             alignItems: 'center',
@@ -541,15 +541,33 @@ export function ApplicationRows({
           {discoveryCopy.refresh}
         </Button>
       </Stack>
-      <Paper sx={{ overflow: 'hidden' }}>
+      <Paper
+        sx={{
+          overflow: 'hidden',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'max-content minmax(0, 1fr)',
+            md: 'max-content minmax(0, 1fr) auto',
+            lg: 'max-content minmax(140px, 1fr) minmax(120px, .8fr) auto',
+          },
+          columnGap: 2.5,
+        }}
+      >
         {mcpSetupClients.map((client, index) =>
           client === 'opencode' ? (
             <Box
               key="opencode"
               data-testid="application-group-opencode"
-              sx={{ borderTop: index ? '1px solid' : 0, borderColor: 'divider' }}
+              sx={{
+                borderTop: index ? '1px solid' : 0,
+                borderColor: 'divider',
+                display: 'grid',
+                gridTemplateColumns: 'subgrid',
+                gridColumn: '1 / -1',
+                '& > *': { gridColumn: '1 / -1' },
+              }}
             >
-              <Box sx={{ display: 'grid', gridAutoRows: '1fr' }}>
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'subgrid', gridAutoRows: '1fr' }}>
                 {row('opencode-v2', false)}
                 {showV1 && row('opencode', true)}
               </Box>
