@@ -31,8 +31,26 @@ import type { McpSetupStatuses } from './mcp-setup-status.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import { surfaceSx } from './theme.js';
 
-export const setupApplicationName = (client: McpSetupClient): string =>
-  client === 'opencode' ? 'OpenCode v1' : applicationNames[client];
+export const setupApplicationName = (client: McpSetupClient, locale: Locale): string =>
+  client === 'aionui'
+    ? applicationSetupMessages(locale).aionUiName
+    : client === 'opencode'
+      ? 'OpenCode v1'
+      : applicationNames[client];
+
+const hasPendingSetupResult = (state: ApplicationSetupState): boolean =>
+  state.phase === 'uncertain' || state.phase === 'rechecking';
+
+function setupActionLabel(state: ApplicationSetupState, locale: Locale, busy: boolean): string {
+  const copy = applicationSetupMessages(locale);
+  return hasPendingSetupResult(state)
+    ? copy.checkSetupResult
+    : busy
+      ? copy.connecting
+      : state.phase === 'failed'
+        ? copy.retry
+        : t(locale, 'btnConnect');
+}
 
 export function useApplicationSetup(
   invoke: McpSetupInvoke,
@@ -198,7 +216,9 @@ export function ApplicationSetupConfirmation({
           <Typography>
             {client && states[client].renewed ? copy.reviewHelp : copy.confirmHelp}
           </Typography>
-          {client && <Typography variant="subtitle2">{setupApplicationName(client)}</Typography>}
+          {client && (
+            <Typography variant="subtitle2">{setupApplicationName(client, locale)}</Typography>
+          )}
           {preview?.files.map((file) => (
             <Box key={file.id} sx={{ overflowWrap: 'anywhere' }}>
               <Typography component="code" variant="body2">
@@ -295,7 +315,7 @@ export function ApplicationRows({
             state.phase === 'succeeded' ||
             (!statuses.errors[client] && statuses.statuses[client]?.state === 'configured');
           const busy = flow.busy(client);
-          const needsRetry = state.phase === 'failed' || state.phase === 'uncertain';
+          const needsRetry = state.phase === 'failed' || hasPendingSetupResult(state);
           return (
             <Box
               key={client}
@@ -318,7 +338,7 @@ export function ApplicationRows({
                 <ClientLogo client={client} size={44} />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 500 }}>
-                    {setupApplicationName(client)}
+                    {setupApplicationName(client, locale)}
                   </Typography>
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                     {detected ? copy.detected : copy.automaticUnavailable}
@@ -363,7 +383,7 @@ export function ApplicationRows({
                     justifyContent: { md: 'flex-end' },
                   }}
                 >
-                  {!configured && (detected || needsRetry) && (
+                  {(!configured || hasPendingSetupResult(state)) && (detected || needsRetry) && (
                     <Button
                       variant="contained"
                       disabled={
@@ -377,7 +397,7 @@ export function ApplicationRows({
                       }}
                       data-testid={'application-connect-' + client}
                     >
-                      {busy ? copy.connecting : needsRetry ? copy.retry : t(locale, 'btnConnect')}
+                      {setupActionLabel(state, locale, busy)}
                     </Button>
                   )}
                   <Button
@@ -389,9 +409,9 @@ export function ApplicationRows({
                   </Button>
                 </Stack>
               </Box>
-              {(state.phase === 'failed' || state.phase === 'uncertain') && (
-                <Alert severity="error" sx={{ mt: 2 }}>
-                  {state.phase === 'uncertain' ? copy.uncertain : copy.failed}
+              {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
+                <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
+                  {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
                 </Alert>
               )}
               <SetupDetails state={state} locale={locale} />
@@ -593,7 +613,7 @@ export function ApplicationSetup({
               const configured =
                 state.phase === 'succeeded' ||
                 (!statuses.errors[client] && statuses.statuses[client]?.state === 'configured');
-              const retry = state.phase === 'failed' || state.phase === 'uncertain';
+              const retry = state.phase === 'failed' || hasPendingSetupResult(state);
               return (
                 <Paper
                   key={client}
@@ -606,13 +626,13 @@ export function ApplicationSetup({
                   >
                     <ClientLogo client={client} size={48} />
                     <Typography variant="h6" component="h2">
-                      {setupApplicationName(client)}
+                      {setupApplicationName(client, locale)}
                     </Typography>
                     <Typography variant="body2" color="text.secondary">
                       {detected ? copy.detected : copy.automaticUnavailable}
                     </Typography>
                   </Stack>
-                  {configured ? (
+                  {configured && !hasPendingSetupResult(state) ? (
                     <>
                       <Stack
                         direction="row"
@@ -646,11 +666,7 @@ export function ApplicationSetup({
                           }
                           onClick={() => void flow.connect(client)}
                         >
-                          {flow.busy(client)
-                            ? copy.connecting
-                            : retry
-                              ? copy.retry
-                              : t(locale, 'btnConnect')}
+                          {setupActionLabel(state, locale, flow.busy(client))}
                         </Button>
                       ) : (
                         <Button
@@ -665,9 +681,12 @@ export function ApplicationSetup({
                       )}
                     </Box>
                   )}
-                  {(state.phase === 'failed' || state.phase === 'uncertain') && (
-                    <Alert severity="error" sx={{ mt: 2 }}>
-                      {state.phase === 'uncertain' ? copy.uncertain : copy.failed}
+                  {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
+                    <Alert
+                      severity={hasPendingSetupResult(state) ? 'warning' : 'error'}
+                      sx={{ mt: 2 }}
+                    >
+                      {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
                     </Alert>
                   )}
                   <SetupDetails state={state} locale={locale} />

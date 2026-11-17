@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ApplicationRows } from '../desktop/renderer/ApplicationSetup.js';
+import { ApplicationRows, setupApplicationName } from '../desktop/renderer/ApplicationSetup.js';
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
@@ -11,7 +11,7 @@ import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicati
 import { mcpSetupClients, type McpSetupInvoke } from '../desktop/shared/mcp-setup.js';
 import type { McpSetupStatuses } from '../desktop/renderer/mcp-setup-status.js';
 import { McpSetupFlow } from '../desktop/renderer/mcp-setup-model.js';
-import { OpenCodeSetupDialog } from '../desktop/renderer/McpSetup.js';
+import { McpSetup, OpenCodeSetupDialog } from '../desktop/renderer/McpSetup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 
 const noInvoke = (async () => {
@@ -168,4 +168,166 @@ test('the real OpenCode v1 manual form keeps its selected file, review and Apply
   assert.ok(html.includes('mcp-apply'));
   assert.ok(html.includes('Choose file'));
   assert.doesNotMatch(html, /<select|role="combobox"|Profile [12]/);
+});
+
+test('copy context: all 15 locales name the original check, generic copied text and qualified AionUi target', () => {
+  const english = applicationSetupMessages('en');
+  assert.equal(english.checkSetupResult, 'Check setup result');
+  assert.equal(english.copyFailed, 'Could not copy the text. Try again.');
+  assert.equal(english.aionUiName, 'AionUi with Cursor Agent');
+  for (const locale of supportedLocales) {
+    const copy = applicationSetupMessages(locale);
+    for (const key of ['checkSetupResult', 'copyFailed', 'aionUiName'] as const) {
+      assert.ok(copy[key].trim(), locale + ':' + key);
+      if (locale !== 'en') assert.notEqual(copy[key], english[key], locale + ':' + key);
+    }
+    assert.ok(copy.aionUiName.includes('AionUi') && copy.aionUiName.includes('Cursor Agent'));
+    assert.equal(setupApplicationName('aionui', locale), copy.aionUiName);
+  }
+});
+
+test('copy context: current uncertain attempt has a visible check summary; renewed preview keeps Apply and confirmation', async () => {
+  let previews = 0;
+  let writes = 0;
+  const invoke = (async (method: string) => {
+    if (method === 'mcpSetupDefaults')
+      return {
+        client: 'opencode',
+        files: [
+          {
+            id: 'configuration',
+            path: '/isolated/original.json',
+            format: 'jsonc',
+            alternatives: [],
+          },
+        ],
+      };
+    if (method === 'mcpSetupPreview')
+      return {
+        client: 'opencode',
+        planId: 'preview-' + ++previews,
+        expiresAt: '2030-01-01T00:00:00Z',
+        requiresReplacement: false,
+        files: [
+          {
+            id: 'configuration',
+            path: previews === 1 ? '/isolated/original.json' : '/isolated/new-target.json',
+            action: 'create',
+            changes: [],
+          },
+        ],
+      };
+    if (method === 'mcpSetupApply') {
+      writes++;
+      throw new Error('Original response is unknown');
+    }
+    return {};
+  }) as McpSetupInvoke;
+  const flow = new McpSetupFlow('opencode', invoke);
+  await flow.begin();
+  await flow.apply();
+  const render = () =>
+    renderToStaticMarkup(
+      React.createElement(OpenCodeSetupDialog, {
+        invoke,
+        messages: mcpSetupMessages('en'),
+        locale: 'en',
+        inline: true,
+        flow,
+      }),
+    );
+  const visible = (html: string) => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
+  const current = visible(render());
+  const copy = applicationSetupMessages('en');
+  assert.ok(current.includes(copy.uncertain), 'uncertainty must be outside collapsed Details');
+  assert.ok(current.includes(copy.checkSetupResult));
+  assert.ok(!current.includes(mcpSetupMessages('en').failed));
+  await flow.apply();
+  assert.equal(writes, 1, 'fresh target preparation is read-only');
+  assert.equal(flow.getSnapshot().reviewRequired, true);
+  const renewed = render();
+  assert.ok(!visible(renewed).includes(copy.checkSetupResult));
+  assert.ok(renewed.includes('>Apply<'));
+  assert.ok(renewed.includes(copy.reviewHelp));
+  assert.ok(renewed.includes('type="checkbox"'));
+  assert.ok(renewed.includes('Original response is unknown'), 'original history is retained');
+  assert.equal(flow.getSnapshot().uncertain?.preview.planId, 'preview-1');
+  const automatic = new ApplicationSetupFlow((async (method: string) => {
+    if (method === 'mcpSetupDefaults')
+      return {
+        client: 'cursor',
+        files: [{ id: 'configuration', path: '/isolated/automatic.json' }],
+      };
+    if (method === 'mcpSetupPreview')
+      return {
+        client: 'cursor',
+        planId: 'automatic-original',
+        requiresReplacement: false,
+        files: [
+          { id: 'configuration', path: '/isolated/automatic.json', action: 'create', changes: [] },
+        ],
+      };
+    if (method === 'mcpSetupApply') throw new Error('Unknown automatic result');
+    return {};
+  }) as McpSetupInvoke);
+  await automatic.connect('cursor');
+  const cachedConfigured: McpSetupStatuses = {
+    ...statuses,
+    statuses: {
+      ...statuses.statuses,
+      cursor: { client: 'cursor', remembered: true, state: 'configured', files: [] },
+    },
+  };
+  const automaticHtml = visible(
+    renderToStaticMarkup(
+      React.createElement(ApplicationRows, {
+        discovery,
+        statuses: cachedConfigured,
+        invoke: noInvoke,
+        flow: automatic,
+        locale: 'en',
+        onManualSetup: () => {},
+      }),
+    ),
+  );
+  assert.ok(automaticHtml.includes(copy.uncertain));
+  assert.ok(
+    automaticHtml.includes(copy.checkSetupResult),
+    'cached configuration presence must not hide the original-result check',
+  );
+});
+
+test('copy context: list and manual AionUi headings qualify the Cursor Agent target', () => {
+  for (const locale of ['en', 'ru'] as const) {
+    const copy = applicationSetupMessages(locale);
+    const rows = renderToStaticMarkup(
+      React.createElement(ApplicationRows, {
+        discovery,
+        statuses,
+        invoke: noInvoke,
+        flow: new ApplicationSetupFlow(noInvoke),
+        locale,
+        onManualSetup: () => {},
+      }),
+    );
+    const manual = renderToStaticMarkup(
+      React.createElement(McpSetup, {
+        discovery,
+        client: 'aionui',
+        manualClient: 'aionui',
+        onClientChange: () => {},
+        invoke: noInvoke,
+        setupStatuses: statuses,
+        locale,
+        messages: mcpSetupMessages(locale),
+      }),
+    );
+    for (const html of [rows, manual]) {
+      const headings = [...html.matchAll(/<h[1-6]\b[^>]*>([\s\S]*?)<\/h[1-6]>/g)].map((match) =>
+        match[1].replace(/<[^>]*>/g, ''),
+      );
+      assert.ok(headings.includes(copy.aionUiName));
+      assert.ok(!headings.includes('AionUi'));
+    }
+  }
 });

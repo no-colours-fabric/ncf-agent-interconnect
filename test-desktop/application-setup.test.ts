@@ -359,3 +359,107 @@ test('one Connect uses the existing guarded writer and preserves other clients a
     original,
   );
 });
+
+test('failed write review survives a defaults or preview rejection before another owner retry', async () => {
+  for (const rejected of ['mcpSetupDefaults', 'mcpSetupPreview']) {
+    let rejectNext = false;
+    let previews = 0;
+    let applies = 0;
+    const paths: string[] = [];
+    const flow = new ApplicationSetupFlow((async (method: string, raw: unknown) => {
+      if (rejectNext && method === rejected) {
+        rejectNext = false;
+        throw new Error('Isolated recovery preparation failure');
+      }
+      if (method === 'mcpSetupDefaults')
+        return {
+          client: 'cursor',
+          files: [
+            {
+              id: 'configuration',
+              path: applies ? '/isolated/changed-default.json' : '/isolated/original.json',
+            },
+          ],
+        };
+      if (method === 'mcpSetupPreview') {
+        const filename = (raw as { files: { path: string }[] }).files[0].path;
+        paths.push(filename);
+        return {
+          client: 'cursor',
+          planId: 'review-' + ++previews,
+          requiresReplacement: false,
+          expiresAt: '2030-01-01T00:00:00Z',
+          files: [{ id: 'configuration', path: filename, action: 'create', changes: [] }],
+        };
+      }
+      if (method === 'mcpSetupApply')
+        return {
+          status: ++applies === 1 ? 'failed' : 'applied',
+          error: applies === 1 ? 'Original failed write' : undefined,
+          files: [],
+        };
+      return {};
+    }) as McpSetupInvoke);
+    await flow.connect('cursor');
+    assert.equal(flow.getSnapshot().cursor.result?.status, 'failed');
+    rejectNext = true;
+    await flow.connect('cursor');
+    flow.invalidateSucceeded();
+    await flow.connect('cursor');
+    assert.equal(
+      applies,
+      1,
+      rejected + ': failed-write confirmation must not be lost after a read failure',
+    );
+    assert.equal(flow.getSnapshot().cursor.phase, 'confirmation');
+    assert.equal(flow.getSnapshot().cursor.reviewRequired, true);
+    assert.equal(flow.getSnapshot().cursor.target?.path, '/isolated/original.json');
+    assert.equal(paths.at(-1), '/isolated/original.json');
+    await flow.confirm('cursor');
+    assert.equal(applies, 2);
+    assert.equal(flow.getSnapshot().cursor.reviewRequired, false);
+  }
+});
+
+test('failed write review survives cancelling its fresh confirmation and reconnecting', async () => {
+  let previews = 0;
+  let applies = 0;
+  const flow = new ApplicationSetupFlow((async (method: string) => {
+    if (method === 'mcpSetupDefaults')
+      return {
+        client: 'cursor',
+        files: [{ id: 'configuration', path: '/isolated/original.json' }],
+      };
+    if (method === 'mcpSetupPreview')
+      return {
+        client: 'cursor',
+        planId: 'review-' + ++previews,
+        expiresAt: '2030-01-01T00:00:00Z',
+        requiresReplacement: false,
+        files: [
+          { id: 'configuration', path: '/isolated/original.json', action: 'create', changes: [] },
+        ],
+      };
+    if (method === 'mcpSetupApply')
+      return {
+        status: ++applies === 1 ? 'failed' : 'applied',
+        error: applies === 1 ? 'Original failed write' : undefined,
+        files: [],
+      };
+    return {};
+  }) as McpSetupInvoke);
+  await flow.connect('cursor');
+  await flow.connect('cursor');
+  assert.equal(flow.getSnapshot().cursor.phase, 'confirmation');
+  flow.cancel('cursor');
+  flow.invalidateSucceeded('cursor');
+  await flow.connect('cursor');
+  assert.equal(applies, 1, 'cancel must not turn a failed write into a fresh automatic Apply');
+  assert.equal(flow.getSnapshot().cursor.phase, 'confirmation');
+  assert.equal(flow.getSnapshot().cursor.reviewRequired, true);
+  assert.equal(flow.getSnapshot().cursor.result?.status, 'failed');
+  assert.equal(flow.getSnapshot().cursor.target?.path, '/isolated/original.json');
+  await flow.confirm('cursor');
+  assert.equal(applies, 2);
+  assert.equal(flow.getSnapshot().cursor.reviewRequired, false);
+});
