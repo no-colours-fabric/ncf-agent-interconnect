@@ -5,6 +5,11 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { OpenCodeV2SetupFlow } from '../desktop/renderer/opencode-v2-setup-model.js';
 import { OpenCodeV2SetupDialog, OpenCodeSetupDialog } from '../desktop/renderer/McpSetup.js';
 import { McpSetupFlow } from '../desktop/renderer/mcp-setup-model.js';
+import { ApplicationDiscovery } from '../desktop/renderer/ApplicationDiscovery.js';
+import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
+import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
+import { ApplicationRows } from '../desktop/renderer/ApplicationSetup.js';
+import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import { supportedLocales, type Locale } from '../desktop/renderer/i18n/index.js';
@@ -178,4 +183,78 @@ test('v2 manual captions, help and target accessibility are professional complet
     assert.ok(html.includes(escape(mcpSetupMessages(locale).pathLabel)), locale);
     assert.ok(html.includes('OpenCode v2'), locale);
   }
+});
+
+test('shared OpenCode discovery help is version-neutral in every locale', () => {
+  const model: ApplicationDiscoveryModel = {
+    busy: false,
+    failed: false,
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
+    refresh: async () => {},
+    choose: async () => {},
+    snapshot: {
+      checkedAt: '2026-11-17T00:00:00Z',
+      platform: 'linux',
+      offers: [],
+      stateError: false,
+      applications: [{ client: 'opencode', status: 'detected', instances: [], coverage: [] }],
+    },
+  };
+  for (const locale of supportedLocales) {
+    const copy = discoveryMessages(locale);
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicationDiscovery, { model, locale, client: 'opencode' }),
+    );
+    assert.ok(html.includes(escape(copy.opencode)), locale);
+    assert.ok(!copy.opencode.includes('OpenCode v1'), locale);
+    assert.ok(!copy.opencode.includes('OpenCode v2'), locale);
+    if (locale !== 'en') assert.notEqual(copy.opencode, discoveryMessages('en').opencode, locale);
+  }
+});
+
+test('cancelling an unreviewed v2 draft shows unknown status instead of an indefinite checking label', async () => {
+  const f = fixture(),
+    app = new ApplicationSetupFlow(f.invoke),
+    flow = app.openCodeV2;
+  await flow.beginManual();
+  flow.setConfigurationPath('/isolated/Not reviewed/草稿.json');
+  flow.cancel();
+  const discovery: ApplicationDiscoveryModel = {
+    busy: false,
+    failed: false,
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
+    refresh: async () => {},
+    choose: async () => {},
+    snapshot: {
+      checkedAt: '2026-11-17T00:00:00Z',
+      platform: 'linux',
+      offers: [],
+      stateError: false,
+      applications: [],
+    },
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(ApplicationRows, {
+      flow: app,
+      discovery,
+      invoke: f.invoke,
+      locale: 'en',
+      onManualSetup: () => {},
+      statuses: { statuses: {}, errors: {}, refreshAll: async () => {} },
+    }),
+  );
+  const row = html.slice(
+    html.indexOf('data-testid="application-row-opencode-v2"'),
+    html.indexOf('data-testid="application-row-codex"'),
+  );
+  assert.ok(row.includes('>Unknown<'));
+  assert.ok(!row.includes(escape(mcpSetupMessages('en').checking)));
+  assert.equal(flow.getSnapshot().target?.configurationPath, '/isolated/Not reviewed/草稿.json');
+  assert.equal(f.writes(), 0);
 });

@@ -123,6 +123,11 @@ test('v2 manual selection retains full Browse target, invalidates a plan and nev
   assert.equal(flow.getSnapshot().target?.installationId, picked.installationId);
   await flow.review();
   const selected = { ...picked, configurationPath: '/isolated/Another/Черновик.json' };
+  assert.deepEqual(
+    flow.getSnapshot().status?.target,
+    selected,
+    'the cached status follows the reviewed target instead of showing another profile indefinitely',
+  );
   await flow.apply();
   assert.deepEqual(f.writes()[0].params.target, selected);
   assert.equal(f.writes().length, 1);
@@ -298,4 +303,57 @@ test('v2 rechecks the other-operation guard after its read-only defaults await',
   otherBusy = false;
   await flow.connect();
   assert.equal(f.writes().length, 1, 'a new owner action may proceed after the other operation');
+});
+
+test('a pending read-only v2 availability check does not lock legacy v1 setup', async () => {
+  let release!: (value: unknown) => void;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  const invoke = (async (method: string) => {
+    if (method === 'opencodeV2SetupDefaults') return pending;
+    if (method === 'opencodeV2SetupStatus')
+      return { client: 'opencode-v2', target, state: 'missing', remembered: false, files: [] };
+    if (method === 'mcpSetupDefaults')
+      return { client: 'opencode', files: [{ id: 'configuration', path: '/isolated/v1.json' }] };
+    if (method === 'mcpSetupPreview')
+      return {
+        client: 'opencode',
+        planId: 'v1',
+        files: [{ id: 'configuration', path: '/isolated/v1.json', action: 'create', changes: [] }],
+        requiresReplacement: false,
+      };
+    if (method === 'mcpSetupApply')
+      return { status: 'applied', files: [{ path: '/isolated/v1.json', status: 'created' }] };
+    return {};
+  }) as McpSetupInvoke;
+  const flow = new ApplicationSetupFlow(invoke);
+  const reading = flow.openCodeV2.refresh();
+  await flow.connect('opencode');
+  release({ client: 'opencode-v2', target, alternatives: [] });
+  await reading;
+  assert.equal(flow.getSnapshot().opencode.phase, 'succeeded');
+});
+
+test('cancel during a pending v2 status read cannot resurrect manual preparation', async () => {
+  const f = fixture();
+  let release!: (value: unknown) => void;
+  const pending = new Promise((resolve) => {
+    release = resolve;
+  });
+  let reads = 0;
+  const invoke = (async (method: string, params: Record<string, unknown> = {}) => {
+    if (method === 'opencodeV2SetupStatus' && ++reads === 2) return pending;
+    return f.invoke(method, params);
+  }) as McpSetupInvoke;
+  const flow = new OpenCodeV2SetupFlow(invoke);
+  await flow.refresh();
+  const reading = flow.refresh();
+  const opening = flow.beginManual();
+  flow.cancel();
+  release({ client: 'opencode-v2', target, state: 'not-configured', remembered: false, files: [] });
+  await Promise.all([reading, opening]);
+  assert.equal(flow.getSnapshot().open, false);
+  assert.equal(f.calls.filter(({ method }) => method === 'opencodeV2SetupPreview').length, 0);
+  assert.equal(f.writes().length, 0);
 });

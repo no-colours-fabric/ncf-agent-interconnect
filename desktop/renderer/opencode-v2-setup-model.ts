@@ -250,11 +250,14 @@ export class OpenCodeV2SetupFlow {
 
   private async prepare(automatic: boolean): Promise<void> {
     if (this.disposed || this.busy() || this.otherBusy()) return;
+    const intentRevision = this.revision;
+    if (this.state.checking) await this.refresh();
     if (!this.state.target || this.state.availability !== 'available') await this.refresh();
     if (
       !this.state.target ||
       this.state.availability !== 'available' ||
       this.disposed ||
+      intentRevision !== this.revision ||
       this.busy() ||
       this.otherBusy()
     )
@@ -286,7 +289,8 @@ export class OpenCodeV2SetupFlow {
         reviewRequired: renewed,
         phase: automatic && confirmation ? 'confirmation' : 'idle',
       });
-      if (automatic && !confirmation) await this.apply(false);
+      if (!automatic) await this.refresh();
+      else if (!confirmation) await this.apply(false);
     } catch (error) {
       this.discard(preview);
       if (revision === this.revision) this.set({ phase: 'failed', error: message(error) });
@@ -300,6 +304,7 @@ export class OpenCodeV2SetupFlow {
     if (
       this.disposed ||
       this.busy() ||
+      this.state.checking ||
       this.otherBusy() ||
       this.state.phase === 'confirmation' ||
       this.state.phase === 'succeeded'
@@ -311,7 +316,14 @@ export class OpenCodeV2SetupFlow {
   }
 
   async checkResult(): Promise<void> {
-    if (this.disposed || this.busy() || this.otherBusy() || !this.state.unconfirmed) return;
+    if (
+      this.disposed ||
+      this.busy() ||
+      this.state.checking ||
+      this.otherBusy() ||
+      !this.state.unconfirmed
+    )
+      return;
     const original = this.state.unconfirmed;
     const revision = ++this.revision;
     this.set({ phase: 'rechecking', error: undefined });
@@ -379,6 +391,7 @@ export class OpenCodeV2SetupFlow {
     if (
       this.disposed ||
       this.busy() ||
+      this.state.checking ||
       this.otherBusy() ||
       !this.state.preview ||
       !this.state.target ||

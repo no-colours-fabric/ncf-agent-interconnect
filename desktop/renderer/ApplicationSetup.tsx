@@ -299,6 +299,7 @@ function OpenCodeV1Toggle({
         sx={{
           m: 0,
           gap: 1,
+          minHeight: 44,
           '& .MuiFormControlLabel-label': { fontSize: 12, color: 'text.secondary' },
         }}
         control={
@@ -308,7 +309,6 @@ function OpenCodeV1Toggle({
             disabled={disabled}
             onChange={(_event, checked) => onChange(checked)}
             slotProps={{ input: { 'aria-label': applicationSetupMessages(locale).showOpenCodeV1 } }}
-            sx={{ minHeight: 44 }}
           />
         }
       />
@@ -340,6 +340,7 @@ function setupView(
         !!state.target?.installationId &&
         !!state.target.installationPath,
       hasStatus: !!status,
+      checking: state.checking,
       unavailable: state.availability === 'unavailable' || status?.state === 'unavailable',
     };
   }
@@ -353,6 +354,7 @@ function setupView(
       (item) => item.client === client && item.status === 'detected',
     ),
     hasStatus: !!statuses.statuses[client],
+    checking: false,
     unavailable: !!statuses.errors[client],
   };
 }
@@ -379,7 +381,7 @@ export function ApplicationRows({
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
   };
   const row = (client: ApplicationSetupClient, border: boolean) => {
-    const { state, configured, detected, hasStatus, unavailable } = setupView(
+    const { state, configured, detected, hasStatus, unavailable, checking } = setupView(
       client,
       states,
       statuses,
@@ -437,13 +439,17 @@ export function ApplicationRows({
             <Typography variant="body2" color={configured ? 'success.main' : 'text.secondary'}>
               {busy
                 ? copy.connecting
-                : configured
-                  ? m.configured
-                  : unavailable
-                    ? m.unavailable
-                    : hasStatus
-                      ? m['not-configured']
-                      : m.checking}
+                : checking
+                  ? m.checking
+                  : configured
+                    ? m.configured
+                    : unavailable
+                      ? m.unavailable
+                      : hasStatus
+                        ? m['not-configured']
+                        : client === 'opencode-v2'
+                          ? m.statusUnknown
+                          : m.checking}
             </Typography>
           </Stack>
           <Stack
@@ -461,7 +467,12 @@ export function ApplicationRows({
             {(!configured || hasPendingSetupResult(state)) && (detected || needsRetry) && (
               <Button
                 variant="contained"
-                disabled={anyBusy || state.phase === 'confirmation' || (!hasStatus && !needsRetry)}
+                disabled={
+                  anyBusy ||
+                  checking ||
+                  state.phase === 'confirmation' ||
+                  (!hasStatus && !needsRetry)
+                }
                 onClick={() => {
                   setGuidanceClient(client);
                   void flow.connect(client);
@@ -599,6 +610,9 @@ export function ApplicationSetup({
   const visibleOffers = startupOffers.join(',');
   const open = startup.open;
   const busy = applicationSetupClients.some((client) => flow.busy(client));
+  const operationBusy = applicationSetupClients.some((client) =>
+    ['preparing', 'rechecking', 'applying'].includes(states[client].phase),
+  );
   const saved = applicationSetupClients.some((client) => states[client].phase === 'succeeded');
   const ready = mcpSetupClients.some((client) => hasConnectedClientChat(client, snapshot));
   useEffect(() => {
@@ -635,7 +649,7 @@ export function ApplicationSetup({
     };
   }, [content, open, visibleOffers, discovery.acknowledge]);
   const close = () => {
-    if (!busy) {
+    if (!operationBusy) {
       startup.close();
     }
   };
@@ -646,7 +660,7 @@ export function ApplicationSetup({
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
   };
   const card = (client: ApplicationSetupClient, grouped = false) => {
-    const { state, configured, detected, hasStatus } = setupView(
+    const { state, configured, detected, hasStatus, checking } = setupView(
       client,
       states,
       statuses,
@@ -713,7 +727,9 @@ export function ApplicationSetup({
               <Button
                 fullWidth
                 variant="contained"
-                disabled={busy || state.phase === 'confirmation' || (!hasStatus && !retry)}
+                disabled={
+                  busy || checking || state.phase === 'confirmation' || (!hasStatus && !retry)
+                }
                 data-testid={'startup-connect-' + client}
                 onClick={() => void flow.connect(client)}
               >
@@ -784,7 +800,7 @@ export function ApplicationSetup({
           <IconButton
             aria-label={m.close}
             onClick={close}
-            disabled={busy}
+            disabled={operationBusy}
             sx={{ width: 44, height: 44 }}
           >
             <CloseOutlined />
@@ -867,7 +883,7 @@ export function ApplicationSetup({
               ),
             )}
           </Box>
-          {busy && (
+          {operationBusy && (
             <Stack direction="row" spacing={2} role="status" sx={{ alignItems: 'center' }}>
               <CircularProgress size={20} />
               <Typography variant="body2">{copy.connecting}</Typography>
@@ -898,7 +914,7 @@ export function ApplicationSetup({
             <Button
               variant={saved || ready ? 'contained' : 'outlined'}
               onClick={close}
-              disabled={busy}
+              disabled={operationBusy}
               sx={{ flexShrink: 0 }}
             >
               {saved || ready ? copy.continue : copy.later}

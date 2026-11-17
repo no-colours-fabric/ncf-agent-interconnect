@@ -793,7 +793,7 @@ export function OpenCodeV2SetupDialog({
   const copy = applicationSetupMessages(locale);
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   const [confirmed, setConfirmed] = useState(false);
-  const busy = flow.busy();
+  const busy = flow.busy() || state.checking;
   const target = state.target;
   const status =
     state.status &&
@@ -1013,7 +1013,7 @@ export function OpenCodeV2SetupDialog({
             )}
           </Stack>
           <Button
-            disabled={busy}
+            disabled={flow.busy()}
             onClick={() => {
               flow.cancel();
               onClose();
