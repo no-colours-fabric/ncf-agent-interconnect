@@ -59,3 +59,55 @@ export const mcpSetupMethods = [
   'mcpSetupStatus',
   'mcpSetupOpen',
 ] as const;
+
+/** Explicit v2 selection; installation evidence never grants runtime authority. */
+export interface OpenCodeV2SetupTarget {
+  major: 2;
+  installationId: string | null;
+  installationPath: string | null;
+  profilePath: string;
+  configurationPath: string;
+}
+export interface OpenCodeV2SetupDefaults {
+  client: 'opencode-v2';
+  target: OpenCodeV2SetupTarget;
+  alternatives: string[];
+}
+export interface OpenCodeV2SetupPreview extends Omit<McpSetupPreview, 'client'> {
+  client: 'opencode-v2';
+  target: OpenCodeV2SetupTarget;
+  /** Nonsecret logical target identity, never a credential or proof of a live bridge. */
+  targetId: string;
+}
+export interface OpenCodeV2SetupStatus extends Omit<McpSetupStatus, 'client'> {
+  client: 'opencode-v2';
+  target: OpenCodeV2SetupTarget;
+  targetId?: string;
+}
+export interface OpenCodeV2SetupApplyResult extends McpSetupApplyResult {
+  target: OpenCodeV2SetupTarget;
+  targetId: string;
+}
+/** Separate IPC prevents an explicit v2 target from entering legacy v1 setup. */
+export const openCodeV2SetupMethods = [
+  'opencodeV2SetupDefaults',
+  'opencodeV2SetupBrowse',
+  'opencodeV2SetupPreview',
+  'opencodeV2SetupApply',
+  'opencodeV2SetupDiscard',
+  'opencodeV2SetupStatus',
+  'opencodeV2SetupOpen',
+] as const;
+export interface OpenCodeV2SetupRequests {
+  opencodeV2SetupDefaults: Record<string, never>;
+  opencodeV2SetupBrowse: { target: OpenCodeV2SetupTarget };
+  opencodeV2SetupPreview: { target: OpenCodeV2SetupTarget };
+  opencodeV2SetupApply: {
+    planId: string;
+    target: OpenCodeV2SetupTarget;
+    confirmReplace: boolean;
+  };
+  opencodeV2SetupDiscard: { planId: string };
+  opencodeV2SetupStatus: { target?: OpenCodeV2SetupTarget };
+  opencodeV2SetupOpen: { target: OpenCodeV2SetupTarget };
+}
