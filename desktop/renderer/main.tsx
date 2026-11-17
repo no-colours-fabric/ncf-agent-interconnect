@@ -33,9 +33,15 @@ import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
+import { applicationSetupMessages } from './i18n/application-setup.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
-import { ApplicationDiscovery, ApplicationOffers } from './ApplicationDiscovery.js';
+import { ApplicationDiscovery } from './ApplicationDiscovery.js';
+import {
+  ApplicationSetup,
+  useApplicationSetup,
+  useApplicationSetupStartup,
+} from './ApplicationSetup.js';
 import { useApplicationDiscovery } from './useApplicationDiscovery.js';
 import { AppShell, type Page } from './AppShell.js';
 import { createAppTheme, designTokens, surfaceSx } from './theme.js';
@@ -63,6 +69,8 @@ function App({
     [access, setAccess] = useState(''),
     [ownCode, setOwnCode] = useState<{ code: string; expiresAt: string } | null>(null);
   const [client, setClient] = useState<McpSetupApplication>('cursor');
+  const [manualClient, setManualClient] = useState<McpSetupApplication | null>(null);
+  const [applicationsMounted, setApplicationsMounted] = useState(page === 'mcp');
   const [nodeLabel, setNodeLabel] = useState(''),
     [listenHost, setListenHost] = useState('');
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
@@ -78,6 +86,21 @@ function App({
   );
   const setupStatuses = useMcpSetupStatuses(call);
   const discovery = useApplicationDiscovery(call);
+  const applicationSetup = useApplicationSetup(call, () => setupStatuses.refreshAll(true));
+  const applicationStartup = useApplicationSetupStartup(discovery);
+  const openManualSetup = (application: McpSetupApplication) => {
+    setClient(application);
+    setManualClient(application);
+    setApplicationsMounted(true);
+    setPage('mcp');
+  };
+  const navigate = (next: Page) => {
+    if (next === 'mcp') {
+      setManualClient(null);
+      setApplicationsMounted(true);
+    }
+    setPage(next);
+  };
   const snapshotRequest = useRef(0);
   const run = async (work: () => Promise<unknown>, success = '') => {
     setBusy(true);
@@ -107,7 +130,7 @@ function App({
     const off = window.interconnect.onChange(() => {
       void refresh();
     });
-    const nav = window.interconnect.onNavigate((tab) => setPage(normalizePage(tab)));
+    const nav = window.interconnect.onNavigate((tab) => navigate(normalizePage(tab)));
     return () => {
       off();
       nav();
@@ -162,20 +185,12 @@ function App({
         page={page}
         appVersion={appVersion}
         busy={busy}
-        onNavigate={setPage}
+        onNavigate={navigate}
         onLocaleChange={changeLocale}
         onToggle={() => {
           void run(() => call(snapshot.running ? 'stop' : 'start'));
         }}
       >
-        <ApplicationOffers
-          model={discovery}
-          locale={locale}
-          onSetup={(application) => {
-            setClient(application);
-            setPage('mcp');
-          }}
-        />
         {page === 'overview' && (
           <Stack spacing={3} data-testid="overview-sections">
             <Box
@@ -225,8 +240,7 @@ function App({
                 locale={locale}
                 setupStatuses={setupStatuses}
                 onSetup={(application) => {
-                  setClient(application);
-                  setPage('mcp');
+                  openManualSetup(application);
                 }}
               />
             </Box>
@@ -253,9 +267,9 @@ function App({
                   {t(locale, 'connectAgentsTitle')}
                 </Typography>
                 <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {t(locale, 'connectAgentsBody')}
+                  {applicationSetupMessages(locale).intro}
                 </Typography>
-                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => setPage('mcp')}>
+                <Button sx={{ mt: 'auto' }} variant="contained" onClick={() => navigate('mcp')}>
                   {t(locale, 'connectAgentsCta')}
                 </Button>
               </Paper>
@@ -423,17 +437,22 @@ function App({
             <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
           </Stack>
         )}
-        {page === 'mcp' && (
-          <McpSetup
-            discovery={discovery}
-            client={client}
-            onClientChange={setClient}
-            invoke={call}
-            messages={mcpSetupMessages(locale)}
-            snapshot={snapshot}
-            locale={locale}
-            setupStatuses={setupStatuses}
-          />
+        {(page === 'mcp' || applicationsMounted) && (
+          <Box hidden={page !== 'mcp'}>
+            <McpSetup
+              discovery={discovery}
+              client={client}
+              onClientChange={openManualSetup}
+              setupFlow={applicationSetup}
+              manualClient={manualClient}
+              onCloseManual={() => setManualClient(null)}
+              invoke={call}
+              messages={mcpSetupMessages(locale)}
+              snapshot={snapshot}
+              locale={locale}
+              setupStatuses={setupStatuses}
+            />
+          </Box>
         )}
         {page === 'settings' && (
           <Box
@@ -631,6 +650,16 @@ function App({
           </Box>
         )}
       </AppShell>
+      <ApplicationSetup
+        discovery={discovery}
+        flow={applicationSetup}
+        startup={applicationStartup}
+        statuses={setupStatuses}
+        invoke={call}
+        locale={locale}
+        snapshot={snapshot}
+        onManualSetup={openManualSetup}
+      />
       <Dialog
         open={nicknameDialog}
         onClose={() => setNicknameDialog(false)}

@@ -47,12 +47,15 @@ test('all five tiles distinguish installation from setup and expose manual setup
   assert.equal(html.includes('Ready'), false);
 });
 
-test('discovery labels have a complete English fallback in every supported locale', () => {
-  const expected = Object.keys(discoveryMessages('en'));
+test('discovery labels are complete and localized in every supported locale', () => {
+  const expected = Object.keys(discoveryMessages('en')).sort();
   for (const locale of supportedLocales) {
     const messages = discoveryMessages(locale);
-    assert.deepEqual(Object.keys(messages), expected);
+    assert.deepEqual(Object.keys(messages).sort(), expected);
     assert.ok(Object.values(messages).every((text) => typeof text === 'string' && text.length > 0));
+    if (locale !== 'en')
+      for (const key of ['limited', 'failed', 'claude', 'opencode'] as const)
+        assert.notEqual(messages[key], discoveryMessages('en')[key]);
   }
 });
 
@@ -157,6 +160,7 @@ test(
     await writeFile(path.join(directory, 'main.cjs'), main);
     const application = await _electron.launch({
       executablePath: require('electron'),
+      chromiumSandbox: true,
       args: [path.join(directory, 'main.cjs')],
       env: { ...process.env, ELECTRON_DISABLE_SECURITY_WARNINGS: 'true' },
     });
@@ -168,17 +172,17 @@ test(
       );
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
-      await page.getByTestId('application-offers').waitFor();
+      await page.getByTestId('application-startup-setup').waitFor();
       await page.waitForFunction(
         () =>
-          [...document.querySelectorAll('[data-testid="application-discovery"] img')].length ===
+          [...document.querySelectorAll('[data-testid="application-startup-setup"] img')].length ===
             5 &&
-          [...document.querySelectorAll('[data-testid="application-discovery"] img')].every(
+          [...document.querySelectorAll('[data-testid="application-startup-setup"] img')].every(
             (image) => (image as HTMLImageElement).naturalWidth > 0,
           ),
       );
       await page.waitForFunction(() =>
-        document.querySelector('[data-testid="application-offers"]'),
+        document.querySelector('[data-testid="application-startup-setup"]'),
       );
       assert.equal(
         await application.evaluate(
@@ -191,25 +195,21 @@ test(
         BrowserWindow.getAllWindows()[0].setSize(1180, 880),
       );
       await page.waitForFunction(
-        async () => (await window.interconnect.invoke<number>('fixtureOfferCount')) === 1,
+        async () => (await window.interconnect.invoke<number>('fixtureOfferCount')) >= 1,
       );
-      assert.equal(
-        await application.evaluate(
-          () => (globalThis as unknown as { counts: { offered: number } }).counts.offered,
-        ),
-        1,
+      const visibleAcknowledgements = await application.evaluate(
+        () => (globalThis as unknown as { counts: { offered: number } }).counts.offered,
       );
-      await page
-        .getByTestId('application-offers')
-        .getByRole('button', { name: 'Dismiss', exact: true })
-        .click();
+      assert.ok(visibleAcknowledgements >= 1);
+      await page.getByRole('button', { name: 'Not now', exact: true }).click();
+      await page.getByTestId('application-startup-setup').waitFor({ state: 'hidden' });
       await page.getByRole('button', { name: 'Refresh', exact: true }).click();
-      assert.equal(await page.getByTestId('application-offers').count(), 0);
+      assert.equal(await page.getByTestId('application-startup-setup').count(), 0);
       assert.equal(
         await application.evaluate(
           () => (globalThis as unknown as { counts: { offered: number } }).counts.offered,
         ),
-        1,
+        visibleAcknowledgements,
       );
       await page.getByTestId('nav-settings').click();
       await page.getByLabel('Dark theme', { exact: true }).uncheck();
@@ -219,8 +219,7 @@ test(
         animations: 'disabled',
       });
       await page.getByTestId('overview-application-cursor').click();
-      await page.getByTestId('mcp-configure-cursor').click();
-      const dialog = page.getByRole('dialog', { name: 'Configure Cursor', exact: true });
+      const dialog = page.getByRole('main');
       await dialog
         .getByRole('textbox', { name: 'Configuration file path', exact: true })
         .fill('/isolated/unsaved.json');

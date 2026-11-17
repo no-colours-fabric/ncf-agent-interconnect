@@ -6,7 +6,9 @@ import type {
   McpSetupInvoke,
   McpSetupPreview,
   McpSetupStatus,
+  McpSetupTarget,
 } from '../shared/mcp-setup.js';
+import { inspectSetupRetry } from './application-setup-model.js';
 
 export interface McpSetupState {
   open: boolean;
@@ -16,6 +18,9 @@ export interface McpSetupState {
   result?: McpSetupApplyResult;
   error?: string;
   status?: McpSetupStatus;
+  verified?: boolean;
+  reviewRequired?: boolean;
+  uncertain?: { preview: McpSetupPreview; files: McpSetupTarget[]; error: string };
 }
 
 /** Invalidates in-flight previews when paths, client, or dialog lifetime change. */
@@ -38,23 +43,29 @@ export class McpSetupFlow {
     for (const listener of this.listeners) listener();
   }
   private discard(plan?: McpSetupPreview): void {
+    if (plan?.planId === this.state.uncertain?.preview.planId) return;
     if (plan) void this.invoke('mcpSetupDiscard', { planId: plan.planId }).catch(() => {});
   }
   async begin(): Promise<void> {
+    if (this.state.busy) return;
     const revision = ++this.revision;
+    const draft = this.state.files;
+    const reviewRequired = !!this.state.uncertain || this.state.result?.status === 'failed';
     this.discard(this.state.preview);
     this.set({
       open: true,
       busy: true,
-      files: [],
+      files: draft,
       preview: undefined,
       result: undefined,
       error: undefined,
+      verified: false,
+      reviewRequired,
     });
     try {
-      const defaults = await this.invoke<McpSetupDefaults>('mcpSetupDefaults', {
-        client: this.client,
-      });
+      const defaults = draft.length
+        ? { files: draft }
+        : await this.invoke<McpSetupDefaults>('mcpSetupDefaults', { client: this.client });
       if (revision === this.revision) {
         this.set({ files: defaults.files, busy: false });
         await this.review();
@@ -69,7 +80,7 @@ export class McpSetupFlow {
     if (this.state.busy) return;
     ++this.revision;
     this.discard(this.state.preview);
-    this.set({ open: false, preview: undefined, result: undefined });
+    this.set({ open: false, preview: undefined, result: undefined, verified: false });
   }
   dispose(): void {
     ++this.revision;
@@ -77,13 +88,14 @@ export class McpSetupFlow {
     this.discard(this.state.preview);
   }
   setPath(id: string, path: string): void {
-    if (this.state.busy || this.state.result) return;
+    if (this.state.busy || this.state.result || this.state.verified) return;
     ++this.revision;
     this.discard(this.state.preview);
     this.set({
       files: this.state.files.map((file) => (file.id === id ? { ...file, path } : file)),
       preview: undefined,
       error: undefined,
+      reviewRequired: this.state.reviewRequired || !!this.state.uncertain,
     });
   }
   async refreshStatus(): Promise<void> {
@@ -123,7 +135,8 @@ export class McpSetupFlow {
     }
   }
   async review(): Promise<void> {
-    if (this.state.busy || this.state.result || !this.state.files.length) return;
+    if (this.state.busy || this.state.result || this.state.verified || !this.state.files.length)
+      return;
     const revision = ++this.revision;
     this.discard(this.state.preview);
     this.set({ busy: true, preview: undefined, error: undefined });
@@ -147,23 +160,57 @@ export class McpSetupFlow {
       if (revision === this.revision) this.set({ busy: false });
     }
   }
-  async apply(): Promise<void> {
+  async apply(confirmReplace = false): Promise<void> {
     const preview = this.state.preview;
-    if (!preview || this.state.busy || this.state.result) return;
+    if (
+      !preview ||
+      this.state.busy ||
+      this.state.result ||
+      this.state.verified ||
+      ((preview.requiresReplacement || this.state.reviewRequired) && !confirmReplace)
+    )
+      return;
     const revision = ++this.revision;
     this.set({ busy: true, error: undefined });
     try {
+      const uncertain = this.state.uncertain;
+      if (uncertain?.preview.planId === preview.planId) {
+        const check = await inspectSetupRetry(this.invoke, this.client, uncertain.files, preview);
+        if (revision !== this.revision) {
+          this.discard(check.preview);
+          return;
+        }
+        if (check.disposition === 'configured') {
+          this.discard(check.preview);
+          this.set({ verified: true });
+          await this.refreshStatus();
+          return;
+        }
+        if (check.disposition === 'renewed') {
+          this.set({ preview: check.preview, reviewRequired: true });
+          return;
+        }
+        this.discard(check.preview);
+      }
       const result = await this.invoke<McpSetupApplyResult>('mcpSetupApply', {
         planId: preview.planId,
-        confirmReplace: preview.requiresReplacement,
+        confirmReplace: preview.requiresReplacement && confirmReplace,
       });
       if (revision === this.revision) {
         this.set({ result });
         await this.refreshStatus();
       }
     } catch (error) {
-      // Preserve the plan on transport uncertainty: retry uses the same operation ID.
-      if (revision === this.revision) this.set({ error: (error as Error).message });
+      // A new owner retry must inspect the selected target before using this operation again.
+      if (revision === this.revision)
+        this.set({
+          error: (error as Error).message,
+          uncertain: this.state.uncertain ?? {
+            preview,
+            files: this.state.files.map(({ id, path }) => ({ id, path })),
+            error: (error as Error).message,
+          },
+        });
     } finally {
       if (revision === this.revision) this.set({ busy: false });
     }
