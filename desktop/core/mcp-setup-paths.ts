@@ -23,8 +23,11 @@ const schema = z
 /** Persists paths only. Client configuration and credentials never enter this file. */
 export class McpSetupPaths {
   private readonly filename: string;
-  constructor(directory: string) {
-    this.filename = path.join(directory, 'mcp-setup-paths.json');
+  constructor(directory: string, major?: 2) {
+    this.filename = path.join(
+      directory,
+      major === 2 ? 'mcp-setup-paths-opencode-v2.json' : 'mcp-setup-paths.json',
+    );
   }
   private async read(): Promise<z.infer<typeof schema>> {
     try {
