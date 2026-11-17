@@ -2,9 +2,9 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-After initial setup, bring an assistant into NCF Agent Interconnect by saying “Connect as agent Amy” in its ordinary chat. Each new agent needs a name, not separate configuration. Named assistants address one another directly, exchange messages and files, and coordinate work as needs change.
+“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications are Codex Desktop, Claude Code, Cursor, OpenCode and AionUi. After initial application setup, connect each new agent by name in its own chat without separate per-agent configuration.
 
-Start with one question or form an ad hoc team for a larger project. Keep working in the chats and applications you already use. Assistants on paired computers in the same local network can join too. The detailed example below is illustrative.
+Give the agents related roles: one produces a result that another needs. They coordinate questions, messages and files directly or through an agent you ask to coordinate. You set the direction and priorities and discuss the outcome in the same AI chats. Start with several chats in one program on one computer; later, other supported programs and paired computers on a local network can join. The examples below are illustrative.
 
 For a detailed explanation in your language, browse the 13 prepared prompts in [Learn NCF Agent Interconnect with your own AI](scenarios/README.md). Copy a prompt for a topic that interests you, or ask a focused question for a direct answer. You do not need your own project or an installed copy of NCF Agent Interconnect to follow the explanation.
 
@@ -13,6 +13,12 @@ For a detailed explanation in your language, browse the 13 prepared prompts in [
 - [Administration when you need it](#3-administration-when-you-need-it): inspect connections, move a name or manage stored history.
 
 ## 1. Work in your usual chats
+
+For example, prepare a user guide for a new search feature in three Claude Code chats on one computer. Assign agent Dana to check how search works. Assign agent Alex to write the guide using Dana’s findings. Tell both that agent Leo coordinates the work.
+
+In the third chat: “Connect as agent Leo. Coordinate the search guide: agent Dana checks the behavior, and agent Alex writes the guide from Dana’s findings. Arrange the work in that order, resolve open questions with both agents and bring me the finished guide.”
+
+Dana’s findings give Alex the factual basis for the guide; Leo coordinates the sequence and the final result. You set the direction and priorities. Later, another participant can join from a different program.
 
 ### Start with the work you already have
 
@@ -121,7 +127,7 @@ Set up each application or profile once. New chats then join by connecting under
 1. Install and start NCF Agent Interconnect on the computer you use. Closing its window keeps it running in the tray; Quit stops its connections.
 2. Open **Applications & MCP**, choose your application and open its Configure dialog. Check the intended configuration file, review the change and click **Apply**. Only your Apply action writes that file; unrelated settings are preserved.
 3. Restart Cursor once after Apply so its included plugin loads, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
-4. In two configured chats, choose different names and ask one participant to send the other a short message. The reply confirms a working exchange.
+4. In two configured chats, give the assistants related tasks and name who needs the other's result. A reply about that work confirms an end-to-end exchange.
 
 Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too and pair the two computers using the explicit address and temporary access code under **Remote nodes**. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
