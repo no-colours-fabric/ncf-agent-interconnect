@@ -10,6 +10,7 @@ import {
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
+import { lanSearchMessages } from '../desktop/renderer/i18n/lan-search.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
 import { mcpSetupClients, type McpSetupInvoke } from '../desktop/shared/mcp-setup.js';
@@ -500,4 +501,42 @@ test('alignment fixture preserves mixed manual-only, configured, busy and error 
       flow.dispose();
     }
   }
+});
+
+test('compact rows keep configured Details primary, one manual path per client, and explanatory copy under disclosure', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ApplicationRows, {
+      discovery,
+      statuses: {
+        ...statuses,
+        statuses: {
+          ...statuses.statuses,
+          codex: { client: 'codex', remembered: true, state: 'configured', files: [] },
+        },
+      },
+      invoke: noInvoke,
+      flow: new ApplicationSetupFlow(noInvoke),
+      locale: 'en',
+      onManualSetup: () => {},
+    }),
+  );
+  const row = html.slice(
+    html.indexOf('data-testid="application-row-codex"'),
+    html.indexOf('data-testid="application-row-aionui"'),
+  );
+  assert.ok(row.includes('data-testid="application-configured-codex"'));
+  assert.ok(row.includes('aria-controls="application-info-application-codex"'));
+  assert.ok(row.includes('aria-expanded="false"'));
+  assert.ok(row.includes('>' + lanSearchMessages('en').details + '</button>'));
+  assert.ok(!row.includes('data-testid="application-manual-codex"'));
+  assert.ok(
+    row.indexOf('>Manual setup</button>') <
+      row.indexOf('data-testid="application-configured-codex"'),
+  );
+  assert.equal(html.match(/>Manual setup</g)?.length, 5);
+  assert.ok(!html.includes(applicationSetupMessages('en').yourApps));
+  assert.ok(html.includes(applicationSetupMessages('en').intro));
+  assert.ok(html.includes(applicationSetupMessages('en').detectionHelp));
+  assert.match(html, /<details[^>]*id="application-info-application-codex"[^>]*>/);
+  assert.doesNotMatch(row, /<details[^>]*\bopen(?:=|\s|>)/);
 });

@@ -137,15 +137,21 @@ try {
   const applicationList = page.getByTestId('application-setup-list');
   await applicationList.waitFor();
   assert.equal(
-    await applicationList.getByRole('button', { name: 'Manual setup', exact: true }).count(),
+    await applicationList
+      .getByRole('button', { name: 'Manual setup', exact: true, includeHidden: true })
+      .count(),
     5,
   );
   assert.equal(await page.getByRole('tab').count(), 0);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
   const openManual = async (client, label) => {
     const row = page.getByTestId('application-row-' + client);
+    if (client === 'opencode' && !(await row.count()))
+      await applicationList.getByRole('switch', { name: 'Show OpenCode v1', exact: true }).check();
     await row.getByRole('heading', { name: label, exact: true }).waitFor();
-    await row.getByRole('button', { name: 'Manual setup', exact: true }).click();
+    const manual = row.getByRole('button', { name: 'Manual setup', exact: true });
+    if (!(await manual.isVisible())) await row.locator('summary').first().click();
+    await manual.click();
     const form = page.locator('#mcp-setup-form-' + client);
     await form.waitFor();
     await form
@@ -162,7 +168,9 @@ try {
     await page.getByRole('button', { name: 'Back to Applications', exact: true }).click();
     await applicationList.waitFor();
     assert.equal(
-      await applicationList.getByRole('button', { name: 'Manual setup', exact: true }).count(),
+      await applicationList
+        .getByRole('button', { name: 'Manual setup', exact: true, includeHidden: true })
+        .count(),
       5,
     );
   };
@@ -262,6 +270,7 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Add adapter', exact: true }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: /Exact.*(ID|UUID)/ }).count(), 0);
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
+  await page.getByTestId('agents-connection-details').locator('summary').click();
   await page.getByTestId('create-agent-manually').click();
   await page.getByRole('textbox', { name: 'Agent name' }).fill('Interface check');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
