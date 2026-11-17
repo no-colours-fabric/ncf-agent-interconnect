@@ -202,6 +202,159 @@ createRoot(document.getElementById('root')).render(<App/>);
         return;
       }
       await suite.test(
+        'CN1: actual errors remain visible in the closed summary without exposing diagnostics',
+        async () => {
+          await update({ status: status(), value: initialExclusions, locale: 'en', mode: 'light' });
+          await section.evaluate((element: HTMLDetailsElement) => (element.open = false));
+          const problem = section
+            .locator(':scope > summary')
+            .getByTestId('network-interface-problem');
+          assert.equal(await problem.count(), 0);
+          await update({ status: { ...status(), inventoryError: 'Synthetic inventory failure' } });
+          await problem.waitFor();
+          assert.equal(await problem.textContent(), networkInterfaceMessages('en').unavailable);
+          assert.equal(await section.locator('pre').isVisible(), false);
+          assert.ok(
+            !(await section.locator(':scope > summary').textContent())!.includes('Synthetic'),
+          );
+          await update({
+            status: {
+              ...status(),
+              listeners: [{ address: '192.0.2.10', port: 7336, state: 'error', error: null }],
+            },
+          });
+          assert.equal(
+            await problem.isVisible(),
+            true,
+            'A listener error state is sufficient even without a diagnostic string',
+          );
+          const allExcluded = Object.keys(inventory).map((name) => ({ name }));
+          await update({ status: status(allExcluded), value: allExcluded });
+          assert.equal(
+            await problem.count(),
+            0,
+            'Intentional exclusions are not actual listener failures',
+          );
+          const noIpv4 = computeNetworkInterfacePolicy({ utun0: [] });
+          await update({ status: { ...noIpv4, listeners: [], inventoryError: null }, value: [] });
+          assert.equal(
+            await problem.count(),
+            0,
+            'No assigned IPv4 alone is not a reported runtime error',
+          );
+          await page.setViewportSize({ width: 1024, height: 900 });
+          await update({
+            locale: 'ru',
+            mode: 'dark',
+            value: initialExclusions,
+            status: {
+              ...status(),
+              listeners: [
+                {
+                  address: '192.0.2.10',
+                  port: 7336,
+                  state: 'error',
+                  error: 'Synthetic bind failure',
+                },
+              ],
+            },
+          });
+          assert.equal(await problem.textContent(), networkInterfaceMessages('ru').unavailable);
+          assert.equal(
+            await section.evaluate((element: HTMLDetailsElement) => element.open),
+            false,
+          );
+          assert.equal(await section.locator('pre').isVisible(), false);
+          assert.ok(
+            !(await section.locator(':scope > summary').textContent())!.includes('Synthetic'),
+          );
+          assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
+          await capture('cn1-closed-error-ru-dark-1024');
+        },
+      );
+      await suite.test(
+        'CN2: an ambiguous row explains all matches and removes only its selected record locally',
+        async () => {
+          const first = { name: 'Previous Ethernet', mac: '02:00:00:00:00:02' };
+          const second = { name: 'Backup Ethernet', mac: '02:00:00:00:00:02' };
+          const absent = { name: 'Absent VPN' };
+          const value = [...initialExclusions, absent, first, second];
+          const policy = computeNetworkInterfacePolicy(
+            { ...inventory, 'USB Ethernet': [address('198.51.100.50', '02:00:00:00:00:02')] },
+            value,
+          );
+          await update({
+            locale: 'ru',
+            mode: 'dark',
+            disabled: false,
+            value,
+            status: {
+              ...policy,
+              inventoryError: null,
+              listeners: policy.listenAddresses.map((address) => ({
+                address,
+                port: 7336,
+                state: 'listening',
+                error: null,
+              })),
+            },
+          });
+          await section.locator(':scope > summary').focus();
+          await page.keyboard.press('Enter');
+          const m = networkInterfaceMessages('ru');
+          const row = section.locator('[data-interface-name="Ethernet"]');
+          const toggle = row.getByRole('switch');
+          assert.equal(await toggle.isDisabled(), true);
+          const globalDetails = section.getByTestId('network-technical-details');
+          assert.equal(
+            await globalDetails.evaluate((element: HTMLDetailsElement) => element.open),
+            false,
+          );
+          const recovery = row.getByTestId('network-row-recovery');
+          await recovery.locator(':scope > summary').focus();
+          await page.keyboard.press('Enter');
+          const records = recovery.getByTestId('network-row-exclusion');
+          assert.equal(await records.count(), 2);
+          for (const record of await records.all()) {
+            assert.ok((await record.textContent())!.includes(m.ambiguous));
+            assert.ok((await record.textContent())!.includes('Ethernet, USB Ethernet'));
+            assert.ok((await record.textContent())!.includes(first.mac));
+          }
+          assert.equal(
+            await globalDetails.evaluate((element: HTMLDetailsElement) => element.open),
+            false,
+            'Targeted explanation does not require opening unrelated Technical details',
+          );
+          await capture('cn2-targeted-recovery-ru-dark-1024');
+          await records
+            .filter({ hasText: first.name })
+            .getByRole('button', { name: m.remove, exact: true })
+            .click();
+          assert.deepEqual(await draft(), [absent, second, ...initialExclusions]);
+          assert.equal(
+            await toggle.isDisabled(),
+            true,
+            'Another ambiguous exclusion still applies',
+          );
+          await update({ disabled: true });
+          assert.equal(
+            await records.getByRole('button', { name: m.remove, exact: true }).isDisabled(),
+            true,
+          );
+          await update({ disabled: false });
+          await records.getByRole('button', { name: m.remove, exact: true }).click();
+          assert.deepEqual(await draft(), [absent, ...initialExclusions]);
+          assert.equal(await toggle.isDisabled(), false);
+          assert.equal(await recovery.count(), 0);
+          assert.equal(
+            await globalDetails.evaluate((element: HTMLDetailsElement) => element.open),
+            false,
+          );
+          assert.deepEqual(errors, []);
+        },
+      );
+      if (process.env.NCF_COMPACT_NETWORK_SEMANTIC === '1') return;
+      await suite.test(
         'EN/RU narrow/wide light/dark remain compact by default and expose 48px working rows',
         async () => {
           const metrics: unknown[] = [];

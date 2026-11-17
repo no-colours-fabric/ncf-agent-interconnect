@@ -58,6 +58,9 @@ export function NetworkInterfacesSettings({
   );
   const secondary = draft.interfaces.filter((entry) => !primary.includes(entry));
   const count = new Intl.NumberFormat(locale).format(draft.interfaces.length);
+  const hasError =
+    !!status.inventoryError ||
+    status.listeners.some((entry) => entry.state === 'error' || !!entry.error);
   const row = (entry: NetworkInterfaceInventory) => {
     const matches = draft.exclusions.filter((record) => record.matchingNames.includes(entry.name));
     const ambiguous = matches.some((record) => record.ambiguous);
@@ -162,6 +165,47 @@ export function NetworkInterfacesSettings({
               );
           }}
         />
+        {entry.excluded && ambiguous && (
+          <Box
+            component="details"
+            data-testid="network-row-recovery"
+            sx={{
+              gridColumn: '1 / -1',
+              minWidth: 0,
+              '& > summary': {
+                cursor: 'pointer',
+                minHeight: 44,
+                lineHeight: '44px',
+                listStylePosition: 'inside',
+                fontSize: 13,
+              },
+            }}
+          >
+            <summary>{m.details}</summary>
+            <Stack spacing={1} sx={{ pb: 1 }}>
+              {matches.map((record) => (
+                <Box key={JSON.stringify(record.exclusion)} data-testid="network-row-exclusion">
+                  <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                    {record.exclusion.name}
+                    {record.exclusion.mac ? ` (${record.exclusion.mac})` : ''}
+                  </Typography>
+                  {record.ambiguous && (
+                    <Alert severity="warning">
+                      {m.ambiguous} {record.matchingNames.join(', ')}
+                    </Alert>
+                  )}
+                  <Button
+                    disabled={disabled}
+                    sx={{ minHeight: 44 }}
+                    onClick={() => onChange(removeInterfaceExclusion(value, record.exclusion))}
+                  >
+                    {m.remove}
+                  </Button>
+                </Box>
+              ))}
+            </Stack>
+          </Box>
+        )}
       </Box>
     );
   };
@@ -191,6 +235,17 @@ export function NetworkInterfacesSettings({
         <Typography variant="body2" component="span" color="text.secondary" sx={{ ml: 1 }}>
           ({count})
         </Typography>
+        {hasError && (
+          <Typography
+            component="span"
+            variant="caption"
+            color="error"
+            data-testid="network-interface-problem"
+            sx={{ ml: 1 }}
+          >
+            {m.unavailable}
+          </Typography>
+        )}
       </summary>
       {primary.length > 0 && list(primary, 'network-primary-list')}
       <Box
