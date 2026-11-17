@@ -21,6 +21,8 @@ import {
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined';
 import StopOutlined from '@mui/icons-material/StopOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
+import MoreHorizOutlined from '@mui/icons-material/MoreHorizOutlined';
+import ExpandMoreOutlined from '@mui/icons-material/ExpandMoreOutlined';
 import type { Snapshot } from '../shared/contracts.js';
 import type { LanPairSelection } from '../shared/lan-discovery.js';
 import type { LanSearchNode } from '../shared/lan-search.js';
@@ -211,12 +213,7 @@ export function lanSearchNavigation(
     unseenCount: visibleNodes.filter((node) =>
       [node, ...(node.endpoints ?? [])].some((endpoint) => unseen.has(endpoint.key)),
     ).length,
-    statusLabel: searching
-      ? formatLanSearch(lanSearchMessages(locale).sidebarStatus, {
-          seconds: Math.max(0, Math.ceil((search.durationMs - search.elapsedMs) / 1000)),
-          count: search.foundCount,
-        })
-      : '',
+    statusLabel: searching ? lanSearchMessages(locale).searching : '',
   };
 }
 
@@ -587,7 +584,7 @@ export function NetworkPage({
   return (
     <>
       <Stack
-        spacing={3}
+        spacing={2}
         sx={{ display: active ? 'flex' : 'none', minWidth: 0 }}
         data-testid="network-page"
       >
@@ -606,100 +603,93 @@ export function NetworkPage({
             {legacy.success}
           </Alert>
         )}
-        <Paper
-          component="section"
-          variant="outlined"
-          aria-labelledby={id + '-search-title'}
-          sx={{ p: 3 }}
-        >
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{ justifyContent: 'space-between', alignItems: 'start' }}
-          >
-            <Box sx={{ minWidth: 0 }}>
-              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                {searching && <CircularProgress size={16} aria-hidden="true" />}
-                <Typography id={id + '-search-title'} variant="h6">
-                  {title}
-                </Typography>
-              </Stack>
-              {helper && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {helper}
-                </Typography>
-              )}
-            </Box>
-            <Button
-              variant={nodes.length || searching ? 'outlined' : 'contained'}
-              disabled={!snapshot.running || searchPending}
-              startIcon={searching ? <StopOutlined /> : <RefreshOutlined />}
-              onClick={() => void searchAction(searching)}
-              sx={{ flexShrink: 0, minHeight: 44 }}
-            >
-              {searching ? m.stopSearch : m.searchAgain}
-            </Button>
-          </Stack>
-          <Stack
-            direction="row"
-            spacing={2}
-            useFlexGap
-            sx={{ mt: 2.5, alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
-          >
-            <Typography variant="body2">
-              {formatLanSearch(m.found, { count: search?.foundCount ?? 0 })}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {elapsedText}
-            </Typography>
-            {searching && (
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                {formatLanSearch(m.remaining, {
-                  seconds: Math.max(0, Math.ceil((duration - elapsed) / 1000)),
-                })}
-              </Typography>
-            )}
-          </Stack>
-          {searching && (
-            <LinearProgress
-              variant="determinate"
-              value={(elapsed / duration) * 100}
-              aria-label={m.searchTime}
-              aria-valuetext={elapsedText}
-              sx={{ mt: 1.5 }}
-            />
-          )}
-          {searchError && (
-            <Typography role="alert" variant="body2" color="error" sx={{ mt: 1 }}>
-              {m.unavailableHelp}
-            </Typography>
-          )}
-          {(diagnostic || search?.reason) &&
-            diagnostics(
-              diagnostic ||
-                (search?.reason === 'no-interfaces' ? legacy.noInterfaces : legacy.transportError),
-            )}
-        </Paper>
         {snapshot.peers.length > 0 && (
           <Box component="section" aria-label={m.pairedTitle} data-testid="retained-paired-content">
-            {children}
-            {snapshot.peers
-              .filter((peer) => peer.connected && peer.activeAddress)
-              .map((peer) => (
-                <Typography
-                  key={peer.id}
-                  variant="caption"
-                  sx={{ display: 'block', mt: 1, overflowWrap: 'anywhere' }}
-                >
-                  {peer.label} · {networkInterfaceMessages(locale).addressLabel}:{' '}
-                  {peer.activeAddress}
-                </Typography>
-              ))}
+            <Typography component="h2" variant="subtitle1" sx={{ mb: 1 }}>
+              {m.pairedTitle}
+            </Typography>
+            <Paper variant="outlined">
+              {snapshot.peers.map((peer, index) => {
+                const directory = snapshot.directories.find((entry) => entry.nodeId === peer.id);
+                const status = !peer.connected
+                  ? 'networkWaiting'
+                  : directory?.state === 'unsupported'
+                    ? 'directoryUnsupported'
+                    : directory?.state === 'syncing'
+                      ? 'directorySyncing'
+                      : 'networkConnected';
+                return (
+                  <Stack
+                    key={peer.id}
+                    direction="row"
+                    spacing={2}
+                    sx={{
+                      px: 2,
+                      minHeight: 52,
+                      alignItems: 'center',
+                      borderTop: index ? 1 : 0,
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography
+                      variant="body2"
+                      sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}
+                    >
+                      {peer.label}
+                    </Typography>
+                    {directory?.epoch && (
+                      <Typography variant="caption" color="text.secondary">
+                        {t(locale, 'networkColumnAgents')}: {directory.total}
+                      </Typography>
+                    )}
+                    <Typography
+                      variant="caption"
+                      color={peer.connected ? 'success.main' : 'text.secondary'}
+                    >
+                      {t(locale, status)}
+                    </Typography>
+                  </Stack>
+                );
+              })}
+            </Paper>
+            <Box
+              component="details"
+              data-testid="paired-details"
+              sx={{
+                mt: 0.5,
+                '& > summary': {
+                  minHeight: 44,
+                  display: 'flex',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  fontSize: 13,
+                  color: 'text.secondary',
+                },
+              }}
+            >
+              <summary>
+                <ExpandMoreOutlined sx={{ fontSize: 18, mr: 0.5 }} />
+                {m.details}
+              </summary>
+              {children}
+              {snapshot.peers
+                .filter((peer) => peer.connected && peer.activeAddress)
+                .map((peer) => (
+                  <Typography
+                    key={peer.id}
+                    variant="caption"
+                    sx={{ display: 'block', mt: 1, overflowWrap: 'anywhere' }}
+                  >
+                    {peer.label} · {networkInterfaceMessages(locale).addressLabel}:{' '}
+                    {peer.activeAddress}
+                  </Typography>
+                ))}
+            </Box>
           </Box>
         )}
         <Box component="section" aria-labelledby={id + '-nearby-title'}>
-          <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', mb: 2 }}>
-            <Typography id={id + '-nearby-title'} variant="h6">
+          <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', mb: 1 }}>
+            <Typography id={id + '-nearby-title'} component="h2" variant="subtitle1">
               {legacy.title}
             </Typography>
             <Typography variant="caption" color="text.secondary">
@@ -714,7 +704,7 @@ export function NetworkPage({
               sx={{
                 ml: 'auto',
                 p: 0,
-                minHeight: 36,
+                minHeight: 44,
                 minWidth: 0,
                 fontSize: 13,
                 textDecoration: 'underline',
@@ -724,6 +714,52 @@ export function NetworkPage({
               {m.manualConnect}
             </Button>
           </Stack>
+          <Box data-testid="lan-search-toolbar" sx={{ mb: 1 }}>
+            <Stack
+              direction="row"
+              spacing={2}
+              sx={{ minHeight: 44, alignItems: 'center', justifyContent: 'space-between' }}
+            >
+              <Stack
+                direction="row"
+                spacing={1.5}
+                useFlexGap
+                sx={{ alignItems: 'center', minWidth: 0, flexWrap: 'wrap' }}
+                role="status"
+              >
+                {searching && <CircularProgress size={16} aria-hidden="true" />}
+                <Typography id={id + '-search-title'} component="h3" variant="body2">
+                  {title}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {formatLanSearch(m.found, { count: search?.foundCount ?? 0 })}
+                </Typography>
+              </Stack>
+              <Button
+                variant={nodes.length || searching ? 'outlined' : 'contained'}
+                disabled={!snapshot.running || searchPending}
+                startIcon={searching ? <StopOutlined /> : <RefreshOutlined />}
+                onClick={() => void searchAction(searching)}
+                sx={{ flexShrink: 0, minHeight: 44 }}
+              >
+                {searching ? m.stopSearch : m.searchAgain}
+              </Button>
+            </Stack>
+            {searching && (
+              <LinearProgress
+                variant="determinate"
+                value={(elapsed / duration) * 100}
+                aria-label={m.searchTime}
+                aria-valuetext={elapsedText}
+                sx={{ height: 4, mt: 0.5 }}
+              />
+            )}
+            {searchError && (
+              <Typography role="alert" variant="body2" color="error" sx={{ mt: 1 }}>
+                {m.unavailableHelp}
+              </Typography>
+            )}
+          </Box>
           <Paper variant="outlined">
             {nodes.length ? (
               <List disablePadding>
@@ -736,74 +772,118 @@ export function NetworkPage({
                       else rowRefs.current.delete(node.key);
                     }}
                     sx={{
-                      px: 3,
-                      py: 2.5,
-                      gap: 2,
+                      display: 'block',
+                      position: 'relative',
+                      px: 2,
+                      py: 0.5,
                       borderTop: index ? '1px solid' : undefined,
                       borderColor: 'divider',
                     }}
                   >
+                    <Stack
+                      direction="row"
+                      spacing={1.5}
+                      sx={{ minHeight: 56, alignItems: 'center', pr: 6 }}
+                    >
+                      <ComputerOutlined
+                        sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }}
+                      />
+                      <Box sx={{ flex: 1, minWidth: 0 }}>
+                        <Stack
+                          direction="row"
+                          spacing={1}
+                          useFlexGap
+                          sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                        >
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 500, overflowWrap: 'anywhere' }}
+                          >
+                            {node.label}
+                          </Typography>
+                          {node.newlyFound && (
+                            <Typography variant="caption" color="success.main">
+                              {m.newLabel}
+                            </Typography>
+                          )}
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary">
+                          {node.observedInRun && node.lastSeenAgoMs < 30000
+                            ? m.available
+                            : m.previous}
+                        </Typography>
+                      </Box>
+                      <Button
+                        variant="contained"
+                        sx={{ minHeight: 44 }}
+                        disabled={!snapshot.running || pairPending}
+                        aria-label={`${t(locale, 'btnConnect')} ${node.label}`}
+                        onClick={() => {
+                          setSelected(
+                            Object.freeze({
+                              key: node.key,
+                              nodeId: node.nodeId,
+                              label: node.label,
+                              address: node.address,
+                            }),
+                          );
+                          setCode('');
+                          setPairError(null);
+                        }}
+                      >
+                        {t(locale, 'btnConnect')}
+                      </Button>
+                    </Stack>
                     <Box
+                      component="details"
+                      data-testid="node-endpoints"
                       sx={{
-                        display: 'grid',
-                        placeItems: 'center',
-                        width: 44,
-                        height: 44,
-                        borderRadius: 2,
-                        bgcolor: 'action.hover',
-                        color: 'text.secondary',
-                        flexShrink: 0,
+                        '& > summary': {
+                          position: 'absolute',
+                          right: 16,
+                          top: 10,
+                          width: 44,
+                          height: 44,
+                          display: 'grid',
+                          placeItems: 'center',
+                          cursor: 'pointer',
+                          listStyle: 'none',
+                          borderRadius: 1,
+                          color: 'text.secondary',
+                          '&::-webkit-details-marker': { display: 'none' },
+                          '&:hover': { bgcolor: 'action.hover' },
+                          '&:focus-visible': { outline: '2px solid', outlineColor: 'primary.main' },
+                        },
                       }}
                     >
-                      <ComputerOutlined sx={{ fontSize: 24 }} />
-                    </Box>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Stack
-                        direction="row"
-                        spacing={1.5}
-                        sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-                      >
-                        <Typography
-                          variant="body2"
-                          sx={{ fontWeight: 500, overflowWrap: 'anywhere' }}
-                        >
-                          {node.label}
-                        </Typography>
+                      <summary aria-label={`${m.details} ${node.label}`}>
+                        <MoreHorizOutlined sx={{ fontSize: 18 }} />
+                      </summary>
+                      <Stack spacing={1} sx={{ pt: 1, pb: 1.5, pl: 3.75 }}>
                         <Typography variant="caption" color="text.secondary">
                           {networkInterfaceMessages(locale).unverified}
                         </Typography>
-                        {node.newlyFound && (
-                          <Typography variant="caption" color="success.main">
-                            {m.newLabel}
-                          </Typography>
-                        )}
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary">
-                        {node.observedInRun && node.lastSeenAgoMs < 30000
-                          ? m.available
-                          : m.previous}
-                      </Typography>
-                      {node.endpoints && (
-                        <Box component="details" data-testid="node-endpoints">
-                          <summary>
-                            {m.details} ({node.endpoints.length})
-                          </summary>
-                          {node.endpoints.map((endpoint) => (
-                            <Stack
-                              key={endpoint.address}
-                              direction="row"
-                              spacing={1}
-                              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                        {(node.endpoints ?? [node]).map((endpoint) => (
+                          <Stack
+                            key={endpoint.address}
+                            direction="row"
+                            spacing={1}
+                            sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+                          >
+                            <Typography
+                              variant="caption"
+                              sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}
                             >
-                              <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
-                                {endpoint.address} —{' '}
-                                {endpoint.observedInRun && endpoint.lastSeenAgoMs < 30000
-                                  ? m.available
-                                  : m.previous}
-                              </Typography>
+                              {endpoint.address} —{' '}
+                              {endpoint.observedInRun && endpoint.lastSeenAgoMs < 30000
+                                ? m.available
+                                : m.previous}
+                            </Typography>
+                            {node.endpoints && (
                               <Button
                                 disabled={!snapshot.running || pairPending}
                                 aria-label={`${t(locale, 'btnConnect')} ${endpoint.address}`}
+                                sx={{ minHeight: 44 }}
                                 onClick={() => {
                                   setSelected(
                                     Object.freeze({
@@ -819,36 +899,16 @@ export function NetworkPage({
                               >
                                 {t(locale, 'btnConnect')}
                               </Button>
-                            </Stack>
-                          ))}
-                        </Box>
-                      )}
+                            )}
+                          </Stack>
+                        ))}
+                      </Stack>
                     </Box>
-                    <Button
-                      variant="contained"
-                      sx={{ minHeight: 44 }}
-                      disabled={!snapshot.running || pairPending}
-                      aria-label={`${t(locale, 'btnConnect')} ${node.label}`}
-                      onClick={() => {
-                        setSelected(
-                          Object.freeze({
-                            key: node.key,
-                            nodeId: node.nodeId,
-                            label: node.label,
-                            address: node.address,
-                          }),
-                        );
-                        setCode('');
-                        setPairError(null);
-                      }}
-                    >
-                      {t(locale, 'btnConnect')}
-                    </Button>
                   </ListItem>
                 ))}
               </List>
             ) : (
-              <Box sx={{ p: 4, textAlign: 'center' }}>
+              <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
                 <ComputerOutlined color="disabled" />
                 <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                   {legacy.empty}
@@ -856,9 +916,48 @@ export function NetworkPage({
               </Box>
             )}
           </Paper>
-          <Box component="details" sx={{ mt: 1.5 }} data-testid="nearby-details">
-            <summary>{m.details}</summary>
-            <Typography variant="caption">{legacy.unverified}</Typography>
+          <Box
+            component="details"
+            sx={{
+              mt: 0.5,
+              '& > summary': {
+                minHeight: 44,
+                display: 'flex',
+                alignItems: 'center',
+                cursor: 'pointer',
+                fontSize: 13,
+                color: 'text.secondary',
+              },
+            }}
+            data-testid="nearby-details"
+          >
+            <summary>
+              <ExpandMoreOutlined sx={{ fontSize: 18, mr: 0.5 }} />
+              {m.details}
+            </summary>
+            <Stack spacing={1}>
+              {helper && (
+                <Typography variant="body2" color="text.secondary">
+                  {helper}
+                </Typography>
+              )}
+              <Typography variant="caption" color="text.secondary">
+                {elapsedText}
+                {searching
+                  ? ` · ${formatLanSearch(m.remaining, { seconds: Math.max(0, Math.ceil((duration - elapsed) / 1000)) })}`
+                  : ''}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {legacy.unverified}
+              </Typography>
+              {(diagnostic || search?.reason) &&
+                diagnostics(
+                  diagnostic ||
+                    (search?.reason === 'no-interfaces'
+                      ? legacy.noInterfaces
+                      : legacy.transportError),
+                )}
+            </Stack>
           </Box>
         </Box>
       </Stack>
