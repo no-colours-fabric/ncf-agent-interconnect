@@ -2,6 +2,8 @@ import type { AgentApplication } from '../agent-entry-model.js';
 import type { Locale } from './index.js';
 
 export interface AgentEntryMessages {
+  agentsConnectionGuide: string;
+  agentsCopyCommand: string;
   agentsCreationConnected: string;
   agentsCreationNoConnected: string;
   agentsManualDiagnosticIntro: string;
@@ -15,6 +17,9 @@ export interface AgentEntryMessages {
 
 const messages: Record<Locale, AgentEntryMessages> = {
   en: {
+    agentsConnectionGuide:
+      'Open a new or existing chat in a supported app and ask the assistant to connect under a name you choose.',
+    agentsCopyCommand: 'Copy',
     agentsCreationConnected:
       'Start with several chats in one app. Ask each assistant to connect under a name you choose and give it a role in the shared task. Configured apps: {applications}.',
     agentsCreationNoConnected:
@@ -30,6 +35,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi with Cursor Agent',
   },
   ru: {
+    agentsConnectionGuide:
+      'Откройте новый или существующий чат в поддерживаемой программе и попросите помощника подключиться под выбранным вами именем.',
+    agentsCopyCommand: 'Скопировать',
     agentsCreationConnected:
       'Начните с нескольких чатов в одной программе. Попросите каждого помощника подключиться под выбранным вами именем и назначьте ему роль в общей задаче. Настроенные программы: {applications}.',
     agentsCreationNoConnected:
@@ -45,6 +53,8 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi с Cursor Agent',
   },
   'zh-CN': {
+    agentsConnectionGuide: '在支持的应用中打开新聊天或已有聊天，请助手以您选择的名称连接。',
+    agentsCopyCommand: '复制',
     agentsCreationConnected:
       '先在同一个应用中打开多个聊天。请每位助手以您指定的名称连接，并为其分配共同任务中的角色。已配置的应用：{applications}。',
     agentsCreationNoConnected:
@@ -60,6 +70,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi（Cursor Agent）',
   },
   fr: {
+    agentsConnectionGuide:
+      'Ouvrez une nouvelle discussion ou une discussion existante dans une application prise en charge et demandez à l’assistant de se connecter sous le nom de votre choix.',
+    agentsCopyCommand: 'Copier',
     agentsCreationConnected:
       'Commencez avec plusieurs discussions dans une seule application. Demandez à chaque assistant de se connecter sous le nom de votre choix et attribuez-lui un rôle dans la tâche commune. Applications configurées : {applications}.',
     agentsCreationNoConnected:
@@ -75,6 +88,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi avec Cursor Agent',
   },
   de: {
+    agentsConnectionGuide:
+      'Öffnen Sie in einer unterstützten App einen neuen oder bestehenden Chat und bitten Sie den Assistenten, sich unter einem Namen Ihrer Wahl zu verbinden.',
+    agentsCopyCommand: 'Kopieren',
     agentsCreationConnected:
       'Beginnen Sie mit mehreren Chats in einer App. Bitten Sie jeden Assistenten, sich unter einem Namen Ihrer Wahl zu verbinden, und weisen Sie ihm eine Rolle in der gemeinsamen Aufgabe zu. Eingerichtete Apps: {applications}.',
     agentsCreationNoConnected:
@@ -90,6 +106,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi mit Cursor Agent',
   },
   it: {
+    agentsConnectionGuide:
+      'Apri una chat nuova o esistente in un’app supportata e chiedi all’assistente di connettersi con un nome a tua scelta.',
+    agentsCopyCommand: 'Copia',
     agentsCreationConnected:
       'Inizia con più chat nella stessa app. Chiedi a ogni assistente di connettersi con un nome a tua scelta e assegnagli un ruolo nel compito comune. App configurate: {applications}.',
     agentsCreationNoConnected:
@@ -105,6 +124,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi con Cursor Agent',
   },
   es: {
+    agentsConnectionGuide:
+      'Abre un chat nuevo o existente en una aplicación compatible y pide al asistente que se conecte con el nombre que elijas.',
+    agentsCopyCommand: 'Copiar',
     agentsCreationConnected:
       'Empieza con varios chats en una misma aplicación. Pide a cada asistente que se conecte con el nombre que elijas y asígnale un papel en la tarea común. Aplicaciones configuradas: {applications}.',
     agentsCreationNoConnected:
@@ -120,6 +142,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi con Cursor Agent',
   },
   kk: {
+    agentsConnectionGuide:
+      'Қолдау көрсетілетін қолданбада жаңа не бұрыннан бар чатты ашып, көмекшіден өзіңіз таңдаған атпен қосылуын сұраңыз.',
+    agentsCopyCommand: 'Көшіру',
     agentsCreationConnected:
       'Бір қолданбадағы бірнеше чаттан бастаңыз. Әр көмекшіден өзіңіз таңдаған атпен қосылуын сұрап, оған ортақ тапсырмадағы рөлін белгілеңіз. Бапталған қолданбалар: {applications}.',
     agentsCreationNoConnected:
@@ -135,6 +160,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'Cursor Agent қолданылатын AionUi',
   },
   ja: {
+    agentsConnectionGuide:
+      '対応アプリで新しいチャットまたは既存のチャットを開き、アシスタントに選んだ名前で接続するよう依頼してください。',
+    agentsCopyCommand: 'コピー',
     agentsCreationConnected:
       'まずは1つのアプリで複数のチャットを開きます。各アシスタントに、選んだ名前で接続するよう依頼し、共通のタスクでの役割を割り当ててください。設定済みのアプリ：{applications}。',
     agentsCreationNoConnected:
@@ -150,6 +178,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi（Cursor Agent）',
   },
   'pt-BR': {
+    agentsConnectionGuide:
+      'Abra um chat novo ou existente em um aplicativo compatível e peça ao assistente que se conecte com um nome escolhido por você.',
+    agentsCopyCommand: 'Copiar',
     agentsCreationConnected:
       'Comece com vários chats no mesmo aplicativo. Peça a cada assistente que se conecte com um nome escolhido por você e atribua a ele um papel na tarefa conjunta. Aplicativos configurados: {applications}.',
     agentsCreationNoConnected:
@@ -165,6 +196,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi com Cursor Agent',
   },
   ko: {
+    agentsConnectionGuide:
+      '지원하는 앱에서 새 채팅이나 기존 채팅을 열고 어시스턴트에게 원하는 이름으로 연결해 달라고 요청하세요.',
+    agentsCopyCommand: '복사',
     agentsCreationConnected:
       '먼저 한 앱에서 여러 채팅을 여세요. 각 어시스턴트에게 원하는 이름으로 연결하도록 요청하고 공동 작업에서 맡을 역할을 정해 주세요. 설정된 앱: {applications}.',
     agentsCreationNoConnected:
@@ -180,6 +214,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi(Cursor Agent)',
   },
   tr: {
+    agentsConnectionGuide:
+      'Desteklenen bir uygulamada yeni veya mevcut bir sohbet açın ve asistandan seçtiğiniz adla bağlanmasını isteyin.',
+    agentsCopyCommand: 'Kopyala',
     agentsCreationConnected:
       'Tek bir uygulamada birden fazla sohbetle başlayın. Her asistandan seçtiğiniz adla bağlanmasını isteyin ve ortak görevdeki rolünü belirleyin. Yapılandırılmış uygulamalar: {applications}.',
     agentsCreationNoConnected:
@@ -195,6 +232,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'Cursor Agent ile AionUi',
   },
   pl: {
+    agentsConnectionGuide:
+      'Otwórz nowy lub istniejący czat w obsługiwanej aplikacji i poproś asystenta, aby połączył się pod wybraną przez Ciebie nazwą.',
+    agentsCopyCommand: 'Kopiuj',
     agentsCreationConnected:
       'Zacznij od kilku czatów w jednej aplikacji. Poproś każdego asystenta, aby połączył się pod wybraną przez Ciebie nazwą, i przydziel mu rolę we wspólnym zadaniu. Skonfigurowane aplikacje: {applications}.',
     agentsCreationNoConnected:
@@ -210,6 +250,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi z Cursor Agent',
   },
   nl: {
+    agentsConnectionGuide:
+      'Open een nieuwe of bestaande chat in een ondersteunde app en vraag de assistent verbinding te maken onder een naam naar keuze.',
+    agentsCopyCommand: 'Kopiëren',
     agentsCreationConnected:
       'Begin met meerdere chats in één app. Vraag elke assistent verbinding te maken onder een naam naar keuze en geef elke assistent een rol in de gezamenlijke taak. Ingestelde apps: {applications}.',
     agentsCreationNoConnected:
@@ -225,6 +268,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     aionUiApplication: 'AionUi met Cursor Agent',
   },
   uk: {
+    agentsConnectionGuide:
+      'Відкрийте новий або наявний чат у підтримуваній програмі та попросіть помічника підключитися під обраним вами ім’ям.',
+    agentsCopyCommand: 'Копіювати',
     agentsCreationConnected:
       'Почніть із кількох чатів в одній програмі. Попросіть кожного помічника підключитися під обраним вами ім’ям і призначте йому роль у спільному завданні. Налаштовані програми: {applications}.',
     agentsCreationNoConnected:
