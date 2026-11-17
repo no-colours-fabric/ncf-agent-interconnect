@@ -718,6 +718,90 @@ for (const retirement of ['revoke', 'delete'] as const)
     assert.equal(host.prompts.length, 2);
   });
 
+test('retired native prompts stay budgeted until actual settlement releases exactly one slot', async (t) => {
+  const limits: OpenCodeV2Dependencies = {
+    maxAttempts: 1,
+    maxNativePrompts: 2,
+    timeoutMs: 30,
+  };
+  const { host, peer, handle } = await runtime(t, limits);
+  const returns: Deferred<ReturnType<typeof host.user>>[] = [];
+  host.promptResult = () => {
+    const result = new Deferred<ReturnType<typeof host.user>>();
+    returns.push(result);
+    return result.promise;
+  };
+  t.after(() => {
+    for (const [index, result] of returns.entries()) result.resolve(host.user(host.prompts[index]));
+  });
+  async function prepare(id: string) {
+    const captured = owner(host.addSession(id));
+    await bind(peer, captured);
+    const arm = await peer.wait('ready', (event) => event.owner.chatId === id);
+    return { captured, command: submit(peer, captured, arm.armId) };
+  }
+  const retired: Awaited<ReturnType<typeof prepare>>[] = [];
+  for (const id of ['ses_native_A', 'ses_native_B']) {
+    const prepared = await prepare(id);
+    assert.equal((await peer.command(prepared.command)).value.kind, 'uncertain');
+    await peer.command({
+      kind: 'revoke',
+      scope: peer.scope,
+      owner: prepared.captured,
+      nonce: randomUUID(),
+    });
+    retired.push(prepared);
+  }
+  const third = await prepare('ses_native_C');
+  const blocked = await peer.command(third.command);
+  assert.equal(blocked.value.kind, 'not-released');
+  assert.equal(blocked.value.reasonCode, 'V2_NATIVE_PROMPT_CAPACITY');
+  assert.equal(host.prompts.length, 2);
+  const afterRetirement = peer.evidence.length;
+  host.delivered(retired[0].captured.chatId, retired[0].command.hostMessageId);
+  returns[0].resolve(host.user(host.prompts[0]));
+  await tick();
+  await peer.command({
+    kind: 'arm',
+    scope: peer.scope,
+    owner: third.captured,
+    nonce: randomUUID(),
+  });
+  const arm = await peer.wait(
+    'ready',
+    (event) => event.owner.chatId === third.captured.chatId,
+    afterRetirement,
+  );
+  assert.equal(
+    (await peer.command(submit(peer, third.captured, arm.armId))).value.kind,
+    'uncertain',
+  );
+  assert.equal(host.prompts.length, 3);
+  await peer.command({
+    kind: 'revoke',
+    scope: peer.scope,
+    owner: third.captured,
+    nonce: randomUUID(),
+  });
+  const fourth = await prepare('ses_native_D');
+  const stillBlocked = await peer.command(fourth.command);
+  assert.equal(stillBlocked.value.kind, 'not-released');
+  assert.equal(stillBlocked.value.reasonCode, 'V2_NATIVE_PROMPT_CAPACITY');
+  assert.equal(host.prompts.length, 3);
+  assert.equal(
+    peer.evidence
+      .slice(afterRetirement)
+      .some(
+        (event) =>
+          event.kind === 'projected' ||
+          (event.kind === 'ready' &&
+            retired.some((item) => item.captured.chatId === event.owner.chatId)),
+      ),
+    false,
+  );
+  await handle.dispose();
+});
+
 test('provisioning and registration errors never expose supplied credentials', async () => {
   const host = new OpenCodeV2HostFixture(),
     peer = new OpenCodeV2NodeFixture();

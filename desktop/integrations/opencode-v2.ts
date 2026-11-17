@@ -220,6 +220,7 @@ export interface OpenCodeV2Dependencies {
   timeoutMs?: number;
   maxWaits?: number;
   maxAttempts?: number;
+  maxNativePrompts?: number;
 }
 export interface OpenCodeV2Handle {
   dispose(): Promise<void>;
@@ -607,6 +608,7 @@ export async function startOpenCodeV2(
   const timeout = Math.min(Math.max(integer(dependencies.timeoutMs ?? 10_000), 1), 60_000);
   const maxWaits = Math.min(Math.max(integer(dependencies.maxWaits ?? 64), 1), 64);
   const maxAttempts = Math.min(Math.max(integer(dependencies.maxAttempts ?? 64), 1), 64);
+  const maxNativePrompts = Math.min(Math.max(integer(dependencies.maxNativePrompts ?? 64), 1), 64);
   const bootId = randomUUID(),
     bridgeCredential = randomBytes(32).toString('hex');
   const abort = new AbortController();
@@ -614,6 +616,8 @@ export async function startOpenCodeV2(
   // Uncancellable host waits remain here until actual settlement, even after revoke.
   const waits = new Map<string, Wait>();
   const attempts = new Map<string, Attempt>();
+  // Retired authority does not cancel host calls; release slots only on actual settlement.
+  let nativePrompts = 0;
   const pendingSubmits = new Set<string>();
   const proofs = new Map<string, IdentityProof>();
   const requests = new Set<ServerResponse>();
@@ -1040,6 +1044,7 @@ export async function startOpenCodeV2(
     )
       return noBody('V2_ARM_CHANGED');
     if (attempts.size + pendingSubmits.size >= maxAttempts) return noBody('V2_ATTEMPT_CAPACITY');
+    if (nativePrompts >= maxNativePrompts) return noBody('V2_NATIVE_PROMPT_CAPACITY');
     const authority = bound.authorityRevision;
     bound.preflight = command.nonce;
     pendingSubmits.add(command.attemptId);
@@ -1058,6 +1063,7 @@ export async function startOpenCodeV2(
     if (arm.consumed || bound.attempt) fail('V2_ARM_UNAVAILABLE');
     if (arm.receiveRevision !== bound.receiveRevision) return noBody('V2_ARM_CHANGED');
     if (attempts.size >= maxAttempts) return noBody('V2_ATTEMPT_CAPACITY');
+    if (nativePrompts >= maxNativePrompts) return noBody('V2_NATIVE_PROMPT_CAPACITY');
     if (!isRequestCurrent()) return noBody('V2_REQUEST_CANCELLED');
     const input = openCodeV2Prompt(bound.owner.chatId, command.hostMessageId, command.text);
     const attempt: Attempt = {
@@ -1076,12 +1082,17 @@ export async function startOpenCodeV2(
     attempts.set(command.attemptId, attempt);
     // No await separates the final local arm CAS from the sole native invocation.
     let returned: Promise<InboxUser>;
+    nativePrompts++;
     try {
       returned = context.session.prompt(input);
     } catch {
+      nativePrompts--;
       return uncertain(attempt, 'V2_PROMPT_UNCERTAIN');
     }
     const validate = returned
+      .finally(() => {
+        nativePrompts--;
+      })
       .then((value) => {
         if (!attemptCurrent(attempt)) fail('V2_SCOPE_UNAVAILABLE');
         const raw = object(value),
