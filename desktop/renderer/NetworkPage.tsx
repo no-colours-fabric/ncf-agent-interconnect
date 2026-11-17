@@ -619,36 +619,90 @@ export function NetworkPage({
                       ? 'directorySyncing'
                       : 'networkConnected';
                 return (
-                  <Stack
+                  <Box
                     key={peer.id}
-                    direction="row"
-                    spacing={2}
+                    component={peer.error ? 'details' : 'div'}
+                    data-paired-key={peer.id}
+                    data-testid={peer.error ? 'paired-problem-details' : undefined}
                     sx={{
-                      px: 2,
-                      minHeight: 52,
-                      alignItems: 'center',
                       borderTop: index ? 1 : 0,
                       borderColor: 'divider',
+                      '& > summary': {
+                        cursor: 'pointer',
+                        listStyle: 'none',
+                        '&::-webkit-details-marker': { display: 'none' },
+                        '&:focus-visible': {
+                          outline: '2px solid',
+                          outlineColor: 'primary.main',
+                          outlineOffset: -2,
+                        },
+                      },
+                      '&[open] > summary svg': { transform: 'rotate(180deg)' },
                     }}
                   >
-                    <Typography
-                      variant="body2"
-                      sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}
+                    <Stack
+                      component={peer.error ? 'summary' : 'div'}
+                      direction="row"
+                      spacing={2}
+                      sx={{ px: 2, minHeight: 52, alignItems: 'center' }}
                     >
-                      {peer.label}
-                    </Typography>
-                    {directory?.epoch && (
-                      <Typography variant="caption" color="text.secondary">
-                        {t(locale, 'networkColumnAgents')}: {directory.total}
+                      <Typography
+                        variant="body2"
+                        sx={{ flex: 1, minWidth: 0, overflowWrap: 'anywhere' }}
+                      >
+                        {peer.label}
                       </Typography>
+                      {directory?.epoch && (
+                        <Typography variant="caption" color="text.secondary">
+                          {t(locale, 'networkColumnAgents')}: {directory.total}
+                        </Typography>
+                      )}
+                      <Typography
+                        variant="caption"
+                        color={
+                          peer.error
+                            ? 'error.main'
+                            : peer.connected
+                              ? 'success.main'
+                              : 'text.secondary'
+                        }
+                      >
+                        {peer.error
+                          ? t(locale, 'clientsConnectionIssues', { count: 1 })
+                          : t(locale, status)}
+                      </Typography>
+                      {peer.error && (
+                        <Box
+                          component="span"
+                          sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            minHeight: 44,
+                            gap: 0.5,
+                            fontSize: 13,
+                            color: 'text.secondary',
+                          }}
+                        >
+                          {m.details}
+                          <ExpandMoreOutlined sx={{ fontSize: 18 }} />
+                        </Box>
+                      )}
+                    </Stack>
+                    {peer.error && (
+                      <Box sx={{ px: 2, pb: 1.5 }} data-testid="paired-problem-diagnostic">
+                        <Typography variant="caption" color="text.secondary">
+                          {t(locale, status)}
+                        </Typography>
+                        <Typography
+                          component="pre"
+                          variant="caption"
+                          sx={{ m: 0, mt: 0.5, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                        >
+                          {peer.error}
+                        </Typography>
+                      </Box>
                     )}
-                    <Typography
-                      variant="caption"
-                      color={peer.connected ? 'success.main' : 'text.secondary'}
-                    >
-                      {t(locale, status)}
-                    </Typography>
-                  </Stack>
+                  </Box>
                 );
               })}
             </Paper>
@@ -657,6 +711,7 @@ export function NetworkPage({
               data-testid="paired-details"
               sx={{
                 mt: 0.5,
+                '&[open] > summary svg': { transform: 'rotate(180deg)' },
                 '& > summary': {
                   minHeight: 44,
                   display: 'flex',
@@ -920,6 +975,7 @@ export function NetworkPage({
             component="details"
             sx={{
               mt: 0.5,
+              '&[open] > summary svg': { transform: 'rotate(180deg)' },
               '& > summary': {
                 minHeight: 44,
                 display: 'flex',

@@ -357,8 +357,14 @@ export function OwnConnectionCard({
           )}
         </Stack>
       </Stack>
-      {(connectionIntent || code || detailsOpen) && !effectiveAddress && (
-        <Typography role="status" variant="body2">
+      {(node.running || connectionIntent || code || detailsOpen) && !effectiveAddress && (
+        <Typography
+          role="status"
+          variant="body2"
+          color="warning.main"
+          data-testid="own-address-unavailable"
+          sx={{ mt: 1 }}
+        >
           {networkMessages.emptyEndpoint}
         </Typography>
       )}

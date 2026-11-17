@@ -522,6 +522,122 @@ root.render(<App key={generation} patch={{}}/>);
         page.getByRole('button', { name: lanSearchEnglish.manualConnect, exact: true });
 
       await runCase(
+        'missing-address',
+        'CR1: initial running node without an endpoint exposes its localized cue and Settings before code intent',
+        async () => {
+          const value = snapshot();
+          value.peerUrl = '';
+          value.peerUrls = [];
+          value.listenHost = '';
+          value.lanDiscovery = {
+            state: 'searching',
+            reason: null,
+            announcement: { available: false, reason: 'listener-unavailable' },
+            nodes: [],
+          };
+          for (const locale of ['en', 'ru'] as const) {
+            await reset(page, { snapshot: value, locale });
+            const own = page.getByTestId('own-connection-card');
+            const cue = own.getByTestId('own-address-unavailable');
+            await cue.waitFor();
+            assert.equal(await cue.textContent(), networkInterfaceMessages(locale).emptyEndpoint);
+            assert.equal((await callList(page, 'accessCode')).length, 0);
+            assert.equal(await own.getByRole('textbox').count(), 0);
+            assert.equal(
+              await own
+                .getByRole('button', { name: lanSearchMessages(locale).createCode, exact: true })
+                .isEnabled(),
+              true,
+            );
+            await own
+              .getByRole('button', { name: lanSearchMessages(locale).networkSettings, exact: true })
+              .click();
+            assert.equal((await callList(page, 'settings')).length, 1);
+            assert.equal((await callList(page, 'accessCode')).length, 0);
+          }
+          await reset(page, { snapshot: value });
+          const own = page.getByTestId('own-connection-card');
+          await own.getByRole('button', { name: 'Create code', exact: true }).click();
+          await settle(page, 'accessCode', {
+            code: 'ABCD2345',
+            expiresAt: new Date(Date.now() + 600000).toISOString(),
+          });
+          await own.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
+          assert.equal(
+            (await callList(page, 'accessCode')).length,
+            1,
+            'Missing address does not add a code-generation prerequisite',
+          );
+          assert.equal(await own.getByTestId('own-address-unavailable').isVisible(), true);
+        },
+      );
+      await runCase(
+        'paired-problem',
+        'CR2: affected paired row exposes a localized issue and targeted diagnostic without a misleading healthy summary',
+        async () => {
+          const raw = 'Fixture TLS handshake failed at wss://192.0.2.20:7336/peer';
+          for (const locale of ['en', 'ru'] as const) {
+            for (const connected of [false, true]) {
+              const value = snapshot();
+              value.peers = [
+                {
+                  id: first.nodeId,
+                  label: 'Problem computer',
+                  address: first.address,
+                  connected,
+                  error: raw,
+                },
+                {
+                  id: second.nodeId,
+                  label: 'Healthy computer',
+                  address: second.address,
+                  connected: true,
+                  error: null,
+                },
+              ];
+              await reset(page, { snapshot: value, locale });
+              const row = page.locator(`[data-paired-key="${first.nodeId}"]`);
+              const summary = row.locator(':scope > summary');
+              await summary
+                .getByText(translate(locale, 'clientsConnectionIssues', { count: 1 }), {
+                  exact: true,
+                })
+                .waitFor();
+              assert.ok((await summary.boundingBox())!.height >= 44);
+              assert.equal((await summary.textContent())!.includes(raw), false);
+              assert.equal(await row.getByTestId('paired-problem-diagnostic').isVisible(), false);
+              if (connected)
+                assert.equal(
+                  (await summary.textContent())!.includes(translate(locale, 'networkConnected')),
+                  false,
+                );
+              assert.equal(await page.getByTestId('paired-details').getAttribute('open'), null);
+              await summary.focus();
+              await summary.press('Enter');
+              await row.getByTestId('paired-problem-diagnostic').waitFor();
+              assert.equal(await row.locator('pre').textContent(), raw);
+              assert.equal(
+                await page.getByTestId('paired-details').getAttribute('open'),
+                null,
+                'Targeted details do not force open the global legacy table',
+              );
+              assert.equal(
+                await page
+                  .locator(`[data-paired-key="${second.nodeId}"]`)
+                  .getByText(translate(locale, 'networkConnected'), { exact: true })
+                  .isVisible(),
+                true,
+              );
+              await summary.press('Enter');
+              assert.equal(await row.getByTestId('paired-problem-diagnostic').isVisible(), false);
+              assert.equal((await callList(page, 'connectPeer')).length, 0);
+              assert.equal((await callList(page, 'accessCode')).length, 0);
+            }
+          }
+        },
+      );
+
+      await runCase(
         'own',
         'inline own code requires an action; copy, refresh, expiry and drafts survive navigation/theme',
         async () => {
