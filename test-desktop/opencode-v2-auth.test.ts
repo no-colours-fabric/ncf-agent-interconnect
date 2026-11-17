@@ -97,9 +97,16 @@ test('v2 config/descriptor corruption and generic bearer never authenticate or s
   );
   await writeFile(target.configurationPath, 'changed');
   await assert.rejects(
-    auth.prepare(target, draft.provision.nodeId, draft.provision.nodeUrl),
+    auth.authenticate(
+      draft.provision.targetId,
+      draft.provision.generation,
+      draft.provision.credential,
+    ),
     /CONFIGURATION_MISMATCH/,
   );
+  const repair = await auth.prepare(target, draft.provision.nodeId, draft.provision.nodeUrl);
+  assert.notEqual(repair.provision.generation, draft.provision.generation);
+  assert.equal(repair.existing, undefined);
   assert.equal(await readFile(target.configurationPath, 'utf8'), 'changed');
   await writeFile(target.configurationPath, 'config');
   await writeFile(path.join(draft.generationDirectory, 'ncf-target.json'), '{}');
