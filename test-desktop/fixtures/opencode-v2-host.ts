@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import {
   parseOpenCodeV2Evidence,
+  parseOpenCodeV2Provision,
   type OpenCodeV2Evidence,
   type OpenCodeV2Provision,
   type OpenCodeV2Registration,
@@ -322,4 +323,94 @@ export class OpenCodeV2NodeFixture {
     this.controller.abort();
     await this.reading?.catch(() => {});
   }
+}
+
+/** New product-source fixtures only; imports/setup remain lazy for first-five tests. */
+export async function openCodeV2ProductFixture(
+  t: import('node:test').TestContext,
+  options: { timeoutMs?: number } = {},
+) {
+  const { mkdtemp, readFile, realpath, rm } = await import('node:fs/promises');
+  const path = await import('node:path'),
+    os = await import('node:os');
+  const { fileURLToPath } = await import('node:url');
+  const { NodeService } = await import('../../desktop/core/service.js');
+  const { SettingsFile } = await import('../../desktop/core/settings.js');
+  const { OpenCodeV2SetupService } = await import('../../desktop/core/mcp-setup.js');
+  const { startOpenCodeV2 } = await import('../../desktop/integrations/opencode-v2.js');
+  const { Client } = await import('@modelcontextprotocol/sdk/client/index.js');
+  const { StreamableHTTPClientTransport } =
+    await import('@modelcontextprotocol/sdk/client/streamableHttp.js');
+  const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'ncf-v2-product-')));
+  const settings = new SettingsFile(directory);
+  await settings.load();
+  settings.value.peerPort = 0;
+  settings.value.mcpPort = 0;
+  await settings.save();
+  const service = new NodeService(directory, {
+    codexSockets: () => [],
+    lanDiscovery: { interfaces: () => [] },
+  });
+  let handle: Awaited<ReturnType<typeof startOpenCodeV2>> | undefined;
+  const clients: InstanceType<typeof Client>[] = [];
+  t.after(async () => {
+    for (const client of clients) await client.close().catch(() => {});
+    await handle?.dispose();
+    if (service.store) await service.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await service.open();
+  const target = {
+    major: 2 as const,
+    installationId: null,
+    installationPath: null,
+    profilePath: directory,
+    configurationPath: path.join(directory, 'opencode-v2.json'),
+  };
+  const setup = new OpenCodeV2SetupService({
+    stateDirectory: directory,
+    home: directory,
+    env: {},
+    instructions: () => {
+      throw new Error('No legacy setup');
+    },
+    asset: async () => 'export default {};',
+  });
+  const preview = await setup.v2Preview('isolated-window', target);
+  const result = await setup.v2Apply('isolated-window', preview.planId, target, false);
+  assert.equal(result.status, 'applied');
+  const configuration = JSON.parse(await readFile(target.configurationPath, 'utf8'));
+  const provision = parseOpenCodeV2Provision(
+    JSON.parse(
+      await readFile(
+        path.join(fileURLToPath(configuration.plugins[0].package), 'ncf-target.json'),
+        'utf8',
+      ),
+    ),
+  );
+  const host = new OpenCodeV2HostFixture();
+  host.context.options = configuration.plugins[0].options;
+  handle = await startOpenCodeV2(host.context, provision, { timeoutMs: options.timeoutMs ?? 1000 });
+  const client = new Client({ name: 'OpenCode', version: '2.3.0-source-fixture' });
+  clients.push(client);
+  const remote = configuration.mcp.servers.ncf_agent_interconnect;
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(remote.url), {
+      requestInit: { headers: remote.headers },
+    }),
+  );
+  const call = (sessionID: string, name: string, args: Record<string, unknown>) =>
+    client.callTool({ name, arguments: args, _meta: { 'ai.opencode/sessionID': sessionID } });
+  return {
+    directory,
+    service,
+    host,
+    client,
+    provision,
+    configuration,
+    handle,
+    call,
+    setup,
+    target,
+  };
 }

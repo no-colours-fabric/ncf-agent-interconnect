@@ -18,6 +18,7 @@ import {
   claudeCallMetaKey,
   claudeDeliveryMetaKey,
 } from '../integrations/claude-code.js';
+import type { OpenCodeV2Identity } from './opencode-v2-adapter.js';
 
 /** A read result released to a Claude Code helper under one delivery attempt. */
 class ClaudeRelease {
@@ -32,6 +33,7 @@ export function createAgentMcp(
   sessionKey = randomUUID(),
   isActive: () => boolean = () => true,
   handoffs?: McpResponseHandoff,
+  openCodeV2?: { targetId: string; generation: string },
 ): McpServer {
   const touch = (connectionId?: string) => {
     if (isActive()) service.touchClientSession(sessionKey, connectionId);
@@ -61,6 +63,7 @@ export function createAgentMcp(
         /** The admitted Claude Code call permit, when this is one. */
         claudePermit?: string;
         handoff?: ResponseInvocation;
+        openCodeV2Identity?: OpenCodeV2Identity;
       },
     ) => unknown | Promise<unknown>,
     destructiveHint = false,
@@ -72,7 +75,56 @@ export function createAgentMcp(
       let delivery: string | undefined;
       const handoff = handoffs?.context.getStore();
       try {
+        let nativeIdentity: OpenCodeV2Identity | undefined;
+        if (openCodeV2) {
+          const sessionID = extra._meta?.['ai.opencode/sessionID'];
+          if (typeof sessionID !== 'string')
+            throw new Error('OpenCode v2 did not provide the native session context');
+          nativeIdentity = await service.opencodeV2.identity(
+            openCodeV2.targetId,
+            openCodeV2.generation,
+            sessionID,
+          );
+          if (handoff) {
+            const detach = nativeIdentity.onRevoke(() => handoff.controller.abort());
+            handoff.response.once('finish', detach);
+            handoff.response.once('close', detach);
+            nativeIdentity.assertCurrent();
+          }
+          const connectionId = (args as Record<string, unknown>).connectionId;
+          if (
+            name !== 'agent_connect' &&
+            name !== 'connection_events' &&
+            typeof connectionId === 'string'
+          ) {
+            const owner = service.store.assertOwner(connectionId),
+              profile = service.settings.value.adapters.find(
+                (profile) => profile.id === owner.binding.adapterId,
+              );
+            if (
+              profile?.kind !== 'opencode-v2' ||
+              profile.setupTargetId !== openCodeV2.targetId ||
+              profile.instanceId !== nativeIdentity.scope.bootId ||
+              owner.binding.chatId !== sessionID
+            )
+              throw new Error('The connection belongs to another OpenCode v2 chat');
+          }
+          if (name === 'connection_events' && typeof connectionId === 'string') {
+            const events = service.store.events(connectionId, 0);
+            if (
+              events.some(
+                (event) =>
+                  event.binding.chatId !== sessionID ||
+                  service.settings.value.adapters.find(
+                    (profile) => profile.id === event.binding.adapterId,
+                  )?.setupTargetId !== openCodeV2.targetId,
+              )
+            )
+              throw new Error('The connection belongs to another OpenCode v2 chat');
+          }
+        }
         const currentCall = () => {
+          nativeIdentity?.assertCurrent();
           const client = mcp.server.getClientVersion()?.name;
           const permit = extra._meta?.[claudeCallMetaKey];
           if (client !== 'Claude Code' && permit === undefined) return;
@@ -97,6 +149,7 @@ export function createAgentMcp(
         const output = await handler(args as z.infer<z.ZodObject<T>>, {
           ...extra,
           ...(handoff ? { handoff } : {}),
+          ...(nativeIdentity ? { openCodeV2Identity: nativeIdentity } : {}),
           ...(typeof permit === 'string' && mcp.server.getClientVersion()?.name === 'Claude Code'
             ? { claudePermit: permit }
             : {}),
@@ -190,10 +243,12 @@ export function createAgentMcp(
     },
     false,
     async (args, extra) => {
-      const result = await service.connectAutomatic(args, {
-        client: mcp.server.getClientVersion()?.name ?? 'MCP',
-        meta: extra._meta,
-      });
+      const result = extra.openCodeV2Identity
+        ? await service.connectOpenCodeV2(args, extra.openCodeV2Identity)
+        : await service.connectAutomatic(args, {
+            client: mcp.server.getClientVersion()?.name ?? 'MCP',
+            meta: extra._meta,
+          });
       if (result.status === 'connected') touch(result.binding.connectionId);
       return result;
     },
@@ -337,6 +392,7 @@ export class McpEndpoint {
       transport: StreamableHTTPServerTransport;
       mcp: McpServer;
       key: string;
+      openCodeV2?: { targetId: string; generation: string };
       probing?: boolean;
       lastActivity: number;
     }
@@ -405,13 +461,78 @@ export class McpEndpoint {
       res.end(JSON.stringify({ error }));
     };
     const host = req.headers.host?.split(':')[0];
+    const v2Match = /^\/integrations\/opencode-v2\/([a-f0-9-]{36})\/([a-f0-9-]{36})\/mcp$/.exec(
+      req.url ?? '',
+    );
+    const v2Target = v2Match ? { targetId: v2Match[1], generation: v2Match[2] } : undefined;
+    if (req.url === '/integrations/opencode-v2/register' && req.method === 'POST') {
+      if (
+        !['127.0.0.1', 'localhost'].includes(host ?? '') ||
+        Object.hasOwn(req.headers, 'origin')
+      ) {
+        reject(401, 'Unauthorized');
+        return;
+      }
+      const credential = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization ?? '')?.[1];
+      if (!credential) {
+        reject(401, 'Unauthorized');
+        return;
+      }
+      const chunks: Buffer[] = [];
+      let bytes = 0;
+      for await (const chunk of req) {
+        bytes += chunk.length;
+        if (bytes > 16384) {
+          reject(413, 'Request too large');
+          return;
+        }
+        chunks.push(Buffer.from(chunk));
+      }
+      try {
+        const result = await this.service.opencodeV2.register(
+          JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))),
+          credential,
+        );
+        if (res.destroyed) return;
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify(result));
+      } catch {
+        if (!res.destroyed) reject(401, 'The OpenCode v2 integration could not be verified');
+      }
+      return;
+    }
     if (
       !['127.0.0.1', 'localhost'].includes(host ?? '') ||
       req.headers.origin ||
-      !secretMatches(req.headers.authorization, 'Bearer ' + this.service.settings.value.localToken)
+      (!v2Target &&
+        !secretMatches(
+          req.headers.authorization,
+          'Bearer ' + this.service.settings.value.localToken,
+        ))
     ) {
       reject(401, 'Unauthorized');
       return;
+    }
+    if (v2Target) {
+      if (Object.hasOwn(req.headers, 'origin')) {
+        reject(401, 'Unauthorized');
+        return;
+      }
+      const credential = /^Bearer ([a-f0-9]{64})$/.exec(req.headers.authorization ?? '')?.[1];
+      if (!credential) {
+        reject(401, 'Unauthorized');
+        return;
+      }
+      try {
+        await this.service.opencodeV2.authenticate(
+          v2Target.targetId,
+          v2Target.generation,
+          credential,
+        );
+      } catch {
+        reject(401, 'Unauthorized');
+        return;
+      }
     }
     if (req.url === '/integrations/claude/helper' && req.method === 'POST') {
       await this.claudeHelper(req, res, reject);
@@ -497,7 +618,7 @@ export class McpEndpoint {
       res.end(JSON.stringify(result));
       return;
     }
-    if (req.url !== '/mcp') {
+    if (req.url !== '/mcp' && !v2Target) {
       reject(404, 'Not found');
       return;
     }
@@ -516,6 +637,10 @@ export class McpEndpoint {
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
       let session = sessionId ? this.sessions.get(sessionId) : undefined;
+      if (session && JSON.stringify(session.openCodeV2) !== JSON.stringify(v2Target)) {
+        reject(404, 'MCP session expired; initialize a new session');
+        return;
+      }
       if (!session) {
         if (sessionId) {
           reject(404, 'MCP session expired; initialize a new session');
@@ -531,11 +656,18 @@ export class McpEndpoint {
             key,
             () => this.sessions.get(transport.sessionId ?? '')?.key === key,
             this.responses,
+            v2Target,
           );
         const transport = new StreamableHTTPServerTransport({
           sessionIdGenerator: randomUUID,
           onsessioninitialized: (id) => {
-            this.sessions.set(id, { transport, mcp, key, lastActivity: Date.now() });
+            this.sessions.set(id, {
+              transport,
+              mcp,
+              key,
+              lastActivity: Date.now(),
+              ...(v2Target ? { openCodeV2: v2Target } : {}),
+            });
           },
           onsessionclosed: (id) => {
             this.sessions.delete(id);
@@ -550,7 +682,13 @@ export class McpEndpoint {
         };
         this.responses.wrap(transport, key);
         await mcp.connect(transport);
-        session = { transport, mcp, key, lastActivity: Date.now() };
+        session = {
+          transport,
+          mcp,
+          key,
+          lastActivity: Date.now(),
+          ...(v2Target ? { openCodeV2: v2Target } : {}),
+        };
       }
       if (sessionId) {
         session.lastActivity = Date.now();
@@ -608,7 +746,11 @@ export class McpEndpoint {
       return;
     }
     const session = sessionId ? this.sessions.get(sessionId) : undefined;
-    if (!session || !['GET', 'DELETE'].includes(req.method ?? '')) {
+    if (
+      !session ||
+      JSON.stringify(session.openCodeV2) !== JSON.stringify(v2Target) ||
+      !['GET', 'DELETE'].includes(req.method ?? '')
+    ) {
       reject(sessionId ? 404 : 400, 'Unknown MCP session');
       return;
     }

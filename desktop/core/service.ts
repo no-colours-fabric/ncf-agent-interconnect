@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
@@ -50,6 +50,13 @@ import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
 import { cursorIntegration } from './cursor-integration.js';
 import { traceClaude } from '../integrations/claude-diagnostics.js';
+import { OpenCodeV2Auth } from './opencode-v2-auth.js';
+import { openCodeV2ConfigurationHash } from './mcp-setup-editors.js';
+import {
+  OpenCodeV2Bridges,
+  OpenCodeV2Adapter,
+  type OpenCodeV2Identity,
+} from './opencode-v2-adapter.js';
 
 interface ClaudeDispatchSnapshot {
   connectionId: string;
@@ -75,6 +82,7 @@ export class NodeService extends EventEmitter {
   readonly adapters: AdapterRegistry;
   readonly aionui: AionUiSessions;
   readonly claude: ClaudeSessions;
+  readonly opencodeV2: OpenCodeV2Bridges;
   readonly contexts = new ClientContexts(this);
   /** One-use claims for wake notices submitted by the installed Claude Code mod. */
   readonly wakeClaims: WakeClaims;
@@ -156,7 +164,27 @@ export class NodeService extends EventEmitter {
     this.settings = new SettingsFile(directory);
     this.aionui = new AionUiSessions(directory);
     this.claude = new ClaudeSessions(directory);
-    this.adapters = new AdapterRegistry(this.aionui, this.claude);
+    this.opencodeV2 = new OpenCodeV2Bridges(
+      new OpenCodeV2Auth(directory, {
+        configurationHash: async (filename) => {
+          const info = await lstat(filename);
+          if (
+            !info.isFile() ||
+            info.isSymbolicLink() ||
+            info.nlink !== 1 ||
+            info.size > 1024 * 1024
+          )
+            throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
+          return openCodeV2ConfigurationHash(await readFile(filename, 'utf8'));
+        },
+      }),
+      () => ({
+        id: this.settings.value.nodeId,
+        epoch: this.deliveryIncarnation,
+        ready: this.integrationsReady,
+      }),
+    );
+    this.adapters = new AdapterRegistry(this.aionui, this.claude, this.opencodeV2);
     this.wakeClaims = new WakeClaims({
       claude: this.claude,
       profiles: () => this.settings.value.adapters,
@@ -390,6 +418,7 @@ export class NodeService extends EventEmitter {
       await this.adapters.configure(this.settings.value.adapters);
       await this.publishIntegration();
       this.acceptingIntegrations = true;
+      this.opencodeV2.start();
       void this.drainIncoming();
       this.drainAdapters();
       this.drainFileCleanup();
@@ -521,7 +550,9 @@ export class NodeService extends EventEmitter {
       input.adapterId ?? this.settings.value.adapters.find((a) => a.kind === 'manual')!.id;
     const profile = this.settings.value.adapters.find((a) => a.id === adapterId);
     if (
-      (['opencode-http', 'cursor-hook', 'aionui', 'claude-code'].includes(profile?.kind ?? '') &&
+      (['opencode-http', 'opencode-v2', 'cursor-hook', 'aionui', 'claude-code'].includes(
+        profile?.kind ?? '',
+      ) &&
         input.chatId !== profile?.sessionId) ||
       (profile?.kind === 'codex-desktop' && input.chatId !== profile.threadId)
     )
@@ -542,6 +573,10 @@ export class NodeService extends EventEmitter {
         ((profile.kind === 'codex-desktop' && prior.threadId === profile.threadId) ||
           (profile.kind === 'opencode-http' &&
             prior.workspace === profile.workspace &&
+            prior.sessionId === profile.sessionId) ||
+          (profile.kind === 'opencode-v2' &&
+            prior.setupTargetId === profile.setupTargetId &&
+            prior.instanceId === profile.instanceId &&
             prior.sessionId === profile.sessionId) ||
           (profile.kind === 'cursor-hook' && prior.sessionId === profile.sessionId) ||
           (profile.kind === 'aionui' &&
@@ -918,6 +953,70 @@ export class NodeService extends EventEmitter {
             : 'This client uses standard MCP. Automatic wake-up is not supported; history is available in the app and through MCP.',
       },
     };
+  }
+  async connectOpenCodeV2(
+    args: {
+      nickname: string;
+      contextToken?: string;
+      connectionId?: string;
+      transferId?: string;
+      confirmTransfer?: boolean;
+      resetHistory?: boolean;
+    },
+    identity: OpenCodeV2Identity,
+  ): Promise<ConnectResult> {
+    identity.assertCurrent();
+    let profile = this.settings.value.adapters.find(
+      (profile) =>
+        profile.kind === 'opencode-v2' &&
+        profile.setupTargetId === identity.scope.targetId &&
+        profile.instanceId === identity.scope.bootId &&
+        profile.sessionId === identity.sessionID,
+    );
+    if (!profile) {
+      profile = {
+        id: randomUUID(),
+        label: 'OpenCode v2',
+        kind: 'opencode-v2',
+        setupTargetId: identity.scope.targetId,
+        instanceId: identity.scope.bootId,
+        workspace: identity.bridge.registration.workspace,
+        sessionId: identity.sessionID,
+      };
+      await this.installAdapter(profile);
+      identity.assertCurrent();
+    }
+    const { contextToken: _ignored, ...input } = args;
+    const previous = this.store
+      .list()
+      .find((agent) => agent.key === nicknameKey(input.nickname))?.binding;
+    if (
+      !input.connectionId &&
+      previous?.adapterId === profile.id &&
+      previous.chatId === identity.sessionID
+    )
+      input.connectionId = previous.connectionId;
+    const result = this.connect({
+      ...input,
+      client: 'OpenCode v2',
+      chatId: identity.sessionID,
+      adapterId: profile.id,
+    });
+    if (result.status === 'connected') {
+      const agent = this.store.assertOwner(result.binding.connectionId),
+        adapter = this.adapters.get(profile.id);
+      if (!(adapter instanceof OpenCodeV2Adapter)) throw new Error('V2_ADAPTER_UNAVAILABLE');
+      await adapter.bind(identity, {
+        agentKey: agent.key,
+        incarnation: this.store.sourceStamp(agent.key).incarnation!,
+        connectionId: agent.binding.connectionId,
+        generation: agent.binding.generation,
+        adapterId: agent.binding.adapterId,
+        chatId: agent.binding.chatId,
+      });
+      identity.assertCurrent();
+    }
+    return result;
   }
   /** Verifies a Claude Code helper call before the helper forwards it to MCP. */
   /** The installed mod consumes a wake claim immediately before it submits the notice. */
@@ -2041,11 +2140,44 @@ export class NodeService extends EventEmitter {
             submitting = true;
           }
           const result = await adapter.deliver({
+            deliveryAttempt: attempt,
+            onHostAccepted:
+              attempt && adapter instanceof OpenCodeV2Adapter
+                ? () => {
+                    currentDelivery();
+                    const saved = this.store.deliveryAttempt(attempt!.id);
+                    if (!saved.meta.host || !saved.meta.payloadHash)
+                      throw new Error('V2_HOST_WITNESS_UNAVAILABLE');
+                    this.store.acceptOpenCodeV2Delivery(
+                      saved.id,
+                      saved.meta.host,
+                      saved.meta.payloadHash,
+                    );
+                  }
+                : undefined,
+            onNativeProjected:
+              attempt && adapter instanceof OpenCodeV2Adapter
+                ? (witness) => {
+                    currentDelivery();
+                    const delivered = this.store.completeOpenCodeV2Delivery(
+                      attempt!.id,
+                      attempt!.meta.lifecycle,
+                      witness.host,
+                      witness.payloadHash,
+                    );
+                    void this.notifyDelivery(binding.connectionId, delivered)
+                      .then(() => {
+                        this.emit('change');
+                        this.drainAdapters();
+                      })
+                      .catch(() => {});
+                  }
+                : undefined,
             beforeRelease: attempt
-              ? (representation) => {
+              ? (representation, host) => {
                   currentDelivery();
                   if (submitting) throw new Error('The native body was already released');
-                  this.store.sealDelivery(attempt!.id, contentHash(representation));
+                  this.store.sealDelivery(attempt!.id, contentHash(representation), host);
                   this.store.issueDelivery(attempt!.id);
                   submitting = true;
                 }
@@ -2115,6 +2247,8 @@ export class NodeService extends EventEmitter {
           } else {
             if (attempt) {
               if (!submitting) this.store.cancelDelivery(attempt.id, submitting);
+              else if (adapter instanceof OpenCodeV2Adapter && result.definiteNoBody)
+                this.store.cancelDelivery(attempt.id, true);
               else this.store.uncertainDelivery(attempt.id);
             }
             // Wake-only offers may coexist with a completed explicit read.
@@ -2389,6 +2523,7 @@ export class NodeService extends EventEmitter {
     clearTimeout(this.directoryPublish);
     this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
+    this.opencodeV2.close();
     this.contexts.clear();
     this.claudeContextLeases.clear();
     this.store.invalidateClearRequests();

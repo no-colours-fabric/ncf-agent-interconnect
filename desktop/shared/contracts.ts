@@ -154,7 +154,15 @@ export interface AdapterCapabilities {
 export interface AdapterProfile {
   id: string;
   label: string;
-  kind: 'manual' | 'opencode-http' | 'codex-desktop' | 'cursor-hook' | 'aionui' | 'claude-code';
+  kind:
+    | 'manual'
+    | 'opencode-http'
+    | 'opencode-v2'
+    | 'codex-desktop'
+    | 'cursor-hook'
+    | 'aionui'
+    | 'claude-code';
+  setupTargetId?: string;
   aionConnectionId?: string;
   baseUrl?: string;
   sessionId?: string;

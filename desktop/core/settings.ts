@@ -13,6 +13,7 @@ export const adapterSchema = z
     kind: z.enum([
       'manual',
       'opencode-http',
+      'opencode-v2',
       'codex-desktop',
       'cursor-hook',
       'aionui',
@@ -29,9 +30,21 @@ export const adapterSchema = z
     instanceId: z.uuid().optional(),
     hostPid: z.number().int().positive().optional(),
     released: z.boolean().optional(),
+    setupTargetId: z.uuid().optional(),
   })
   .strict()
   .superRefine((profile, ctx) => {
+    if (
+      profile.kind === 'opencode-v2' &&
+      (!profile.setupTargetId ||
+        !profile.instanceId ||
+        !profile.workspace ||
+        !profile.sessionId?.startsWith('ses'))
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The OpenCode v2 integration did not provide its exact target and chat',
+      });
     if (profile.kind === 'aionui' && (!profile.aionConnectionId || !profile.sessionId))
       ctx.addIssue({
         code: 'custom',
