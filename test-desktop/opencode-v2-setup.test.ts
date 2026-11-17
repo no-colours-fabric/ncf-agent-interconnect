@@ -158,3 +158,30 @@ test('explicit owner config-drift repair creates a new generation without startu
   assert.notEqual(current.credentialVerifier, old.credentialVerifier);
   assert.equal((await setup.v2Status(target)).state, 'configured');
 });
+
+test('selected managed config changed after write cannot become the activated verifier baseline', async (t) => {
+  const { state, target, setup } = await fixture(t);
+  const remember = McpSetupPaths.prototype.remember;
+  t.mock.method(
+    McpSetupPaths.prototype,
+    'remember',
+    async function (
+      this: McpSetupPaths,
+      client: Parameters<McpSetupPaths['remember']>[0],
+      filename: string,
+    ) {
+      await remember.call(this, client, filename);
+      const current = await readFile(target.configurationPath, 'utf8');
+      await writeFile(
+        target.configurationPath,
+        current.replace(/Bearer [a-f0-9]{64}/, 'Bearer ' + 'f'.repeat(64)),
+      );
+    },
+  );
+  const preview = await setup.v2Preview('window', target),
+    result = await setup.v2Apply('window', preview.planId, target, false);
+  assert.equal(result.status, 'failed');
+  await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2', 'targets.json')), {
+    code: 'ENOENT',
+  });
+});

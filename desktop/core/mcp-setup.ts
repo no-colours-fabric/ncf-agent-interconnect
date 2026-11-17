@@ -625,9 +625,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
           await auth.activate(
             plan.draft,
             plan.asset,
-            openCodeV2ConfigurationHash(
-              (await this.readSource(plan.draft.target.configurationPath)).content,
-            ),
+            openCodeV2ConfigurationHash(plan.instructions.configuration),
           );
         },
       },
