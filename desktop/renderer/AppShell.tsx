@@ -242,7 +242,7 @@ export function AppShell({
                 color="text.secondary"
                 sx={{ display: 'block', mb: 0.5, overflowWrap: 'anywhere' }}
               >
-                {t(locale, 'headerPrefix', { node: snapshot.nodeLabel })}
+                {snapshot.nodeLabel}
               </Typography>
               <Typography
                 data-testid="page-title"
