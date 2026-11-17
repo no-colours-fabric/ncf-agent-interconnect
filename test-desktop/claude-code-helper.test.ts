@@ -80,7 +80,37 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
   ]);
   assert.deepEqual(JSON.parse(posix['plugin/hooks/hooks.json']).modules, ['./wake.js']);
   assert.ok(posix['plugin/hooks/incoming.js'].includes("from './incoming-format.js'"));
-  assert.ok(posix['plugin/hooks/incoming-format.js'].includes('Use agent_send(connectionId'));
+  const incomingFormat = await import(
+    'data:text/javascript;base64,' +
+      Buffer.from(posix['plugin/hooks/incoming-format.js']).toString('base64')
+  );
+  const presentation =
+    '**Incoming NCF Agent Interconnect**\nFrom: "Боб"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nТочный текст 漢字\n\nReply-To "Боб": r1\nUse agent_send(connectionId, replyRef="r1", text) to reply.';
+  const page = {
+    messages: [
+      {
+        direction: 'in',
+        sequence: 1,
+        replyRef: 'r1',
+        presentation,
+        files: [],
+        envelope: {
+          protocol: 2,
+          id: '00000000-0000-4000-8000-000000000001',
+          fromNode: '00000000-0000-4000-8000-000000000002',
+          toNode: '00000000-0000-4000-8000-000000000003',
+          fromNickname: 'Боб',
+          toNickname: 'Клод',
+          text: 'Точный текст 漢字',
+          attachments: [],
+        },
+      },
+    ],
+    nextCursor: 1,
+    hasMore: false,
+  };
+  assert.deepEqual(incomingFormat.pageFrom(page), page);
+  assert.equal(incomingFormat.incomingText(page), presentation);
   assert.equal(
     (posix['plugin/hooks/wake.js'].match(/registerIncomingPresentation\(on\);/g) ?? []).length,
     1,
