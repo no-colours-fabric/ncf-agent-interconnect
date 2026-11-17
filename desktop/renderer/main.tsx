@@ -33,6 +33,7 @@ import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
 import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/index.js';
+import { agentEntryMessages } from './i18n/agent-entry.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
 import { ApplicationDiscovery, ApplicationOffers } from './ApplicationDiscovery.js';
 import { useApplicationDiscovery } from './useApplicationDiscovery.js';
@@ -636,10 +637,16 @@ function App({
         fullWidth
         maxWidth="sm"
       >
-        <DialogTitle>{t(locale, 'dialogAddAgent')}</DialogTitle>
+        <DialogTitle>{agentEntryMessages(locale).dialogAddAgent}</DialogTitle>
         <DialogContent>
           <Typography color="text.secondary" sx={{ mb: 2 }}>
+            {agentEntryMessages(locale).dialogAddAgentBody}
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
             {t(locale, 'dialogAddAgentBody')}
+          </Typography>
+          <Typography color="text.secondary" sx={{ mb: 2 }}>
+            {agentEntryMessages(locale).dialogManualAgentDiagnostic}
           </Typography>
           <TextField
             autoFocus

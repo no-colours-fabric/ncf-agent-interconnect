@@ -19,7 +19,9 @@ import {
   DialogTitle,
   Drawer,
   IconButton,
+  Link,
   MenuItem,
+  Paper,
   Stack,
   TextField,
   Tooltip,
@@ -27,7 +29,6 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
-import AddOutlined from '@mui/icons-material/AddOutlined';
 import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import SendOutlined from '@mui/icons-material/SendOutlined';
@@ -43,8 +44,15 @@ import { AgentClearFlow, agentCacheKey } from './agent-clear-model.js';
 import { AgentClearSummary } from './AgentClearControls.js';
 import { AgentsTable } from './AgentsTable.js';
 import { agentRows, type AgentRow } from './agents-table-model.js';
+import { configuredAgentApplications } from './agent-entry-model.js';
 import { AgentChatHistory } from './AgentChatHistory.js';
 import { useChatHistory } from './useChatHistory.js';
+import {
+  agentEntryMessages,
+  formatAgentApplications,
+  formatAgentEntryMessage,
+  supportedAgentApplications,
+} from './i18n/agent-entry.js';
 import { t, type Locale } from './i18n/index.js';
 import { designTokens } from './theme.js';
 
@@ -73,6 +81,17 @@ export function AgentsPage({
   const composePanel = useRef<HTMLDivElement>(null);
   const restoreComposeFocus = useRef(false);
   const rows = agentRows(snapshot);
+  const entryMessages = agentEntryMessages(locale);
+  const applicationEvidence = configuredAgentApplications(snapshot);
+  const configuredApplications = applicationEvidence.map(({ application }) => application);
+  const creationGuidance = configuredApplications.length
+    ? formatAgentEntryMessage(locale, 'agentsCreationConnected', {
+        applications: formatAgentApplications(locale, configuredApplications),
+      })
+    : formatAgentEntryMessage(locale, 'agentsCreationNoConnected', {
+        applicationsPage: t(locale, 'navClients'),
+        applications: supportedAgentApplications(locale),
+      });
   const [chat, setChat] = useState<AgentRow | null>(null);
   const [historySize, setHistorySize] = useState(100);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -365,9 +384,14 @@ export function AgentsPage({
         useFlexGap
         sx={{ justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 1.5 }}
       >
-        <Button variant="contained" startIcon={<AddOutlined />} onClick={onAdd}>
-          {t(locale, 'ariaAddAgent')}
-        </Button>
+        <Typography
+          data-testid="agents-creation-guidance"
+          variant="body2"
+          color="text.secondary"
+          sx={{ maxWidth: '82ch' }}
+        >
+          {creationGuidance}
+        </Typography>
         <Button
           color="error"
           disabled={!!deletion.busy || !snapshot.agents.length}
@@ -379,27 +403,37 @@ export function AgentsPage({
           {t(locale, 'clearAllLocalAgents')}
         </Button>
       </Stack>
-      <AgentsTable
-        rows={rows}
-        locale={locale}
-        nodeName={nodeName}
-        onChat={openChat}
-        onDelete={(agent) => {
-          if (agent.local) void clear.begin({ scope: 'agent', nickname: agent.nickname });
-        }}
-        labels={{
-          name: t(locale, 'agentsColumnName'),
-          client: t(locale, 'agentsColumnClient'),
-          node: t(locale, 'agentsColumnNode'),
-          lastMessage: t(locale, 'agentsColumnLastMessage'),
-          incoming: t(locale, 'agentsColumnIncoming'),
-          outgoing: t(locale, 'agentsColumnOutgoing'),
-          actions: t(locale, 'agentsColumnActions'),
-          chat: (name) => t(locale, 'agentsChatAria', { name }),
-          remove: (name) => t(locale, 'agentsDeleteAria', { name }),
-          remoteRemoval: t(locale, 'agentsRemoteDeleteHelp'),
-        }}
-      />
+      {rows.length ? (
+        <AgentsTable
+          rows={rows}
+          locale={locale}
+          nodeName={nodeName}
+          onChat={openChat}
+          onDelete={(agent) => {
+            if (agent.local) void clear.begin({ scope: 'agent', nickname: agent.nickname });
+          }}
+          labels={{
+            name: t(locale, 'agentsColumnName'),
+            client: t(locale, 'agentsColumnClient'),
+            node: t(locale, 'agentsColumnNode'),
+            lastMessage: t(locale, 'agentsColumnLastMessage'),
+            incoming: t(locale, 'agentsColumnIncoming'),
+            outgoing: t(locale, 'agentsColumnOutgoing'),
+            actions: t(locale, 'agentsColumnActions'),
+            chat: (name) => t(locale, 'agentsChatAria', { name }),
+            remove: (name) => t(locale, 'agentsDeleteAria', { name }),
+            remoteRemoval: t(locale, 'agentsRemoteDeleteHelp'),
+          }}
+        />
+      ) : (
+        <Paper
+          data-testid="agents-empty"
+          role="status"
+          sx={{ py: 5, px: 2, textAlign: 'center', color: 'text.secondary' }}
+        >
+          <Typography variant="body2">{entryMessages.agentEmptyPrompt}</Typography>
+        </Paper>
+      )}
       {snapshot.directories
         .filter((directory) => !directory.local && directory.truncated)
         .map((directory) => (
@@ -411,6 +445,19 @@ export function AgentsPage({
             })}
           </Alert>
         ))}
+      <Typography variant="body2" color="text.secondary">
+        {entryMessages.agentsManualDiagnosticIntro}{' '}
+        <Link
+          component="button"
+          type="button"
+          variant="body2"
+          data-testid="create-agent-manually"
+          onClick={onAdd}
+          sx={{ verticalAlign: 'baseline' }}
+        >
+          {entryMessages.agentsManualDiagnosticLink}
+        </Link>
+      </Typography>
       <Drawer
         anchor="right"
         open={validChat && !!chat?.local}
