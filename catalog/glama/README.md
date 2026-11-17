@@ -1,8 +1,8 @@
 # Glama container configuration
 
-This catalog-only launcher runs the unchanged production **NCF Agent Interconnect**
+This catalog-only launcher runs the unchanged production **“NCF Agent Interconnect”**
 Electron application in its existing background mode. NCF abbreviates the brand
-**No Colours Fabric**. It does not implement a headless replacement, another
+**“No Colours Fabric”**. It does not implement a headless replacement, another
 mailbox or an independent MCP tool registry.
 
 ## Build specification
@@ -18,9 +18,9 @@ Use the fields in [build-spec.json](build-spec.json) in the Glama Dockerfile for
   repository file deliberately leaves this value null; do not use a moving
   branch or an earlier commit that lacks the launcher.
 
-Glama installs \`mcp-proxy@6.9.0\` globally. The launcher verifies that package
-identity/version and uses its documented \`startStdioServer\` HTTPStream API.
-There is one outer \`mcp-proxy\` in CMD. Do not wrap it a second time.
+Glama installs `mcp-proxy@6.9.0` globally. The launcher verifies that package
+identity/version and uses its documented `startStdioServer` HTTPStream API.
+There is one outer `mcp-proxy` in CMD. Do not wrap it a second time.
 
 The build uses the repository's npm lock, downloads its pinned official Electron
 45.1.0 runtime once, and compiles the application. No release installer or full
@@ -43,11 +43,11 @@ Container replacement requires retaining this directory through the platform's
 storage mechanism; persistent Glama storage has not been verified by this recipe.
 Never mount an owner's real home or client profile there.
 
-The actual Electron application creates its own private \`Integrations/node.json\`.
+The actual Electron application creates its own private `Integrations/node.json`.
 The launcher reads that exact loopback URL and token in memory and opens an
 authenticated HTTP MCP connection. The generic proxy mirrors the upstream
 capabilities/tools into stdio. It does not copy tool definitions, call
-\`agent_connect\`, send messages or run scheduled agent polling.
+`agent_connect`, send messages or run scheduled agent polling.
 
 Protocol stdout belongs exclusively to MCP. Full Electron stdout/stderr and a
 sanitized lifecycle record remain in the private diagnostics directory announced
@@ -60,14 +60,14 @@ per-caller identity. Use a separate deployment for each trusted principal.
 This recipe does not establish automatic delivery for desktop adapters or
 multi-user isolation inside one shared proxy.
 
-The app uses its existing \`--background\` mode. Successful startup/initialize is
+The app uses its existing `--background` mode. Successful startup/initialize is
 not renderer, GUI, desktop-client, model-reaction or native-platform acceptance.
 
 ## Sandbox requirement
 
 Keep the production sandbox. The official Chromium helper must be root:root
 4755, and the runtime must permit Chromium's normal sandbox mechanisms.
-No \`--no-sandbox\`, \`--disable-setuid-sandbox\`, \`--disable-gpu\`, privileged
+No `--no-sandbox`, `--disable-setuid-sandbox`, `--disable-gpu`, privileged
 container, added capabilities or seccomp bypass is part of this recipe.
 
 Missing system libraries and unsupported sandbox runtime policy are different
