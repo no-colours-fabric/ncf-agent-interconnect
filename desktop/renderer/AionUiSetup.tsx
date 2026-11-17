@@ -31,10 +31,12 @@ function InlineAction({
   template,
   label,
   onClick,
+  testId,
 }: {
   template: string;
   label: string;
   onClick: () => void;
+  testId?: string;
 }): React.JSX.Element {
   const [before, after = ''] = template.split('{action}');
   return (
@@ -45,7 +47,15 @@ function InlineAction({
         type="button"
         aria-label={label}
         onClick={onClick}
-        sx={{ fontSize: 'inherit' }}
+        data-testid={testId}
+        sx={{
+          fontSize: 'inherit',
+          minHeight: 44,
+          minWidth: 44,
+          display: 'inline-flex',
+          alignItems: 'center',
+          verticalAlign: 'middle',
+        }}
       >
         {label}
       </Link>
@@ -292,6 +302,7 @@ export function AionUiAuthorization({
             template={m.aionAccessAction}
             label={m.aionConfigureAccess}
             onClick={openAccess}
+            testId="aionui-configure-access"
           />
         )}
         {!complete && activeStep === 1 && (
@@ -312,9 +323,11 @@ export function AionUiAuthorization({
           </Typography>
         )}
         <Stack direction="row" spacing={1} useFlexGap sx={{ flexWrap: 'wrap' }}>
-          <Button variant="outlined" data-testid="aionui-configure-access" onClick={openAccess}>
-            {m.aionConfigureAccess}
-          </Button>
+          {activeStep !== 0 && (
+            <Button variant="outlined" data-testid="aionui-configure-access" onClick={openAccess}>
+              {m.aionConfigureAccess}
+            </Button>
+          )}
           {status?.state === 'paired' && (
             <Button
               onClick={() => {

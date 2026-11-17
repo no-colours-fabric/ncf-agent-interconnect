@@ -7,6 +7,7 @@ export async function createUiEnvironment(clientHome) {
   const canonicalHome = await realpath(clientHome);
   const environment = {
     ...process.env,
+    NCF_DISABLE_LAN_DISCOVERY: '1',
     HOME: canonicalHome,
     USERPROFILE: canonicalHome,
     CODEX_HOME: path.join(canonicalHome, '.codex'),

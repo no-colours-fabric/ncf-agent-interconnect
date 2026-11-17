@@ -1,6 +1,5 @@
 import { waitForComposerTransition } from './ui-chat-composer.mjs';
-import { verifyClientStatusPanel } from './ui-client-status-assertions.mjs';
-import { _electron as electron } from 'playwright';
+import { _electron as electron, errors } from 'playwright';
 import { createRequire } from 'node:module';
 import { mkdtemp, rm, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -12,6 +11,53 @@ import { verifyChatHistoryPagination } from './ui-chat-history-smoke.mjs';
 import { NodeService } from '../build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
+
+async function verifyClientStatusPanel(page, { client, state, kind, count, activity }) {
+  const panel = page.getByTestId('client-status-panel');
+  assert.equal(
+    await page.getByTestId('application-manual').count(),
+    0,
+    'There is no overall manual-MCP summary',
+  );
+  if (state !== 'configured' && state !== 'needs-update') {
+    assert.equal(
+      await panel.count(),
+      0,
+      'Absent, pending and unavailable setup must not show a configured Status panel',
+    );
+    const form = page.locator('#mcp-setup-form-' + client);
+    assert.ok(
+      await form.getByRole('textbox', { name: 'Configuration file path', exact: true }).isVisible(),
+      'The selected inline manual path remains available without configured settings',
+    );
+    return;
+  }
+  await panel.waitFor();
+  assert.equal(await panel.count(), 1);
+  assert.equal(await panel.getAttribute('data-status'), state);
+  assert.equal(await page.getByTestId('client-setup-description').count(), 0);
+  const actualCount = await panel.getByTestId('application-agent-count').innerText();
+  const actualActivity = await panel.getByTestId('application-last-activity').innerText();
+  if (!kind || kind === 'manual') {
+    assert.ok(actualCount.trim());
+    assert.ok(
+      !/^\d+$/.test(actualCount),
+      'Cursor count must remain unknown instead of borrowing every manual connection',
+    );
+    assert.equal(actualCount, actualActivity);
+    assert.equal(actualCount, 'Unknown');
+    assert.equal(await panel.getByTestId('application-delivery-status').count(), 0);
+    return;
+  }
+  assert.equal(actualCount, String(count));
+  if (activity)
+    assert.equal(
+      actualActivity,
+      await page.evaluate((date) => new Date(date).toLocaleString('en'), activity),
+    );
+  else assert.equal(actualActivity, 'Unknown');
+  assert.ok((await panel.getByTestId('application-delivery-status').innerText()).trim());
+}
 
 const require = createRequire(import.meta.url);
 const temp = await mkdtemp(path.join(os.tmpdir(), 'ncf-interconnect-ui-'));
@@ -57,38 +103,98 @@ try {
   });
   const page = await application.firstWindow();
   await page.getByText('Connect agents', { exact: true }).waitFor();
+  await page.evaluate(async () => {
+    let timer;
+    try {
+      await Promise.race([
+        window.interconnect.invoke('applicationDiscovery').catch(() => {}),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('Startup discovery did not settle')), 10000);
+        }),
+      ]);
+    } finally {
+      clearTimeout(timer);
+    }
+  });
+  const startup = page.getByTestId('application-startup-setup');
+  let startupVisible = false;
+  try {
+    await startup.waitFor({ state: 'visible', timeout: 3000 });
+    startupVisible = true;
+  } catch (error) {
+    if (!(error instanceof errors.TimeoutError)) throw error;
+  }
+  if (startupVisible) {
+    await page
+      .getByRole('dialog', { name: 'Connect your apps', exact: true })
+      .getByRole('button', { name: 'Close', exact: true })
+      .click();
+    await startup.waitFor({ state: 'hidden' });
+  }
   await mkdir('release', { recursive: true });
   await page.screenshot({ path: 'release/preview-overview.png' });
   await page.getByTestId('nav-mcp').click();
-  assert.equal(await page.getByRole('tab').count(), 5);
+  const applicationList = page.getByTestId('application-setup-list');
+  await applicationList.waitFor();
+  assert.equal(
+    await applicationList.getByRole('button', { name: 'Manual setup', exact: true }).count(),
+    5,
+  );
+  assert.equal(await page.getByRole('tab').count(), 0);
   assert.equal(await page.locator('main').getByRole('combobox').count(), 0);
+  const openManual = async (client, label) => {
+    const row = page.getByTestId('application-row-' + client);
+    await row.getByRole('heading', { name: label, exact: true }).waitFor();
+    await row.getByRole('button', { name: 'Manual setup', exact: true }).click();
+    const form = page.locator('#mcp-setup-form-' + client);
+    await form.waitFor();
+    await form
+      .getByRole('heading', {
+        name: client === 'aionui' ? 'MCP for Cursor Agent' : 'Configure ' + label,
+        exact: true,
+      })
+      .waitFor();
+    assert.equal(await applicationList.count(), 0);
+    assert.equal(await page.getByRole('dialog').count(), 0);
+    return form;
+  };
+  const backToApplications = async () => {
+    await page.getByRole('button', { name: 'Back to Applications', exact: true }).click();
+    await applicationList.waitFor();
+    assert.equal(
+      await applicationList.getByRole('button', { name: 'Manual setup', exact: true }).count(),
+      5,
+    );
+  };
   for (const [client, label] of [
     ['cursor', 'Cursor'],
-    ['opencode', 'OpenCode'],
+    ['opencode', 'OpenCode v1'],
     ['codex', 'Codex'],
+    ['aionui', 'AionUi with Cursor Agent'],
     ['claude', 'Claude Code'],
   ]) {
-    await page.getByRole('tab', { name: label, exact: true }).click();
-    await page.getByTestId('mcp-settings-status').waitFor();
+    const form = await openManual(client, label);
+    if (client !== 'aionui') await page.getByTestId('mcp-settings-status').waitFor();
     assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
-    await page.getByTestId('mcp-configure-' + client).click();
-    const dialog = page.getByRole('dialog', { name: 'Configure ' + label, exact: true });
-    const selectedPath = await dialog
+    const selectedPath = await form
       .getByRole('textbox', { name: 'Configuration file path', exact: true })
       .inputValue();
     assert.ok(clientConfigs.includes(selectedPath));
-    await page.waitForFunction(() => {
-      const apply = document.querySelector('[data-testid="mcp-apply"]');
+    await page.waitForFunction((client) => {
+      const apply = document
+        .getElementById('mcp-setup-form-' + client)
+        ?.querySelector('[data-testid="mcp-apply"]');
       return apply && !apply.disabled;
-    });
-    await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+    }, client);
+    await form.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await applicationList.waitFor();
     assert.deepEqual(
       await hashes(),
       before,
       'status and cancellation must preserve private client files',
     );
   }
-  await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
+  await openManual('aionui', 'AionUi with Cursor Agent');
   const aionSetup = page.getByTestId('aionui-setup');
   await aionSetup
     .getByText('Continue setting up AionUi. Follow the steps below.', { exact: true })
@@ -126,15 +232,20 @@ try {
     before,
     'AionUi instructions must not write client configuration',
   );
+  await backToApplications();
   assert.equal(await page.getByTestId('nav-clients').count(), 0);
   const applicationSnapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
-  for (const [label, kind] of [
-    ['Cursor', 'manual'],
-    ['OpenCode', 'opencode-http'],
-    ['Codex', 'codex-desktop'],
-    ['AionUi', 'aionui'],
+  for (const [client, label, kind] of [
+    ['cursor', 'Cursor', 'manual'],
+    ['opencode', 'OpenCode v1', 'opencode-http'],
+    ['codex', 'Codex', 'codex-desktop'],
+    ['aionui', 'AionUi with Cursor Agent', 'aionui'],
   ]) {
-    await page.getByRole('tab', { name: label, exact: true }).click();
+    await openManual(client, label);
+    const { state } = await page.evaluate(
+      (client) => window.interconnect.invoke('mcpSetupStatus', { client }),
+      client,
+    );
     const profiles = applicationSnapshot.adapters.filter((profile) => profile.kind === kind);
     const ids = new Set(profiles.map((profile) => profile.id));
     const agents = applicationSnapshot.agents.filter(
@@ -145,7 +256,8 @@ try {
       ...profiles.map((profile) => profile.lastOwnerVerifiedAt),
     ].filter((value) => value && Number.isFinite(Date.parse(value)));
     const activity = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
-    await verifyClientStatusPanel(page, { kind, count: agents.length, activity });
+    await verifyClientStatusPanel(page, { client, state, kind, count: agents.length, activity });
+    await backToApplications();
   }
   assert.equal(await page.getByRole('button', { name: 'Add adapter', exact: true }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: /Exact.*(ID|UUID)/ }).count(), 0);
@@ -334,7 +446,7 @@ try {
   console.log(
     JSON.stringify({
       aionUiReadOnlySetup: true,
-      mcpTabs: 5,
+      applicationManualForms: 5,
       electron: '45.1.0',
       renderer: 'React + MUI 9.5.0',
       liveTlsMessage: sent.id,

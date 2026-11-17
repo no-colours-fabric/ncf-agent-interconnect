@@ -32,11 +32,6 @@ export function useMcpSetupStatuses(invoke: McpSetupInvoke, enabled = true): Mcp
           const current = inFlight.current[client];
           if (current && !force) return current;
           const revision = ++revisions.current[client];
-          setStatuses((current) => {
-            const next = { ...current };
-            delete next[client];
-            return next;
-          });
           setErrors((current) => {
             const next = { ...current };
             delete next[client];
