@@ -52,6 +52,11 @@ const pageTitles = {
   'llms.txt': 'Complete AI reference',
   'distribution/README.md': 'Packaged release guide',
 };
+const legacyHeadingIds = {
+  'docs/mcp-clients.md': { 'aionui-with-cursor-agent': 'aionui' },
+  'distribution/README.md': { 'aionui-with-cursor-agent': 'aionui' },
+  'llms.txt': { 'aionui-with-cursor-agent-setup': 'aionui-setup' },
+};
 
 function escapeHtml(value) {
   return value
@@ -109,6 +114,15 @@ function renderer(source) {
       token.attrSet('id', slugger.slug(textFromInline(state.tokens[index + 1])));
     }
   });
+
+  const normalHeading =
+    md.renderer.rules.heading_open ||
+    ((tokens, index, options, env, self) => self.renderToken(tokens, index, options));
+  md.renderer.rules.heading_open = (tokens, index, options, env, self) => {
+    const legacyId = legacyHeadingIds[source]?.[tokens[index].attrGet('id')];
+    const alias = legacyId ? `<span id="${legacyId}" aria-hidden="true"></span>` : '';
+    return alias + normalHeading(tokens, index, options, env, self);
+  };
 
   const normalLink =
     md.renderer.rules.link_open ||
