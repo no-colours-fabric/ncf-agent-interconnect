@@ -6,7 +6,8 @@ A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
 npm are not required for installation.
 
-Setup guidance covers Codex Desktop, Claude Code, Cursor, OpenCode and AionUi;
+Setup guidance covers Codex Desktop, Claude Code, Cursor, OpenCode and AionUi
+with Cursor Agent;
 their connection and delivery limits differ.
 
 ## Install
@@ -114,7 +115,7 @@ ten minutes, permit five attempts and authorize one peer. Certificates are pinne
 automatically through mutual authentication. Both apps need short-code support
 for a new connection; previously paired nodes reconnect without another code.
 
-## AionUi
+## AionUi with Cursor Agent
 
 The supported setup is Cursor Agent inside AionUi. Open Applications & MCP → AionUi.
 Configure access and approve it in AionUi, then separately configure Cursor
@@ -220,7 +221,7 @@ schema are unchanged. Restart Cursor or OpenCode when its included plugin change
 
 ## Upgrade from 0.15.0
 
-AionUi setup now shows the current authorization, MCP settings or live-bridge
+AionUi with Cursor Agent setup now shows the current authorization, MCP settings or live-bridge
 step with inline actions. The configuration file remains accessible. Review the
 shared Cursor profile explanation before Apply, then reconnect Cursor Agent in
 the intended AionUi chat. Saved authorization and settings do not prove a live
