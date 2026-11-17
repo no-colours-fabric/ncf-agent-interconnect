@@ -955,10 +955,10 @@ export class AgentStore {
     }
     return { ...attempt, meta };
   }
-  sealDelivery(id: string, payloadHash: string | null): void {
+  sealDelivery(id: string, payloadHash: string | null, host?: DeliveryMetadata['host']): void {
     this.transaction(() => {
       this.assertDeliveryCurrent(id);
-      this.changeDelivery(id, ['reserved'], 'sealed', { payloadHash });
+      this.changeDelivery(id, ['reserved'], 'sealed', { payloadHash, ...(host ? { host } : {}) });
     });
   }
   issueDelivery(id: string): void {
@@ -994,13 +994,57 @@ export class AgentStore {
     });
   }
   completeDelivery(id: string, lifecycle: DeliveryMetadata['lifecycle']): Set<string> {
+    return this.finishDelivery(id, lifecycle, ['issued', 'host-accepted']);
+  }
+  acceptOpenCodeV2Delivery(
+    id: string,
+    host: NonNullable<DeliveryMetadata['host']>,
+    payloadHash: string,
+  ): void {
+    this.transaction(() => {
+      const attempt = this.assertDeliveryCurrent(id);
+      if (
+        JSON.stringify(attempt.meta.host) !== JSON.stringify(host) ||
+        attempt.meta.payloadHash !== payloadHash
+      )
+        throw new Error('The OpenCode v2 host witness changed');
+      if (attempt.meta.phase === 'uncertain' || attempt.meta.phase === 'host-accepted') return;
+      this.changeDelivery(id, ['issued'], 'host-accepted');
+    });
+  }
+  /** Only the v2 adapter's exact current-boot projection join may complete its uncertainty. */
+  completeOpenCodeV2Delivery(
+    id: string,
+    lifecycle: DeliveryMetadata['lifecycle'],
+    host: NonNullable<DeliveryMetadata['host']>,
+    payloadHash: string,
+  ): Set<string> {
+    return this.finishDelivery(id, lifecycle, ['issued', 'host-accepted', 'uncertain'], {
+      host,
+      payloadHash,
+    });
+  }
+  private finishDelivery(
+    id: string,
+    lifecycle: DeliveryMetadata['lifecycle'],
+    phases: DeliveryPhase[],
+    v2?: { host: NonNullable<DeliveryMetadata['host']>; payloadHash: string },
+  ): Set<string> {
     return this.transaction(() => {
       const previous = this.deliveryAttempt(id);
       if (previous.meta.phase === 'committed') return new Set<string>();
       const attempt = this.assertDeliveryCurrent(id);
       if (JSON.stringify(attempt.meta.lifecycle) !== JSON.stringify(lifecycle))
         throw new Error('The delivery lifecycle changed');
-      this.changeDelivery(id, ['issued', 'host-accepted'], 'committed');
+      if (
+        v2 &&
+        (attempt.meta.transport !== 'native' ||
+          JSON.stringify(attempt.meta.host) !== JSON.stringify(v2.host) ||
+          attempt.meta.payloadHash !== v2.payloadHash ||
+          v2.host.session !== attempt.meta.owner.chatId)
+      )
+        throw new Error('The OpenCode v2 projection witness changed');
+      this.changeDelivery(id, phases, 'committed');
       for (const item of attempt.ids)
         this.markDelivered(this.get(item, 'in')!, attempt.meta.owner.connectionId, id);
       return new Set(attempt.ids);

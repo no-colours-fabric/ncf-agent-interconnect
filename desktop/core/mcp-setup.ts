@@ -18,6 +18,7 @@ import type {
   OpenCodeV2SetupPreview,
   OpenCodeV2SetupStatus,
   OpenCodeV2SetupApplyResult,
+  OpenCodeV2SetupAvailability,
 } from '../shared/mcp-setup.js';
 import { mcpSetupClients } from '../shared/mcp-setup.js';
 import { editMcpConfiguration } from './mcp-setup-editors.js';
@@ -35,6 +36,14 @@ const lifetime = 10 * 60 * 1000;
 const digest = (value: string) => createHash('sha256').update(value).digest('hex');
 const errno = (error: unknown) => (error as NodeJS.ErrnoException).code;
 class SetupError extends Error {}
+class V2SetupUnavailable extends SetupError {
+  constructor(
+    readonly reason: Extract<OpenCodeV2SetupAvailability, { state: 'unavailable' }>['reason'],
+    message: string,
+  ) {
+    super(message);
+  }
+}
 function safeError(error: unknown): string {
   if (error instanceof SetupError) return error.message;
   if (['EACCES', 'EPERM', 'EROFS'].includes(errno(error) ?? ''))
@@ -625,9 +634,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
           await auth.activate(
             plan.draft,
             plan.asset,
-            openCodeV2ConfigurationHash(
-              (await this.readSource(plan.draft.target.configurationPath)).content,
-            ),
+            openCodeV2ConfigurationHash(plan.instructions.configuration),
           );
         },
       },
@@ -666,30 +673,98 @@ export class OpenCodeV2SetupService extends McpSetupService {
   async v2Defaults(): Promise<OpenCodeV2SetupDefaults> {
     const result = await this.defaults('opencode'),
       file = result.files[0];
-    return {
-      client: 'opencode-v2',
-      target: await this.canonicalTarget({
-        major: 2,
-        installationId: null,
-        installationPath: null,
-        profilePath: path.dirname(file.path),
-        configurationPath: file.path,
-      }),
-      alternatives: file.alternatives,
+    const raw: OpenCodeV2SetupTarget = {
+      major: 2,
+      installationId: null,
+      installationPath: null,
+      profilePath: path.dirname(file.path),
+      configurationPath: file.path,
     };
+    try {
+      const target = await this.canonicalTarget(raw);
+      return {
+        client: 'opencode-v2',
+        target,
+        alternatives: file.alternatives,
+        setupAvailability: await this.v2Availability(target),
+      };
+    } catch {
+      return {
+        client: 'opencode-v2',
+        target: raw,
+        alternatives: file.alternatives,
+        setupAvailability: { state: 'unavailable', reason: 'target-unresolved' },
+      };
+    }
+  }
+  private async v2Availability(
+    target: OpenCodeV2SetupTarget,
+  ): Promise<OpenCodeV2SetupAvailability> {
+    try {
+      await new McpSetupPaths(this.v2Options.stateDirectory, 2).get('opencode');
+      const plan = await this.planFor(target),
+        source = await this.readSource(target.configurationPath);
+      try {
+        editOpenCodeV2Configuration(source.content, plan.instructions.configuration);
+      } catch (error) {
+        throw new V2SetupUnavailable(
+          (error as Error).message.includes('legacy v1') ? 'v1-collision' : 'target-unresolved',
+          'The selected OpenCode configuration is unavailable',
+        );
+      }
+      let parent = path.dirname(target.configurationPath);
+      for (;;) {
+        try {
+          await access(parent, constants.W_OK);
+          break;
+        } catch (error) {
+          if (errno(error) !== 'ENOENT')
+            throw new V2SetupUnavailable(
+              'target-unresolved',
+              'The configuration directory is not writable',
+            );
+          const next = path.dirname(parent);
+          if (next === parent) throw error;
+          parent = next;
+        }
+      }
+      return { state: 'available' };
+    } catch (error) {
+      return {
+        state: 'unavailable',
+        reason: error instanceof V2SetupUnavailable ? error.reason : 'private-state-unavailable',
+      };
+    }
   }
   private async planFor(target: OpenCodeV2SetupTarget): Promise<V2SetupPlan> {
     const legacy = await new McpSetupPaths(this.v2Options.stateDirectory).get('opencode');
     if (legacy && (await this.canonicalPath(this.resolvePath(legacy))) === target.configurationPath)
-      throw new SetupError(
+      throw new V2SetupUnavailable(
+        'v1-collision',
         'The selected configuration is retained by OpenCode v1; select its separate v2 configuration',
       );
-    const descriptor = JSON.parse(
-      await readFile(path.join(this.v2Options.stateDirectory, 'Integrations', 'node.json'), 'utf8'),
-    ) as { url: string };
-    const settings = JSON.parse(
-      await readFile(path.join(this.v2Options.stateDirectory, 'settings.json'), 'utf8'),
-    ) as { nodeId: string };
+    if (!(await this.auth.provisioningAvailable()))
+      throw new V2SetupUnavailable(
+        'secure-provision-unavailable',
+        'The OpenCode v2 private-file protection is unavailable',
+      );
+    let descriptor: { url: string }, settings: { nodeId: string };
+    try {
+      descriptor = JSON.parse(
+        await readFile(
+          path.join(this.v2Options.stateDirectory, 'Integrations', 'node.json'),
+          'utf8',
+        ),
+      ) as { url: string };
+      settings = JSON.parse(
+        await readFile(path.join(this.v2Options.stateDirectory, 'settings.json'), 'utf8'),
+      ) as { nodeId: string };
+    } catch {
+      throw new V2SetupUnavailable(
+        'node-unavailable',
+        'Start NCF Agent Interconnect before setting up OpenCode v2',
+      );
+    }
     const nodeUrl = new URL(descriptor.url);
     if (
       nodeUrl.protocol !== 'http:' ||
@@ -700,9 +775,20 @@ export class OpenCodeV2SetupService extends McpSetupService {
       nodeUrl.search ||
       nodeUrl.hash
     )
-      throw new SetupError('Start NCF Agent Interconnect before setting up OpenCode v2');
-    const asset = await (this.v2Options.asset?.() ??
-      readFile(new URL('../integrations/opencode-v2.js', import.meta.url), 'utf8'));
+      throw new V2SetupUnavailable(
+        'node-unavailable',
+        'Start NCF Agent Interconnect before setting up OpenCode v2',
+      );
+    let asset: string;
+    try {
+      asset = await (this.v2Options.asset?.() ??
+        readFile(new URL('../integrations/opencode-v2.js', import.meta.url), 'utf8'));
+    } catch {
+      throw new V2SetupUnavailable(
+        'asset-unavailable',
+        'The installed OpenCode v2 plugin asset is unavailable',
+      );
+    }
     let draft = await this.auth.prepare(target, settings.nodeId, nodeUrl.origin);
     if (draft.existing && draft.existing.assetHash !== digest(asset))
       draft = await this.auth.prepare(target, settings.nodeId, nodeUrl.origin, true);
@@ -784,7 +870,22 @@ export class OpenCodeV2SetupService extends McpSetupService {
     this.selections.delete(planId);
   }
   async v2Status(raw?: OpenCodeV2SetupTarget): Promise<OpenCodeV2SetupStatus> {
-    const target = raw ? await this.canonicalTarget(raw) : (await this.v2Defaults()).target;
+    let target: OpenCodeV2SetupTarget;
+    try {
+      target = raw ? await this.canonicalTarget(raw) : (await this.v2Defaults()).target;
+    } catch {
+      if (!raw) throw new SetupError('The OpenCode v2 target is unavailable');
+      target = openCodeV2TargetSchema.parse(raw);
+      return {
+        client: 'opencode-v2',
+        target,
+        state: 'unavailable',
+        remembered: false,
+        setupAvailability: { state: 'unavailable', reason: 'target-unresolved' },
+        files: [{ id: 'configuration', path: target.configurationPath, state: 'unavailable' }],
+      };
+    }
+    const setupAvailability = await this.v2Availability(target);
     return this.exclusive(async () => {
       try {
         const source = await this.readSource(target.configurationPath);
@@ -792,6 +893,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
           return {
             client: 'opencode-v2',
             target,
+            setupAvailability,
             remembered: false,
             state: 'missing',
             files: [{ id: 'configuration', path: target.configurationPath, state: 'missing' }],
@@ -801,6 +903,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
           return {
             client: 'opencode-v2',
             target,
+            setupAvailability,
             remembered: false,
             state: 'not-configured',
             files: [
@@ -810,6 +913,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
         return {
           client: 'opencode-v2',
           target,
+          setupAvailability,
           targetId: row.targetId,
           remembered: true,
           state: 'configured',
@@ -819,6 +923,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
         return {
           client: 'opencode-v2',
           target,
+          setupAvailability,
           remembered: false,
           state: 'unavailable',
           files: [

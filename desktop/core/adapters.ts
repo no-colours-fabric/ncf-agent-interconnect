@@ -12,6 +12,8 @@ import type { AionUiSessions } from './aionui-sessions.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import type { ClaudeSessions } from './claude-sessions.js';
 import { CodexDesktopAdapter } from './codex-adapter.js';
+import { OpenCodeV2Adapter, type OpenCodeV2Bridges } from './opencode-v2-adapter.js';
+import type { DeliveryAttempt, DeliveryMetadata } from './delivery-attempt.js';
 
 // 'offered' means only that a wake signal was written; it is never a receipt.
 export type Admission = {
@@ -32,7 +34,14 @@ export type EventInput = {
   messageId: string;
   isCurrent?: () => boolean;
   /** Synchronous, one-shot node-owned gate immediately before content leaves. */
-  beforeRelease?: (actualRepresentation: string) => void;
+  beforeRelease?: (actualRepresentation: string, host?: DeliveryMetadata['host']) => void;
+  /** Private common-ledger attempt; never host/model-controlled input. */
+  deliveryAttempt?: DeliveryAttempt;
+  onHostAccepted?: () => void;
+  onNativeProjected?: (witness: {
+    host: NonNullable<DeliveryMetadata['host']>;
+    payloadHash: string;
+  }) => void;
 } & (
   | {
       message: AgentMessageInput;
@@ -508,6 +517,7 @@ export class AdapterRegistry extends EventEmitter {
   constructor(
     private readonly aionui?: AionUiSessions,
     private readonly claude?: ClaudeSessions,
+    private readonly opencodeV2?: OpenCodeV2Bridges,
   ) {
     super();
   }
@@ -532,9 +542,11 @@ export class AdapterRegistry extends EventEmitter {
             ? new CursorHookAdapter(profile, changed, idle)
             : profile.kind === 'aionui'
               ? new AionUiAdapter(profile, this.aionui!, changed, idle)
-              : profile.kind === 'claude-code'
-                ? new ClaudeCodeAdapter(profile, this.claude!, changed, idle)
-                : new OpenCodeAdapter(profile, changed, idle);
+              : profile.kind === 'opencode-v2'
+                ? new OpenCodeV2Adapter(profile, this.opencodeV2!, changed, idle)
+                : profile.kind === 'claude-code'
+                  ? new ClaudeCodeAdapter(profile, this.claude!, changed, idle)
+                  : new OpenCodeAdapter(profile, changed, idle);
     this.adapters.set(profile.id, adapter);
     await adapter.start();
   }

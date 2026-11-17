@@ -170,6 +170,36 @@ test('raw sequence differs from timeline; references survive receipt and restart
   assert.equal(f.service.store.get(sent.id, 'out')!.envelope.replyTo, row.envelope.id);
 });
 
+test('MCP history rejects a cleared and reinserted raw row even when its message ID is unchanged', async (t) => {
+  const { f, owner } = await fixture(t),
+    row = incoming(f.service, owner.nickname, {
+      attachments: [{ id: 'a'.repeat(64), name: 'identity.txt', size: 1 }],
+    });
+  f.service.store.ready(row.envelope.id);
+  let entered!: () => void, release!: () => void;
+  const started = new Promise<void>((resolve) => (entered = resolve)),
+    blocked = new Promise<void>((resolve) => (release = resolve));
+  f.service.files.materialize = async () => {
+    entered();
+    await blocked;
+    return path.join(f.service.settings.value.exportRoots[0], 'identity.txt');
+  };
+  const reading = mcpRead(f.service, owner.binding.connectionId);
+  await started;
+  const before = f.service.store.get(row.envelope.id, 'in')!.sequence;
+  f.service.store.db
+    .prepare('DELETE FROM timeline WHERE message_id=? AND direction=?')
+    .run(row.envelope.id, 'in');
+  f.service.store.db
+    .prepare('DELETE FROM messages WHERE id=? AND direction=?')
+    .run(row.envelope.id, 'in');
+  assert.equal(f.service.store.insert(row.envelope, 'in'), true);
+  f.service.store.ready(row.envelope.id);
+  assert.notEqual(f.service.store.get(row.envelope.id, 'in')!.sequence, before);
+  release();
+  await assert.rejects(reading, /message was cleared/);
+});
+
 test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs before file snapshots', async (t) => {
   const { f, owner } = await fixture(t);
   const row = incoming(f.service, owner.nickname);

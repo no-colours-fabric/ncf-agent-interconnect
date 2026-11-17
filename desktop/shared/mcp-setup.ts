@@ -72,6 +72,7 @@ export interface OpenCodeV2SetupDefaults {
   client: 'opencode-v2';
   target: OpenCodeV2SetupTarget;
   alternatives: string[];
+  setupAvailability: OpenCodeV2SetupAvailability;
 }
 export interface OpenCodeV2SetupPreview extends Omit<McpSetupPreview, 'client'> {
   client: 'opencode-v2';
@@ -83,7 +84,21 @@ export interface OpenCodeV2SetupStatus extends Omit<McpSetupStatus, 'client'> {
   client: 'opencode-v2';
   target: OpenCodeV2SetupTarget;
   targetId?: string;
+  setupAvailability: OpenCodeV2SetupAvailability;
 }
+/** Ability to attempt the guarded selected-config transaction, never installation or receive readiness. */
+export type OpenCodeV2SetupAvailability =
+  | { state: 'available' }
+  | {
+      state: 'unavailable';
+      reason:
+        | 'target-unresolved'
+        | 'v1-collision'
+        | 'private-state-unavailable'
+        | 'secure-provision-unavailable'
+        | 'node-unavailable'
+        | 'asset-unavailable';
+    };
 export interface OpenCodeV2SetupApplyResult extends McpSetupApplyResult {
   target: OpenCodeV2SetupTarget;
   targetId: string;

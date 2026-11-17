@@ -149,18 +149,20 @@ export function ClientApplicationSummary({
     <Paper sx={{ ...surfaceSx('soft'), p: 2 }} data-testid={'application-' + kind}>
       <Stack spacing={1.5}>
         <Typography variant="subtitle2">
-          {t(
-            locale,
-            kind === 'opencode-http'
-              ? 'clientsKindOpencode'
-              : kind === 'cursor-hook'
-                ? 'mcpClientCursor'
-                : kind === 'codex-desktop'
-                  ? 'clientsKindCodex'
-                  : kind === 'aionui'
-                    ? 'clientsKindAionui'
-                    : 'clientsManualConnections',
-          )}
+          {kind === 'opencode-v2'
+            ? 'OpenCode v2'
+            : t(
+                locale,
+                kind === 'opencode-http'
+                  ? 'clientsKindOpencode'
+                  : kind === 'cursor-hook'
+                    ? 'mcpClientCursor'
+                    : kind === 'codex-desktop'
+                      ? 'clientsKindCodex'
+                      : kind === 'aionui'
+                        ? 'clientsKindAionui'
+                        : 'clientsManualConnections',
+              )}
         </Typography>
         <Box
           component="dl"
@@ -219,6 +221,7 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
               [
                 'cursor-hook',
                 'opencode-http',
+                'opencode-v2',
                 'codex-desktop',
                 'aionui',
                 'claude-code',
@@ -230,20 +233,22 @@ export function ApplicationConnections({ snapshot, locale, onSetup }: Props): Re
               return (
                 <TableRow key={kind} data-testid={'application-' + kind}>
                   <TableCell component="th" scope="row">
-                    {t(
-                      locale,
-                      kind === 'opencode-http'
-                        ? 'clientsKindOpencode'
-                        : kind === 'cursor-hook'
-                          ? 'mcpClientCursor'
-                          : kind === 'codex-desktop'
-                            ? 'clientsKindCodex'
-                            : kind === 'aionui'
-                              ? 'clientsKindAionui'
-                              : kind === 'claude-code'
-                                ? 'clientsKindClaude'
-                                : 'clientsKindManual',
-                    )}
+                    {kind === 'opencode-v2'
+                      ? 'OpenCode v2'
+                      : t(
+                          locale,
+                          kind === 'opencode-http'
+                            ? 'clientsKindOpencode'
+                            : kind === 'cursor-hook'
+                              ? 'mcpClientCursor'
+                              : kind === 'codex-desktop'
+                                ? 'clientsKindCodex'
+                                : kind === 'aionui'
+                                  ? 'clientsKindAionui'
+                                  : kind === 'claude-code'
+                                    ? 'clientsKindClaude'
+                                    : 'clientsKindManual',
+                        )}
                   </TableCell>
                   <TableCell>{activity ? new Date(activity).toLocaleString(locale) : ''}</TableCell>
                   <TableCell align="right">{agents.length}</TableCell>

@@ -356,6 +356,7 @@ test('Codex rejects invalid frame lengths and never parses an incomplete frame',
     assert.deepEqual(await codexExchange(f.profile, input(f.profile)), {
       state: 'failed',
       error: 'Invalid Codex IPC frame',
+      definiteNoBody: true,
     });
   });
   await t.test('length above the absolute limit', async (t) => {
@@ -364,6 +365,7 @@ test('Codex rejects invalid frame lengths and never parses an incomplete frame',
     assert.deepEqual(await codexExchange(f.profile, input(f.profile)), {
       state: 'failed',
       error: 'Invalid Codex IPC frame',
+      definiteNoBody: true,
     });
   });
   await t.test('truncated JSON frame', async (t) => {
@@ -372,6 +374,7 @@ test('Codex rejects invalid frame lengths and never parses an incomplete frame',
     assert.deepEqual(await codexExchange(f.profile, input(f.profile), undefined, 50), {
       state: 'failed',
       error: 'Codex IPC: request timed out',
+      definiteNoBody: true,
     });
     assert.ok(!f.requests.some((request) => request.method.startsWith('thread-follower-')));
   });
@@ -462,7 +465,11 @@ test('Codex discovery distinguishes unavailable handlers, unconfirmed support an
       const f = await fixture(t);
       Object.assign(f.state, scenario);
       const result = await codexExchange(f.profile, input(f.profile));
-      assert.deepEqual(result, { state: 'failed', error: scenario.error });
+      assert.deepEqual(result, {
+        state: 'failed',
+        error: scenario.error,
+        definiteNoBody: true,
+      });
       assert.ok(!result.error?.includes('private-protocol-detail'));
       assert.deepEqual(
         f.requests.map((request) => request.method),
@@ -502,7 +509,9 @@ test('a failed Codex probe clears previous capabilities and a successful probe r
   });
   assert.ok(
     f.requests.every((request) =>
-      ['initialize', 'thread-owner-discovery'].includes(request.method),
+      ['initialize', 'thread-owner-discovery', 'thread-stream-following-changed'].includes(
+        request.method,
+      ),
     ),
   );
 });
@@ -773,7 +782,9 @@ test('Codex records a last-verified observation on success and keeps it as histo
   assert.equal(adapter.status().lastOwnerVerifiedAt, stamp);
   const before = new Set([...f.requests.map((request) => request.method)]);
   assert.ok(
-    [...before].every((method) => ['initialize', 'thread-owner-discovery'].includes(method)),
+    [...before].every((method) =>
+      ['initialize', 'thread-owner-discovery', 'thread-stream-following-changed'].includes(method),
+    ),
   );
   f.state.discoveryResult = 'success';
   await adapter.start();
@@ -875,7 +886,9 @@ test(
     assert.equal((await f.adapter.deliver(input(f.profile))).state, 'failed');
     const failure = f.adapter.status(),
       notifications = f.notifications(),
-      count = f.requests.length;
+      requests = () =>
+        f.requests.filter((request) => request.method !== 'thread-stream-following-changed'),
+      count = requests().length;
     assert.equal(failure.state, 'error');
     assert.equal(failure.capabilities.wakeIdle, false);
     t.mock.timers.tick(1000);
@@ -883,7 +896,7 @@ test(
     await older;
     assert.deepEqual(f.adapter.status(), failure);
     assert.deepEqual(f.notifications(), notifications);
-    assert.equal(f.requests.length, count);
+    assert.equal(requests().length, count);
     assert.ok(!f.requests.some((request) => request.method.startsWith('thread-follower-')));
   },
 );
@@ -1085,6 +1098,8 @@ test(
           if (delivered.length === 1) {
             started();
             await held;
+            if (outcome === 'uncertain')
+              event.beforeRelease?.(JSON.stringify({ input: 'Synthetic uncertain release' }));
             return { state: outcome, error: 'Synthetic preflight outcome' };
           }
           return actualDeliver(event);

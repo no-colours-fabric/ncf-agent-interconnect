@@ -128,7 +128,7 @@ test('one OpenCode integration connects any chat without user session settings a
     recipientNickname: 'проверяющий',
     text: 'Доставить локально',
   });
-  await until(() => f.service.store.dispatchState(message.id)?.state === 'waiting');
+  await until(() => f.service.store.dispatchState(message.id)?.state === 'failed');
   assert.equal(f.prompts.length, 0);
   f.states.ses_second = { type: 'idle' };
   await f.host.event({
@@ -182,7 +182,7 @@ test('queued messages and attachment links arrive as complete chat messages with
     recipientNickname: 'Получатель',
     text: 'Сравни два варианта.',
   });
-  await until(() => f.service.store.dispatchState(first.id)?.state === 'waiting');
+  await until(() => f.service.store.dispatchState(first.id)?.state === 'failed');
   assert.equal(f.prompts.length, 0);
   // An old notification could have been admitted without delivering its body.
   // The unread message must still be delivered under the current contract.

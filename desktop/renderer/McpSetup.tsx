@@ -1060,7 +1060,7 @@ export function ClaudeSetupDialog(props: DialogProps): React.JSX.Element {
   return <ClientSetupDialog {...props} client="claude" />;
 }
 
-function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
+export function AionUiSetupDialog(props: DialogProps): React.JSX.Element {
   const configureMcp = React.useRef<() => void>(() => {});
   const registerConfigureMcp = React.useCallback((action: () => void) => {
     configureMcp.current = action;

@@ -6,6 +6,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  type BigIntStats,
   writeSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -60,6 +61,23 @@ const codeValues = new Set([
 ]);
 const limit = 4 * 1024 * 1024;
 
+function existing(pathname: string): BigIntStats | undefined {
+  try {
+    return lstatSync(pathname, { bigint: true });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+function sameFile(left: BigIntStats, right: BigIntStats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+function regularFile(file: BigIntStats): boolean {
+  return file.isFile() && !file.isSymbolicLink() && file.nlink === 1n;
+}
+
 /** Best-effort bounded private JSONL shared by node, hook and helper processes. */
 export function traceClaude(nodeFile: string, event: string, fields: ClaudeTraceFields = {}): void {
   let fd: number | undefined;
@@ -67,23 +85,36 @@ export function traceClaude(nodeFile: string, event: string, fields: ClaudeTrace
     if (!/^[a-z][a-z0-9_.-]{0,79}$/.test(event)) return;
     const directory = path.join(path.dirname(nodeFile), 'Diagnostics');
     mkdirSync(directory, { recursive: true, mode: 0o700 });
-    const dir = lstatSync(directory);
+    const dir = lstatSync(directory, { bigint: true });
     if (!dir.isDirectory() || dir.isSymbolicLink()) return;
     if (
       process.platform !== 'win32' &&
-      ((dir.mode & 0o077) !== 0 || (process.getuid && dir.uid !== process.getuid()))
+      ((dir.mode & 0o077n) !== 0n || (process.getuid && dir.uid !== BigInt(process.getuid())))
     )
       return;
-    fd = openSync(
-      path.join(directory, 'claude-code.jsonl'),
-      constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | (constants.O_NOFOLLOW ?? 0),
-      0o600,
-    );
-    const file = fstatSync(fd);
-    if (!file.isFile() || file.nlink !== 1 || file.size >= limit) return;
+    const filename = path.join(directory, 'claude-code.jsonl'),
+      before = existing(filename);
+    if (before && !regularFile(before)) return;
+    const noFollow = process.platform === 'win32' ? 0 : (constants.O_NOFOLLOW ?? 0),
+      create = before ? 0 : constants.O_CREAT | constants.O_EXCL;
+    fd = openSync(filename, constants.O_WRONLY | constants.O_APPEND | noFollow | create, 0o600);
+    const file = fstatSync(fd, { bigint: true });
+    if (!regularFile(file) || (before && !sameFile(before, file)) || file.size >= BigInt(limit))
+      return;
+    const current = existing(filename),
+      currentDir = lstatSync(directory, { bigint: true });
+    if (
+      !current ||
+      !regularFile(current) ||
+      !sameFile(file, current) ||
+      !currentDir.isDirectory() ||
+      currentDir.isSymbolicLink() ||
+      !sameFile(dir, currentDir)
+    )
+      return;
     if (
       process.platform !== 'win32' &&
-      ((file.mode & 0o077) !== 0 || (process.getuid && file.uid !== process.getuid()))
+      ((file.mode & 0o077n) !== 0n || (process.getuid && file.uid !== BigInt(process.getuid())))
     )
       return;
     const safe: Record<string, string | number> = {};
