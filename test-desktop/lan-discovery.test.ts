@@ -438,3 +438,64 @@ test('packet floods notify consumers at most once per timer tick', async () => {
   f.advance(1000);
   assert.equal(f.changes, before + 1);
 });
+
+test('search-control: query gating and deadline leave listener announcements independent', async () => {
+  const f = fixture({ querying: false });
+  await f.discovery.start();
+  assert.deepEqual(
+    f.transport.sent.map(({ packet }) => packet.type),
+    ['announce'],
+  );
+  f.discovery.setQuerying(true, 30000);
+  assert.equal(f.transport.sent.filter(({ packet }) => packet.type === 'query').length, 1);
+  f.discovery.setQuerying(false);
+  f.transport.receive(query);
+  f.advance(2000);
+  assert.equal(f.transport.sent.filter(({ packet }) => packet.type === 'announce').length, 2);
+  f.discovery.setQuerying(true, 30000);
+  assert.equal(f.transport.sent.filter(({ packet }) => packet.type === 'query').length, 2);
+  f.advance(28000);
+  assert.equal(f.transport.sent.filter(({ packet }) => packet.type === 'query').length, 2);
+  assert.equal(f.discovery.snapshot().announcement.available, true);
+  f.discovery.stop();
+});
+
+test('search-control: observation follows strict packet and source validation, including duplicates', async () => {
+  const observed: Readonly<{ key: string; nodeId: string; label: string; address: string }>[] = [];
+  const f = fixture({ querying: false, observed: (node) => observed.push(node) });
+  await f.discovery.start();
+  f.transport.receive(announce(), '127.0.0.1');
+  f.transport.receive(announce(), '198.51.100.20');
+  f.transport.receive(announce(), '192.168.4.10');
+  f.transport.receive(announce({ token: 'never-observed' }));
+  f.transport.receive(announce({ version: 2 }));
+  f.transport.receive(announce({ peerPort: 0 }));
+  f.transport.handlers!.message(Uint8Array.from([255]), '192.168.4.20');
+  assert.equal(observed.length, 0);
+  f.advance(1000);
+  f.transport.receive(announce());
+  f.transport.receive(announce());
+  assert.equal(observed.length, 2);
+  assert.equal(Object.isFrozen(observed[0]), true);
+  assert.deepEqual(Object.keys(observed[0]).sort(), ['address', 'key', 'label', 'nodeId']);
+  assert.equal(observed[0].address, 'wss://192.168.4.20:7336/peer');
+  assert.deepEqual(observed[0], observed[1]);
+  f.discovery.stop();
+});
+
+test('search-control: rate-rejected announcements never reach the observer', async () => {
+  let observed = 0;
+  const f = fixture({
+    querying: false,
+    observed: () => {
+      observed++;
+    },
+  });
+  await f.discovery.start();
+  for (let index = 0; index < 20; index++) f.transport.receive(announce());
+  assert.equal(observed, lanDiscoveryLimits.sourcePacketsPerSecond);
+  f.advance(1000);
+  f.transport.receive(announce());
+  assert.equal(observed, lanDiscoveryLimits.sourcePacketsPerSecond + 1);
+  f.discovery.stop();
+});

@@ -7,6 +7,7 @@ import type {
   DiscoveredLanNode,
   LanAnnouncementUnavailable,
   LanDiscoverySnapshot,
+  LanDiscoveryObservation,
   LanPairSelection,
 } from '../shared/lan-discovery.js';
 
@@ -21,6 +22,7 @@ export const lanDiscoveryLimits = Object.freeze({
   announceMs: 10000,
   replyMs: 2000,
   queryMs: 10000,
+  queryRestartMs: 1000,
   interfaces: 32,
 });
 
@@ -74,6 +76,9 @@ export interface LanDiscoveryOptions {
   now?: () => number;
   every?: (callback: () => void, milliseconds: number) => () => void;
   changed?: () => void;
+  /** Pause owner searches independently from listener announcements and replies. */
+  querying?: boolean;
+  observed?: (node: LanDiscoveryObservation) => void;
 }
 
 const ipv4Number = (address: string): number =>
@@ -231,12 +236,16 @@ export class LanDiscovery {
   private packetCount = 0;
   private lastAnnounce = -Infinity;
   private lastQuery = -Infinity;
+  private querying: boolean;
+  private queryUntil = Infinity;
+  private queryRequested = false;
   private pendingReply = false;
   private dirty = false;
   private readonly now: () => number;
   constructor(private readonly options: LanDiscoveryOptions) {
     this.local = structuredClone(options.local);
     this.now = options.now ?? (() => performance.now());
+    this.querying = options.querying ?? true;
   }
   async start(): Promise<void> {
     this.stop();
@@ -297,6 +306,14 @@ export class LanDiscovery {
     this.rateWindow = -Infinity;
     this.lastAnnounce = this.lastQuery = -Infinity;
     this.pendingReply = this.dirty = false;
+    this.queryRequested = false;
+  }
+  /** Both the deadline and transport ticks use the injected monotonic clock. */
+  setQuerying(enabled: boolean, until = Infinity): void {
+    this.querying = enabled;
+    this.queryUntil = until;
+    this.queryRequested = enabled;
+    if (enabled && this.state === 'searching') this.tick();
   }
   updateLocal(local: LocalLanNode): void {
     this.local = structuredClone(local);
@@ -384,6 +401,7 @@ export class LanDiscovery {
       address: `wss://${source}:${packet.peerPort}/peer`,
     };
     this.cache.set(key, { node, expires: now + lanDiscoveryLimits.cacheMs });
+    this.options.observed?.(Object.freeze({ ...node }));
     if (!existing || existing.node.label !== node.label) this.dirty = true;
   }
   private tick(): void {
@@ -396,8 +414,14 @@ export class LanDiscovery {
       }
     }
     try {
-      if (now - this.lastQuery >= lanDiscoveryLimits.queryMs) {
+      if (
+        this.querying &&
+        now < this.queryUntil &&
+        (this.queryRequested || now - this.lastQuery >= lanDiscoveryLimits.queryMs) &&
+        now - this.lastQuery >= lanDiscoveryLimits.queryRestartMs
+      ) {
         this.lastQuery = now;
+        this.queryRequested = false;
         this.transport?.send(query);
       }
       if (

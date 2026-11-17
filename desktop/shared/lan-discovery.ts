@@ -6,6 +6,9 @@ export interface DiscoveredLanNode {
   address: string;
 }
 
+/** Source-validated discovery metadata remains unauthenticated. */
+export type LanDiscoveryObservation = Readonly<DiscoveredLanNode>;
+
 export type LanDiscoveryUnavailable = 'no-interfaces' | 'transport-error';
 export type LanAnnouncementUnavailable =
   LanDiscoveryUnavailable | 'stopped' | 'listener-unavailable' | 'listener-local';
