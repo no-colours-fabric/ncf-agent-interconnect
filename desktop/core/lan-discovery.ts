@@ -59,6 +59,8 @@ export interface LocalLanNode {
   label: string;
   /** The live peer server's bound address, never merely a configured address. */
   listener: { address: string; port: number } | null;
+  listeners?: readonly { address: string; port: number }[];
+  interfaces?: readonly LanInterface[];
 }
 export interface LanDiscoveryTransport {
   start(handlers: {
@@ -228,6 +230,8 @@ export class LanDiscovery {
   private transport?: LanDiscoveryTransport;
   private cancelTick?: () => void;
   private generation = 0;
+  private transportGeneration = 0;
+  private reconciling?: Promise<void>;
   private state: LanDiscoverySnapshot['state'] = 'stopped';
   private reason: LanDiscoverySnapshot['reason'] = null;
   private cache = new Map<string, CachedNode>();
@@ -250,50 +254,98 @@ export class LanDiscovery {
   async start(): Promise<void> {
     this.stop();
     const generation = this.generation;
-    let transport: LanDiscoveryTransport | undefined;
-    try {
-      this.interfaces = interfaceList((this.options.interfaces ?? lanInterfaces)());
-      if (!this.interfaces.length) {
-        this.state = 'unavailable';
-        this.reason = 'no-interfaces';
-        this.options.changed?.();
-        return;
-      }
-      this.state = 'searching';
-      transport = (this.options.transport ?? udpLanTransport)(this.interfaces);
-      this.transport = transport;
-      await transport.start({
-        message: (data, source) => {
-          if (generation === this.generation && this.state === 'searching')
-            this.receive(data, source);
-        },
-        failed: () => {
-          if (generation === this.generation) this.failed();
-        },
+    const every =
+      this.options.every ??
+      ((callback, milliseconds) => {
+        const timer = setInterval(callback, milliseconds);
+        timer.unref();
+        return () => clearInterval(timer);
       });
-      if (generation !== this.generation || this.state !== 'searching') {
-        transport.stop();
-        return;
-      }
-      const every =
-        this.options.every ??
-        ((callback, milliseconds) => {
-          const timer = setInterval(callback, milliseconds);
-          timer.unref();
-          return () => clearInterval(timer);
-        });
-      this.cancelTick = every(() => {
-        if (generation === this.generation) this.tick();
-      }, 1000);
+    this.cancelTick = every(() => {
+      if (generation !== this.generation) return;
+      void this.reconcileInterfaces();
       this.tick();
-      this.options.changed?.();
+    }, 1000);
+    await this.reconcileInterfaces(true);
+    if (generation === this.generation) this.tick();
+  }
+  private interfaceSnapshot(): LanInterface[] {
+    return interfaceList(
+      (this.options.interfaces ?? (() => [...(this.local.interfaces ?? lanInterfaces())]))(),
+    );
+  }
+  private reconcileInterfaces(force = false): Promise<void> {
+    let interfaces: LanInterface[];
+    try {
+      interfaces = this.interfaceSnapshot();
     } catch {
-      if (generation === this.generation) this.failed();
-      else transport?.stop();
+      this.failed();
+      return Promise.resolve();
     }
+    const sameInterfaces = JSON.stringify(interfaces) === JSON.stringify(this.interfaces);
+    if (!force && sameInterfaces && this.reconciling) return this.reconciling;
+    if (!force && sameInterfaces && this.reason === 'no-interfaces') return Promise.resolve();
+    if (
+      !force &&
+      this.state === 'searching' &&
+      JSON.stringify(interfaces) === JSON.stringify(this.interfaces)
+    )
+      return Promise.resolve();
+    const generation = this.generation;
+    const transportGeneration = ++this.transportGeneration;
+    this.transport?.stop();
+    this.transport = undefined;
+    this.interfaces = interfaces;
+    if (!interfaces.length) {
+      this.state = 'unavailable';
+      this.reason = 'no-interfaces';
+      this.options.changed?.();
+      return Promise.resolve();
+    }
+    let transport: LanDiscoveryTransport;
+    try {
+      transport = (this.options.transport ?? udpLanTransport)(interfaces);
+    } catch {
+      this.failed();
+      return Promise.resolve();
+    }
+    this.transport = transport;
+    this.state = 'searching';
+    this.reason = null;
+    const current = () =>
+      generation === this.generation && transportGeneration === this.transportGeneration;
+    const operation = (async () => {
+      try {
+        await transport.start({
+          message: (data, source) => {
+            if (current() && this.state === 'searching') this.receive(data, source);
+          },
+          failed: () => {
+            if (current()) this.failed();
+          },
+        });
+        if (!current()) {
+          transport.stop();
+          return;
+        }
+        this.pendingReply = true;
+        this.lastAnnounce = -Infinity;
+        this.tick();
+        this.options.changed?.();
+      } catch {
+        if (current()) this.failed();
+        else transport.stop();
+      }
+    })();
+    this.reconciling = operation;
+    void operation.finally(() => {
+      if (this.reconciling === operation) this.reconciling = undefined;
+    });
+    return operation;
   }
   stop(): void {
     this.generation++;
+    this.transportGeneration++;
     this.cancelTick?.();
     this.cancelTick = undefined;
     this.transport?.stop();
@@ -319,6 +371,8 @@ export class LanDiscovery {
     this.local = structuredClone(local);
     this.pendingReply = true;
     this.dirty = true;
+    if (this.cancelTick) void this.reconcileInterfaces();
+    else if (this.state === 'unavailable') void this.start();
   }
   snapshot(): LanDiscoverySnapshot {
     const reason = this.announcementReason();
@@ -343,11 +397,18 @@ export class LanDiscovery {
   private announcementReason(): LanAnnouncementUnavailable | null {
     if (this.state === 'stopped') return 'stopped';
     if (this.reason) return this.reason;
-    const listener = this.local.listener;
-    if (!listener || !Number.isInteger(listener.port) || listener.port < 1 || listener.port > 65535)
-      return 'listener-unavailable';
-    if (listener.address === '127.0.0.1' || listener.address === '::1') return 'listener-local';
-    if (!this.interfaces.some((entry) => entry.address === listener.address))
+    const listeners = this.local.listeners ?? (this.local.listener ? [this.local.listener] : []);
+    const valid = listeners.filter(
+      (listener) => Number.isInteger(listener.port) && listener.port > 0 && listener.port <= 65535,
+    );
+    if (!valid.length) return 'listener-unavailable';
+    if (
+      valid.every((listener) => listener.address.startsWith('127.') || listener.address === '::1')
+    )
+      return 'listener-local';
+    if (
+      !valid.some((listener) => this.interfaces.some((entry) => entry.address === listener.address))
+    )
       return 'listener-unavailable';
     if (!z.object(identity).safeParse(this.local).success) return 'listener-unavailable';
     return null;
@@ -358,6 +419,7 @@ export class LanDiscovery {
     this.reason = 'transport-error';
     this.options.changed?.();
   }
+
   private receive(data: Uint8Array, source: string): void {
     const now = this.now();
     if (now - this.rateWindow >= 1000) {
@@ -431,18 +493,28 @@ export class LanDiscovery {
       ) {
         this.lastAnnounce = now;
         this.pendingReply = false;
-        this.transport?.send(
-          Buffer.from(
-            JSON.stringify({
-              ...baseValues(),
-              type: 'announce',
-              nodeId: this.local.nodeId,
-              label: this.local.label,
-              peerPort: this.local.listener!.port,
-            }),
-          ),
-          this.local.listener!.address,
-        );
+        for (const listener of this.local.listeners ??
+          (this.local.listener ? [this.local.listener] : [])) {
+          if (
+            !this.interfaces.some((entry) => entry.address === listener.address) ||
+            !Number.isInteger(listener.port) ||
+            listener.port < 1 ||
+            listener.port > 65535
+          )
+            continue;
+          this.transport?.send(
+            Buffer.from(
+              JSON.stringify({
+                ...baseValues(),
+                type: 'announce',
+                nodeId: this.local.nodeId,
+                label: this.local.label,
+                peerPort: listener.port,
+              }),
+            ),
+            listener.address,
+          );
+        }
       }
     } catch {
       this.failed();

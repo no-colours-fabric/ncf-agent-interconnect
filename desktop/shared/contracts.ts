@@ -1,3 +1,4 @@
+import type { NetworkInterfaceExclusion, NetworkInterfaceStatus } from './network-interfaces.js';
 import { z } from 'zod';
 import type { LanDiscoverySnapshot } from './lan-discovery.js';
 import type { LanSearchSnapshot } from './lan-search.js';
@@ -200,6 +201,7 @@ export interface Settings {
   mcpPort: number;
   peerPort: number;
   listenHost: string;
+  networkExclusions?: NetworkInterfaceExclusion[];
   exportRoots: string[];
   peers: Peer[];
   adapters: AdapterProfile[];
@@ -212,9 +214,18 @@ export interface Snapshot {
   peerUrl: string;
   listenHost: string;
   localAddresses: string[];
+  peerUrls?: string[];
+  networkInterfaces?: NetworkInterfaceStatus;
   lanDiscovery?: LanDiscoverySnapshot;
   lanSearch?: LanSearchSnapshot;
-  peers: { id: string; label: string; address: string; connected: boolean; error: string | null }[];
+  peers: {
+    id: string;
+    label: string;
+    address: string;
+    activeAddress?: string | null;
+    connected: boolean;
+    error: string | null;
+  }[];
   agents: AgentIdentity[];
   directories: AgentDirectory[];
   adapters: AdapterState[];

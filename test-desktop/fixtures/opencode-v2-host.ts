@@ -328,7 +328,13 @@ export class OpenCodeV2NodeFixture {
 /** New product-source fixtures only; imports/setup remain lazy for first-five tests. */
 export async function openCodeV2ProductFixture(
   t: import('node:test').TestContext,
-  options: { timeoutMs?: number } = {},
+  options: {
+    timeoutMs?: number;
+    beforeRegistration?: (
+      service: import('../../desktop/core/service.js').NodeService,
+      registration: OpenCodeV2Registration,
+    ) => Promise<void>;
+  } = {},
 ) {
   const { mkdtemp, readFile, realpath, rm } = await import('node:fs/promises');
   const path = await import('node:path'),
@@ -390,7 +396,26 @@ export async function openCodeV2ProductFixture(
   );
   const host = new OpenCodeV2HostFixture();
   host.context.options = configuration.plugins[0].options;
-  handle = await startOpenCodeV2(host.context, provision, { timeoutMs: options.timeoutMs ?? 1000 });
+  handle = await startOpenCodeV2(host.context, provision, {
+    timeoutMs: options.timeoutMs ?? 1000,
+    ...(options.beforeRegistration
+      ? {
+          register: async (request: OpenCodeV2Registration) => {
+            await options.beforeRegistration!(service, request);
+            const response = await fetch(provision.nodeUrl + '/integrations/opencode-v2/register', {
+              method: 'POST',
+              headers: {
+                authorization: 'Bearer ' + provision.credential,
+                'content-type': 'application/json',
+              },
+              body: JSON.stringify(request),
+            });
+            assert.equal(response.status, 200);
+            return (await response.json()) as OpenCodeV2Scope;
+          },
+        }
+      : {}),
+  });
   const client = new Client({ name: 'OpenCode', version: '2.3.0-source-fixture' });
   clients.push(client);
   const remote = configuration.mcp.servers.ncf_agent_interconnect;

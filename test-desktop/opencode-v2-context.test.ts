@@ -165,6 +165,88 @@ test('node lifecycle restart leaves old issued attempt uncertain and never repla
   assert.equal(host.prompts.length, 1);
 });
 
+test('persisted v2 adapter reattaches current evidence after node startup precedes bridge registration', async (t) => {
+  const profileId = randomUUID(),
+    oldProfileId = randomUUID(),
+    sessionID = 'ses_restart_rebind';
+  const { service, host, call, provision } = await openCodeV2ProductFixture(t, {
+    beforeRegistration: async (service, registration) => {
+      service.settings.value.adapters.push({
+        id: profileId,
+        label: 'Persisted fixture',
+        kind: 'opencode-v2',
+        setupTargetId: registration.targetId,
+        instanceId: registration.bootId,
+        workspace: registration.workspace,
+        sessionId: sessionID,
+      });
+      service.settings.value.adapters.push({
+        id: oldProfileId,
+        label: 'Old boot fixture',
+        kind: 'opencode-v2',
+        setupTargetId: registration.targetId,
+        instanceId: randomUUID(),
+        workspace: registration.workspace,
+        sessionId: sessionID,
+      });
+      await service.settings.save();
+      await service.stop();
+      await service.start();
+      assert.equal(service.adapters.get(profileId).status().capabilities.wakeIdle, false);
+    },
+  });
+  host.addSession(sessionID);
+  const connected = await call(sessionID, 'agent_connect', { nickname: 'Restored receive' });
+  assert.equal(connected.isError, undefined, JSON.stringify(connected));
+  assert.equal(
+    (connected.structuredContent as { binding: { adapterId: string } }).binding.adapterId,
+    profileId,
+  );
+  const wait = (condition: () => boolean) =>
+    new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        service.off('change', check);
+        reject(new Error('Missing restored evidence listener'));
+      }, 1000);
+      const check = () => {
+        if (!condition()) return;
+        clearTimeout(timer);
+        service.off('change', check);
+        resolve();
+      };
+      service.on('change', check);
+      check();
+    });
+  await wait(() => service.adapters.get(profileId).status().state === 'ready');
+  const sender = service.connect({ nickname: 'Restored source', client: 'isolated' });
+  if (sender.status !== 'connected') throw new Error();
+  const sent = await service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Restored receive',
+    text: 'One current restart body',
+  });
+  await wait(() => service.store.get(sent.id, 'in')?.state === 'processed');
+  assert.equal(host.prompts.length, 1);
+  assert.equal(service.store.deliveryAttempt(host.prompts[0].id!.slice(4)).meta.phase, 'committed');
+  await call(sessionID, 'agent_connect', { nickname: 'Restored receive' });
+  assert.equal(
+    service.settings.value.adapters.filter((profile) => profile.id === profileId).length,
+    1,
+  );
+  const current = await service.opencodeV2.identity(
+    provision.targetId,
+    provision.generation,
+    sessionID,
+  );
+  assert.equal(current.bridge.events.listenerCount('evidence'), 1);
+  assert.equal(service.adapters.get(oldProfileId).status().capabilities.wakeIdle, false);
+  await assert.rejects(
+    service.opencodeV2.identity(provision.targetId, randomUUID(), sessionID),
+    /UNAVAILABLE/,
+  );
+});
+
 test('native session deletion and same-ID recreation cannot silently adopt the old named mailbox', async (t) => {
   const { service, host, call } = await openCodeV2ProductFixture(t);
   const id = host.addSession('ses_reused');

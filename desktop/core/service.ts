@@ -22,7 +22,13 @@ import {
   type Message,
   type Binding,
 } from '../shared/contracts.js';
-import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './settings.js';
+import {
+  SettingsFile,
+  localAddresses,
+  adapterSchema,
+  atomicJson,
+  networkExclusionsSchema,
+} from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { PeerNetwork, type Frame } from './peer.js';
@@ -378,12 +384,6 @@ export class NodeService extends EventEmitter {
   }
   private async startNow(): Promise<void> {
     if (this.running) return;
-    if (!localAddresses().includes(this.settings.value.listenHost)) {
-      this.problem(
-        'The saved local IP is unavailable. Listening is limited to this computer; choose a network IP in Settings.',
-      );
-      this.settings.value.listenHost = '127.0.0.1';
-    }
     this.deliveryIncarnation = randomUUID();
     this.network = new PeerNetwork(this.settings);
     this.presence.reset();
@@ -407,7 +407,10 @@ export class NodeService extends EventEmitter {
       this.emit('change');
       this.mcp.notify({ source: 'application', type: 'directory_changed', nodeId: id });
     };
-    this.network.on('change', () => this.emit('change'));
+    this.network.on('change', () => {
+      this.lanSearch?.updateLocal(this.localLanNode());
+      this.emit('change');
+    });
     this.network.on('problem', (e) => this.problem(String(e)));
     this.network.on('connected', (id: string) => {
       this.presence.begin(id);
@@ -448,15 +451,25 @@ export class NodeService extends EventEmitter {
     }
   }
   private localLanNode(): LocalLanNode {
-    const server = this.network?.server;
-    const bound = server?.listening ? server.address() : null;
+    const endpoints = this.network?.endpoints ?? [];
+    const policy = this.network?.networkStatus();
     return {
       nodeId: this.settings.value.nodeId,
       label: this.settings.value.nodeLabel,
-      listener:
-        bound && typeof bound !== 'string' ? { address: bound.address, port: bound.port } : null,
+      listener: endpoints[0] ?? null,
+      listeners: endpoints,
+      interfaces: policy?.interfaces
+        .filter((entry) => !entry.excluded)
+        .flatMap((entry) =>
+          entry.addresses
+            .filter(
+              (address) => !address.internal && policy.listenAddresses.includes(address.address),
+            )
+            .map(({ address, netmask }) => ({ address, netmask })),
+        ),
     };
   }
+
   private startLanDiscovery(): void {
     const options = this.integrationOptions.lanDiscovery;
     if (!options) return;
@@ -464,6 +477,10 @@ export class NodeService extends EventEmitter {
       ...options,
       local: this.localLanNode(),
       pairedNodeIds: () => this.settings.value.peers.map((peer) => peer.id),
+      observed: (node) => {
+        if (this.lanSearch === search && this.running) this.network.observeEndpoint(node);
+        options.observed?.(node);
+      },
       changed: () => {
         if (this.lanSearch === search) this.emit('change');
       },
@@ -508,13 +525,24 @@ export class NodeService extends EventEmitter {
     this.emit('change');
   }
   snapshot(options: { lanDiscovery?: boolean } = {}): Snapshot {
+    const endpoints = this.network?.endpoints ?? [];
+    const preferred =
+      endpoints.find(
+        (entry) =>
+          entry.address === this.settings.value.listenHost && entry.address !== '127.0.0.1',
+      ) ??
+      endpoints.find((entry) => !entry.address.startsWith('127.')) ??
+      endpoints[0];
+    const peerUrls = endpoints.map(({ address, port }) => `wss://${address}:${port}/peer`);
     return {
       running: this.running,
       nodeId: this.settings.value.nodeId,
       nodeLabel: this.settings.value.nodeLabel,
       mcpUrl: `http://127.0.0.1:${this.settings.value.mcpPort}/mcp`,
-      peerUrl: `wss://${this.settings.value.listenHost}:${this.settings.value.peerPort}/peer`,
-      listenHost: this.settings.value.listenHost,
+      peerUrl: preferred ? `wss://${preferred.address}:${preferred.port}/peer` : '',
+      listenHost: preferred?.address ?? '',
+      peerUrls,
+      ...(options.lanDiscovery ? { networkInterfaces: this.network?.networkStatus() } : {}),
       localAddresses: localAddresses(),
       ...(options.lanDiscovery && this.lanSearch
         ? {
@@ -526,6 +554,8 @@ export class NodeService extends EventEmitter {
         id: p.id,
         label: p.label,
         address: p.address,
+        activeAddress:
+          this.network?.states().find((state) => state.id === p.id)?.activeAddress ?? null,
         connected: this.running && !!this.network.states().find((s) => s.id === p.id)?.connected,
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),
@@ -2456,10 +2486,14 @@ export class NodeService extends EventEmitter {
     }
     if (method === 'connectPeer') {
       const args = z
-        .object({ address: z.string().min(1).max(1000), code: z.string().max(30000) })
+        .object({
+          address: z.string().min(1).max(1000),
+          code: z.string().max(30000),
+          expectedNodeId: z.uuid().optional(),
+        })
         .strict()
         .parse(raw);
-      const peer = await this.network.join(args.address, args.code);
+      const peer = await this.network.join(args.address, args.code, args.expectedNodeId);
       return { id: peer.id, label: peer.label };
     }
     if (method === 'registerAgent') {
@@ -2471,26 +2505,40 @@ export class NodeService extends EventEmitter {
     }
     if (method === 'saveNode') {
       const input = z
-        .object({ nodeLabel: z.string().min(1).max(120), listenHost: z.string() })
+        .object({
+          nodeLabel: z.string().min(1).max(120),
+          listenHost: z.string().optional(),
+          networkExclusions: networkExclusionsSchema.optional(),
+        })
         .strict()
         .parse(raw);
-      if (!localAddresses().includes(input.listenHost))
-        throw new Error('Choose a local IP address');
-      const restart = input.listenHost !== this.settings.value.listenHost;
-      const renamed = input.nodeLabel !== this.settings.value.nodeLabel;
-      if (restart) await this.stop();
-      Object.assign(this.settings.value, input);
-      await this.settings.save();
-      if (restart) await this.start();
-      else if (renamed) await this.network.publishIdentity(input.nodeLabel);
-      if (renamed) this.lanSearch?.updateLocal(this.localLanNode());
-      if (renamed)
-        this.mcp.notify({
-          source: 'application',
-          type: 'directory_changed',
-          nodeId: this.settings.value.nodeId,
-        });
-      this.emit('change');
+      await this.transition(async () => {
+        if (input.listenHost !== undefined && !localAddresses().includes(input.listenHost))
+          throw new Error('Choose a local IP address');
+        const renamed = input.nodeLabel !== this.settings.value.nodeLabel;
+        const previous = {
+          nodeLabel: this.settings.value.nodeLabel,
+          listenHost: this.settings.value.listenHost,
+          networkExclusions: this.settings.value.networkExclusions,
+        };
+        Object.assign(this.settings.value, input);
+        try {
+          await this.settings.save();
+        } catch (error) {
+          Object.assign(this.settings.value, previous);
+          throw error;
+        }
+        await this.network.refreshInterfaces();
+        if (renamed) await this.network.publishIdentity(input.nodeLabel);
+        this.lanSearch?.updateLocal(this.localLanNode());
+        if (renamed)
+          this.mcp.notify({
+            source: 'application',
+            type: 'directory_changed',
+            nodeId: this.settings.value.nodeId,
+          });
+        this.emit('change');
+      });
       return { saved: true };
     }
     if (method === 'stop') {
