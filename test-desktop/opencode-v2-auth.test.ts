@@ -1,6 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, writeFile, chmod, lstat, rm } from 'node:fs/promises';
+import {
+  mkdtemp,
+  readFile,
+  writeFile,
+  chmod,
+  lstat,
+  rm,
+  mkdir,
+  symlink,
+  readdir,
+  rename,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
@@ -147,4 +158,70 @@ test('POSIX private verification rejects broad access; no mode-only Windows clai
   await security.verify(file, false);
   await chmod(file, 0o644);
   await assert.rejects(security.verify(file, false), /PERMISSIONS/);
+});
+
+for (const boundary of ['Integrations', 'opencode-v2'])
+  test(`v2 private stage rejects redirected ${boundary} before writing outside node state`, async (t) => {
+    const { root, auth, draft } = await fixture(t);
+    const outside = await mkdtemp(path.join(os.tmpdir(), 'ncf-v2-outside-'));
+    t.after(() => rm(outside, { recursive: true, force: true }));
+    if (boundary === 'opencode-v2') await mkdir(path.join(root, 'Integrations'));
+    await symlink(
+      outside,
+      boundary === 'Integrations' ? path.join(root, boundary) : auth.root,
+      process.platform === 'win32' ? 'junction' : 'dir',
+    );
+    await assert.rejects(auth.stage(draft, 'asset'), /SCOPE|PRIVATE/);
+    assert.deepEqual(await readdir(outside), []);
+    await assert.rejects(
+      auth.prepare(draft.target, draft.provision.nodeId, draft.provision.nodeUrl),
+      /SCOPE|PRIVATE|REGISTRY/,
+    );
+  });
+
+test('v2 registry authentication rejects a redirected Integrations ancestor after publication', async (t) => {
+  const { root, auth, draft, target, configurationHash } = await fixture(t);
+  await auth.stage(draft, 'asset');
+  await writeFile(target.configurationPath, 'config', { mode: 0o600 });
+  await auth.activate(draft, 'asset', await configurationHash(target.configurationPath));
+  const outside = await mkdtemp(path.join(os.tmpdir(), 'ncf-v2-outside-'));
+  t.after(() => rm(outside, { recursive: true, force: true }));
+  const moved = path.join(outside, 'Integrations');
+  await rename(path.join(root, 'Integrations'), moved);
+  await symlink(
+    moved,
+    path.join(root, 'Integrations'),
+    process.platform === 'win32' ? 'junction' : 'dir',
+  );
+  await assert.rejects(
+    auth.authenticate(
+      draft.provision.targetId,
+      draft.provision.generation,
+      draft.provision.credential,
+    ),
+    /REGISTRY|SCOPE|PRIVATE/,
+  );
+});
+
+test('v2 private canonical guard accepts an explicitly selected node-directory alias', async (t) => {
+  const { root, target, configurationHash } = await fixture(t);
+  const parent = await mkdtemp(path.join(os.tmpdir(), 'ncf-v2-node-alias-'));
+  t.after(() => rm(parent, { recursive: true, force: true }));
+  const alias = path.join(parent, 'selected-node');
+  await symlink(root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  const auth = new OpenCodeV2Auth(alias, { configurationHash });
+  const draft = await auth.prepare(target, randomUUID(), 'http://127.0.0.1:12345');
+  await auth.stage(draft, 'asset');
+  await writeFile(target.configurationPath, 'config', { mode: 0o600 });
+  await auth.activate(draft, 'asset', await configurationHash(target.configurationPath));
+  assert.equal(
+    (
+      await auth.authenticate(
+        draft.provision.targetId,
+        draft.provision.generation,
+        draft.provision.credential,
+      )
+    ).targetId,
+    draft.provision.targetId,
+  );
 });

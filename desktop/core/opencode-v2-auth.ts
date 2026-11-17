@@ -174,6 +174,8 @@ export interface OpenCodeV2AuthDraft {
 }
 export class OpenCodeV2Auth {
   readonly root: string;
+  private readonly directory: string;
+  private canonicalDirectory?: string;
   private readonly registryFile: string;
   private readonly security: OpenCodeV2PrivateFiles;
   private publishing = false;
@@ -186,7 +188,8 @@ export class OpenCodeV2Auth {
       checkpoint?: (phase: 'protected' | 'assets' | 'before-activate' | 'activated') => void;
     },
   ) {
-    this.root = path.join(directory, 'Integrations', 'opencode-v2');
+    this.directory = path.resolve(directory);
+    this.root = path.join(this.directory, 'Integrations', 'opencode-v2');
     this.registryFile = path.join(this.root, 'targets.json');
     this.security = options.security ?? openCodeV2PrivateFiles(this.root);
   }
@@ -203,34 +206,71 @@ export class OpenCodeV2Auth {
       return false;
     }
   }
+  /** Resolve the selected node directory, but never follow links below that anchor. */
+  private async checkedPath(file: string, allowMissing = false): Promise<void> {
+    const relative = path.relative(this.directory, file);
+    if (
+      !relative ||
+      relative === '..' ||
+      relative.startsWith('..' + path.sep) ||
+      path.isAbsolute(relative)
+    )
+      throw new Error('V2_PRIVATE_SCOPE');
+    const canonical = await realpath(this.directory);
+    if (this.canonicalDirectory && this.canonicalDirectory !== canonical)
+      throw new Error('V2_PRIVATE_SCOPE');
+    this.canonicalDirectory = canonical;
+    const parts = relative.split(path.sep);
+    for (let i = 0; i < parts.length; i++) {
+      const suffix = parts.slice(0, i + 1),
+        current = path.join(this.directory, ...suffix);
+      let info;
+      try {
+        info = await lstat(current);
+      } catch (error) {
+        if (allowMissing && (error as NodeJS.ErrnoException).code === 'ENOENT') return;
+        throw error;
+      }
+      if (
+        info.isSymbolicLink() ||
+        (i < parts.length - 1 && !info.isDirectory()) ||
+        (await realpath(current)) !== path.join(canonical, ...suffix)
+      )
+        throw new Error('V2_PRIVATE_SCOPE');
+    }
+  }
   private async checkedDirectory(directory: string): Promise<void> {
     const parent = path.dirname(directory);
     if (directory !== this.root) {
       if (!directory.startsWith(this.root + path.sep)) throw new Error('V2_PRIVATE_SCOPE');
       await this.checkedDirectory(parent);
+    } else {
+      await this.checkedPath(parent, true);
+      try {
+        await mkdir(parent, { mode: 0o700 });
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      }
+      await this.checkedPath(parent);
     }
+    await this.checkedPath(directory, true);
     let created = false;
     try {
-      if (directory === this.root)
-        created = (await mkdir(directory, { mode: 0o700, recursive: true })) !== undefined;
-      else {
-        await mkdir(directory, { mode: 0o700 });
-        created = true;
-      }
+      await mkdir(directory, { mode: 0o700 });
+      created = true;
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
     }
+    await this.checkedPath(directory);
     if (created) await this.security.protect(directory, true);
     await this.security.verify(directory, true);
-    if (
-      (await realpath(directory)) !==
-      path.join(await realpath(this.root), path.relative(this.root, directory))
-    )
-      throw new Error('V2_PRIVATE_SCOPE');
+    await this.checkedPath(directory);
   }
   private async readPrivate(file: string): Promise<string> {
+    await this.checkedPath(file);
     await this.security.verify(path.dirname(file), true);
     await this.security.verify(file, false);
+    await this.checkedPath(file);
     const handle = await open(
       file,
       constants.O_RDONLY | (process.platform === 'win32' ? 0 : constants.O_NOFOLLOW),
@@ -268,6 +308,7 @@ export class OpenCodeV2Auth {
     }
   }
   private async writePrivate(file: string, data: string): Promise<void> {
+    await this.checkedPath(file, true);
     const handle = await open(file, 'wx', 0o600);
     try {
       await handle.writeFile(data);
@@ -275,6 +316,7 @@ export class OpenCodeV2Auth {
     } finally {
       await handle.close();
     }
+    await this.checkedPath(file);
     await this.security.protect(file, false);
     await this.security.verify(file, false);
   }
@@ -464,6 +506,8 @@ export class OpenCodeV2Auth {
         (await this.options.configurationHash(draft.target.configurationPath)) !== configurationHash
       )
         throw new Error('V2_TARGET_PUBLICATION_CHANGED');
+      await this.checkedPath(temporary);
+      await this.checkedPath(this.registryFile, true);
       await rename(temporary, this.registryFile);
       temporary = undefined;
       // Publication committed. Notify every observer; none may turn success into rollback.
