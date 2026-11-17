@@ -1,7 +1,12 @@
 import type { BrowserWindow, Dialog } from 'electron';
 import { z } from 'zod';
-import { McpSetupService, type McpSetupOptions } from '../core/mcp-setup.js';
-import { mcpSetupClients, mcpSetupMethods } from '../shared/mcp-setup.js';
+import {
+  McpSetupService,
+  OpenCodeV2SetupService,
+  type McpSetupOptions,
+} from '../core/mcp-setup.js';
+import { openCodeV2TargetSchema } from '../core/opencode-v2-auth.js';
+import { mcpSetupClients, mcpSetupMethods, openCodeV2SetupMethods } from '../shared/mcp-setup.js';
 
 const clientSchema = z.enum(mcpSetupClients);
 const targetSchema = z
@@ -22,8 +27,58 @@ export function createMcpSetupHandler(
   owner: string,
 ) => Promise<{ handled: false } | { handled: true; result: unknown }> {
   const setup = new McpSetupService(options);
+  const v2 = new OpenCodeV2SetupService(options);
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {
+    if ((openCodeV2SetupMethods as readonly string[]).includes(method)) {
+      if (!owner) throw new Error('The desktop interface session is missing');
+      let result: unknown;
+      if (method === 'opencodeV2SetupDefaults') {
+        z.object({}).strict().parse(raw);
+        result = await v2.v2Defaults();
+      } else if (method === 'opencodeV2SetupStatus') {
+        const { target } = z
+          .object({ target: openCodeV2TargetSchema.optional() })
+          .strict()
+          .parse(raw);
+        result = await v2.v2Status(target);
+      } else if (method === 'opencodeV2SetupDiscard') {
+        const { planId } = planSchema.parse(raw);
+        v2.v2Discard(owner, planId);
+        result = { discarded: true };
+      } else if (method === 'opencodeV2SetupApply') {
+        const { planId, target, confirmReplace } = z
+          .object({ planId: z.uuid(), target: openCodeV2TargetSchema, confirmReplace: z.boolean() })
+          .strict()
+          .parse(raw);
+        result = await v2.v2Apply(owner, planId, target, confirmReplace);
+      } else {
+        const { target } = z.object({ target: openCodeV2TargetSchema }).strict().parse(raw);
+        if (method === 'opencodeV2SetupPreview') result = await v2.v2Preview(owner, target);
+        else if (method === 'opencodeV2SetupOpen') {
+          const error = await options.openPath(await v2.v2Openable(target));
+          if (error) throw new Error('The configuration file could not be opened by the system');
+          result = { opened: true };
+        } else {
+          const parent = options.window();
+          if (!parent || parent.isDestroyed()) throw new Error('The setup window is unavailable');
+          const selected = await options.dialog.showOpenDialog(parent, {
+            title: 'Select OpenCode v2 configuration',
+            defaultPath: target.configurationPath,
+            properties: ['openFile', 'showHiddenFiles'],
+            filters: [
+              { name: 'Configuration', extensions: ['json', 'jsonc'] },
+              { name: 'All files', extensions: ['*'] },
+            ],
+          });
+          result =
+            selected.canceled || !selected.filePaths[0]
+              ? null
+              : await v2.canonicalTarget({ ...target, configurationPath: selected.filePaths[0] });
+        }
+      }
+      return { handled: true, result };
+    }
     if (!(mcpSetupMethods as readonly string[]).includes(method)) return { handled: false };
     if (!owner) throw new Error('The desktop interface session is missing');
     let result: unknown;

@@ -1,4 +1,5 @@
 import { isDeepStrictEqual } from 'node:util';
+import { createHash } from 'node:crypto';
 import { applyEdits, modify, parse, parseTree, type Node, type ParseError } from 'jsonc-parser';
 import { parse as parseToml, patch as patchToml } from '@decimalturn/toml-patch';
 import type { McpSetupClient, McpSetupFilePreview } from '../shared/mcp-setup.js';
@@ -217,4 +218,97 @@ export function editMcpConfiguration(
     changes,
     requiresReplacement: previous !== undefined && !equal,
   };
+}
+
+/** Only the v2 managed server and its exact logical plugin entry are edited. */
+export function editOpenCodeV2Configuration(original: string, configuration: string): McpSetupEdit {
+  const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
+  const source = original.slice(bom.length);
+  let root: Record<string, unknown>, desired: Record<string, unknown>;
+  try {
+    root = json(source);
+    desired = json(configuration);
+  } catch {
+    throw new Error('The configuration contains invalid JSON/JSONC');
+  }
+  if (
+    Object.hasOwn(root, 'plugin') ||
+    Object.keys(table(root, 'mcp')).some((key) => !['servers', 'timeout'].includes(key))
+  )
+    throw new Error(
+      'Select an OpenCode v2 configuration; a legacy v1 configuration cannot be converted',
+    );
+  const servers = table(table(root, 'mcp'), 'servers'),
+    wanted = table(table(desired, 'mcp'), 'servers')[serverName];
+  const plugins = own(root, 'plugins') ?? [],
+    required = desired.plugins;
+  if (
+    !object(wanted) ||
+    !Array.isArray(plugins) ||
+    !Array.isArray(required) ||
+    required.length !== 1 ||
+    !object(required[0]) ||
+    typeof required[0].package !== 'string' ||
+    !object(required[0].options)
+  )
+    throw new Error('The OpenCode v2 integration configuration is invalid');
+  const nextPlugin = required[0],
+    targetId = (nextPlugin.options as Record<string, unknown>).targetId;
+  if (typeof targetId !== 'string') throw new Error('The OpenCode v2 target is invalid');
+  const indices = plugins.flatMap((plugin, index) =>
+    object(plugin) && object(plugin.options) && plugin.options.targetId === targetId ? [index] : [],
+  );
+  if (indices.length > 1) throw new Error('The OpenCode v2 target has ambiguous plugin entries');
+  const index = indices[0],
+    previous = servers[serverName],
+    equal = containsSettings(previous, wanted);
+  const pluginEqual = index !== undefined && isDeepStrictEqual(plugins[index], nextPlugin);
+  let content = source.trim() ? source : '{}';
+  if (!equal)
+    content = applyEdits(content, modify(content, ['mcp', 'servers', serverName], wanted, {}));
+  if (!pluginEqual)
+    content = applyEdits(content, modify(content, ['plugins', index ?? -1], nextPlugin, {}));
+  json(content);
+  if (!source.trim()) content = JSON.stringify(json(content), null, 2) + '\n';
+  return {
+    content: bom + content,
+    changes: [
+      {
+        scope: 'mcp.servers.' + serverName,
+        action: equal ? 'unchanged' : previous === undefined ? 'add' : 'replace',
+      },
+      {
+        scope: 'plugins',
+        action: pluginEqual ? 'unchanged' : index === undefined ? 'add' : 'replace',
+      },
+    ],
+    requiresReplacement:
+      (previous !== undefined && !equal) || (index !== undefined && !pluginEqual),
+  };
+}
+
+/** Hash only the managed representation, leaving unrelated provider/user changes independent. */
+export function openCodeV2ConfigurationHash(source: string): string {
+  const root = json(source.replace(/^\uFEFF/, '')),
+    server = table(table(root, 'mcp'), 'servers')[serverName];
+  if (!object(server) || typeof server.url !== 'string')
+    throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
+  const url = new URL(server.url),
+    match = /^\/integrations\/opencode-v2\/([a-f0-9-]{36})\/([a-f0-9-]{36})\/mcp$/.exec(
+      url.pathname,
+    );
+  if (!match || !Array.isArray(root.plugins)) throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
+  const matches = root.plugins.filter(
+    (plugin) => object(plugin) && object(plugin.options) && plugin.options.targetId === match[1],
+  );
+  if (
+    matches.length !== 1 ||
+    !object(matches[0]) ||
+    !object(matches[0].options) ||
+    matches[0].options.generation !== match[2]
+  )
+    throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
+  return createHash('sha256')
+    .update(JSON.stringify({ server, plugin: matches[0] }))
+    .digest('hex');
 }
