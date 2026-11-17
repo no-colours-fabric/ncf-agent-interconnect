@@ -124,6 +124,12 @@ function SetupErrorNote({
   );
 }
 
+const compactSetupFormSx = {
+  '& > .MuiDialogTitle-root': { px: 2, py: 1.5, fontSize: 16 },
+  '& > .MuiDialogContent-root': { px: 2, py: 1.5 },
+  '& > .MuiDialogActions-root': { px: 2, py: 1.5 },
+};
+
 function SetupFormContainer({
   inline,
   client,
@@ -140,7 +146,7 @@ function SetupFormContainer({
   return inline ? (
     <Paper
       id={'mcp-setup-form-' + client}
-      sx={{ mt: 3 }}
+      sx={{ ...compactSetupFormSx, mt: 2 }}
       aria-labelledby={'mcp-setup-title-' + client}
     >
       {children}
@@ -157,10 +163,7 @@ function SetupFormContainer({
           sx: {
             width: 640,
             maxWidth: 'calc(100% - 48px)',
-            height:
-              client === 'opencode'
-                ? 'min(660px, calc(100dvh - 64px))'
-                : 'min(520px, calc(100dvh - 64px))',
+            maxHeight: 'calc(100dvh - 64px)',
           },
         },
       }}
@@ -266,8 +269,8 @@ function ClientSetupDialog({
   return (
     <>
       <Stack
-        spacing={3}
-        sx={{ pt: 3 }}
+        spacing={2}
+        sx={{ pt: 1 }}
         data-testid={client === 'aionui' ? 'aionui-setup' : undefined}
       >
         <Stack
@@ -278,8 +281,8 @@ function ClientSetupDialog({
         >
           <Box sx={{ minWidth: 0, flex: '1 1 280px' }}>
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <ClientLogo client={client} size={44} />
-              <Typography variant="h5" component="h2">
+              <ClientLogo client={client} size={32} />
+              <Typography variant="h6" component="h2">
                 {client === 'aionui' ? copy.aionUiName : labels[client]}
               </Typography>
             </Stack>
@@ -324,7 +327,7 @@ function ClientSetupDialog({
         ) && <ClientSetupHelp client={client} locale={locale} messages={m} />}
         {client === 'aionui' ? (
           <Paper
-            sx={{ ...surfaceSx('soft'), p: 2.5 }}
+            sx={{ ...surfaceSx('soft'), p: 2 }}
             data-testid={aionUiComplete ? 'aionui-complete-panel' : 'aionui-setup-panel'}
           >
             <Stack spacing={2}>
@@ -338,7 +341,7 @@ function ClientSetupDialog({
           </Paper>
         ) : hasConfiguration ? (
           <Paper
-            sx={{ ...surfaceSx('soft'), p: 2.5 }}
+            sx={{ ...surfaceSx('soft'), p: 2 }}
             data-testid="client-status-panel"
             data-client={client}
             data-status={shownState}
@@ -561,7 +564,16 @@ function ClientSetupDialog({
         </DialogTitle>
         <DialogContent sx={{ scrollbarGutter: 'stable' }}>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            {client !== 'aionui' && <Typography>{description}</Typography>}
+            {client !== 'aionui' && (
+              <Box component="details">
+                <Box component="summary" sx={{ cursor: 'pointer', py: 0.5, fontSize: 13 }}>
+                  {copy.details}
+                </Box>
+                <Typography variant="body2" sx={{ mt: 1 }}>
+                  {description}
+                </Typography>
+              </Box>
+            )}
             {state.files.map((file) => {
               const checked = state.preview?.files.find((item) => item.id === file.id);
               return (
@@ -612,8 +624,10 @@ function ClientSetupDialog({
                     )}
                   </Box>
                   {file.alternatives.length > 1 && !result && (
-                    <Box>
-                      <Typography variant="caption">{m.knownPaths}</Typography>
+                    <Box component="details">
+                      <Box component="summary" sx={{ cursor: 'pointer', py: 0.5, fontSize: 13 }}>
+                        {m.knownPaths}
+                      </Box>
                       {file.alternatives.map((location) => (
                         <Tooltip key={location} title={location}>
                           <Box component="span" sx={{ display: 'block', minWidth: 0 }}>
@@ -643,7 +657,7 @@ function ClientSetupDialog({
                       ))}
                     </Box>
                   )}
-                  <Box sx={{ minHeight: '3em' }}>
+                  <Box sx={{ minHeight: '1.5em' }}>
                     {checked && !result && (
                       <Typography variant="body2">{m[checked.action]}</Typography>
                     )}
@@ -821,10 +835,10 @@ export function OpenCodeV2SetupDialog({
     return () => clearTimeout(timer);
   }, [flow, state, busy, completed, target]);
   return (
-    <Stack spacing={3} sx={{ pt: 3 }} data-testid="opencode-v2-manual">
+    <Stack spacing={2} sx={{ pt: 1 }} data-testid="opencode-v2-manual">
       <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-        <ClientLogo client="opencode" size={44} />
-        <Typography component="h2" variant="h5">
+        <ClientLogo client="opencode" size={32} />
+        <Typography component="h2" variant="h6">
           OpenCode v2
         </Typography>
       </Stack>
@@ -843,7 +857,11 @@ export function OpenCodeV2SetupDialog({
       {(status?.state === 'configured' || completed) && (
         <ClientSetupHelp client="opencode" openCodeMajor={2} locale={locale} messages={m} />
       )}
-      <Paper id="mcp-setup-form-opencode-v2" aria-labelledby="mcp-setup-title-opencode-v2">
+      <Paper
+        sx={compactSetupFormSx}
+        id="mcp-setup-form-opencode-v2"
+        aria-labelledby="mcp-setup-title-opencode-v2"
+      >
         <DialogTitle id="mcp-setup-title-opencode-v2">{m.opencodeTitle} v2</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
@@ -897,8 +915,10 @@ export function OpenCodeV2SetupDialog({
                   )}
                 </Box>
                 {!completed && state.alternatives.length > 1 && (
-                  <Box>
-                    <Typography variant="caption">{m.knownPaths}</Typography>
+                  <Box component="details">
+                    <Box component="summary" sx={{ cursor: 'pointer', py: 0.5, fontSize: 13 }}>
+                      {m.knownPaths}
+                    </Box>
                     {state.alternatives.map((path) => (
                       <Button
                         key={path}
