@@ -1217,6 +1217,13 @@ export class NodeService extends EventEmitter {
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
       const page = this.store.history(owner.key, after, limit, unread);
+      const pageRows = new Map(
+        page.messages.map((row) => {
+          const saved = this.store.get(row.envelope.id, row.direction);
+          if (!saved) throw new Error('The message was cleared');
+          return [row.envelope.id + '\0' + row.direction, saved.sequence] as const;
+        }),
+      );
       const fenced = new Set(
         page.messages
           .filter(
@@ -1270,7 +1277,7 @@ export class NodeService extends EventEmitter {
             throw new Error('The history owner changed');
           for (const row of prepared) {
             const saved = this.store.get(row.envelope.id, row.direction);
-            if (!saved || saved.sequence !== row.sequence)
+            if (!saved || saved.sequence !== pageRows.get(row.envelope.id + '\0' + row.direction))
               throw new Error('The message was cleared');
           }
         };
