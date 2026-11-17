@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
-import { copyFile, mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -75,6 +75,7 @@ test('Generated Claude delivery preserves setup, MCP, command hooks and static U
 async function materialize(t: test.TestContext) {
   const root = await mkdtemp(path.join(os.tmpdir(), 'ncf-claude-presentation-'));
   t.after(() => rm(root, { recursive: true, force: true }));
+  await writeFile(path.join(root, 'package.json'), '{"type":"module"}\n');
   await publishClaudePlugin(root, claudePluginFiles(runtime));
   return root;
 }
