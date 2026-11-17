@@ -51,14 +51,14 @@ class FakeLanTransport implements LanDiscoveryTransport {
     this.closed = true;
     this.release?.();
   }
-  announce(): void {
+  announce(nodeId = remoteId): void {
     this.handlers?.message(
       Buffer.from(
         JSON.stringify({
           service: 'ncf-agent-interconnect',
           version: 1,
           type: 'announce',
-          nodeId: remoteId,
+          nodeId,
           label: 'Untrusted fixture computer',
           peerPort: 7336,
         }),
@@ -124,9 +124,12 @@ test('default core startup and restart never create a discovery socket or UI dis
   await service.open();
   assert.equal(service.snapshot().listenHost, '127.0.0.1');
   assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanDiscovery'), false);
+  assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanSearch'), false);
+  assert.deepEqual(await service.userCall('startLanSearch'), { started: false });
   await service.stop();
   await service.start();
   assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanDiscovery'), false);
+  assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanSearch'), false);
   assert.equal(udp.mock.callCount(), 0);
 });
 
@@ -140,6 +143,9 @@ test('loopback listener still receives discovery but keeps it out of settings, M
   await service.open();
   await settle();
   assert.equal((await uiSnapshot(service)).lanDiscovery?.announcement.reason, 'listener-local');
+  assert.equal(discovery.transport.sent.length, 0);
+  assert.equal((await uiSnapshot(service)).lanSearch?.phase, 'stopped');
+  assert.deepEqual(await service.userCall('startLanSearch'), { started: true });
   assert.deepEqual(
     discovery.transport.sent.map(({ packet }) => packet.type),
     ['query'],
@@ -149,15 +155,18 @@ test('loopback listener still receives discovery but keeps it out of settings, M
   discovery.advance(1000);
   assert.ok(changes > before);
   assert.equal((await uiSnapshot(service)).lanDiscovery?.nodes[0].nodeId, remoteId);
+  assert.equal((await uiSnapshot(service)).lanSearch?.foundCount, 1);
   assert.deepEqual(service.settings.value.peers, []);
   assert.equal(service.settings.value.listenHost, '127.0.0.1');
   assert.equal(Object.hasOwn(service.snapshot(), 'lanDiscovery'), false);
+  assert.equal(Object.hasOwn(service.snapshot(), 'lanSearch'), false);
   assert.equal(
     service.agentDirectories().some((entry) => entry.nodeId === remoteId),
     false,
   );
   const saved = JSON.parse(await readFile(service.settings.filename, 'utf8'));
   assert.equal(Object.hasOwn(saved, 'lanDiscovery'), false);
+  assert.equal(Object.hasOwn(saved, 'lanSearch'), false);
   assert.deepEqual(saved.peers, []);
   const client = new Client({ name: 'Isolated LAN lifecycle check', version: '1' });
   try {
@@ -169,6 +178,7 @@ test('loopback listener still receives discovery but keeps it out of settings, M
     const status = (await client.callTool({ name: 'node_status', arguments: {} }))
       .structuredContent!;
     assert.equal(Object.hasOwn(status, 'lanDiscovery'), false);
+    assert.equal(Object.hasOwn(status, 'lanSearch'), false);
     const peers = (await client.callTool({ name: 'node_peers', arguments: {} }))
       .structuredContent as { peers: unknown[] };
     assert.deepEqual(peers.peers, []);
@@ -335,4 +345,153 @@ test('UI profile helper explicitly disables production discovery without changin
   const environment = await createUiEnvironment(directory);
   assert.equal(environment.NCF_DISABLE_LAN_DISCOVERY, '1');
   assert.equal(process.env.NCF_DISABLE_LAN_DISCOVERY, '0');
+});
+
+test('search-ui: bounded pass, Stop, Retry and exact-key acknowledgement keep results untrusted', async (t) => {
+  const discovery = discoveryFixture();
+  const service = await serviceFixture(t, discovery.options);
+  await service.open();
+  await settle();
+  await service.userCall('startLanSearch');
+  discovery.transport.announce();
+  discovery.advance(5000);
+  const displayed = (await uiSnapshot(service)).lanSearch!.unseenKeys;
+  discovery.transport.announce('00000000-0000-4000-8000-000000000003');
+  await service.userCall('ackLanSearch', { keys: [...displayed, 'unknown-key'] });
+  assert.equal((await uiSnapshot(service)).lanSearch!.unseenKeys.length, 1);
+  await service.userCall('stopLanSearch');
+  const stopped = (await uiSnapshot(service)).lanSearch!;
+  assert.equal(stopped.phase, 'stopped');
+  assert.equal(stopped.nodes.length, 2);
+  assert.equal(stopped.elapsedMs, 5000);
+  await service.userCall('startLanSearch');
+  assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 0);
+  assert.equal((await uiSnapshot(service)).lanSearch!.nodes.length, 2);
+  discovery.transport.announce();
+  discovery.transport.announce();
+  assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 1);
+  discovery.advance(30000);
+  assert.equal((await uiSnapshot(service)).lanSearch!.phase, 'complete');
+  assert.equal((await uiSnapshot(service)).lanSearch!.elapsedMs, 30000);
+  assert.deepEqual(service.settings.value.peers, []);
+  assert.equal(service.settings.value.listenHost, '127.0.0.1');
+  assert.equal(
+    service.agentDirectories().some((entry) => entry.nodeId === remoteId),
+    false,
+  );
+});
+
+test('search-ui: commands reject nonempty options and oversized acknowledgement before changing state', async (t) => {
+  const discovery = discoveryFixture();
+  const service = await serviceFixture(t, discovery.options);
+  await service.open();
+  await settle();
+  await service.userCall('startLanSearch');
+  for (const [method, args] of [
+    ['startLanSearch', { listenHost: '0.0.0.0' }],
+    ['stopLanSearch', { extra: true }],
+    ['ackLanSearch', { keys: [], extra: true }],
+    ['ackLanSearch', { keys: Array(129).fill('unknown-key') }],
+    ['ackLanSearch', { keys: ['x'.repeat(129)] }],
+    ['ackLanSearch', { keys: [''] }],
+    ['ackLanSearch', { keys: [1] }],
+  ] as const)
+    await assert.rejects(service.userCall(method, args));
+  assert.equal((await uiSnapshot(service)).lanSearch!.phase, 'searching');
+  assert.equal((await uiSnapshot(service)).lanSearch!.runId, 1);
+  assert.deepEqual(service.settings.value.peers, []);
+  assert.equal(service.settings.value.listenHost, '127.0.0.1');
+});
+
+test('search-ui: Stop during pending transport start cancels a delayed UI search', async (t) => {
+  const discovery = discoveryFixture((transport) => {
+    transport.hold = true;
+  });
+  const service = await serviceFixture(t, discovery.options);
+  await service.open();
+  const starting = service.userCall('startLanSearch');
+  await service.userCall('stopLanSearch');
+  discovery.transport.release!();
+  assert.deepEqual(await starting, { started: false });
+  assert.equal((await uiSnapshot(service)).lanSearch!.phase, 'stopped');
+  assert.equal(discovery.transport.sent.length, 0);
+  assert.deepEqual(await service.userCall('startLanSearch'), { started: true });
+  assert.equal(discovery.transport.sent.filter(({ packet }) => packet.type === 'query').length, 1);
+});
+
+test('search-ui: pending requests coalesce and cannot cross node-stop instance fences', async (t) => {
+  const discovery = discoveryFixture((transport) => {
+    transport.hold = true;
+  });
+  const service = await serviceFixture(t, discovery.options);
+  await service.open();
+  const first = service.userCall('startLanSearch');
+  const second = service.userCall('startLanSearch');
+  discovery.transport.release!();
+  assert.deepEqual(await first, { started: false });
+  assert.deepEqual(await second, { started: true });
+  assert.equal((await uiSnapshot(service)).lanSearch!.runId, 1);
+  const previous = discovery.transport;
+  const incarnation = service.deliveryIncarnation;
+  let invalidated = false;
+  const invalidate = service.mcp.invalidate.bind(service.mcp);
+  t.mock.method(service.mcp, 'invalidate', () => {
+    invalidated = true;
+    invalidate();
+  });
+  previous.onStop = () => {
+    assert.equal(invalidated, true);
+    assert.equal(service.running, false);
+    assert.equal(service.integrationsReady, false);
+    assert.notEqual(service.deliveryIncarnation, incarnation);
+    assert.equal(service.network.server!.listening, true);
+  };
+  await service.stop();
+  previous.onStop = undefined;
+  await service.start();
+  const latest = service.userCall('startLanSearch');
+  previous.announce();
+  previous.handlers!.failed();
+  discovery.transport.release!();
+  assert.deepEqual(await latest, { started: true });
+  assert.equal((await uiSnapshot(service)).lanSearch!.reason, null);
+  assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 0);
+  discovery.transport.announce();
+  assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 1);
+});
+
+test('search-ui: node stop cancels a still-pending search before it can open queries', async (t) => {
+  const discovery = discoveryFixture((transport) => {
+    transport.hold = true;
+  });
+  const service = await serviceFixture(t, discovery.options);
+  await service.open();
+  const starting = service.userCall('startLanSearch');
+  const old = discovery.transport;
+  await service.stop();
+  assert.deepEqual(await starting, { started: false });
+  assert.equal(old.closed, true);
+  assert.deepEqual(old.sent, []);
+  assert.equal((await uiSnapshot(service)).lanSearch!.phase, 'stopped');
+  assert.equal(discovery.ticks.size, 0);
+});
+
+test('search-ui: explicit retry reopens failed transport and retains prior observations', async (t) => {
+  const discovery = discoveryFixture();
+  const service = await serviceFixture(t, discovery.options);
+  await service.open();
+  await settle();
+  await service.userCall('startLanSearch');
+  discovery.transport.announce();
+  const key = (await uiSnapshot(service)).lanSearch!.nodes[0].key;
+  discovery.transport.handlers!.failed();
+  assert.equal((await uiSnapshot(service)).lanSearch!.phase, 'unavailable');
+  assert.equal(discovery.transports.length, 1);
+  assert.deepEqual(await service.userCall('startLanSearch'), { started: true });
+  const retried = (await uiSnapshot(service)).lanSearch!;
+  assert.equal(discovery.transports.length, 2);
+  assert.equal(retried.foundCount, 0);
+  assert.equal(retried.nodes[0].key, key);
+  discovery.transport.announce();
+  assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 1);
 });
