@@ -12,8 +12,9 @@ import {
   CodexDesktopAdapter,
   codexExchange,
 } from '../desktop/core/codex-adapter.js';
-import { AdapterRegistry } from '../desktop/core/adapters.js';
+import { AdapterRegistry, type EventInput } from '../desktop/core/adapters.js';
 import { NodeService } from '../desktop/core/service.js';
+import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
 
 interface Request {
@@ -24,6 +25,7 @@ interface Request {
   targetClientId?: string;
   params: Record<string, unknown>;
 }
+type MessageEvent = Extract<EventInput, { message: unknown }>;
 interface HeldReply {
   release(): void;
   disconnect(): void;
@@ -185,7 +187,7 @@ async function fixture(t: test.TestContext) {
     holdAdmission: () => nextReply(admissionGates),
   };
 }
-function input(profile: AdapterProfile) {
+function input(profile: AdapterProfile): MessageEvent {
   return {
     message: {
       fromNode: '11111111-1111-4111-8111-111111111111',
@@ -387,13 +389,21 @@ test('Codex active admission has required restore metadata; revoked binding neve
   assert.equal(revoked.state, 'revoked');
   assert.ok(!f.requests.some((r) => r.method.startsWith('thread-follower-')));
   const event = input(f.profile);
+  const deliveredAt = 1731846907000;
+  const presented = 'R-0011 Codex active body';
+  let presentationCalls = 0;
+  event.presentMessage = () => {
+    presentationCalls++;
+    return { text: presented, deliveredAt };
+  };
   assert.equal((await codexExchange(f.profile, event)).state, 'admitted');
+  assert.equal(presentationCalls, 1);
   const request = f.requests.find((r) => r.method === 'thread-follower-steer-turn')!;
   assert.equal(request.version, 1);
   assert.deepEqual(request.params.input, [
     {
       type: 'text',
-      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
+      text: presented,
       text_elements: [],
     },
   ]);
@@ -402,10 +412,8 @@ test('Codex active admission has required restore metadata; revoked binding neve
     (request.params.restoreMessage as { id: string }).id,
     request.params.clientUserMessageId,
   );
-  assert.equal(
-    (request.params.restoreMessage as { text: string }).text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
-  );
+  assert.equal((request.params.restoreMessage as { text: string }).text, presented);
+  assert.equal((request.params.restoreMessage as { createdAt: number }).createdAt, deliveredAt);
   assert.ok(!('toolOutput' in request.params));
   f.state.admission = 'lost';
   assert.equal((await codexExchange(f.profile, input(f.profile))).state, 'uncertain');
@@ -599,7 +607,12 @@ test('node recovery preserves uncertain Codex dispatch and does not acknowledge 
 test('Codex receives the original body and attachment link and completes delivery without asking the model to read or acknowledge', async (t) => {
   const f = await fixture(t),
     directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-body-')),
-    service = new NodeService(directory);
+    deliveredAt = Date.UTC(2026, 10, 17, 9, 35, 7),
+    display = { locale: 'en-GB', timeZone: 'Europe/Moscow' },
+    service = new NodeService(directory, {
+      presentationNow: () => deliveredAt,
+      messageDisplayContext: () => display,
+    });
   await service.open();
   t.after(async () => {
     await service.close();
@@ -628,13 +641,14 @@ test('Codex receives the original body and attachment link and completes deliver
   const request = f.requests.find((item) => item.method === 'thread-follower-start-turn')!;
   const { turnStart } = request.params as { turnStart: { request: { input: { text: string }[] } } };
   const text = turnStart.request.input[0].text;
+  const stored = service.store.get(message.id, 'in')!;
   assert.ok(
     text.startsWith(
-      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
+      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\nSent: ${formatAgentMessageTimestamp(stored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
     ),
   );
-  const replyRef = 'r' + service.store.get(message.id, 'in')!.sequence.toString(36);
-  assert.ok(text.includes(`Reply-To: ${replyRef}\n`));
+  const replyRef = 'r' + stored.sequence.toString(36);
+  assert.ok(text.includes(`Reply-To "Исследователь": ${replyRef}\n`));
   assert.ok(!text.includes('From-Node:'));
   assert.ok(!text.includes('Message-ID:'));
   assert.equal(await readFile(text.match(/\]\(<([^>]+)>\)/)![1], 'utf8'), 'Числа для проверки');

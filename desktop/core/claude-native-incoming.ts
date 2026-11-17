@@ -2,10 +2,14 @@ import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { AdapterProfile, Message } from '../shared/contracts.js';
 import { nicknameKey } from '../shared/contracts.js';
-import { agentMessageText, type AgentMessageInput } from './adapters.js';
+import type { AgentMessageInput } from './adapters.js';
 import type { AgentStore } from './agent-store.js';
 import type { ClaudeSessions } from './claude-sessions.js';
 import type { WakeClaim, WakeClaims } from './claude-wake.js';
+import {
+  formatAgentMessagePresentation,
+  type MessageDisplayContext,
+} from './message-presentation.js';
 import {
   nativeClaudeBodyLimit,
   nativeClaudeHash,
@@ -57,6 +61,8 @@ interface Authority {
   store(): AgentStore;
   profiles(): AdapterProfile[];
   ready(): boolean;
+  presentationNow(): number;
+  messageDisplayContext(): MessageDisplayContext;
   materialize(message: Message): Promise<AgentMessageInput['files']>;
   committed(connectionId: string, ids: string[]): Promise<void>;
   changed?(): void;
@@ -272,28 +278,30 @@ export class ClaudeNativeIncoming {
       this.current(operation, true);
       if (signal.aborted) throw new Error('The native Claude Code request was cancelled');
       const owner = store.assertOwner(claim.binding.connectionId);
-      const texts: string[] = [];
+      const prepared: { message: Message; files: AgentMessageInput['files']; replyRef: string }[] =
+        [];
       for (const message of messages) {
         const files = await this.authority.materialize(message);
         this.current(operation, true);
         const current = store.get(message.envelope.id, 'in');
         if (!current || current.state !== 'ready')
           throw new Error('The message changed or was cleared');
-        texts.push(
-          agentMessageText({
-            nickname: owner.nickname,
-            binding: owner.binding,
-            messageId: message.envelope.id,
-            replyRef: 'r' + current.sequence.toString(36),
-            message: {
-              fromNode: message.envelope.fromNode,
-              fromNickname: message.envelope.fromNickname,
-              text: message.envelope.text,
-              files,
-            },
-          }),
-        );
+        prepared.push({ message, files, replyRef: 'r' + current.sequence.toString(36) });
       }
+      const deliveredAt = this.authority.presentationNow();
+      const display = this.authority.messageDisplayContext();
+      const texts = prepared.map(({ message, files, replyRef }) =>
+        formatAgentMessagePresentation({
+          fromNickname: message.envelope.fromNickname,
+          sentAt: message.envelope.createdAt,
+          deliveredAt,
+          locale: display.locale,
+          timeZone: display.timeZone,
+          text: message.envelope.text,
+          files,
+          replyRef,
+        }),
+      );
       const body = texts.join('\n\n');
       if (body.length > nativeClaudeBodyLimit)
         throw new Error('The native Claude Code message is too large');

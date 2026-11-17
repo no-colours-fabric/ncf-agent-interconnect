@@ -16,6 +16,8 @@ const page = () => ({
       direction: 'in',
       sequence: 1,
       replyRef: 'r1',
+      presentation:
+        '**Incoming NCF Agent Interconnect**\nFrom: "Боб 漢字"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nD-PROBE-001\nТочный текст 漢字\n\nReply-To "Боб 漢字": r1\nUse agent_send(connectionId, replyRef="r1", text) to reply.',
       files: [],
       envelope: {
         protocol: 2,
@@ -74,8 +76,10 @@ test('actual MCP wrappers retain original sender body route and ID; malformed mi
     [{ type: 'text', text: JSON.stringify(p) }],
     { content: [{ type: 'text', text: JSON.stringify(p) }], structuredContent: p },
   ])
-    expect(incomingText(pageFrom(output))).toContain('From: Боб 漢字\n\nD-PROBE-001');
-  expect(incomingText(p)).toContain('Reply-To: r1');
+    expect(incomingText(pageFrom(output))).toContain(
+      'From: "Боб 漢字"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07',
+    );
+  expect(incomingText(p)).toContain('Reply-To "Боб 漢字": r1');
   expect(incomingText(p)).toContain('Use agent_send(connectionId, replyRef="r1", text) to reply.');
   expect(incomingText(p)).not.toContain('Message ID:');
   expect(incomingText(p)).not.toContain(p.messages[0].envelope.id);

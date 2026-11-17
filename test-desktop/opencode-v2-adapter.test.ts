@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { openCodeV2ProductFixture, Deferred } from './fixtures/opencode-v2-host.js';
 import type { NodeService } from '../desktop/core/service.js';
+import { openCodeV2PayloadHash } from '../desktop/core/opencode-v2-protocol.js';
 
 function changed(service: NodeService, condition: () => boolean): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -54,18 +55,31 @@ test('v2 exact own-handler connect does not await idle; canonical content joins 
   assert.equal(attempt.meta.phase, 'committed');
   assert.equal(host.prompts[0].id, attempt.meta.host?.messageId);
   assert.equal(attempt.meta.host?.messageId, 'msg_' + attempt.id);
-  const ref = 'r' + service.store.get(sent.id, 'in')!.sequence.toString(36);
   assert.equal(
+    attempt.meta.payloadHash,
+    openCodeV2PayloadHash({
+      sessionID: host.prompts[0].sessionID,
+      id: host.prompts[0].id!,
+      text: host.prompts[0].text,
+      delivery: 'queue',
+      resume: true,
+    }),
+  );
+  const ref = 'r' + service.store.get(sent.id, 'in')!.sequence.toString(36);
+  assert.match(
     host.prompts[0].text,
-    [
-      '**Incoming NCF Agent Interconnect**',
-      'From: "Fixture sender"',
-      '',
-      text,
-      '',
-      'Reply-To: ' + ref,
-      'Use agent_send(connectionId, replyRef="' + ref + '", text) to reply.',
-    ].join('\n'),
+    new RegExp(
+      '^\\*\\*Incoming NCF Agent Interconnect\\*\\*\\n' +
+        'From: "Fixture sender"\\n' +
+        'Sent: .+\\n' +
+        'Delivered: .+\\n\\n' +
+        text +
+        '\\n\\nReply-To "Fixture sender": ' +
+        ref +
+        '\\nUse agent_send\\(connectionId, replyRef="' +
+        ref +
+        '", text\\) to reply\\.$',
+    ),
   );
   assert.equal(host.prompts[0].text.includes('agent_read'), false);
   const reply = await call(id, 'agent_send', {

@@ -5,8 +5,10 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { OpenCodeAdapter } from '../desktop/core/adapters.js';
+import { OpenCodeAdapter, type EventInput } from '../desktop/core/adapters.js';
 import { NodeService } from '../desktop/core/service.js';
+
+type MessageEvent = Extract<EventInput, { message: unknown }>;
 
 async function fixture(t: test.TestContext) {
   const streams = new Set<ServerResponse>(),
@@ -68,7 +70,7 @@ async function fixture(t: test.TestContext) {
     },
   };
 }
-const event = () => ({
+const event = (): MessageEvent => ({
   message: {
     fromNode: '11111111-1111-4111-8111-111111111111',
     fromNickname: 'Коллега',
@@ -89,7 +91,8 @@ const event = () => ({
 
 test('official API adapter targets one exact session, queues busy work, and consumes push idle without polling', async (t) => {
   const f = await fixture(t);
-  let idle = 0;
+  let idle = 0,
+    presentationCalls = 0;
   const adapter = new OpenCodeAdapter(
     {
       id: randomUUID(),
@@ -107,7 +110,13 @@ test('official API adapter targets one exact session, queues busy work, and cons
   await adapter.start();
   assert.equal(adapter.status().state, 'ready');
   f.state.busy = true;
-  assert.equal((await adapter.deliver(event())).state, 'waiting');
+  const busyInput = event();
+  busyInput.presentMessage = () => {
+    presentationCalls++;
+    return { text: 'must not be presented while busy', deliveredAt: 1 };
+  };
+  assert.equal((await adapter.deliver(busyInput)).state, 'waiting');
+  assert.equal(presentationCalls, 0);
   assert.equal(f.prompts.length, 0);
   const end = Date.now() + 1000;
   while (!f.streams.size && Date.now() < end) await new Promise((r) => setTimeout(r, 10));
@@ -118,15 +127,26 @@ test('official API adapter targets one exact session, queues busy work, and cons
   assert.equal(idle, 1);
   assert.equal(f.state.reads, 1);
   const input = event();
+  input.presentMessage = () => {
+    presentationCalls++;
+    return { text: 'R-0011 exact prepared body', deliveredAt: 1731846907000 };
+  };
   assert.equal((await adapter.deliver(input)).state, 'admitted');
   const prompt = f.prompts[0].parts[0].text;
-  assert.ok(prompt.includes('From: "Коллега"'));
-  assert.ok(prompt.includes('Текст поручения'));
+  assert.equal(prompt, 'R-0011 exact prepared body');
+  assert.equal(presentationCalls, 1);
   assert.ok(!prompt.includes(input.binding.connectionId));
   assert.ok(!prompt.includes('agent_read'));
   assert.ok(!prompt.includes('permissions'));
   assert.ok(!prompt.includes('autoApprove'));
-  assert.equal((await adapter.deliver({ ...event(), isCurrent: () => false })).state, 'revoked');
+  const revoked = event();
+  revoked.isCurrent = () => false;
+  revoked.presentMessage = () => {
+    presentationCalls++;
+    return { text: 'must not be presented after revoke', deliveredAt: 2 };
+  };
+  assert.equal((await adapter.deliver(revoked)).state, 'revoked');
+  assert.equal(presentationCalls, 1);
   assert.equal(f.prompts.length, 1);
 });
 
