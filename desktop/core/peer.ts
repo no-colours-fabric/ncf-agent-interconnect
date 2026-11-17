@@ -3,8 +3,16 @@ import tls from 'node:tls';
 import { readFile, writeFile } from 'node:fs/promises';
 import { X509Certificate, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
-import { hostname } from 'node:os';
+import { hostname, networkInterfaces } from 'node:os';
+import { isIPv4, type Socket } from 'node:net';
+import { PeerListeners } from './peer-listeners.js';
+import { computeNetworkInterfacePolicy } from './network-interfaces.js';
+import type {
+  NetworkInterfaceSnapshot,
+  NetworkInterfaceStatus,
+} from '../shared/network-interfaces.js';
 import { EventEmitter } from 'node:events';
+import { performance } from 'node:perf_hooks';
 import selfsigned from 'selfsigned';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { z } from 'zod';
@@ -64,6 +72,8 @@ interface Link {
   directorySupported: boolean;
   identitySupported: boolean;
   generation: number;
+  addressIndex: number;
+  activeAddress: string | null;
   timer?: NodeJS.Timeout;
 }
 interface PairLease {
@@ -103,7 +113,67 @@ function pinned(certificate: string): {
   };
 }
 export class PeerNetwork extends EventEmitter {
-  server?: https.Server;
+  private servers = new Map<string, https.Server>();
+  private probes = new Map<import('node:http').ClientRequest, string>();
+  private candidates = new Map<string, Map<string, number>>();
+  private readonly peerListeners: PeerListeners;
+  private inventoryTimer?: NodeJS.Timeout;
+  private inventoryError: string | null = null;
+  private lastInventory?: NetworkInterfaceSnapshot;
+  private policy = computeNetworkInterfacePolicy({});
+  private requestGuards = new WeakMap<import('node:http').IncomingMessage, () => boolean>();
+  get server(): https.Server | undefined {
+    return [...this.servers.values()].find((server) => server.listening);
+  }
+  get endpoints(): { address: string; port: number }[] {
+    return this.peerListeners
+      .snapshot()
+      .filter((value) => value.state === 'listening')
+      .map(({ address, port }) => ({ address, port }));
+  }
+  networkStatus(): NetworkInterfaceStatus {
+    return {
+      ...this.policy,
+      listeners: this.peerListeners.snapshot(),
+      inventoryError: this.inventoryError,
+    };
+  }
+  async refreshInterfaces(): Promise<void> {
+    try {
+      const inventory = this.inventory();
+      const policy = computeNetworkInterfacePolicy(
+        inventory,
+        this.settings.value.networkExclusions ?? [],
+      );
+      const changed =
+        JSON.stringify(policy) !== JSON.stringify(this.policy) || this.inventoryError !== null;
+      this.lastInventory = structuredClone(inventory);
+      this.policy = policy;
+      this.inventoryError = null;
+      const updating = this.peerListeners.update(policy.listenAddresses);
+      if (changed) this.emit('change');
+      await updating;
+      this.port = this.peerListeners.port;
+      if (changed) this.emit('change');
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (this.lastInventory) {
+        const policy = computeNetworkInterfacePolicy(
+          this.lastInventory,
+          this.settings.value.networkExclusions ?? [],
+        );
+        const changed = JSON.stringify(policy) !== JSON.stringify(this.policy);
+        this.policy = policy;
+        const updating = this.peerListeners.update(policy.listenAddresses);
+        if (changed) this.emit('change');
+        await updating;
+      }
+      if (this.inventoryError !== message) {
+        this.inventoryError = message;
+        this.emit('change');
+      }
+    }
+  }
   private wss?: WebSocketServer;
   private links = new Map<string, Link>();
   private sockets = new Set<WebSocket>();
@@ -132,8 +202,23 @@ export class PeerNetwork extends EventEmitter {
   onFrame: (peerId: string, frame: Frame) => Promise<void> = async () => {};
   onIdentity: (peerId: string, label: string, isCurrent: () => boolean) => Promise<void> =
     async () => {};
-  constructor(readonly settings: SettingsFile) {
+  constructor(
+    readonly settings: SettingsFile,
+    private readonly inventory: () => NetworkInterfaceSnapshot = networkInterfaces,
+  ) {
     super();
+    this.peerListeners = new PeerListeners({
+      bind: (address, port) => this.bindServer(address, port),
+      changed: () => {
+        this.port = this.peerListeners.port;
+        this.emit('change');
+      },
+      fallback: () =>
+        this.emit(
+          'problem',
+          'The listening port was in use. A free port was selected; use an address shown under Remote nodes.',
+        ),
+    });
   }
   async start(): Promise<void> {
     this.stopped = false;
@@ -165,13 +250,6 @@ export class PeerNetwork extends EventEmitter {
       await writeFile(certFile, this.certificate, { mode: 0o600 });
       await writeFile(keyFile, this.key, { mode: 0o600 });
     }
-    this.server = https.createServer({ cert: this.certificate, key: this.key }, (req, res) => {
-      void this.pair(req, res).catch(() => {
-        if (!res.headersSent) res.writeHead(400);
-        res.end();
-      });
-    });
-    this.server.requestTimeout = 10000;
     this.wss = new WebSocketServer({
       noServer: true,
       maxPayload: 512 * 1024,
@@ -182,7 +260,64 @@ export class PeerNetwork extends EventEmitter {
         headers.push('X-NCF-Features: ' + directoryFeature);
       headers.push('X-NCF-Node-Label: ' + encodedNodeLabel(this.settings.value.nodeLabel));
     });
-    this.server.on('upgrade', (req, socket, head) => {
+    const inventory = this.inventory();
+    this.policy = computeNetworkInterfacePolicy(
+      inventory,
+      this.settings.value.networkExclusions ?? [],
+    );
+    this.lastInventory = structuredClone(inventory);
+    await this.peerListeners.start(this.policy.listenAddresses, this.settings.value.peerPort);
+    this.port = this.peerListeners.port;
+    this.inventoryTimer = setInterval(() => {
+      void this.refreshInterfaces();
+    }, 2000);
+    this.inventoryTimer.unref();
+    const alive = new WeakMap<WebSocket, boolean>();
+    this.heartbeat = setInterval(() => {
+      for (const ws of this.sockets) {
+        if (alive.get(ws) === false) {
+          ws.terminate();
+          continue;
+        }
+        alive.set(ws, false);
+        ws.once('pong', () => alive.set(ws, true));
+        if (ws.readyState === WebSocket.OPEN) ws.ping();
+      }
+    }, 15000);
+    this.heartbeat.unref();
+    for (const peer of this.settings.value.peers) this.connect(peer);
+  }
+  private async bindServer(address: string, port: number) {
+    let active = true;
+    const sockets = new Set<Socket>();
+    const admitted = () => active && !this.stopped && this.peerListeners.allows(address);
+    const server = https.createServer({ cert: this.certificate, key: this.key }, (req, res) => {
+      if (!admitted()) {
+        req.socket.destroy();
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/identity' && !req.headers.origin) {
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify({ nodeId: this.settings.value.nodeId }));
+        return;
+      }
+      this.requestGuards.set(req, admitted);
+      void this.pair(req, res).catch(() => {
+        if (!res.headersSent) res.writeHead(400);
+        res.end();
+      });
+    });
+    server.requestTimeout = 10000;
+    server.on('connection', (socket: Socket) => {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+      if (!admitted()) socket.destroy();
+    });
+    server.on('upgrade', (req, socket, head) => {
+      if (!admitted()) {
+        socket.destroy();
+        return;
+      }
       const peer = this.settings.value.peers.find((p) => p.id === req.headers['x-node-id']);
       if (
         !peer ||
@@ -203,40 +338,38 @@ export class PeerNetwork extends EventEmitter {
         ),
       );
     });
-    const listen = (port: number) =>
-      new Promise<void>((resolve, reject) => {
-        this.server!.once('error', reject);
-        this.server!.listen(port, this.settings.value.listenHost, () => {
-          this.server!.off('error', reject);
-          resolve();
-        });
-      });
+
+    const close = async () => {
+      active = false;
+      if (this.servers.get(address) === server) this.servers.delete(address);
+      const closing = server.listening
+        ? new Promise<void>((resolve) => server.close(() => resolve()))
+        : Promise.resolve();
+      for (const socket of sockets) socket.destroy();
+      server.closeAllConnections();
+      await closing;
+    };
     try {
-      await listen(this.settings.value.peerPort);
-    } catch (e) {
-      if ((e as NodeJS.ErrnoException).code !== 'EADDRINUSE') throw e;
-      await listen(0);
-      this.emit(
-        'problem',
-        'The listening port was in use. A free port was selected; use the address shown under Remote nodes.',
-      );
+      await new Promise<void>((resolve, reject) => {
+        const failed = (error: Error) => {
+          server.off('listening', listening);
+          reject(error);
+        };
+        const listening = () => {
+          server.off('error', failed);
+          resolve();
+        };
+        server.once('error', failed);
+        server.once('listening', listening);
+        server.listen(port, address);
+      });
+    } catch (error) {
+      await close();
+      throw error;
     }
-    this.server.on('error', (e) => this.emit('problem', e.message));
-    this.port = (this.server.address() as { port: number }).port;
-    const alive = new WeakMap<WebSocket, boolean>();
-    this.heartbeat = setInterval(() => {
-      for (const ws of this.sockets) {
-        if (alive.get(ws) === false) {
-          ws.terminate();
-          continue;
-        }
-        alive.set(ws, false);
-        ws.once('pong', () => alive.set(ws, true));
-        if (ws.readyState === WebSocket.OPEN) ws.ping();
-      }
-    }, 15000);
-    this.heartbeat.unref();
-    for (const peer of this.settings.value.peers) this.connect(peer);
+    server.on('error', (error) => this.emit('problem', error.message));
+    this.servers.set(address, server);
+    return { port: (server.address() as { port: number }).port, close };
   }
   private link(peerId: string): Link {
     let value = this.links.get(peerId);
@@ -248,6 +381,8 @@ export class PeerNetwork extends EventEmitter {
         directorySupported: false,
         identitySupported: false,
         generation: 0,
+        addressIndex: 0,
+        activeAddress: null,
       };
       this.links.set(peerId, value);
     }
@@ -257,12 +392,14 @@ export class PeerNetwork extends EventEmitter {
     id: string;
     connected: boolean;
     directorySupported: boolean;
+    activeAddress: string | null;
     error: string | null;
   }[] {
     return this.settings.value.peers.map((p) => ({
       id: p.id,
       connected: this.link(p.id).socket?.readyState === WebSocket.OPEN,
       directorySupported: this.link(p.id).directorySupported,
+      activeAddress: this.link(p.id).activeAddress,
       error: this.link(p.id).error,
     }));
   }
@@ -271,33 +408,146 @@ export class PeerNetwork extends EventEmitter {
     if (!current) return;
     peer = current;
     const link = this.link(peer.id);
-    if (this.stopped || link.socket || link.timer || !peer.address) return;
+    if (this.stopped || link.socket || link.timer || !this.routes(peer).length) return;
     link.timer = setTimeout(() => {
       link.timer = undefined;
       this.connect(peer);
     }, 1500);
     link.timer.unref();
   }
+  /** Only validated discovery observations feed this bounded, volatile candidate set. */
+  observeEndpoint(node: { nodeId: string; address: string }): void {
+    const peer = this.settings.value.peers.find((entry) => entry.id === node.nodeId);
+    if (!peer || this.stopped) return;
+    let address: string;
+    try {
+      address = normalizePeerAddress(node.address);
+      const host = new URL(address).hostname;
+      if (!isIPv4(host) || Number(host.split('.')[0]) === 0 || Number(host.split('.')[0]) >= 224)
+        return;
+    } catch {
+      return;
+    }
+    const now = performance.now();
+    for (const [id, values] of this.candidates) {
+      for (const [candidate, seen] of values) if (now - seen >= 30000) values.delete(candidate);
+      if (!values.size || !this.settings.value.peers.some((entry) => entry.id === id))
+        this.candidates.delete(id);
+    }
+    const values = this.candidates.get(peer.id) ?? new Map<string, number>();
+    const total = [...this.candidates.values()].reduce((count, entries) => count + entries.size, 0);
+    if (!values.has(address) && total >= 128) return;
+    values.set(address, now);
+    while (values.size > 8) values.delete(values.keys().next().value!);
+    this.candidates.set(peer.id, values);
+    this.schedule(peer);
+  }
+  private routes(peer: Peer): string[] {
+    const now = performance.now();
+    return [
+      ...new Set([
+        ...(peer.address ? [peer.address] : []),
+        ...[...(this.candidates.get(peer.id) ?? [])]
+          .filter(([, seen]) => now - seen < 30000)
+          .map(([address]) => address),
+      ]),
+    ];
+  }
+  private verifyAlternate(peer: Peer, address: string): Promise<void> {
+    const endpoint = new URL(address);
+    endpoint.protocol = 'https:';
+    endpoint.pathname = '/identity';
+    return new Promise((resolve, reject) => {
+      // No authorization, code, local identity or content is sent by this pinned public probe.
+      const request = https.request(
+        endpoint,
+        { ...pinned(peer.certificate), method: 'GET', agent: false, timeout: 3000 },
+        (response) => {
+          const chunks: Buffer[] = [];
+          let length = 0;
+          response.on('data', (chunk: Buffer) => {
+            length += chunk.length;
+            if (length > 512) request.destroy(new Error('Invalid alternate node identity'));
+            else chunks.push(chunk);
+          });
+          response.on('aborted', () =>
+            reject(new Error('Alternate node identity response interrupted')),
+          );
+          response.on('error', reject);
+          response.on('end', () => {
+            try {
+              const identity = z
+                .object({ nodeId: z.uuid() })
+                .strict()
+                .parse(JSON.parse(Buffer.concat(chunks).toString()));
+              if (response.statusCode !== 200 || identity.nodeId !== peer.id)
+                throw new Error('The alternate address does not match the paired node');
+              resolve();
+            } catch (error) {
+              reject(error);
+            }
+          });
+        },
+      );
+      this.probes.set(request, peer.id);
+      const deadline = setTimeout(
+        () => request.destroy(new Error('Alternate node identity request timed out')),
+        3000,
+      );
+      deadline.unref();
+      request.once('close', () => {
+        clearTimeout(deadline);
+        this.probes.delete(request);
+      });
+      request.on('error', reject);
+      request.on('timeout', () =>
+        request.destroy(new Error('Alternate node identity request timed out')),
+      );
+      request.end();
+    });
+  }
   private connect(peer: Peer): void {
     const current = this.settings.value.peers.find((value) => value.id === peer.id);
     if (!current) return;
     peer = current;
     const link = this.link(peer.id);
-    if (this.stopped || !peer.address || link.socket || link.connecting) return;
+    const routes = this.routes(peer);
+    if (this.stopped || !routes.length || link.socket || link.connecting) return;
+    const address = routes[link.addressIndex++ % routes.length];
+    const generation = link.generation;
+    const isCurrent = () =>
+      !this.stopped &&
+      link.generation === generation &&
+      this.settings.value.peers.some(
+        (entry) =>
+          entry.id === peer.id &&
+          entry.secret === peer.secret &&
+          entry.certificate === peer.certificate,
+      );
     link.connecting = true;
-    const ws = new WebSocket(normalizePeerAddress(peer.address), {
-      ...pinned(peer.certificate),
-      headers: {
-        authorization: 'Bearer ' + peer.secret,
-        'x-node-id': this.settings.value.nodeId,
-        'x-ncf-features': directoryFeature,
-        [nodeLabelHeader]: encodedNodeLabel(this.settings.value.nodeLabel),
-      },
-      handshakeTimeout: 6000,
-      maxPayload: 512 * 1024,
-      perMessageDeflate: false,
+    void (async () => {
+      if (address !== peer.address) await this.verifyAlternate(peer, address);
+      if (!isCurrent() || link.socket) return;
+      const ws = new WebSocket(normalizePeerAddress(address), {
+        ...pinned(peer.certificate),
+        headers: {
+          authorization: 'Bearer ' + peer.secret,
+          'x-node-id': this.settings.value.nodeId,
+          'x-ncf-features': directoryFeature,
+          [nodeLabelHeader]: encodedNodeLabel(this.settings.value.nodeLabel),
+        },
+        handshakeTimeout: 6000,
+        maxPayload: 512 * 1024,
+        perMessageDeflate: false,
+      });
+      this.attach(peer, ws, true, false, undefined, address);
+    })().catch((error) => {
+      if (!isCurrent() || link.socket) return;
+      link.connecting = false;
+      link.error = error instanceof Error ? error.message : String(error);
+      this.emit('change');
+      this.schedule(peer);
     });
-    this.attach(peer, ws, true);
   }
   private attach(
     peer: Peer,
@@ -305,6 +555,7 @@ export class PeerNetwork extends EventEmitter {
     outbound: boolean,
     directorySupported = false,
     remoteLabel?: string,
+    address?: string,
   ): void {
     this.socketPeers.set(ws, peer.id);
     this.sockets.add(ws);
@@ -358,6 +609,7 @@ export class PeerNetwork extends EventEmitter {
           verified = true;
           clearTimeout(deadline);
           link.socket = ws;
+          link.activeAddress = address ?? null;
           link.directorySupported = directorySupported;
           link.identitySupported = remoteLabel !== undefined;
           link.connecting = false;
@@ -416,6 +668,7 @@ export class PeerNetwork extends EventEmitter {
       link.connecting = false;
       if (link.socket === ws) {
         link.socket = null;
+        link.activeAddress = null;
         link.directorySupported = false;
         link.identitySupported = false;
         for (const [id, r] of this.requests)
@@ -451,6 +704,8 @@ export class PeerNetwork extends EventEmitter {
     clearTimeout(link.timer);
     link.timer = undefined;
     link.socket = null;
+    link.activeAddress = null;
+    link.addressIndex = 0;
     link.connecting = false;
     link.directorySupported = false;
     link.identitySupported = false;
@@ -554,21 +809,26 @@ export class PeerNetwork extends EventEmitter {
     identity: PairedIdentity,
     address?: string,
     beforeWrite?: () => void,
+    commitGuard?: () => void,
   ): Promise<Peer> {
     let saved!: Peer;
-    await this.settings.savePeers((current) => {
-      const previous = current.find((peer) => peer.id === identity.nodeId);
-      saved = {
-        id: identity.nodeId,
-        label: identity.label,
-        address: address ?? previous?.address ?? '',
-        certificate: identity.certificate,
-        secret: identity.secret,
-      };
-      return previous
-        ? current.map((peer) => (peer.id === saved.id ? saved : peer))
-        : [...current, saved];
-    }, beforeWrite);
+    await this.settings.savePeers(
+      (current) => {
+        const previous = current.find((peer) => peer.id === identity.nodeId);
+        saved = {
+          id: identity.nodeId,
+          label: identity.label,
+          address: address ?? previous?.address ?? '',
+          certificate: identity.certificate,
+          secret: identity.secret,
+        };
+        return previous
+          ? current.map((peer) => (peer.id === saved.id ? saved : peer))
+          : [...current, saved];
+      },
+      beforeWrite,
+      commitGuard,
+    );
     return saved;
   }
   private peerCommitted(peerId: string): void {
@@ -610,6 +870,8 @@ export class PeerNetwork extends EventEmitter {
       chunks.push(Buffer.from(chunk));
     }
     try {
+      if (!this.requestGuards.get(req)?.())
+        throw new PairingError('The receiving interface is no longer enabled', 409);
       let input: unknown;
       try {
         input = JSON.parse(Buffer.concat(chunks).toString());
@@ -619,11 +881,22 @@ export class PeerNetwork extends EventEmitter {
       let saved: Peer | undefined;
       const response = await this.pairingHost.handle(input, async (identity, beforeWrite) => {
         const lease = this.holdPeer(identity.nodeId);
+        const generation = this.pairingGeneration;
+        const commitGuard = () => {
+          lease.check();
+          if (generation !== this.pairingGeneration || !this.requestGuards.get(req)?.())
+            throw new PairingError('The receiving interface is no longer enabled', 409);
+        };
         try {
-          saved = await this.savePeer(identity, undefined, () => {
-            lease.check();
-            beforeWrite();
-          });
+          saved = await this.savePeer(
+            identity,
+            undefined,
+            () => {
+              commitGuard();
+              beforeWrite();
+            },
+            commitGuard,
+          );
         } finally {
           lease.release();
         }
@@ -690,7 +963,7 @@ export class PeerNetwork extends EventEmitter {
       req.end(JSON.stringify(input));
     });
   }
-  async join(address: string, code: string): Promise<Peer> {
+  async join(address: string, code: string, expectedNodeId?: string): Promise<Peer> {
     const generation = this.pairingGeneration;
     const beforeWrite = () => {
       if (this.stopped || generation !== this.pairingGeneration)
@@ -711,6 +984,8 @@ export class PeerNetwork extends EventEmitter {
     endpoint.pathname = '/pair';
     const challenge = await this.pairRequest(endpoint, client.start());
     const request = client.prove(challenge.body, challenge.certificate);
+    if (expectedNodeId && client.nodeId() !== expectedNodeId.toLowerCase())
+      throw new PairingError('The remote node does not match the selected discovery result', 409);
     beforeWrite();
     const lease = this.holdPeer(client.nodeId());
     try {
@@ -734,11 +1009,12 @@ export class PeerNetwork extends EventEmitter {
       }
       const identity = client.finish(receipt);
       let peer: Peer;
+      const commitGuard = () => {
+        lease.check();
+        beforeWrite();
+      };
       try {
-        peer = await this.savePeer(identity, normalized, () => {
-          lease.check();
-          beforeWrite();
-        });
+        peer = await this.savePeer(identity, normalized, commitGuard, commitGuard);
       } catch {
         throw new Error(
           'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',
@@ -758,8 +1034,13 @@ export class PeerNetwork extends EventEmitter {
     this.stopped = true;
     this.pairingGeneration++;
     this.pairingLeases.clear();
+    this.candidates.clear();
+    for (const request of this.probes.keys()) request.destroy(new Error('Node stopped'));
+    this.probes.clear();
     this.pairingHost.reset();
     clearInterval(this.heartbeat);
+    clearInterval(this.inventoryTimer);
+    await this.peerListeners.close();
     for (const link of this.links.values()) {
       link.generation++;
       clearTimeout(link.timer);
@@ -768,6 +1049,7 @@ export class PeerNetwork extends EventEmitter {
       link.directorySupported = false;
       link.identitySupported = false;
       link.socket = null;
+      link.activeAddress = null;
     }
     for (const ws of this.sockets) ws.terminate();
     for (const r of this.requests.values()) {
@@ -776,9 +1058,5 @@ export class PeerNetwork extends EventEmitter {
     }
     this.requests.clear();
     if (this.wss) await new Promise<void>((resolve) => this.wss!.close(() => resolve()));
-    if (this.server?.listening) {
-      this.server.closeIdleConnections();
-      await new Promise<void>((resolve) => this.server!.close(() => resolve()));
-    }
   }
 }
