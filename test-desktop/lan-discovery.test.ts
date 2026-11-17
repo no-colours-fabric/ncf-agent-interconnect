@@ -499,3 +499,34 @@ test('search-control: rate-rejected announcements never reach the observer', asy
   assert.equal(observed, lanDiscoveryLimits.sourcePacketsPerSecond + 1);
   f.discovery.stop();
 });
+
+test('hotplug reconciles actual endpoint announcements and fences removed transports without resetting queries', async () => {
+  let interfaces = [{ address: '192.168.4.10', netmask: '255.255.255.0' }];
+  const f = fixture({ interfaces: () => interfaces });
+  await f.discovery.start();
+  f.discovery.setQuerying(false);
+  f.transport.receive(announce());
+  const old = f.transport;
+  interfaces = [{ address: '198.51.100.10', netmask: '255.255.255.0' }];
+  f.discovery.updateLocal({
+    ...local(),
+    listeners: [{ address: '198.51.100.10', port: 7336 }],
+    listener: null,
+  });
+  await new Promise<void>((resolve) => setImmediate(resolve));
+  assert.equal(old.closed, true);
+  const count = f.discovery.snapshot().nodes.length;
+  old.receive(announce({ nodeId: secondId }));
+  assert.equal(f.discovery.snapshot().nodes.length, count);
+  assert.ok(
+    f.transport.sent.some(
+      (entry) => entry.packet.type === 'announce' && entry.interfaceAddress === '198.51.100.10',
+    ),
+  );
+  assert.equal(
+    f.transport.sent.some((entry) => entry.packet.type === 'query'),
+    false,
+  );
+  assert.equal(f.discovery.snapshot().nodes.length, 1);
+  f.discovery.stop();
+});

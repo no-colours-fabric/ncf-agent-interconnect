@@ -34,10 +34,14 @@ test(
     const env = { ...process.env };
     // Run the intentional failures in one direct node:test process, not an inherited worker IPC channel.
     delete env.NODE_TEST_CONTEXT;
-    const child = spawn(process.execPath, ['--experimental-sqlite', '--import', 'tsx', fixture], {
-      env,
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
+    const child = spawn(
+      process.execPath,
+      ['--experimental-sqlite', '--import', 'tsx', '--test', '--test-reporter=tap', fixture],
+      {
+        env,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      },
+    );
     let output = '',
       stderr = '',
       timedOut = false;

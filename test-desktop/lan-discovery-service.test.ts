@@ -1,3 +1,6 @@
+import fsPromises from 'node:fs/promises';
+import tls from 'node:tls';
+import https from 'node:https';
 import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
 import dgram from 'node:dgram';
@@ -125,6 +128,8 @@ test('default core startup and restart never create a discovery socket or UI dis
   assert.equal(service.snapshot().listenHost, '127.0.0.1');
   assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanDiscovery'), false);
   assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanSearch'), false);
+  assert.ok((await uiSnapshot(service)).networkInterfaces);
+  assert.equal(Object.hasOwn(service.snapshot(), 'networkInterfaces'), false);
   assert.deepEqual(await service.userCall('startLanSearch'), { started: false });
   await service.stop();
   await service.start();
@@ -207,11 +212,9 @@ test('only the actual bound listener supplies announcement host and port, includ
       );
       actualPort = bound.port;
       // Simulate a bound LAN address without binding a socket on the owner's LAN.
-      t.mock.method(server, 'address', () => ({
-        address: '192.0.2.10',
-        family: 'IPv4',
-        port: actualPort,
-      }));
+      t.mock.getter(service.network, 'endpoints', () => [
+        { address: '192.0.2.10', port: actualPort },
+      ]);
       service.settings.value.peerPort = 1;
     },
   );
@@ -310,7 +313,7 @@ test('failure before discovery startup creates no transport and closes the peer 
   });
   await assert.rejects(service.open(), /Isolated adapter startup failure/);
   assert.equal(discovery.transports.length, 0);
-  assert.equal(service.network.server!.listening, false);
+  assert.equal(service.network.server?.listening ?? false, false);
   assert.equal(service.running, false);
 });
 
@@ -326,7 +329,7 @@ test('startup cleanup cancels discovery if a later startup observer fails', asyn
   await assert.rejects(service.open(), /Isolated startup observer failure/);
   assert.equal(discovery.transport.closed, true);
   assert.equal(discovery.ticks.size, 0);
-  assert.equal(service.network.server!.listening, false);
+  assert.equal(service.network.server?.listening ?? false, false);
   assert.equal(service.running, false);
 });
 
@@ -494,4 +497,325 @@ test('search-ui: explicit retry reopens failed transport and retains prior obser
   assert.equal(retried.nodes[0].key, key);
   discovery.transport.announce();
   assert.equal((await uiSnapshot(service)).lanSearch!.foundCount, 1);
+});
+
+test('interface exclusion closes peer listeners while local MCP, identity and local messages survive', async (t) => {
+  const service = await serviceFixture(t);
+  await service.open();
+  const before = service.snapshot();
+  const certificate = await readFile(path.join(service.directory, 'node-cert.pem'), 'utf8');
+  const socket = tls.connect({
+    host: '127.0.0.1',
+    port: service.network.port,
+    rejectUnauthorized: false,
+  });
+  socket.on('error', () => {});
+  socket.resume();
+  t.after(() => socket.destroy());
+  await new Promise<void>((resolve) => socket.once('secureConnect', resolve));
+  const client = new Client({ name: 'isolated-exclusion-check', version: '1' });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(before.mcpUrl), {
+      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+    }),
+  );
+  t.after(() => client.close());
+  const sender = service.connect({ nickname: 'Local sender', client: 'manual' });
+  const receiver = service.connect({ nickname: 'Local receiver', client: 'manual' });
+  if (sender.status !== 'connected' || receiver.status !== 'connected')
+    throw new Error('Fixture binding failed');
+  await service.userCall('saveNode', {
+    nodeLabel: before.nodeLabel,
+    networkExclusions: [{ name: 'loopback' }],
+  });
+  assert.equal(service.snapshot().running, true);
+  assert.equal(service.snapshot().mcpUrl, before.mcpUrl);
+  assert.deepEqual(service.snapshot().peerUrls, []);
+  assert.equal(service.network.server, undefined);
+  await waitFor(() => socket.destroyed, 3000);
+  const status = await client.callTool({ name: 'node_status', arguments: {} });
+  assert.ok(!status.isError);
+  assert.equal((status.structuredContent as { running: boolean }).running, true);
+  assert.equal(Object.hasOwn(status.structuredContent ?? {}, 'networkInterfaces'), false);
+  const sent = await service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: before.nodeId,
+    recipientNickname: 'Local receiver',
+    text: 'Local exchange while peer listeners are disabled',
+  });
+  assert.equal(sent.accepted, true);
+  assert.equal(
+    service.store.get(sent.id, 'in')?.envelope.text,
+    'Local exchange while peer listeners are disabled',
+  );
+  await service.userCall('saveNode', { nodeLabel: before.nodeLabel, networkExclusions: [] });
+  assert.deepEqual(service.snapshot().peerUrls, before.peerUrls);
+  assert.equal(service.snapshot().nodeId, before.nodeId);
+  assert.equal(await readFile(path.join(service.directory, 'node-cert.pem'), 'utf8'), certificate);
+});
+
+async function waitFor(check: () => boolean, timeout = 10000): Promise<void> {
+  const deadline = Date.now() + timeout;
+  while (!check()) {
+    if (Date.now() > deadline) throw new Error('Isolated network check timed out');
+    await new Promise((resolve) => setTimeout(resolve, 15));
+  }
+}
+
+test('alternate proof verifies the pinned certificate and exact UUID without sending secrets', async (t) => {
+  const a = await serviceFixture(t),
+    b = await serviceFixture(t);
+  await a.open();
+  await b.open();
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  const peer = a.settings.value.peers[0];
+  const probe = a.network as unknown as {
+    verifyAlternate(value: typeof peer, address: string): Promise<void>;
+  };
+  const headers: import('node:http').IncomingHttpHeaders[] = [];
+  let claimed = a.snapshot().nodeId;
+  const server = https.createServer(
+    { key: await readFile(path.join(b.directory, 'node-key.pem')), cert: peer.certificate },
+    (request, response) => {
+      headers.push(request.headers);
+      response.writeHead(200);
+      response.end(JSON.stringify({ nodeId: claimed }));
+    },
+  );
+  t.after(async () => {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = `wss://127.0.0.1:${(server.address() as { port: number }).port}/peer`;
+  await assert.rejects(probe.verifyAlternate(peer, address), /does not match/);
+  assert.ok(headers.every((value) => !value.authorization && !value['x-node-id']));
+  claimed = peer.id;
+  await probe.verifyAlternate(peer, address);
+  assert.equal(a.settings.value.peers[0].address, peer.address);
+  const wrongPin = {
+    ...peer,
+    certificate: await readFile(path.join(a.directory, 'node-cert.pem'), 'utf8'),
+  };
+  const before = headers.length;
+  await assert.rejects(probe.verifyAlternate(wrongPin, address));
+  assert.equal(
+    headers.length,
+    before,
+    'A rejected TLS pin must prevent even the public HTTP request',
+  );
+});
+
+test('authenticated alternate recovery keeps the configured route and logical peer after a port change', async (t) => {
+  const a = await serviceFixture(t),
+    b = await serviceFixture(t);
+  await a.open();
+  await b.open();
+  await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+  await waitFor(() => a.snapshot().peers[0]?.connected === true);
+  const originalAddress = a.settings.value.peers[0].address;
+  const certificate = a.settings.value.peers[0].certificate;
+  const id = b.snapshot().nodeId;
+  await b.stop();
+  b.settings.value.peerPort = 0;
+  await b.start();
+  const alternate = b.snapshot().peerUrl;
+  assert.notEqual(alternate, originalAddress);
+  a.network.observeEndpoint({ nodeId: id, address: alternate });
+  await waitFor(
+    () =>
+      a.snapshot().peers[0]?.connected === true &&
+      a.snapshot().peers[0]?.activeAddress === alternate,
+  );
+  assert.equal(a.settings.value.peers.length, 1);
+  assert.equal(a.settings.value.peers[0].address, originalAddress);
+  assert.equal(a.settings.value.peers[0].certificate, certificate);
+  assert.equal(a.snapshot().directories.filter((directory) => directory.nodeId === id).length, 1);
+});
+
+test('a saved exclusion is enforced against the last inventory when OS enumeration fails', async (t) => {
+  const service = await serviceFixture(t);
+  await service.open();
+  t.mock.method(service.network as unknown as { inventory(): never }, 'inventory', () => {
+    throw new Error('Isolated inventory failure');
+  });
+  await service.userCall('saveNode', {
+    nodeLabel: service.snapshot().nodeLabel,
+    networkExclusions: [{ name: 'loopback' }],
+  });
+  assert.deepEqual(service.network.endpoints, []);
+  assert.equal(service.network.networkStatus().interfaces[0].excluded, true);
+  assert.equal(service.network.networkStatus().inventoryError, 'Isolated inventory failure');
+  assert.equal(service.snapshot().running, true);
+});
+
+test('discovered Pair rejects a changed claimed UUID before either peer is saved', async (t) => {
+  const a = await serviceFixture(t),
+    b = await serviceFixture(t);
+  await a.open();
+  await b.open();
+  const code = b.network.accessCode().code;
+  await assert.rejects(
+    a.userCall('connectPeer', {
+      address: b.snapshot().peerUrl,
+      code,
+      expectedNodeId: a.snapshot().nodeId,
+    }),
+    /does not match the selected/,
+  );
+  assert.equal(a.settings.value.peers.length, 0);
+  assert.equal(b.settings.value.peers.length, 0);
+  await a.userCall('connectPeer', {
+    address: b.snapshot().peerUrl,
+    code,
+    expectedNodeId: b.snapshot().nodeId,
+  });
+  assert.equal(a.settings.value.peers[0].id, b.snapshot().nodeId);
+});
+
+function delayedPeerTempWrite(t: test.TestContext, filename: string) {
+  const original = fsPromises.writeFile;
+  let entered = false;
+  let release!: () => void;
+  const resumed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const write = t.mock.method(
+    fsPromises,
+    'writeFile',
+    async (...args: Parameters<typeof fsPromises.writeFile>) => {
+      await original(...args);
+      if (
+        !entered &&
+        typeof args[0] === 'string' &&
+        args[0].startsWith(filename + '.') &&
+        args[0].endsWith('.tmp') &&
+        typeof args[1] === 'string' &&
+        JSON.parse(args[1]).peers?.length
+      ) {
+        entered = true;
+        await resumed;
+      }
+    },
+  );
+  syncBuiltinESMExports();
+  return {
+    get entered() {
+      return entered;
+    },
+    release,
+    restore() {
+      write.mock.restore();
+      syncBuiltinESMExports();
+    },
+  };
+}
+
+test(
+  'precommit fence: inbound interface exclusion during temp write cannot persist a peer',
+  { timeout: 15000 },
+  async (t) => {
+    const a = await serviceFixture(t),
+      b = await serviceFixture(t);
+    await a.open();
+    await b.open();
+    const delay = delayedPeerTempWrite(t, b.settings.filename);
+    let committed = 0;
+    t.mock.method(
+      b.network as unknown as { peerCommitted(id: string): void },
+      'peerCommitted',
+      () => {
+        committed++;
+      },
+    );
+    const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    let excluding: Promise<unknown> | undefined;
+    try {
+      await waitFor(() => delay.entered);
+      excluding = b.userCall('saveNode', {
+        nodeLabel: b.settings.value.nodeLabel,
+        networkExclusions: [{ name: 'loopback' }],
+      });
+      await waitFor(() => b.settings.value.networkExclusions?.[0]?.name === 'loopback');
+      await b.network.refreshInterfaces();
+      assert.equal(b.network.endpoints.length, 0);
+      delay.release();
+      await Promise.all([joining, excluding]);
+      assert.equal(b.settings.value.peers.length, 0);
+      assert.equal(JSON.parse(await readFile(b.settings.filename, 'utf8')).peers.length, 0);
+      assert.equal(committed, 0);
+    } finally {
+      delay.release();
+      await Promise.allSettled([joining, ...(excluding ? [excluding] : [])]);
+      delay.restore();
+    }
+  },
+);
+
+test(
+  'precommit fence: outbound stop during temp write cannot persist a peer',
+  { timeout: 15000 },
+  async (t) => {
+    const a = await serviceFixture(t),
+      b = await serviceFixture(t);
+    await a.open();
+    await b.open();
+    const delay = delayedPeerTempWrite(t, a.settings.filename);
+    let committed = 0;
+    t.mock.method(
+      a.network as unknown as { peerCommitted(id: string): void },
+      'peerCommitted',
+      () => {
+        committed++;
+      },
+    );
+    const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    try {
+      await waitFor(() => delay.entered);
+      await a.stop();
+      delay.release();
+      const result = await joining;
+      assert.ok(result instanceof Error);
+      assert.equal(a.settings.value.peers.length, 0);
+      assert.equal(JSON.parse(await readFile(a.settings.filename, 'utf8')).peers.length, 0);
+      assert.equal(committed, 0);
+      assert.equal(
+        b.settings.value.peers.length,
+        1,
+        'The already-authorized remote side is not rolled back',
+      );
+    } finally {
+      delay.release();
+      await joining;
+      delay.restore();
+    }
+  },
+);
+
+test('precommit fence: separate commit guard does not repeat a one-use beforeWrite callback', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-precommit-callback-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const settings = new SettingsFile(directory);
+  await settings.load();
+  let earlyCalls = 0,
+    commitCalls = 0;
+  await settings.savePeers(
+    (current) => [...current],
+    () => {
+      earlyCalls++;
+      assert.equal(earlyCalls, 1, 'The one-use callback must not run at the commit boundary');
+    },
+    () => {
+      commitCalls++;
+      assert.equal(earlyCalls, 1);
+    },
+  );
+  assert.equal(earlyCalls, 1);
+  assert.equal(commitCalls, 1);
 });

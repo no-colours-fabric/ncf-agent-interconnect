@@ -432,7 +432,7 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
     recipientNickname: 'Курсор',
     text: 'После перезапуска',
   });
-  await until(() => service.store.dispatchState(second.id)?.state === 'waiting');
+  await until(() => service.store.dispatchState(second.id)?.state === 'failed');
   await runCursorHook(nodeFile, 'beforeSubmitPrompt', {
     conversation_id: randomUUID(),
     prompt: 'Это другой чат.',

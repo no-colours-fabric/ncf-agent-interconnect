@@ -1,6 +1,6 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile, rename } from 'node:fs/promises';
+import { mkdir, readFile, writeFile, rename, lstat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
@@ -22,7 +22,13 @@ import {
   type Message,
   type Binding,
 } from '../shared/contracts.js';
-import { SettingsFile, localAddresses, adapterSchema, atomicJson } from './settings.js';
+import {
+  SettingsFile,
+  localAddresses,
+  adapterSchema,
+  atomicJson,
+  networkExclusionsSchema,
+} from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { PeerNetwork, type Frame } from './peer.js';
@@ -55,6 +61,13 @@ import {
   type MessageDisplayContext,
   type MessagePresentationFile,
 } from './message-presentation.js';
+import { OpenCodeV2Auth } from './opencode-v2-auth.js';
+import { openCodeV2ConfigurationHash } from './mcp-setup-editors.js';
+import {
+  OpenCodeV2Bridges,
+  OpenCodeV2Adapter,
+  type OpenCodeV2Identity,
+} from './opencode-v2-adapter.js';
 
 interface ClaudeDispatchSnapshot {
   connectionId: string;
@@ -82,6 +95,7 @@ export class NodeService extends EventEmitter {
   readonly adapters: AdapterRegistry;
   readonly aionui: AionUiSessions;
   readonly claude: ClaudeSessions;
+  readonly opencodeV2: OpenCodeV2Bridges;
   readonly contexts = new ClientContexts(this);
   /** One-use claims for wake notices submitted by the installed Claude Code mod. */
   readonly wakeClaims: WakeClaims;
@@ -165,7 +179,40 @@ export class NodeService extends EventEmitter {
     this.settings = new SettingsFile(directory);
     this.aionui = new AionUiSessions(directory);
     this.claude = new ClaudeSessions(directory);
-    this.adapters = new AdapterRegistry(this.aionui, this.claude);
+    this.opencodeV2 = new OpenCodeV2Bridges(
+      new OpenCodeV2Auth(directory, {
+        configurationHash: async (filename) => {
+          const info = await lstat(filename);
+          if (
+            !info.isFile() ||
+            info.isSymbolicLink() ||
+            info.nlink !== 1 ||
+            info.size > 1024 * 1024
+          )
+            throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
+          return openCodeV2ConfigurationHash(await readFile(filename, 'utf8'));
+        },
+      }),
+      () => ({
+        id: this.settings.value.nodeId,
+        epoch: this.deliveryIncarnation,
+        ready: this.integrationsReady,
+      }),
+      (id) => {
+        const profile = this.settings.value.adapters.find(
+          (profile) => profile.id === id && profile.kind === 'opencode-v2',
+        );
+        if (!profile) return;
+        profile.released = true;
+        if (!this.integrationsReady) return;
+        const save = this.settings.save().catch(() => {
+          if (this.running) this.problem('The ended OpenCode v2 session could not be saved');
+        });
+        this.jobs.add(save);
+        void save.finally(() => this.jobs.delete(save));
+      },
+    );
+    this.adapters = new AdapterRegistry(this.aionui, this.claude, this.opencodeV2);
     this.wakeClaims = new WakeClaims({
       claude: this.claude,
       profiles: () => this.settings.value.adapters,
@@ -395,12 +442,6 @@ export class NodeService extends EventEmitter {
   }
   private async startNow(): Promise<void> {
     if (this.running) return;
-    if (!localAddresses().includes(this.settings.value.listenHost)) {
-      this.problem(
-        'The saved local IP is unavailable. Listening is limited to this computer; choose a network IP in Settings.',
-      );
-      this.settings.value.listenHost = '127.0.0.1';
-    }
     this.deliveryIncarnation = randomUUID();
     this.network = new PeerNetwork(this.settings);
     this.presence.reset();
@@ -424,7 +465,10 @@ export class NodeService extends EventEmitter {
       this.emit('change');
       this.mcp.notify({ source: 'application', type: 'directory_changed', nodeId: id });
     };
-    this.network.on('change', () => this.emit('change'));
+    this.network.on('change', () => {
+      this.lanSearch?.updateLocal(this.localLanNode());
+      this.emit('change');
+    });
     this.network.on('problem', (e) => this.problem(String(e)));
     this.network.on('connected', (id: string) => {
       this.presence.begin(id);
@@ -448,6 +492,7 @@ export class NodeService extends EventEmitter {
       await this.adapters.configure(this.settings.value.adapters);
       await this.publishIntegration();
       this.acceptingIntegrations = true;
+      this.opencodeV2.start();
       void this.drainIncoming();
       this.drainAdapters();
       this.drainFileCleanup();
@@ -464,15 +509,25 @@ export class NodeService extends EventEmitter {
     }
   }
   private localLanNode(): LocalLanNode {
-    const server = this.network?.server;
-    const bound = server?.listening ? server.address() : null;
+    const endpoints = this.network?.endpoints ?? [];
+    const policy = this.network?.networkStatus();
     return {
       nodeId: this.settings.value.nodeId,
       label: this.settings.value.nodeLabel,
-      listener:
-        bound && typeof bound !== 'string' ? { address: bound.address, port: bound.port } : null,
+      listener: endpoints[0] ?? null,
+      listeners: endpoints,
+      interfaces: policy?.interfaces
+        .filter((entry) => !entry.excluded)
+        .flatMap((entry) =>
+          entry.addresses
+            .filter(
+              (address) => !address.internal && policy.listenAddresses.includes(address.address),
+            )
+            .map(({ address, netmask }) => ({ address, netmask })),
+        ),
     };
   }
+
   private startLanDiscovery(): void {
     const options = this.integrationOptions.lanDiscovery;
     if (!options) return;
@@ -480,6 +535,10 @@ export class NodeService extends EventEmitter {
       ...options,
       local: this.localLanNode(),
       pairedNodeIds: () => this.settings.value.peers.map((peer) => peer.id),
+      observed: (node) => {
+        if (this.lanSearch === search && this.running) this.network.observeEndpoint(node);
+        options.observed?.(node);
+      },
       changed: () => {
         if (this.lanSearch === search) this.emit('change');
       },
@@ -524,13 +583,24 @@ export class NodeService extends EventEmitter {
     this.emit('change');
   }
   snapshot(options: { lanDiscovery?: boolean } = {}): Snapshot {
+    const endpoints = this.network?.endpoints ?? [];
+    const preferred =
+      endpoints.find(
+        (entry) =>
+          entry.address === this.settings.value.listenHost && entry.address !== '127.0.0.1',
+      ) ??
+      endpoints.find((entry) => !entry.address.startsWith('127.')) ??
+      endpoints[0];
+    const peerUrls = endpoints.map(({ address, port }) => `wss://${address}:${port}/peer`);
     return {
       running: this.running,
       nodeId: this.settings.value.nodeId,
       nodeLabel: this.settings.value.nodeLabel,
       mcpUrl: `http://127.0.0.1:${this.settings.value.mcpPort}/mcp`,
-      peerUrl: `wss://${this.settings.value.listenHost}:${this.settings.value.peerPort}/peer`,
-      listenHost: this.settings.value.listenHost,
+      peerUrl: preferred ? `wss://${preferred.address}:${preferred.port}/peer` : '',
+      listenHost: preferred?.address ?? '',
+      peerUrls,
+      ...(options.lanDiscovery ? { networkInterfaces: this.network?.networkStatus() } : {}),
       localAddresses: localAddresses(),
       ...(options.lanDiscovery && this.lanSearch
         ? {
@@ -542,6 +612,8 @@ export class NodeService extends EventEmitter {
         id: p.id,
         label: p.label,
         address: p.address,
+        activeAddress:
+          this.network?.states().find((state) => state.id === p.id)?.activeAddress ?? null,
         connected: this.running && !!this.network.states().find((s) => s.id === p.id)?.connected,
         error: this.network?.states().find((s) => s.id === p.id)?.error ?? null,
       })),
@@ -579,7 +651,9 @@ export class NodeService extends EventEmitter {
       input.adapterId ?? this.settings.value.adapters.find((a) => a.kind === 'manual')!.id;
     const profile = this.settings.value.adapters.find((a) => a.id === adapterId);
     if (
-      (['opencode-http', 'cursor-hook', 'aionui', 'claude-code'].includes(profile?.kind ?? '') &&
+      (['opencode-http', 'opencode-v2', 'cursor-hook', 'aionui', 'claude-code'].includes(
+        profile?.kind ?? '',
+      ) &&
         input.chatId !== profile?.sessionId) ||
       (profile?.kind === 'codex-desktop' && input.chatId !== profile.threadId)
     )
@@ -600,6 +674,10 @@ export class NodeService extends EventEmitter {
         ((profile.kind === 'codex-desktop' && prior.threadId === profile.threadId) ||
           (profile.kind === 'opencode-http' &&
             prior.workspace === profile.workspace &&
+            prior.sessionId === profile.sessionId) ||
+          (profile.kind === 'opencode-v2' &&
+            prior.setupTargetId === profile.setupTargetId &&
+            prior.instanceId === profile.instanceId &&
             prior.sessionId === profile.sessionId) ||
           (profile.kind === 'cursor-hook' && prior.sessionId === profile.sessionId) ||
           (profile.kind === 'aionui' &&
@@ -977,6 +1055,71 @@ export class NodeService extends EventEmitter {
       },
     };
   }
+  async connectOpenCodeV2(
+    args: {
+      nickname: string;
+      contextToken?: string;
+      connectionId?: string;
+      transferId?: string;
+      confirmTransfer?: boolean;
+      resetHistory?: boolean;
+    },
+    identity: OpenCodeV2Identity,
+  ): Promise<ConnectResult> {
+    identity.assertCurrent();
+    let profile = this.settings.value.adapters.find(
+      (profile) =>
+        profile.kind === 'opencode-v2' &&
+        !profile.released &&
+        profile.setupTargetId === identity.scope.targetId &&
+        profile.instanceId === identity.scope.bootId &&
+        profile.sessionId === identity.sessionID,
+    );
+    if (!profile) {
+      profile = {
+        id: randomUUID(),
+        label: 'OpenCode v2',
+        kind: 'opencode-v2',
+        setupTargetId: identity.scope.targetId,
+        instanceId: identity.scope.bootId,
+        workspace: identity.bridge.registration.workspace,
+        sessionId: identity.sessionID,
+      };
+      await this.installAdapter(profile);
+      identity.assertCurrent();
+    }
+    const { contextToken: _ignored, ...input } = args;
+    const previous = this.store
+      .list()
+      .find((agent) => agent.key === nicknameKey(input.nickname))?.binding;
+    if (
+      !input.connectionId &&
+      previous?.adapterId === profile.id &&
+      previous.chatId === identity.sessionID
+    )
+      input.connectionId = previous.connectionId;
+    const result = this.connect({
+      ...input,
+      client: 'OpenCode v2',
+      chatId: identity.sessionID,
+      adapterId: profile.id,
+    });
+    if (result.status === 'connected') {
+      const agent = this.store.assertOwner(result.binding.connectionId),
+        adapter = this.adapters.get(profile.id);
+      if (!(adapter instanceof OpenCodeV2Adapter)) throw new Error('V2_ADAPTER_UNAVAILABLE');
+      await adapter.bind(identity, {
+        agentKey: agent.key,
+        incarnation: this.store.sourceStamp(agent.key).incarnation!,
+        connectionId: agent.binding.connectionId,
+        generation: agent.binding.generation,
+        adapterId: agent.binding.adapterId,
+        chatId: agent.binding.chatId,
+      });
+      identity.assertCurrent();
+    }
+    return result;
+  }
   /** Verifies a Claude Code helper call before the helper forwards it to MCP. */
   /** The installed mod consumes a wake claim immediately before it submits the notice. */
   async claudeWakeClaim(raw: unknown): Promise<{ consumed: boolean; reason?: string }> {
@@ -1176,6 +1319,13 @@ export class NodeService extends EventEmitter {
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
       const page = this.store.history(owner.key, after, limit, unread);
+      const pageRows = new Map(
+        page.messages.map((row) => {
+          const saved = this.store.get(row.envelope.id, row.direction);
+          if (!saved) throw new Error('The message was cleared');
+          return [row.envelope.id + '\0' + row.direction, saved.sequence] as const;
+        }),
+      );
       const fenced = new Set(
         page.messages
           .filter(
@@ -1229,7 +1379,7 @@ export class NodeService extends EventEmitter {
             throw new Error('The history owner changed');
           for (const row of prepared) {
             const saved = this.store.get(row.envelope.id, row.direction);
-            if (!saved || saved.sequence !== row.sequence)
+            if (!saved || saved.sequence !== pageRows.get(row.envelope.id + '\0' + row.direction))
               throw new Error('The message was cleared');
           }
         };
@@ -2128,11 +2278,44 @@ export class NodeService extends EventEmitter {
           const currentRow = this.store.get(row.envelope.id, 'in')!;
           const replyRef = 'r' + currentRow.sequence.toString(36);
           const result = await adapter.deliver({
+            deliveryAttempt: attempt,
+            onHostAccepted:
+              attempt && adapter instanceof OpenCodeV2Adapter
+                ? () => {
+                    currentDelivery();
+                    const saved = this.store.deliveryAttempt(attempt!.id);
+                    if (!saved.meta.host || !saved.meta.payloadHash)
+                      throw new Error('V2_HOST_WITNESS_UNAVAILABLE');
+                    this.store.acceptOpenCodeV2Delivery(
+                      saved.id,
+                      saved.meta.host,
+                      saved.meta.payloadHash,
+                    );
+                  }
+                : undefined,
+            onNativeProjected:
+              attempt && adapter instanceof OpenCodeV2Adapter
+                ? (witness) => {
+                    currentDelivery();
+                    const delivered = this.store.completeOpenCodeV2Delivery(
+                      attempt!.id,
+                      attempt!.meta.lifecycle,
+                      witness.host,
+                      witness.payloadHash,
+                    );
+                    void this.notifyDelivery(binding.connectionId, delivered)
+                      .then(() => {
+                        this.emit('change');
+                        this.drainAdapters();
+                      })
+                      .catch(() => {});
+                  }
+                : undefined,
             beforeRelease: attempt
-              ? (representation) => {
+              ? (representation, host) => {
                   currentDelivery();
                   if (submitting) throw new Error('The native body was already released');
-                  this.store.sealDelivery(attempt!.id, contentHash(representation));
+                  this.store.sealDelivery(attempt!.id, contentHash(representation), host);
                   this.store.issueDelivery(attempt!.id);
                   submitting = true;
                 }
@@ -2203,6 +2386,8 @@ export class NodeService extends EventEmitter {
           } else {
             if (attempt) {
               if (!submitting) this.store.cancelDelivery(attempt.id, submitting);
+              else if (adapter instanceof OpenCodeV2Adapter && result.definiteNoBody)
+                this.store.cancelDelivery(attempt.id, true);
               else this.store.uncertainDelivery(attempt.id);
             }
             // Wake-only offers may coexist with a completed explicit read.
@@ -2389,10 +2574,14 @@ export class NodeService extends EventEmitter {
     }
     if (method === 'connectPeer') {
       const args = z
-        .object({ address: z.string().min(1).max(1000), code: z.string().max(30000) })
+        .object({
+          address: z.string().min(1).max(1000),
+          code: z.string().max(30000),
+          expectedNodeId: z.uuid().optional(),
+        })
         .strict()
         .parse(raw);
-      const peer = await this.network.join(args.address, args.code);
+      const peer = await this.network.join(args.address, args.code, args.expectedNodeId);
       return { id: peer.id, label: peer.label };
     }
     if (method === 'registerAgent') {
@@ -2404,26 +2593,40 @@ export class NodeService extends EventEmitter {
     }
     if (method === 'saveNode') {
       const input = z
-        .object({ nodeLabel: z.string().min(1).max(120), listenHost: z.string() })
+        .object({
+          nodeLabel: z.string().min(1).max(120),
+          listenHost: z.string().optional(),
+          networkExclusions: networkExclusionsSchema.optional(),
+        })
         .strict()
         .parse(raw);
-      if (!localAddresses().includes(input.listenHost))
-        throw new Error('Choose a local IP address');
-      const restart = input.listenHost !== this.settings.value.listenHost;
-      const renamed = input.nodeLabel !== this.settings.value.nodeLabel;
-      if (restart) await this.stop();
-      Object.assign(this.settings.value, input);
-      await this.settings.save();
-      if (restart) await this.start();
-      else if (renamed) await this.network.publishIdentity(input.nodeLabel);
-      if (renamed) this.lanSearch?.updateLocal(this.localLanNode());
-      if (renamed)
-        this.mcp.notify({
-          source: 'application',
-          type: 'directory_changed',
-          nodeId: this.settings.value.nodeId,
-        });
-      this.emit('change');
+      await this.transition(async () => {
+        if (input.listenHost !== undefined && !localAddresses().includes(input.listenHost))
+          throw new Error('Choose a local IP address');
+        const renamed = input.nodeLabel !== this.settings.value.nodeLabel;
+        const previous = {
+          nodeLabel: this.settings.value.nodeLabel,
+          listenHost: this.settings.value.listenHost,
+          networkExclusions: this.settings.value.networkExclusions,
+        };
+        Object.assign(this.settings.value, input);
+        try {
+          await this.settings.save();
+        } catch (error) {
+          Object.assign(this.settings.value, previous);
+          throw error;
+        }
+        await this.network.refreshInterfaces();
+        if (renamed) await this.network.publishIdentity(input.nodeLabel);
+        this.lanSearch?.updateLocal(this.localLanNode());
+        if (renamed)
+          this.mcp.notify({
+            source: 'application',
+            type: 'directory_changed',
+            nodeId: this.settings.value.nodeId,
+          });
+        this.emit('change');
+      });
       return { saved: true };
     }
     if (method === 'stop') {
@@ -2477,6 +2680,7 @@ export class NodeService extends EventEmitter {
     clearTimeout(this.directoryPublish);
     this.directoryPublish = undefined;
     this.acceptingIntegrations = false;
+    this.opencodeV2.close();
     this.contexts.clear();
     this.claudeContextLeases.clear();
     this.store.invalidateClearRequests();

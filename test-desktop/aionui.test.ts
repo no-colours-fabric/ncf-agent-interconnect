@@ -95,7 +95,7 @@ test('AionUi binds the native exact chat, preserves Unicode, attachments, IDs an
   assert.ok(!settings.includes(f.runtimeToken));
 });
 
-test('confirmed busy/409 waits for the exact native completion event, including unrelated queue activity', async (t) => {
+test('a 409 after body release stays uncertain while later queued work waits for exact native idle', async (t) => {
   const f = await setup(t);
   await f.connect();
   const sender = connected(f.service.connect({ nickname: 'Sender', client: 'fixture' }));
@@ -106,7 +106,7 @@ test('confirmed busy/409 waits for the exact native completion event, including 
     recipientNickname: 'Тигр 漢字',
     text: 'first',
   });
-  await until(() => f.service.store.dispatchState(a.id)?.state === 'waiting');
+  await until(() => f.service.store.dispatchState(a.id)?.state === 'uncertain');
   assert.equal(f.posts.length, 1);
   const reads = f.reads.length;
   const b = await f.service.send({
@@ -123,12 +123,9 @@ test('confirmed busy/409 waits for the exact native completion event, including 
   assert.equal(f.posts.length, 1);
   f.state.reply = 202;
   f.complete();
-  await until(() => f.service.store.dispatchState(a.id)?.state === 'admitted');
-  assert.equal(f.posts.length, 2);
-  assert.notEqual(f.service.store.dispatchState(b.id)?.state, 'admitted');
-  f.complete();
   await until(() => f.service.store.dispatchState(b.id)?.state === 'admitted');
-  assert.equal(f.posts.length, 3);
+  assert.equal(f.posts.length, 2);
+  assert.equal(f.service.store.dispatchState(a.id)?.state, 'uncertain');
 });
 
 test('uncertain admission is durable and never replayed by completion, reconnect or node restart', async (t) => {
@@ -187,7 +184,7 @@ test('logout, revoke and account change stop old bindings without selecting any 
         recipientNickname: 'Тигр 漢字',
         text: 'must remain local',
       });
-      await until(() => f.service.store.dispatchState(sent.id)?.state === 'revoked');
+      await until(() => f.service.store.dispatchState(sent.id)?.state === 'failed');
       assert.equal(f.posts.length, 0);
       assert.equal(f.service.aionui.status().state, 'revoked');
       await assert.rejects(f.service.contexts.registerAionUi(f.context()), /access ended/);
@@ -299,7 +296,7 @@ test('WebSocket transport reconnects and recovers a missed idle event without po
     recipientNickname: 'Тигр 漢字',
     text: 'recover on transport reconnect',
   });
-  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'failed');
   const reads = f.reads.length;
   for (const socket of f.sockets) socket.terminate();
   f.chats.set('fixture-chat-a', false);
@@ -323,7 +320,7 @@ test('a fresh node instance restores saved pairing and the durable waiting queue
     recipientNickname: 'Тигр 漢字',
     text: 'restart recovery fixture',
   });
-  await until(() => f.service.store.dispatchState(sent.id)?.state === 'waiting');
+  await until(() => f.service.store.dispatchState(sent.id)?.state === 'failed');
   await f.service.close();
   f.chats.set('fixture-chat-a', false);
   const next = new NodeService(f.directory);

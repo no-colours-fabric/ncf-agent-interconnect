@@ -88,6 +88,20 @@ on their target operating system with `npm run build:release -- --mac` or
 `npm run build:release -- --win`. A successful cross-platform source check is not
 a native platform verification. Report verification limits accurately.
 
+## Release numbering
+
+- Use MAJOR.MINOR.PATCH. PATCH is for compatible fixes without new product
+  capabilities. Backward-compatible new capabilities require MINOR and reset
+  PATCH to zero. Incompatible stable public contract changes require MAJOR.
+- Before 1.0, do not hide features or incompatible changes in PATCH. Incompatible
+  changes require at least MINOR and explicit compatibility notes. Promotion to
+  1.0 is a deliberate owner decision.
+- Classify the actual source scope and choose the version before freezing or
+  building. Release count does not determine the version. Keep package and lock
+  root versions, runtime metadata, distribution README, notes, installer names
+  and Git tag consistent. Do not repeat unchanged source checks just to renumber;
+  repeat only the packaging or metadata verification the change requires.
+
 ## Routine releases
 
 - Keep the release cycle short: one shared source check/test pass, one native

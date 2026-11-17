@@ -1,3 +1,5 @@
+import { computeNetworkInterfacePolicy } from '../desktop/core/network-interfaces.js';
+import { networkInterfaceMessages } from '../desktop/renderer/i18n/network-interfaces.js';
 import { OwnConnectionCard } from '../desktop/renderer/OwnConnectionCard.js';
 import { lanDiscoveryMessages } from '../desktop/renderer/i18n/lan-discovery.js';
 import test from 'node:test';
@@ -15,6 +17,7 @@ import type { Snapshot } from '../desktop/shared/contracts.js';
 import type { LanSearchNode } from '../desktop/shared/lan-search.js';
 import {
   NetworkPage,
+  PairAttemptLedger,
   lanSearchNavigation,
   unpairedLanNodes,
 } from '../desktop/renderer/NetworkPage.js';
@@ -72,6 +75,133 @@ const snapshot = (): Snapshot => ({
 const noInvoke = async (): Promise<never> => assert.fail('Rendering must not invoke an action');
 const placeholders = (text: string) =>
   [...text.matchAll(/\{([^}]+)\}/g)].map((match) => match[1]).sort();
+
+test('pair attempt provenance: bounded aliases block the same code without trusting claims or changing input', async () => {
+  const ledger = new PairAttemptLedger();
+  const value = snapshot();
+  const alias = { ...first, key: 'alias', address: 'wss://192.0.2.21:7336/peer' };
+  value.lanSearch!.nodes = [first, alias];
+  const input = { address: first.address, code: 'ABCD2345', expectedNodeId: first.nodeId };
+  let attempts = 0;
+  const uncertain = async () => {
+    attempts++;
+    throw new Error('Pairing outcome is uncertain: fixture');
+  };
+  await assert.rejects(
+    ledger.run(value, input, 'Localized uncertainty', uncertain),
+    /Localized uncertainty/,
+  );
+  const manual = { address: '192.0.2.21:7336', code: input.code };
+  // Captured address provenance survives discovery expiry and closing the grouped dialog.
+  await assert.rejects(
+    ledger.run(null, manual, 'Localized uncertainty', uncertain),
+    /Localized uncertainty/,
+  );
+  assert.equal(attempts, 1);
+  assert.deepEqual(manual, { address: '192.0.2.21:7336', code: 'ABCD2345' });
+  assert.equal(ledger.diagnostic(null, manual), 'Pairing outcome is uncertain: fixture');
+  await ledger.run(
+    value,
+    { address: '192.0.2.99:7336', code: input.code },
+    'Localized uncertainty',
+    async () => {
+      attempts++;
+    },
+  );
+  assert.equal(
+    attempts,
+    2,
+    'An unobserved address is not globally fenced by a claimed UUID or matching code',
+  );
+  assert.equal(ledger.blocked(value, { ...manual, code: 'BCDE3456' }), false);
+  assert.equal(ledger.blocked(value, { ...manual, code: input.code }), true);
+
+  for (let index = 0; index < 160; index++) {
+    const node = {
+      ...first,
+      nodeId: `fixture-node-${index}`,
+      address: `wss://192.0.2.1:${10000 + index}/peer`,
+    };
+    value.lanSearch!.nodes = [node];
+    await assert.rejects(
+      ledger.run(
+        value,
+        { address: node.address, code: input.code, expectedNodeId: node.nodeId },
+        'Localized uncertainty',
+        uncertain,
+      ),
+    );
+    assert.ok(ledger.size <= 128, `Attempt ${index}: ${ledger.size}`);
+    assert.equal(ledger.blocked(null, { address: node.address, code: input.code }), true);
+    assert.equal(
+      ledger.blocked(null, {
+        address: alias.address,
+        code: input.code,
+        expectedNodeId: node.nodeId,
+      }),
+      true,
+    );
+  }
+  // An older UUID is refreshed last alongside its newly selected address, even with many aliases.
+  value.lanSearch!.nodes = Array.from({ length: 160 }, (_, index) => ({
+    ...first,
+    nodeId: 'fixture-node-159',
+    address: `wss://192.0.2.2:${10000 + index}/peer`,
+  }));
+  const latest = {
+    address: 'wss://192.0.2.3:7336/peer',
+    code: 'BCDE3456',
+    expectedNodeId: 'fixture-node-159',
+  };
+  await assert.rejects(ledger.run(value, latest, 'Localized uncertainty', uncertain));
+  assert.equal(ledger.size, 128);
+  assert.equal(ledger.blocked(null, latest), true);
+  assert.equal(ledger.blocked(null, { address: latest.address, code: latest.code }), true);
+  assert.equal(
+    ledger.blocked(null, {
+      address: first.address,
+      code: latest.code,
+      expectedNodeId: latest.expectedNodeId,
+    }),
+    true,
+  );
+});
+
+test('endpoint freshness: previous-run addresses retain the previous label in all 15 locales', () => {
+  const value = snapshot();
+  const alias = {
+    ...first,
+    key: 'previous-alias',
+    address: 'wss://192.0.2.21:7336/peer',
+    observedInRun: false,
+    newlyFound: false,
+    lastSeenAgoMs: 1,
+  };
+  value.lanSearch!.nodes = [first, alias];
+  for (const locale of supportedLocales) {
+    const html = renderToStaticMarkup(
+      createElement(NetworkPage, {
+        active: true,
+        windowVisible: true,
+        snapshot: value,
+        locale,
+        invoke: noInvoke,
+        onSettings() {},
+        ownCode: null,
+        onOwnCodeChange() {},
+        manual: { address: '', code: '', onAddressChange() {}, onCodeChange() {} },
+        children: null,
+      }),
+    );
+    const text = html.replace(/<[^>]+>/g, '');
+    const messages = lanSearchMessages(locale);
+    const escaped = (text: string) =>
+      renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
+    assert.ok(text.includes(`${first.address} — ${escaped(messages.available)}`), locale);
+    assert.ok(text.includes(`${alias.address} — ${escaped(messages.previous)}`), locale);
+    assert.ok(!text.includes(`${alias.address} — ${escaped(messages.available)}`), locale);
+  }
+});
 
 test('search UI: all 15 independent dictionaries preserve placeholders and literal user content', () => {
   const keys = Object.keys(lanSearchEnglish).sort();
@@ -153,7 +283,7 @@ test('search UI: actual announcement reasons remain separate from search results
   const legacy = lanDiscoveryMessages('en');
   const reasons = {
     stopped: legacy.stopped,
-    'listener-local': legacy.listenerLocal,
+    'listener-local': networkInterfaceMessages('en').localHelp,
     'listener-unavailable': legacy.listenerUnavailable,
     'no-interfaces': legacy.noInterfaces,
     'transport-error': legacy.transportError,
@@ -212,7 +342,7 @@ test('search UI correction: all15 responder labels describe this search and loca
         onSettings() {},
       }),
     );
-    assert.ok(own.includes(escaped(legacy.listenerLocal)), locale);
+    assert.ok(own.includes(escaped(networkInterfaceMessages(locale).localHelp)), locale);
     assert.ok(!own.includes(escaped(messages.ownHelp)), locale);
     assert.ok(own.includes(escaped(messages.createCode)), locale);
     const html = renderToStaticMarkup(
@@ -419,6 +549,19 @@ root.render(<App key={generation} patch={{}}/>);
             'ABCD2345',
           );
           assert.equal((await callList(page, 'accessCode')).length, 1);
+          await update(page, {
+            snapshot: {
+              ...snapshot(),
+              peerUrl: 'wss://192.0.2.10:7336/peer',
+              listenHost: '192.0.2.10',
+              peerUrls: ['wss://192.0.2.10:7336/peer', 'wss://198.51.100.10:7336/peer'],
+            },
+          });
+          assert.equal(
+            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
+            'ABCD2345',
+          );
+          assert.equal((await callList(page, 'accessCode')).length, 1);
           await own.getByRole('button', { name: 'Create new code', exact: true }).click();
           await settle(page, 'accessCode', { code: 'BCDE3456', expiresAt });
           await until(
@@ -438,6 +581,7 @@ root.render(<App key={generation} patch={{}}/>);
           );
           await own.getByRole('button', { name: 'Copy address', exact: true }).click();
           await own.getByRole('alert').filter({ hasText: lanSearchEnglish.copyFailed }).waitFor();
+          assert.deepEqual(errors, [], 'A failed copy from the address selector must not throw');
           await update(page, {
             ownCode: { code: 'ABCD2345', expiresAt: new Date(Date.now() - 1000).toISOString() },
           });
@@ -453,6 +597,53 @@ root.render(<App key={generation} patch={{}}/>);
           await own.getByText(lanSearchEnglish.startNodeHint, { exact: true }).waitFor();
           await own.getByRole('button', { name: 'Network settings', exact: true }).click();
           assert.equal((await callList(page, 'settings')).length, 1);
+        },
+      );
+
+      await runCase(
+        'group',
+        'one claimed UUID has one card with explicit frozen endpoint choices',
+        async () => {
+          await reset(page);
+          const value = snapshot();
+          value.lanSearch!.nodes = [
+            { ...first },
+            { ...first, key: 'alternate', address: 'wss://192.0.2.21:7336/peer' },
+            { ...second },
+          ];
+          await update(page, { snapshot: value });
+          assert.equal(await page.locator('[data-lan-key]').count(), 2);
+          const row = page.locator('[data-lan-key]').filter({ hasText: first.label });
+          await row.getByTestId('node-endpoints').locator('summary').click();
+          assert.ok((await row.textContent())?.includes('Unverified'));
+          await row
+            .getByRole('button', { name: 'Connect wss://192.0.2.21:7336/peer', exact: true })
+            .click();
+          value.lanSearch!.nodes = [];
+          await update(page, { snapshot: value });
+          await codeInput().fill('ABCD2345');
+          await submit().click();
+          assert.deepEqual((await callList(page, 'connectPeer')).at(-1)?.input, {
+            address: 'wss://192.0.2.21:7336/peer',
+            code: 'ABCD2345',
+            expectedNodeId: first.nodeId,
+          });
+          await settle(page, 'connectPeer', undefined, 'Pairing confirmation is uncertain.');
+          await dialog().getByRole('button', { name: 'Close', exact: true }).click();
+          value.lanSearch!.nodes = [
+            { ...first },
+            { ...first, key: 'alternate', address: 'wss://192.0.2.21:7336/peer' },
+          ];
+          await update(page, { snapshot: value });
+          await connectButton().click();
+          await codeInput().fill('ABCD2345');
+          assert.ok(
+            await submit().isDisabled(),
+            'Uncertain admission stays fenced across addresses of the same UUID',
+          );
+          await codeInput().fill('BCDE3456');
+          await submit().click();
+          await settle(page, 'connectPeer', { id: first.nodeId });
         },
       );
 
@@ -522,7 +713,10 @@ root.render(<App key={generation} patch={{}}/>);
               form.requestSubmit();
             });
           assert.deepEqual(await callList(page, 'connectPeer'), [
-            { method: 'connectPeer', input: { address: first.address, code: 'ABCD2345' } },
+            {
+              method: 'connectPeer',
+              input: { address: first.address, code: 'ABCD2345', expectedNodeId: first.nodeId },
+            },
           ]);
           await settle(page, 'connectPeer', undefined, 'Pairing confirmation is uncertain.');
           await dialog()
@@ -716,7 +910,7 @@ root.render(<App key={generation} patch={{}}/>);
           await reset(page, { snapshot: value });
           const own = page.getByTestId('own-connection-card');
           await own
-            .getByText(lanDiscoveryMessages('en').listenerLocal, { exact: true })
+            .getByText(networkInterfaceMessages('en').localHelp, { exact: true })
             .first()
             .waitFor();
           assert.equal(await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).count(), 0);
@@ -754,8 +948,12 @@ root.render(<App key={generation} patch={{}}/>);
           };
           await update(page, { snapshot: unavailable });
           assert.equal(
-            await own.getByRole('button', { name: 'Create code', exact: true }).isEnabled(),
+            await own.getByRole('button', { name: 'Create new code', exact: true }).isEnabled(),
             true,
+          );
+          assert.equal(
+            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
+            'BCDE3456',
           );
           await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
         },
@@ -1020,6 +1218,8 @@ root.render(<App key={generation} patch={{}}/>);
 
 interface WiringHarness {
   calls: Call[];
+  failPair(error: string | null): void;
+  failNetworkSave(error: string | null): void;
   change(patch: { snapshot?: Snapshot; visible?: boolean }): void;
   navigate(page: string): void;
   holdReads(): void;
@@ -1082,6 +1282,21 @@ test(
         const page = await browser!.newPage({ viewport: { width: 1280, height: 1000 } });
         page.on('pageerror', (error) => errors.push(error.message));
         const initial = snapshot();
+        initial.networkInterfaces = {
+          ...computeNetworkInterfacePolicy({
+            'Fixture interface': [
+              {
+                address: '127.0.0.1',
+                netmask: '255.0.0.0',
+                family: 'IPv4',
+                internal: true,
+                mac: '00:00:00:00:00:00',
+              },
+            ],
+          }),
+          listeners: [{ address: '127.0.0.1', port: 7336, state: 'listening', error: null }],
+          inventoryError: null,
+        };
         initial.peers = [
           {
             id: 'authenticated-fixture-peer',
@@ -1102,13 +1317,13 @@ window.IntersectionObserver=class {
  unobserve(target){this.targets.delete(target);this.native.unobserve(target);}
  disconnect(){this.native.disconnect();}
 };
-let value=${JSON.stringify(initial)},visible=true,held=false;
+let value=${JSON.stringify(initial)},visible=true,held=false,pairError=null,saveError=null;
 const clients=['cursor','opencode','codex','aionui','claude'];
 const discovery={checkedAt:'2026-11-17T00:00:00.000Z',platform:'darwin',stateError:false,offers:${JSON.stringify(offers)},applications:clients.map(client=>({client,status:'detected',instances:[],coverage:[]}))};
 const clone=value=>structuredClone(value);
 const changed=()=>listeners.forEach(listener=>listener());
 const read=(method,data)=>held?new Promise(resolve=>reads.push({method,data:clone(data),resolve})):Promise.resolve(clone(data));
-window.wiring={calls,change(patch){if(patch.snapshot)value=clone(patch.snapshot);if('visible' in patch)visible=patch.visible;changed();},navigate(page){navigation.forEach(listener=>listener(page));},holdReads(){held=true;reads.length=0;},readCount:()=>reads.length,releasePair(index){for(const request of reads.slice(index*2,index*2+2))request.resolve(request.data);},resumeReads(){held=false;},manualIntersections(manual){manualIntersections=manual;},observerFor(key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);return intersections.findLastIndex(observer=>observer.targets.has(row));},replay(index,key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(row)intersections[index].callback([{target:row,isIntersecting:true,intersectionRatio:1}]);}};
+window.wiring={calls,failPair(error){pairError=error;},failNetworkSave(error){saveError=error;},change(patch){if(patch.snapshot)value=clone(patch.snapshot);if('visible' in patch)visible=patch.visible;changed();},navigate(page){navigation.forEach(listener=>listener(page));},holdReads(){held=true;reads.length=0;},readCount:()=>reads.length,releasePair(index){for(const request of reads.slice(index*2,index*2+2))request.resolve(request.data);},resumeReads(){held=false;},manualIntersections(manual){manualIntersections=manual;},observerFor(key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);return intersections.findLastIndex(observer=>observer.targets.has(row));},replay(index,key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(row)intersections[index].callback([{target:row,isIntersecting:true,intersectionRatio:1}]);}};
 window.interconnect={onChange(callback){listeners.add(callback);return()=>listeners.delete(callback);},onNavigate(callback){navigation.add(callback);return()=>navigation.delete(callback);},async invoke(method,input={}){
  calls.push({method,input:clone(input)});
  if(method==='snapshot')return read(method,value);
@@ -1124,9 +1339,10 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
  if(method==='instructions')return {client:input.client,location:'/isolated/fixture',text:'Fixture instructions',configuration:'{}',testPrompt:'Fixture test prompt'};
  if(method==='aionUiStatus')return {state:'not-paired',url:'http://127.0.0.1:1/fixture',bridgeConnected:false};
  if(method==='aionUiInstructions')return {testPrompt:'Fixture access prompt'};
+ if(method==='saveNode'){if(saveError)throw new Error(saveError);value.nodeLabel=input.nodeLabel;value.networkInterfaces.exclusions=input.networkExclusions.map(exclusion=>({exclusion,matchingNames:[exclusion.name],absent:false,ambiguous:false}));changed();return {saved:true};}
  if(method==='copy')return {copied:true};
  if(method==='accessCode')return {code:'ABCD2345',expiresAt:new Date(Date.now()+600000).toISOString()};
- if(method==='connectPeer')return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};
+ if(method==='connectPeer'){if(pairError)throw new Error(pairError);return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};}
  if(method==='stopLanSearch'){value.lanSearch.phase='stopped';changed();return {stopped:true};}
  if(method==='startLanSearch'){value.lanSearch={...value.lanSearch,phase:'searching',runId:value.lanSearch.runId+1,foundCount:0,elapsedMs:0,nodes:value.lanSearch.nodes.map(node=>({...node,observedInRun:false}))};changed();return {started:true};}
  if(method==='ackLanSearch'){value.lanSearch.unseenKeys=value.lanSearch.unseenKeys.filter(key=>!input.keys.includes(key));value.lanSearch.nodes=value.lanSearch.nodes.map(node=>input.keys.includes(node.key)?{...node,newlyFound:false}:node);changed();return {acknowledged:true};}
@@ -1358,6 +1574,179 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               ),
             );
             await capture(page, 'combined-network-dark-1024');
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'grouped uncertain Pair fences the actual injected Manual alias before IPC and preserves manual inputs',
+        {
+          skip:
+            !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'uncertainty',
+        },
+        async () => {
+          const page = await open();
+          try {
+            const value = snapshot();
+            const alias = { ...first, key: 'manual-alias', address: 'wss://192.0.2.21:7336/peer' };
+            value.lanSearch!.nodes = [first, alias];
+            await change(page, { snapshot: value });
+            await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.failPair(
+                'Pairing outcome is uncertain: fixture IPC timeout',
+              ),
+            );
+            await page.getByRole('button', { name: `Connect ${first.label}`, exact: true }).click();
+            let dialog = page.getByRole('dialog');
+            await dialog
+              .getByRole('textbox', { name: 'Connection code', exact: true })
+              .fill('ABCD2345');
+            await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+            await dialog
+              .getByRole('alert')
+              .filter({ hasText: lanSearchMessages('en').uncertain })
+              .waitFor();
+            assert.deepEqual(
+              (await calls(page, 'connectPeer')).map((call) => call.input),
+              [{ address: first.address, code: 'ABCD2345', expectedNodeId: first.nodeId }],
+            );
+            await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+            value.lanSearch!.nodes = [];
+            await change(page, { snapshot: value });
+            await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+            dialog = page.getByRole('dialog');
+            const address = dialog.getByRole('textbox', {
+              name: translate('en', 'networkAddressLabel'),
+              exact: true,
+            });
+            const code = dialog.getByRole('textbox', {
+              name: translate('en', 'networkAccessLabel'),
+              exact: true,
+            });
+            await address.fill('192.0.2.21:7336');
+            await code.fill('ABCD2345');
+            await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+            await page
+              .getByRole('alert')
+              .filter({ hasText: lanSearchMessages('en').uncertain })
+              .last()
+              .waitFor();
+            assert.equal(
+              (await calls(page, 'connectPeer')).length,
+              1,
+              'Actual parent Manual does not bypass the shared fence after discovery expiry',
+            );
+            assert.equal(await address.inputValue(), '192.0.2.21:7336');
+            assert.equal(await code.inputValue(), 'ABCD2345');
+            await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.failPair(null),
+            );
+            await address.fill('192.0.2.99:7336');
+            await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+            await until(
+              async () => (await code.inputValue()) === '',
+              'An unknown route retains the existing manual flow',
+            );
+            assert.deepEqual((await calls(page, 'connectPeer')).at(-1)?.input, {
+              address: '192.0.2.99:7336',
+              code: 'ABCD2345',
+            });
+            await address.fill('192.0.2.21:7336');
+            await code.fill('BCDE3456');
+            await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+            await until(
+              async () => (await code.inputValue()) === '',
+              'A fresh code can use the known alias',
+            );
+            assert.deepEqual((await calls(page, 'connectPeer')).at(-1)?.input, {
+              address: '192.0.2.21:7336',
+              code: 'BCDE3456',
+            });
+            assert.equal((await calls(page, 'connectPeer')).length, 3);
+            assert.deepEqual(errors, []);
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'network interface drafts survive theme/navigation and only explicit Save writes exclusions',
+        {
+          skip: !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'network',
+        },
+        async () => {
+          const page = await open([], 'settings');
+          try {
+            const toggle = page.getByRole('switch', {
+              name: 'Fixture interface: Listening enabled',
+              exact: true,
+            });
+            await toggle.uncheck();
+            const name = page.getByRole('textbox', {
+              name: translate('en', 'settingsNodeName'),
+              exact: true,
+            });
+            await name.fill('Unsaved network name');
+            await page
+              .getByRole('switch', { name: translate('en', 'settingsDarkTheme'), exact: true })
+              .uncheck();
+            assert.equal(await toggle.isChecked(), false);
+            assert.equal((await calls(page, 'saveNode')).length, 0);
+            await page.getByTestId('nav-network').click();
+            await page.getByTestId('nav-settings').click();
+            assert.equal(await toggle.isChecked(), false);
+            assert.equal(await name.inputValue(), 'Unsaved network name');
+            await page
+              .getByRole('button', { name: translate('en', 'btnSave'), exact: true })
+              .click();
+            await until(
+              async () => (await calls(page, 'saveNode')).length === 1,
+              'Explicit owner Save sends one network update',
+            );
+            assert.deepEqual((await calls(page, 'saveNode'))[0].input, {
+              nodeLabel: 'Unsaved network name',
+              networkExclusions: [{ name: 'Fixture interface' }],
+            });
+            assert.equal((await calls(page, 'mcpSetupApply')).length, 0);
+            await page.evaluate(() => localStorage.setItem('interconnect.locale', 'ru'));
+            await page.reload();
+            await page
+              .getByRole('button', { name: translate('ru', 'btnSave'), exact: true })
+              .waitFor();
+            const diagnostic = 'Fixture EACCES while renaming /isolated/settings.json';
+            await page.evaluate(
+              (message) =>
+                (window as unknown as { wiring: WiringHarness }).wiring.failNetworkSave(message),
+              diagnostic,
+            );
+            await page
+              .getByRole('button', { name: translate('ru', 'btnSave'), exact: true })
+              .click();
+            const failure = page.getByTestId('network-save-error');
+            await failure.waitFor();
+            assert.equal(
+              await page.getByTestId('network-save-summary').textContent(),
+              networkInterfaceMessages('ru').saveFailed,
+            );
+            assert.equal(await failure.locator('pre').isVisible(), false);
+            assert.equal(
+              await page.locator('.MuiSnackbar-root').filter({ hasText: diagnostic }).count(),
+              0,
+            );
+            await failure
+              .locator('summary')
+              .getByText(networkInterfaceMessages('ru').details, { exact: true })
+              .click();
+            assert.equal(await failure.locator('pre').isVisible(), true);
+            assert.equal(await failure.locator('pre').textContent(), diagnostic);
+            await failure
+              .getByRole('button', { name: translate('ru', 'mcpSetup_close'), exact: true })
+              .click();
+            assert.equal(await failure.count(), 0);
+            assert.deepEqual(errors, []);
           } finally {
             await page.close();
           }

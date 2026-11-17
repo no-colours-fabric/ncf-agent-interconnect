@@ -1,9 +1,10 @@
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, unlink } from 'node:fs/promises';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { networkInterfaces, hostname } from 'node:os';
 import path from 'node:path';
 import { isIP } from 'node:net';
 import { z } from 'zod';
+import { normalizeInterfaceExclusions } from './network-interfaces.js';
 import type { Peer, Settings } from '../shared/contracts.js';
 
 export const adapterSchema = z
@@ -13,6 +14,7 @@ export const adapterSchema = z
     kind: z.enum([
       'manual',
       'opencode-http',
+      'opencode-v2',
       'codex-desktop',
       'cursor-hook',
       'aionui',
@@ -29,9 +31,21 @@ export const adapterSchema = z
     instanceId: z.uuid().optional(),
     hostPid: z.number().int().positive().optional(),
     released: z.boolean().optional(),
+    setupTargetId: z.uuid().optional(),
   })
   .strict()
   .superRefine((profile, ctx) => {
+    if (
+      profile.kind === 'opencode-v2' &&
+      (!profile.setupTargetId ||
+        !profile.instanceId ||
+        !profile.workspace ||
+        !profile.sessionId?.startsWith('ses'))
+    )
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The OpenCode v2 integration did not provide its exact target and chat',
+      });
     if (profile.kind === 'aionui' && (!profile.aionConnectionId || !profile.sessionId))
       ctx.addIssue({
         code: 'custom',
@@ -70,6 +84,9 @@ const peerSchema = z
     certificate: z.string().max(20000),
   })
   .strict();
+export const networkExclusionsSchema = z
+  .array(z.object({ name: z.string().min(1), mac: z.string().optional() }).strict())
+  .transform((value) => normalizeInterfaceExclusions(value));
 export const settingsSchema = z
   .object({
     version: z.literal(1),
@@ -79,6 +96,7 @@ export const settingsSchema = z
     mcpPort: z.number().int().min(0).max(65535),
     peerPort: z.number().int().min(0).max(65535),
     listenHost: z.string().min(1).max(255),
+    networkExclusions: networkExclusionsSchema.default([]),
     exportRoots: z.array(z.string()).min(1),
     peers: z.array(peerSchema),
     adapters: z.array(adapterSchema).min(1),
@@ -88,12 +106,21 @@ export async function atomicJson(
   filename: string,
   data: unknown,
   beforeWrite?: () => void,
+  commitGuard?: () => void,
 ): Promise<void> {
   await mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
   const temporary = filename + '.' + randomUUID() + '.tmp';
-  beforeWrite?.();
-  await writeFile(temporary, JSON.stringify(data, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
-  await rename(temporary, filename);
+  try {
+    beforeWrite?.();
+    await writeFile(temporary, JSON.stringify(data, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+    // Keep this pure synchronous guard adjacent to rename issuance, without an intervening await.
+    // The separate early callback may advance one-use authorization and must not be repeated.
+    commitGuard?.();
+    await rename(temporary, filename);
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
+  }
 }
 export function localAddresses(): string[] {
   return [
@@ -147,6 +174,7 @@ export class SettingsFile {
         mcpPort: 0,
         peerPort: 7336,
         listenHost: '127.0.0.1',
+        networkExclusions: [],
         exportRoots: [files],
         peers: [],
         adapters: [
@@ -168,13 +196,14 @@ export class SettingsFile {
   async savePeers(
     update: (current: readonly Peer[]) => Peer[],
     beforeWrite?: () => void,
+    commitGuard?: () => void,
   ): Promise<void> {
     const operation = this.saving.then(async () => {
       const candidate = settingsSchema.parse({
         ...this.value,
         peers: update(structuredClone(this.value.peers)),
       });
-      await atomicJson(this.filename, candidate, beforeWrite);
+      await atomicJson(this.filename, candidate, beforeWrite, commitGuard);
       this.value.peers = candidate.peers;
     });
     this.saving = operation.catch(() => {});

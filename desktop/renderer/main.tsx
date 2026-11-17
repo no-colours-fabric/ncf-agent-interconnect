@@ -1,3 +1,6 @@
+import { NetworkInterfacesSettings } from './NetworkInterfacesSettings.js';
+import type { NetworkInterfaceExclusion } from '../shared/network-interfaces.js';
+import { networkInterfaceMessages } from './i18n/network-interfaces.js';
 import React, {
   useEffect,
   useState,
@@ -10,7 +13,12 @@ import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
 import { AgentsPage } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
-import { NetworkPage, lanSearchNavigation } from './NetworkPage.js';
+import {
+  NetworkPage,
+  PairAttemptLedger,
+  type PairAttemptInput,
+  lanSearchNavigation,
+} from './NetworkPage.js';
 import { lanSearchMessages } from './i18n/lan-search.js';
 import { McpSetup } from './McpSetup.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
@@ -44,9 +52,9 @@ import { isLocale, loadLocale, persistLocale, t, type Locale } from './i18n/inde
 import { applicationSetupMessages } from './i18n/application-setup.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
-import { ApplicationDiscovery } from './ApplicationDiscovery.js';
 import {
   ApplicationSetup,
+  ApplicationTiles,
   useApplicationSetup,
   useApplicationSetupStartup,
 } from './ApplicationSetup.js';
@@ -69,6 +77,7 @@ function App({
     [page, setPage] = useState<Page>(normalizePage(location.hash.slice(1)) || 'overview');
   const [error, setError] = useState(''),
     [notice, setNotice] = useState('');
+  const [networkSaveError, setNetworkSaveError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [windowVisible, setWindowVisible] = useState(false);
   const stopSearchPending = useRef(false);
@@ -81,17 +90,31 @@ function App({
   const [manualClient, setManualClient] = useState<McpSetupApplication | null>(null);
   const [applicationsMounted, setApplicationsMounted] = useState(page === 'mcp');
   const [nodeLabel, setNodeLabel] = useState(''),
-    [listenHost, setListenHost] = useState('');
+    [networkExclusions, setNetworkExclusions] = useState<NetworkInterfaceExclusion[]>([]);
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
   const [busy, setBusy] = useState(false);
   const [locale, setLocale] = useState<Locale>(() => loadLocale(() => window.localStorage));
   useEffect(() => {
     document.documentElement.lang = locale;
   }, [locale]);
+  const [pairLedger] = useState(() => new PairAttemptLedger());
+  const invocationContext = useRef({ snapshot, locale });
+  invocationContext.current = { snapshot, locale };
   const call = useCallback(
-    async <T,>(method: string, params: unknown = {}): Promise<T> =>
-      window.interconnect.invoke<T>(method, params),
-    [],
+    async <T,>(method: string, params: unknown = {}): Promise<T> => {
+      const invoke = () => window.interconnect.invoke<T>(method, params);
+      if (method === 'connectPeer') {
+        const context = invocationContext.current;
+        return pairLedger.run(
+          context.snapshot,
+          params as PairAttemptInput,
+          lanSearchMessages(context.locale).uncertain,
+          invoke,
+        );
+      }
+      return invoke();
+    },
+    [pairLedger],
   );
   const setupStatuses = useMcpSetupStatuses(call);
   const discovery = useApplicationDiscovery(call);
@@ -162,9 +185,14 @@ function App({
   useEffect(() => {
     if (snapshot) {
       setNodeLabel(snapshot.nodeLabel);
-      setListenHost(snapshot.listenHost);
+      setNetworkExclusions(
+        snapshot.networkInterfaces?.exclusions.map((record) => record.exclusion) ?? [],
+      );
     }
-  }, [snapshot?.nodeLabel, snapshot?.listenHost, snapshot?.agents.length]);
+  }, [
+    snapshot?.nodeLabel,
+    JSON.stringify(snapshot?.networkInterfaces?.exclusions.map((record) => record.exclusion)),
+  ]);
   useEffect(() => {
     if (page === 'settings')
       void call<typeof login>('loginState')
@@ -270,16 +298,19 @@ function App({
                 </Paper>
               ))}
             </Box>
-            <Box data-testid="overview-applications">
-              <ApplicationDiscovery
-                model={discovery}
+            <Stack spacing={2} data-testid="overview-applications">
+              <Typography variant="h5" component="h2">
+                {applicationSetupMessages(locale).applications}
+              </Typography>
+              <ApplicationTiles
+                discovery={discovery}
+                flow={applicationSetup}
+                statuses={setupStatuses}
+                invoke={call}
                 locale={locale}
-                setupStatuses={setupStatuses}
-                onSetup={(application) => {
-                  openManualSetup(application);
-                }}
+                onManualSetup={openManualSetup}
               />
-            </Box>
+            </Stack>
             <Box
               data-testid="overview-connections"
               sx={{
@@ -378,6 +409,7 @@ function App({
           snapshot={snapshot}
           locale={locale}
           invoke={call}
+          pairLedger={pairLedger}
           onSettings={() => navigate('settings')}
           ownCode={ownCode}
           onOwnCodeChange={setOwnCode}
@@ -519,29 +551,53 @@ function App({
                     value={nodeLabel}
                     onChange={(e) => setNodeLabel(e.target.value)}
                   />
-                  <TextField
-                    select
-                    label={t(locale, 'settingsLocalIp')}
-                    value={listenHost}
-                    onChange={(e) => setListenHost(e.target.value)}
-                  >
-                    {snapshot.localAddresses.map((ip) => (
-                      <MenuItem key={ip} value={ip}>
-                        {ip}
-                        {ip === '127.0.0.1' ? t(locale, 'settingsLocalOnly') : ''}
-                      </MenuItem>
-                    ))}
-                  </TextField>
+                  {snapshot.networkInterfaces && (
+                    <NetworkInterfacesSettings
+                      status={snapshot.networkInterfaces}
+                      value={networkExclusions}
+                      onChange={setNetworkExclusions}
+                      locale={locale}
+                      disabled={busy}
+                    />
+                  )}
+                  {networkSaveError !== null && (
+                    <Alert
+                      severity="error"
+                      data-testid="network-save-error"
+                      onClose={() => setNetworkSaveError(null)}
+                      closeText={t(locale, 'mcpSetup_close')}
+                    >
+                      <Typography data-testid="network-save-summary">
+                        {networkInterfaceMessages(locale).saveFailed}
+                      </Typography>
+                      <Box component="details">
+                        <summary>{networkInterfaceMessages(locale).details}</summary>
+                        <Typography
+                          component="pre"
+                          sx={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
+                        >
+                          {networkSaveError}
+                        </Typography>
+                      </Box>
+                    </Alert>
+                  )}
                   <Box>
                     <Button
                       variant="contained"
                       disabled={busy}
-                      onClick={() =>
-                        run(
-                          () => call('saveNode', { nodeLabel, listenHost }),
-                          t(locale, 'settingsSaved'),
-                        )
-                      }
+                      onClick={() => {
+                        setBusy(true);
+                        setNetworkSaveError(null);
+                        setNotice('');
+                        void call('saveNode', { nodeLabel, networkExclusions })
+                          .then(() => setNotice(t(locale, 'settingsSaved')))
+                          .catch((error: unknown) =>
+                            setNetworkSaveError(
+                              error instanceof Error ? error.message : String(error),
+                            ),
+                          )
+                          .finally(() => setBusy(false));
+                      }}
                     >
                       {t(locale, 'btnSave')}
                     </Button>

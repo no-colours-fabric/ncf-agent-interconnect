@@ -6,9 +6,10 @@ import type { McpSetupMessages } from './mcp-setup-messages.js';
 import type { Locale } from './i18n/index.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
 
-const kinds: Record<McpSetupClient, AdapterProfile['kind']> = {
+const kinds: Record<McpSetupClient | 'opencode-v2', AdapterProfile['kind']> = {
   cursor: 'cursor-hook',
   opencode: 'opencode-http',
+  'opencode-v2': 'opencode-v2',
   codex: 'codex-desktop',
   aionui: 'aionui',
   claude: 'claude-code',
@@ -56,7 +57,7 @@ export function clientNextStep(
 
 /** Requires a current bound chat; saved configuration alone is not a live connection. */
 export function hasConnectedClientChat(
-  client: McpSetupClient,
+  client: McpSetupClient | 'opencode-v2',
   snapshot: Pick<Snapshot, 'adapters' | 'agents'> | undefined,
 ): boolean {
   return !!snapshot?.adapters.some(
@@ -73,13 +74,18 @@ export function ClientSetupHelp({
   client,
   locale,
   messages,
+  openCodeMajor = 1,
 }: {
   client: McpSetupClient;
   locale: Locale;
   messages: McpSetupMessages;
+  openCodeMajor?: 1 | 2;
 }): React.JSX.Element {
   const copy = applicationSetupMessages(locale);
-  const next = clientNextStep(client, locale, messages);
+  const next =
+    client === 'opencode' && openCodeMajor === 2
+      ? copy.openCodeV2Next
+      : clientNextStep(client, locale, messages);
   const entries = [
     [copy.confirmQuestion, copy.confirmAnswer],
     [copy.reloadQuestion, next],

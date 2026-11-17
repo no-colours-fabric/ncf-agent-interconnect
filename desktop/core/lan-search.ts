@@ -1,5 +1,6 @@
 import { performance } from 'node:perf_hooks';
 import type { LanDiscoveryObservation } from '../shared/lan-discovery.js';
+import { groupLanSearchNodes } from '../shared/lan-search.js';
 import type { LanSearchSnapshot } from '../shared/lan-search.js';
 import { LanDiscovery, type LanDiscoveryOptions, type LocalLanNode } from './lan-discovery.js';
 
@@ -9,10 +10,7 @@ export const lanSearchLimits = Object.freeze({
   retentionMs: 10 * 60 * 1000,
 });
 
-export interface LanSearchOptions extends Omit<
-  LanDiscoveryOptions,
-  'changed' | 'observed' | 'querying'
-> {
+export interface LanSearchOptions extends Omit<LanDiscoveryOptions, 'changed' | 'querying'> {
   changed?: () => void;
   pairedNodeIds?: () => readonly string[];
 }
@@ -45,7 +43,10 @@ export class LanSearch {
       ...options,
       now: () => this.now(),
       querying: false,
-      observed: (node) => this.observe(node),
+      observed: (node) => {
+        options.observed?.(node);
+        this.observe(node);
+      },
       changed: () => this.transportChanged(),
     });
   }
@@ -106,10 +107,13 @@ export class LanSearch {
   acknowledge(keys: readonly string[]): void {
     let changed = false;
     for (const key of keys.slice(0, lanSearchLimits.entries)) {
-      const observation = this.observations.get(key);
-      if (observation && !observation.seen) {
-        observation.seen = true;
-        changed = true;
+      const selected = this.observations.get(key);
+      if (!selected) continue;
+      for (const observation of this.observations.values()) {
+        if (observation.node.nodeId === selected.node.nodeId && !observation.seen) {
+          observation.seen = true;
+          changed = true;
+        }
       }
     }
     if (changed) this.notify();
@@ -128,8 +132,14 @@ export class LanSearch {
     this.refresh(now);
     this.prune(now);
     const paired = new Set(this.options.pairedNodeIds?.() ?? []);
-    const observations = [...this.observations.values()].sort((a, b) =>
-      a.node.key.localeCompare(b.node.key, 'en'),
+    const observations = [...this.observations.values()];
+    const grouped = groupLanSearchNodes(
+      observations.map(({ node, lastSeen, firstRun }) => ({
+        ...node,
+        observedInRun: this.responders.has(node.key),
+        newlyFound: firstRun === this.runId,
+        lastSeenAgoMs: Math.max(0, now - lastSeen),
+      })),
     );
     return {
       phase: this.phase,
@@ -137,16 +147,17 @@ export class LanSearch {
       runId: this.runId,
       durationMs: lanSearchLimits.durationMs,
       elapsedMs: this.elapsedMs,
-      foundCount: this.responders.size,
-      nodes: observations.map(({ node, lastSeen, firstRun }) => ({
-        ...node,
-        observedInRun: this.responders.has(node.key),
-        newlyFound: firstRun === this.runId,
-        lastSeenAgoMs: Math.max(0, now - lastSeen),
-      })),
-      unseenKeys: observations
-        .filter(({ node, seen }) => !seen && !paired.has(node.nodeId))
-        .map(({ node }) => node.key),
+      foundCount: new Set(
+        [...this.responders].map((key) => this.observations.get(key)?.node.nodeId).filter(Boolean),
+      ).size,
+      nodes: grouped,
+      unseenKeys: grouped
+        .filter(
+          (node) =>
+            !paired.has(node.nodeId) &&
+            !observations.some((entry) => entry.node.nodeId === node.nodeId && entry.seen),
+        )
+        .map((node) => node.key),
     };
   }
 
@@ -189,11 +200,14 @@ export class LanSearch {
       if (!oldest) return;
       this.observations.delete(oldest.node.key);
     }
+    const sameNode = [...this.observations.values()].filter(
+      (entry) => entry.node.nodeId === node.nodeId,
+    );
     this.observations.set(node.key, {
       node: Object.freeze({ ...node }),
       lastSeen: now,
-      firstRun: previous?.firstRun ?? this.runId,
-      seen: previous?.seen ?? false,
+      firstRun: previous?.firstRun ?? sameNode[0]?.firstRun ?? this.runId,
+      seen: previous?.seen ?? sameNode.some((entry) => entry.seen),
     });
     if (!this.responders.has(node.key) || previous?.node.label !== node.label) this.dirty = true;
     this.responders.add(node.key);
@@ -220,12 +234,24 @@ export class LanSearch {
 
   private transportChanged(): void {
     const state = this.discovery.snapshot();
+    if (state.state === 'searching') {
+      this.opened = true;
+      if (this.phase === 'unavailable') {
+        this.phase = 'stopped';
+      }
+      this.reason = null;
+      this.notify();
+      return;
+    }
     if (state.state !== 'unavailable') return;
     this.opened = false;
     this.refresh(this.now());
-    this.phase = 'unavailable';
     this.reason = state.reason;
-    this.discovery.setQuerying(false);
+    // Interface availability is independent of the owner's existing run and its deadline.
+    if (state.reason !== 'no-interfaces') {
+      this.phase = 'unavailable';
+      this.discovery.setQuerying(false);
+    }
     this.notify();
   }
 

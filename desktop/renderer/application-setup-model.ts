@@ -7,6 +7,13 @@ import {
   type McpSetupPreview,
   type McpSetupTarget,
 } from '../shared/mcp-setup.js';
+import { OpenCodeV2SetupFlow, type OpenCodeV2SetupState } from './opencode-v2-setup-model.js';
+
+export type ApplicationSetupClient = McpSetupClient | 'opencode-v2';
+export const applicationSetupClients: readonly ApplicationSetupClient[] = [
+  ...mcpSetupClients,
+  'opencode-v2',
+];
 
 export interface ApplicationSetupState {
   phase:
@@ -27,7 +34,10 @@ export interface ApplicationSetupState {
   verified?: boolean;
   reviewRequired?: boolean;
 }
-export type ApplicationSetupStates = Record<McpSetupClient, ApplicationSetupState>;
+type LegacyApplicationSetupStates = Record<McpSetupClient, ApplicationSetupState>;
+export type ApplicationSetupStates = LegacyApplicationSetupStates & {
+  'opencode-v2': OpenCodeV2SetupState;
+};
 
 /** Reads the selected file again. The guarded writer remains responsible for exact source stamps. */
 export async function inspectSetupRetry(
@@ -73,16 +83,25 @@ export async function inspectSetupRetry(
 export class ApplicationSetupFlow {
   private states = Object.fromEntries(
     mcpSetupClients.map((client) => [client, { phase: 'idle' }]),
-  ) as ApplicationSetupStates;
+  ) as LegacyApplicationSetupStates;
   private listeners = new Set<() => void>();
   private disposed = false;
+  readonly openCodeV2: OpenCodeV2SetupFlow;
+  private snapshot: ApplicationSetupStates;
+  private readonly unsubscribeV2: () => void;
 
   constructor(
     private readonly invoke: McpSetupInvoke,
     private readonly onApplied?: () => Promise<void>,
-  ) {}
+  ) {
+    this.openCodeV2 = new OpenCodeV2SetupFlow(invoke, onApplied, () =>
+      mcpSetupClients.some((client) => this.busy(client)),
+    );
+    this.snapshot = { ...this.states, 'opencode-v2': this.openCodeV2.getSnapshot() };
+    this.unsubscribeV2 = this.openCodeV2.subscribe(() => this.publish());
+  }
 
-  getSnapshot = (): ApplicationSetupStates => this.states;
+  getSnapshot = (): ApplicationSetupStates => this.snapshot;
   subscribe = (listener: () => void): (() => void) => {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -91,10 +110,17 @@ export class ApplicationSetupFlow {
   private set(client: McpSetupClient, state: ApplicationSetupState): void {
     if (this.disposed) return;
     this.states = { ...this.states, [client]: state };
+    this.publish();
+  }
+
+  private publish(): void {
+    if (this.disposed) return;
+    this.snapshot = { ...this.states, 'opencode-v2': this.openCodeV2.getSnapshot() };
     for (const listener of this.listeners) listener();
   }
 
-  busy(client: McpSetupClient): boolean {
+  busy(client: ApplicationSetupClient): boolean {
+    if (client === 'opencode-v2') return this.openCodeV2.busy();
     const related: McpSetupClient[] =
       client === 'cursor' || client === 'aionui' ? ['cursor', 'aionui'] : [client];
     return related.some((item) =>
@@ -106,8 +132,13 @@ export class ApplicationSetupFlow {
     if (preview) void this.invoke('mcpSetupDiscard', { planId: preview.planId }).catch(() => {});
   }
 
-  async connect(client: McpSetupClient): Promise<void> {
-    if (this.disposed || mcpSetupClients.some((item) => this.busy(item))) return;
+  async connect(client: ApplicationSetupClient): Promise<void> {
+    if (client === 'opencode-v2') {
+      await this.openCodeV2.connect();
+      return;
+    }
+    if (this.disposed || this.openCodeV2.busy() || mcpSetupClients.some((item) => this.busy(item)))
+      return;
     const previous = this.states[client];
     if (previous.phase === 'uncertain') {
       await this.recheck(client);
@@ -222,23 +253,34 @@ export class ApplicationSetupFlow {
     }
   }
 
-  async confirm(client: McpSetupClient): Promise<void> {
+  async confirm(client: ApplicationSetupClient): Promise<void> {
+    if (client === 'opencode-v2') {
+      await this.openCodeV2.confirm();
+      return;
+    }
     if (
       this.states[client].phase !== 'confirmation' ||
       this.disposed ||
+      this.openCodeV2.busy() ||
       mcpSetupClients.some((item) => this.busy(item))
     )
       return;
     await this.apply(client, true);
   }
 
-  cancel(client: McpSetupClient): void {
+  cancel(client: ApplicationSetupClient): void {
+    if (client === 'opencode-v2') {
+      this.openCodeV2.cancel();
+      return;
+    }
     if (this.states[client].phase !== 'confirmation') return;
     this.discard(this.states[client].preview);
     this.set(client, { ...this.states[client], phase: 'idle', preview: undefined });
   }
 
-  invalidateSucceeded(client?: McpSetupClient): void {
+  invalidateSucceeded(client?: ApplicationSetupClient): void {
+    if (!client || client === 'opencode-v2') this.openCodeV2.invalidateSucceeded();
+    if (client === 'opencode-v2') return;
     const clients =
       client === 'cursor' || client === 'aionui'
         ? (['cursor', 'aionui'] as const)
@@ -296,6 +338,8 @@ export class ApplicationSetupFlow {
   }
 
   dispose(): void {
+    this.unsubscribeV2();
+    this.openCodeV2.dispose();
     this.disposed = true;
     for (const state of Object.values(this.states))
       if (state.phase === 'confirmation') this.discard(state.preview);

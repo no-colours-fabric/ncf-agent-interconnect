@@ -18,8 +18,7 @@ const english = {
   cli: 'Code runtime',
   claude:
     'Claude Desktop discovery does not verify its Claude Code backend. Setup targets Claude Code; consumer chats are not supported.',
-  opencode:
-    'This setup supports OpenCode v1. Discovery does not verify plugin or server API compatibility.',
+  opencode: 'Discovery does not verify the OpenCode API version or plugin compatibility.',
   offer: 'Applications found',
   offerHelp: 'Set up the applications you use to connect their agent chats.',
   dismiss: 'Dismiss',
@@ -47,7 +46,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Обнаружение Claude Desktop не проверяет его Claude Code backend. Настройка относится к Claude Code; обычные чаты не поддерживаются.',
     opencode:
-      'Эта настройка поддерживает OpenCode v1. Обнаружение не проверяет совместимость API плагинов или сервера.',
+      'При обнаружении программы версия API OpenCode и совместимость плагина не проверяются.',
     offer: 'Найдены приложения',
     offerHelp: 'Настройте используемые приложения для подключения чатов агентов.',
     dismiss: 'Закрыть',
@@ -72,7 +71,7 @@ const translations: Record<Locale, Labels> = {
     cli: 'Code 运行环境',
     claude:
       '检测到 Claude Desktop 并不代表已验证其 Claude Code 后端。配置适用于 Claude Code，不支持普通聊天。',
-    opencode: '此配置支持 OpenCode v1。检测不会验证插件或服务器 API 的兼容性。',
+    opencode: '检测功能不会验证 OpenCode 的 API 版本或插件兼容性。',
     offerHelp: '配置你使用的应用，以连接其中的智能体聊天。',
     stateError: '无法保存配置提示记录。你仍可手动配置。',
   },
@@ -96,7 +95,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'La détection de Claude Desktop ne vérifie pas son moteur Claude Code. La configuration concerne Claude Code ; les conversations grand public ne sont pas prises en charge.',
     opencode:
-      'Cette configuration prend en charge OpenCode v1. La détection ne vérifie pas la compatibilité des API du plugin ou du serveur.',
+      'La détection ne vérifie ni la version de l’API OpenCode ni la compatibilité du plugin.',
     offerHelp:
       'Configurez les applications que vous utilisez pour connecter leurs conversations d’agents.',
     stateError:
@@ -123,7 +122,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Die Erkennung von Claude Desktop prüft nicht dessen Claude-Code-Backend. Die Einrichtung gilt für Claude Code; gewöhnliche Chats werden nicht unterstützt.',
     opencode:
-      'Diese Einrichtung unterstützt OpenCode v1. Die Erkennung prüft nicht die API-Kompatibilität von Plugin oder Server.',
+      'Bei der Erkennung werden weder die OpenCode-API-Version noch die Plugin-Kompatibilität geprüft.',
     offerHelp: 'Richten Sie die verwendeten Anwendungen ein, um deren Agenten-Chats zu verbinden.',
     stateError:
       'Die Anzeige der Einrichtungsvorschläge konnte nicht gespeichert werden. Die manuelle Einrichtung bleibt verfügbar.',
@@ -148,7 +147,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Il rilevamento di Claude Desktop non verifica il relativo backend Claude Code. La configurazione riguarda Claude Code; le normali chat non sono supportate.',
     opencode:
-      'Questa configurazione supporta OpenCode v1. Il rilevamento non verifica la compatibilità delle API del plugin o del server.',
+      'Il rilevamento non verifica la versione dell’API di OpenCode né la compatibilità del plugin.',
     offerHelp: 'Configura le app che usi per collegare le chat degli agenti.',
     stateError:
       'Impossibile salvare la visualizzazione dei suggerimenti di configurazione. La configurazione manuale resta disponibile.',
@@ -173,7 +172,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Detectar Claude Desktop no verifica su backend de Claude Code. La configuración está destinada a Claude Code; no se admiten los chats convencionales.',
     opencode:
-      'Esta configuración admite OpenCode v1. La detección no verifica la compatibilidad de las API del plugin o del servidor.',
+      'La detección no comprueba la versión de la API de OpenCode ni la compatibilidad del complemento.',
     offerHelp: 'Configura las aplicaciones que utilizas para conectar los chats de sus agentes.',
     stateError:
       'No se pudo guardar la visualización de las sugerencias de configuración. La configuración manual sigue disponible.',
@@ -198,7 +197,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Claude Desktop анықталуы оның Claude Code серверлік бөлігін тексермейді. Баптау Claude Code үшін арналған; қарапайым чаттарға қолдау көрсетілмейді.',
     opencode:
-      'Бұл баптау OpenCode v1 нұсқасын қолдайды. Анықтау плагин немесе сервер API үйлесімділігін тексермейді.',
+      'Бағдарламаны анықтау OpenCode API нұсқасын немесе плагиннің үйлесімділігін тексермейді.',
     offerHelp: 'Агент чаттарын қосу үшін пайдаланатын қолданбаларды баптаңыз.',
     stateError:
       'Баптау ұсыныстарының көрсетілгенін сақтау мүмкін болмады. Қолмен баптау қолжетімді.',
@@ -222,8 +221,7 @@ const translations: Record<Locale, Labels> = {
     cli: 'Code ランタイム',
     claude:
       'Claude Desktop の検出では、その Claude Code バックエンドは検証されません。設定対象は Claude Code で、一般向けチャットはサポートしていません。',
-    opencode:
-      'この設定は OpenCode v1 に対応しています。検出ではプラグインやサーバーの API 互換性は検証されません。',
+    opencode: '検出では、OpenCode の API バージョンやプラグインの互換性は確認されません。',
     offerHelp: '使用するアプリを設定して、エージェントのチャットを接続してください。',
     stateError: '設定提案の表示記録を保存できませんでした。手動設定は引き続き利用できます。',
     checking: 'インストールを確認中…',
@@ -247,7 +245,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'A detecção do Claude Desktop não verifica seu backend Claude Code. A configuração se destina ao Claude Code; conversas comuns não são compatíveis.',
     opencode:
-      'Esta configuração é compatível com OpenCode v1. A detecção não verifica a compatibilidade das APIs do plugin ou do servidor.',
+      'A detecção não verifica a versão da API do OpenCode nem a compatibilidade do plugin.',
     offerHelp: 'Configure os aplicativos que você usa para conectar as conversas dos agentes.',
     stateError:
       'Não foi possível salvar o registro de exibição das sugestões de configuração. A configuração manual continua disponível.',
@@ -271,8 +269,7 @@ const translations: Record<Locale, Labels> = {
     cli: 'Code 실행 환경',
     claude:
       'Claude Desktop을 감지해도 Claude Code 백엔드는 검증되지 않습니다. 설정 대상은 Claude Code이며 일반 채팅은 지원하지 않습니다.',
-    opencode:
-      '이 설정은 OpenCode v1을 지원합니다. 감지 과정에서는 플러그인 또는 서버 API 호환성을 검증하지 않습니다.',
+    opencode: '검색 기능은 OpenCode API 버전이나 플러그인 호환성을 확인하지 않습니다.',
     offerHelp: '사용하는 앱을 설정하여 에이전트 채팅을 연결하세요.',
     stateError: '설정 제안의 표시 기록을 저장하지 못했습니다. 수동 설정은 계속 사용할 수 있습니다.',
     checking: '설치 확인 중…',
@@ -295,8 +292,7 @@ const translations: Record<Locale, Labels> = {
     cli: 'Code çalışma ortamı',
     claude:
       'Claude Desktop algılama, Claude Code arka ucunu doğrulamaz. Kurulum Claude Code içindir; normal sohbetler desteklenmez.',
-    opencode:
-      'Bu kurulum OpenCode v1’i destekler. Algılama, eklenti veya sunucu API uyumluluğunu doğrulamaz.',
+    opencode: 'Algılama, OpenCode API sürümünü veya eklenti uyumluluğunu doğrulamaz.',
     offerHelp: 'Ajan sohbetlerini bağlamak için kullandığınız uygulamaları yapılandırın.',
     stateError: 'Kurulum önerilerinin gösterim kaydı kaydedilemedi. Elle kurulum kullanılabilir.',
     checking: 'Kurulumlar kontrol ediliyor…',
@@ -319,8 +315,7 @@ const translations: Record<Locale, Labels> = {
     cli: 'Środowisko uruchomieniowe Code',
     claude:
       'Wykrycie Claude Desktop nie weryfikuje jego zaplecza Claude Code. Konfiguracja dotyczy Claude Code; zwykłe czaty nie są obsługiwane.',
-    opencode:
-      'Ta konfiguracja obsługuje OpenCode v1. Wykrywanie nie sprawdza zgodności API wtyczki ani serwera.',
+    opencode: 'Wykrywanie nie weryfikuje wersji API OpenCode ani zgodności wtyczki.',
     offerHelp: 'Skonfiguruj używane aplikacje, aby połączyć czaty ich agentów.',
     stateError:
       'Nie udało się zapisać informacji o wyświetleniu propozycji konfiguracji. Konfiguracja ręczna pozostaje dostępna.',
@@ -346,7 +341,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Detectie van Claude Desktop verifieert de Claude Code-backend niet. De configuratie is bedoeld voor Claude Code; gewone chats worden niet ondersteund.',
     opencode:
-      'Deze configuratie ondersteunt OpenCode v1. Detectie controleert de API-compatibiliteit van de plug-in of server niet.',
+      'Bij de detectie worden de OpenCode-API-versie en de compatibiliteit van de plug-in niet gecontroleerd.',
     offerHelp: 'Stel de apps die je gebruikt in om de chats van hun agenten te verbinden.',
     stateError:
       'De weergave van configuratievoorstellen kon niet worden opgeslagen. Handmatig instellen blijft beschikbaar.',
@@ -371,7 +366,7 @@ const translations: Record<Locale, Labels> = {
     claude:
       'Виявлення Claude Desktop не перевіряє його серверну частину Claude Code. Налаштування стосується Claude Code; звичайні чати не підтримуються.',
     opencode:
-      'Це налаштування підтримує OpenCode v1. Виявлення не перевіряє сумісність API плагінів або сервера.',
+      'Під час виявлення програми версія API OpenCode та сумісність плагіна не перевіряються.',
     offerHelp: 'Налаштуйте застосунки, якими користуєтеся, щоб підключити чати агентів.',
     stateError: 'Не вдалося зберегти показ пропозицій налаштування. Ручне налаштування доступне.',
     checking: 'Перевірка встановлень…',
