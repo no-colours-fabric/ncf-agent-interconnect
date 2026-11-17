@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.18.8
+# NCF Agent Interconnect 0.19.0
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -170,6 +170,13 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Release versions
+
+Versions use MAJOR.MINOR.PATCH. Compatible fixes use PATCH; new compatible
+capabilities require MINOR and reset PATCH to zero. While the project is below
+1.0, incompatible changes require at least a MINOR increase and explicit
+compatibility notes. Moving to 1.0 is a deliberate owner decision.
 
 ## Upgrade from an earlier release
 
