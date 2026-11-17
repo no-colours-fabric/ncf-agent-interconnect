@@ -281,6 +281,14 @@ export class OpenCodeV2Auth {
   generation(row: Pick<OpenCodeV2AuthRow, 'targetId' | 'generation'>): string {
     return path.join(this.root, z.uuid().parse(row.targetId), z.uuid().parse(row.generation));
   }
+  /** Nonsecret selection only; this is not authentication or runtime readiness. */
+  async remembered(configurationPath: string): Promise<OpenCodeV2SetupTarget | undefined> {
+    const { value } = await this.registry();
+    const row = value.targets.find(
+      (entry) => entry.selected.configurationPath === configurationPath,
+    );
+    return row ? structuredClone(row.selected) : undefined;
+  }
   async current(target: OpenCodeV2SetupTarget): Promise<OpenCodeV2AuthRow | undefined> {
     const parsed = openCodeV2TargetSchema.parse(target);
     const { value } = await this.registry();
@@ -356,8 +364,6 @@ export class OpenCodeV2Auth {
       (row) => row.selected.configurationPath === selected.configurationPath,
     );
     if (row) {
-      if (JSON.stringify(row.selected) !== JSON.stringify(selected))
-        throw new Error('V2_TARGET_SELECTION_CHANGED');
       const provision = await this.verifyRow(row, false);
       const coherent = await this.options.configurationHash(row.selected.configurationPath).then(
         (value) => value === row.configurationHash,
@@ -365,6 +371,7 @@ export class OpenCodeV2Auth {
       );
       if (
         !forceNewGeneration &&
+        JSON.stringify(row.selected) === JSON.stringify(selected) &&
         coherent &&
         provision.nodeId === nodeId &&
         provision.nodeUrl === nodeUrl

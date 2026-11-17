@@ -681,7 +681,8 @@ export class OpenCodeV2SetupService extends McpSetupService {
       configurationPath: file.path,
     };
     try {
-      const target = await this.canonicalTarget(raw);
+      const canonical = await this.canonicalTarget(raw),
+        target = (await this.auth.remembered(canonical.configurationPath)) ?? canonical;
       return {
         client: 'opencode-v2',
         target,
@@ -738,7 +739,27 @@ export class OpenCodeV2SetupService extends McpSetupService {
   }
   private async planFor(target: OpenCodeV2SetupTarget): Promise<V2SetupPlan> {
     const legacy = await new McpSetupPaths(this.v2Options.stateDirectory).get('opencode');
-    if (legacy && (await this.canonicalPath(this.resolvePath(legacy))) === target.configurationPath)
+    let collision = false;
+    if (legacy) {
+      const filename = await this.canonicalPath(this.resolvePath(legacy));
+      collision = filename === target.configurationPath;
+      if (!collision) {
+        try {
+          const [retained, selected] = await Promise.all([
+            lstat(filename, { bigint: true }),
+            lstat(target.configurationPath, { bigint: true }),
+          ]);
+          collision =
+            retained.isFile() &&
+            selected.isFile() &&
+            retained.dev === selected.dev &&
+            retained.ino === selected.ino;
+        } catch (error) {
+          if (errno(error) !== 'ENOENT') throw error;
+        }
+      }
+    }
+    if (collision)
       throw new V2SetupUnavailable(
         'v1-collision',
         'The selected configuration is retained by OpenCode v1; select its separate v2 configuration',

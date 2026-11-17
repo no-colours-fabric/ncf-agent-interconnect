@@ -1,6 +1,6 @@
 import test, { type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, writeFile, lstat, rm, realpath } from 'node:fs/promises';
+import { mkdtemp, mkdir, readFile, writeFile, lstat, rm, realpath, link } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -226,6 +226,73 @@ test('unsupported secure provisioning disables v2 automatic configuration before
   });
   await assert.rejects(setup.v2Preview('window', target), /private-file protection is unavailable/);
   assert.equal(await readFile(target.configurationPath, 'utf8'), source);
+  await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2')), { code: 'ENOENT' });
+});
+
+test('v2 defaults restore the saved selected target without inferring profile or installation from the filename', async (t) => {
+  const { target, root, setup } = await fixture(t);
+  const selected = {
+    ...target,
+    installationId: 'owner-selected',
+    installationPath: '/selected/opencode-v2',
+    profilePath: path.join(root, 'separate-profile'),
+  };
+  const preview = await setup.v2Preview('window', selected);
+  const result = await setup.v2Apply('window', preview.planId, selected, false);
+  assert.equal(result.status, 'applied');
+  const defaults = await setup.v2Defaults();
+  assert.deepEqual(defaults.target, result.target);
+  assert.equal(defaults.setupAvailability.state, 'available');
+});
+test('semantically matching managed config key order changes preserve no-op credentials and bytes', async (t) => {
+  const { state, target, setup } = await fixture(t),
+    preview = await setup.v2Preview('window', target);
+  assert.equal((await setup.v2Apply('window', preview.planId, target, false)).status, 'applied');
+  const old = await readFile(target.configurationPath, 'utf8'),
+    parsed = JSON.parse(old.slice(old.indexOf('{')));
+  parsed.mcp.servers.ncf_agent_interconnect = Object.fromEntries(
+    Object.entries(parsed.mcp.servers.ncf_agent_interconnect).reverse(),
+  );
+  parsed.plugins[1].options = Object.fromEntries(
+    Object.entries(parsed.plugins[1].options).reverse(),
+  );
+  const formatted = JSON.stringify(parsed, null, 2) + '\n';
+  await writeFile(target.configurationPath, formatted);
+  const registryFile = path.join(state, 'Integrations', 'opencode-v2', 'targets.json'),
+    registry = await readFile(registryFile, 'utf8');
+  assert.equal((await setup.v2Status(target)).state, 'configured');
+  const second = await setup.v2Preview('window', target);
+  assert.equal((await setup.v2Apply('window', second.planId, target, false)).status, 'unchanged');
+  assert.equal(await readFile(target.configurationPath, 'utf8'), formatted);
+  assert.equal(await readFile(registryFile, 'utf8'), registry);
+});
+test('owner-selected installation change rotates only the configured v2 generation on explicit Apply', async (t) => {
+  const { state, target, setup } = await fixture(t),
+    preview = await setup.v2Preview('window', target);
+  assert.equal((await setup.v2Apply('window', preview.planId, target, false)).status, 'applied');
+  const registryFile = path.join(state, 'Integrations', 'opencode-v2', 'targets.json'),
+    old = JSON.parse(await readFile(registryFile, 'utf8')).targets[0];
+  const selected = { ...target, installationId: 'explicit-reconfigure' },
+    next = await setup.v2Preview('window', selected);
+  assert.equal(next.requiresReplacement, true);
+  assert.equal((await setup.v2Apply('window', next.planId, selected, true)).status, 'applied');
+  const current = JSON.parse(await readFile(registryFile, 'utf8')).targets[0];
+  assert.equal(current.targetId, old.targetId);
+  assert.notEqual(current.generation, old.generation);
+  assert.equal(current.selected.installationId, selected.installationId);
+});
+
+test('readonly v2 capability rejects an inode alias of the selected v1 configuration', async (t) => {
+  const { root, state, target, setup, source } = await fixture(t);
+  const legacy = path.join(root, 'legacy-v1.jsonc');
+  await link(target.configurationPath, legacy);
+  await new McpSetupPaths(state).remember('opencode', legacy);
+  assert.deepEqual((await setup.v2Status(target)).setupAvailability, {
+    state: 'unavailable',
+    reason: 'v1-collision',
+  });
+  await assert.rejects(setup.v2Preview('window', target), /retained by OpenCode v1/);
+  assert.equal(await readFile(legacy, 'utf8'), source);
   await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2')), { code: 'ENOENT' });
 });
 
