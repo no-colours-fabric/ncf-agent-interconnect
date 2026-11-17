@@ -30,6 +30,142 @@ import { t, type Locale } from './i18n/index.js';
 import { lanDiscoveryMessages } from './i18n/lan-discovery.js';
 import { formatLanSearch, lanSearchMessages } from './i18n/lan-search.js';
 
+export interface PairAttemptInput {
+  address: string;
+  code: string;
+  expectedNodeId?: string;
+}
+class UncertainPairAttempt extends Error {
+  constructor(
+    message: string,
+    readonly diagnostic: string,
+  ) {
+    super(message);
+  }
+}
+const uncertainPairFailure = (error: unknown): boolean =>
+  error instanceof UncertainPairAttempt ||
+  /uncertain|authorized this connection|time(?:d)?\s*out|timeout|channel.*closed|object.*destroyed|ECONNRESET/i.test(
+    error instanceof Error ? error.message : String(error),
+  );
+function pairAddressKey(value: string): string {
+  const raw = value.trim();
+  try {
+    const implicit =
+      !raw.includes('://') && !raw.startsWith('[') && raw.split(':').length > 2
+        ? `[${raw}]:7336`
+        : !raw.includes(':')
+          ? raw + ':7336'
+          : raw;
+    const url = new URL(raw.includes('://') ? raw : 'wss://' + implicit);
+    if (
+      !['wss:', 'https:'].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      !['/', '/peer'].includes(url.pathname)
+    )
+      return raw;
+    url.protocol = 'wss:';
+    url.pathname = '/peer';
+    return url.toString();
+  } catch {
+    return raw;
+  }
+}
+
+/** Negative retry provenance only: observed UUID claims never grant trust or rewrite destinations. */
+export class PairAttemptLedger {
+  private readonly uncertain = new Map<string, { code: string; diagnostic: string }>();
+  get size(): number {
+    return this.uncertain.size;
+  }
+  private capture(snapshot: Snapshot | null, input: PairAttemptInput) {
+    const address = 'address:' + pairAddressKey(input.address);
+    const observations = (snapshot?.lanSearch?.nodes ?? [])
+      .flatMap((node) => [node, ...(node.endpoints ?? [])])
+      .map((node) => ({ nodeId: node.nodeId, address: node.address }));
+    for (const peer of snapshot?.peers ?? []) {
+      if (peer.address) observations.push({ nodeId: peer.id, address: peer.address });
+      if (peer.activeAddress) observations.push({ nodeId: peer.id, address: peer.activeAddress });
+    }
+    const matches = new Set(
+      observations
+        .filter((node) => 'address:' + pairAddressKey(node.address) === address)
+        .map((node) => node.nodeId),
+    );
+    if (input.expectedNodeId) matches.add(input.expectedNodeId);
+    const identity = input.expectedNodeId ?? (matches.size === 1 ? [...matches][0] : undefined);
+    const aliases = identity
+      ? [
+          ...new Set(
+            observations
+              .filter((node) => node.nodeId === identity)
+              .map((node) => 'address:' + pairAddressKey(node.address)),
+          ),
+        ]
+      : [];
+    return {
+      address,
+      node: identity ? 'node:' + identity : undefined,
+      matches: [...matches].map((id) => 'node:' + id),
+      aliases,
+    };
+  }
+  private lookup(context: ReturnType<PairAttemptLedger['capture']>, code: string) {
+    return [context.address, ...context.matches, ...context.aliases]
+      .map((key) => this.uncertain.get(key))
+      .find((record) => record?.code === code);
+  }
+  blocked(snapshot: Snapshot | null, input: PairAttemptInput): boolean {
+    return !!this.lookup(this.capture(snapshot, input), input.code.trim());
+  }
+  diagnostic(snapshot: Snapshot | null, input: PairAttemptInput): string {
+    return this.lookup(this.capture(snapshot, input), input.code.trim())?.diagnostic ?? '';
+  }
+  async run<T>(
+    snapshot: Snapshot | null,
+    input: PairAttemptInput,
+    message: string,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    const context = this.capture(snapshot, input);
+    const code = input.code.trim();
+    const blocked = this.lookup(context, code);
+    if (blocked) throw new UncertainPairAttempt(message, blocked.diagnostic);
+    try {
+      const result = await work();
+      for (const key of [
+        ...context.aliases,
+        context.address,
+        ...(context.node ? [context.node] : []),
+      ])
+        this.uncertain.delete(key);
+      return result;
+    } catch (error) {
+      if (!uncertainPairFailure(error)) throw error;
+      const diagnostic =
+        error instanceof UncertainPairAttempt
+          ? error.diagnostic
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      // Refresh insertion order; retain the latest selected address and node after any alias pruning.
+      for (const key of [
+        ...context.aliases,
+        context.address,
+        ...(context.node ? [context.node] : []),
+      ]) {
+        this.uncertain.delete(key);
+        this.uncertain.set(key, { code, diagnostic });
+      }
+      while (this.uncertain.size > 128) this.uncertain.delete(this.uncertain.keys().next().value!);
+      throw new UncertainPairAttempt(message, diagnostic);
+    }
+  }
+}
+
 export interface NetworkManualConnection {
   address: string;
   code: string;
@@ -45,6 +181,7 @@ export interface NetworkPageProps {
   snapshot: Snapshot;
   locale: Locale;
   invoke: McpSetupInvoke;
+  pairLedger?: PairAttemptLedger;
   onSettings: () => void;
   ownCode: OwnConnectionCode | null;
   onOwnCodeChange: (value: OwnConnectionCode | null) => void;
@@ -91,6 +228,7 @@ export function NetworkPage({
   snapshot,
   locale,
   invoke,
+  pairLedger,
   onSettings,
   ownCode,
   onOwnCodeChange,
@@ -116,7 +254,8 @@ export function NetworkPage({
   const pairFence = useRef(false);
   const searchFence = useRef(false);
   const attempt = useRef(0);
-  const uncertainAttempts = useRef(new Map<string, string>());
+  const [localPairLedger] = useState(() => new PairAttemptLedger());
+  const ledger = pairLedger ?? localPairLedger;
   const currentSnapshot = useRef(snapshot);
   currentSnapshot.current = snapshot;
   const rowRefs = useRef(new Map<string, HTMLLIElement>());
@@ -329,21 +468,19 @@ export function NetworkPage({
   };
   const connect = async (address: string, access: string, isManual: boolean) => {
     const value = access.trim();
-    const identityKey = !isManual && selected ? `node:${selected.nodeId}` : address;
-    if (
-      pairFence.current ||
-      !snapshot.running ||
-      !address.trim() ||
-      !/^[A-HJ-NP-Z2-9]{8}$/.test(value) ||
-      uncertainAttempts.current.get(address) === value ||
-      uncertainAttempts.current.get(identityKey) === value
-    )
-      return;
     const input = Object.freeze({
       address,
       code: value,
       ...(!isManual && selected ? { expectedNodeId: selected.nodeId } : {}),
     });
+    if (
+      pairFence.current ||
+      !snapshot.running ||
+      !address.trim() ||
+      !/^[A-HJ-NP-Z2-9]{8}$/.test(value) ||
+      ledger.blocked(snapshot, input)
+    )
+      return;
     const request = ++attempt.current;
     const nodeId = snapshot.nodeId;
     pairFence.current = true;
@@ -351,15 +488,13 @@ export function NetworkPage({
     setPairError(null);
     setPairedNotice(false);
     try {
-      await invoke('connectPeer', input);
+      await ledger.run(snapshot, input, m.uncertain, () => invoke('connectPeer', input));
       if (
         !mounted.current ||
         attempt.current !== request ||
         currentSnapshot.current.nodeId !== nodeId
       )
         return;
-      uncertainAttempts.current.delete(address);
-      uncertainAttempts.current.delete(identityKey);
       setAuthenticatedAddresses((previous) => {
         const next = new Set(previous);
         next.add(address);
@@ -372,17 +507,13 @@ export function NetworkPage({
       setCode('');
       setPairedNotice(true);
     } catch (error) {
-      const detail = error instanceof Error ? error.message : String(error);
-      const uncertain =
-        /uncertain|authorized this connection|time(?:d)?\s*out|timeout|channel.*closed|object.*destroyed|ECONNRESET/i.test(
-          detail,
-        );
-      if (uncertain) {
-        uncertainAttempts.current.set(address, value);
-        uncertainAttempts.current.set(identityKey, value);
-        if (uncertainAttempts.current.size > 128)
-          uncertainAttempts.current.delete(uncertainAttempts.current.keys().next().value!);
-      }
+      const detail =
+        error instanceof UncertainPairAttempt
+          ? error.diagnostic
+          : error instanceof Error
+            ? error.message
+            : String(error);
+      const uncertain = uncertainPairFailure(error);
       if (
         mounted.current &&
         attempt.current === request &&
@@ -420,9 +551,8 @@ export function NetworkPage({
         : '';
   const blockedSelection =
     !!selected &&
-    (uncertainAttempts.current.get(selected.address) === code.trim() ||
-      uncertainAttempts.current.get(`node:${selected.nodeId}`) === code.trim());
-  const blockedManual = uncertainAttempts.current.get(manual.address.trim()) === manual.code.trim();
+    ledger.blocked(snapshot, { address: selected.address, code, expectedNodeId: selected.nodeId });
+  const blockedManual = ledger.blocked(snapshot, { address: manual.address, code: manual.code });
   const selectionMissing =
     !!selected &&
     !search?.nodes.some(
@@ -438,13 +568,17 @@ export function NetworkPage({
       </Typography>
     </Box>
   );
-  const pairFailure = (blocked: boolean) =>
-    (pairError || blocked) && (
-      <Alert severity="error" role="alert">
-        {pairError?.uncertain || blocked ? m.uncertain : legacy.failed}
-        {pairError?.detail && diagnostics(pairError.detail)}
-      </Alert>
+  const pairFailure = (blocked: boolean, input: PairAttemptInput) => {
+    const detail = pairError?.detail || ledger.diagnostic(snapshot, input);
+    return (
+      (pairError || blocked) && (
+        <Alert severity="error" role="alert">
+          {pairError?.uncertain || blocked ? m.uncertain : legacy.failed}
+          {detail && diagnostics(detail)}
+        </Alert>
+      )
     );
+  };
   const onCode = (value: string) => {
     setCode(value.replace(/[a-z]/g, (letter) => letter.toUpperCase()));
     setPairError(null);
@@ -663,7 +797,9 @@ export function NetworkPage({
                             >
                               <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
                                 {endpoint.address} —{' '}
-                                {endpoint.lastSeenAgoMs < 30000 ? m.available : m.previous}
+                                {endpoint.observedInRun && endpoint.lastSeenAgoMs < 30000
+                                  ? m.available
+                                  : m.previous}
                               </Typography>
                               <Button
                                 disabled={!snapshot.running || pairPending}
@@ -769,7 +905,12 @@ export function NetworkPage({
                 }}
               />
               {selected && diagnostics(selected.address)}
-              {pairFailure(blockedSelection)}
+              {selected &&
+                pairFailure(blockedSelection, {
+                  address: selected.address,
+                  code,
+                  expectedNodeId: selected.nodeId,
+                })}
             </Stack>
           </DialogContent>
           <DialogActions>
@@ -846,7 +987,7 @@ export function NetworkPage({
                   />
                 </>
               )}
-              {pairFailure(blockedManual)}
+              {pairFailure(blockedManual, { address: manual.address, code: manual.code })}
             </Stack>
           </DialogContent>
           <DialogActions>

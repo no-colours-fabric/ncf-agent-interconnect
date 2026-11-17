@@ -3,7 +3,7 @@ import type { Locale } from './index.js';
 const translations = {
   en: {
     title: 'Network interfaces',
-    help: 'Listen on all IPv4 interfaces except those disabled here. Save to apply.',
+    help: "By default, this app listens on all local IPv4 addresses. Excluding an interface removes its addresses from this app's listeners. It does not disable the network adapter or change the system firewall. Save to apply.",
     enabled: 'Listening enabled',
     disabled: 'Listening disabled',
     noAddresses: 'No usable IPv4 addresses',
@@ -20,11 +20,11 @@ const translations = {
     unverified: 'Unverified',
     saveFailed: 'Network settings could not be saved.',
     localHelp:
-      'Only this computer has a listening address. Enable a network interface in Settings.',
+      'Connections are currently limited to this computer. Check the network interfaces in Settings.',
   },
   ru: {
     title: 'Сетевые интерфейсы',
-    help: 'Прослушиваются все интерфейсы IPv4, кроме отключённых здесь. Сохраните изменения для применения.',
+    help: 'По умолчанию приложение прослушивает все локальные адреса IPv4. При исключении интерфейса приложение прекращает прослушивать его адреса. Сетевой адаптер и системный брандмауэр остаются без изменений. Сохраните изменения для применения.',
     enabled: 'Прослушивание разрешено',
     disabled: 'Прослушивание отключено',
     noAddresses: 'Нет пригодных адресов IPv4',
@@ -41,11 +41,11 @@ const translations = {
     unverified: 'Не проверен',
     saveFailed: 'Не удалось сохранить настройки сети.',
     localHelp:
-      'Прослушиваемый адрес есть только на этом компьютере. Разрешите сетевой интерфейс в настройках.',
+      'Сейчас подключение доступно только с этого компьютера. Проверьте сетевые интерфейсы в настройках.',
   },
   'zh-CN': {
     title: '网络接口',
-    help: '监听所有 IPv4 接口，但不监听在此禁用的接口。保存以应用更改。',
+    help: '默认情况下，本应用监听所有本地 IPv4 地址。排除某个接口后，本应用将不再监听该接口的地址。这不会禁用网络适配器或更改系统防火墙。保存后生效。',
     enabled: '已允许监听',
     disabled: '已禁用监听',
     noAddresses: '没有可用的 IPv4 地址',
@@ -59,11 +59,11 @@ const translations = {
     addressLabel: '连接地址',
     unverified: '未经验证',
     saveFailed: '无法保存网络设置。',
-    localHelp: '仅此计算机具有监听地址。请在设置中启用网络接口。',
+    localHelp: '当前仅能从本机连接。请在设置中检查网络接口。',
   },
   fr: {
     title: 'Interfaces réseau',
-    help: 'Écouter sur toutes les interfaces IPv4 sauf celles désactivées ici. Enregistrez pour appliquer.',
+    help: 'Par défaut, cette application écoute sur toutes les adresses IPv4 locales. Exclure une interface retire ses adresses des points d’écoute de l’application. Cela ne désactive pas la carte réseau et ne modifie pas le pare-feu du système. Enregistrez pour appliquer.',
     enabled: 'Écoute autorisée',
     disabled: 'Écoute désactivée',
     noAddresses: 'Aucune adresse IPv4 utilisable',
@@ -80,11 +80,11 @@ const translations = {
     unverified: 'Non vérifié',
     saveFailed: 'Impossible d’enregistrer les paramètres réseau.',
     localHelp:
-      'Seul cet ordinateur dispose d’une adresse d’écoute. Activez une interface réseau dans les paramètres.',
+      'Les connexions sont actuellement limitées à cet ordinateur. Vérifiez les interfaces réseau dans les paramètres.',
   },
   de: {
     title: 'Netzwerkschnittstellen',
-    help: 'Auf allen IPv4-Schnittstellen lauschen, außer den hier deaktivierten. Zum Anwenden speichern.',
+    help: 'Standardmäßig lauscht diese App auf allen lokalen IPv4-Adressen. Wird eine Schnittstelle ausgeschlossen, lauscht die App nicht mehr auf deren Adressen. Der Netzwerkadapter und die Systemfirewall bleiben unverändert. Zum Anwenden speichern.',
     enabled: 'Lauschen erlaubt',
     disabled: 'Lauschen deaktiviert',
     noAddresses: 'Keine nutzbaren IPv4-Adressen',
@@ -96,16 +96,16 @@ const translations = {
       'Namen und MAC-Adressen dienen der Zuordnung. Eine umbenannte Schnittstelle ohne stabile MAC muss eventuell erneut deaktiviert werden.',
     ambiguous:
       'Dieser Ausschluss passt zu mehreren Schnittstellen. Seine Entfernung betrifft alle aufgeführten Treffer.',
-    emptyEndpoint: 'Keine überwachte Adresse',
+    emptyEndpoint: 'Keine Empfangsadresse verfügbar',
     addressLabel: 'Verbindungsadresse',
     unverified: 'Nicht verifiziert',
     saveFailed: 'Netzwerkeinstellungen konnten nicht gespeichert werden.',
     localHelp:
-      'Nur dieser Computer hat eine überwachte Adresse. Aktivieren Sie eine Netzwerkschnittstelle in den Einstellungen.',
+      'Verbindungen sind derzeit nur von diesem Computer aus möglich. Prüfen Sie die Netzwerkschnittstellen in den Einstellungen.',
   },
   it: {
     title: 'Interfacce di rete',
-    help: 'Ascolta su tutte le interfacce IPv4 tranne quelle disabilitate qui. Salva per applicare.',
+    help: 'Per impostazione predefinita, l’app ascolta su tutti gli indirizzi IPv4 locali. Escludere un’interfaccia rimuove i suoi indirizzi dai punti di ascolto dell’app. La scheda di rete e il firewall di sistema restano invariati. Salva per applicare.',
     enabled: 'Ascolto consentito',
     disabled: 'Ascolto disabilitato',
     noAddresses: 'Nessun indirizzo IPv4 utilizzabile',
@@ -122,11 +122,11 @@ const translations = {
     unverified: 'Non verificato',
     saveFailed: 'Impossibile salvare le impostazioni di rete.',
     localHelp:
-      'Solo questo computer ha un indirizzo in ascolto. Abilita un’interfaccia di rete nelle impostazioni.',
+      'Al momento le connessioni sono possibili solo da questo computer. Controlla le interfacce di rete nelle impostazioni.',
   },
   es: {
     title: 'Interfaces de red',
-    help: 'Escuchar en todas las interfaces IPv4 salvo las desactivadas aquí. Guarda para aplicar.',
+    help: 'Por defecto, esta aplicación escucha en todas las direcciones IPv4 locales. Al excluir una interfaz, la aplicación deja de escuchar en sus direcciones. El adaptador de red y el cortafuegos del sistema no se modifican. Guarda para aplicar.',
     enabled: 'Escucha permitida',
     disabled: 'Escucha desactivada',
     noAddresses: 'No hay direcciones IPv4 utilizables',
@@ -143,11 +143,11 @@ const translations = {
     unverified: 'Sin verificar',
     saveFailed: 'No se pudo guardar la configuración de red.',
     localHelp:
-      'Solo este equipo tiene una dirección de escucha. Habilita una interfaz de red en la configuración.',
+      'Actualmente solo se puede conectar desde este equipo. Revisa las interfaces de red en la configuración.',
   },
   kk: {
     title: 'Желілік интерфейстер',
-    help: 'Мұнда өшірілгендерден басқа барлық IPv4 интерфейстері тыңдалады. Қолдану үшін сақтаңыз.',
+    help: 'Әдепкіде қолданба барлық жергілікті IPv4 мекенжайларын тыңдайды. Интерфейс ерекшеліктерге қосылса, қолданба оның мекенжайларын тыңдауды тоқтатады. Желілік адаптер мен жүйелік брандмауэр өзгермейді. Қолдану үшін сақтаңыз.',
     enabled: 'Тыңдауға рұқсат етілген',
     disabled: 'Тыңдау өшірілген',
     noAddresses: 'Жарамды IPv4 мекенжайлары жоқ',
@@ -164,11 +164,11 @@ const translations = {
     unverified: 'Тексерілмеген',
     saveFailed: 'Желі параметрлерін сақтау мүмкін болмады.',
     localHelp:
-      'Тыңдалатын мекенжай тек осы компьютерде бар. Параметрлерде желілік интерфейске рұқсат беріңіз.',
+      'Қазір тек осы компьютерден қосылуға болады. Параметрлердегі желілік интерфейстерді тексеріңіз.',
   },
   ja: {
     title: 'ネットワークインターフェース',
-    help: 'ここで無効にしたものを除く、すべての IPv4 インターフェースで待ち受けます。保存すると適用されます。',
+    help: '既定では、このアプリはすべてのローカル IPv4 アドレスで待ち受けます。インターフェースを除外すると、そのアドレスでは待ち受けなくなります。ネットワークアダプターやシステムのファイアウォールは変更されません。保存すると適用されます。',
     enabled: '待ち受けを許可',
     disabled: '待ち受けを無効化',
     noAddresses: '使用可能な IPv4 アドレスがありません',
@@ -185,11 +185,11 @@ const translations = {
     unverified: '未確認',
     saveFailed: 'ネットワーク設定を保存できませんでした。',
     localHelp:
-      'このコンピューター内でのみ待ち受けています。設定でネットワークインターフェースを有効にしてください。',
+      '現在、このコンピューターからのみ接続できます。設定でネットワークインターフェースを確認してください。',
   },
   'pt-BR': {
     title: 'Interfaces de rede',
-    help: 'Escutar em todas as interfaces IPv4, exceto as desativadas aqui. Salve para aplicar.',
+    help: 'Por padrão, este aplicativo escuta em todos os endereços IPv4 locais. Excluir uma interface remove seus endereços da escuta deste aplicativo. O adaptador de rede e o firewall do sistema não são alterados. Salve para aplicar.',
     enabled: 'Escuta permitida',
     disabled: 'Escuta desativada',
     noAddresses: 'Nenhum endereço IPv4 utilizável',
@@ -206,11 +206,11 @@ const translations = {
     unverified: 'Não verificado',
     saveFailed: 'Não foi possível salvar as configurações de rede.',
     localHelp:
-      'Apenas este computador tem um endereço de escuta. Ative uma interface de rede nas configurações.',
+      'No momento, as conexões só são possíveis a partir deste computador. Verifique as interfaces de rede nas configurações.',
   },
   ko: {
     title: '네트워크 인터페이스',
-    help: '여기서 비활성화한 인터페이스를 제외한 모든 IPv4 인터페이스에서 수신합니다. 저장하면 적용됩니다.',
+    help: '기본적으로 이 앱은 모든 로컬 IPv4 주소에서 연결을 수신합니다. 인터페이스를 제외하면 이 앱은 해당 주소에서 더 이상 수신하지 않습니다. 네트워크 어댑터와 시스템 방화벽은 변경되지 않습니다. 저장하면 적용됩니다.',
     enabled: '수신 허용',
     disabled: '수신 비활성화',
     noAddresses: '사용 가능한 IPv4 주소 없음',
@@ -226,11 +226,12 @@ const translations = {
     addressLabel: '연결 주소',
     unverified: '확인되지 않음',
     saveFailed: '네트워크 설정을 저장하지 못했습니다.',
-    localHelp: '이 컴퓨터에서만 수신할 수 있습니다. 설정에서 네트워크 인터페이스를 활성화하세요.',
+    localHelp:
+      '현재는 이 컴퓨터에서만 연결할 수 있습니다. 설정에서 네트워크 인터페이스를 확인하세요.',
   },
   tr: {
     title: 'Ağ arayüzleri',
-    help: 'Burada devre dışı bırakılanlar dışında tüm IPv4 arayüzlerini dinle. Uygulamak için kaydedin.',
+    help: 'Bu uygulama varsayılan olarak tüm yerel IPv4 adreslerini dinler. Bir arayüz hariç tutulduğunda uygulama onun adreslerini dinlemeyi bırakır. Ağ bağdaştırıcısı ve sistem güvenlik duvarı değişmez. Uygulamak için kaydedin.',
     enabled: 'Dinlemeye izin verildi',
     disabled: 'Dinleme devre dışı',
     noAddresses: 'Kullanılabilir IPv4 adresi yok',
@@ -247,11 +248,11 @@ const translations = {
     unverified: 'Doğrulanmamış',
     saveFailed: 'Ağ ayarları kaydedilemedi.',
     localHelp:
-      'Dinleme adresi yalnızca bu bilgisayarda kullanılabilir. Ayarlardan bir ağ arayüzünü etkinleştirin.',
+      'Şu anda yalnızca bu bilgisayardan bağlantı kurulabilir. Ayarlardaki ağ arayüzlerini kontrol edin.',
   },
   pl: {
     title: 'Interfejsy sieciowe',
-    help: 'Nasłuchuj na wszystkich interfejsach IPv4 poza wyłączonymi tutaj. Zapisz, aby zastosować.',
+    help: 'Domyślnie ta aplikacja nasłuchuje na wszystkich lokalnych adresach IPv4. Wykluczenie interfejsu usuwa jego adresy z nasłuchu aplikacji. Karta sieciowa i zapora systemowa pozostają bez zmian. Zapisz, aby zastosować.',
     enabled: 'Nasłuchiwanie dozwolone',
     disabled: 'Nasłuchiwanie wyłączone',
     noAddresses: 'Brak użytecznych adresów IPv4',
@@ -268,11 +269,11 @@ const translations = {
     unverified: 'Niezweryfikowany',
     saveFailed: 'Nie udało się zapisać ustawień sieci.',
     localHelp:
-      'Adres nasłuchiwania jest dostępny tylko na tym komputerze. Włącz interfejs sieciowy w ustawieniach.',
+      'Obecnie połączenia są możliwe tylko z tego komputera. Sprawdź interfejsy sieciowe w ustawieniach.',
   },
   nl: {
     title: 'Netwerkinterfaces',
-    help: 'Luister op alle IPv4-interfaces behalve de hier uitgeschakelde. Sla op om toe te passen.',
+    help: 'Deze app luistert standaard op alle lokale IPv4-adressen. Door een interface uit te sluiten, luistert deze app niet meer op de adressen ervan. De netwerkadapter en systeemfirewall blijven ongewijzigd. Sla op om toe te passen.',
     enabled: 'Luisteren toegestaan',
     disabled: 'Luisteren uitgeschakeld',
     noAddresses: 'Geen bruikbare IPv4-adressen',
@@ -289,11 +290,11 @@ const translations = {
     unverified: 'Niet geverifieerd',
     saveFailed: 'Netwerkinstellingen konden niet worden opgeslagen.',
     localHelp:
-      'Alleen deze computer heeft een luisteradres. Schakel een netwerkinterface in via de instellingen.',
+      'Verbindingen zijn momenteel alleen vanaf deze computer mogelijk. Controleer de netwerkinterfaces in de instellingen.',
   },
   uk: {
     title: 'Мережеві інтерфейси',
-    help: 'Прослуховуються всі інтерфейси IPv4, крім вимкнених тут. Збережіть зміни для застосування.',
+    help: 'Типово застосунок прослуховує всі локальні адреси IPv4. У разі виключення інтерфейсу застосунок припиняє прослуховувати його адреси. Мережевий адаптер і системний брандмауер залишаються без змін. Збережіть зміни для застосування.',
     enabled: 'Прослуховування дозволено',
     disabled: 'Прослуховування вимкнено',
     noAddresses: 'Немає придатних адрес IPv4',
@@ -310,7 +311,7 @@ const translations = {
     unverified: 'Не перевірено',
     saveFailed: 'Не вдалося зберегти налаштування мережі.',
     localHelp:
-      'Адреса прослуховування є лише на цьому комп’ютері. Дозвольте мережевий інтерфейс у налаштуваннях.',
+      'Зараз підключення доступне лише з цього комп’ютера. Перевірте мережеві інтерфейси в налаштуваннях.',
   },
 } satisfies Record<
   Locale,
