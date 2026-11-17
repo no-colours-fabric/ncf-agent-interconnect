@@ -14,6 +14,7 @@ import {
 } from '../desktop/core/codex-adapter.js';
 import { AdapterRegistry, type EventInput } from '../desktop/core/adapters.js';
 import { NodeService } from '../desktop/core/service.js';
+import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
 
 interface Request {
@@ -606,7 +607,12 @@ test('node recovery preserves uncertain Codex dispatch and does not acknowledge 
 test('Codex receives the original body and attachment link and completes delivery without asking the model to read or acknowledge', async (t) => {
   const f = await fixture(t),
     directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-body-')),
-    service = new NodeService(directory);
+    deliveredAt = Date.UTC(2026, 10, 17, 9, 35, 7),
+    display = { locale: 'en-GB', timeZone: 'Europe/Moscow' },
+    service = new NodeService(directory, {
+      presentationNow: () => deliveredAt,
+      messageDisplayContext: () => display,
+    });
   await service.open();
   t.after(async () => {
     await service.close();
@@ -635,13 +641,14 @@ test('Codex receives the original body and attachment link and completes deliver
   const request = f.requests.find((item) => item.method === 'thread-follower-start-turn')!;
   const { turnStart } = request.params as { turnStart: { request: { input: { text: string }[] } } };
   const text = turnStart.request.input[0].text;
+  const stored = service.store.get(message.id, 'in')!;
   assert.ok(
     text.startsWith(
-      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
+      `**Incoming NCF Agent Interconnect**\nFrom: "Исследователь"\nSent: ${formatAgentMessageTimestamp(stored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nПроверь расчёт.\nОтветь с результатом.\n\nAttachments:\n`,
     ),
   );
-  const replyRef = 'r' + service.store.get(message.id, 'in')!.sequence.toString(36);
-  assert.ok(text.includes(`Reply-To: ${replyRef}\n`));
+  const replyRef = 'r' + stored.sequence.toString(36);
+  assert.ok(text.includes(`Reply-To "Исследователь": ${replyRef}\n`));
   assert.ok(!text.includes('From-Node:'));
   assert.ok(!text.includes('Message-ID:'));
   assert.equal(await readFile(text.match(/\]\(<([^>]+)>\)/)![1], 'utf8'), 'Числа для проверки');

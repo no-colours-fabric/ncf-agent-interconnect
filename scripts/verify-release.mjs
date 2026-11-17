@@ -166,7 +166,10 @@ try {
   while (service.store.dispatchState(message.id)?.state !== 'admitted') { if (Date.now() > deadline) throw new Error('Packaged integration did not deliver'); await new Promise(resolve => setTimeout(resolve, 10)); }
   assert.equal(prompts.length, 1); assert.equal(prompts[0].id, 'ses_packaged');
   const replyRef = 'r' + service.store.get(message.id, 'in').sequence.toString(36);
-  assert.equal(prompts[0].text, ['**Incoming NCF Agent Interconnect**', 'From: "Package sender"', '', 'The package runs without source files', '', 'Reply-To: ' + replyRef, 'Use agent_send(connectionId, replyRef="' + replyRef + '", text) to reply.'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
+  const packagedLines = prompts[0].text.split(String.fromCharCode(10));
+  assert.deepEqual(packagedLines.slice(0, 2), ['**Incoming NCF Agent Interconnect**', 'From: "Package sender"']);
+  assert.match(packagedLines[2], /^Sent: .+$/); assert.match(packagedLines[3], /^Delivered: .+$/);
+  assert.equal(packagedLines.slice(4).join(String.fromCharCode(10)), ['', 'The package runs without source files', '', 'Reply-To "Package sender": ' + replyRef, 'Use agent_send(connectionId, replyRef="' + replyRef + '", text) to reply.'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
   const reply = await opencode.callTool({ name: 'agent_send', arguments: { connectionId: second.binding.connectionId, replyRef, text: 'Packaged compact reply' } });
   assert.ok(!reply.isError); const replyEnvelope = service.store.get(reply.structuredContent.id, 'out').envelope;
   assert.equal(replyEnvelope.toNode, service.settings.value.nodeId); assert.equal(replyEnvelope.toNickname, 'Package sender'); assert.equal(replyEnvelope.replyTo, message.id);
@@ -348,7 +351,10 @@ try {
   const v2Attempt = cursorService.store.deliveryAttempt(v2Prompts[0].id.slice(4));
   assert.equal(v2Attempt.meta.phase, 'committed'); assert.equal(v2Attempt.meta.host.messageId, v2Prompts[0].id); assert.notEqual(v2Prompts[0].id, 'msg_' + v2Message.id);
   const v2ReplyRef = 'r' + cursorService.store.get(v2Message.id, 'in').sequence.toString(36);
-  assert.equal(v2Prompts[0].text, ['**Incoming NCF Agent Interconnect**', 'From: "Package V2 sender"', '', 'Packaged v2 full input 漢字', '', 'Reply-To: ' + v2ReplyRef, 'Use agent_send(connectionId, replyRef="' + v2ReplyRef + '", text) to reply.'].join(String.fromCharCode(10)));
+  const v2Lines = v2Prompts[0].text.split(String.fromCharCode(10));
+  assert.deepEqual(v2Lines.slice(0, 2), ['**Incoming NCF Agent Interconnect**', 'From: "Package V2 sender"']);
+  assert.match(v2Lines[2], /^Sent: .+$/); assert.match(v2Lines[3], /^Delivered: .+$/);
+  assert.equal(v2Lines.slice(4).join(String.fromCharCode(10)), ['', 'Packaged v2 full input 漢字', '', 'Reply-To "Package V2 sender": ' + v2ReplyRef, 'Use agent_send(connectionId, replyRef="' + v2ReplyRef + '", text) to reply.'].join(String.fromCharCode(10)));
   const v2Reply = await v2Client.callTool({ name: 'agent_send', arguments: { connectionId: v2Connected.structuredContent.binding.connectionId, replyRef: v2ReplyRef, text: 'Packaged v2 reply' }, _meta: { 'ai.opencode/sessionID': v2Session } }); assert.ok(!v2Reply.isError);
   const codexPackage = await verifyCodexPackage();
   console.log(JSON.stringify({ ...codexPackage, electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, openCodeV2OwnAsar: true, openCodeV2InstalledPlugin: true, openCodeV2CommittedProjectionSynthetic: true, openCodeV2PinnedContractFixture: '2.3.0', openCodeV2LiveClientTested: false, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
