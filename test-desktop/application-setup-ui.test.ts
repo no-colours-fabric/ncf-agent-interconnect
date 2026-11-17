@@ -2,7 +2,11 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { ApplicationRows, setupApplicationName } from '../desktop/renderer/ApplicationSetup.js';
+import {
+  ApplicationRows,
+  ApplicationTiles,
+  setupApplicationName,
+} from '../desktop/renderer/ApplicationSetup.js';
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
@@ -55,7 +59,7 @@ const statuses: McpSetupStatuses = {
   refreshAll: async () => {},
 };
 
-test('all five apps retain manual setup; detection enables only automatic actions and never claims absence or v2 support', () => {
+test('all five groups retain manual setup; the default v2 target does not infer capability from discovery', () => {
   const html = renderToStaticMarkup(
     React.createElement(ApplicationRows, {
       discovery,
@@ -66,11 +70,18 @@ test('all five apps retain manual setup; detection enables only automatic action
       onManualSetup: () => {},
     }),
   );
-  for (const client of mcpSetupClients) assert.ok(html.includes('application-row-' + client));
+  for (const client of mcpSetupClients)
+    assert.ok(
+      html.includes(
+        'data-testid="application-row-' + (client === 'opencode' ? 'opencode-v2' : client) + '"',
+      ),
+    );
   assert.equal(html.match(/>Manual setup</g)?.length, 5);
   assert.equal(html.match(/data-testid="application-connect-/g)?.length, 2);
+  assert.ok(html.includes('OpenCode v2'));
   assert.ok(html.includes('OpenCode v1'));
-  assert.doesNotMatch(html, /OpenCode v2|Profile [12]|Not installed|>Ready</);
+  assert.ok(!html.includes('data-testid="application-connect-opencode-v2"'));
+  assert.doesNotMatch(html, /Profile [12]|Not installed|>Ready</);
   assert.ok(html.includes('Automatic setup unavailable'));
   assert.ok(!html.includes(discoveryMessages('en').stateError));
   assert.equal(html.match(/<img /g)?.length, 5);
@@ -329,5 +340,88 @@ test('copy context: list and manual AionUi headings qualify the Cursor Agent tar
       assert.ok(headings.includes(copy.aionUiName));
       assert.ok(!headings.includes('AionUi'));
     }
+  }
+});
+
+test('Overview shares the startup tiles without startup chrome, technical discovery controls or offer acknowledgements', () => {
+  const props = {
+    discovery,
+    statuses,
+    invoke: noInvoke,
+    flow: new ApplicationSetupFlow(noInvoke),
+    locale: 'en' as const,
+    onManualSetup: () => {},
+  };
+  const html = renderToStaticMarkup(React.createElement(ApplicationTiles, props));
+  assert.equal(
+    html.match(/data-testid="overview-application-(?:cursor|opencode-v2|codex|aionui|claude)"/g)
+      ?.length,
+    5,
+  );
+  assert.equal(html.match(/<img /g)?.length, 5);
+  assert.ok(html.includes('data-testid="overview-group-opencode"'));
+  assert.ok(html.includes('Show OpenCode v1'));
+  assert.ok(!html.includes('data-testid="overview-application-opencode"'));
+  for (const text of [
+    applicationSetupMessages('en').startupTitle,
+    applicationSetupMessages('en').returnHelp,
+    applicationSetupMessages('en').continue,
+    discoveryMessages('en').details,
+    discoveryMessages('en').choose,
+  ])
+    assert.ok(!html.includes(text), text);
+  assert.doesNotMatch(html, /data-offer-client=|role="dialog"|<header|<footer/);
+  const startup = renderToStaticMarkup(
+    React.createElement(ApplicationTiles, {
+      ...props,
+      context: 'startup',
+      offers: ['cursor', 'opencode', 'codex'],
+    }),
+  );
+  assert.equal(startup.match(/data-offer-client=/g)?.length, 3);
+  assert.ok(startup.includes('data-offer-client="opencode"'));
+  assert.ok(startup.includes('data-testid="startup-connect-cursor"'));
+});
+
+test('Applications manual routes retain actual installation selection, coverage, Refresh and locations independently of configuration selection', () => {
+  for (const client of mcpSetupClients) {
+    const source = '/isolated/Applications/' + client + '/检查';
+    const model: ApplicationDiscoveryModel = {
+      ...discovery,
+      snapshot: {
+        ...discovery.snapshot!,
+        applications: [
+          {
+            client,
+            status: 'unknown',
+            instances: [],
+            coverage: [{ source, state: 'partial', reason: 'unsupported-package-format' }],
+          },
+        ],
+      },
+    };
+    const html = renderToStaticMarkup(
+      React.createElement(McpSetup, {
+        client,
+        manualClient: client,
+        onClientChange: () => {},
+        onCloseManual: () => {},
+        invoke: noInvoke,
+        discovery: model,
+        setupStatuses: statuses,
+        setupFlow: new ApplicationSetupFlow(noInvoke),
+        locale: 'en',
+      }),
+    );
+    assert.ok(html.includes('data-testid="installation-' + client + '"'), client);
+    for (const text of [
+      discoveryMessages('en').choose,
+      discoveryMessages('en').details,
+      discoveryMessages('en').refresh,
+      discoveryMessages('en').limited,
+      source,
+      applicationSetupMessages('en').back,
+    ])
+      assert.ok(html.includes(text), client + ':' + text);
   }
 });

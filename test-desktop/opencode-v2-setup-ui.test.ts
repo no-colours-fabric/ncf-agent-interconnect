@@ -1,0 +1,353 @@
+import assert from 'node:assert/strict';
+import test from 'node:test';
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { OpenCodeV2SetupFlow } from '../desktop/renderer/opencode-v2-setup-model.js';
+import { OpenCodeV2SetupDialog, OpenCodeSetupDialog } from '../desktop/renderer/McpSetup.js';
+import { McpSetupFlow } from '../desktop/renderer/mcp-setup-model.js';
+import { ApplicationDiscovery } from '../desktop/renderer/ApplicationDiscovery.js';
+import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
+import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
+import { ApplicationRows } from '../desktop/renderer/ApplicationSetup.js';
+import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
+import { hasConnectedClientChat } from '../desktop/renderer/ClientSetupHelp.js';
+import type { Snapshot } from '../desktop/shared/contracts.js';
+import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
+import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
+import { supportedLocales, type Locale } from '../desktop/renderer/i18n/index.js';
+import type { McpSetupInvoke, OpenCodeV2SetupTarget } from '../desktop/shared/mcp-setup.js';
+
+const target: OpenCodeV2SetupTarget = {
+  major: 2,
+  installationId: null,
+  installationPath: null,
+  profilePath: '/isolated/Профиль v2',
+  configurationPath: '/isolated/Профиль v2/opencode.json',
+};
+const escape = (text: string) =>
+  renderToStaticMarkup(React.createElement('span', null, text)).slice(6, -7);
+function fixture() {
+  let sequence = 0,
+    writes = 0,
+    changed = false;
+  const invoke = (async (method: string, params: { target?: OpenCodeV2SetupTarget } = {}) => {
+    if (method === 'opencodeV2SetupDefaults')
+      return {
+        client: 'opencode-v2',
+        target,
+        alternatives: [target.configurationPath],
+        setupAvailability: { state: 'available' },
+      };
+    if (method === 'opencodeV2SetupStatus')
+      return {
+        client: 'opencode-v2',
+        target: params.target,
+        state: 'not-configured',
+        remembered: false,
+        setupAvailability: { state: 'available' },
+        files: [],
+      };
+    if (method === 'opencodeV2SetupPreview')
+      return {
+        client: 'opencode-v2',
+        target: params.target,
+        targetId: 'fixture-target',
+        planId: 'fixture-plan-' + ++sequence,
+        expiresAt: new Date(Date.now() + 60000).toISOString(),
+        requiresReplacement: false,
+        files: [
+          {
+            id: 'configuration',
+            path: params.target!.configurationPath,
+            action: changed ? 'update' : 'create',
+            changes: [],
+          },
+        ],
+      };
+    if (method === 'opencodeV2SetupApply') {
+      writes++;
+      throw new Error('Isolated original result unknown');
+    }
+    if (method === 'opencodeV2SetupDiscard') return { discarded: true };
+    throw new Error('Unexpected operation in source UI fixture: ' + method);
+  }) as McpSetupInvoke;
+  return {
+    invoke,
+    writes: () => writes,
+    change: () => {
+      changed = true;
+    },
+  };
+}
+function render(flow: OpenCodeV2SetupFlow, locale: Locale = 'en') {
+  return renderToStaticMarkup(
+    React.createElement(OpenCodeV2SetupDialog, {
+      flow,
+      locale,
+      messages: mcpSetupMessages(locale),
+      onClose: () => {},
+    }),
+  );
+}
+
+test('v2 manual UI names its version and captured target; v1 keeps a separate legacy form and draft', async () => {
+  const f = fixture(),
+    flow = new OpenCodeV2SetupFlow(f.invoke);
+  await flow.beginManual();
+  flow.setConfigurationPath('/isolated/Custom v2/草稿.json');
+  await flow.review();
+  const html = render(flow, 'ru');
+  assert.ok(html.includes('id="mcp-setup-form-opencode-v2"'));
+  assert.ok(html.includes('OpenCode v2'));
+  assert.ok(html.includes(escape('/isolated/Custom v2/草稿.json')));
+  assert.ok(html.includes(escape(target.profilePath)));
+  assert.ok(html.includes(escape(applicationSetupMessages('ru').openCodeV2Description)));
+  assert.doesNotMatch(html, /<select|role="combobox"|Profile [12]/);
+  const legacy = new McpSetupFlow('opencode', (async (method: string) => {
+    if (method === 'mcpSetupDefaults')
+      return {
+        client: 'opencode',
+        files: [
+          {
+            id: 'configuration',
+            path: '/isolated/Legacy v1.json',
+            format: 'jsonc',
+            alternatives: [],
+          },
+        ],
+      };
+    if (method === 'mcpSetupPreview')
+      return {
+        client: 'opencode',
+        planId: 'v1',
+        files: [
+          { id: 'configuration', path: '/isolated/Legacy v1.json', action: 'create', changes: [] },
+        ],
+        requiresReplacement: false,
+      };
+    return {};
+  }) as McpSetupInvoke);
+  await legacy.begin();
+  const legacyHtml = renderToStaticMarkup(
+    React.createElement(OpenCodeSetupDialog, {
+      flow: legacy,
+      invoke: f.invoke,
+      locale: 'ru',
+      messages: mcpSetupMessages('ru'),
+      inline: true,
+    }),
+  );
+  assert.ok(legacyHtml.includes('OpenCode v1'));
+  assert.ok(legacyHtml.includes('/isolated/Legacy v1.json'));
+  assert.ok(!legacyHtml.includes('草稿.json'));
+  assert.ok(!html.includes('Legacy v1.json'));
+  assert.equal(f.writes(), 0);
+});
+
+test('v2 UI checks only the active original uncertainty; renewed preview shows Apply and separate confirmation', async () => {
+  const f = fixture(),
+    flow = new OpenCodeV2SetupFlow(f.invoke);
+  await flow.beginManual();
+  await flow.apply();
+  const copy = applicationSetupMessages('en');
+  const visible = (html: string) => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
+  const original = flow.getSnapshot().uncertain;
+  assert.ok(visible(render(flow)).includes(copy.uncertain));
+  assert.ok(visible(render(flow)).includes(copy.checkSetupResult));
+  f.change();
+  await flow.checkResult();
+  const renewed = render(flow);
+  assert.ok(!visible(renewed).includes(copy.checkSetupResult));
+  assert.ok(renewed.includes('>Apply<'));
+  assert.ok(renewed.includes('type="checkbox"'));
+  assert.ok(renewed.includes(copy.reviewHelp));
+  assert.ok(renewed.includes('Isolated original result unknown'));
+  assert.equal(flow.getSnapshot().uncertain, original);
+  assert.equal(f.writes(), 1);
+});
+
+test('v2 manual captions, help and target accessibility are professional complete dictionaries in all 15 locales', async () => {
+  const keys = [
+    'openCodeV1Description',
+    'openCodeV2Description',
+    'openCodeV2Next',
+    'openCodeProfile',
+    'selectedInstallation',
+    'showOpenCodeV1',
+  ] as const;
+  const english = applicationSetupMessages('en');
+  const f = fixture(),
+    flow = new OpenCodeV2SetupFlow(f.invoke);
+  await flow.beginManual();
+  for (const locale of supportedLocales) {
+    const copy = applicationSetupMessages(locale),
+      html = render(flow, locale);
+    for (const key of keys) {
+      assert.ok(copy[key].trim(), locale + ':' + key);
+      if (locale !== 'en') assert.notEqual(copy[key], english[key], locale + ':' + key);
+    }
+    assert.ok(html.includes(escape(copy.openCodeV2Description)), locale);
+    assert.ok(html.includes(escape(copy.openCodeProfile)), locale);
+    assert.ok(html.includes(escape(mcpSetupMessages(locale).pathLabel)), locale);
+    assert.ok(html.includes('OpenCode v2'), locale);
+  }
+});
+
+test('shared OpenCode discovery help is version-neutral in every locale', () => {
+  const model: ApplicationDiscoveryModel = {
+    busy: false,
+    failed: false,
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
+    refresh: async () => {},
+    choose: async () => {},
+    snapshot: {
+      checkedAt: '2026-11-17T00:00:00Z',
+      platform: 'linux',
+      offers: [],
+      stateError: false,
+      applications: [{ client: 'opencode', status: 'detected', instances: [], coverage: [] }],
+    },
+  };
+  for (const locale of supportedLocales) {
+    const copy = discoveryMessages(locale);
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicationDiscovery, { model, locale, client: 'opencode' }),
+    );
+    assert.ok(html.includes(escape(copy.opencode)), locale);
+    assert.ok(!copy.opencode.includes('OpenCode v1'), locale);
+    assert.ok(!copy.opencode.includes('OpenCode v2'), locale);
+    if (locale !== 'en') assert.notEqual(copy.opencode, discoveryMessages('en').opencode, locale);
+  }
+});
+
+test('cancelling an unreviewed v2 draft shows unknown status instead of an indefinite checking label', async () => {
+  const f = fixture(),
+    app = new ApplicationSetupFlow(f.invoke),
+    flow = app.openCodeV2;
+  await flow.beginManual();
+  flow.setConfigurationPath('/isolated/Not reviewed/草稿.json');
+  flow.cancel();
+  const discovery: ApplicationDiscoveryModel = {
+    busy: false,
+    failed: false,
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
+    refresh: async () => {},
+    choose: async () => {},
+    snapshot: {
+      checkedAt: '2026-11-17T00:00:00Z',
+      platform: 'linux',
+      offers: [],
+      stateError: false,
+      applications: [],
+    },
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(ApplicationRows, {
+      flow: app,
+      discovery,
+      invoke: f.invoke,
+      locale: 'en',
+      onManualSetup: () => {},
+      statuses: { statuses: {}, errors: {}, refreshAll: async () => {} },
+    }),
+  );
+  const row = html.slice(
+    html.indexOf('data-testid="application-row-opencode-v2"'),
+    html.indexOf('data-testid="application-row-codex"'),
+  );
+  assert.ok(row.includes('>Unknown<'));
+  assert.ok(!row.includes(escape(mcpSetupMessages('en').checking)));
+  assert.equal(flow.getSnapshot().target?.configurationPath, '/isolated/Not reviewed/草稿.json');
+  assert.equal(f.writes(), 0);
+});
+
+test('v2 Connect uses actual setup capability without claiming an installed version', async () => {
+  const f = fixture(),
+    flow = new ApplicationSetupFlow(f.invoke);
+  await flow.openCodeV2.refresh();
+  const discovery: ApplicationDiscoveryModel = {
+    busy: false,
+    failed: false,
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
+    refresh: async () => {},
+    choose: async () => {},
+    snapshot: {
+      checkedAt: '2026-11-17T00:00:00Z',
+      platform: 'linux',
+      offers: [],
+      stateError: false,
+      applications: [],
+    },
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(ApplicationRows, {
+      flow,
+      discovery,
+      invoke: f.invoke,
+      locale: 'en',
+      onManualSetup: () => {},
+      statuses: { statuses: {}, errors: {}, refreshAll: async () => {} },
+    }),
+  );
+  const row = html.slice(
+    html.indexOf('data-testid="application-row-opencode-v2"'),
+    html.indexOf('data-testid="application-row-codex"'),
+  );
+  assert.ok(row.includes(applicationSetupMessages('en').automaticAvailable));
+  assert.ok(row.includes('data-testid="application-connect-opencode-v2"'));
+  assert.ok(!row.includes(applicationSetupMessages('en').detected));
+  for (const locale of supportedLocales)
+    if (locale !== 'en')
+      assert.notEqual(
+        applicationSetupMessages(locale).automaticAvailable,
+        applicationSetupMessages('en').automaticAvailable,
+        locale,
+      );
+});
+
+test('the startup working-chat hint requires an actual ready bound v2 chat, not saved configuration', () => {
+  const snapshot: Pick<Snapshot, 'agents' | 'adapters'> = {
+    agents: [],
+    adapters: [
+      {
+        id: 'v2',
+        kind: 'opencode-v2',
+        label: 'OpenCode v2',
+        state: 'ready',
+        error: null,
+        capabilities: {
+          wakeIdle: true,
+          receiveActive: true,
+          nativeDisplay: true,
+          exactSession: true,
+        },
+      },
+    ],
+  };
+  assert.equal(hasConnectedClientChat('opencode-v2', snapshot), false);
+  snapshot.agents.push({
+    nickname: 'Выбранное имя',
+    key: 'выбранное имя',
+    messageCount: 0,
+    unread: 0,
+    binding: {
+      adapterId: 'v2',
+      connectionId: 'fixture',
+      client: 'OpenCode v2',
+      chatId: 'exact-chat',
+      generation: 1,
+    },
+  });
+  assert.equal(hasConnectedClientChat('opencode-v2', snapshot), true);
+  snapshot.adapters[0].state = 'checking';
+  assert.equal(hasConnectedClientChat('opencode-v2', snapshot), false);
+});
