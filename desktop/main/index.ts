@@ -69,7 +69,9 @@ else {
       if (process.platform === 'darwin') image.setTemplateImage(true);
       tray = new Tray(image);
       tray.setToolTip('NCF Agent Interconnect — messaging node');
-      service = new NodeService(data);
+      service = new NodeService(data, {
+        lanDiscovery: process.env.NCF_DISABLE_LAN_DISCOVERY === '1' ? undefined : {},
+      });
       service.on('change', () => {
         updateTray();
         window?.webContents.send('interconnect:change');

@@ -56,7 +56,7 @@ if (mode === 'worker') {
   await mkdir(root, { recursive: false, mode: 0o700 });
   const require = createRequire(import.meta.url),
     packaged = target !== 'source';
-  const launchEnv = { ...process.env };
+  const launchEnv = { ...process.env, NCF_DISABLE_LAN_DISCOVERY: '1' };
   delete launchEnv.ELECTRON_RUN_AS_NODE;
   const application = await electron.launch({
     executablePath: packaged ? path.resolve(target) : require('electron'),
