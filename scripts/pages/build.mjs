@@ -184,13 +184,13 @@ function indexPage(titles) {
   const main = sources.slice(0, 10);
   const catalog = sources.slice(10, 11);
   const examples = sources.slice(11);
-  const content = `<div class="docs-intro"><p class="docs-eyebrow">NCF Agent Interconnect</p><h1>Documentation</h1><p>After application setup, connect each new assistant on demand with a request such as “Connect as agent Amy” in its ordinary chat. No per-agent configuration is needed. Assistants address one another by name to exchange messages and files and coordinate work. Every page also links to its original Markdown or text file and GitHub source. Documentation is currently in English.</p></div>
+  const content = `<div class="docs-intro"><p class="docs-eyebrow">NCF Agent Interconnect</p><h1>Documentation</h1><p>“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications: Codex Desktop, Claude Code, Cursor, OpenCode and AionUi. In one of two Codex chats, agent Sam defines search requirements; in the other, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” The agents coordinate by name and share the messages and files the task requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later. Every page links to its original Markdown or text file and GitHub source. Documentation is currently in English.</p></div>
     <p><a href="${base}llms.txt">Documentation map for AI tools (llms.txt)</a></p>
     <section aria-labelledby="main-guides"><h2 id="main-guides">Guides and reference</h2>${documentList(main, titles)}</section>
     <section aria-labelledby="example-guides"><h2 id="example-guides">Examples and prompts</h2><p>These fictional scenarios are prompts for explaining how agents can work together. They are not records of completed work.</p>${documentList(catalog, titles)}${documentList(examples, titles)}</section>`;
   return frame(
     'Documentation',
-    'NCF Agent Interconnect: connect AI assistants with one chat request. No per-agent setup. Assistants exchange messages and files by addressing each other by name.',
+    'NCF Agent Interconnect connects named AI assistants for shared tasks. They exchange messages and files across chats without per-agent setup.',
     `${origin}${base}docs/`,
     content,
   );
@@ -246,7 +246,7 @@ const llmsIndex = `# NCF Agent Interconnect
 
 > Official website and user documentation for NCF Agent Interconnect.
 
-After initial application setup, connect each new assistant by saying “Connect as agent Amy” in an ordinary chat, without per-agent configuration. Named assistants address one another to exchange messages and files and coordinate work.
+Supported applications: Codex Desktop, Claude Code, Cursor, OpenCode and AionUi. After initial application setup, start with two chats in one configured program on one computer. For example, agent Sam defines search requirements; in another chat, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” Nora uses Sam’s result and can clarify questions with him. Agents coordinate by name and exchange the messages and files the work requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later.
 
 The complete guides below are generated from the repository's user documentation.
 HTML pages are readable without JavaScript. Raw Markdown and text preserve the

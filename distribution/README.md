@@ -1,10 +1,13 @@
-# NCF Agent Interconnect 0.18.5
+# NCF Agent Interconnect 0.18.6
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
 A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
 npm are not required for installation.
+
+Setup guidance covers Codex Desktop, Claude Code, Cursor, OpenCode and AionUi;
+their connection and delivery limits differ.
 
 ## Install
 
@@ -35,7 +38,9 @@ their original content; MCP instructions and core diagnostics remain in English.
    Other servers and plugins are preserved; matching settings are not rewritten.
 3. Restart Cursor or OpenCode after adding its included plugin. Reconnect MCP
    in other clients as their setup requires.
-4. In a chat, write: Connect as agent <a name you choose>.
+4. In a configured AI chat, choose a name and ask the assistant to join the shared task.
+   For example: “Connect as agent Kai. Verify search behavior against agent
+   Beth’s requirements and report any gaps to Beth.”
 
 Configure each application once. New chats do not need separate session, port or
 adapter settings. Applications & MCP distinguishes saved settings, known delivery
@@ -156,13 +161,14 @@ client names and message statistics stay empty. Typed application metrics report
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
 
-## Upgrade from 0.17.3
+## Upgrade from an earlier release
 
 Quit the app from its tray menu before replacing it, then start the updated app.
 Existing names, bindings, history, attachments, peers and AionUi authorization
-are preserved. The first start upgrades storage from format 3 to format 4;
-older releases cannot open format 4. Keep a stopped pre-upgrade profile backup
-if rollback is required. Do not use an older app against the upgraded profile.
+are preserved. The first start upgrades storage to format 5. Quit NCF Agent Interconnect and retain
+a complete stopped pre-upgrade profile backup before updating. Older releases
+cannot open format 5. Do not use an older app against the upgraded profile;
+rollback requires that backup while preserving any post-upgrade data.
 Peer protocol 2 and the eleven-tool MCP schema are unchanged.
 
 Existing client configurations need no new Apply when installation paths stay

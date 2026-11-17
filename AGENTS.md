@@ -7,9 +7,26 @@ The application owns transport, persistent history and client adapters. Users
 configure supported MCP clients through client-specific setup dialogs. Only
 the owner's Apply action may write the selected client configuration file.
 
+## Project and brand naming
+
+- `NCF Agent Interconnect` is the name of the application and project.
+- `NCF` is the abbreviation of our brand, `No Colours Fabric`.
+- Preserve these exact names and distinguish the product name from the brand in
+  documentation, UI, prototypes, articles, listings and project communication.
+- Include this rule when onboarding or handing off work to agents on this project.
+  Notify only the current project team; do not broadcast it to unrelated agents.
+
 ## Language and structure
 
-- Write public documentation, UI text, errors, tool instructions and comments in English.
+- Write public documentation, tool instructions and source comments in English.
+- Provide professional-quality, context-appropriate translations for all new or
+  changed product-controlled UI text in every supported locale (currently 15;
+  see `desktop/renderer/i18n/index.ts`). Include actions, help, dialogs, empty,
+  loading, error and diagnostic states, tooltips and accessibility labels.
+  English is the source locale, not a fallback for another supported locale.
+  Preserve literal product/client names, placeholders and existing localized
+  name-transfer and history guidance. Raw user content and technical diagnostic
+  data retain their original language; user-facing summaries remain localized.
 - Preserve user messages, filenames and agent names in their original language.
   Keep Unicode and case-insensitive identity tests.
 - Keep the typed core in `desktop/core`, Electron boundaries in `desktop/main`,
@@ -19,6 +36,14 @@ the owner's Apply action may write the selected client configuration file.
 
 ## Product invariants
 
+- Preserve all existing application capabilities and user workflows across the
+  entire product. This applies to every change, redesign and prototype, not only
+  the feature or example mentioned in feedback. Simplifying presentation must not
+  remove or make actions, settings, help, states or recovery paths inaccessible.
+- For redesigns and prototypes, inventory existing capabilities and show where
+  each remains accessible. Mark schematic or out-of-scope areas explicitly;
+  schematic presentation does not authorize removal in the implemented product.
+  Removing or reducing a capability requires an explicit owner decision.
 - The user chooses agent names. Moving an occupied name requires explicit user
   approval and revokes the previous binding.
 - Local agents can exchange messages without remote peers. Remote nodes require
@@ -78,6 +103,10 @@ a native platform verification. Report verification limits accurately.
   with matching Electron runtimes. Run native acceptance
   on the available Apple Silicon Mac, Windows and Linux machines. Build Linux packages on Linux. An Intel runtime test
   is not required and must not block publication; state that it was not run.
+- When a release changes the interface, include images demonstrating the changes
+  in its release description. Actual UI images from one operating system are
+  sufficient. Keep private data out of the images; the four installers remain
+  the routine release assets.
 - Do not upload ZIP alternatives, reports, checksum manifests, screenshots or
   README copies as routine release assets. Keep diagnostics locally and put
   short changes and material limitations in the release description.

@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-First install NCF Agent Interconnect and configure the AI application you use. Then connect an assistant by name in an ordinary chat and check a first exchange. Each additional agent needs no separate setup. Pair another computer only if you need to work across computers on your local network.
+First install NCF Agent Interconnect and configure the AI application you use. The application-specific guides cover Codex Desktop, Claude Code, Cursor, OpenCode and AionUi; their support limits differ. Then connect assistants by name in their AI chats to work on a shared task. Each additional agent needs no separate setup. Pair another computer only if you need to work across computers on your local network.
 
 ## 1. Install and start NCF Agent Interconnect
 
@@ -12,7 +12,7 @@ Start NCF Agent Interconnect. Keep it running while agents exchange messages. Cl
 
 ## 2. Choose an application
 
-NCF checks known installation locations when it starts. The overview shows the five supported applications with local icons and offers setup for newly detected applications. A shown offer is remembered across restarts; manual setup remains available after dismissal. Use **Refresh** to check again or **Choose installation** to select an exact path without saving that path to a client configuration.
+NCF Agent Interconnect checks known installation locations when it starts. The overview shows the five supported applications with local icons and offers setup for newly detected applications. A shown offer is remembered across restarts; manual setup remains available after dismissal. Use **Refresh** to check again or **Choose installation** to select an exact path without saving that path to a client configuration.
 
 Installation status is separate from setup and connection status. **Not found in known locations** does not mean an application is absent. Unsupported AppImage, portable or wrapper formats can show **Unknown**; expand **Locations checked** for coverage. OpenCode discovery does not verify its API major, and the current setup supports v1. Finding Claude Desktop does not verify its Claude Code backend or enable consumer chats. A crash before the visible-offer acknowledgement is saved can show the offer again.
 
@@ -33,7 +33,7 @@ The [application-specific guide](mcp-clients.md) gives the choices in each Confi
 
 ## 3. Connect a chat
 
-In the configured AI application, open a normal chat and say `Connect as agent <a name you choose>.` The agent uses that name for NCF Agent Interconnect messages. Once the application or profile is configured, connect each new chat by asking its assistant to use its own name; no separate per-agent configuration is needed. Repeat in each chat you want to involve, using a different name for each simultaneous agent on the same computer. Then ask one agent to find the other and exchange a short message. A successful reply is a better end-to-end check than a saved configuration indicator.
+In the configured AI application, open a normal chat. Choose a name for its assistant and ask it to connect under that name. For example, after agent Sam defines search requirements in one Codex chat, ask in a second: “Connect as agent Nora. Build search using agent Sam’s requirements.” Ask Nora to clarify open questions with Sam. This is an ordinary chat request, not required command syntax; choose your own name, task and collaborator. Once the application or profile is configured, each new chat needs no separate per-agent configuration. Use a different name for each simultaneous agent on the same computer. A substantive reply about the work is a better end-to-end check than a saved configuration indicator.
 
 If the name is already connected to another chat, the new chat will ask whether to transfer it with its local MCP history or start fresh by deleting that history. Choose explicitly. See [moving an agent](usage.md#files-replies-and-history) before choosing the destructive option.
 

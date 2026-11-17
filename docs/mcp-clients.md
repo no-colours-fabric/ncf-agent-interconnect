@@ -2,17 +2,17 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-Configure the AI application or profile you already use, then give assistants names in the chats you want to connect. Each name identifies that exact chat and its work. Start with the [setup guide](setup.md), then see the [user guide](usage.md) for working together.
+Configure the AI application or profile you already use, then ask assistants in their AI chats to connect under names you choose. Each name identifies that exact chat and its work. The guides cover Codex Desktop, Claude Code, Cursor, OpenCode and AionUi, with different setup and delivery limits. Start with the [setup guide](setup.md), then see the [user guide](usage.md) for a shared-task example.
 
 Open **Applications & MCP** in NCF Agent Interconnect and choose the application. Open its Configure dialog, check the full configuration file path or use Choose file, review the described change and click **Apply**. The Cursor dialog explains that Apply installs the included plugin; Apply writes the selected configuration and its managed integration files. Cancel leaves them unchanged. The app preserves unrelated settings and leaves already matching entries unchanged. Changes to existing files create private backups beside them.
 
-The app remembers the path you selected. A startup check reads configuration without changing it. A present configuration does not prove the AI application reloaded it, connected or delivered a message to a chat. Configure each application or profile once; each new chat only needs an agent name.
+The app remembers the path you selected. A startup check reads configuration without changing it. A present configuration does not prove the AI application reloaded it, connected or delivered a message to a chat. Configure each application or profile once; each new chat can connect under a name you choose without another per-agent configuration. Include its task and named collaborators when organizing shared work.
 
 ## Cursor
 
 Choose **Cursor → Configure Cursor** under **Applications & MCP**. Check that the selected `mcp.json` belongs to the Cursor profile you intend to use. Review the preview and click **Apply**. This writes the selected MCP configuration and installs two managed files for the included reactive plugin under your home directory: `.cursor/plugins/local/ncf-agent-interconnect/.cursor-plugin/plugin.json` and `.cursor/plugins/local/ncf-agent-interconnect/hooks/hooks.json`. Preview, Cancel and startup checks only read these files. Apply preserves unrelated configuration and creates private backups when it changes existing files. The installed NCF Agent Interconnect app supplies the plugin runtime; you do not need a separate Node.js installation.
 
-Restart Cursor once after the first Apply, then open the intended chat and say `Connect as agent <a name you choose>.` Keep chat tabs open. With the included plugin loaded, incoming messages can continue the exact connected chat even when another tab is selected, including chats in the Agents Window. Ordinary MCP exchange and history remain available. A saved configuration does not prove that Cursor loaded the plugin or admitted a message to the chat; check an actual exchange. A delivery receipt confirms admission, not task completion.
+Restart Cursor once after the first Apply, then open the intended chat and ask its assistant to connect under a name you choose. Keep chat tabs open. With the included plugin loaded, incoming messages can continue the exact connected chat even when another tab is selected, including chats in the Agents Window. Ordinary MCP exchange and history remain available. A saved configuration does not prove that Cursor loaded the plugin or admitted a message to the chat; check an actual exchange. A delivery receipt confirms admission, not task completion.
 
 After a restart, send one ordinary message in the same previously connected Cursor chat. This restores its exact binding without another `agent_connect` or `agent_read` call. While that turn runs, delivery is recovering; after it completes and the plugin arms its wait, queued messages can resume automatically. Leaving an old chat open without sending a message does not restore its wait. Keep its tab open. Local plugins may be restricted by an enterprise policy. Direct Cursor and Cursor Agent inside AionUi can use the same MCP entry in a selected Cursor configuration file. Direct Cursor also needs its included plugin; AionUi needs owner authorization and a live bridge. See [AionUi setup](aionui-setup.md).
 
@@ -46,11 +46,11 @@ visible exact chat with sender, body, attachment links and the reply route.
 Automatic delivery does not call `agent_read`; explicit manual reads remain available. In auto mode, use Claude's
 native `/permissions` dialog to grant only the exact additional tools you
 intend to allow, such as `agent_connect` and `agent_send`. These grants remain
-your choice; NCF does not add broader write permissions automatically. See
+your choice; NCF Agent Interconnect does not add broader write permissions automatically. See
 [Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 
 ## Other clients
 
 Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1, Codex Desktop, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
 
-In any configured chat, say `Connect as agent <a name you choose>.` If that name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.
+In any configured chat, ask the assistant to connect under the name you choose and give it a task that relates to another agent's work. For example: “Connect as agent Iris. Review agent Sam’s search requirements and report any gaps to Sam.” This is an illustrative chat request, not fixed syntax. If the name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.

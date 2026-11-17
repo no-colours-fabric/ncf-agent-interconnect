@@ -5,7 +5,8 @@ A working notebook for ideas, requests, and deferred work on NCF Agent Interconn
 ## Conventions
 
 - Write all roadmap entries in English, including ideas originally described in another language.
-- Give each new entry the next permanent ID: `R-0001`, `R-0002`, and so on. Never renumber or reuse IDs.
+- Give each new entry the next permanent ID: `R-0001`, `R-0002`, and so on. Never renumber or reuse IDs, including IDs moved to issues.
+- Track incidents and bugs in GitHub Issues. `R-0009` was moved to [issue #1](https://github.com/no-colours-fabric/ncf-agent-interconnect/issues/1).
 - Keep a short title in the heading. Revise the title as the idea becomes clearer; keep its ID.
 - Write freely below the checkbox: observations, questions, alternatives, links, and evolving requirements may take as much space as needed.
 - `- [ ]` means unfinished. Change it to `- [x]` only when the work is complete; add a brief outcome and a PR or release link when available.
@@ -108,7 +109,7 @@ The service should remain running while a TUI session is used for administration
 
 ## R-0007 — Discover installed AI applications
 
-- [ ] Open
+- [x] Done — released in [v0.18.5](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/tag/v0.18.5).
 
 Detect supported AI applications installed on the user's computer.
 
@@ -116,6 +117,8 @@ Detect supported AI applications installed on the user's computer.
 - On later launches, detect newly installed supported applications and offer to configure them.
 - Show the setup offer only once for each application.
 - Display discovered applications as compact tiles with their official icons or logos.
+
+Coverage: discovery checks known installation locations. Unsupported AppImage and unrecognized layouts remain unknown. Acceptance did not include a positive scan of an installed Windows client or a Linux GUI run.
 
 ---
 
@@ -129,18 +132,14 @@ One possible distribution model is a GitHub repository containing plugin package
 
 ---
 
-## R-0009 — Restore Codex delivery after Windows sleep
+## R-0010 — Listen on all network interfaces by default
 
 - [ ] Open
 
-Observed on Windows only; other operating systems have not been checked.
+By default, NCF Agent Interconnect listens on every IP address available on the computer.
 
-After the computer resumes from sleep or hibernation, Codex loses its agent connection. Activating the tab does not restore it. Asking the agent to connect restores the connection, but queued messages are not delivered until the user separately asks the agent to retrieve them.
-
-Preferred behavior: activating the Codex tab reconnects the agent and delivers queued messages.
-
-Acceptable fallback: one user message reconnects the agent and retrieves queued messages, as with Cursor.
-
-The preferred behavior is the goal.
+- When a new network interface or local IP address becomes available, the app starts listening on it automatically.
+- The interface lets the owner disable listening on selected network interfaces.
+- The rule is to listen on all interfaces except those explicitly disabled.
 
 ---

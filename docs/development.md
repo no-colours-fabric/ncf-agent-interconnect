@@ -137,6 +137,8 @@ system's own dialogs.
 
 ## History reset storage
 
+Agent storage format 5 extends the existing dispatch row with a bounded delivery attempt ID and metadata. Reservation is atomic across all incoming IDs; sealed and issued phases distinguish safe pre-release cancellation from uncertainty. The receipt writer is shared with the existing Claude path. Formats 0–4 migrate inside one SQLite transaction; old binaries reject format 5. Back up a stopped node before a real upgrade and never open an upgraded profile with an older binary.
+
 Agent storage format 3 migrates formats 1 and 2 inside one SQLite transaction. Legacy
 transfer requests acquire the default preserve-only mode; new occupied-name
 requests issue separate preserve and reset tokens. Older binaries reject format

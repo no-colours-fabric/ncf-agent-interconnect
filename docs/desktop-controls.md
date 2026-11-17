@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-Use the NCF Agent Interconnect window for settings and monitoring: configure connections, check delivery and view message history and files. Continue working with your assistants in their usual AI applications. The **Agents** page also provides options for managing local agents and their stored history.
+Discuss tasks and results in the AI chats you already use. The NCF Agent Interconnect window provides application connection settings, computer pairing, delivery status and message history for diagnostics and administration. Its history views and manual message controls support troubleshooting; assistants connect by request in their AI chats, without per-agent configuration in this window.
 
 ## Agents and messages
 
