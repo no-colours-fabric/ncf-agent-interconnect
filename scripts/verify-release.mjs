@@ -35,6 +35,9 @@ const executable = fileURLToPath(
 );
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
 assert.ok(entries.includes('/build/integrations/opencode.js'));
+assert.ok(entries.includes('/build/integrations/opencode-v2.js'));
+assert.ok(entries.includes('/build/core/opencode-v2-adapter.js'));
+assert.ok(entries.includes('/build/core/opencode-v2-auth.js'));
 assert.ok(entries.includes('/build/integrations/aionui.js'));
 assert.ok(entries.includes('/build/integrations/cursor.js'));
 assert.ok(entries.includes('/build/integrations/cursor-hook.js'));
@@ -108,7 +111,7 @@ try {
 import assert from 'node:assert/strict';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { readFile } from 'node:fs/promises';
+import { readFile, mkdir } from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { NodeService } from './build/core/service.js';
@@ -117,7 +120,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 const directory = path.resolve('../isolated-data'), service = new NodeService(directory), clients = [];
-let host, cursorService; const prompts = [];
+let host, cursorService, v2Cleanup; const prompts = [];
 try {
   assert.ok(process.versions.electron, 'Use the runtime shipped in the package');
   await service.open();
@@ -295,9 +298,58 @@ try {
   await invokeCursorHook('sessionEnd', { conversation_id: conversationId });
   assert.deepEqual(await restoredIdleHook, {});
   assert.equal(cursorService.agentDirectories()[0].agents.find(agent => agent.nickname === 'Package Cursor').availability, 'unknown');
+  // The v2 setup, private handler and ledger are loaded from the original package.
+  const { OpenCodeV2SetupService } = await import(pathToFileURL(path.join(packagedArchive, 'build/core/mcp-setup.js')).href);
+  const v2Profile = path.join(cursorService.directory, 'v2-profile');
+  const v2Target = { major: 2, installationId: null, installationPath: null, profilePath: v2Profile, configurationPath: path.join(v2Profile, 'opencode.json') };
+  const v2Setup = new OpenCodeV2SetupService({ stateDirectory: cursorService.directory, home: directory, env: {}, instructions: () => { throw new Error('V2 must not use v1 instructions'); } });
+  const v2Status = await v2Setup.v2Status(v2Target);
+  assert.equal(v2Status.setupAvailability.state, 'available');
+  const v2Preview = await v2Setup.v2Preview('packaged-verifier', v2Target);
+  assert.ok(!JSON.stringify(v2Preview).includes('Bearer '));
+  assert.equal((await v2Setup.v2Apply('packaged-verifier', v2Preview.planId, v2Target, false)).status, 'applied');
+  const v2Configuration = JSON.parse(await readFile(v2Target.configurationPath, 'utf8'));
+  const { fileURLToPath } = await import('node:url');
+  const v2Directory = fileURLToPath(v2Configuration.plugins[0].package);
+  assert.equal(await readFile(path.join(v2Directory, 'index.js'), 'utf8'), await readFile(path.join(packagedArchive, 'build/integrations/opencode-v2.js'), 'utf8'));
+  const v2Plugin = await import(pathToFileURL(path.join(v2Directory, 'index.js')).href);
+  const v2Workspace = path.join(cursorService.directory, 'v2-workspace'); await mkdir(v2Workspace, { recursive: true });
+  const v2Session = 'ses_packaged_v2', v2Prompts = [], v2Queue = [], v2Waiters = [];
+  let v2Closed = false, v2Types = new Set(), v2Sequence = 0;
+  const v2CloseEvents = () => { v2Closed = true; for (const resolve of v2Waiters.splice(0)) resolve({ done: true, value: undefined }); };
+  const v2Emit = event => { if (v2Closed || !v2Types.has(event.type)) return; const waiting = v2Waiters.shift(); if (waiting) waiting({ done: false, value: event }); else v2Queue.push(event); };
+  // Pinned 2.3.0 host contract fixture, not a live OpenCode/frontend/model.
+  v2Cleanup = await v2Plugin.default.setup({
+    app: { name: 'opencode', version: '2.3.0', channel: 'package-fixture' }, location: { directory: v2Workspace }, options: v2Configuration.plugins[0].options,
+    event: { subscribe: options => { v2Types = new Set(options.types); options.signal.addEventListener('abort', v2CloseEvents, { once: true }); return { [Symbol.asyncIterator]: () => ({ next: () => v2Closed ? Promise.resolve({ done: true, value: undefined }) : v2Queue.length ? Promise.resolve({ done: false, value: v2Queue.shift() }) : new Promise(resolve => v2Waiters.push(resolve)), return: async () => { v2CloseEvents(); return { done: true, value: undefined }; } }) }; } },
+    rpc: { register: async definition => ({ dispose: async () => {}, events: { emit: async (name, data) => v2Emit({ type: 'rpc.' + definition.id + '.' + name, id: 'evt_' + randomUUID(), created: Date.now(), location: { directory: v2Workspace }, data }) } }) },
+    session: {
+      get: async ({ sessionID }) => { assert.equal(sessionID, v2Session); return { id: sessionID, projectID: 'package-v2', location: { directory: v2Workspace }, time: { created: 1, updated: 1 } }; },
+      wait: async ({ sessionID }) => { assert.equal(sessionID, v2Session); },
+      prompt: async input => { assert.equal(input.sessionID, v2Session); assert.equal(input.delivery, 'queue'); assert.equal(input.resume, true); v2Prompts.push(structuredClone(input)); v2Emit({ type: 'session.inbox.delivered', id: 'evt_' + randomUUID(), created: Date.now(), location: { directory: v2Workspace }, durable: { aggregateID: v2Session, seq: ++v2Sequence, version: 1 }, data: { sessionID: v2Session, inboxID: input.id } }); return { id: input.id, sessionID: v2Session, type: 'user', delivery: 'queue', time: { created: Date.now() }, payload: { text: input.text } }; },
+    },
+  });
+  assert.equal(typeof v2Cleanup, 'function');
+  const v2Client = new Client({ name: 'OpenCode', version: '2.3.0-package-fixture' }); clients.push(v2Client);
+  const v2Remote = v2Configuration.mcp.servers.ncf_agent_interconnect;
+  await v2Client.connect(new StreamableHTTPClientTransport(new URL(v2Remote.url), { requestInit: { headers: v2Remote.headers } }));
+  const v2Connected = await v2Client.callTool({ name: 'agent_connect', arguments: { nickname: 'Package V2 recipient' }, _meta: { 'ai.opencode/sessionID': v2Session } });
+  assert.ok(!v2Connected.isError); assert.equal(v2Connected.structuredContent.status, 'connected');
+  const v2Wait = condition => new Promise((resolve, reject) => { const timer = setTimeout(() => { cursorService.off('change', check); reject(new Error('Packaged v2 state transition timed out')); }, 5000); const check = () => { if (!condition()) return; clearTimeout(timer); cursorService.off('change', check); resolve(); }; cursorService.on('change', check); check(); });
+  await v2Wait(() => cursorService.adapters.get(v2Connected.structuredContent.binding.adapterId).status().state === 'ready');
+  const v2Sender = cursorService.connect({ nickname: 'Package V2 sender', client: 'package fixture' }); assert.equal(v2Sender.status, 'connected');
+  const v2Message = await cursorService.send({ connectionId: v2Sender.binding.connectionId, recipientNode: cursorService.settings.value.nodeId, recipientNickname: 'Package V2 recipient', text: 'Packaged v2 full input 漢字' });
+  await v2Wait(() => cursorService.store.get(v2Message.id, 'in')?.state === 'processed');
+  assert.equal(v2Prompts.length, 1);
+  const v2Attempt = cursorService.store.deliveryAttempt(v2Prompts[0].id.slice(4));
+  assert.equal(v2Attempt.meta.phase, 'committed'); assert.equal(v2Attempt.meta.host.messageId, v2Prompts[0].id); assert.notEqual(v2Prompts[0].id, 'msg_' + v2Message.id);
+  const v2ReplyRef = 'r' + cursorService.store.get(v2Message.id, 'in').sequence.toString(36);
+  assert.equal(v2Prompts[0].text, ['**Incoming NCF Agent Interconnect**', 'From: "Package V2 sender"', '', 'Packaged v2 full input 漢字', '', 'Reply-To: ' + v2ReplyRef, 'Use agent_send(connectionId, replyRef="' + v2ReplyRef + '", text) to reply.'].join(String.fromCharCode(10)));
+  const v2Reply = await v2Client.callTool({ name: 'agent_send', arguments: { connectionId: v2Connected.structuredContent.binding.connectionId, replyRef: v2ReplyRef, text: 'Packaged v2 reply' }, _meta: { 'ai.opencode/sessionID': v2Session } }); assert.ok(!v2Reply.isError);
   const codexPackage = await verifyCodexPackage();
-  console.log(JSON.stringify({ ...codexPackage, electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
+  console.log(JSON.stringify({ ...codexPackage, electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, openCodeV2OwnAsar: true, openCodeV2InstalledPlugin: true, openCodeV2CommittedProjectionSynthetic: true, openCodeV2PinnedContractFixture: '2.3.0', openCodeV2LiveClientTested: false, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
+  if (v2Cleanup) await v2Cleanup();
   if (host) await host.event({ event: { type: 'server.instance.disposed' } });
   for (const client of clients) await client.close(); await cursorService?.close(); await service.close();
 }
