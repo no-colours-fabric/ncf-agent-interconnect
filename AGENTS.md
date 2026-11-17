@@ -28,6 +28,14 @@ the owner's Apply action may write the selected client configuration file.
 
 ## Product invariants
 
+- Preserve all existing application capabilities and user workflows across the
+  entire product. This applies to every change, redesign and prototype, not only
+  the feature or example mentioned in feedback. Simplifying presentation must not
+  remove or make actions, settings, help, states or recovery paths inaccessible.
+- For redesigns and prototypes, inventory existing capabilities and show where
+  each remains accessible. Mark schematic or out-of-scope areas explicitly;
+  schematic presentation does not authorize removal in the implemented product.
+  Removing or reducing a capability requires an explicit owner decision.
 - The user chooses agent names. Moving an occupied name requires explicit user
   approval and revokes the previous binding.
 - Local agents can exchange messages without remote peers. Remote nodes require
