@@ -29,6 +29,8 @@ import { PeerNetwork, type Frame } from './peer.js';
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
+import type { ResponseInvocation } from './mcp-response-handoff.js';
+import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints } from './codex-adapter.js';
@@ -80,6 +82,8 @@ export class NodeService extends EventEmitter {
   running = false;
   private receiving: Promise<void> | null = null;
   private receiveAgain = false;
+  deliveryIncarnation = randomUUID();
+  private readonly nativeTransports = new WeakMap<AgentAdapter, string>();
   private dispatching = new Set<string>();
   private adapterRedrain = new Set<string>();
   private claudeDispatchSnapshots = new Map<string, ClaudeDispatchSnapshot>();
@@ -333,6 +337,7 @@ export class NodeService extends EventEmitter {
       );
       this.settings.value.listenHost = '127.0.0.1';
     }
+    this.deliveryIncarnation = randomUUID();
     this.network = new PeerNetwork(this.settings);
     this.presence.reset();
     this.mcp = new McpEndpoint(this);
@@ -1020,71 +1025,148 @@ export class NodeService extends EventEmitter {
       direction: row.direction,
       sequence: row.sequence,
       envelope,
-      withheld: 'Delivery to Claude Code is in progress or uncertain; content is not repeated',
+      withheld: 'Message delivery is in progress or uncertain; content is not repeated',
     };
   }
-  async read(connectionId: string, after = 0, limit = 50, unread = false): Promise<unknown> {
+  async read(
+    connectionId: string,
+    after = 0,
+    limit = 50,
+    unread = false,
+    handoff?: ResponseInvocation,
+  ): Promise<unknown> {
+    if (!handoff) throw new Error('The MCP response handoff is unavailable');
     return this.fileOperation(async () => {
-      const owner = this.store.assertOwner(connectionId),
+      const current = () => {
+        handoff.assertCurrent();
+        if (!this.running || handoff.service !== this.deliveryIncarnation)
+          throw new Error('The delivery service lifecycle changed');
+        return this.store.assertOwner(connectionId);
+      };
+      const owner = current(),
+        incarnation = this.store.sourceStamp(owner.key).incarnation,
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
       const page = this.store.history(owner.key, after, limit, unread);
-      if (unread && page.messages.some((row) => this.store.claudeFenced(row.envelope.id)))
-        throw new Error('Message delivery is in progress or uncertain; content is not repeated');
       const fenced = new Set(
         page.messages
-          .filter((row) => row.direction === 'in' && this.store.claudeFenced(row.envelope.id))
+          .filter(
+            (row) =>
+              row.direction === 'in' &&
+              row.state === 'ready' &&
+              (this.store.claudeFenced(row.envelope.id) ||
+                this.store.deliveryFenced(row.envelope.id)),
+          )
           .map((row) => row.envelope.id),
       );
-      const prepared = await allFileResults(
-        page.messages
-          .filter((row) => !fenced.has(row.envelope.id))
-          .map(async (row) => ({
-            ...row,
-            files: await allFileResults(
-              row.envelope.attachments.map(async (file) => ({
-                ...file,
-                localPath: await this.files.materialize(row.envelope.id, file),
-              })),
-            ),
-          })),
-      );
-      this.store.assertOwner(connectionId);
-      for (const row of prepared)
-        if (!this.store.get(row.envelope.id, row.direction))
-          throw new Error('The message was cleared');
-      const delivered = await this.recordDelivery(
-        connectionId,
-        prepared
-          .filter((row) => row.direction === 'in' && row.state === 'ready')
-          .map((row) => row.envelope.id),
-      );
-      this.store.assertOwner(connectionId);
-      for (const row of prepared)
-        if (!this.store.get(row.envelope.id, row.direction))
-          throw new Error('The message was cleared');
-      const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
-      const messages = page.messages
-        .filter((row) => !unread || delivered.has(row.envelope.id))
-        .map((row) => {
-          const ready = released.get(row.envelope.id + row.direction);
-          if (!ready) return this.withheld(row);
-          const { state, error: _error, ...message } = ready;
-          return {
-            ...message,
-            ...(message.direction === 'in'
-              ? { replyRef: 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36) }
-              : {}),
-            delivery: deliveryStatus(
-              this.store.get(message.envelope.id, message.direction)?.state ?? state,
-            ),
-          };
+      if (unread && fenced.size)
+        throw new Error('Message delivery is in progress or uncertain; content is not repeated');
+      const ids = page.messages
+        .filter(
+          (row) => row.direction === 'in' && row.state === 'ready' && !fenced.has(row.envelope.id),
+        )
+        .map((row) => row.envelope.id);
+      const attempt = ids.length
+        ? this.store.reserveDelivery({
+            connectionId,
+            ids,
+            transport: 'mcp-response',
+            lifecycle: { service: handoff.service, transport: handoff.transport },
+            invocation: { session: handoff.session, nonce: handoff.nonce, requestId: handoff.id },
+          })
+        : undefined;
+      try {
+        const prepared = await allFileResults(
+          page.messages
+            .filter((row) => !fenced.has(row.envelope.id))
+            .map(async (row) => ({
+              ...row,
+              files: await allFileResults(
+                row.envelope.attachments.map(async (file) => ({
+                  ...file,
+                  localPath: await this.files.materialize(row.envelope.id, file),
+                })),
+              ),
+            })),
+        );
+        const assertPageCurrent = () => {
+          const active = current();
+          if (
+            active.key !== owner.key ||
+            active.binding.generation !== owner.binding.generation ||
+            active.binding.adapterId !== owner.binding.adapterId ||
+            active.binding.chatId !== owner.binding.chatId ||
+            this.store.sourceStamp(owner.key).incarnation !== incarnation
+          )
+            throw new Error('The history owner changed');
+          for (const row of prepared) {
+            const saved = this.store.get(row.envelope.id, row.direction);
+            if (!saved || saved.sequence !== row.sequence)
+              throw new Error('The message was cleared');
+          }
+        };
+        assertPageCurrent();
+        if (attempt) this.store.assertDeliveryCurrent(attempt.id);
+        const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
+        const result = {
+          ...page,
+          messages: page.messages.map((row) => {
+            const ready = released.get(row.envelope.id + row.direction);
+            if (!ready) return this.withheld(row);
+            const { state, error: _error, ...message } = ready;
+            return {
+              ...message,
+              ...(message.direction === 'in'
+                ? {
+                    replyRef:
+                      'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36),
+                  }
+                : {}),
+              delivery: deliveryStatus(ids.includes(row.envelope.id) ? 'processed' : state),
+            };
+          }),
+        };
+        handoff.associate({
+          release: () => {
+            assertPageCurrent();
+            if (attempt) {
+              if (!handoff.result) throw new Error('The response has not been sealed');
+              this.store.sealDelivery(attempt.id, contentHash(JSON.stringify(handoff.result)));
+              this.store.issueDelivery(attempt.id);
+            }
+          },
+          complete: () => {
+            current();
+            if (attempt) {
+              const delivered = this.store.completeDelivery(attempt.id, attempt.meta.lifecycle);
+              void this.notifyDelivery(connectionId, delivered).catch(() => {});
+            }
+            adapter?.afterRead?.(
+              connectionId,
+              this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+            );
+          },
+          abort: (possibleWrite) => {
+            if (!attempt) return;
+            try {
+              if (possibleWrite) this.store.uncertainDelivery(attempt.id);
+              else this.store.cancelDelivery(attempt.id, true);
+            } catch {
+              /* A cleared/replaced attempt must never be recreated. */
+            }
+          },
         });
-      adapter?.afterRead?.(
-        connectionId,
-        this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
-      );
-      return { ...page, messages };
+        return result;
+      } catch (error) {
+        if (attempt) {
+          try {
+            this.store.cancelDelivery(attempt.id, true);
+          } catch {
+            /* Cleared or revoked. */
+          }
+        }
+        throw error;
+      }
     });
   }
   /**
@@ -1277,8 +1359,7 @@ export class NodeService extends EventEmitter {
     trace(this.store.claudeDelivery(input.delivery)?.state ?? 'unknown');
     return { state: this.store.claudeDelivery(input.delivery)?.state ?? 'unknown' };
   }
-  private async recordDelivery(connectionId: string, ids: string[]): Promise<Set<string>> {
-    const delivered = this.store.recordDelivery(connectionId, ids);
+  private async notifyDelivery(connectionId: string, delivered: Set<string>): Promise<Set<string>> {
     if (delivered.size)
       for (const [key, snapshot] of this.claudeDispatchSnapshots)
         if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
@@ -1457,13 +1538,19 @@ export class NodeService extends EventEmitter {
         row.state === 'received'
       )
         throw new Error('The attachment does not belong to this agent or is not ready');
-      if (row.direction === 'in' && this.store.claudeFenced(messageId))
+      if (
+        row.direction === 'in' &&
+        (this.store.claudeFenced(messageId) || this.store.deliveryFenced(messageId))
+      )
         throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       const file = row.envelope.attachments.find((f) => f.id === fileId);
       if (!file) throw new Error('Attachment not found');
       const localPath = await this.files.materialize(messageId, file);
       this.store.assertOwner(connectionId);
-      if (row.direction === 'in' && this.store.claudeFenced(messageId))
+      if (
+        row.direction === 'in' &&
+        (this.store.claudeFenced(messageId) || this.store.deliveryFenced(messageId))
+      )
         throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       if (!this.store.get(messageId, row.direction)) throw new Error('The message was cleared');
       return { ...file, localPath };
@@ -1834,13 +1921,34 @@ export class NodeService extends EventEmitter {
         let admitted = false,
           offered = false,
           submitting = false;
+        let attempt: DeliveryAttempt | undefined;
+        const serviceEpoch = this.deliveryIncarnation;
+        let transportEpoch = this.nativeTransports.get(adapter);
+        if (!transportEpoch) {
+          transportEpoch = randomUUID();
+          this.nativeTransports.set(adapter, transportEpoch);
+        }
+        const currentDelivery = () => {
+          if (
+            !this.running ||
+            serviceEpoch !== this.deliveryIncarnation ||
+            this.adapters.get(binding.adapterId) !== adapter
+          )
+            throw new Error('The native delivery lifecycle changed');
+          if (attempt) this.store.assertDeliveryCurrent(attempt.id);
+          else this.store.assertOwner(binding.connectionId);
+        };
         try {
           this.store.assertOwner(binding.connectionId);
-          this.store.dispatch(
-            row.envelope.id,
-            binding.connectionId,
-            adapter.wakeOnly ? 'offering' : 'dispatching',
-          );
+          if (adapter.wakeOnly)
+            this.store.dispatch(row.envelope.id, binding.connectionId, 'offering');
+          else
+            attempt = this.store.reserveDelivery({
+              connectionId: binding.connectionId,
+              ids: [row.envelope.id],
+              transport: 'native',
+              lifecycle: { service: serviceEpoch, transport: transportEpoch! },
+            });
           const files = await this.fileOperation(() =>
             allFileResults(
               row.envelope.attachments.map(async (file) => ({
@@ -1855,8 +1963,23 @@ export class NodeService extends EventEmitter {
               'Message delivery is in progress or uncertain; content is not repeated',
             );
           if (!this.store.get(row.envelope.id, 'in')) throw new Error('The message was cleared');
-          submitting = true;
+          currentDelivery();
+          if (attempt && !(adapter as AgentAdapter).contentGate) {
+            // An uninstrumented legacy adapter has no proved release boundary.
+            this.store.sealDelivery(attempt.id, null);
+            this.store.issueDelivery(attempt.id);
+            submitting = true;
+          }
           const result = await adapter.deliver({
+            beforeRelease: attempt
+              ? (representation) => {
+                  currentDelivery();
+                  if (submitting) throw new Error('The native body was already released');
+                  this.store.sealDelivery(attempt!.id, contentHash(representation));
+                  this.store.issueDelivery(attempt!.id);
+                  submitting = true;
+                }
+              : undefined,
             nickname: identity.nickname,
             binding,
             messageId: row.envelope.id,
@@ -1875,7 +1998,7 @@ export class NodeService extends EventEmitter {
             },
             isCurrent: () => {
               try {
-                this.store.assertOwner(binding.connectionId);
+                currentDelivery();
                 return (
                   !this.store.claudeFenced(row.envelope.id) &&
                   this.store.get(row.envelope.id, 'in')?.state === 'ready'
@@ -1911,11 +2034,21 @@ export class NodeService extends EventEmitter {
           if (result.state === 'admitted' && adapter.wakeOnly)
             throw new Error('A wake-only adapter cannot record message receipt');
           if (result.state === 'admitted') {
-            await this.recordDelivery(binding.connectionId, [row.envelope.id]);
+            if (!attempt || !submitting) {
+              if (attempt) this.store.uncertainDelivery(attempt.id);
+              throw new Error('The adapter did not establish its content release gate');
+            }
+            currentDelivery();
+            const delivered = this.store.completeDelivery(attempt.id, attempt.meta.lifecycle);
+            await this.notifyDelivery(binding.connectionId, delivered);
             admitted = true;
           } else {
-            // A concurrent agent_read may already have recorded receipt; keep it.
-            if (!adapter.wakeOnly || this.store.get(row.envelope.id, 'in')?.state === 'ready')
+            if (attempt) {
+              if (!submitting) this.store.cancelDelivery(attempt.id, submitting);
+              else this.store.uncertainDelivery(attempt.id);
+            }
+            // Wake-only offers may coexist with a completed explicit read.
+            if (adapter.wakeOnly && this.store.get(row.envelope.id, 'in')?.state === 'ready')
               this.store.dispatch(
                 row.envelope.id,
                 binding.connectionId,
@@ -1925,7 +2058,17 @@ export class NodeService extends EventEmitter {
             offered = result.state === 'offered';
           }
         } catch (e) {
-          if (this.store.claudeFenced(row.envelope.id))
+          if (attempt) {
+            try {
+              const phase = this.store.deliveryAttempt(attempt.id).meta.phase;
+              if (!['committed', 'cancelled', 'uncertain'].includes(phase)) {
+                if (submitting) this.store.uncertainDelivery(attempt.id);
+                else this.store.cancelDelivery(attempt.id);
+              }
+            } catch {
+              /* Exact CAS never recreates a cleared/replaced attempt. */
+            }
+          } else if (this.store.claudeFenced(row.envelope.id))
             this.store.error(
               row.envelope.id,
               'Message delivery is in progress or uncertain; content is not repeated',
@@ -2148,6 +2291,8 @@ export class NodeService extends EventEmitter {
   private async stopNow(): Promise<void> {
     if (!this.running) return;
     this.running = false;
+    this.deliveryIncarnation = randomUUID();
+    this.mcp.invalidate();
     this.nativeIncoming.observe();
     this.claudeDispatchSnapshots.clear();
     clearTimeout(this.directoryPublish);

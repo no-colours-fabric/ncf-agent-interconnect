@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
@@ -150,7 +151,7 @@ test('raw sequence differs from timeline; references survive receipt and restart
     recipientNickname: 'БоБ 東京',
     replyTo: row.envelope.id,
   });
-  const read = (await f.service.read(owner.binding.connectionId)) as {
+  const read = (await mcpRead(f.service, owner.binding.connectionId)) as {
     messages: (Message & { replyRef?: string })[];
   };
   assert.equal(read.messages.find((m) => m.envelope.id === row.envelope.id)!.replyRef, ref);

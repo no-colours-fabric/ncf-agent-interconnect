@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile, access } from 'node:fs/promises';
@@ -613,7 +614,7 @@ test('explicit clear cancels read/materialize work and same-name recreation cann
     await barrier.wait();
     return copy;
   };
-  const reading = assert.rejects(service.read(owner.binding.connectionId), /agent_moved/);
+  const reading = assert.rejects(mcpRead(service, owner.binding.connectionId), /agent_moved/);
   let externalCalls = 0;
   const opening = assert.rejects(
     service.withUserAttachment(sent.id, file.id, async () => {

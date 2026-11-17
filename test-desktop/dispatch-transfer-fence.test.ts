@@ -4,7 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import type { Admission, EventInput } from '../desktop/core/adapters.js';
+import { agentMessageText, type Admission, type EventInput } from '../desktop/core/adapters.js';
 import type { Binding } from '../desktop/shared/contracts.js';
 import { NodeService } from '../desktop/core/service.js';
 import { SettingsFile } from '../desktop/core/settings.js';
@@ -34,11 +34,13 @@ async function fixture(t: test.TestContext) {
     id: string,
     result: (input: EventInput) => Promise<Admission>,
     wakeOnly = false,
+    noBody = false,
   ) => {
     const calls: EventInput[] = [];
     const adapter = service.adapters.get(id);
     Object.assign(adapter, {
       wakeOnly,
+      contentGate: true,
       offerCurrent: () => true,
       status: () => ({
         id,
@@ -56,15 +58,20 @@ async function fixture(t: test.TestContext) {
       deliver: async (input: EventInput) => {
         if (input.systemEvent) return { state: 'admitted' as const };
         calls.push(input);
+        if (!wakeOnly && !noBody) input.beforeRelease?.(agentMessageText(input));
         return result(input);
       },
     });
     return calls;
   };
-  const add = async (result: (input: EventInput) => Promise<Admission>, wakeOnly = false) => {
+  const add = async (
+    result: (input: EventInput) => Promise<Admission>,
+    wakeOnly = false,
+    noBody = false,
+  ) => {
     const id = randomUUID();
     await service.installAdapter({ id, label: 'Isolated native fixture', kind: 'manual' });
-    return { id, calls: mock(id, result, wakeOnly) };
+    return { id, calls: mock(id, result, wakeOnly, noBody) };
   };
   const bind = (adapterId: string, chatId: string): Binding => {
     const result = service.connect({ nickname: 'Receiver', client: 'Fixture', adapterId, chatId });
@@ -195,7 +202,7 @@ test('uncertainty survives transfer and node restart without a second release', 
 for (const outcome of ['waiting', 'failed'] as const) {
   test(`a definite ${outcome} outcome permits the approved new owner to receive`, async (t) => {
     const f = await fixture(t);
-    const old = await f.add(async () => ({ state: outcome }));
+    const old = await f.add(async () => ({ state: outcome }), false, true);
     const next = await f.add(async () => ({ state: 'admitted' }));
     f.bind(old.id, 'first-chat');
     const id = await f.send();
@@ -214,7 +221,7 @@ for (const outcome of ['waiting', 'failed'] as const) {
 test('an in-flight definite failure releases the transferred backlog without another idle edge', async (t) => {
   const f = await fixture(t);
   const delayed = f.deferred();
-  const old = await f.add(() => delayed.promise);
+  const old = await f.add(() => delayed.promise, false, true);
   const next = await f.add(async () => ({ state: 'admitted' }));
   f.bind(old.id, 'first-chat');
   const id = await f.send();

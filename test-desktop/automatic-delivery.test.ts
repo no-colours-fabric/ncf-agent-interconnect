@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
@@ -39,9 +40,9 @@ test("MCP receipt is automatic for exactly the returned page; history persists a
     assert.equal(sent.recipientNode, f.service.settings.value.nodeId);
     ids.push(sent.id);
   }
-  await f.service.read(f.sender.binding.connectionId);
+  await mcpRead(f.service, f.sender.binding.connectionId);
   assert.equal(f.unread(), 3);
-  const first = page(await f.service.read(f.recipient.binding.connectionId, 0, 1, true));
+  const first = page(await mcpRead(f.service, f.recipient.binding.connectionId, 0, 1, true));
   assert.deepEqual(
     first.messages.map((message) => message.envelope.id),
     ids.slice(0, 1),
@@ -52,20 +53,20 @@ test("MCP receipt is automatic for exactly the returned page; history persists a
   assert.ok(!('error' in first.messages[0]));
   assert.equal(f.service.store.get(ids[0], 'out')!.state, 'processed');
   assert.equal(f.service.store.get(ids[1], 'out')!.state, 'ready');
-  const next = page(await f.service.read(f.recipient.binding.connectionId, 0, 1, true));
+  const next = page(await mcpRead(f.service, f.recipient.binding.connectionId, 0, 1, true));
   assert.equal(next.messages[0].envelope.id, ids[1]);
   assert.equal(f.unread(), 1);
-  const history = page(await f.service.read(f.recipient.binding.connectionId));
+  const history = page(await mcpRead(f.service, f.recipient.binding.connectionId));
   assert.deepEqual(
     history.messages.map((message) => message.envelope.id),
     ids,
   );
   assert.equal(f.unread(), 0);
   assert.equal(
-    page(await f.service.read(f.recipient.binding.connectionId, 0, 50, true)).messages.length,
+    page(await mcpRead(f.service, f.recipient.binding.connectionId, 0, 50, true)).messages.length,
     0,
   );
-  assert.equal(page(await f.service.read(f.recipient.binding.connectionId)).messages.length, 3);
+  assert.equal(page(await mcpRead(f.service, f.recipient.binding.connectionId)).messages.length, 3);
 });
 
 test('simultaneous inbox requests do not both receive the same messages', async (t) => {
@@ -77,11 +78,33 @@ test('simultaneous inbox requests do not both receive the same messages', async 
       recipientNickname: 'Получатель',
       text,
     });
-  const results = await Promise.all([
-    f.service.read(f.recipient.binding.connectionId, 0, 50, true),
-    f.service.read(f.recipient.binding.connectionId, 0, 50, true),
-  ]);
-  const messages = results.flatMap((result) => page(result).messages);
+  let entered!: () => void, resume!: () => void;
+  const prepared = new Promise<void>((resolve) => {
+    entered = resolve;
+  });
+  const gate = new Promise<void>((resolve) => {
+    resume = resolve;
+  });
+  const read = f.service.read.bind(f.service);
+  f.service.read = async (...args) => {
+    const result = await read(...args);
+    entered();
+    await gate;
+    return result;
+  };
+  const first = mcpRead(f.service, f.recipient.binding.connectionId, 0, 50, true);
+  await prepared;
+  const second = mcpRead(f.service, f.recipient.binding.connectionId, 0, 50, true);
+  try {
+    await assert.rejects(second, /in progress or uncertain/);
+  } finally {
+    resume();
+  }
+  const results = await Promise.allSettled([first, second]);
+  assert.equal(results.filter((result) => result.status === 'rejected').length, 1);
+  const messages = results.flatMap((result) =>
+    result.status === 'fulfilled' ? page(result.value).messages : [],
+  );
   assert.equal(messages.length, 2);
   assert.equal(new Set(messages.map((message) => message.envelope.id)).size, 2);
   assert.equal(f.unread(), 0);
@@ -103,7 +126,7 @@ test('failed attachment preparation and a revoked chat cannot clear the inbox', 
     throw new Error('The attachment is unavailable');
   };
   await assert.rejects(
-    f.service.read(f.recipient.binding.connectionId, 0, 50, true),
+    mcpRead(f.service, f.recipient.binding.connectionId, 0, 50, true),
     /The attachment is unavailable/,
   );
   assert.equal(f.unread(), 1);
@@ -120,7 +143,7 @@ test('failed attachment preparation and a revoked chat cannot clear the inbox', 
     await waiting;
     return copy;
   };
-  const read = f.service.read(f.recipient.binding.connectionId, 0, 50, true);
+  const read = mcpRead(f.service, f.recipient.binding.connectionId, 0, 50, true);
   await preparing;
   const transfer = f.service.connect({ nickname: 'Получатель', client: 'Другой чат' });
   if (transfer.status !== 'nickname_in_use') throw new Error();
@@ -137,7 +160,7 @@ test('failed attachment preparation and a revoked chat cannot clear the inbox', 
   assert.equal(f.unread(), 1);
   f.service.files.materialize = original;
   assert.equal(
-    page(await f.service.read(moved.binding.connectionId, 0, 50, true)).messages.length,
+    page(await mcpRead(f.service, moved.binding.connectionId, 0, 50, true)).messages.length,
     1,
   );
   assert.equal(f.unread(), 0);
