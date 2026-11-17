@@ -1044,6 +1044,7 @@ export class NodeService extends EventEmitter {
         return this.store.assertOwner(connectionId);
       };
       const owner = current(),
+        incarnation = this.store.sourceStamp(owner.key).incarnation,
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
       const page = this.store.history(owner.key, after, limit, unread);
@@ -1088,11 +1089,24 @@ export class NodeService extends EventEmitter {
               ),
             })),
         );
-        current();
+        const assertPageCurrent = () => {
+          const active = current();
+          if (
+            active.key !== owner.key ||
+            active.binding.generation !== owner.binding.generation ||
+            active.binding.adapterId !== owner.binding.adapterId ||
+            active.binding.chatId !== owner.binding.chatId ||
+            this.store.sourceStamp(owner.key).incarnation !== incarnation
+          )
+            throw new Error('The history owner changed');
+          for (const row of prepared) {
+            const saved = this.store.get(row.envelope.id, row.direction);
+            if (!saved || saved.sequence !== row.sequence)
+              throw new Error('The message was cleared');
+          }
+        };
+        assertPageCurrent();
         if (attempt) this.store.assertDeliveryCurrent(attempt.id);
-        for (const row of prepared)
-          if (!this.store.get(row.envelope.id, row.direction))
-            throw new Error('The message was cleared');
         const released = new Map(prepared.map((row) => [row.envelope.id + row.direction, row]));
         const result = {
           ...page,
@@ -1112,37 +1126,36 @@ export class NodeService extends EventEmitter {
             };
           }),
         };
-        if (attempt)
-          handoff.associate({
-            release: () => {
-              current();
+        handoff.associate({
+          release: () => {
+            assertPageCurrent();
+            if (attempt) {
               if (!handoff.result) throw new Error('The response has not been sealed');
               this.store.sealDelivery(attempt.id, contentHash(JSON.stringify(handoff.result)));
               this.store.issueDelivery(attempt.id);
-            },
-            complete: () => {
-              current();
+            }
+          },
+          complete: () => {
+            current();
+            if (attempt) {
               const delivered = this.store.completeDelivery(attempt.id, attempt.meta.lifecycle);
               void this.notifyDelivery(connectionId, delivered).catch(() => {});
-              adapter?.afterRead?.(
-                connectionId,
-                this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
-              );
-            },
-            abort: (possibleWrite) => {
-              try {
-                if (possibleWrite) this.store.uncertainDelivery(attempt.id);
-                else this.store.cancelDelivery(attempt.id, true);
-              } catch {
-                /* A cleared/replaced attempt must never be recreated. */
-              }
-            },
-          });
-        else
-          adapter?.afterRead?.(
-            connectionId,
-            this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
-          );
+            }
+            adapter?.afterRead?.(
+              connectionId,
+              this.store.history(owner.key, 0, 1, true, true).messages.length > 0,
+            );
+          },
+          abort: (possibleWrite) => {
+            if (!attempt) return;
+            try {
+              if (possibleWrite) this.store.uncertainDelivery(attempt.id);
+              else this.store.cancelDelivery(attempt.id, true);
+            } catch {
+              /* A cleared/replaced attempt must never be recreated. */
+            }
+          },
+        });
         return result;
       } catch (error) {
         if (attempt) {

@@ -8,6 +8,7 @@ import type { IncomingMessage, Server, ServerResponse } from 'node:http';
 import { EventEmitter } from 'node:events';
 import net from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { NodeService } from '../desktop/core/service.js';
 import { SettingsFile } from '../desktop/core/settings.js';
@@ -315,6 +316,107 @@ test('processed explicit history remains readable without a second attempt', asy
     previous,
   );
 });
+
+for (const scenario of ['processed transfer', 'processed clear', 'outgoing transfer'] as const)
+  test(`held ${scenario} history cannot release its body after authority or content changes`, async (t) => {
+    const f = await fixture(t),
+      receiver = f.service.connect({
+        nickname: 'Receiver',
+        client: 'Fixture',
+        chatId: 'old-receiver',
+      });
+    if (receiver.status !== 'connected') throw new Error('Expected receiver');
+    const message = await f.send();
+    await f.client.callTool({
+      name: 'agent_read',
+      arguments: { connectionId: receiver.binding.connectionId },
+    });
+    const nickname = scenario === 'outgoing transfer' ? 'Sender' : 'Receiver',
+      owner = f.service.store.list().find((agent) => agent.nickname === nickname);
+    if (!owner?.binding) throw new Error('Expected history owner');
+    const before = f.service.store.db.prepare('SELECT * FROM dispatches').all(),
+      sessions = Reflect.get(f.service.mcp, 'sessions') as Map<string, { transport: Transport }>;
+    assert.equal(sessions.size, 1);
+    const transport = [...sessions.values()][0]!.transport,
+      send = transport.send.bind(transport),
+      prepared = deferred(),
+      release = deferred(),
+      wire: Buffer[] = [];
+    f.cleanup.push(() => release.resolve());
+    transport.send = async (value, options) => {
+      if ('result' in value && value.result.structuredContent) {
+        prepared.resolve();
+        await release.promise;
+      }
+      return send(value, options);
+    };
+    const server = Reflect.get(f.service.mcp, 'server') as Server;
+    const capture = (request: IncomingMessage, response: ServerResponse) => {
+      if (request.method !== 'POST') return;
+      server.off('request', capture);
+      const write = response.write.bind(response);
+      response.write = ((chunk: Buffer, ...args: unknown[]) => {
+        wire.push(Buffer.from(chunk));
+        return Reflect.apply(write, response, [chunk, ...args]);
+      }) as ServerResponse['write'];
+    };
+    server.on('request', capture);
+    t.after(() => server.off('request', capture));
+    const outcome = f.client
+      .callTool(
+        { name: 'agent_history', arguments: { connectionId: owner.binding.connectionId } },
+        undefined,
+        { timeout: 1000 },
+      )
+      .then(
+        (value) => ({ value }),
+        () => ({ value: undefined }),
+      );
+    await Promise.race([
+      prepared.promise,
+      outcome.then((result) => {
+        throw new Error(
+          'The history did not reach the SDK result barrier: ' + JSON.stringify(result),
+        );
+      }),
+    ]);
+    assert.deepEqual(f.service.store.db.prepare('SELECT * FROM dispatches').all(), before);
+    if (scenario === 'processed clear') {
+      const requester = { channel: 'interface' as const, session: 'history-clear-fixture' },
+        preview = f.service.clearAgents({ scope: 'agent', nickname }, requester);
+      if (preview.status !== 'confirmation_required') throw new Error('Expected clear preview');
+      assert.equal(
+        f.service.clearAgents(
+          { scope: 'agent', nickname, operationId: preview.operationId, confirm: true },
+          requester,
+        ).status,
+        'cleared',
+      );
+    } else {
+      const args = { nickname, client: 'Fixture', chatId: 'replacement-chat' },
+        preview = f.service.connect(args);
+      if (preview.status !== 'nickname_in_use') throw new Error('Expected transfer preview');
+      assert.equal(
+        f.service.connect({
+          ...args,
+          connectionId: preview.connectionId,
+          transferId: preview.transferId,
+          confirmTransfer: true,
+        }).status,
+        'connected',
+      );
+    }
+    release.resolve();
+    const result = await outcome;
+    assert.ok(!JSON.stringify(result).includes('One content path 漢字'));
+    assert.equal(Buffer.concat(wire).length, 0, 'The revoked history must stop before body bytes');
+    if (scenario === 'processed clear')
+      assert.equal(f.service.store.get(message.id, 'in'), undefined);
+    else {
+      assert.equal(f.service.store.get(message.id, 'in')?.state, 'processed');
+      assert.deepEqual(f.service.store.db.prepare('SELECT * FROM dispatches').all(), before);
+    }
+  });
 
 test('actual partial HTTP response leaves unread uncertainty and blocks another read', async (t) => {
   const f = await fixture(t),
