@@ -809,21 +809,26 @@ export class PeerNetwork extends EventEmitter {
     identity: PairedIdentity,
     address?: string,
     beforeWrite?: () => void,
+    commitGuard?: () => void,
   ): Promise<Peer> {
     let saved!: Peer;
-    await this.settings.savePeers((current) => {
-      const previous = current.find((peer) => peer.id === identity.nodeId);
-      saved = {
-        id: identity.nodeId,
-        label: identity.label,
-        address: address ?? previous?.address ?? '',
-        certificate: identity.certificate,
-        secret: identity.secret,
-      };
-      return previous
-        ? current.map((peer) => (peer.id === saved.id ? saved : peer))
-        : [...current, saved];
-    }, beforeWrite);
+    await this.settings.savePeers(
+      (current) => {
+        const previous = current.find((peer) => peer.id === identity.nodeId);
+        saved = {
+          id: identity.nodeId,
+          label: identity.label,
+          address: address ?? previous?.address ?? '',
+          certificate: identity.certificate,
+          secret: identity.secret,
+        };
+        return previous
+          ? current.map((peer) => (peer.id === saved.id ? saved : peer))
+          : [...current, saved];
+      },
+      beforeWrite,
+      commitGuard,
+    );
     return saved;
   }
   private peerCommitted(peerId: string): void {
@@ -876,13 +881,22 @@ export class PeerNetwork extends EventEmitter {
       let saved: Peer | undefined;
       const response = await this.pairingHost.handle(input, async (identity, beforeWrite) => {
         const lease = this.holdPeer(identity.nodeId);
+        const generation = this.pairingGeneration;
+        const commitGuard = () => {
+          lease.check();
+          if (generation !== this.pairingGeneration || !this.requestGuards.get(req)?.())
+            throw new PairingError('The receiving interface is no longer enabled', 409);
+        };
         try {
-          saved = await this.savePeer(identity, undefined, () => {
-            lease.check();
-            if (!this.requestGuards.get(req)?.())
-              throw new PairingError('The receiving interface is no longer enabled', 409);
-            beforeWrite();
-          });
+          saved = await this.savePeer(
+            identity,
+            undefined,
+            () => {
+              commitGuard();
+              beforeWrite();
+            },
+            commitGuard,
+          );
         } finally {
           lease.release();
         }
@@ -995,11 +1009,12 @@ export class PeerNetwork extends EventEmitter {
       }
       const identity = client.finish(receipt);
       let peer: Peer;
+      const commitGuard = () => {
+        lease.check();
+        beforeWrite();
+      };
       try {
-        peer = await this.savePeer(identity, normalized, () => {
-          lease.check();
-          beforeWrite();
-        });
+        peer = await this.savePeer(identity, normalized, commitGuard, commitGuard);
       } catch {
         throw new Error(
           'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',

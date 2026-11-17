@@ -1,3 +1,4 @@
+import fsPromises from 'node:fs/promises';
 import tls from 'node:tls';
 import https from 'node:https';
 import test, { after, mock } from 'node:test';
@@ -670,4 +671,151 @@ test('discovered Pair rejects a changed claimed UUID before either peer is saved
     expectedNodeId: b.snapshot().nodeId,
   });
   assert.equal(a.settings.value.peers[0].id, b.snapshot().nodeId);
+});
+
+function delayedPeerTempWrite(t: test.TestContext, filename: string) {
+  const original = fsPromises.writeFile;
+  let entered = false;
+  let release!: () => void;
+  const resumed = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const write = t.mock.method(
+    fsPromises,
+    'writeFile',
+    async (...args: Parameters<typeof fsPromises.writeFile>) => {
+      await original(...args);
+      if (
+        !entered &&
+        typeof args[0] === 'string' &&
+        args[0].startsWith(filename + '.') &&
+        args[0].endsWith('.tmp') &&
+        typeof args[1] === 'string' &&
+        JSON.parse(args[1]).peers?.length
+      ) {
+        entered = true;
+        await resumed;
+      }
+    },
+  );
+  syncBuiltinESMExports();
+  return {
+    get entered() {
+      return entered;
+    },
+    release,
+    restore() {
+      write.mock.restore();
+      syncBuiltinESMExports();
+    },
+  };
+}
+
+test(
+  'precommit fence: inbound interface exclusion during temp write cannot persist a peer',
+  { timeout: 15000 },
+  async (t) => {
+    const a = await serviceFixture(t),
+      b = await serviceFixture(t);
+    await a.open();
+    await b.open();
+    const delay = delayedPeerTempWrite(t, b.settings.filename);
+    let committed = 0;
+    t.mock.method(
+      b.network as unknown as { peerCommitted(id: string): void },
+      'peerCommitted',
+      () => {
+        committed++;
+      },
+    );
+    const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    let excluding: Promise<unknown> | undefined;
+    try {
+      await waitFor(() => delay.entered);
+      excluding = b.userCall('saveNode', {
+        nodeLabel: b.settings.value.nodeLabel,
+        networkExclusions: [{ name: 'loopback' }],
+      });
+      await waitFor(() => b.settings.value.networkExclusions?.[0]?.name === 'loopback');
+      await b.network.refreshInterfaces();
+      assert.equal(b.network.endpoints.length, 0);
+      delay.release();
+      await Promise.all([joining, excluding]);
+      assert.equal(b.settings.value.peers.length, 0);
+      assert.equal(JSON.parse(await readFile(b.settings.filename, 'utf8')).peers.length, 0);
+      assert.equal(committed, 0);
+    } finally {
+      delay.release();
+      await Promise.allSettled([joining, ...(excluding ? [excluding] : [])]);
+      delay.restore();
+    }
+  },
+);
+
+test(
+  'precommit fence: outbound stop during temp write cannot persist a peer',
+  { timeout: 15000 },
+  async (t) => {
+    const a = await serviceFixture(t),
+      b = await serviceFixture(t);
+    await a.open();
+    await b.open();
+    const delay = delayedPeerTempWrite(t, a.settings.filename);
+    let committed = 0;
+    t.mock.method(
+      a.network as unknown as { peerCommitted(id: string): void },
+      'peerCommitted',
+      () => {
+        committed++;
+      },
+    );
+    const joining = a.network.join(b.snapshot().peerUrl, b.network.accessCode().code).then(
+      () => null,
+      (error: unknown) => error,
+    );
+    try {
+      await waitFor(() => delay.entered);
+      await a.stop();
+      delay.release();
+      const result = await joining;
+      assert.ok(result instanceof Error);
+      assert.equal(a.settings.value.peers.length, 0);
+      assert.equal(JSON.parse(await readFile(a.settings.filename, 'utf8')).peers.length, 0);
+      assert.equal(committed, 0);
+      assert.equal(
+        b.settings.value.peers.length,
+        1,
+        'The already-authorized remote side is not rolled back',
+      );
+    } finally {
+      delay.release();
+      await joining;
+      delay.restore();
+    }
+  },
+);
+
+test('precommit fence: separate commit guard does not repeat a one-use beforeWrite callback', async (t) => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-precommit-callback-'));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const settings = new SettingsFile(directory);
+  await settings.load();
+  let earlyCalls = 0,
+    commitCalls = 0;
+  await settings.savePeers(
+    (current) => [...current],
+    () => {
+      earlyCalls++;
+      assert.equal(earlyCalls, 1, 'The one-use callback must not run at the commit boundary');
+    },
+    () => {
+      commitCalls++;
+      assert.equal(earlyCalls, 1);
+    },
+  );
+  assert.equal(earlyCalls, 1);
+  assert.equal(commitCalls, 1);
 });

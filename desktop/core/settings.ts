@@ -1,4 +1,4 @@
-import { readFile, writeFile, mkdir, rename } from 'node:fs/promises';
+import { readFile, writeFile, mkdir, rename, unlink } from 'node:fs/promises';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { networkInterfaces, hostname } from 'node:os';
 import path from 'node:path';
@@ -93,12 +93,21 @@ export async function atomicJson(
   filename: string,
   data: unknown,
   beforeWrite?: () => void,
+  commitGuard?: () => void,
 ): Promise<void> {
   await mkdir(path.dirname(filename), { recursive: true, mode: 0o700 });
   const temporary = filename + '.' + randomUUID() + '.tmp';
-  beforeWrite?.();
-  await writeFile(temporary, JSON.stringify(data, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
-  await rename(temporary, filename);
+  try {
+    beforeWrite?.();
+    await writeFile(temporary, JSON.stringify(data, null, 2) + '\n', { mode: 0o600, flag: 'wx' });
+    // Keep this pure synchronous guard adjacent to rename issuance, without an intervening await.
+    // The separate early callback may advance one-use authorization and must not be repeated.
+    commitGuard?.();
+    await rename(temporary, filename);
+  } catch (error) {
+    await unlink(temporary).catch(() => {});
+    throw error;
+  }
 }
 export function localAddresses(): string[] {
   return [
@@ -174,13 +183,14 @@ export class SettingsFile {
   async savePeers(
     update: (current: readonly Peer[]) => Peer[],
     beforeWrite?: () => void,
+    commitGuard?: () => void,
   ): Promise<void> {
     const operation = this.saving.then(async () => {
       const candidate = settingsSchema.parse({
         ...this.value,
         peers: update(structuredClone(this.value.peers)),
       });
-      await atomicJson(this.filename, candidate, beforeWrite);
+      await atomicJson(this.filename, candidate, beforeWrite, commitGuard);
       this.value.peers = candidate.peers;
     });
     this.saving = operation.catch(() => {});
