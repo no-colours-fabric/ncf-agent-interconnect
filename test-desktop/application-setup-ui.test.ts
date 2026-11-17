@@ -55,7 +55,7 @@ const statuses: McpSetupStatuses = {
   refreshAll: async () => {},
 };
 
-test('all five apps retain manual setup; detection enables only automatic actions and never claims absence or v2 support', () => {
+test('all five groups retain manual setup; the default v2 target does not infer capability from discovery', () => {
   const html = renderToStaticMarkup(
     React.createElement(ApplicationRows, {
       discovery,
@@ -66,11 +66,18 @@ test('all five apps retain manual setup; detection enables only automatic action
       onManualSetup: () => {},
     }),
   );
-  for (const client of mcpSetupClients) assert.ok(html.includes('application-row-' + client));
+  for (const client of mcpSetupClients)
+    assert.ok(
+      html.includes(
+        'data-testid="application-row-' + (client === 'opencode' ? 'opencode-v2' : client) + '"',
+      ),
+    );
   assert.equal(html.match(/>Manual setup</g)?.length, 5);
   assert.equal(html.match(/data-testid="application-connect-/g)?.length, 2);
+  assert.ok(html.includes('OpenCode v2'));
   assert.ok(html.includes('OpenCode v1'));
-  assert.doesNotMatch(html, /OpenCode v2|Profile [12]|Not installed|>Ready</);
+  assert.ok(!html.includes('data-testid="application-connect-opencode-v2"'));
+  assert.doesNotMatch(html, /Profile [12]|Not installed|>Ready</);
   assert.ok(html.includes('Automatic setup unavailable'));
   assert.ok(!html.includes(discoveryMessages('en').stateError));
   assert.equal(html.match(/<img /g)?.length, 5);

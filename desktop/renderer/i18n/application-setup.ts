@@ -1,6 +1,15 @@
 import type { Locale } from './index.js';
 
 const en = {
+  openCodeV1Description:
+    'Configure OpenCode v1 for “NCF Agent Interconnect”. OpenCode v2 has separate settings.',
+  openCodeV2Description:
+    'Configure OpenCode v2 for “NCF Agent Interconnect”. Only the selected configuration file will change; provider and account settings stay as they are.',
+  openCodeV2Next:
+    'Restart OpenCode v2, then connect from the intended chat using the request below.',
+  openCodeProfile: 'OpenCode profile',
+  selectedInstallation: 'Selected installation',
+  showOpenCodeV1: 'Show OpenCode v1',
   applications: 'Applications',
   intro: 'Connect automatically or configure an app manually',
   startupTitle: 'Connect your apps',
@@ -49,6 +58,15 @@ export type ApplicationSetupMessages = { [K in keyof typeof en]: string };
 const translations: Record<Locale, ApplicationSetupMessages> = {
   en,
   ru: {
+    openCodeV1Description:
+      'Настройте OpenCode v1 для «NCF Agent Interconnect». У OpenCode v2 отдельные настройки.',
+    openCodeV2Description:
+      'Настройте OpenCode v2 для «NCF Agent Interconnect». Изменения затронут только выбранный файл конфигурации; настройки провайдеров и аккаунтов сохранятся.',
+    openCodeV2Next:
+      'Перезапустите OpenCode v2, затем используйте приведённую ниже просьбу в нужном чате, чтобы подключить помощника.',
+    openCodeProfile: 'Профиль OpenCode',
+    selectedInstallation: 'Выбранная копия программы',
+    showOpenCodeV1: 'Показать OpenCode v1',
     applications: 'Приложения',
     intro: 'Подключите приложение автоматически или настройте вручную',
     startupTitle: 'Подключите свои приложения',
@@ -96,6 +114,14 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'В /permissions разрешите только нужные инструменты NCF: agent_read, agent_connect и agent_send. Правила запрета и обязательного подтверждения сохраняют приоритет.',
   },
   'zh-CN': {
+    openCodeV1Description:
+      '为“NCF Agent Interconnect”配置 OpenCode v1。OpenCode v2 使用独立的设置。',
+    openCodeV2Description:
+      '为“NCF Agent Interconnect”配置 OpenCode v2。只会修改选定的配置文件，提供商和账户设置保持不变。',
+    openCodeV2Next: '重启 OpenCode v2，然后在要连接的聊天中使用下方的请求，让助手连接。',
+    openCodeProfile: 'OpenCode 配置方案',
+    selectedInstallation: '选定的安装实例',
+    showOpenCodeV1: '显示 OpenCode v1',
     applications: '应用',
     intro: '自动连接应用，或手动配置',
     startupTitle: '连接你的应用',
@@ -135,6 +161,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '在 /permissions 中，仅允许所需的 NCF 工具：agent_read、agent_connect 和 agent_send。现有的拒绝及询问规则仍然有效。',
   },
   fr: {
+    openCodeV1Description:
+      'Configurez OpenCode v1 pour « NCF Agent Interconnect ». OpenCode v2 dispose de paramètres distincts.',
+    openCodeV2Description:
+      'Configurez OpenCode v2 pour « NCF Agent Interconnect ». Seul le fichier de configuration sélectionné sera modifié ; les paramètres des fournisseurs et des comptes seront conservés.',
+    openCodeV2Next:
+      'Redémarrez OpenCode v2, puis connectez l’assistant depuis la discussion souhaitée à l’aide de la demande ci-dessous.',
+    openCodeProfile: 'Profil OpenCode',
+    selectedInstallation: 'Installation sélectionnée',
+    showOpenCodeV1: 'Afficher OpenCode v1',
     applications: 'Applications',
     intro: 'Connectez une application automatiquement ou configurez-la manuellement',
     startupTitle: 'Connectez vos applications',
@@ -184,6 +219,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Dans /permissions, autorisez uniquement les outils NCF souhaités : agent_read, agent_connect et agent_send. Les règles existantes de refus ou de confirmation restent applicables.',
   },
   de: {
+    openCodeV1Description:
+      'Richten Sie OpenCode v1 für „NCF Agent Interconnect“ ein. OpenCode v2 hat eigene Einstellungen.',
+    openCodeV2Description:
+      'Richten Sie OpenCode v2 für „NCF Agent Interconnect“ ein. Nur die ausgewählte Konfigurationsdatei wird geändert; Anbieter- und Kontoeinstellungen bleiben erhalten.',
+    openCodeV2Next:
+      'Starten Sie OpenCode v2 neu. Verbinden Sie den Assistenten anschließend im gewünschten Chat mit der unten stehenden Anfrage.',
+    openCodeProfile: 'OpenCode-Profil',
+    selectedInstallation: 'Ausgewählte Installation',
+    showOpenCodeV1: 'OpenCode v1 anzeigen',
     applications: 'Anwendungen',
     intro: 'Verbinden Sie eine Anwendung automatisch oder richten Sie sie manuell ein',
     startupTitle: 'Verbinden Sie Ihre Anwendungen',
@@ -233,6 +277,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Erlauben Sie unter /permissions nur die gewünschten NCF-Werkzeuge: agent_read, agent_connect und agent_send. Bestehende Ablehnungs- und Nachfrageregeln gelten weiterhin.',
   },
   it: {
+    openCodeV1Description:
+      'Configura OpenCode v1 per «NCF Agent Interconnect». OpenCode v2 ha impostazioni separate.',
+    openCodeV2Description:
+      'Configura OpenCode v2 per «NCF Agent Interconnect». Verrà modificato solo il file di configurazione selezionato; le impostazioni dei provider e degli account rimarranno invariate.',
+    openCodeV2Next:
+      'Riavvia OpenCode v2, poi usa la richiesta qui sotto nella chat desiderata per connettere l’assistente.',
+    openCodeProfile: 'Profilo OpenCode',
+    selectedInstallation: 'Installazione selezionata',
+    showOpenCodeV1: 'Mostra OpenCode v1',
     applications: 'Applicazioni',
     intro: 'Collega un’app automaticamente oppure configurala manualmente',
     startupTitle: 'Collega le tue app',
@@ -280,6 +333,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'In /permissions, consenti solo gli strumenti NCF desiderati: agent_read, agent_connect e agent_send. Le regole esistenti di rifiuto o conferma continuano a valere.',
   },
   es: {
+    openCodeV1Description:
+      'Configura OpenCode v1 para «NCF Agent Interconnect». OpenCode v2 tiene ajustes independientes.',
+    openCodeV2Description:
+      'Configura OpenCode v2 para «NCF Agent Interconnect». Solo se modificará el archivo de configuración seleccionado; se conservarán los ajustes de proveedores y cuentas.',
+    openCodeV2Next:
+      'Reinicia OpenCode v2 y pide al asistente que se conecte desde el chat elegido usando la solicitud de abajo.',
+    openCodeProfile: 'Perfil de OpenCode',
+    selectedInstallation: 'Instalación seleccionada',
+    showOpenCodeV1: 'Mostrar OpenCode v1',
     applications: 'Aplicaciones',
     intro: 'Conecta una aplicación automáticamente o configúrala manualmente',
     startupTitle: 'Conecta tus aplicaciones',
@@ -328,6 +390,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'En /permissions, permite solo las herramientas NCF que necesites: agent_read, agent_connect y agent_send. Las reglas existentes de denegación o confirmación siguen vigentes.',
   },
   kk: {
+    openCodeV1Description:
+      'OpenCode v1 нұсқасын «NCF Agent Interconnect» үшін баптаңыз. OpenCode v2 нұсқасының баптаулары бөлек.',
+    openCodeV2Description:
+      'OpenCode v2 нұсқасын «NCF Agent Interconnect» үшін баптаңыз. Тек таңдалған конфигурация файлы өзгереді; провайдерлердің және есептік жазбалардың баптаулары сақталады.',
+    openCodeV2Next:
+      'OpenCode v2 нұсқасын қайта іске қосып, көмекшіні қажетті чаттан қосу үшін төмендегі сұрауды пайдаланыңыз.',
+    openCodeProfile: 'OpenCode профилі',
+    selectedInstallation: 'Таңдалған бағдарлама данасы',
+    showOpenCodeV1: 'OpenCode v1 нұсқасын көрсету',
     applications: 'Қолданбалар',
     intro: 'Қолданбаны автоматты түрде қосыңыз немесе қолмен баптаңыз',
     startupTitle: 'Қолданбаларыңызды қосыңыз',
@@ -376,6 +447,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions ішінде тек қажетті NCF құралдарына рұқсат беріңіз: agent_read, agent_connect және agent_send. Бар тыйым салу және растау сұрау ережелері күшінде қалады.',
   },
   ja: {
+    openCodeV1Description:
+      'OpenCode v1 を「NCF Agent Interconnect」用に設定します。OpenCode v2 の設定は別になっています。',
+    openCodeV2Description:
+      'OpenCode v2 を「NCF Agent Interconnect」用に設定します。変更されるのは選択した設定ファイルのみで、プロバイダーやアカウントの設定は維持されます。',
+    openCodeV2Next:
+      'OpenCode v2 を再起動し、対象のチャットで以下の依頼文を使ってアシスタントを接続してください。',
+    openCodeProfile: 'OpenCode のプロファイル',
+    selectedInstallation: '選択したインストール済みアプリ',
+    showOpenCodeV1: 'OpenCode v1 を表示',
     applications: 'アプリケーション',
     intro: 'アプリを自動で接続するか、手動で設定します',
     startupTitle: 'アプリを接続',
@@ -421,6 +501,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions で必要な NCF ツールのみを許可してください：agent_read、agent_connect、agent_send。既存の拒否・確認ルールは引き続き適用されます。',
   },
   'pt-BR': {
+    openCodeV1Description:
+      'Configure o OpenCode v1 para o “NCF Agent Interconnect”. O OpenCode v2 tem configurações separadas.',
+    openCodeV2Description:
+      'Configure o OpenCode v2 para o “NCF Agent Interconnect”. Apenas o arquivo de configuração selecionado será alterado; as configurações de provedores e contas serão preservadas.',
+    openCodeV2Next:
+      'Reinicie o OpenCode v2 e use a solicitação abaixo no chat desejado para conectar o assistente.',
+    openCodeProfile: 'Perfil do OpenCode',
+    selectedInstallation: 'Instalação selecionada',
+    showOpenCodeV1: 'Mostrar OpenCode v1',
     applications: 'Aplicativos',
     intro: 'Conecte um aplicativo automaticamente ou configure-o manualmente',
     startupTitle: 'Conecte seus aplicativos',
@@ -469,6 +558,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Em /permissions, permita apenas as ferramentas NCF desejadas: agent_read, agent_connect e agent_send. As regras existentes de negação ou confirmação continuam válidas.',
   },
   ko: {
+    openCodeV1Description:
+      '“NCF Agent Interconnect”용으로 OpenCode v1을 설정합니다. OpenCode v2의 설정은 별도로 관리됩니다.',
+    openCodeV2Description:
+      '“NCF Agent Interconnect”용으로 OpenCode v2를 설정합니다. 선택한 구성 파일만 변경되며, 공급자와 계정 설정은 유지됩니다.',
+    openCodeV2Next:
+      'OpenCode v2를 다시 시작한 뒤, 원하는 채팅에서 아래 요청문을 사용해 어시스턴트를 연결하세요.',
+    openCodeProfile: 'OpenCode 프로필',
+    selectedInstallation: '선택한 설치본',
+    showOpenCodeV1: 'OpenCode v1 표시',
     applications: '앱',
     intro: '앱을 자동으로 연결하거나 수동으로 설정하세요',
     startupTitle: '앱 연결',
@@ -513,6 +611,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions에서 필요한 NCF 도구만 허용하세요: agent_read, agent_connect, agent_send. 기존 거부 및 확인 요청 규칙은 계속 적용됩니다.',
   },
   tr: {
+    openCodeV1Description:
+      'OpenCode v1’i “NCF Agent Interconnect” için yapılandırın. OpenCode v2’nin ayarları ayrıdır.',
+    openCodeV2Description:
+      'OpenCode v2’yi “NCF Agent Interconnect” için yapılandırın. Yalnızca seçilen yapılandırma dosyası değişir; sağlayıcı ve hesap ayarları korunur.',
+    openCodeV2Next:
+      'OpenCode v2’yi yeniden başlatın, ardından istediğiniz sohbette aşağıdaki isteği kullanarak asistanı bağlayın.',
+    openCodeProfile: 'OpenCode profili',
+    selectedInstallation: 'Seçilen kurulum',
+    showOpenCodeV1: 'OpenCode v1’i göster',
     applications: 'Uygulamalar',
     intro: 'Bir uygulamayı otomatik bağlayın veya elle yapılandırın',
     startupTitle: 'Uygulamalarınızı bağlayın',
@@ -560,6 +667,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions içinde yalnızca istediğiniz NCF araçlarına izin verin: agent_read, agent_connect ve agent_send. Mevcut reddetme ve onay isteme kuralları geçerli kalır.',
   },
   pl: {
+    openCodeV1Description:
+      'Skonfiguruj OpenCode v1 do pracy z „NCF Agent Interconnect”. OpenCode v2 ma osobne ustawienia.',
+    openCodeV2Description:
+      'Skonfiguruj OpenCode v2 do pracy z „NCF Agent Interconnect”. Zmieniony zostanie tylko wybrany plik konfiguracyjny; ustawienia dostawców i kont pozostaną bez zmian.',
+    openCodeV2Next:
+      'Uruchom ponownie OpenCode v2, a następnie w wybranym czacie poproś asystenta o połączenie, korzystając z poniższego tekstu.',
+    openCodeProfile: 'Profil OpenCode',
+    selectedInstallation: 'Wybrana instalacja',
+    showOpenCodeV1: 'Pokaż OpenCode v1',
     applications: 'Aplikacje',
     intro: 'Połącz aplikację automatycznie lub skonfiguruj ją ręcznie',
     startupTitle: 'Połącz swoje aplikacje',
@@ -607,6 +723,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'W /permissions zezwól tylko na potrzebne narzędzia NCF: agent_read, agent_connect i agent_send. Istniejące reguły odmowy i pytania o zgodę nadal obowiązują.',
   },
   nl: {
+    openCodeV1Description:
+      'Stel OpenCode v1 in voor ‘NCF Agent Interconnect’. OpenCode v2 heeft afzonderlijke instellingen.',
+    openCodeV2Description:
+      'Stel OpenCode v2 in voor ‘NCF Agent Interconnect’. Alleen het geselecteerde configuratiebestand wordt gewijzigd; de instellingen voor providers en accounts blijven behouden.',
+    openCodeV2Next:
+      'Start OpenCode v2 opnieuw en gebruik het onderstaande verzoek in de gewenste chat om de assistent te verbinden.',
+    openCodeProfile: 'OpenCode-profiel',
+    selectedInstallation: 'Geselecteerde installatie',
+    showOpenCodeV1: 'OpenCode v1 tonen',
     applications: 'Apps',
     intro: 'Verbind een app automatisch of stel deze handmatig in',
     startupTitle: 'Verbind je apps',
@@ -653,6 +778,15 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Sta in /permissions alleen de gewenste NCF-tools toe: agent_read, agent_connect en agent_send. Bestaande regels voor weigeren of toestemming vragen blijven gelden.',
   },
   uk: {
+    openCodeV1Description:
+      'Налаштуйте OpenCode v1 для «NCF Agent Interconnect». OpenCode v2 має окремі налаштування.',
+    openCodeV2Description:
+      'Налаштуйте OpenCode v2 для «NCF Agent Interconnect». Зміни торкнуться лише вибраного файлу конфігурації; налаштування провайдерів і облікових записів буде збережено.',
+    openCodeV2Next:
+      'Перезапустіть OpenCode v2, а потім скористайтеся наведеним нижче проханням у потрібному чаті, щоб підключити помічника.',
+    openCodeProfile: 'Профіль OpenCode',
+    selectedInstallation: 'Вибрана копія програми',
+    showOpenCodeV1: 'Показати OpenCode v1',
     applications: 'Застосунки',
     intro: 'Підключіть застосунок автоматично або налаштуйте вручну',
     startupTitle: 'Підключіть свої застосунки',

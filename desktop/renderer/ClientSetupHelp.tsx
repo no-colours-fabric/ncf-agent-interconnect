@@ -73,13 +73,18 @@ export function ClientSetupHelp({
   client,
   locale,
   messages,
+  openCodeMajor = 1,
 }: {
   client: McpSetupClient;
   locale: Locale;
   messages: McpSetupMessages;
+  openCodeMajor?: 1 | 2;
 }): React.JSX.Element {
   const copy = applicationSetupMessages(locale);
-  const next = clientNextStep(client, locale, messages);
+  const next =
+    client === 'opencode' && openCodeMajor === 2
+      ? copy.openCodeV2Next
+      : clientNextStep(client, locale, messages);
   const entries = [
     [copy.confirmQuestion, copy.confirmAnswer],
     [copy.reloadQuestion, next],

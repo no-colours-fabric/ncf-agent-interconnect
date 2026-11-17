@@ -5,7 +5,8 @@ import {
   ApplicationSetupConfirmation,
   useApplicationSetup,
 } from './ApplicationSetup.js';
-import type { ApplicationSetupFlow } from './application-setup-model.js';
+import { applicationSetupClients, type ApplicationSetupFlow } from './application-setup-model.js';
+import { OpenCodeV2SetupFlow, openCodeV2TargetKey } from './opencode-v2-setup-model.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
@@ -245,6 +246,7 @@ function ClientSetupDialog({
     return () => clearTimeout(timer);
   }, [flow, state]);
   const k = keys[client];
+  const description = client === 'opencode' ? copy.openCodeV1Description : m[k.description];
   const status = state.status;
   const shownState = check ? (check.error ? 'unavailable' : check.status?.state) : status?.state;
   const hasConfiguration = shownState === 'configured' || shownState === 'needs-update';
@@ -427,7 +429,7 @@ function ClientSetupDialog({
                 data-testid="client-setup-description"
               >
                 {shownState === 'missing' || shownState === 'not-configured'
-                  ? m[k.description]
+                  ? description
                   : shownState === 'unavailable'
                     ? m.unavailable
                     : m.checking}
@@ -559,7 +561,7 @@ function ClientSetupDialog({
         </DialogTitle>
         <DialogContent sx={{ scrollbarGutter: 'stable' }}>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            {client !== 'aionui' && <Typography>{m[k.description]}</Typography>}
+            {client !== 'aionui' && <Typography>{description}</Typography>}
             {state.files.map((file) => {
               const checked = state.preview?.files.find((item) => item.id === file.id);
               return (
@@ -774,6 +776,282 @@ export function CursorSetupDialog(props: DialogProps): React.JSX.Element {
 export function OpenCodeSetupDialog(props: DialogProps): React.JSX.Element {
   return <ClientSetupDialog {...props} client="opencode" />;
 }
+
+export function OpenCodeV2SetupDialog({
+  flow,
+  messages: m,
+  locale,
+  onClose,
+  setupBusy = false,
+}: {
+  flow: OpenCodeV2SetupFlow;
+  messages: McpSetupMessages;
+  locale: Locale;
+  onClose: () => void;
+  setupBusy?: boolean;
+}): React.JSX.Element {
+  const copy = applicationSetupMessages(locale);
+  const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  const [confirmed, setConfirmed] = useState(false);
+  const busy = flow.busy();
+  const target = state.target;
+  const status =
+    state.status &&
+    target &&
+    openCodeV2TargetKey(state.status.target) === openCodeV2TargetKey(target)
+      ? state.status
+      : undefined;
+  const checkingOriginal = flow.checkingOriginal();
+  const completed = state.phase === 'succeeded' || state.verified;
+  useEffect(() => {
+    void flow.beginManual();
+  }, [flow]);
+  useEffect(() => setConfirmed(false), [state.preview?.planId]);
+  useEffect(() => {
+    if (
+      !state.open ||
+      busy ||
+      state.preview ||
+      completed ||
+      state.error ||
+      !target?.configurationPath.trim()
+    )
+      return;
+    const timer = setTimeout(() => void flow.review(), 300);
+    return () => clearTimeout(timer);
+  }, [flow, state, busy, completed, target]);
+  return (
+    <Stack spacing={3} sx={{ pt: 3 }} data-testid="opencode-v2-manual">
+      <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
+        <ClientLogo client="opencode" size={44} />
+        <Typography component="h2" variant="h5">
+          OpenCode v2
+        </Typography>
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {copy.openCodeV2Description}
+      </Typography>
+      {status && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          data-testid="opencode-v2-settings-status"
+        >
+          {m[status.state]}
+        </Typography>
+      )}
+      {(status?.state === 'configured' || completed) && (
+        <ClientSetupHelp client="opencode" openCodeMajor={2} locale={locale} messages={m} />
+      )}
+      <Paper id="mcp-setup-form-opencode-v2" aria-labelledby="mcp-setup-title-opencode-v2">
+        <DialogTitle id="mcp-setup-title-opencode-v2">{m.opencodeTitle} v2</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ pt: 1 }}>
+            {target && (
+              <>
+                <TextField
+                  fullWidth
+                  label={m.pathLabel}
+                  value={target.configurationPath}
+                  onChange={(event) => flow.setConfigurationPath(event.target.value)}
+                  disabled={busy || completed}
+                  helperText={m.pathHint}
+                  slotProps={{
+                    htmlInput: {
+                      spellCheck: false,
+                      'data-testid': 'opencode-v2-configuration-path',
+                    },
+                  }}
+                />
+                <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
+                  <Button
+                    variant="outlined"
+                    disabled={busy || completed || setupBusy}
+                    onClick={() => void flow.browse()}
+                  >
+                    {m.browse}
+                  </Button>
+                  <Button
+                    startIcon={<OpenInNewOutlined />}
+                    disabled={busy || !status || ['missing', 'unavailable'].includes(status.state)}
+                    onClick={() => void flow.openFile()}
+                  >
+                    {m.openFile}
+                  </Button>
+                </Stack>
+                <Box component="details" sx={{ overflowWrap: 'anywhere' }}>
+                  <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
+                    {copy.details}
+                  </Box>
+                  <Typography variant="caption">{copy.openCodeProfile}</Typography>
+                  <Typography variant="body2" sx={{ mt: 0.5 }}>
+                    {target.profilePath}
+                  </Typography>
+                  {target.installationPath && (
+                    <>
+                      <Typography variant="caption" sx={{ display: 'block', mt: 1.5 }}>
+                        {copy.selectedInstallation}
+                      </Typography>
+                      <Typography variant="body2">{target.installationPath}</Typography>
+                    </>
+                  )}
+                </Box>
+                {!completed && state.alternatives.length > 1 && (
+                  <Box>
+                    <Typography variant="caption">{m.knownPaths}</Typography>
+                    {state.alternatives.map((path) => (
+                      <Button
+                        key={path}
+                        disabled={busy || setupBusy}
+                        onClick={() => flow.setConfigurationPath(path)}
+                        sx={{
+                          display: 'block',
+                          textAlign: 'left',
+                          overflowWrap: 'anywhere',
+                          maxWidth: '100%',
+                        }}
+                      >
+                        {path}
+                      </Button>
+                    ))}
+                  </Box>
+                )}
+              </>
+            )}
+            {state.preview && !completed && (
+              <Box>
+                {state.preview.files.map((file) => (
+                  <Box key={file.id} sx={{ overflowWrap: 'anywhere' }}>
+                    <Typography variant="body2">{m[file.action]}</Typography>
+                    {file.backupPath && (
+                      <Typography variant="body2">
+                        {m.backup}: {file.backupPath}
+                      </Typography>
+                    )}
+                  </Box>
+                ))}
+              </Box>
+            )}
+            {!completed &&
+              !checkingOriginal &&
+              (state.preview?.requiresReplacement || state.reviewRequired) && (
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      checked={confirmed}
+                      onChange={(_event, value) => setConfirmed(value)}
+                    />
+                  }
+                  label={state.reviewRequired ? copy.reviewHelp : copy.confirmHelp}
+                />
+              )}
+            {checkingOriginal ? (
+              <SetupErrorNote
+                summary={copy.uncertain}
+                error={state.unconfirmed!.error}
+                locale={locale}
+                severity="warning"
+              />
+            ) : (
+              state.error && (
+                <SetupErrorNote
+                  summary={state.phase === 'failed' ? copy.failed : m.unavailable}
+                  error={state.error}
+                  locale={locale}
+                />
+              )
+            )}
+            {state.uncertain && !checkingOriginal && (
+              <Box component="details">
+                <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
+                  {copy.details}
+                </Box>
+                <Typography variant="body2">{copy.uncertain}</Typography>
+                <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                  {state.uncertain.target.configurationPath}
+                </Typography>
+                <Typography variant="body2">{state.uncertain.error}</Typography>
+              </Box>
+            )}
+            {(state.result ?? state.failedWrite)?.files.map((file) => (
+              <Box key={file.path} sx={{ overflowWrap: 'anywhere' }}>
+                {file.backupPath && (
+                  <Typography variant="body2">
+                    {m.backup}: {file.backupPath}
+                  </Typography>
+                )}
+                {file.error && <Typography variant="body2">{file.error}</Typography>}
+              </Box>
+            ))}
+            {state.result?.warning && <Alert severity="warning">{state.result.warning}</Alert>}
+            {completed && (
+              <>
+                <Alert severity="success">
+                  {state.verified || state.result?.status === 'unchanged' ? m.noChanges : m.applied}
+                </Alert>
+                <Typography>{copy.openCodeV2Next}</Typography>
+              </>
+            )}
+            {state.availability === 'unavailable' && !state.error && (
+              <Typography color="text.secondary">{m.unavailable}</Typography>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions sx={{ minHeight: 56, gap: 1, flexWrap: 'wrap' }}>
+          <Stack
+            direction="row"
+            spacing={1}
+            role="status"
+            aria-live="polite"
+            sx={{ flex: 1, alignItems: 'center' }}
+          >
+            {busy && (
+              <>
+                <CircularProgress size={20} />
+                <Typography variant="body2">{m.checking}</Typography>
+              </>
+            )}
+          </Stack>
+          <Button
+            disabled={busy}
+            onClick={() => {
+              flow.cancel();
+              onClose();
+            }}
+          >
+            {completed ? m.close : m.cancel}
+          </Button>
+          {!completed && (state.phase === 'failed' || state.availability === 'unavailable') ? (
+            <Button disabled={busy || setupBusy} onClick={() => void flow.beginManual()}>
+              {copy.retry}
+            </Button>
+          ) : (
+            !completed && (
+              <Button
+                variant="contained"
+                data-testid="opencode-v2-apply"
+                disabled={
+                  busy ||
+                  setupBusy ||
+                  !state.preview ||
+                  (!checkingOriginal &&
+                    !!(state.preview.requiresReplacement || state.reviewRequired) &&
+                    !confirmed)
+                }
+                onClick={() => {
+                  if (checkingOriginal) void flow.checkResult();
+                  else void flow.apply(confirmed);
+                }}
+              >
+                {checkingOriginal ? copy.checkSetupResult : m.apply}
+              </Button>
+            )
+          )}
+        </DialogActions>
+      </Paper>
+    </Stack>
+  );
+}
 export function CodexSetupDialog(props: DialogProps): React.JSX.Element {
   return <ClientSetupDialog {...props} client="codex" />;
 }
@@ -970,9 +1248,11 @@ export function McpSetup({
     autoFlow.getSnapshot,
     autoFlow.getSnapshot,
   );
-  const quickBusy = mcpSetupClients.some((item) =>
+  const quickBusy = applicationSetupClients.some((item) =>
     ['preparing', 'rechecking', 'applying'].includes(quickStates[item].phase),
   );
+  const showOpenCodeV2 =
+    selectedClient === 'opencode' && quickStates['opencode-v2'].manualMajor === 2;
   useEffect(
     () => () => {
       for (const item of mcpSetupClients) manualFlows[item].dispose();
@@ -981,6 +1261,7 @@ export function McpSetup({
   );
   const copy = applicationSetupMessages(locale);
   const closeManual = () => {
+    if (showOpenCodeV2) autoFlow.openCodeV2.cancel();
     setSelectedManual(null);
     onCloseManual?.();
   };
@@ -1020,25 +1301,35 @@ export function McpSetup({
             {copy.back}
           </Button>
           <Stack spacing={0}>
-            <SetupDialog
-              key={selectedClient}
-              inline
-              flow={manualFlows[selectedClient]}
-              setupBusy={quickBusy}
-              onCloseManual={closeManual}
-              invoke={invoke}
-              messages={m}
-              onApplied={() => {
-                autoFlow.invalidateSucceeded(selectedClient);
-                return checks.refreshAll(true);
-              }}
-              check={{
-                status: checks.statuses[selectedClient],
-                error: checks.errors[selectedClient],
-              }}
-              snapshot={snapshot}
-              locale={locale}
-            />
+            {showOpenCodeV2 ? (
+              <OpenCodeV2SetupDialog
+                flow={autoFlow.openCodeV2}
+                messages={m}
+                locale={locale}
+                onClose={closeManual}
+                setupBusy={activeManual.busy || mcpSetupClients.some((item) => autoFlow.busy(item))}
+              />
+            ) : (
+              <SetupDialog
+                key={selectedClient}
+                inline
+                flow={manualFlows[selectedClient]}
+                setupBusy={quickBusy}
+                onCloseManual={closeManual}
+                invoke={invoke}
+                messages={m}
+                onApplied={() => {
+                  autoFlow.invalidateSucceeded(selectedClient);
+                  return checks.refreshAll(true);
+                }}
+                check={{
+                  status: checks.statuses[selectedClient],
+                  error: checks.errors[selectedClient],
+                }}
+                snapshot={snapshot}
+                locale={locale}
+              />
+            )}
             {selectedClient === 'claude' && (
               <Box sx={{ mt: 3 }}>
                 <CopyCommand
