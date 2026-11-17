@@ -10,6 +10,7 @@ import {
   Stack,
   TextField,
   Typography,
+  CircularProgress,
 } from '@mui/material';
 import HubOutlined from '@mui/icons-material/HubOutlined';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
@@ -19,6 +20,7 @@ import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import type { Snapshot } from '../shared/contracts.js';
 import { localeLabel, supportedLocales, t, type Locale } from './i18n/index.js';
 import { contentWidth, designTokens } from './theme.js';
+import { applicationSetupMessages } from './i18n/application-setup.js';
 
 export type Page = 'overview' | 'agents' | 'network' | 'mcp' | 'clients' | 'settings';
 export const navigation: {
@@ -33,6 +35,13 @@ export const navigation: {
   { id: 'settings', tKey: 'navSettings', icon: <SettingsOutlined /> },
 ];
 
+export interface NetworkNavigationSignals {
+  searching: boolean;
+  unseenCount: number;
+  statusLabel: string;
+  onStopSearch?: () => void;
+}
+
 export function AppShell({
   snapshot,
   locale,
@@ -42,6 +51,7 @@ export function AppShell({
   onNavigate,
   onLocaleChange,
   onToggle,
+  networkDiscovery,
   children,
 }: {
   snapshot: Snapshot;
@@ -52,9 +62,12 @@ export function AppShell({
   onNavigate: (page: Page) => void;
   onLocaleChange: (locale: unknown) => void;
   onToggle: () => void;
+  networkDiscovery?: NetworkNavigationSignals;
   children: React.ReactNode;
 }): React.JSX.Element {
   const title = navigation.find((item) => item.id === page)?.tKey ?? 'navOverview';
+  const appCopy = applicationSetupMessages(locale);
+  const pageTitle = page === 'mcp' ? appCopy.applications : t(locale, title);
   return (
     <Box
       sx={{
@@ -67,7 +80,7 @@ export function AppShell({
       <Box
         component="aside"
         sx={{
-          width: { xs: 208, lg: 232 },
+          width: { xs: 208, md: 240 },
           flexShrink: 0,
           display: 'flex',
           flexDirection: 'column',
@@ -105,12 +118,52 @@ export function AppShell({
                 {item.icon}
               </ListItemIcon>
               <ListItemText
-                primary={t(locale, item.tKey)}
+                primary={item.id === 'mcp' ? appCopy.applications : t(locale, item.tKey)}
                 slotProps={{ primary: { sx: { fontSize: 13, lineHeight: 1.4 } } }}
               />
+              {item.id === 'network' && networkDiscovery && (
+                <Box
+                  aria-label={networkDiscovery.statusLabel}
+                  sx={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'flex-end',
+                    gap: 1,
+                    width: 48,
+                    flexShrink: 0,
+                  }}
+                >
+                  {networkDiscovery.searching && <CircularProgress size={14} aria-hidden="true" />}
+                  {networkDiscovery.unseenCount > 0 && (
+                    <Typography
+                      variant="caption"
+                      aria-hidden="true"
+                      sx={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      +{networkDiscovery.unseenCount}
+                    </Typography>
+                  )}
+                </Box>
+              )}
             </ListItemButton>
           ))}
         </List>
+        {networkDiscovery?.searching && (
+          <Stack spacing={1} sx={{ px: 1.5, pt: 2 }}>
+            <Typography variant="caption" color="text.secondary" role="status">
+              {networkDiscovery.statusLabel}
+            </Typography>
+            {networkDiscovery.onStopSearch && (
+              <Button
+                variant="outlined"
+                onClick={networkDiscovery.onStopSearch}
+                sx={{ minHeight: 44 }}
+              >
+                {t(locale, 'btnStop')}
+              </Button>
+            )}
+          </Stack>
+        )}
         <Box sx={{ px: 1.5, pt: 5 }}>
           <TextField
             data-testid="interface-language"
@@ -190,8 +243,13 @@ export function AppShell({
               >
                 {t(locale, 'headerPrefix', { node: snapshot.nodeLabel })}
               </Typography>
-              <Typography data-testid="page-title" variant="h4" sx={{ overflowWrap: 'anywhere' }}>
-                {t(locale, title)}
+              <Typography
+                data-testid="page-title"
+                variant="h4"
+                component="h1"
+                sx={{ overflowWrap: 'anywhere', fontSize: 36, lineHeight: 1.2 }}
+              >
+                {pageTitle}
               </Typography>
             </Box>
             <Button

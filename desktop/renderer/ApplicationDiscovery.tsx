@@ -1,11 +1,12 @@
-import React, { useEffect, useRef } from 'react';
+import React from 'react';
 import { Alert, Box, Button, Paper, Stack, Typography } from '@mui/material';
+import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import { applicationNames, type ApplicationInstallation } from '../shared/application-discovery.js';
 import type { Locale } from './i18n/index.js';
 import {
   discoveryMessages,
-  discoveryReasons,
+  discoveryReasonLabel,
   installationLabel,
 } from './i18n/application-discovery.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
@@ -20,7 +21,7 @@ const logos: Record<McpSetupClient, string> = {
   claude: new URL('../assets/client-logos/claude.png', import.meta.url).href,
 };
 
-function ClientLogo({
+export function ClientLogo({
   client,
   size = 32,
 }: {
@@ -43,100 +44,6 @@ function ClientLogo({
         boxSizing: 'border-box',
       }}
     />
-  );
-}
-
-export function ApplicationOffers({
-  model,
-  locale,
-  onSetup,
-}: {
-  model: ApplicationDiscoveryModel;
-  locale: Locale;
-  onSetup: (client: McpSetupClient) => void;
-}): React.JSX.Element | null {
-  const messages = discoveryMessages(locale);
-  const element = useRef<HTMLDivElement>(null);
-  const visible = model.offers.join(',');
-  useEffect(() => {
-    const target = element.current;
-    if (!target || !visible) return;
-    const intersecting = new Set<McpSetupClient>();
-    const acknowledge = () => {
-      if (document.visibilityState === 'visible' && !target.closest('[aria-hidden="true"]'))
-        void model.acknowledge([...intersecting]);
-    };
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          const client = entry.target.getAttribute('data-offer-client') as McpSetupClient;
-          if (entry.isIntersecting && entry.intersectionRatio >= 1) intersecting.add(client);
-          else intersecting.delete(client);
-        }
-        acknowledge();
-      },
-      { threshold: 1 },
-    );
-    for (const button of target.querySelectorAll('[data-offer-client]')) observer.observe(button);
-    const modalChanges = new MutationObserver(acknowledge);
-    modalChanges.observe(document.body, {
-      attributes: true,
-      subtree: true,
-      attributeFilter: ['aria-hidden'],
-    });
-    document.addEventListener('visibilitychange', acknowledge);
-    return () => {
-      observer.disconnect();
-      modalChanges.disconnect();
-      document.removeEventListener('visibilitychange', acknowledge);
-    };
-  }, [visible, model.acknowledge]);
-  if (!model.offers.length && !model.snapshot?.stateError && !model.offerError) return null;
-  return (
-    <Paper ref={element} data-testid="application-offers" sx={{ p: 2, mb: 3 }}>
-      {model.offers.length > 0 && (
-        <>
-          <Stack
-            direction="row"
-            sx={{ justifyContent: 'space-between', gap: 2, alignItems: 'center' }}
-          >
-            <Typography variant="subtitle2">{messages.offer}</Typography>
-            <Button
-              size="small"
-              onClick={() => {
-                model.dismiss();
-              }}
-            >
-              {messages.dismiss}
-            </Button>
-          </Stack>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            {messages.offerHelp}
-          </Typography>
-          <Stack direction="row" sx={{ gap: 1, flexWrap: 'wrap' }}>
-            {model.offers.map((client) => (
-              <Button
-                variant="outlined"
-                size="small"
-                key={client}
-                data-offer-client={client}
-                onClick={() => {
-                  void model.acknowledge([client]);
-                  model.dismiss();
-                  onSetup(client);
-                }}
-              >
-                <ClientLogo client={client} size={24} />
-                {applicationNames[client]}
-              </Button>
-            ))}
-          </Stack>
-        </>
-      )}
-      {(model.offerError || model.snapshot?.stateError) && (
-        <Alert severity="warning">{messages.stateError}</Alert>
-      )}
-    </Paper>
   );
 }
 
@@ -175,7 +82,7 @@ export function InstallationDetails({
           sx={{ overflowWrap: 'anywhere' }}
         >
           {item.source}
-          {item.reason ? ': ' + discoveryReasons[item.reason] : ''}
+          {item.reason ? ': ' + discoveryReasonLabel(item.reason, locale) : ''}
         </Typography>
       ))}
     </Box>
@@ -208,7 +115,11 @@ export function ApplicationDiscovery({
         <Typography variant="subtitle2">
           {client ? messages.installation : messages.title}
         </Typography>
-        <Button size="small" disabled={model.busy} onClick={() => void model.refresh()}>
+        <Button
+          startIcon={<RefreshOutlined />}
+          disabled={model.busy}
+          onClick={() => void model.refresh()}
+        >
           {messages.refresh}
         </Button>
       </Stack>

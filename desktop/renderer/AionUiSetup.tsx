@@ -48,9 +48,6 @@ function InlineAction({
         sx={{ fontSize: 'inherit' }}
       >
         {label}
-        <Box component="span" aria-hidden="true" sx={{ font: 'inherit', whiteSpace: 'nowrap' }}>
-          {' →'}
-        </Box>
       </Link>
       {after}
     </Typography>
