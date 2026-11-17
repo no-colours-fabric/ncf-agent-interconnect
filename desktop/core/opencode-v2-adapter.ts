@@ -410,20 +410,25 @@ export class OpenCodeV2Adapter implements AgentAdapter {
       return;
     }
     try {
-      this.unlisten = this.bridges.listen(
-        this.profile,
-        (event) => {
-          try {
-            this.evidence(event);
-          } catch {
-            this.unavailable();
-          }
-        },
-        () => this.unavailable(),
-      );
+      this.attach();
     } catch {
       this.unavailable();
     }
+  }
+  private attach(): void {
+    this.unlisten?.();
+    this.unlisten = undefined;
+    this.unlisten = this.bridges.listen(
+      this.profile,
+      (event) => {
+        try {
+          this.evidence(event);
+        } catch {
+          this.unavailable();
+        }
+      },
+      () => this.unavailable(),
+    );
   }
   async bind(identity: OpenCodeV2Identity, owner: OpenCodeV2Owner): Promise<void> {
     identity.assertCurrent();
@@ -432,6 +437,7 @@ export class OpenCodeV2Adapter implements AgentAdapter {
       this.profile.released ||
       identity.scope.bootId !== this.profile.instanceId ||
       identity.scope.targetId !== this.profile.setupTargetId ||
+      identity.sessionID !== this.profile.sessionId ||
       owner.chatId !== this.profile.sessionId ||
       owner.adapterId !== this.profile.id
     )
@@ -439,6 +445,9 @@ export class OpenCodeV2Adapter implements AgentAdapter {
     this.identity = identity;
     this.owner = owner;
     this.arm = undefined;
+    // Persisted adapters start before an external bridge can register. Reattach
+    // before bind can publish any evidence, replacing exactly our old listeners.
+    this.attach();
     const result = await this.bridges.command(identity, {
       kind: 'bind',
       scope: identity.scope,
