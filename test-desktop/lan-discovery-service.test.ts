@@ -1,3 +1,4 @@
+import tls from 'node:tls';
 import https from 'node:https';
 import test, { after, mock } from 'node:test';
 import assert from 'node:assert/strict';
@@ -126,6 +127,8 @@ test('default core startup and restart never create a discovery socket or UI dis
   assert.equal(service.snapshot().listenHost, '127.0.0.1');
   assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanDiscovery'), false);
   assert.equal(Object.hasOwn(await uiSnapshot(service), 'lanSearch'), false);
+  assert.ok((await uiSnapshot(service)).networkInterfaces);
+  assert.equal(Object.hasOwn(service.snapshot(), 'networkInterfaces'), false);
   assert.deepEqual(await service.userCall('startLanSearch'), { started: false });
   await service.stop();
   await service.start();
@@ -500,6 +503,22 @@ test('interface exclusion closes peer listeners while local MCP, identity and lo
   await service.open();
   const before = service.snapshot();
   const certificate = await readFile(path.join(service.directory, 'node-cert.pem'), 'utf8');
+  const socket = tls.connect({
+    host: '127.0.0.1',
+    port: service.network.port,
+    rejectUnauthorized: false,
+  });
+  socket.on('error', () => {});
+  socket.resume();
+  t.after(() => socket.destroy());
+  await new Promise<void>((resolve) => socket.once('secureConnect', resolve));
+  const client = new Client({ name: 'isolated-exclusion-check', version: '1' });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(before.mcpUrl), {
+      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+    }),
+  );
+  t.after(() => client.close());
   const sender = service.connect({ nickname: 'Local sender', client: 'manual' });
   const receiver = service.connect({ nickname: 'Local receiver', client: 'manual' });
   if (sender.status !== 'connected' || receiver.status !== 'connected')
@@ -512,6 +531,11 @@ test('interface exclusion closes peer listeners while local MCP, identity and lo
   assert.equal(service.snapshot().mcpUrl, before.mcpUrl);
   assert.deepEqual(service.snapshot().peerUrls, []);
   assert.equal(service.network.server, undefined);
+  await waitFor(() => socket.destroyed, 3000);
+  const status = await client.callTool({ name: 'node_status', arguments: {} });
+  assert.ok(!status.isError);
+  assert.equal((status.structuredContent as { running: boolean }).running, true);
+  assert.equal(Object.hasOwn(status.structuredContent ?? {}, 'networkInterfaces'), false);
   const sent = await service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: before.nodeId,

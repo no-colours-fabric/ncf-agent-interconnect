@@ -499,7 +499,7 @@ export class NodeService extends EventEmitter {
       peerUrl: preferred ? `wss://${preferred.address}:${preferred.port}/peer` : '',
       listenHost: preferred?.address ?? '',
       peerUrls,
-      networkInterfaces: this.network?.networkStatus(),
+      ...(options.lanDiscovery ? { networkInterfaces: this.network?.networkStatus() } : {}),
       localAddresses: localAddresses(),
       ...(options.lanDiscovery && this.lanSearch
         ? {
