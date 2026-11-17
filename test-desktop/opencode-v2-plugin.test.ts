@@ -648,6 +648,76 @@ test('active uncertain attempts enforce capacity without releasing another body'
   assert.equal(host.prompts.length, 1);
 });
 
+for (const retirement of ['revoke', 'delete'] as const)
+  test(`authority ${retirement} frees retired attempt capacity without accepting late facts`, async (t) => {
+    const { host, peer } = await runtime(t, { maxAttempts: 1 });
+    const a = host.addSession('ses_retired_A'),
+      b = host.addSession('ses_current_B');
+    const firstOwner = owner(a),
+      secondOwner = owner(b);
+    await bind(peer, firstOwner);
+    const firstArm = await peer.wait('ready', (event) => event.owner.chatId === a);
+    const entered = new Deferred<void>(),
+      returned = new Deferred<ReturnType<typeof host.user>>();
+    host.promptResult = async (input) => {
+      if (input.sessionID === a) {
+        entered.resolve();
+        return returned.promise;
+      }
+      host.delivered(input.sessionID, input.id!);
+      return host.user(input);
+    };
+    const firstCommand = submit(peer, firstOwner, firstArm.armId);
+    const pending = peer.command(firstCommand);
+    await entered.promise;
+    if (retirement === 'revoke')
+      assert.equal(
+        (
+          await peer.command({
+            kind: 'revoke',
+            scope: peer.scope,
+            owner: firstOwner,
+            nonce: randomUUID(),
+          })
+        ).status,
+        200,
+      );
+    else
+      host.events.publish({
+        id: 'evt_delete_issued',
+        created: 1,
+        type: 'session.deleted',
+        location: { directory: host.workspace },
+        data: { sessionID: a },
+      });
+    await peer.wait('uncertain', (event) => event.attemptId === firstCommand.attemptId);
+    await peer.wait('revoked', (event) => event.owner.chatId === a);
+    const afterRetirement = peer.evidence.length;
+    await bind(peer, secondOwner);
+    const secondArm = await peer.wait('ready', (event) => event.owner.chatId === b);
+    const secondCommand = submit(peer, secondOwner, secondArm.armId);
+    const secondReply = await peer.command(secondCommand);
+    // Settle the old native call even if the capacity assertion exposes the baseline defect.
+    host.delivered(a, firstCommand.hostMessageId);
+    returned.resolve(host.user(host.prompts[0]));
+    assert.equal((await pending).value.kind, 'uncertain');
+    await tick();
+    assert.equal(secondReply.value.kind, 'submitted');
+    assert.equal((await peer.wait('projected')).attemptId, secondCommand.attemptId);
+    assert.equal(
+      peer.evidence
+        .slice(afterRetirement)
+        .some(
+          (event) =>
+            (event.kind === 'projected' && event.attemptId === firstCommand.attemptId) ||
+            (event.kind === 'ready' && event.owner.chatId === a),
+        ),
+      false,
+    );
+    assert.equal((await peer.command(firstCommand)).status, 409);
+    assert.equal(host.prompts.length, 2);
+  });
+
 test('provisioning and registration errors never expose supplied credentials', async () => {
   const host = new OpenCodeV2HostFixture(),
     peer = new OpenCodeV2NodeFixture();

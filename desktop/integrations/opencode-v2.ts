@@ -682,7 +682,14 @@ export async function startOpenCodeV2(
     bound.receiveRevision++;
     bound.requested = false;
     if (bound.arm) bound.arm.consumed = true;
-    if (bound.attempt) uncertain(bound.attempt, reasonCode);
+    if (bound.attempt) {
+      const attempt = bound.attempt;
+      uncertain(attempt, reasonCode);
+      if (attempt.timer) clearTimeout(attempt.timer);
+      if (attempts.get(attempt.command.attemptId) === attempt)
+        attempts.delete(attempt.command.attemptId);
+      bound.attempt = undefined;
+    }
     publish({ kind: 'revoked', ...base(bound), owner: bound.owner, reasonCode });
     sessions.delete(bound.owner.chatId);
   };
