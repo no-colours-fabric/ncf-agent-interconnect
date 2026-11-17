@@ -10,6 +10,8 @@ import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicati
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
 import { ApplicationRows } from '../desktop/renderer/ApplicationSetup.js';
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
+import { hasConnectedClientChat } from '../desktop/renderer/ClientSetupHelp.js';
+import type { Snapshot } from '../desktop/shared/contracts.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import { supportedLocales, type Locale } from '../desktop/renderer/i18n/index.js';
@@ -30,13 +32,19 @@ function fixture() {
     changed = false;
   const invoke = (async (method: string, params: { target?: OpenCodeV2SetupTarget } = {}) => {
     if (method === 'opencodeV2SetupDefaults')
-      return { client: 'opencode-v2', target, alternatives: [target.configurationPath] };
+      return {
+        client: 'opencode-v2',
+        target,
+        alternatives: [target.configurationPath],
+        setupAvailability: { state: 'available' },
+      };
     if (method === 'opencodeV2SetupStatus')
       return {
         client: 'opencode-v2',
         target: params.target,
         state: 'not-configured',
         remembered: false,
+        setupAvailability: { state: 'available' },
         files: [],
       };
     if (method === 'opencodeV2SetupPreview')
@@ -257,4 +265,89 @@ test('cancelling an unreviewed v2 draft shows unknown status instead of an indef
   assert.ok(!row.includes(escape(mcpSetupMessages('en').checking)));
   assert.equal(flow.getSnapshot().target?.configurationPath, '/isolated/Not reviewed/草稿.json');
   assert.equal(f.writes(), 0);
+});
+
+test('v2 Connect uses actual setup capability without claiming an installed version', async () => {
+  const f = fixture(),
+    flow = new ApplicationSetupFlow(f.invoke);
+  await flow.openCodeV2.refresh();
+  const discovery: ApplicationDiscoveryModel = {
+    busy: false,
+    failed: false,
+    offers: [],
+    offerError: false,
+    acknowledge: async () => {},
+    dismiss: () => {},
+    refresh: async () => {},
+    choose: async () => {},
+    snapshot: {
+      checkedAt: '2026-11-17T00:00:00Z',
+      platform: 'linux',
+      offers: [],
+      stateError: false,
+      applications: [],
+    },
+  };
+  const html = renderToStaticMarkup(
+    React.createElement(ApplicationRows, {
+      flow,
+      discovery,
+      invoke: f.invoke,
+      locale: 'en',
+      onManualSetup: () => {},
+      statuses: { statuses: {}, errors: {}, refreshAll: async () => {} },
+    }),
+  );
+  const row = html.slice(
+    html.indexOf('data-testid="application-row-opencode-v2"'),
+    html.indexOf('data-testid="application-row-codex"'),
+  );
+  assert.ok(row.includes(applicationSetupMessages('en').automaticAvailable));
+  assert.ok(row.includes('data-testid="application-connect-opencode-v2"'));
+  assert.ok(!row.includes(applicationSetupMessages('en').detected));
+  for (const locale of supportedLocales)
+    if (locale !== 'en')
+      assert.notEqual(
+        applicationSetupMessages(locale).automaticAvailable,
+        applicationSetupMessages('en').automaticAvailable,
+        locale,
+      );
+});
+
+test('the startup working-chat hint requires an actual ready bound v2 chat, not saved configuration', () => {
+  const snapshot: Pick<Snapshot, 'agents' | 'adapters'> = {
+    agents: [],
+    adapters: [
+      {
+        id: 'v2',
+        kind: 'opencode-v2',
+        label: 'OpenCode v2',
+        state: 'ready',
+        error: null,
+        capabilities: {
+          wakeIdle: true,
+          receiveActive: true,
+          nativeDisplay: true,
+          exactSession: true,
+        },
+      },
+    ],
+  };
+  assert.equal(hasConnectedClientChat('opencode-v2', snapshot), false);
+  snapshot.agents.push({
+    nickname: 'Выбранное имя',
+    key: 'выбранное имя',
+    messageCount: 0,
+    unread: 0,
+    binding: {
+      adapterId: 'v2',
+      connectionId: 'fixture',
+      client: 'OpenCode v2',
+      chatId: 'exact-chat',
+      generation: 1,
+    },
+  });
+  assert.equal(hasConnectedClientChat('opencode-v2', snapshot), true);
+  snapshot.adapters[0].state = 'checking';
+  assert.equal(hasConnectedClientChat('opencode-v2', snapshot), false);
 });

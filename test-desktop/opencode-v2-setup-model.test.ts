@@ -5,6 +5,8 @@ import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-mode
 import type {
   McpSetupInvoke,
   OpenCodeV2SetupApplyResult,
+  OpenCodeV2SetupAvailability,
+  OpenCodeV2SetupDefaults,
   OpenCodeV2SetupPreview,
   OpenCodeV2SetupTarget,
 } from '../desktop/shared/mcp-setup.js';
@@ -40,10 +42,12 @@ function fixture() {
     ],
   });
   const handlers = {
-    defaults: async () => ({
+    availability: { state: 'available' } as OpenCodeV2SetupAvailability,
+    defaults: async (): Promise<OpenCodeV2SetupDefaults> => ({
       client: 'opencode-v2',
       target: { ...target },
       alternatives: [target.configurationPath],
+      setupAvailability: handlers.availability,
     }),
     preview: async (selected: OpenCodeV2SetupTarget) => plan(selected),
     apply: async (selected: OpenCodeV2SetupTarget): Promise<OpenCodeV2SetupApplyResult> => ({
@@ -64,6 +68,7 @@ function fixture() {
         target: { ...selected },
         state: 'not-configured',
         remembered: false,
+        setupAvailability: handlers.availability,
         files: [{ id: 'configuration', path: selected.configurationPath, state: 'not-configured' }],
       };
     if (method === 'opencodeV2SetupPreview') return handlers.preview(selected);
@@ -145,6 +150,7 @@ test('v2 uncertain original result is inspected at its captured target and verif
     client: 'opencode-v2',
     target: { ...target, configurationPath: '/isolated/Other default.json' },
     alternatives: [],
+    setupAvailability: { state: 'available' },
   });
   f.handlers.preview = async (selected) => f.plan(selected, 'unchanged');
   await flow.connect();
@@ -199,6 +205,7 @@ test('v2 failed-write provenance survives preview failure, confirmation cancel a
     client: 'opencode-v2',
     target: { ...target, configurationPath: '/isolated/Unselected.json' },
     alternatives: [],
+    setupAvailability: { state: 'available' },
   });
   f.handlers.preview = async () => {
     throw new Error('Preview unavailable');
@@ -296,7 +303,12 @@ test('v2 rechecks the other-operation guard after its read-only defaults await',
   const flow = new OpenCodeV2SetupFlow(f.invoke, undefined, () => otherBusy);
   const connect = flow.connect();
   otherBusy = true;
-  release({ client: 'opencode-v2', target: { ...target }, alternatives: [] });
+  release({
+    client: 'opencode-v2',
+    target: { ...target },
+    alternatives: [],
+    setupAvailability: { state: 'available' },
+  });
   await connect;
   assert.equal(f.writes().length, 0);
   assert.equal(f.calls.filter(({ method }) => method === 'opencodeV2SetupPreview').length, 0);
@@ -313,7 +325,14 @@ test('a pending read-only v2 availability check does not lock legacy v1 setup', 
   const invoke = (async (method: string) => {
     if (method === 'opencodeV2SetupDefaults') return pending;
     if (method === 'opencodeV2SetupStatus')
-      return { client: 'opencode-v2', target, state: 'missing', remembered: false, files: [] };
+      return {
+        client: 'opencode-v2',
+        target,
+        state: 'missing',
+        remembered: false,
+        setupAvailability: { state: 'available' },
+        files: [],
+      };
     if (method === 'mcpSetupDefaults')
       return { client: 'opencode', files: [{ id: 'configuration', path: '/isolated/v1.json' }] };
     if (method === 'mcpSetupPreview')
@@ -330,7 +349,12 @@ test('a pending read-only v2 availability check does not lock legacy v1 setup', 
   const flow = new ApplicationSetupFlow(invoke);
   const reading = flow.openCodeV2.refresh();
   await flow.connect('opencode');
-  release({ client: 'opencode-v2', target, alternatives: [] });
+  release({
+    client: 'opencode-v2',
+    target,
+    alternatives: [],
+    setupAvailability: { state: 'available' },
+  });
   await reading;
   assert.equal(flow.getSnapshot().opencode.phase, 'succeeded');
 });
@@ -351,9 +375,63 @@ test('cancel during a pending v2 status read cannot resurrect manual preparation
   const reading = flow.refresh();
   const opening = flow.beginManual();
   flow.cancel();
-  release({ client: 'opencode-v2', target, state: 'not-configured', remembered: false, files: [] });
+  release({
+    client: 'opencode-v2',
+    target,
+    state: 'not-configured',
+    remembered: false,
+    setupAvailability: { state: 'available' },
+    files: [],
+  });
   await Promise.all([reading, opening]);
   assert.equal(flow.getSnapshot().open, false);
   assert.equal(f.calls.filter(({ method }) => method === 'opencodeV2SetupPreview').length, 0);
+  assert.equal(f.writes().length, 0);
+});
+
+test('explicit v2 setup capability permits one selected-config transaction with no installation evidence', async () => {
+  const f = fixture();
+  const manualTarget = { ...target, installationId: null, installationPath: null };
+  f.handlers.defaults = async () => ({
+    client: 'opencode-v2',
+    target: manualTarget,
+    alternatives: [],
+    setupAvailability: { state: 'available' },
+  });
+  const flow = new OpenCodeV2SetupFlow(f.invoke);
+  await flow.connect();
+  assert.equal(f.writes().length, 1);
+  assert.deepEqual(f.writes()[0].params.target, manualTarget);
+  assert.equal(flow.getSnapshot().phase, 'succeeded');
+});
+
+test('installation evidence never overrides unavailable selected-target setup capability', async () => {
+  for (const reason of ['v1-collision', 'asset-unavailable', 'target-unresolved'] as const) {
+    const f = fixture();
+    f.handlers.availability = { state: 'unavailable', reason };
+    const flow = new OpenCodeV2SetupFlow(f.invoke);
+    await flow.connect();
+    assert.equal(flow.getSnapshot().availability, 'available', 'dedicated backend exists');
+    assert.equal(flow.getSnapshot().target?.installationId, target.installationId);
+    assert.equal(
+      f.calls.filter(({ method }) => method === 'opencodeV2SetupPreview').length,
+      0,
+      reason,
+    );
+    assert.equal(f.writes().length, 0, reason);
+  }
+});
+
+test('an old or malformed v2 reply without mandatory setup capability cannot enable Connect', async () => {
+  const f = fixture();
+  const invoke = (async (method: string, params?: unknown) => {
+    const result = await f.invoke(method, params);
+    if (method === 'opencodeV2SetupStatus')
+      delete (result as Record<string, unknown>).setupAvailability;
+    return result;
+  }) as McpSetupInvoke;
+  const flow = new OpenCodeV2SetupFlow(invoke);
+  await flow.connect();
+  assert.equal(flow.getSnapshot().availability, 'unavailable');
   assert.equal(f.writes().length, 0);
 });

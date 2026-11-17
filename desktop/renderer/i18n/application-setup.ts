@@ -1,6 +1,7 @@
 import type { Locale } from './index.js';
 
 const en = {
+  automaticAvailable: 'Automatic setup available',
   openCodeV1Description:
     'Configure OpenCode v1 for “NCF Agent Interconnect”. OpenCode v2 has separate settings.',
   openCodeV2Description:
@@ -58,6 +59,7 @@ export type ApplicationSetupMessages = { [K in keyof typeof en]: string };
 const translations: Record<Locale, ApplicationSetupMessages> = {
   en,
   ru: {
+    automaticAvailable: 'Доступна автоматическая настройка',
     openCodeV1Description:
       'Настройте OpenCode v1 для «NCF Agent Interconnect». У OpenCode v2 отдельные настройки.',
     openCodeV2Description:
@@ -114,6 +116,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'В /permissions разрешите только нужные инструменты NCF: agent_read, agent_connect и agent_send. Правила запрета и обязательного подтверждения сохраняют приоритет.',
   },
   'zh-CN': {
+    automaticAvailable: '可自动配置',
     openCodeV1Description:
       '为“NCF Agent Interconnect”配置 OpenCode v1。OpenCode v2 使用独立的设置。',
     openCodeV2Description:
@@ -161,6 +164,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '在 /permissions 中，仅允许所需的 NCF 工具：agent_read、agent_connect 和 agent_send。现有的拒绝及询问规则仍然有效。',
   },
   fr: {
+    automaticAvailable: 'Configuration automatique disponible',
     openCodeV1Description:
       'Configurez OpenCode v1 pour « NCF Agent Interconnect ». OpenCode v2 dispose de paramètres distincts.',
     openCodeV2Description:
@@ -219,6 +223,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Dans /permissions, autorisez uniquement les outils NCF souhaités : agent_read, agent_connect et agent_send. Les règles existantes de refus ou de confirmation restent applicables.',
   },
   de: {
+    automaticAvailable: 'Automatische Einrichtung verfügbar',
     openCodeV1Description:
       'Richten Sie OpenCode v1 für „NCF Agent Interconnect“ ein. OpenCode v2 hat eigene Einstellungen.',
     openCodeV2Description:
@@ -277,6 +282,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Erlauben Sie unter /permissions nur die gewünschten NCF-Werkzeuge: agent_read, agent_connect und agent_send. Bestehende Ablehnungs- und Nachfrageregeln gelten weiterhin.',
   },
   it: {
+    automaticAvailable: 'Configurazione automatica disponibile',
     openCodeV1Description:
       'Configura OpenCode v1 per «NCF Agent Interconnect». OpenCode v2 ha impostazioni separate.',
     openCodeV2Description:
@@ -333,6 +339,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'In /permissions, consenti solo gli strumenti NCF desiderati: agent_read, agent_connect e agent_send. Le regole esistenti di rifiuto o conferma continuano a valere.',
   },
   es: {
+    automaticAvailable: 'Configuración automática disponible',
     openCodeV1Description:
       'Configura OpenCode v1 para «NCF Agent Interconnect». OpenCode v2 tiene ajustes independientes.',
     openCodeV2Description:
@@ -390,6 +397,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'En /permissions, permite solo las herramientas NCF que necesites: agent_read, agent_connect y agent_send. Las reglas existentes de denegación o confirmación siguen vigentes.',
   },
   kk: {
+    automaticAvailable: 'Автоматты баптау қолжетімді',
     openCodeV1Description:
       'OpenCode v1 нұсқасын «NCF Agent Interconnect» үшін баптаңыз. OpenCode v2 нұсқасының баптаулары бөлек.',
     openCodeV2Description:
@@ -447,6 +455,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions ішінде тек қажетті NCF құралдарына рұқсат беріңіз: agent_read, agent_connect және agent_send. Бар тыйым салу және растау сұрау ережелері күшінде қалады.',
   },
   ja: {
+    automaticAvailable: '自動設定が利用可能',
     openCodeV1Description:
       'OpenCode v1 を「NCF Agent Interconnect」用に設定します。OpenCode v2 の設定は別になっています。',
     openCodeV2Description:
@@ -501,6 +510,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions で必要な NCF ツールのみを許可してください：agent_read、agent_connect、agent_send。既存の拒否・確認ルールは引き続き適用されます。',
   },
   'pt-BR': {
+    automaticAvailable: 'Configuração automática disponível',
     openCodeV1Description:
       'Configure o OpenCode v1 para o “NCF Agent Interconnect”. O OpenCode v2 tem configurações separadas.',
     openCodeV2Description:
@@ -558,6 +568,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Em /permissions, permita apenas as ferramentas NCF desejadas: agent_read, agent_connect e agent_send. As regras existentes de negação ou confirmação continuam válidas.',
   },
   ko: {
+    automaticAvailable: '자동 설정 가능',
     openCodeV1Description:
       '“NCF Agent Interconnect”용으로 OpenCode v1을 설정합니다. OpenCode v2의 설정은 별도로 관리됩니다.',
     openCodeV2Description:
@@ -611,6 +622,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions에서 필요한 NCF 도구만 허용하세요: agent_read, agent_connect, agent_send. 기존 거부 및 확인 요청 규칙은 계속 적용됩니다.',
   },
   tr: {
+    automaticAvailable: 'Otomatik kurulum kullanılabilir',
     openCodeV1Description:
       'OpenCode v1’i “NCF Agent Interconnect” için yapılandırın. OpenCode v2’nin ayarları ayrıdır.',
     openCodeV2Description:
@@ -667,6 +679,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '/permissions içinde yalnızca istediğiniz NCF araçlarına izin verin: agent_read, agent_connect ve agent_send. Mevcut reddetme ve onay isteme kuralları geçerli kalır.',
   },
   pl: {
+    automaticAvailable: 'Dostępna automatyczna konfiguracja',
     openCodeV1Description:
       'Skonfiguruj OpenCode v1 do pracy z „NCF Agent Interconnect”. OpenCode v2 ma osobne ustawienia.',
     openCodeV2Description:
@@ -723,6 +736,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'W /permissions zezwól tylko na potrzebne narzędzia NCF: agent_read, agent_connect i agent_send. Istniejące reguły odmowy i pytania o zgodę nadal obowiązują.',
   },
   nl: {
+    automaticAvailable: 'Automatische configuratie beschikbaar',
     openCodeV1Description:
       'Stel OpenCode v1 in voor ‘NCF Agent Interconnect’. OpenCode v2 heeft afzonderlijke instellingen.',
     openCodeV2Description:
@@ -778,6 +792,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Sta in /permissions alleen de gewenste NCF-tools toe: agent_read, agent_connect en agent_send. Bestaande regels voor weigeren of toestemming vragen blijven gelden.',
   },
   uk: {
+    automaticAvailable: 'Доступне автоматичне налаштування',
     openCodeV1Description:
       'Налаштуйте OpenCode v1 для «NCF Agent Interconnect». OpenCode v2 має окремі налаштування.',
     openCodeV2Description:

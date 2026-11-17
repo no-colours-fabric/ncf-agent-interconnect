@@ -29,7 +29,7 @@ import {
   type ApplicationSetupState,
   type ApplicationSetupStates,
 } from './application-setup-model.js';
-import { openCodeV2TargetKey } from './opencode-v2-setup-model.js';
+import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import { clientNextStep, hasConnectedClientChat } from './ClientSetupHelp.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
@@ -341,6 +341,7 @@ function setupView(
         !!state.target.installationPath,
       hasStatus: !!status,
       checking: state.checking,
+      automatic: openCodeV2AutomaticAvailable(state),
       unavailable: state.availability === 'unavailable' || status?.state === 'unavailable',
     };
   }
@@ -355,6 +356,9 @@ function setupView(
     ),
     hasStatus: !!statuses.statuses[client],
     checking: false,
+    automatic: !!discovery.snapshot?.applications.some(
+      (item) => item.client === client && item.status === 'detected',
+    ),
     unavailable: !!statuses.errors[client],
   };
 }
@@ -381,7 +385,7 @@ export function ApplicationRows({
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
   };
   const row = (client: ApplicationSetupClient, border: boolean) => {
-    const { state, configured, detected, hasStatus, unavailable, checking } = setupView(
+    const { state, configured, detected, hasStatus, unavailable, checking, automatic } = setupView(
       client,
       states,
       statuses,
@@ -421,7 +425,11 @@ export function ApplicationRows({
               {setupApplicationName(client, locale)}
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-              {detected ? copy.detected : copy.automaticUnavailable}
+              {detected
+                ? copy.detected
+                : automatic
+                  ? copy.automaticAvailable
+                  : copy.automaticUnavailable}
             </Typography>
           </Box>
           <Stack
@@ -464,7 +472,7 @@ export function ApplicationRows({
               justifyContent: { md: 'flex-end' },
             }}
           >
-            {(!configured || hasPendingSetupResult(state)) && (detected || needsRetry) && (
+            {(!configured || hasPendingSetupResult(state)) && (automatic || needsRetry) && (
               <Button
                 variant="contained"
                 disabled={
@@ -614,7 +622,7 @@ export function ApplicationSetup({
     ['preparing', 'rechecking', 'applying'].includes(states[client].phase),
   );
   const saved = applicationSetupClients.some((client) => states[client].phase === 'succeeded');
-  const ready = mcpSetupClients.some((client) => hasConnectedClientChat(client, snapshot));
+  const ready = applicationSetupClients.some((client) => hasConnectedClientChat(client, snapshot));
   useEffect(() => {
     const target = content;
     if (!open || !target) return;
@@ -660,7 +668,7 @@ export function ApplicationSetup({
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
   };
   const card = (client: ApplicationSetupClient, grouped = false) => {
-    const { state, configured, detected, hasStatus, checking } = setupView(
+    const { state, configured, detected, hasStatus, checking, automatic } = setupView(
       client,
       states,
       statuses,
@@ -700,7 +708,11 @@ export function ApplicationSetup({
             {setupApplicationName(client, locale)}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            {detected ? copy.detected : copy.automaticUnavailable}
+            {detected
+              ? copy.detected
+              : automatic
+                ? copy.automaticAvailable
+                : copy.automaticUnavailable}
           </Typography>
         </Stack>
         {configured && !hasPendingSetupResult(state) ? (
@@ -723,7 +735,7 @@ export function ApplicationSetup({
           </>
         ) : (
           <Box sx={{ mt: 'auto', pt: 3 }}>
-            {detected || retry ? (
+            {automatic || retry ? (
               <Button
                 fullWidth
                 variant="contained"

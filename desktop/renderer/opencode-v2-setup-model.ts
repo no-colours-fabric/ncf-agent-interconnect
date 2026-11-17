@@ -1,6 +1,7 @@
 import type {
   McpSetupInvoke,
   OpenCodeV2SetupApplyResult,
+  OpenCodeV2SetupAvailability,
   OpenCodeV2SetupDefaults,
   OpenCodeV2SetupPreview,
   OpenCodeV2SetupRequests,
@@ -62,6 +63,18 @@ function validTarget(target: OpenCodeV2SetupTarget | undefined): target is OpenC
 
 const sameTarget = (left: OpenCodeV2SetupTarget, right: OpenCodeV2SetupTarget) =>
   openCodeV2TargetKey(left) === openCodeV2TargetKey(right);
+const validAvailability = (value: OpenCodeV2SetupAvailability | undefined): boolean =>
+  value?.state === 'available' ||
+  (value?.state === 'unavailable' && typeof value.reason === 'string');
+export function openCodeV2AutomaticAvailable(state: OpenCodeV2SetupState): boolean {
+  return (
+    state.availability === 'available' &&
+    !!state.target &&
+    !!state.status &&
+    sameTarget(state.target, state.status.target) &&
+    state.status.setupAvailability?.state === 'available'
+  );
+}
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
 /** Dedicated v2 calls keep installation/profile/config selection out of legacy v1 setup. */
@@ -136,7 +149,11 @@ export class OpenCodeV2SetupFlow {
         let defaults: OpenCodeV2SetupDefaults | undefined;
         if (!selected) {
           defaults = await this.call('opencodeV2SetupDefaults', {});
-          if (defaults.client !== 'opencode-v2' || !validTarget(defaults.target))
+          if (
+            defaults.client !== 'opencode-v2' ||
+            !validTarget(defaults.target) ||
+            !validAvailability(defaults.setupAvailability)
+          )
             throw new Error('The OpenCode v2 configuration target is unavailable');
         }
         const target = selected ?? defaults!.target;
@@ -144,7 +161,8 @@ export class OpenCodeV2SetupFlow {
         if (
           status.client !== 'opencode-v2' ||
           !validTarget(status.target) ||
-          !sameTarget(target, status.target)
+          !sameTarget(target, status.target) ||
+          !validAvailability(status.setupAvailability)
         )
           throw new Error('The OpenCode v2 status does not match the selected target');
         if (revision === this.statusRevision)
@@ -262,6 +280,7 @@ export class OpenCodeV2SetupFlow {
       this.otherBusy()
     )
       return;
+    if (automatic && !openCodeV2AutomaticAvailable(this.state)) return;
     const target = { ...this.state.target };
     const revision = ++this.revision;
     this.discard(this.state.preview);
