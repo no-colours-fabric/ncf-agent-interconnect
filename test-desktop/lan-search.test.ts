@@ -358,21 +358,70 @@ test('multiple addresses of one claimed node form one unverified result, count a
   assert.equal(f.search.snapshot().nodes.length, 2, 'Equal labels do not merge distinct UUIDs');
 });
 
-test('listener hotplug preserves the owner search deadline and stopped state', async (t) => {
-  const f = fixture(t);
-  await f.search.open();
-  f.search.startSearch();
-  f.transport.receive();
-  f.advance(10000);
-  f.search.updateLocal({ nodeId: localId, label: 'Local computer', listener: null, listeners: [] });
-  assert.equal(f.search.snapshot().elapsedMs, 10000);
-  f.advance(20000);
-  assert.equal(f.search.snapshot().phase, 'complete');
-  assert.equal(f.search.snapshot().nodes.length, 1);
-  f.search.updateLocal({
-    nodeId: localId,
-    label: 'Local computer',
-    listener: { address: '192.0.2.10', port: 7336 },
-  });
-  assert.equal(f.search.snapshot().phase, 'complete');
+test('actual inventory hotplug retains completed, stopped and active owner runs', async (t) => {
+  for (const kind of ['complete', 'stopped', 'active'] as const) {
+    await t.test(kind, async (t) => {
+      const inventory = { interfaces: true };
+      const f = fixture(t, inventory);
+      await f.search.open();
+      f.search.startSearch();
+      f.transport.receive();
+      f.advance(kind === 'complete' ? 30000 : 10000);
+      if (kind === 'stopped') f.search.stopSearch();
+      const before = f.search.snapshot();
+      const oldTransport = f.transport;
+
+      // Change the actual injected interface enumeration, not just the listener descriptor.
+      inventory.interfaces = false;
+      f.advance(0);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const missing = f.search.snapshot();
+      assert.equal(f.search.discoverySnapshot().reason, 'no-interfaces');
+      assert.equal(oldTransport.stopped, true);
+      if (kind === 'active') {
+        f.advance(20000);
+        assert.equal(
+          f.search.snapshot().phase,
+          'complete',
+          'The original deadline expires while no interface is available',
+        );
+      }
+      const queriesBeforeRestore = f.transports
+        .flatMap((transport) => transport.packets)
+        .filter((packet) => packet.type === 'query').length;
+      inventory.interfaces = true;
+      f.advance(0);
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      const restored = f.search.snapshot();
+      const expected =
+        kind === 'active' ? ['searching', 'searching', 'complete'] : [kind, kind, kind];
+      assert.deepEqual([before.phase, missing.phase, restored.phase], expected);
+      assert.equal(missing.runId, before.runId);
+      assert.equal(restored.runId, before.runId);
+      assert.equal(missing.elapsedMs, before.elapsedMs);
+      assert.equal(restored.elapsedMs, kind === 'active' ? 30000 : before.elapsedMs);
+      assert.equal(restored.reason, null);
+      assert.equal(restored.foundCount, before.foundCount);
+      assert.deepEqual(
+        restored.nodes.map(({ key, address }) => ({ key, address })),
+        before.nodes.map(({ key, address }) => ({ key, address })),
+      );
+      assert.deepEqual(restored.unseenKeys, before.unseenKeys);
+      assert.equal(
+        f.transports
+          .flatMap((transport) => transport.packets)
+          .filter((packet) => packet.type === 'query').length,
+        queriesBeforeRestore,
+        'Restoration does not begin another owner search',
+      );
+
+      assert.equal(f.search.startSearch(), true, 'A new search still requires explicit Retry');
+      assert.equal(f.search.snapshot().runId, before.runId + 1);
+      assert.equal(f.search.snapshot().elapsedMs, 0);
+      assert.equal(f.search.snapshot().foundCount, 0);
+      assert.equal(f.search.snapshot().nodes[0].key, before.nodes[0].key);
+      f.transport.receive();
+      assert.equal(f.search.snapshot().foundCount, 1);
+    });
+  }
 });

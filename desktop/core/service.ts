@@ -343,6 +343,7 @@ export class NodeService extends EventEmitter {
   }
   private async startNow(): Promise<void> {
     if (this.running) return;
+    this.deliveryIncarnation = randomUUID();
     this.network = new PeerNetwork(this.settings);
     this.presence.reset();
     this.mcp = new McpEndpoint(this);
