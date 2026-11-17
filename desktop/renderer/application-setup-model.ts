@@ -25,6 +25,7 @@ export interface ApplicationSetupState {
   uncertain?: { planId: string; error: string; preview: McpSetupPreview; target?: McpSetupTarget };
   renewed?: boolean;
   verified?: boolean;
+  reviewRequired?: boolean;
 }
 export type ApplicationSetupStates = Record<McpSetupClient, ApplicationSetupState>;
 
@@ -113,8 +114,15 @@ export class ApplicationSetupFlow {
       return;
     }
     if (previous.phase === 'confirmation' || previous.phase === 'succeeded') return;
+    const reviewRequired = previous.reviewRequired || previous.result?.status === 'failed';
     this.discard(previous.preview);
-    this.set(client, { phase: 'preparing', uncertain: previous.uncertain });
+    this.set(client, {
+      ...previous,
+      phase: 'preparing',
+      preview: undefined,
+      error: undefined,
+      reviewRequired,
+    });
     let preview: McpSetupPreview | undefined;
     try {
       const defaults = await this.invoke<McpSetupDefaults>('mcpSetupDefaults', { client });
@@ -126,9 +134,14 @@ export class ApplicationSetupFlow {
         !defaults.files[0].path.trim()
       )
         throw new Error('The selected configuration target is unavailable');
+      const target =
+        reviewRequired && previous.target
+          ? previous.target
+          : { id: defaults.files[0].id, path: defaults.files[0].path };
+      this.set(client, { ...this.states[client], target });
       preview = await this.invoke<McpSetupPreview>('mcpSetupPreview', {
         client,
-        files: defaults.files.map(({ id, path }) => ({ id, path })),
+        files: [target],
       });
       if (this.disposed) {
         this.discard(preview);
@@ -136,22 +149,20 @@ export class ApplicationSetupFlow {
       }
       if (preview.client !== client || !preview.planId)
         throw new Error('The setup preview does not match the selected application');
-      const needsConfirmation =
-        preview.requiresReplacement || previous.result?.status === 'failed' || !!previous.uncertain;
+      const needsConfirmation = preview.requiresReplacement || reviewRequired;
       this.set(client, {
+        ...this.states[client],
         phase: needsConfirmation ? 'confirmation' : 'preparing',
-        target: { id: defaults.files[0].id, path: defaults.files[0].path },
         preview,
-        uncertain: previous.uncertain,
-        renewed: previous.result?.status === 'failed',
+        renewed: reviewRequired,
       });
       if (!needsConfirmation) await this.apply(client, false);
     } catch (error) {
       this.discard(preview);
       this.set(client, {
+        ...this.states[client],
         phase: 'failed',
         error: String(error instanceof Error ? error.message : error),
-        uncertain: previous.uncertain,
       });
     }
   }
@@ -176,7 +187,14 @@ export class ApplicationSetupFlow {
       }
       if (check.disposition === 'configured') {
         this.discard(fresh);
-        this.set(client, { ...previous, phase: 'succeeded', verified: true, error: undefined });
+        this.set(client, {
+          ...previous,
+          phase: 'succeeded',
+          verified: true,
+          result: undefined,
+          error: undefined,
+          reviewRequired: false,
+        });
         await this.onApplied?.().catch(() => {});
       } else if (check.disposition === 'same') {
         this.discard(fresh);
@@ -190,6 +208,7 @@ export class ApplicationSetupFlow {
           phase: 'confirmation',
           preview: fresh,
           renewed: true,
+          reviewRequired: true,
           error: undefined,
         });
       }
@@ -216,7 +235,7 @@ export class ApplicationSetupFlow {
   cancel(client: McpSetupClient): void {
     if (this.states[client].phase !== 'confirmation') return;
     this.discard(this.states[client].preview);
-    this.set(client, { phase: 'idle', uncertain: this.states[client].uncertain });
+    this.set(client, { ...this.states[client], phase: 'idle', preview: undefined });
   }
 
   invalidateSucceeded(client?: McpSetupClient): void {
@@ -228,7 +247,14 @@ export class ApplicationSetupFlow {
           : mcpSetupClients;
     for (const item of clients)
       if (this.states[item].phase === 'succeeded')
-        this.set(item, { phase: 'idle', uncertain: this.states[item].uncertain });
+        this.set(item, {
+          ...this.states[item],
+          phase: 'idle',
+          preview: undefined,
+          result: undefined,
+          error: undefined,
+          verified: false,
+        });
   }
 
   private async apply(client: McpSetupClient, confirmReplace: boolean): Promise<void> {
@@ -247,6 +273,7 @@ export class ApplicationSetupFlow {
         preview,
         result,
         error: result.error,
+        reviewRequired: result.status === 'failed',
       });
       // A status refresh failure must not turn a completed configuration write into a retry.
       if (result.status !== 'failed') await this.onApplied?.().catch(() => {});
@@ -257,6 +284,7 @@ export class ApplicationSetupFlow {
         phase: 'uncertain',
         preview,
         error: String(error instanceof Error ? error.message : error),
+        reviewRequired: true,
         uncertain: previous.uncertain ?? {
           planId: preview.planId,
           error: String(error instanceof Error ? error.message : error),
