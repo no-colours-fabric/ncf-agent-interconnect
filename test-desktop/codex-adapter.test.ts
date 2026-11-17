@@ -273,9 +273,17 @@ test('Codex owner probe is read-only; idle admission inherits settings and targe
   t.after(() => adapter.stop());
   await adapter.start();
   assert.equal(adapter.status().state, 'ready');
-  assert.deepEqual(
-    f.requests.map((r) => r.method),
-    ['initialize', 'thread-owner-discovery'],
+  assert.ok(
+    f.requests.every((r) =>
+      ['initialize', 'thread-owner-discovery', 'thread-stream-following-changed'].includes(
+        r.method,
+      ),
+    ),
+  );
+  assert.ok(
+    f.requests.some(
+      (r) => r.method === 'thread-stream-following-changed' && r.params.following === true,
+    ),
   );
   assert.equal(f.requests[1].params.conversationId, f.profile.threadId);
   assert.equal(adapter.status().capabilities.nativeDisplay, false);

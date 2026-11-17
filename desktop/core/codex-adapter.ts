@@ -305,10 +305,6 @@ export async function codexExchange(
         // Exact-owner proof validated: record the historical evidence before
         // any external submission. This is an observation, not a receipt.
         onVerified?.();
-        if (!input) {
-          finish('admitted');
-          return;
-        }
         owner = message.handledByClientId;
         following = true;
         broadcast(true);
@@ -319,13 +315,36 @@ export async function codexExchange(
         message.type === 'broadcast' &&
         message.sourceClientId === owner &&
         message.method === 'thread-stream-state-changed' &&
-        message.version === 11 &&
         message.params?.conversationId === threadId &&
         message.params.hostId === 'local'
       ) {
+        if (message.version !== 11 && message.version !== 13) {
+          const version = Number.isSafeInteger(message.version) ? message.version : 'unknown';
+          fail(
+            `Unsupported Codex thread stream version ${version}; supported versions are 11 and 13`,
+          );
+          return;
+        }
         const change = message.params.change;
-        if (change?.type === 'snapshot')
-          submit(change.conversationState?.threadRuntimeStatus?.type);
+        if (change?.type === 'snapshot') {
+          const runtime = change.conversationState?.threadRuntimeStatus;
+          if (
+            !runtime ||
+            Array.isArray(runtime) ||
+            typeof runtime.type !== 'string' ||
+            !['idle', 'active'].includes(runtime.type)
+          ) {
+            fail('Invalid or unsupported Codex thread runtime snapshot');
+            return;
+          }
+          // Discovery proves ownership; a compatible stream proves readiness.
+          // A probe subscribes without ever submitting external input.
+          if (!input) {
+            finish('admitted');
+            return;
+          }
+          submit(runtime.type);
+        }
         if (change?.type === 'patches' && Array.isArray(change.patches))
           for (const patch of change.patches) {
             if (
