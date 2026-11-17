@@ -131,3 +131,15 @@ Make client adapters plugins that can be developed independently of NCF Agent In
 One possible distribution model is a GitHub repository containing plugin packages. An npm registry is another option. The distribution model remains open for discussion.
 
 ---
+
+## R-0010 — Listen on all network interfaces by default
+
+- [ ] Open
+
+By default, NCF Agent Interconnect listens on every IP address available on the computer.
+
+- When a new network interface or local IP address becomes available, the app starts listening on it automatically.
+- The interface lets the owner disable listening on selected network interfaces.
+- The rule is to listen on all interfaces except those explicitly disabled.
+
+---
