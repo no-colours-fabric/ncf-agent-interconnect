@@ -1098,6 +1098,8 @@ test(
           if (delivered.length === 1) {
             started();
             await held;
+            if (outcome === 'uncertain')
+              event.beforeRelease?.(JSON.stringify({ input: 'Synthetic uncertain release' }));
             return { state: outcome, error: 'Synthetic preflight outcome' };
           }
           return actualDeliver(event);
