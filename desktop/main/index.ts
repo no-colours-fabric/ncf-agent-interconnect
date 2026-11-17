@@ -15,6 +15,7 @@ import { mkdir, copyFile, appendFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { NodeService } from '../core/service.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
+import { LanSearchLifecycle } from './lan-search-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
 import { createApplicationDiscoveryHandler } from './application-discovery-ipc.js';
 import { UiServiceAccess } from './ui-service-access.js';
@@ -30,6 +31,22 @@ let window: BrowserWindow | null = null,
   quitting = false;
 let opening: Promise<void> | null = null;
 const startup = new StartupLifecycle(showWindow);
+const lanSearchLifecycle = new LanSearchLifecycle(async (isCurrent) => {
+  const active = service,
+    owner = window;
+  await opening;
+  if (
+    !isCurrent() ||
+    quitting ||
+    !active?.running ||
+    service !== active ||
+    !owner ||
+    window !== owner ||
+    !isWindowVisible()
+  )
+    return;
+  await active.userCall('startLanSearch', {});
+});
 const single = app.requestSingleInstanceLock();
 if (!single) app.quit();
 else {
@@ -41,6 +58,7 @@ else {
     event.preventDefault();
     quitting = true;
     startup.stop();
+    lanSearchLifecycle.close();
     void Promise.resolve(opening)
       .then(
         () => service?.close(),
@@ -87,6 +105,7 @@ else {
     })
     .catch(async (e) => {
       startup.stop();
+      lanSearchLifecycle.close();
       if (quitting) return;
       quitting = true;
       const message = (e as Error).stack ?? String(e);
@@ -132,6 +151,14 @@ function updateTray(): void {
 function show(tab?: string): void {
   startup.requestOpen(tab);
 }
+function isWindowVisible(): boolean {
+  return !!window && !window.isDestroyed() && window.isVisible() && !window.isMinimized();
+}
+function windowVisibilityChanged(): void {
+  if (quitting) return;
+  lanSearchLifecycle.setVisible(isWindowVisible());
+  if (window && !window.isDestroyed()) window.webContents.send('interconnect:change');
+}
 function showWindow(tab?: string): void {
   if (quitting || !service) return;
   if (window && !window.isDestroyed()) {
@@ -156,6 +183,14 @@ function showWindow(tab?: string): void {
       webSecurity: true,
     },
   });
+  const owner = window;
+  const visibilityChanged = () => {
+    if (window === owner) windowVisibilityChanged();
+  };
+  owner.on('show', visibilityChanged);
+  owner.on('hide', visibilityChanged);
+  owner.on('minimize', visibilityChanged);
+  owner.on('restore', visibilityChanged);
   window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.on('close', (event) => {
@@ -165,7 +200,9 @@ function showWindow(tab?: string): void {
     }
   });
   window.on('closed', () => {
+    if (window !== owner) return;
     window = null;
+    windowVisibilityChanged();
   });
   window.once('ready-to-show', () => {
     if (!quitting) window?.show();
@@ -197,6 +234,11 @@ function setupIpc(): void {
       typeof method !== 'string'
     )
       throw new Error('Invalid operation source');
+    if (method === 'windowState') {
+      access.current();
+      z.object({}).strict().parse(raw);
+      return { visible: isWindowVisible() };
+    }
     const discoveryResult = await applicationDiscovery(method, raw, String(event.sender.id));
     if (discoveryResult.handled) return discoveryResult.result;
     const setupResult = await access.waitFor(() => mcpSetup(method, raw, String(event.sender.id)));
@@ -263,6 +305,9 @@ function setupIpc(): void {
         'aionUiCancelPair',
         'aionUiDisconnect',
         'snapshot',
+        'startLanSearch',
+        'stopLanSearch',
+        'ackLanSearch',
         'history',
         'chatHistory',
         'instructions',
@@ -277,6 +322,10 @@ function setupIpc(): void {
       ].includes(method)
     )
       throw new Error('This operation is not allowed by the interface');
+    if (method === 'startLanSearch' || method === 'stopLanSearch') {
+      z.object({}).strict().parse(raw);
+      lanSearchLifecycle.supersede();
+    }
     return access.current().userCall(method, raw, { requesterSession: String(event.sender.id) });
   });
 }

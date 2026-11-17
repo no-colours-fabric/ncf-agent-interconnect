@@ -1017,3 +1017,645 @@ root.render(<App key={generation} patch={{}}/>);
     }
   },
 );
+
+interface WiringHarness {
+  calls: Call[];
+  change(patch: { snapshot?: Snapshot; visible?: boolean }): void;
+  navigate(page: string): void;
+  holdReads(): void;
+  readCount(): number;
+  releasePair(index: number): void;
+  resumeReads(): void;
+  manualIntersections(manual: boolean): void;
+  observerFor(key: string): number;
+  replay(index: number, key: string): void;
+}
+
+// Compile the actual renderer entrypoint once; only its Electron bridge is replaced.
+test(
+  'network wiring: actual renderer preserves R7 and R1 flows',
+  {
+    skip: process.env.NCF_LAN_SEARCH_WIRING_UI !== '1',
+    timeout: 120000,
+  },
+  async (suite) => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-network-wiring-'));
+    let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+    try {
+      const require = createRequire(import.meta.url);
+      await symlink(
+        path.dirname(path.dirname(require.resolve('react/package.json'))),
+        path.join(directory, 'node_modules'),
+        'junction',
+      );
+      const main = fileURLToPath(new URL('../desktop/renderer/main.tsx', import.meta.url));
+      await writeFile(
+        path.join(directory, 'index.html'),
+        '<!doctype html><html><body><div id="root"></div><script type="module" src="/fixture.tsx"></script></body></html>',
+      );
+      await writeFile(path.join(directory, 'fixture.tsx'), `import ${JSON.stringify(main)};`);
+      const result = await build({
+        root: directory,
+        configFile: false,
+        logLevel: 'silent',
+        cacheDir: path.join(directory, 'cache'),
+        build: { write: false, minify: true },
+      });
+      const outputs = (Array.isArray(result) ? result : [result]).flatMap((output) =>
+        'output' in output ? output.output : [],
+      );
+      const assets = new Map(
+        outputs.map((output) => [
+          output.fileName,
+          output.type === 'chunk' ? Buffer.from(output.code) : Buffer.from(output.source),
+        ]),
+      );
+      assert.ok(assets.has('index.html'));
+      browser = await chromium.launch({
+        channel: process.env.NCF_UI_CHROMIUM_CHANNEL || 'chrome',
+        headless: true,
+        chromiumSandbox: true,
+      });
+      const origin = 'https://ncf-network-fixture.invalid';
+      const errors: string[] = [];
+      const open = async (offers: string[] = [], hash = 'network') => {
+        const page = await browser!.newPage({ viewport: { width: 1280, height: 1000 } });
+        page.on('pageerror', (error) => errors.push(error.message));
+        const initial = snapshot();
+        initial.peers = [
+          {
+            id: 'authenticated-fixture-peer',
+            label: 'Authenticated fixture',
+            address: 'wss://192.0.2.90:7336/peer',
+            connected: false,
+            error: 'Retained fixture peer diagnostic',
+          },
+        ];
+        await page.addInitScript({
+          content: `
+const calls=[],listeners=new Set(),navigation=new Set(),reads=[],intersections=[];
+let manualIntersections=false;
+const NativeIntersectionObserver=window.IntersectionObserver;
+window.IntersectionObserver=class {
+ constructor(callback,options){this.callback=callback;this.targets=new Set();this.native=new NativeIntersectionObserver(entries=>{if(!manualIntersections)callback(entries);},options);intersections.push(this);}
+ observe(target){this.targets.add(target);this.native.observe(target);}
+ unobserve(target){this.targets.delete(target);this.native.unobserve(target);}
+ disconnect(){this.native.disconnect();}
+};
+let value=${JSON.stringify(initial)},visible=true,held=false;
+const clients=['cursor','opencode','codex','aionui','claude'];
+const discovery={checkedAt:'2026-11-17T00:00:00.000Z',platform:'darwin',stateError:false,offers:${JSON.stringify(offers)},applications:clients.map(client=>({client,status:'detected',instances:[],coverage:[]}))};
+const clone=value=>structuredClone(value);
+const changed=()=>listeners.forEach(listener=>listener());
+const read=(method,data)=>held?new Promise(resolve=>reads.push({method,data:clone(data),resolve})):Promise.resolve(clone(data));
+window.wiring={calls,change(patch){if(patch.snapshot)value=clone(patch.snapshot);if('visible' in patch)visible=patch.visible;changed();},navigate(page){navigation.forEach(listener=>listener(page));},holdReads(){held=true;reads.length=0;},readCount:()=>reads.length,releasePair(index){for(const request of reads.slice(index*2,index*2+2))request.resolve(request.data);},resumeReads(){held=false;},manualIntersections(manual){manualIntersections=manual;},observerFor(key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);return intersections.findLastIndex(observer=>observer.targets.has(row));},replay(index,key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(row)intersections[index].callback([{target:row,isIntersecting:true,intersectionRatio:1}]);}};
+window.interconnect={onChange(callback){listeners.add(callback);return()=>listeners.delete(callback);},onNavigate(callback){navigation.add(callback);return()=>navigation.delete(callback);},async invoke(method,input={}){
+ calls.push({method,input:clone(input)});
+ if(method==='snapshot')return read(method,value);
+ if(method==='windowState')return read(method,{visible});
+ if(method==='appVersion')return '0.18.7-fixture';
+ if(method==='loginState')return {supported:true,openAtLogin:false};
+ if(method==='applicationDiscovery'||method==='applicationDiscoveryRefresh')return clone(discovery);
+ if(method==='applicationDiscoveryOffered')return {saved:true};
+ if(method==='mcpSetupStatus')return {client:input.client,remembered:false,state:'missing',files:[]};
+ if(method==='mcpSetupDefaults')return {client:input.client,files:[{id:'configuration',path:'/isolated/fixture/'+input.client+'.json',format:'jsonc',alternatives:[]}]};
+ if(method==='mcpSetupPreview')return {client:input.client,planId:'fixture-plan',expiresAt:new Date(Date.now()+600000).toISOString(),requiresReplacement:true,files:input.files.map(file=>({...file,action:'update',changes:[]}))};
+ if(method==='mcpSetupDiscard')return {discarded:true};
+ if(method==='instructions')return {client:input.client,location:'/isolated/fixture',text:'Fixture instructions',configuration:'{}',testPrompt:'Fixture test prompt'};
+ if(method==='aionUiStatus')return {state:'not-paired',url:'http://127.0.0.1:1/fixture',bridgeConnected:false};
+ if(method==='aionUiInstructions')return {testPrompt:'Fixture access prompt'};
+ if(method==='copy')return {copied:true};
+ if(method==='accessCode')return {code:'ABCD2345',expiresAt:new Date(Date.now()+600000).toISOString()};
+ if(method==='connectPeer')return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};
+ if(method==='stopLanSearch'){value.lanSearch.phase='stopped';changed();return {stopped:true};}
+ if(method==='startLanSearch'){value.lanSearch={...value.lanSearch,phase:'searching',runId:value.lanSearch.runId+1,foundCount:0,elapsedMs:0,nodes:value.lanSearch.nodes.map(node=>({...node,observedInRun:false}))};changed();return {started:true};}
+ if(method==='ackLanSearch'){value.lanSearch.unseenKeys=value.lanSearch.unseenKeys.filter(key=>!input.keys.includes(key));value.lanSearch.nodes=value.lanSearch.nodes.map(node=>input.keys.includes(node.key)?{...node,newlyFound:false}:node);changed();return {acknowledged:true};}
+ throw new Error('Unexpected fixture method: '+method);
+}};
+`,
+        });
+        await page.route('**/*', async (route) => {
+          const request = new URL(route.request().url());
+          if (request.origin !== origin) return route.abort();
+          const name = request.pathname === '/' ? 'index.html' : request.pathname.slice(1);
+          const body = assets.get(name);
+          if (!body) return route.abort();
+          const contentType = name.endsWith('.html')
+            ? 'text/html'
+            : name.endsWith('.js')
+              ? 'text/javascript'
+              : name.endsWith('.css')
+                ? 'text/css'
+                : name.endsWith('.svg')
+                  ? 'image/svg+xml'
+                  : 'image/png';
+          await route.fulfill({ status: 200, body, contentType });
+        });
+        await page.goto(`${origin}/#${hash}`);
+        await page.getByTestId('nav-network').waitFor();
+        return page;
+      };
+      const calls = (page: Page, method: string) =>
+        page.evaluate(
+          (name) =>
+            (window as unknown as { wiring: WiringHarness }).wiring.calls.filter(
+              (call) => call.method === name,
+            ),
+          method,
+        );
+      const change = (page: Page, patch: Parameters<WiringHarness['change']>[0]) =>
+        page.evaluate(
+          (value) => (window as unknown as { wiring: WiringHarness }).wiring.change(value),
+          patch,
+        );
+      const navigate = (page: Page, tab: string) =>
+        page.evaluate(
+          (value) => (window as unknown as { wiring: WiringHarness }).wiring.navigate(value),
+          tab,
+        );
+      const capture = async (page: Page, name: string) => {
+        const folder = process.env.NCF_LAN_SEARCH_UI_ARTIFACTS;
+        if (!folder) return;
+        await mkdir(folder, { recursive: true });
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+            ),
+        );
+        await page.screenshot({
+          path: path.join(folder, name + '.png'),
+          fullPage: false,
+          animations: 'disabled',
+        });
+      };
+
+      if (process.env.NCF_LAN_WIRING_CAPTURE_ONLY === '1') {
+        const page = await open();
+        try {
+          await page.getByRole('button', { name: 'Create code', exact: true }).click();
+          await page.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
+          for (const dark of [true, false]) {
+            if (!dark) {
+              await page.getByTestId('nav-settings').click();
+              await page
+                .getByRole('switch', { name: translate('en', 'settingsDarkTheme'), exact: true })
+                .uncheck();
+              await page.getByTestId('nav-network').click();
+            }
+            for (const width of [1280, 1024]) {
+              await page.setViewportSize({ width, height: 1000 });
+              await capture(page, `combined-network-${dark ? 'dark' : 'light'}-${width}`);
+            }
+          }
+          assert.deepEqual(errors, []);
+        } finally {
+          await page.close();
+        }
+        return;
+      }
+
+      await suite.test(
+        'sidebar Stop, preserved manual/Settings/theme drafts, paired metadata and R7 return paths',
+        {
+          skip:
+            !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'navigation',
+        },
+        async () => {
+          const page = await open([], 'overview');
+          try {
+            await page.getByTestId('overview-applications').waitFor();
+            await page
+              .getByRole('status')
+              .filter({ hasText: 'Searching · 18s left · 1 found' })
+              .waitFor();
+            assert.equal(
+              (await calls(page, 'startLanSearch')).length,
+              0,
+              'renderer does not duplicate main window activation',
+            );
+            assert.equal(
+              (await calls(page, 'ackLanSearch')).length,
+              0,
+              'inactive network page cannot acknowledge',
+            );
+            await page.getByTestId('nav-network').getByText('+2', { exact: true }).waitFor();
+            const stop = page
+              .getByRole('complementary')
+              .getByRole('button', { name: 'Stop search', exact: true });
+            assert.equal(await stop.locator('button').count(), 0);
+            assert.equal(
+              await stop.locator('xpath=ancestor::*[@data-testid="nav-network"]').count(),
+              0,
+            );
+            assert.ok((await stop.boundingBox())!.height >= 44);
+            await stop.click();
+            assert.deepEqual((await calls(page, 'stopLanSearch'))[0].input, {});
+            assert.equal((await calls(page, 'stop')).length, 0);
+            assert.equal(await page.getByTestId('node-toggle').textContent(), 'Stop');
+            await page.getByTestId('nav-network').click();
+            await page.getByRole('button', { name: 'Search again', exact: true }).waitFor();
+            await page.getByTestId('remote-nodes-table').waitFor();
+            await page.getByText('Retained fixture peer diagnostic', { exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Create code', exact: true }).click();
+            await page.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+            let dialog = page.getByRole('dialog');
+            const address = dialog.getByRole('textbox', {
+              name: translate('en', 'networkAddressLabel'),
+              exact: true,
+            });
+            const code = dialog.getByRole('textbox', {
+              name: translate('en', 'networkAccessLabel'),
+              exact: true,
+            });
+            await address.fill('2001:db8::20');
+            await code.fill('abcd2345');
+            assert.equal(await code.inputValue(), 'ABCD2345');
+            await dialog
+              .getByText(translate('en', 'networkAccessHelper'), { exact: true })
+              .waitFor();
+            await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+            await page.getByTestId('nav-mcp').click();
+            await page
+              .getByRole('heading', { name: 'Applications', exact: true })
+              .first()
+              .waitFor();
+            for (const client of ['cursor', 'opencode', 'codex', 'aionui', 'claude'])
+              await page.getByTestId('application-row-' + client).waitFor();
+            await page.getByTestId('nav-settings').click();
+            const settingsDraft = page.getByRole('textbox', {
+              name: translate('en', 'settingsNodeName'),
+              exact: true,
+            });
+            await settingsDraft.fill('Unsaved fixture name');
+            await page
+              .getByRole('switch', { name: translate('en', 'settingsDarkTheme'), exact: true })
+              .uncheck();
+            assert.equal(await settingsDraft.inputValue(), 'Unsaved fixture name');
+            await page.getByTestId('nav-network').click();
+            assert.equal(
+              await page
+                .getByRole('textbox', { name: 'Connection code', exact: true })
+                .inputValue(),
+              'ABCD2345',
+            );
+            assert.equal((await calls(page, 'accessCode')).length, 1);
+            await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+            dialog = page.getByRole('dialog');
+            assert.equal(
+              await dialog
+                .getByRole('textbox', { name: translate('en', 'networkAddressLabel'), exact: true })
+                .inputValue(),
+              '2001:db8::20',
+            );
+            assert.equal(
+              await dialog
+                .getByRole('textbox', { name: translate('en', 'networkAccessLabel'), exact: true })
+                .inputValue(),
+              'ABCD2345',
+            );
+            await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+            assert.deepEqual((await calls(page, 'connectPeer')).at(-1)?.input, {
+              address: '2001:db8::20',
+              code: 'ABCD2345',
+            });
+            // The actual legacy form clears the code after success and retains the raw address.
+            await until(
+              async () =>
+                (await dialog
+                  .getByRole('textbox', {
+                    name: translate('en', 'networkAccessLabel'),
+                    exact: true,
+                  })
+                  .inputValue()) === '',
+              'Legacy success preserves the address and clears only the submitted code',
+            );
+            await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+            await page.getByRole('button', { name: 'Search again', exact: true }).click();
+            assert.deepEqual((await calls(page, 'startLanSearch')).at(-1)?.input, {});
+            await capture(page, 'combined-network-light-1280');
+            await page.setViewportSize({ width: 1024, height: 1000 });
+            assert.ok(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+              ),
+            );
+            await capture(page, 'combined-network-light-1024');
+            await page.getByTestId('nav-settings').click();
+            assert.equal(await settingsDraft.inputValue(), 'Unsaved fixture name');
+            assert.equal((await calls(page, 'saveNode')).length, 0);
+            await page
+              .getByRole('switch', { name: translate('en', 'settingsDarkTheme'), exact: true })
+              .check();
+            await page.getByTestId('nav-network').click();
+            await page.setViewportSize({ width: 1280, height: 1000 });
+            await capture(page, 'combined-network-dark-1280');
+            await page.setViewportSize({ width: 1024, height: 1000 });
+            assert.ok(
+              await page.evaluate(
+                () => document.documentElement.scrollWidth <= document.documentElement.clientWidth,
+              ),
+            );
+            await capture(page, 'combined-network-dark-1024');
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'R7 startup/confirmation and nickname overlays, native visibility and refresh generations gate acknowledgements',
+        {
+          skip:
+            !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'visibility',
+        },
+        async () => {
+          const page = await open(['cursor']);
+          try {
+            await page.getByTestId('application-startup-setup').waitFor();
+            assert.equal((await calls(page, 'ackLanSearch')).length, 0);
+            await page
+              .getByRole('dialog')
+              .getByRole('button', { name: 'Not now', exact: true })
+              .click();
+            await until(
+              async () => (await calls(page, 'ackLanSearch')).length > 0,
+              'Actual network rows become visible after startup closes',
+            );
+            await page.getByTestId('nav-mcp').click();
+            await page.getByTestId('application-connect-cursor').click();
+            await page
+              .getByRole('dialog', { name: 'Confirm configuration changes', exact: true })
+              .waitFor();
+            await navigate(page, 'network');
+            const covered = snapshot();
+            covered.lanSearch!.nodes = [
+              { ...first, key: 'confirmation-key', label: 'Confirmation covered computer' },
+            ];
+            covered.lanSearch!.unseenKeys = ['confirmation-key'];
+            await change(page, { snapshot: covered });
+            await page.waitForTimeout(100);
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('confirmation-key'),
+              ),
+            );
+            assert.equal((await calls(page, 'mcpSetupApply')).length, 0);
+            await page
+              .getByRole('dialog', { name: 'Confirm configuration changes', exact: true })
+              .getByRole('button', { name: 'Cancel', exact: true })
+              .click();
+            await until(
+              async () =>
+                (await calls(page, 'ackLanSearch')).some((call) =>
+                  (call.input.keys as string[]).includes('confirmation-key'),
+                ),
+              'Confirmation close returns to fresh visible network rows',
+            );
+            await page.getByTestId('nav-agents').click();
+            await page.getByTestId('create-agent-manually').click();
+            await page
+              .getByRole('dialog')
+              .getByRole('textbox', { name: translate('en', 'dialogAgentName'), exact: true })
+              .waitFor();
+            await navigate(page, 'network');
+            const nicknameCovered = snapshot();
+            nicknameCovered.lanSearch!.nodes = [
+              { ...first, key: 'nickname-key', label: 'Nickname covered computer' },
+            ];
+            nicknameCovered.lanSearch!.unseenKeys = ['nickname-key'];
+            await change(page, { snapshot: nicknameCovered });
+            await page.waitForTimeout(100);
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('nickname-key'),
+              ),
+            );
+            await page
+              .getByRole('dialog')
+              .getByRole('button', { name: 'Cancel', exact: true })
+              .click();
+            await until(
+              async () =>
+                (await calls(page, 'ackLanSearch')).some((call) =>
+                  (call.input.keys as string[]).includes('nickname-key'),
+                ),
+              'Nickname dialog close restores visibility',
+            );
+            const hidden = snapshot();
+            hidden.lanSearch!.nodes = [
+              { ...first, key: 'native-hidden-key', label: 'Native hidden computer' },
+            ];
+            hidden.lanSearch!.unseenKeys = ['native-hidden-key'];
+            await change(page, { snapshot: hidden, visible: false });
+            await page.waitForTimeout(100);
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('native-hidden-key'),
+              ),
+            );
+            await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.holdReads(),
+            );
+            const stale = snapshot();
+            stale.lanSearch!.nodes = [
+              { ...first, key: 'stale-read-key', label: 'Stale read computer' },
+            ];
+            stale.lanSearch!.unseenKeys = ['stale-read-key'];
+            await change(page, { snapshot: stale, visible: true });
+            const current = snapshot();
+            current.lanSearch!.nodes = [
+              { ...first, key: 'current-read-key', label: 'Current read computer' },
+            ];
+            current.lanSearch!.unseenKeys = ['current-read-key'];
+            await change(page, { snapshot: current, visible: false });
+            await until(
+              async () =>
+                (await page.evaluate(() =>
+                  (window as unknown as { wiring: WiringHarness }).wiring.readCount(),
+                )) === 4,
+              'Two snapshot/windowState pairs are pending',
+            );
+            await page.evaluate(() => {
+              const fixture = (window as unknown as { wiring: WiringHarness }).wiring;
+              fixture.resumeReads();
+              fixture.releasePair(1);
+            });
+            await page.getByText('Current read computer', { exact: true }).waitFor();
+            await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.releasePair(0),
+            );
+            await page.waitForTimeout(100);
+            assert.equal(await page.getByText('Stale read computer', { exact: true }).count(), 0);
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('current-read-key'),
+              ),
+            );
+            await change(page, { visible: true });
+            await until(
+              async () =>
+                (await calls(page, 'ackLanSearch')).some((call) =>
+                  (call.input.keys as string[]).includes('current-read-key'),
+                ),
+              'Only the current visible read generation can acknowledge',
+            );
+            assert.ok(
+              (await calls(page, 'windowState')).every(
+                (call) => Object.keys(call.input).length === 0,
+              ),
+            );
+            assert.equal((await calls(page, 'mcpSetupApply')).length, 0);
+            assert.equal((await calls(page, 'registerAgent')).length, 0);
+            await capture(page, 'combined-network-dark-1280');
+          } finally {
+            await page.close();
+          }
+        },
+      );
+      await suite.test(
+        'sticky shell header does not acknowledge fully covered rows',
+        {
+          skip: !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'header',
+        },
+        async () => {
+          const page = await open();
+          try {
+            const value = snapshot();
+            value.lanSearch!.nodes = Array.from({ length: 12 }, (_, index) => ({
+              ...first,
+              key: 'header-' + index,
+              nodeId: 'header-node-' + index,
+              label: 'Header computer ' + index,
+              address: 'wss://192.0.2.' + (index + 20) + ':7336/peer',
+            }));
+            value.lanSearch!.unseenKeys = [];
+            await change(page, { snapshot: value });
+            await page.locator('[data-lan-key="header-0"]').waitFor();
+            await page.locator('main').evaluate((main) => {
+              const row = main.querySelector('[data-lan-key="header-0"]')!;
+              const header = main.querySelector('header')!;
+              main.scrollTop +=
+                row.getBoundingClientRect().top - header.getBoundingClientRect().top - 8;
+            });
+            value.lanSearch!.unseenKeys = ['header-0'];
+            await change(page, { snapshot: value });
+            const covered = await page.locator('[data-lan-key="header-0"]').evaluate((row) => {
+              const bounds = row.getBoundingClientRect(),
+                header = row.closest('main')!.querySelector('header')!.getBoundingClientRect();
+              return bounds.top >= header.top && bounds.bottom <= header.bottom;
+            });
+            assert.equal(
+              covered,
+              true,
+              'The complete row is geometrically behind the sticky header',
+            );
+            await page.waitForTimeout(100);
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('header-0'),
+              ),
+              'Covered rows are not seen by the owner',
+            );
+            await page.locator('main').evaluate((main) => {
+              main.scrollTop -= 200;
+            });
+            await until(
+              async () =>
+                (await calls(page, 'ackLanSearch')).some((call) =>
+                  (call.input.keys as string[]).includes('header-0'),
+                ),
+              'Scrolling out from under the header acknowledges the row',
+            );
+            await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.manualIntersections(true),
+            );
+            value.lanSearch!.nodes[0] = { ...value.lanSearch!.nodes[0], key: 'header-resize-key' };
+            value.lanSearch!.unseenKeys = ['header-resize-key'];
+            await change(page, { snapshot: value });
+            await page.locator('[data-lan-key="header-resize-key"]').waitFor();
+            await page.locator('main').evaluate((main) => {
+              const row = main.querySelector('[data-lan-key="header-resize-key"]')!,
+                header = main.querySelector('header')!;
+              main.scrollTop +=
+                row.getBoundingClientRect().top - header.getBoundingClientRect().bottom - 8;
+            });
+            const beforeResize = await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.observerFor(
+                'header-resize-key',
+              ),
+            );
+            assert.ok(beforeResize >= 0);
+            // Change the header and replay in one task, before ResizeObserver can revoke the callback.
+            await page.evaluate(
+              ({ beforeResize }) => {
+                const main = document.querySelector('main')!,
+                  header = main.querySelector('header')!,
+                  row = main.querySelector('[data-lan-key="header-resize-key"]')!;
+                const top = row.getBoundingClientRect().top,
+                  height = row.getBoundingClientRect().height;
+                header.style.paddingBottom =
+                  parseFloat(getComputedStyle(header).paddingBottom) + height + 24 + 'px';
+                main.scrollTop += row.getBoundingClientRect().top - top;
+                (window as unknown as { wiring: WiringHarness }).wiring.replay(
+                  beforeResize,
+                  'header-resize-key',
+                );
+              },
+              { beforeResize },
+            );
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('header-resize-key'),
+              ),
+            );
+            assert.equal(
+              await page
+                .locator('[data-lan-key="header-resize-key"]')
+                .evaluate(
+                  (row) =>
+                    row.getBoundingClientRect().bottom <=
+                    row.closest('main')!.querySelector('header')!.getBoundingClientRect().bottom,
+                ),
+              true,
+            );
+            await page.evaluate(
+              ({ beforeResize }) => {
+                const fixture = (window as unknown as { wiring: WiringHarness }).wiring;
+                fixture.replay(beforeResize, 'header-resize-key');
+                fixture.manualIntersections(false);
+                const header = document.querySelector('main > header') as HTMLElement;
+                header.style.paddingBottom =
+                  parseFloat(getComputedStyle(header).paddingBottom) + 1 + 'px';
+              },
+              { beforeResize },
+            );
+            await page.waitForTimeout(100);
+            assert.ok(
+              !(await calls(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('header-resize-key'),
+              ),
+            );
+            await page.locator('main').evaluate((main) => {
+              main.scrollTop -= main.querySelector('header')!.getBoundingClientRect().height;
+            });
+            await until(
+              async () =>
+                (await calls(page, 'ackLanSearch')).some((call) =>
+                  (call.input.keys as string[]).includes('header-resize-key'),
+                ),
+              'Fresh resized geometry acknowledges only after the row is visible',
+            );
+          } finally {
+            await page.close();
+          }
+        },
+      );
+      assert.deepEqual(errors, []);
+    } finally {
+      await browser?.close();
+      await rm(directory, { recursive: true, force: true });
+    }
+  },
+);

@@ -172,12 +172,39 @@ export function NetworkPage({
     const known = new Set(nodes.map((node) => node.key));
     const unseen = new Set(search?.unseenKeys ?? []);
     const runId = search?.runId;
+    const row = [...known].map((key) => rowRefs.current.get(key)).find(Boolean);
+    const scrollport = row?.closest('main') ?? null;
+    const header = scrollport?.querySelector(':scope > header') ?? null;
+    const geometry = () => {
+      if (!scrollport) return { inset: 0, stamp: `${window.innerWidth},${window.innerHeight}` };
+      const bounds = scrollport.getBoundingClientRect();
+      const cover = header?.getBoundingClientRect();
+      const top = bounds.top + scrollport.clientTop;
+      const bottom = top + scrollport.clientHeight;
+      const inset =
+        cover && header && getComputedStyle(header).position === 'sticky'
+          ? Math.max(0, Math.min(bottom, cover.bottom) - Math.max(top, cover.top))
+          : 0;
+      return {
+        inset,
+        stamp: [
+          bounds.left,
+          top,
+          scrollport.clientWidth,
+          scrollport.clientHeight,
+          cover?.top,
+          cover?.bottom,
+          inset,
+        ].join(','),
+      };
+    };
     let observer: IntersectionObserver | undefined;
     let disposed = false;
     const observeFreshGeometry = () => {
       const generation = ++observerGeneration.current;
       observer?.disconnect();
       if (disposed || !observationGate.current) return;
+      const measured = geometry();
       observer = new IntersectionObserver(
         (entries) => {
           if (
@@ -189,6 +216,11 @@ export function NetworkPage({
             currentSnapshot.current.lanSearch?.runId !== runId
           )
             return;
+          // A queued intersection may predate the header's ResizeObserver delivery.
+          if (geometry().stamp !== measured.stamp) {
+            observeFreshGeometry();
+            return;
+          }
           const keys: string[] = [];
           const currentUnseen = new Set(currentSnapshot.current.lanSearch?.unseenKeys ?? []);
           for (const entry of entries) {
@@ -222,7 +254,7 @@ export function NetworkPage({
             })
             .finally(() => exact.forEach((key) => pendingAcknowledgements.current.delete(key)));
         },
-        { threshold: 0.5 },
+        { root: scrollport, rootMargin: `${-measured.inset}px 0px 0px 0px`, threshold: 0.5 },
       );
       for (const key of known) {
         const row = rowRefs.current.get(key);
@@ -241,11 +273,15 @@ export function NetworkPage({
     const modalChanges = new MutationObserver(observeFreshGeometry);
     for (const ancestor of ancestors)
       modalChanges.observe(ancestor, { attributes: true, attributeFilter: ['aria-hidden'] });
+    const resizing = new ResizeObserver(observeFreshGeometry);
+    if (scrollport) resizing.observe(scrollport);
+    if (header) resizing.observe(header);
     observeFreshGeometry();
     return () => {
       disposed = true;
       observerGeneration.current++;
       modalChanges.disconnect();
+      resizing.disconnect();
       observer?.disconnect();
     };
   }, [canObserve, keySignature, unseenSignature, search?.runId, invoke]);

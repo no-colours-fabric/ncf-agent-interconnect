@@ -40,6 +40,7 @@ export interface NetworkNavigationSignals {
   unseenCount: number;
   statusLabel: string;
   onStopSearch?: () => void;
+  stopLabel?: string;
 }
 
 export function AppShell({
@@ -159,7 +160,7 @@ export function AppShell({
                 onClick={networkDiscovery.onStopSearch}
                 sx={{ minHeight: 44 }}
               >
-                {t(locale, 'btnStop')}
+                {networkDiscovery.stopLabel ?? t(locale, 'btnStop')}
               </Button>
             )}
           </Stack>
