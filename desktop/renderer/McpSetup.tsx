@@ -1,11 +1,20 @@
-import { ApplicationDiscovery } from './ApplicationDiscovery.js';
+import { ApplicationDiscovery, ClientLogo } from './ApplicationDiscovery.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
-import React, { useEffect, useMemo, useSyncExternalStore } from 'react';
+import {
+  ApplicationRows,
+  ApplicationSetupConfirmation,
+  useApplicationSetup,
+} from './ApplicationSetup.js';
+import type { ApplicationSetupFlow } from './application-setup-model.js';
+import { applicationSetupMessages } from './i18n/application-setup.js';
+import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
   Box,
   Button,
   Chip,
+  Checkbox,
+  FormControlLabel,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -15,16 +24,14 @@ import {
   IconButton,
   Paper,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
+import ArrowBackOutlined from '@mui/icons-material/ArrowBackOutlined';
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import DescriptionOutlined from '@mui/icons-material/DescriptionOutlined';
-import ExtensionOutlined from '@mui/icons-material/ExtensionOutlined';
 import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined';
 import RemoveCircleOutlineOutlined from '@mui/icons-material/RemoveCircleOutlineOutlined';
 import SyncProblemOutlined from '@mui/icons-material/SyncProblemOutlined';
@@ -37,6 +44,7 @@ import {
   type McpSetupInvoke,
   type McpSetupApplication,
   type McpSetupStatus,
+  type McpSetupApplyResult,
 } from '../shared/mcp-setup.js';
 import type { Snapshot } from '../shared/contracts.js';
 import { McpSetupFlow } from './mcp-setup-model.js';
@@ -51,7 +59,7 @@ import { ClientSetupHelp, hasUsableClientSetup } from './ClientSetupHelp.js';
 
 const labels = {
   cursor: 'Cursor',
-  opencode: 'OpenCode',
+  opencode: 'OpenCode v1',
   codex: 'Codex',
   aionui: 'AionUi',
   claude: 'Claude Code',
@@ -88,9 +96,86 @@ const keys = {
     button: 'configureClaude',
   },
 } as const;
+function SetupErrorNote({
+  summary,
+  error,
+  locale,
+  severity = 'error',
+}: {
+  summary: string;
+  error: string;
+  locale: Locale;
+  severity?: 'error' | 'warning';
+}): React.JSX.Element {
+  const copy = applicationSetupMessages(locale);
+  return (
+    <Stack spacing={1}>
+      <Alert severity={severity}>{summary}</Alert>
+      <Box component="details">
+        <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
+          {copy.details}
+        </Box>
+        <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+          {error}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}
+
+function SetupFormContainer({
+  inline,
+  client,
+  open,
+  onClose,
+  children,
+}: {
+  inline?: boolean;
+  client: McpSetupClient;
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}): React.JSX.Element {
+  return inline ? (
+    <Paper
+      id={'mcp-setup-form-' + client}
+      sx={{ mt: 3 }}
+      aria-labelledby={'mcp-setup-title-' + client}
+    >
+      {children}
+    </Paper>
+  ) : (
+    <Dialog
+      open={open}
+      onClose={onClose}
+      fullWidth
+      maxWidth="sm"
+      aria-labelledby={'mcp-setup-title-' + client}
+      slotProps={{
+        paper: {
+          sx: {
+            width: 640,
+            maxWidth: 'calc(100% - 48px)',
+            height:
+              client === 'opencode'
+                ? 'min(660px, calc(100dvh - 64px))'
+                : 'min(520px, calc(100dvh - 64px))',
+          },
+        },
+      }}
+    >
+      {children}
+    </Dialog>
+  );
+}
+
 interface DialogProps {
   invoke: McpSetupInvoke;
   messages: McpSetupMessages;
+  inline?: boolean;
+  flow?: McpSetupFlow;
+  onCloseManual?: () => void;
+  setupBusy?: boolean;
   snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
   locale?: Locale;
   onApplied?: () => Promise<void>;
@@ -110,22 +195,47 @@ function ClientSetupDialog({
   check,
   aionUiComplete,
   registerConfigureMcp,
+  inline,
+  flow: providedFlow,
+  onCloseManual,
+  setupBusy,
 }: DialogProps & { client: McpSetupClient; before?: React.ReactNode }): React.JSX.Element {
-  const flow = useMemo(() => new McpSetupFlow(client, invoke), [client, invoke]);
+  const flow = useMemo(
+    () => providedFlow ?? new McpSetupFlow(client, invoke),
+    [client, invoke, providedFlow],
+  );
+  const copy = applicationSetupMessages(locale);
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false);
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  const result: McpSetupApplyResult | undefined =
+    state.result ?? (state.verified ? { status: 'unchanged', files: [] } : undefined);
+  const checkingOriginalResult =
+    !!state.uncertain && !result && state.preview?.planId === state.uncertain.preview.planId;
   useEffect(() => {
-    registerConfigureMcp?.(() => void flow.begin());
-  }, [flow, registerConfigureMcp]);
+    registerConfigureMcp?.(() => {
+      void flow.begin();
+      if (inline)
+        document
+          .getElementById('mcp-setup-form-' + client)
+          ?.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    });
+  }, [flow, registerConfigureMcp, inline, client]);
   useEffect(() => {
     void flow.refreshStatus();
-    return () => flow.dispose();
-  }, [flow]);
+    return () => {
+      if (!providedFlow) flow.dispose();
+    };
+  }, [flow, providedFlow]);
+  useEffect(() => {
+    if (inline) void flow.begin();
+  }, [flow, inline]);
+  useEffect(() => setReplaceConfirmed(false), [state.preview?.planId]);
   useEffect(() => {
     if (
       !state.open ||
       state.busy ||
       state.preview ||
-      state.result ||
+      result ||
       state.error ||
       !state.files.length ||
       state.files.some((file) => !file.path.trim())
@@ -166,9 +276,9 @@ function ClientSetupDialog({
         >
           <Box sx={{ minWidth: 0, flex: '1 1 280px' }}>
             <Stack direction="row" spacing={1.25} sx={{ alignItems: 'center' }}>
-              <ExtensionOutlined sx={{ fontSize: 22, color: 'text.secondary' }} />
+              <ClientLogo client={client} size={44} />
               <Typography variant="h5" component="h2">
-                {labels[client]}
+                {client === 'aionui' ? copy.aionUiName : labels[client]}
               </Typography>
             </Stack>
           </Box>
@@ -309,148 +419,144 @@ function ClientSetupDialog({
           </Paper>
         ) : (
           <>
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ maxWidth: '76ch', lineHeight: 1.65 }}
-              data-testid="client-setup-description"
-            >
-              {shownState === 'missing' || shownState === 'not-configured'
-                ? m[k.description]
-                : shownState === 'unavailable'
-                  ? m.unavailable
-                  : m.checking}
-            </Typography>
+            {!inline && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ maxWidth: '76ch', lineHeight: 1.65 }}
+                data-testid="client-setup-description"
+              >
+                {shownState === 'missing' || shownState === 'not-configured'
+                  ? m[k.description]
+                  : shownState === 'unavailable'
+                    ? m.unavailable
+                    : m.checking}
+              </Typography>
+            )}
             {before}
           </>
         )}
-        <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
-          <Box sx={{ ...surfaceSx('inset'), p: 1.75 }}>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
-              <DescriptionOutlined
-                sx={{ mt: 0.25, color: 'text.secondary', fontSize: 20, flexShrink: 0 }}
-              />
-              <Box sx={{ flex: 1, minWidth: 0 }}>
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ display: 'block', mb: 0.5 }}
-                >
-                  {sharedCursorConfiguration ? m.cursorSharedConfiguration : m.pathLabel}
-                </Typography>
-                {status?.files.map((file) => (
-                  <Box key={file.id}>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                        fontSize: 13,
-                        lineHeight: 1.7,
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      {file.path}
-                    </Typography>
-                    {file.error && (
-                      <Typography variant="body2" color="error" sx={{ mt: 1 }}>
-                        {file.error}
-                      </Typography>
-                    )}
-                  </Box>
-                ))}
-                {!status && (
-                  <Typography variant="body2" color="text.secondary">
-                    {m.checking}
-                  </Typography>
-                )}
-                {status?.state === 'missing' && (
+        {!inline && (
+          <Paper sx={{ ...surfaceSx('raised'), p: 3 }}>
+            <Box sx={{ ...surfaceSx('inset'), p: 1.75 }}>
+              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'flex-start' }}>
+                <DescriptionOutlined
+                  sx={{ mt: 0.25, color: 'text.secondary', fontSize: 20, flexShrink: 0 }}
+                />
+                <Box sx={{ flex: 1, minWidth: 0 }}>
                   <Typography
                     variant="caption"
                     color="text.secondary"
-                    sx={{ display: 'block', mt: 1 }}
+                    sx={{ display: 'block', mb: 0.5 }}
                   >
-                    {m.openFileMissing}
+                    {sharedCursorConfiguration ? m.cursorSharedConfiguration : m.pathLabel}
                   </Typography>
-                )}
-              </Box>
-              <Tooltip title={openHint}>
-                <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
-                  <IconButton
-                    size="small"
-                    color="secondary"
-                    aria-label={m.openFile}
-                    disabled={!canOpen}
-                    data-testid="mcp-open-file"
-                    onClick={() => void flow.openFile()}
-                  >
-                    <OpenInNewOutlined fontSize="small" />
-                  </IconButton>
+                  {status?.files.map((file) => (
+                    <Box key={file.id}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                          overflowWrap: 'anywhere',
+                        }}
+                      >
+                        {file.path}
+                      </Typography>
+                      {file.error && (
+                        <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+                          {file.error}
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                  {!status && (
+                    <Typography variant="body2" color="text.secondary">
+                      {m.checking}
+                    </Typography>
+                  )}
+                  {status?.state === 'missing' && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ display: 'block', mt: 1 }}
+                    >
+                      {m.openFileMissing}
+                    </Typography>
+                  )}
                 </Box>
-              </Tooltip>
-            </Stack>
-          </Box>
-          {sharedCursorConfiguration && (
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ mt: 1.5, lineHeight: 1.65 }}
-              data-testid="mcp-shared-configuration-note"
+                <Tooltip title={openHint}>
+                  <Box component="span" sx={{ display: 'inline-flex', flexShrink: 0 }}>
+                    <IconButton
+                      size="small"
+                      color="secondary"
+                      aria-label={m.openFile}
+                      disabled={!canOpen}
+                      data-testid="mcp-open-file"
+                      onClick={() => void flow.openFile()}
+                    >
+                      <OpenInNewOutlined fontSize="small" />
+                    </IconButton>
+                  </Box>
+                </Tooltip>
+              </Stack>
+            </Box>
+            {sharedCursorConfiguration && (
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ mt: 1.5, lineHeight: 1.65 }}
+                data-testid="mcp-shared-configuration-note"
+              >
+                {m.aionMcpHelp}
+              </Typography>
+            )}
+            <Box
+              sx={{
+                mt: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                flexWrap: 'wrap',
+                gap: 2.5,
+              }}
             >
-              {m.aionMcpHelp}
-            </Typography>
-          )}
-          <Box
-            sx={{
-              mt: 2.5,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: 2.5,
-            }}
-          >
-            <Typography
-              variant="body2"
-              color="text.secondary"
-              sx={{ flex: '1 1 280px', maxWidth: '52ch', lineHeight: 1.65, fontSize: 12 }}
-            >
-              {m.userControl}
-            </Typography>
-            <Button
-              variant="contained"
-              onClick={() => void flow.begin()}
-              data-testid={'mcp-configure-' + client}
-              sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
-            >
-              {m[k.button]}
-            </Button>
-          </Box>
-        </Paper>
-        {state.error && !state.open && <Alert severity="error">{state.error}</Alert>}
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ flex: '1 1 280px', maxWidth: '52ch', lineHeight: 1.65, fontSize: 12 }}
+              >
+                {m.userControl}
+              </Typography>
+              <Button
+                variant="contained"
+                onClick={() => void flow.begin()}
+                data-testid={'mcp-configure-' + client}
+                sx={{ flexShrink: 0, whiteSpace: 'nowrap' }}
+              >
+                {m[k.button]}
+              </Button>
+            </Box>
+          </Paper>
+        )}
+        {state.error && !state.open && (
+          <SetupErrorNote summary={m.unavailable} error={state.error} locale={locale} />
+        )}
         {check?.error && check.error !== state.error && (
-          <Alert severity="error">{check.error}</Alert>
+          <SetupErrorNote summary={m.unavailable} error={check.error} locale={locale} />
         )}
       </Stack>
-      <Dialog
+      <SetupFormContainer
+        inline={inline}
+        client={client}
         open={state.open}
         onClose={() => flow.cancel()}
-        fullWidth
-        maxWidth="sm"
-        aria-labelledby={'mcp-setup-title-' + client}
-        slotProps={{
-          paper: {
-            sx: {
-              width: 640,
-              maxWidth: 'calc(100% - 48px)',
-              height:
-                client === 'opencode'
-                  ? 'min(660px, calc(100dvh - 64px))'
-                  : 'min(520px, calc(100dvh - 64px))',
-            },
-          },
-        }}
       >
-        <DialogTitle id={'mcp-setup-title-' + client}>{m[k.title]}</DialogTitle>
+        <DialogTitle id={'mcp-setup-title-' + client}>
+          {m[k.title]}
+          {client === 'opencode' ? ' v1' : ''}
+        </DialogTitle>
         <DialogContent sx={{ scrollbarGutter: 'stable' }}>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {client !== 'aionui' && <Typography>{m[k.description]}</Typography>}
@@ -462,7 +568,7 @@ function ClientSetupDialog({
                     fullWidth
                     label={m.pathLabel}
                     value={file.path}
-                    disabled={state.busy || !!state.result}
+                    disabled={state.busy || !!result}
                     onChange={(event) => flow.setPath(file.id, event.target.value)}
                     helperText={m.pathHint}
                     slotProps={{
@@ -484,13 +590,26 @@ function ClientSetupDialog({
                   <Box>
                     <Button
                       variant="outlined"
-                      disabled={state.busy || !!state.result}
+                      disabled={state.busy || !!result}
                       onClick={() => void flow.browse(file.id)}
                     >
                       {m.browse}
                     </Button>
+                    {inline && (
+                      <Button
+                        startIcon={<OpenInNewOutlined />}
+                        disabled={
+                          !canOpen ||
+                          file.path !== status?.files.find((item) => item.id === file.id)?.path
+                        }
+                        onClick={() => void flow.openFile()}
+                        sx={{ ml: 1.5 }}
+                      >
+                        {m.openFile}
+                      </Button>
+                    )}
                   </Box>
-                  {file.alternatives.length > 1 && !state.result && (
+                  {file.alternatives.length > 1 && !result && (
                     <Box>
                       <Typography variant="caption">{m.knownPaths}</Typography>
                       {file.alternatives.map((location) => (
@@ -523,31 +642,68 @@ function ClientSetupDialog({
                     </Box>
                   )}
                   <Box sx={{ minHeight: '3em' }}>
-                    {checked && !state.result && (
+                    {checked && !result && (
                       <Typography variant="body2">{m[checked.action]}</Typography>
                     )}
                   </Box>
                 </Stack>
               );
             })}
-            {state.error && <Alert severity="error">{state.error}</Alert>}
-            {state.result && (
+            {(state.preview?.requiresReplacement || state.reviewRequired) && !result && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={replaceConfirmed}
+                    onChange={(_event, checked) => setReplaceConfirmed(checked)}
+                  />
+                }
+                label={state.reviewRequired ? copy.reviewHelp : copy.confirmHelp}
+              />
+            )}
+            {checkingOriginalResult ? (
+              <SetupErrorNote
+                summary={copy.uncertain}
+                error={
+                  state.error && state.error !== state.uncertain!.error
+                    ? state.uncertain!.error + '\n' + state.error
+                    : state.uncertain!.error
+                }
+                locale={locale}
+                severity="warning"
+              />
+            ) : (
+              state.error && (
+                <SetupErrorNote summary={m.failed} error={state.error} locale={locale} />
+              )
+            )}
+            {state.uncertain && !checkingOriginalResult && (
+              <Box component="details">
+                <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
+                  {copy.details}
+                </Box>
+                <Typography variant="body2">{copy.uncertain}</Typography>
+                <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                  {state.uncertain.error}
+                </Typography>
+              </Box>
+            )}
+            {result && (
               <>
-                <Alert severity={state.result.status === 'failed' ? 'error' : 'success'}>
-                  {state.result.status === 'failed'
+                <Alert severity={result.status === 'failed' ? 'error' : 'success'}>
+                  {result.status === 'failed'
                     ? m.failed
-                    : state.result.status === 'unchanged'
+                    : result.status === 'unchanged'
                       ? m.noChanges
                       : m.applied}
                 </Alert>
-                {state.result.error && (
+                {result.error && (
                   <Typography variant="body2" color="error">
-                    {state.result.error}
+                    {result.error}
                   </Typography>
                 )}
-                {state.result.warning && <Alert severity="warning">{state.result.warning}</Alert>}
-                {state.result.status === 'failed' &&
-                  state.result.files.map((file) => (
+                {result.warning && <Alert severity="warning">{result.warning}</Alert>}
+                {result.status === 'failed' &&
+                  result.files.map((file) => (
                     <Box key={file.path} sx={{ overflowWrap: 'anywhere' }}>
                       <Typography variant="body2">{file.path}</Typography>
                       {file.backupPath && (
@@ -557,7 +713,7 @@ function ClientSetupDialog({
                       )}
                     </Box>
                   ))}
-                {state.result.status !== 'failed' && <Typography>{m[k.next]}</Typography>}
+                {result.status !== 'failed' && <Typography>{m[k.next]}</Typography>}
               </>
             )}
           </Stack>
@@ -579,25 +735,36 @@ function ClientSetupDialog({
               {state.busy ? m.checking : ''}
             </Typography>
           </Stack>
-          <Button disabled={state.busy} onClick={() => flow.cancel()}>
-            {state.result ? m.close : m.cancel}
+          <Button
+            disabled={state.busy}
+            onClick={() => {
+              flow.cancel();
+              if (inline) onCloseManual?.();
+            }}
+          >
+            {result ? m.close : m.cancel}
           </Button>
-          {!state.result && (
+          {!result && (
             <Button
               data-testid="mcp-apply"
               variant="contained"
-              disabled={state.busy || !state.preview}
+              disabled={
+                state.busy ||
+                setupBusy ||
+                !state.preview ||
+                ((state.preview.requiresReplacement || state.reviewRequired) && !replaceConfirmed)
+              }
               onClick={() =>
-                void flow.apply().then(() => {
+                void flow.apply(replaceConfirmed).then(() => {
                   void onApplied?.();
                 })
               }
             >
-              {m.apply}
+              {checkingOriginalResult ? copy.checkSetupResult : m.apply}
             </Button>
           )}
         </DialogActions>
-      </Dialog>
+      </SetupFormContainer>
     </>
   );
 }
@@ -689,12 +856,14 @@ function CopyCommand({
   copyLabel,
   invoke,
   testId,
+  locale = 'en',
 }: {
   title: string;
   text: string;
   copyLabel: string;
   invoke: McpSetupInvoke;
   testId: string;
+  locale?: Locale;
 }): React.JSX.Element {
   const [error, setError] = React.useState('');
   return (
@@ -733,7 +902,13 @@ function CopyCommand({
           </IconButton>
         </Tooltip>
       </Stack>
-      {error && <Alert severity="error">{error}</Alert>}
+      {error && (
+        <SetupErrorNote
+          summary={applicationSetupMessages(locale).copyFailed}
+          error={error}
+          locale={locale}
+        />
+      )}
     </Stack>
   );
 }
@@ -747,6 +922,9 @@ export function McpSetup({
   snapshot,
   locale = 'en',
   setupStatuses,
+  setupFlow,
+  manualClient,
+  onCloseManual,
 }: {
   discovery?: ApplicationDiscoveryModel;
   client: McpSetupApplication;
@@ -756,7 +934,13 @@ export function McpSetup({
   snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
   locale?: Locale;
   setupStatuses?: McpSetupStatuses;
+  setupFlow?: ApplicationSetupFlow;
+  manualClient?: McpSetupClient | null;
+  onCloseManual?: () => void;
 }): React.JSX.Element {
+  const [selectedManual, setSelectedManual] = useState<McpSetupClient | null>(manualClient ?? null);
+  const activeManualClient = manualClient === undefined ? selectedManual : manualClient;
+  const selectedClient = activeManualClient ?? client;
   const m = { ...mcpSetupEnglish, ...messages };
   const SetupDialog = {
     cursor: CursorSetupDialog,
@@ -764,121 +948,159 @@ export function McpSetup({
     codex: CodexSetupDialog,
     aionui: AionUiSetupDialog,
     claude: ClaudeSetupDialog,
-  }[client];
+  }[selectedClient];
   const [copyError, setCopyError] = React.useState('');
   const ownStatuses = useMcpSetupStatuses(invoke, !setupStatuses);
   const checks = setupStatuses ?? ownStatuses;
+  const autoFlow = useApplicationSetup(invoke, () => checks.refreshAll(true), setupFlow);
+  const manualFlows = useMemo(
+    () =>
+      Object.fromEntries(
+        mcpSetupClients.map((item) => [item, new McpSetupFlow(item, invoke)]),
+      ) as Record<McpSetupClient, McpSetupFlow>,
+    [invoke],
+  );
+  const activeManual = useSyncExternalStore(
+    manualFlows[selectedClient].subscribe,
+    manualFlows[selectedClient].getSnapshot,
+    manualFlows[selectedClient].getSnapshot,
+  );
+  const quickStates = useSyncExternalStore(
+    autoFlow.subscribe,
+    autoFlow.getSnapshot,
+    autoFlow.getSnapshot,
+  );
+  const quickBusy = mcpSetupClients.some((item) =>
+    ['preparing', 'rechecking', 'applying'].includes(quickStates[item].phase),
+  );
+  useEffect(
+    () => () => {
+      for (const item of mcpSetupClients) manualFlows[item].dispose();
+    },
+    [manualFlows],
+  );
+  const copy = applicationSetupMessages(locale);
+  const closeManual = () => {
+    setSelectedManual(null);
+    onCloseManual?.();
+  };
   const refreshShared = setupStatuses?.refreshAll;
   useEffect(() => {
     if (refreshShared) void refreshShared();
   }, [refreshShared]);
   return (
-    <Box sx={{ minWidth: 0 }}>
-      {discovery && <ApplicationDiscovery model={discovery} locale={locale} client={client} />}
-      <Tabs
-        value={client}
-        onChange={(_event, value: McpSetupApplication) => {
-          setCopyError('');
-          onClientChange(value);
-          void checks.refreshAll();
-        }}
-        aria-label={m.tabsLabel}
-        variant="scrollable"
-        scrollButtons="auto"
-        sx={{ minHeight: 52, pb: 1.5 }}
-      >
-        {mcpSetupClients.map((item) => (
-          <Tab
-            key={item}
-            value={item}
-            label={labels[item]}
-            icon={
-              <McpSetupStatusIcon
-                status={checks.statuses[item]}
-                error={checks.errors[item]}
-                messages={m}
-              />
-            }
-            iconPosition="end"
-            sx={{ gap: 1 }}
-            aria-description={
-              checks.errors[item]
-                ? m.unavailable
-                : checks.statuses[item]
-                  ? m[checks.statuses[item].state]
-                  : m.checking
-            }
-            id={'mcp-tab-' + item}
-            aria-controls={'mcp-panel-' + item}
-          />
-        ))}
-      </Tabs>
-      <Stack
-        role="tabpanel"
-        id={'mcp-panel-' + client}
-        aria-labelledby={'mcp-tab-' + client}
-        spacing={0}
-      >
-        <SetupDialog
-          key={client}
+    <Box
+      sx={{
+        minWidth: 0,
+        '& .MuiButton-root': { minHeight: 44, fontSize: 14 },
+        '& .MuiIconButton-root': { minWidth: 44, minHeight: 44 },
+      }}
+    >
+      {!activeManualClient && discovery ? (
+        <ApplicationRows
+          discovery={discovery}
+          flow={autoFlow}
+          statuses={checks}
           invoke={invoke}
-          messages={m}
-          onApplied={() => checks.refreshAll(true)}
-          check={{ status: checks.statuses[client], error: checks.errors[client] }}
-          snapshot={snapshot}
+          disabled={activeManual.busy}
           locale={locale}
+          onManualSetup={(item) => {
+            onClientChange(item);
+            setSelectedManual(item);
+          }}
         />
-        {client === 'claude' && (
-          <Box sx={{ mt: 3 }}>
-            <CopyCommand
-              title={m.claudeLaunch}
-              text={claudeLaunchCommand}
-              copyLabel={m.copyLaunch}
+      ) : (
+        <>
+          <Button
+            startIcon={<ArrowBackOutlined />}
+            onClick={closeManual}
+            disabled={activeManual.busy || quickBusy}
+            sx={{ mb: 2 }}
+          >
+            {copy.back}
+          </Button>
+          <Stack spacing={0}>
+            <SetupDialog
+              key={selectedClient}
+              inline
+              flow={manualFlows[selectedClient]}
+              setupBusy={quickBusy}
+              onCloseManual={closeManual}
               invoke={invoke}
-              testId="claude-launch-command"
-            />
-          </Box>
-        )}
-        <Divider sx={{ mt: 3 }} />
-        <Stack spacing={2} sx={{ pt: 3 }}>
-          <Typography variant="subtitle2" component="h3">
-            {m.connect}
-          </Typography>
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Box
-              component="code"
-              sx={{
-                minWidth: 0,
-                ...surfaceSx('inset'),
-                flex: 1,
-                px: 1.75,
-                py: 1.25,
-                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                fontSize: 13,
-                lineHeight: 1.6,
-                overflowWrap: 'anywhere',
+              messages={m}
+              onApplied={() => {
+                autoFlow.invalidateSucceeded(selectedClient);
+                return checks.refreshAll(true);
               }}
-            >
-              {m.connectionPrompt}
-            </Box>
-            <Tooltip title={m.copyPrompt}>
-              <IconButton
-                size="small"
-                aria-label={m.copyPrompt}
-                sx={{ flexShrink: 0 }}
-                onClick={() =>
-                  void invoke('copy', { text: m.connectionPrompt }).catch((error) =>
-                    setCopyError((error as Error).message),
-                  )
-                }
-              >
-                <ContentCopyOutlined fontSize="small" />
-              </IconButton>
-            </Tooltip>
+              check={{
+                status: checks.statuses[selectedClient],
+                error: checks.errors[selectedClient],
+              }}
+              snapshot={snapshot}
+              locale={locale}
+            />
+            {selectedClient === 'claude' && (
+              <Box sx={{ mt: 3 }}>
+                <CopyCommand
+                  title={m.claudeLaunch}
+                  text={claudeLaunchCommand}
+                  copyLabel={m.copyLaunch}
+                  invoke={invoke}
+                  testId="claude-launch-command"
+                  locale={locale}
+                />
+              </Box>
+            )}
+            <Divider sx={{ mt: 3 }} />
+            <Stack spacing={2} sx={{ pt: 3 }}>
+              <Typography variant="subtitle2" component="h3">
+                {m.connect}
+              </Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <Box
+                  component="code"
+                  sx={{
+                    minWidth: 0,
+                    ...surfaceSx('inset'),
+                    flex: 1,
+                    px: 1.75,
+                    py: 1.25,
+                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  {m.connectionPrompt}
+                </Box>
+                <Tooltip title={m.copyPrompt}>
+                  <IconButton
+                    size="small"
+                    aria-label={m.copyPrompt}
+                    sx={{ flexShrink: 0 }}
+                    onClick={() =>
+                      void invoke('copy', { text: m.connectionPrompt }).catch((error) =>
+                        setCopyError((error as Error).message),
+                      )
+                    }
+                  >
+                    <ContentCopyOutlined fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              {copyError && (
+                <SetupErrorNote summary={copy.copyFailed} error={copyError} locale={locale} />
+              )}
+            </Stack>
           </Stack>
-          {copyError && <Alert severity="error">{copyError}</Alert>}
-        </Stack>
-      </Stack>
+          {discovery && (
+            <Box sx={{ mt: 3 }}>
+              <ApplicationDiscovery model={discovery} locale={locale} client={selectedClient} />
+            </Box>
+          )}
+        </>
+      )}
+      {!setupFlow && <ApplicationSetupConfirmation flow={autoFlow} locale={locale} />}
     </Box>
   );
 }

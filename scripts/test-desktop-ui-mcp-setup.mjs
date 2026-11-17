@@ -181,6 +181,7 @@ async function openSetup(client, filename) {
 async function launch() {
   const launchEnv = {
     ...process.env,
+    NCF_DISABLE_LAN_DISCOVERY: '1',
     HOME: clientHome,
     USERPROFILE: clientHome,
     APPDATA: appData,

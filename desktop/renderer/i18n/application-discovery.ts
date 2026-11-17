@@ -27,7 +27,8 @@ const english = {
 };
 type Labels = typeof english;
 
-const translations: Partial<Record<Locale, Partial<Labels>>> = {
+const translations: Record<Locale, Labels> = {
+  en: english,
   ru: {
     title: 'Установленные приложения',
     installation: 'Установка',
@@ -65,6 +66,15 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: '未知',
     offer: '发现应用',
     dismiss: '关闭',
+    limited: '其他安装位置和软件包格式可能无法检测。',
+    failed: '无法检查安装情况。你仍可手动配置。',
+    desktop: '桌面界面',
+    cli: 'Code 运行环境',
+    claude:
+      '检测到 Claude Desktop 并不代表已验证其 Claude Code 后端。配置适用于 Claude Code，不支持普通聊天。',
+    opencode: '此配置支持 OpenCode v1。检测不会验证插件或服务器 API 的兼容性。',
+    offerHelp: '配置你使用的应用，以连接其中的智能体聊天。',
+    stateError: '无法保存配置提示记录。你仍可手动配置。',
   },
   fr: {
     title: 'Applications installées',
@@ -79,6 +89,18 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Inconnu',
     offer: 'Applications trouvées',
     dismiss: 'Fermer',
+    limited: 'D’autres emplacements et formats d’installation peuvent ne pas être détectés.',
+    failed: 'Impossible de vérifier les installations. La configuration manuelle reste disponible.',
+    desktop: 'Interface de bureau',
+    cli: 'Environnement Code',
+    claude:
+      'La détection de Claude Desktop ne vérifie pas son moteur Claude Code. La configuration concerne Claude Code ; les conversations grand public ne sont pas prises en charge.',
+    opencode:
+      'Cette configuration prend en charge OpenCode v1. La détection ne vérifie pas la compatibilité des API du plugin ou du serveur.',
+    offerHelp:
+      'Configurez les applications que vous utilisez pour connecter leurs conversations d’agents.',
+    stateError:
+      'L’affichage des propositions de configuration n’a pas pu être enregistré. La configuration manuelle reste disponible.',
   },
   de: {
     title: 'Installierte Anwendungen',
@@ -93,6 +115,18 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Unbekannt',
     offer: 'Anwendungen gefunden',
     dismiss: 'Schließen',
+    limited: 'Andere Installationsorte und Paketformate werden möglicherweise nicht erkannt.',
+    failed:
+      'Installationen konnten nicht geprüft werden. Die manuelle Einrichtung bleibt verfügbar.',
+    desktop: 'Desktop-Oberfläche',
+    cli: 'Code-Laufzeit',
+    claude:
+      'Die Erkennung von Claude Desktop prüft nicht dessen Claude-Code-Backend. Die Einrichtung gilt für Claude Code; gewöhnliche Chats werden nicht unterstützt.',
+    opencode:
+      'Diese Einrichtung unterstützt OpenCode v1. Die Erkennung prüft nicht die API-Kompatibilität von Plugin oder Server.',
+    offerHelp: 'Richten Sie die verwendeten Anwendungen ein, um deren Agenten-Chats zu verbinden.',
+    stateError:
+      'Die Anzeige der Einrichtungsvorschläge konnte nicht gespeichert werden. Die manuelle Einrichtung bleibt verfügbar.',
   },
   it: {
     title: 'Applicazioni installate',
@@ -106,6 +140,19 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Sconosciuto',
     offer: 'Applicazioni trovate',
     dismiss: 'Chiudi',
+    limited:
+      'Altri percorsi di installazione e formati di pacchetto potrebbero non essere rilevati.',
+    failed: 'Impossibile verificare le installazioni. La configurazione manuale resta disponibile.',
+    desktop: 'Interfaccia desktop',
+    cli: 'Ambiente di esecuzione Code',
+    claude:
+      'Il rilevamento di Claude Desktop non verifica il relativo backend Claude Code. La configurazione riguarda Claude Code; le normali chat non sono supportate.',
+    opencode:
+      'Questa configurazione supporta OpenCode v1. Il rilevamento non verifica la compatibilità delle API del plugin o del server.',
+    offerHelp: 'Configura le app che usi per collegare le chat degli agenti.',
+    stateError:
+      'Impossibile salvare la visualizzazione dei suggerimenti di configurazione. La configurazione manuale resta disponibile.',
+    checking: 'Verifica delle installazioni…',
   },
   es: {
     title: 'Aplicaciones instaladas',
@@ -119,6 +166,18 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Desconocido',
     offer: 'Aplicaciones encontradas',
     dismiss: 'Cerrar',
+    limited: 'Es posible que no se detecten otras ubicaciones y formatos de instalación.',
+    failed: 'No se pudieron comprobar las instalaciones. La configuración manual sigue disponible.',
+    desktop: 'Interfaz de escritorio',
+    cli: 'Entorno de ejecución Code',
+    claude:
+      'Detectar Claude Desktop no verifica su backend de Claude Code. La configuración está destinada a Claude Code; no se admiten los chats convencionales.',
+    opencode:
+      'Esta configuración admite OpenCode v1. La detección no verifica la compatibilidad de las API del plugin o del servidor.',
+    offerHelp: 'Configura las aplicaciones que utilizas para conectar los chats de sus agentes.',
+    stateError:
+      'No se pudo guardar la visualización de las sugerencias de configuración. La configuración manual sigue disponible.',
+    checking: 'Comprobando instalaciones…',
   },
   kk: {
     title: 'Орнатылған қолданбалар',
@@ -132,6 +191,18 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Белгісіз',
     offer: 'Қолданбалар табылды',
     dismiss: 'Жабу',
+    limited: 'Басқа орнату орындары мен пакет пішімдері анықталмауы мүмкін.',
+    failed: 'Орнатуларды тексеру мүмкін болмады. Қолмен баптау қолжетімді.',
+    desktop: 'Жұмыс үстелі интерфейсі',
+    cli: 'Code орындау ортасы',
+    claude:
+      'Claude Desktop анықталуы оның Claude Code серверлік бөлігін тексермейді. Баптау Claude Code үшін арналған; қарапайым чаттарға қолдау көрсетілмейді.',
+    opencode:
+      'Бұл баптау OpenCode v1 нұсқасын қолдайды. Анықтау плагин немесе сервер API үйлесімділігін тексермейді.',
+    offerHelp: 'Агент чаттарын қосу үшін пайдаланатын қолданбаларды баптаңыз.',
+    stateError:
+      'Баптау ұсыныстарының көрсетілгенін сақтау мүмкін болмады. Қолмен баптау қолжетімді.',
+    checking: 'Орнатулар тексерілуде…',
   },
   ja: {
     title: 'インストール済みアプリ',
@@ -145,6 +216,17 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: '不明',
     offer: 'アプリが見つかりました',
     dismiss: '閉じる',
+    limited: '他のインストール先やパッケージ形式は検出できない場合があります。',
+    failed: 'インストールを確認できませんでした。手動設定は引き続き利用できます。',
+    desktop: 'デスクトップ画面',
+    cli: 'Code ランタイム',
+    claude:
+      'Claude Desktop の検出では、その Claude Code バックエンドは検証されません。設定対象は Claude Code で、一般向けチャットはサポートしていません。',
+    opencode:
+      'この設定は OpenCode v1 に対応しています。検出ではプラグインやサーバーの API 互換性は検証されません。',
+    offerHelp: '使用するアプリを設定して、エージェントのチャットを接続してください。',
+    stateError: '設定提案の表示記録を保存できませんでした。手動設定は引き続き利用できます。',
+    checking: 'インストールを確認中…',
   },
   'pt-BR': {
     title: 'Aplicativos instalados',
@@ -158,6 +240,18 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Desconhecido',
     offer: 'Aplicativos encontrados',
     dismiss: 'Fechar',
+    limited: 'Outros locais de instalação e formatos de pacote podem não ser detectados.',
+    failed: 'Não foi possível verificar as instalações. A configuração manual continua disponível.',
+    desktop: 'Interface de desktop',
+    cli: 'Ambiente de execução Code',
+    claude:
+      'A detecção do Claude Desktop não verifica seu backend Claude Code. A configuração se destina ao Claude Code; conversas comuns não são compatíveis.',
+    opencode:
+      'Esta configuração é compatível com OpenCode v1. A detecção não verifica a compatibilidade das APIs do plugin ou do servidor.',
+    offerHelp: 'Configure os aplicativos que você usa para conectar as conversas dos agentes.',
+    stateError:
+      'Não foi possível salvar o registro de exibição das sugestões de configuração. A configuração manual continua disponível.',
+    checking: 'Verificando instalações…',
   },
   ko: {
     title: '설치된 앱',
@@ -171,6 +265,17 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: '알 수 없음',
     offer: '앱을 찾았습니다',
     dismiss: '닫기',
+    limited: '다른 설치 위치와 패키지 형식은 감지되지 않을 수 있습니다.',
+    failed: '설치를 확인하지 못했습니다. 수동 설정은 계속 사용할 수 있습니다.',
+    desktop: '데스크톱 인터페이스',
+    cli: 'Code 실행 환경',
+    claude:
+      'Claude Desktop을 감지해도 Claude Code 백엔드는 검증되지 않습니다. 설정 대상은 Claude Code이며 일반 채팅은 지원하지 않습니다.',
+    opencode:
+      '이 설정은 OpenCode v1을 지원합니다. 감지 과정에서는 플러그인 또는 서버 API 호환성을 검증하지 않습니다.',
+    offerHelp: '사용하는 앱을 설정하여 에이전트 채팅을 연결하세요.',
+    stateError: '설정 제안의 표시 기록을 저장하지 못했습니다. 수동 설정은 계속 사용할 수 있습니다.',
+    checking: '설치 확인 중…',
   },
   tr: {
     title: 'Yüklü uygulamalar',
@@ -184,6 +289,17 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Bilinmiyor',
     offer: 'Uygulamalar bulundu',
     dismiss: 'Kapat',
+    limited: 'Diğer kurulum konumları ve paket biçimleri algılanamayabilir.',
+    failed: 'Kurulumlar kontrol edilemedi. Elle kurulum kullanılabilir.',
+    desktop: 'Masaüstü arayüzü',
+    cli: 'Code çalışma ortamı',
+    claude:
+      'Claude Desktop algılama, Claude Code arka ucunu doğrulamaz. Kurulum Claude Code içindir; normal sohbetler desteklenmez.',
+    opencode:
+      'Bu kurulum OpenCode v1’i destekler. Algılama, eklenti veya sunucu API uyumluluğunu doğrulamaz.',
+    offerHelp: 'Ajan sohbetlerini bağlamak için kullandığınız uygulamaları yapılandırın.',
+    stateError: 'Kurulum önerilerinin gösterim kaydı kaydedilemedi. Elle kurulum kullanılabilir.',
+    checking: 'Kurulumlar kontrol ediliyor…',
   },
   pl: {
     title: 'Zainstalowane aplikacje',
@@ -197,6 +313,18 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Nieznany',
     offer: 'Znalezione aplikacje',
     dismiss: 'Zamknij',
+    limited: 'Inne lokalizacje instalacji i formaty pakietów mogą nie zostać wykryte.',
+    failed: 'Nie udało się sprawdzić instalacji. Konfiguracja ręczna jest nadal dostępna.',
+    desktop: 'Interfejs komputerowy',
+    cli: 'Środowisko uruchomieniowe Code',
+    claude:
+      'Wykrycie Claude Desktop nie weryfikuje jego zaplecza Claude Code. Konfiguracja dotyczy Claude Code; zwykłe czaty nie są obsługiwane.',
+    opencode:
+      'Ta konfiguracja obsługuje OpenCode v1. Wykrywanie nie sprawdza zgodności API wtyczki ani serwera.',
+    offerHelp: 'Skonfiguruj używane aplikacje, aby połączyć czaty ich agentów.',
+    stateError:
+      'Nie udało się zapisać informacji o wyświetleniu propozycji konfiguracji. Konfiguracja ręczna pozostaje dostępna.',
+    checking: 'Sprawdzanie instalacji…',
   },
   nl: {
     title: 'Geïnstalleerde apps',
@@ -210,6 +338,19 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Onbekend',
     offer: 'Apps gevonden',
     dismiss: 'Sluiten',
+    limited: 'Andere installatielocaties en pakketformaten worden mogelijk niet gedetecteerd.',
+    failed:
+      'Installaties konden niet worden gecontroleerd. Handmatig instellen blijft beschikbaar.',
+    desktop: 'Desktopinterface',
+    cli: 'Code-runtime',
+    claude:
+      'Detectie van Claude Desktop verifieert de Claude Code-backend niet. De configuratie is bedoeld voor Claude Code; gewone chats worden niet ondersteund.',
+    opencode:
+      'Deze configuratie ondersteunt OpenCode v1. Detectie controleert de API-compatibiliteit van de plug-in of server niet.',
+    offerHelp: 'Stel de apps die je gebruikt in om de chats van hun agenten te verbinden.',
+    stateError:
+      'De weergave van configuratievoorstellen kon niet worden opgeslagen. Handmatig instellen blijft beschikbaar.',
+    checking: 'Installaties controleren…',
   },
   uk: {
     title: 'Встановлені застосунки',
@@ -223,11 +364,22 @@ const translations: Partial<Record<Locale, Partial<Labels>>> = {
     unknown: 'Невідомо',
     offer: 'Знайдено застосунки',
     dismiss: 'Закрити',
+    limited: 'Інші розташування та формати встановлення можуть не виявлятися.',
+    failed: 'Не вдалося перевірити встановлення. Ручне налаштування доступне.',
+    desktop: 'Настільний інтерфейс',
+    cli: 'Середовище виконання Code',
+    claude:
+      'Виявлення Claude Desktop не перевіряє його серверну частину Claude Code. Налаштування стосується Claude Code; звичайні чати не підтримуються.',
+    opencode:
+      'Це налаштування підтримує OpenCode v1. Виявлення не перевіряє сумісність API плагінів або сервера.',
+    offerHelp: 'Налаштуйте застосунки, якими користуєтеся, щоб підключити чати агентів.',
+    stateError: 'Не вдалося зберегти показ пропозицій налаштування. Ручне налаштування доступне.',
+    checking: 'Перевірка встановлень…',
   },
 };
 
 export function discoveryMessages(locale: Locale): Labels {
-  return { ...english, ...translations[locale] };
+  return translations[locale];
 }
 export function installationLabel(status: InstallationStatus | undefined, labels: Labels): string {
   return status === 'detected'
@@ -246,3 +398,137 @@ export const discoveryReasons: Record<DiscoveryReason, string> = {
   'source-unavailable': 'Installation source is unavailable',
   'limit-exceeded': 'Discovery limit reached',
 };
+
+const localizedReasons: Record<Locale, Record<DiscoveryReason, string>> = {
+  en: discoveryReasons,
+  ru: {
+    'access-denied': 'Доступ запрещён',
+    'invalid-metadata': 'Некорректные сведения об установке',
+    'unsupported-package-format': 'Этот формат пакета не поддерживается обнаружением',
+    'unverified-identity': 'Не удалось подтвердить подлинность приложения',
+    'missing-runtime': 'Среда выполнения отсутствует или некорректна',
+    'source-unavailable': 'Источник сведений об установке недоступен',
+    'limit-exceeded': 'Достигнут предел обнаружения',
+  },
+  'zh-CN': {
+    'access-denied': '访问被拒绝',
+    'invalid-metadata': '安装元数据无效',
+    'unsupported-package-format': '检测不支持此软件包格式',
+    'unverified-identity': '无法验证应用身份',
+    'missing-runtime': '运行环境缺失或无效',
+    'source-unavailable': '安装信息来源不可用',
+    'limit-exceeded': '已达到检测上限',
+  },
+  fr: {
+    'access-denied': 'Accès refusé',
+    'invalid-metadata': 'Métadonnées d’installation invalides',
+    'unsupported-package-format': 'Ce format de paquet n’est pas pris en charge par la détection',
+    'unverified-identity': 'L’identité de l’application n’a pas pu être vérifiée',
+    'missing-runtime': 'L’environnement d’exécution est absent ou invalide',
+    'source-unavailable': 'La source d’installation est indisponible',
+    'limit-exceeded': 'Limite de détection atteinte',
+  },
+  de: {
+    'access-denied': 'Zugriff verweigert',
+    'invalid-metadata': 'Ungültige Installationsmetadaten',
+    'unsupported-package-format': 'Dieses Paketformat wird von der Erkennung nicht unterstützt',
+    'unverified-identity': 'Die Identität der Anwendung konnte nicht bestätigt werden',
+    'missing-runtime': 'Die Laufzeit fehlt oder ist ungültig',
+    'source-unavailable': 'Die Installationsquelle ist nicht verfügbar',
+    'limit-exceeded': 'Erkennungsgrenze erreicht',
+  },
+  it: {
+    'access-denied': 'Accesso negato',
+    'invalid-metadata': 'Metadati di installazione non validi',
+    'unsupported-package-format': 'Il rilevamento non supporta questo formato di pacchetto',
+    'unverified-identity': 'Impossibile verificare l’identità dell’applicazione',
+    'missing-runtime': 'Ambiente di esecuzione mancante o non valido',
+    'source-unavailable': 'Origine dell’installazione non disponibile',
+    'limit-exceeded': 'Limite di rilevamento raggiunto',
+  },
+  es: {
+    'access-denied': 'Acceso denegado',
+    'invalid-metadata': 'Metadatos de instalación no válidos',
+    'unsupported-package-format': 'La detección no admite este formato de paquete',
+    'unverified-identity': 'No se pudo verificar la identidad de la aplicación',
+    'missing-runtime': 'El entorno de ejecución falta o no es válido',
+    'source-unavailable': 'La fuente de instalación no está disponible',
+    'limit-exceeded': 'Se alcanzó el límite de detección',
+  },
+  kk: {
+    'access-denied': 'Қатынауға тыйым салынған',
+    'invalid-metadata': 'Орнату метадеректері жарамсыз',
+    'unsupported-package-format': 'Анықтау бұл пакет пішімін қолдамайды',
+    'unverified-identity': 'Қолданбаның сәйкестігін растау мүмкін болмады',
+    'missing-runtime': 'Орындау ортасы жоқ немесе жарамсыз',
+    'source-unavailable': 'Орнату туралы ақпарат көзі қолжетімсіз',
+    'limit-exceeded': 'Анықтау шегіне жетті',
+  },
+  ja: {
+    'access-denied': 'アクセスが拒否されました',
+    'invalid-metadata': 'インストールのメタデータが無効です',
+    'unsupported-package-format': 'このパッケージ形式は検出に対応していません',
+    'unverified-identity': 'アプリの識別情報を検証できませんでした',
+    'missing-runtime': 'ランタイムがないか無効です',
+    'source-unavailable': 'インストール情報の取得元を利用できません',
+    'limit-exceeded': '検出の上限に達しました',
+  },
+  'pt-BR': {
+    'access-denied': 'Acesso negado',
+    'invalid-metadata': 'Metadados de instalação inválidos',
+    'unsupported-package-format': 'A detecção não é compatível com este formato de pacote',
+    'unverified-identity': 'Não foi possível verificar a identidade do aplicativo',
+    'missing-runtime': 'O ambiente de execução está ausente ou é inválido',
+    'source-unavailable': 'A origem da instalação está indisponível',
+    'limit-exceeded': 'Limite de detecção atingido',
+  },
+  ko: {
+    'access-denied': '접근이 거부됨',
+    'invalid-metadata': '설치 메타데이터가 유효하지 않음',
+    'unsupported-package-format': '이 패키지 형식은 감지 기능에서 지원하지 않음',
+    'unverified-identity': '앱의 식별 정보를 검증하지 못함',
+    'missing-runtime': '실행 환경이 없거나 유효하지 않음',
+    'source-unavailable': '설치 정보 원본을 사용할 수 없음',
+    'limit-exceeded': '감지 한도에 도달함',
+  },
+  tr: {
+    'access-denied': 'Erişim reddedildi',
+    'invalid-metadata': 'Geçersiz kurulum meta verileri',
+    'unsupported-package-format': 'Algılama bu paket biçimini desteklemiyor',
+    'unverified-identity': 'Uygulama kimliği doğrulanamadı',
+    'missing-runtime': 'Çalışma ortamı eksik veya geçersiz',
+    'source-unavailable': 'Kurulum kaynağı kullanılamıyor',
+    'limit-exceeded': 'Algılama sınırına ulaşıldı',
+  },
+  pl: {
+    'access-denied': 'Odmowa dostępu',
+    'invalid-metadata': 'Nieprawidłowe metadane instalacji',
+    'unsupported-package-format': 'Wykrywanie nie obsługuje tego formatu pakietu',
+    'unverified-identity': 'Nie udało się zweryfikować tożsamości aplikacji',
+    'missing-runtime': 'Brak środowiska uruchomieniowego lub jest ono nieprawidłowe',
+    'source-unavailable': 'Źródło instalacji jest niedostępne',
+    'limit-exceeded': 'Osiągnięto limit wykrywania',
+  },
+  nl: {
+    'access-denied': 'Toegang geweigerd',
+    'invalid-metadata': 'Ongeldige installatiemetadata',
+    'unsupported-package-format': 'Detectie ondersteunt dit pakketformaat niet',
+    'unverified-identity': 'De identiteit van de app kon niet worden geverifieerd',
+    'missing-runtime': 'De runtime ontbreekt of is ongeldig',
+    'source-unavailable': 'De installatiebron is niet beschikbaar',
+    'limit-exceeded': 'Detectielimiet bereikt',
+  },
+  uk: {
+    'access-denied': 'Доступ заборонено',
+    'invalid-metadata': 'Некоректні метадані встановлення',
+    'unsupported-package-format': 'Виявлення не підтримує цей формат пакета',
+    'unverified-identity': 'Не вдалося підтвердити ідентичність застосунку',
+    'missing-runtime': 'Середовище виконання відсутнє або некоректне',
+    'source-unavailable': 'Джерело відомостей про встановлення недоступне',
+    'limit-exceeded': 'Досягнуто межі виявлення',
+  },
+};
+
+export function discoveryReasonLabel(reason: DiscoveryReason, locale: Locale): string {
+  return localizedReasons[locale][reason];
+}

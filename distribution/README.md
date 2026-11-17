@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.18.7
+# NCF Agent Interconnect 0.19.0
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -28,15 +28,17 @@ window only hides the window; the node keeps running. Start at login is optional
 under Settings.
 
 Choose the interface language at the bottom of the sidebar. Fifteen languages
-are available, with English as the default and fallback. The choice is saved in
+are available, with English as the default. The choice is saved in
 this application's profile. Names, messages, filenames and addresses retain
 their original content; MCP instructions and core diagnostics remain in English.
 
 ## Connect a client
 
-1. Open Applications & MCP and select your application's tab.
-2. Open its setup dialog, check or choose the configuration file and click Apply.
-   Other servers and plugins are preserved; matching settings are not rewritten.
+1. Use the startup cards or open Applications in the sidebar.
+2. Click Connect for automatic setup, or choose Manual setup to select the file,
+   review changes and click Apply. Replacing existing settings requires a separate
+   confirmation. Other servers and plugins are preserved; matching settings are
+   not rewritten. Follow the next step shown for that application.
 3. Restart Cursor or OpenCode after adding its included plugin. Reconnect MCP
    in other clients as their setup requires.
 4. In a configured AI chat, choose a name and ask the assistant to join the shared task.
@@ -44,7 +46,7 @@ their original content; MCP instructions and core diagnostics remain in English.
    Beth’s requirements and report any gaps to Beth.”
 
 Configure each application once. New chats do not need separate session, port or
-adapter settings. Applications & MCP distinguishes saved settings, known delivery
+adapter settings. Applications distinguishes saved settings, known delivery
 state and typed application metrics. Cursor totals and activity refer to chats
 bound through its plugin; generic manual MCP connections are not attributed to Cursor.
 Setup remembers the selected file and checks it read-only on startup. Its
@@ -108,8 +110,14 @@ Review the names and message counts before confirming.
 These actions remove local agent records and history, not client transcripts,
 remote copies or remote queues. A changed preview requires a new confirmation.
 
+Remote nodes searches the local network for 30 seconds when the app window opens.
+Stop search and Search again control the current pass. Discovery does not verify
+a computer's identity or establish trust; connecting still requires its code.
+The sidebar shows search progress and newly found computers not yet viewed.
+
 For another computer, select a local network IP in Settings. Create an access
-code under Remote nodes. On the other computer, enter the exact remote IP or URL
+code in the Connect to this computer card under Remote nodes. On the other
+computer, select the discovered computer or use Connect by address with its exact IP or URL
 and its eight letters or digits. Letter case does not matter. Codes expire after
 ten minutes, permit five attempts and authorize one peer. Certificates are pinned
 automatically through mutual authentication. Both apps need short-code support
@@ -117,7 +125,8 @@ for a new connection; previously paired nodes reconnect without another code.
 
 ## AionUi with Cursor Agent
 
-The supported setup is Cursor Agent inside AionUi. Open Applications & MCP → AionUi.
+The supported setup is Cursor Agent inside AionUi. Open Applications and choose
+Manual setup for AionUi with Cursor Agent.
 Configure access and approve it in AionUi, then separately configure Cursor
 Agent with the owner-operated file dialog and Apply. The selected MCP entry
 supports both Cursor and Cursor Agent in AionUi. Follow the Authorization,
@@ -128,7 +137,7 @@ See the included `guides/AionUi.md` for instructions and verification limits.
 
 ## Claude Code
 
-Open Applications & MCP → Claude Code and configure it with the owner-operated file
+Open Applications → Claude Code → Manual setup and configure it with the owner-operated file
 dialog and Apply. This enables the bundled NCF plugin and its gate plugin in the
 selected Claude Code user settings and allows `agent_read` without a prompt.
 Start or resume Claude Code normally, then use the connection command. The native mod delivers full Incoming messages to the exact chat with sender,
@@ -161,6 +170,13 @@ Only a confirmed online client receives a green icon in Agents. Missing remote
 client names and message statistics stay empty. Typed application metrics report the latest
 known message or exact-chat verification time, not continuous liveness or task
 completion. Check the exact chat before retrying a message whose admission is uncertain.
+
+## Release versions
+
+Versions use MAJOR.MINOR.PATCH. Compatible fixes use PATCH; new compatible
+capabilities require MINOR and reset PATCH to zero. While the project is below
+1.0, incompatible changes require at least a MINOR increase and explicit
+compatibility notes. Moving to 1.0 is a deliberate owner decision.
 
 ## Upgrade from an earlier release
 
