@@ -6,6 +6,7 @@ import {
   lstatSync,
   mkdirSync,
   openSync,
+  type Stats,
   writeSync,
 } from 'node:fs';
 import path from 'node:path';
@@ -60,6 +61,23 @@ const codeValues = new Set([
 ]);
 const limit = 4 * 1024 * 1024;
 
+function existing(pathname: string): Stats | undefined {
+  try {
+    return lstatSync(pathname);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
+    throw error;
+  }
+}
+
+function sameFile(left: Stats, right: Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino;
+}
+
+function regularFile(file: Stats): boolean {
+  return file.isFile() && !file.isSymbolicLink() && file.nlink === 1;
+}
+
 /** Best-effort bounded private JSONL shared by node, hook and helper processes. */
 export function traceClaude(nodeFile: string, event: string, fields: ClaudeTraceFields = {}): void {
   let fd: number | undefined;
@@ -74,13 +92,25 @@ export function traceClaude(nodeFile: string, event: string, fields: ClaudeTrace
       ((dir.mode & 0o077) !== 0 || (process.getuid && dir.uid !== process.getuid()))
     )
       return;
-    fd = openSync(
-      path.join(directory, 'claude-code.jsonl'),
-      constants.O_WRONLY | constants.O_CREAT | constants.O_APPEND | (constants.O_NOFOLLOW ?? 0),
-      0o600,
-    );
+    const filename = path.join(directory, 'claude-code.jsonl'),
+      before = existing(filename);
+    if (before && !regularFile(before)) return;
+    const noFollow = process.platform === 'win32' ? 0 : (constants.O_NOFOLLOW ?? 0),
+      create = before ? 0 : constants.O_CREAT | constants.O_EXCL;
+    fd = openSync(filename, constants.O_WRONLY | constants.O_APPEND | noFollow | create, 0o600);
     const file = fstatSync(fd);
-    if (!file.isFile() || file.nlink !== 1 || file.size >= limit) return;
+    if (!regularFile(file) || (before && !sameFile(before, file)) || file.size >= limit) return;
+    const current = existing(filename),
+      currentDir = lstatSync(directory);
+    if (
+      !current ||
+      !regularFile(current) ||
+      !sameFile(file, current) ||
+      !currentDir.isDirectory() ||
+      currentDir.isSymbolicLink() ||
+      !sameFile(dir, currentDir)
+    )
+      return;
     if (
       process.platform !== 'win32' &&
       ((file.mode & 0o077) !== 0 || (process.getuid && file.uid !== process.getuid()))
