@@ -33,6 +33,7 @@ import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutl
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import SendOutlined from '@mui/icons-material/SendOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
+import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import {
   nicknameKey,
   nicknameSchema,
@@ -50,8 +51,9 @@ import { useChatHistory } from './useChatHistory.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
+import { lanSearchMessages } from './i18n/lan-search.js';
 import { t, type Locale } from './i18n/index.js';
-import { designTokens, surfaceSx } from './theme.js';
+import { designTokens } from './theme.js';
 
 export function AgentsPage({
   snapshot,
@@ -383,93 +385,104 @@ export function AgentsPage({
   );
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
-      <Paper data-testid="agents-connection-panel" sx={{ p: 3 }}>
-        <Box
-          sx={{
-            display: 'grid',
-            gridTemplateColumns: { xs: 'minmax(0, 1fr)', lg: 'minmax(0, 1fr) auto' },
-            gap: 3,
-            alignItems: 'start',
-          }}
-        >
-          <Stack spacing={2} sx={{ minWidth: 0 }}>
+      <Paper data-testid="agents-connection-panel" sx={{ p: 2 }}>
+        <Stack spacing={1} sx={{ minWidth: 0 }}>
+          <Typography
+            data-testid="agents-creation-guidance"
+            variant="body2"
+            color="text.secondary"
+            sx={{ fontSize: 13, lineHeight: '20px' }}
+          >
+            {entryMessages.agentsConnectionGuide}
+          </Typography>
+          <Stack
+            direction="row"
+            spacing={1}
+            useFlexGap
+            sx={{ alignItems: 'center', flexWrap: 'wrap' }}
+          >
             <Typography
-              data-testid="agents-creation-guidance"
-              variant="body2"
-              color="text.secondary"
-              sx={{ maxWidth: '76ch' }}
+              component="code"
+              data-testid="agent-connection-command"
+              sx={{
+                fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
+                fontSize: 13,
+                lineHeight: '20px',
+                overflowWrap: 'anywhere',
+                userSelect: 'text',
+              }}
             >
-              {entryMessages.agentsConnectionGuide}
+              {setupMessages.connectionPrompt}
             </Typography>
-            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-              <Typography
-                component="code"
-                data-testid="agent-connection-command"
-                sx={{
-                  ...surfaceSx('inset'),
-                  flex: 1,
-                  minWidth: 0,
-                  px: 2,
-                  py: 1.5,
-                  fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                  fontSize: 13,
-                  lineHeight: 1.6,
-                  overflowWrap: 'anywhere',
-                  userSelect: 'text',
-                }}
-              >
-                {setupMessages.connectionPrompt}
+            <Tooltip title={copied ? t(locale, 'copied') : setupMessages.copyPrompt}>
+              <span>
+                <IconButton
+                  aria-label={setupMessages.copyPrompt}
+                  disabled={copying}
+                  data-testid="copy-agent-connection-command"
+                  onClick={() => void copyConnectionPrompt()}
+                  sx={{ width: 44, height: 44 }}
+                >
+                  {copied ? (
+                    <CheckOutlined sx={{ fontSize: 18 }} />
+                  ) : (
+                    <ContentCopyOutlined sx={{ fontSize: 18 }} />
+                  )}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Typography variant="caption" role="status" aria-live="polite" color="text.secondary">
+              {copied ? t(locale, 'copied') : ''}
+            </Typography>
+          </Stack>
+          {copyFailed && (
+            <Alert severity="error">{applicationSetupMessages(locale).copyFailed}</Alert>
+          )}
+          <Box component="details" data-testid="agents-connection-details" sx={{ fontSize: 13 }}>
+            <Box
+              component="summary"
+              sx={{
+                minHeight: 44,
+                display: 'list-item',
+                alignContent: 'center',
+                cursor: 'pointer',
+              }}
+            >
+              {lanSearchMessages(locale).details}
+            </Box>
+            <Stack spacing={0} sx={{ alignItems: 'flex-start', minWidth: 0 }}>
+              <Typography variant="body2" color="text.secondary">
+                {entryMessages.agentsManualDiagnosticIntro}{' '}
+                <Link
+                  component="button"
+                  type="button"
+                  variant="body2"
+                  data-testid="create-agent-manually"
+                  onClick={onAdd}
+                  sx={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    minHeight: 44,
+                    verticalAlign: 'middle',
+                  }}
+                >
+                  {entryMessages.agentsManualDiagnosticLink}
+                </Link>
               </Typography>
               <Button
-                variant="outlined"
-                startIcon={<ContentCopyOutlined />}
-                aria-label={setupMessages.copyPrompt}
-                disabled={copying}
-                data-testid="copy-agent-connection-command"
-                onClick={() => void copyConnectionPrompt()}
-                sx={{ minHeight: 44, minWidth: 112, flexShrink: 0 }}
+                color="error"
+                disabled={!!deletion.busy || !snapshot.agents.length}
+                data-testid="clear-all-local-agents"
+                onClick={() => {
+                  void clear.begin({ scope: 'all' });
+                }}
+                sx={{ minHeight: 44 }}
               >
-                <span aria-live="polite">
-                  {copied ? t(locale, 'copied') : entryMessages.agentsCopyCommand}
-                </span>
+                {t(locale, 'clearAllLocalAgents')}
               </Button>
             </Stack>
-            {copyFailed && (
-              <Alert severity="error">{applicationSetupMessages(locale).copyFailed}</Alert>
-            )}
-          </Stack>
-          <Stack spacing={0} sx={{ alignItems: 'flex-start', minWidth: 0 }}>
-            <Typography variant="body2" color="text.secondary">
-              {entryMessages.agentsManualDiagnosticIntro}{' '}
-              <Link
-                component="button"
-                type="button"
-                variant="body2"
-                data-testid="create-agent-manually"
-                onClick={onAdd}
-                sx={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  minHeight: 44,
-                  verticalAlign: 'middle',
-                }}
-              >
-                {entryMessages.agentsManualDiagnosticLink}
-              </Link>
-            </Typography>
-            <Button
-              color="error"
-              disabled={!!deletion.busy || !snapshot.agents.length}
-              data-testid="clear-all-local-agents"
-              onClick={() => {
-                void clear.begin({ scope: 'all' });
-              }}
-              sx={{ minHeight: 44 }}
-            >
-              {t(locale, 'clearAllLocalAgents')}
-            </Button>
-          </Stack>
-        </Box>
+          </Box>
+        </Stack>
       </Paper>
       {rows.length ? (
         <AgentsTable
@@ -497,7 +510,7 @@ export function AgentsPage({
         <Paper
           data-testid="agents-empty"
           role="status"
-          sx={{ py: 5, px: 2, textAlign: 'center', color: 'text.secondary' }}
+          sx={{ py: 2, px: 2, textAlign: 'center', color: 'text.secondary' }}
         >
           <Typography variant="body2">{entryMessages.agentEmptyPrompt}</Typography>
         </Paper>

@@ -7,6 +7,7 @@ import { AgentsPage } from '../desktop/renderer/AgentsPage.js';
 import { agentEntryMessages } from '../desktop/renderer/i18n/agent-entry.js';
 import { supportedLocales, t, type Locale } from '../desktop/renderer/i18n/index.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
+import { lanSearchMessages } from '../desktop/renderer/i18n/lan-search.js';
 import { createAppTheme } from '../desktop/renderer/theme.js';
 import type { Snapshot } from '../desktop/shared/contracts.js';
 
@@ -63,7 +64,7 @@ function renderAgents(snapshot: Snapshot, locale: Locale): string {
   );
 }
 
-test('connection panel groups the guide and request before manual diagnostics and Delete All', () => {
+test('compact connection panel keeps inline command and icon Copy before collapsed manual diagnostics and Delete All', () => {
   const copy = agentEntryMessages('en');
   const request = mcpSetupMessages('en');
   const html = renderAgents(emptySnapshot(), 'en');
@@ -72,7 +73,16 @@ test('connection panel groups the guide and request before manual diagnostics an
   assert.ok(html.includes(escaped(copy.agentsConnectionGuide)));
   assert.ok(html.includes(escaped(request.connectionPrompt)));
   assert.ok(html.includes('aria-label="' + escaped(request.copyPrompt) + '"'));
-  assert.ok(html.includes(escaped(copy.agentsCopyCommand)));
+  const details = html.match(/<details\b[^>]*data-testid="agents-connection-details"[^>]*>/);
+  assert.ok(details);
+  assert.doesNotMatch(details[0], /\bopen(?:=|\s|>)/);
+  const copyButton = html.match(
+    /<button\b[^>]*data-testid="copy-agent-connection-command"[^>]*>[\s\S]*?<\/button>/,
+  );
+  assert.ok(copyButton);
+  assert.ok(copyButton[0].includes('<svg'));
+  assert.ok(!copyButton[0].includes('>' + escaped(copy.agentsCopyCommand) + '<'));
+  assert.ok(html.includes(escaped(lanSearchMessages('en').details)));
   assert.ok(html.includes('data-testid="create-agent-manually"'));
   assert.ok(html.includes(escaped(copy.agentsManualDiagnosticLink)));
   assert.ok(html.includes('data-testid="agents-empty"'));
@@ -83,6 +93,7 @@ test('connection panel groups the guide and request before manual diagnostics an
     'agents-creation-guidance',
     'agent-connection-command',
     'copy-agent-connection-command',
+    'agents-connection-details',
     'create-agent-manually',
     'clear-all-local-agents',
     'agents-empty',
@@ -140,7 +151,11 @@ test('connection panel renders the existing localized command and copy action in
     assert.ok(command, locale);
     assert.equal(command[1], escaped(mcpSetupMessages(locale).connectionPrompt), locale);
     assert.ok(html.includes(escaped(agentEntryMessages(locale).agentsConnectionGuide)), locale);
-    assert.ok(html.includes(escaped(agentEntryMessages(locale).agentsCopyCommand)), locale);
+    assert.ok(
+      html.includes('aria-label="' + escaped(mcpSetupMessages(locale).copyPrompt) + '"'),
+      locale,
+    );
+    assert.ok(html.includes(escaped(lanSearchMessages(locale).details)), locale);
     assert.ok(
       html.includes(escaped(agentEntryMessages(locale).agentsManualDiagnosticLink)),
       locale,
