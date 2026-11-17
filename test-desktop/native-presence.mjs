@@ -257,7 +257,7 @@ if (mode === 'worker') {
     }
     if (action === 'warning') {
       await page.getByRole('button', { name: 'Agents', exact: true }).click();
-      await page.getByRole('button', { name: 'Add agent', exact: true }).click();
+      await page.getByTestId('create-agent-manually').click();
       await page.getByRole('textbox', { name: 'Agent name', exact: true }).fill(params.nickname);
       if (params.expectWarning) await page.getByRole('dialog').getByRole('alert').first().waitFor();
       const warnings = await page.getByRole('dialog').getByRole('alert').allTextContents();

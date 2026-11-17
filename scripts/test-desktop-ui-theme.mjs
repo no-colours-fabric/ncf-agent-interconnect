@@ -535,7 +535,7 @@ contextBridge.exposeInMainWorld('interconnect',{
       await page.getByTestId('mcp-configure-opencode').click();
       await compactDialog(mode + ' mcp-final', 640, true);
       await page.getByTestId('nav-agents').click();
-      await page.getByRole('button', { name: 'Add agent', exact: true }).click();
+      await page.getByTestId('create-agent-manually').click();
       await compactDialog(mode + ' add-agent-final', 600, true);
     }
     report.push({ kind: 'state', unsavedNodeLabelSurvives: true, noThemeIpc: true });
@@ -631,7 +631,7 @@ contextBridge.exposeInMainWorld('interconnect',{
       await capture(mode + '-settings', 900);
       assert.equal(await themeSwitch().isChecked(), mode === 'dark');
       await page.getByTestId('nav-agents').click();
-      await page.getByRole('button', { name: 'Add agent', exact: true }).click();
+      await page.getByTestId('create-agent-manually').click();
       await compactDialog(mode + ' add-agent', 600);
       const owner = page.locator(`[data-agent-id="${local}:${researcher.toLowerCase()}"]`);
       await owner

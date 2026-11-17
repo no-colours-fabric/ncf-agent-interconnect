@@ -334,7 +334,7 @@ contextBridge.exposeInMainWorld('interconnect',{
         JSON.stringify({ requested: viewport, native: nativeSize, renderer: rendererSize }),
       );
       await page.getByTestId('nav-agents').click();
-      await page.getByRole('button', { name: 'Add agent', exact: true }).click();
+      await page.getByTestId('create-agent-manually').click();
       await recordDialog('add-agent', viewport.width);
       const owner = page.locator(`[data-agent-id="${local}:${researcher.toLowerCase()}"]`);
       await owner

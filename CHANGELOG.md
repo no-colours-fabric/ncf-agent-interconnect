@@ -2,6 +2,14 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.18.7 — 2026-11-17
+
+- Explain agent creation through chats in configured AI applications. Move manual creation to a diagnostic link while preserving the existing creation, name-transfer and history behavior.
+- List applications from actual local agent bindings without treating installed applications or unknown availability as a working connection. Provide the guidance, empty state and manual-creation dialog in all fifteen interface languages.
+- Remove the decorative arrow from inline AionUi setup actions and clarify that supported AionUi use requires Cursor Agent in public application lists.
+
+Storage format 5, client configuration, delivery, attachments and pairing are unchanged. LAN discovery, OpenCode v2 and the broader application-setup redesign are not included. Existing Windows sleep/resume, setup-offer warning and white-window issues retain their separate verification scopes.
+
 ## 0.18.6 — 2026-11-17
 
 - Reserve ready incoming messages before attachment preparation so native delivery and MCP inbox/history reads cannot concurrently release the same body. Preserve uncertainty across restart and binding transfer.
