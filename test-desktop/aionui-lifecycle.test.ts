@@ -56,6 +56,8 @@ test(
         '--experimental-sqlite',
         '--import',
         'tsx',
+        '--test',
+        '--test-reporter=tap',
         fileURLToPath(new URL('./fixtures/aionui-lifecycle-failure.ts', import.meta.url)),
       ],
       { env, stdio: ['ignore', 'pipe', 'pipe'], detached: process.platform !== 'win32' },

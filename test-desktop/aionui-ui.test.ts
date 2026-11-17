@@ -2,13 +2,49 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { McpSetup } from '../desktop/renderer/McpSetup.js';
+import { AionUiSetupDialog, CursorSetupDialog, McpSetup } from '../desktop/renderer/McpSetup.js';
 import { AionUiAuthorization } from '../desktop/renderer/AionUiSetup.js';
 import { ApplicationConnections } from '../desktop/renderer/application-connections.js';
+import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
+import { McpSetupFlow } from '../desktop/renderer/mcp-setup-model.js';
+import type { McpSetupClient, McpSetupInvoke } from '../desktop/shared/mcp-setup.js';
 
-test('AionUi has its own application row and owner pairing instructions in every supported locale', () => {
+function preparedFlow(client: McpSetupClient): McpSetupFlow {
+  const invoke = (async (
+    method: string,
+    input: { files?: Array<{ id: string; path: string }> },
+  ) => {
+    if (method === 'mcpSetupDefaults')
+      return {
+        client,
+        files: [
+          {
+            id: 'configuration',
+            path: `/isolated/${client}.json`,
+            format: 'jsonc',
+            alternatives: [],
+          },
+        ],
+      };
+    if (method === 'mcpSetupPreview')
+      return {
+        client,
+        planId: `${client}-manual-form`,
+        files: (input.files ?? []).map((file) => ({
+          ...file,
+          action: 'create',
+          changes: [],
+        })),
+        requiresReplacement: false,
+      };
+    throw new Error(`Unexpected isolated setup method: ${method}`);
+  }) as McpSetupInvoke;
+  return new McpSetupFlow(client, invoke);
+}
+
+test('AionUi has its own application row and owner pairing instructions in every supported locale', async () => {
   let calls = 0;
   const invoke = async () => {
     calls++;
@@ -29,16 +65,10 @@ test('AionUi has its own application row and owner pairing instructions in every
     );
     assert.ok(html.includes('data-testid="aionui-setup"'), locale);
     assert.ok(html.includes('data-testid="aionui-connection-steps"'), locale);
-    assert.ok(html.includes('data-testid="mcp-shared-configuration-note"'), locale);
-    assert.ok(html.includes(escaped(messages.cursorSharedConfiguration)), locale);
-    assert.ok(html.includes(escaped(messages.aionMcpHelp)), locale);
-    const tab = html.match(/<button\b[^>]*\bid="mcp-tab-aionui"[^>]*>/)?.[0] ?? '';
-    assert.match(tab, /role="tab"/, locale);
-    assert.match(tab, /aria-selected="true"/, locale);
-    assert.match(tab, /aria-controls="mcp-panel-aionui"/, locale);
+    assert.ok(html.includes(escaped(applicationSetupMessages(locale).aionUiName)), locale);
+    assert.ok(html.includes('data-testid="ArrowBackOutlinedIcon"'), locale);
     for (const text of [
       messages.aionConfigureAccess,
-      messages.aionConfigure,
       messages.statusAuthorization,
       messages.statusLiveBridge,
     ])
@@ -62,10 +92,35 @@ test('AionUi has its own application row and owner pairing instructions in every
         locale,
       }),
     );
-    assert.ok(cursor.includes('data-testid="mcp-shared-configuration-note"'), locale);
-    assert.ok(cursor.includes(escaped(messages.cursorSharedConfiguration)), locale);
-    assert.ok(cursor.includes(escaped(messages.aionMcpHelp)), locale);
     assert.ok(!cursor.includes('data-testid="aionui-connection-steps"'), locale);
+
+    const cursorFlow = preparedFlow('cursor');
+    const aionUiFlow = preparedFlow('aionui');
+    await Promise.all([cursorFlow.begin(), aionUiFlow.begin()]);
+    const cursorManual = renderToStaticMarkup(
+      createElement(CursorSetupDialog, {
+        flow: cursorFlow,
+        inline: true,
+        invoke,
+        messages,
+        locale,
+      }),
+    );
+    const aionUiManual = renderToStaticMarkup(
+      createElement(AionUiSetupDialog, {
+        flow: aionUiFlow,
+        inline: true,
+        invoke,
+        messages,
+        locale,
+      }),
+    );
+    assert.ok(cursorManual.includes('data-testid="cursor-shared-configuration-note"'), locale);
+    assert.ok(aionUiManual.includes('data-testid="aionui-global-cursor-warning"'), locale);
+    for (const html of [cursorManual, aionUiManual])
+      assert.ok(html.includes(escaped(messages.aionMcpHelp)), `${locale}: shared warning`);
+    cursorFlow.dispose();
+    aionUiFlow.dispose();
 
     // Standalone mode renders the owner instructions; GUI covers opening and cancelling the dialog.
     const authorization = renderToStaticMarkup(

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, mkdir, symlink } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, mkdir, symlink, writeFile, link, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
 import { traceClaude } from '../desktop/integrations/claude-diagnostics.js';
@@ -50,6 +50,39 @@ test('Claude diagnostics refuse redirected files and never affect the caller', a
     await symlink(target, path.join(directory, 'Diagnostics', 'claude-code.jsonl'));
     assert.doesNotThrow(() => traceClaude(path.join(directory, 'node.json'), 'helper.spawn'));
     await assert.rejects(readFile(target), { code: 'ENOENT' });
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('Claude diagnostics reject hard links, non-files and a redirected diagnostics directory', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-trace-targets-'));
+  try {
+    const diagnostics = path.join(directory, 'Diagnostics'),
+      logfile = path.join(diagnostics, 'claude-code.jsonl'),
+      target = path.join(directory, 'target.jsonl'),
+      nodeFile = path.join(directory, 'node.json');
+    await mkdir(diagnostics, { mode: 0o700 });
+    await writeFile(target, 'unchanged');
+    await symlink(target, logfile);
+    assert.doesNotThrow(() => traceClaude(nodeFile, 'helper.spawn'));
+    assert.equal(await readFile(target, 'utf8'), 'unchanged');
+
+    await unlink(logfile);
+    await link(target, logfile);
+    assert.doesNotThrow(() => traceClaude(nodeFile, 'helper.spawn'));
+    assert.equal(await readFile(target, 'utf8'), 'unchanged');
+
+    await unlink(logfile);
+    await mkdir(logfile);
+    assert.doesNotThrow(() => traceClaude(nodeFile, 'helper.spawn'));
+
+    await rm(diagnostics, { recursive: true, force: true });
+    const redirected = path.join(directory, 'redirected');
+    await mkdir(redirected);
+    await symlink(redirected, diagnostics, process.platform === 'win32' ? 'junction' : 'dir');
+    assert.doesNotThrow(() => traceClaude(nodeFile, 'helper.spawn'));
+    await assert.rejects(readFile(path.join(redirected, 'claude-code.jsonl')), { code: 'ENOENT' });
   } finally {
     await rm(directory, { recursive: true, force: true });
   }
