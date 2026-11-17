@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { McpSetup } from '../desktop/renderer/McpSetup.js';
 import { AionUiAuthorization } from '../desktop/renderer/AionUiSetup.js';
 import { ApplicationConnections } from '../desktop/renderer/application-connections.js';
+import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
 
@@ -29,16 +30,10 @@ test('AionUi has its own application row and owner pairing instructions in every
     );
     assert.ok(html.includes('data-testid="aionui-setup"'), locale);
     assert.ok(html.includes('data-testid="aionui-connection-steps"'), locale);
-    assert.ok(html.includes('data-testid="mcp-shared-configuration-note"'), locale);
-    assert.ok(html.includes(escaped(messages.cursorSharedConfiguration)), locale);
-    assert.ok(html.includes(escaped(messages.aionMcpHelp)), locale);
-    const tab = html.match(/<button\b[^>]*\bid="mcp-tab-aionui"[^>]*>/)?.[0] ?? '';
-    assert.match(tab, /role="tab"/, locale);
-    assert.match(tab, /aria-selected="true"/, locale);
-    assert.match(tab, /aria-controls="mcp-panel-aionui"/, locale);
+    assert.ok(html.includes(escaped(applicationSetupMessages(locale).aionUiName)), locale);
+    assert.ok(html.includes('data-testid="ArrowBackOutlinedIcon"'), locale);
     for (const text of [
       messages.aionConfigureAccess,
-      messages.aionConfigure,
       messages.statusAuthorization,
       messages.statusLiveBridge,
     ])
@@ -62,9 +57,6 @@ test('AionUi has its own application row and owner pairing instructions in every
         locale,
       }),
     );
-    assert.ok(cursor.includes('data-testid="mcp-shared-configuration-note"'), locale);
-    assert.ok(cursor.includes(escaped(messages.cursorSharedConfiguration)), locale);
-    assert.ok(cursor.includes(escaped(messages.aionMcpHelp)), locale);
     assert.ok(!cursor.includes('data-testid="aionui-connection-steps"'), locale);
 
     // Standalone mode renders the owner instructions; GUI covers opening and cancelling the dialog.

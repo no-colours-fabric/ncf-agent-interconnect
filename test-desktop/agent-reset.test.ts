@@ -124,11 +124,14 @@ test('format 1 migration is atomic, idempotent and keeps legacy requests preserv
     DROP TABLE transfers; ALTER TABLE legacy_transfers RENAME TO transfers;
     DROP TABLE cleared_messages; DROP TABLE file_cleanup; CREATE TABLE legacy_agents(key TEXT PRIMARY KEY,nickname TEXT NOT NULL,binding TEXT,generation INTEGER NOT NULL DEFAULT 0);
     INSERT INTO legacy_agents SELECT key,nickname,binding,generation FROM agents;
-    DROP TABLE agents; ALTER TABLE legacy_agents RENAME TO agents; PRAGMA user_version=1;`);
+    DROP TABLE agents; ALTER TABLE legacy_agents RENAME TO agents;
+    CREATE TABLE legacy_dispatches(message_id TEXT PRIMARY KEY,connection_id TEXT NOT NULL,state TEXT NOT NULL,error TEXT);
+    INSERT INTO legacy_dispatches SELECT message_id,connection_id,state,error FROM dispatches; DROP TABLE dispatches; ALTER TABLE legacy_dispatches RENAME TO dispatches;
+    PRAGMA user_version=1;`);
   f.reopen();
   assert.equal(
     (f.store.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    4,
+    5,
   );
   assert.throws(
     () => f.store.connect({ ...confirm(request), transferId: request.transferId }),
@@ -1113,7 +1116,10 @@ test('foreign admission evidence survives overwritten dispatch status, preserve 
               DROP TABLE transfers; ALTER TABLE legacy_transfers RENAME TO transfers;
               DROP TABLE cleared_messages; DROP TABLE file_cleanup; CREATE TABLE legacy_agents(key TEXT PRIMARY KEY,nickname TEXT NOT NULL,binding TEXT,generation INTEGER NOT NULL DEFAULT 0);
     INSERT INTO legacy_agents SELECT key,nickname,binding,generation FROM agents;
-    DROP TABLE agents; ALTER TABLE legacy_agents RENAME TO agents; PRAGMA user_version=1;`);
+    DROP TABLE agents; ALTER TABLE legacy_agents RENAME TO agents;
+    CREATE TABLE legacy_dispatches(message_id TEXT PRIMARY KEY,connection_id TEXT NOT NULL,state TEXT NOT NULL,error TEXT);
+    INSERT INTO legacy_dispatches SELECT message_id,connection_id,state,error FROM dispatches; DROP TABLE dispatches; ALTER TABLE legacy_dispatches RENAME TO dispatches;
+    PRAGMA user_version=1;`);
           }
           f.reopen();
           const fresh = connected(
