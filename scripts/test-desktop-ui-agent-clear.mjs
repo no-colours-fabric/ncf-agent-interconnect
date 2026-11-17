@@ -69,7 +69,21 @@ try {
     text: 'Original processed history',
     files: [exported],
   });
-  await seed.read(second.binding.connectionId);
+  const seedClient = new Client({ name: 'clear-ui-seed', version: '1' });
+  try {
+    await seedClient.connect(
+      new StreamableHTTPClientTransport(new URL(seed.snapshot().mcpUrl), {
+        requestInit: { headers: { authorization: 'Bearer ' + seed.settings.value.localToken } },
+      }),
+    );
+    const received = await seedClient.callTool({
+      name: 'agent_history',
+      arguments: { connectionId: second.binding.connectionId },
+    });
+    assert.ok(!received.isError);
+  } finally {
+    await seedClient.close();
+  }
   const secondIncarnation = seed.store.sourceStamp(secondName).incarnation;
   await seed.close();
   seed = null;

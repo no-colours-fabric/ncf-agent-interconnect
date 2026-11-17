@@ -3,6 +3,15 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import {
+  type DeliveryAttempt,
+  type DeliveryMetadata,
+  type DeliveryPhase,
+  decodeDelivery,
+  encodeDelivery,
+  membersHash,
+  coarseDelivery,
+} from './delivery-attempt.js';
+import {
   nicknameKey,
   type Binding,
   type Attachment,
@@ -68,7 +77,7 @@ export class AgentStore {
     const version = Number(
       (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
     );
-    if (version !== 0 && version !== 1 && version !== 2 && version !== 3 && version !== 4) {
+    if (![0, 1, 2, 3, 4, 5].includes(version)) {
       this.db.close();
       throw new Error('Unsupported agent storage format');
     }
@@ -94,7 +103,6 @@ export class AgentStore {
       CREATE TABLE IF NOT EXISTS timeline (cursor INTEGER PRIMARY KEY AUTOINCREMENT, message_id TEXT NOT NULL, direction TEXT NOT NULL, UNIQUE(message_id,direction));
       CREATE TABLE IF NOT EXISTS system_events (id INTEGER PRIMARY KEY AUTOINCREMENT, connection_id TEXT NOT NULL, event TEXT NOT NULL, dispatch_state TEXT NOT NULL DEFAULT 'pending', error TEXT);
       CREATE TABLE IF NOT EXISTS dispatches (message_id TEXT PRIMARY KEY, connection_id TEXT NOT NULL, state TEXT NOT NULL, error TEXT);
-      UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching';
       UPDATE system_events SET dispatch_state='uncertain' WHERE dispatch_state='dispatching';
       -- A wake signal carries no content: an interrupted offer is stale, not uncertain.
       UPDATE dispatches SET state='offered',error=NULL WHERE state='offering';
@@ -110,7 +118,7 @@ export class AgentStore {
       -- may have been written by the helper, so its receipt stays uncertain.
       UPDATE claude_deliveries SET state='cancelled',error='The app stopped before the content left the node' WHERE state='reserved';
       UPDATE claude_deliveries SET state='uncertain',error='The app stopped after the content was handed to the Claude Code helper' WHERE state='issued';
-      PRAGMA user_version=4;`);
+      `);
         if (version === 1)
           this.db.exec("ALTER TABLE transfers ADD COLUMN mode TEXT NOT NULL DEFAULT 'transfer'");
         if (version === 1 || version === 2) {
@@ -120,6 +128,20 @@ export class AgentStore {
               .prepare('UPDATE agents SET incarnation=? WHERE key=?')
               .run(randomUUID(), row.key);
         }
+        if (version < 5) {
+          this.db.exec(
+            'ALTER TABLE dispatches ADD COLUMN attempt_id TEXT; ALTER TABLE dispatches ADD COLUMN attempt_meta TEXT;',
+          );
+        }
+        this.db.exec('CREATE INDEX IF NOT EXISTS dispatch_attempt ON dispatches(attempt_id);');
+        this.db.exec(
+          "UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching' AND attempt_id IS NULL;",
+        );
+        this.db.exec(
+          "UPDATE dispatches SET state='uncertain' WHERE attempt_id IS NULL AND state NOT IN ('admitted','offered','waiting','failed','revoked','uncertain');",
+        );
+        this.recoverDeliveries();
+        this.db.exec('PRAGMA user_version=5;');
       });
     } catch (error) {
       this.db.close();
@@ -760,27 +782,298 @@ export class AgentStore {
         )
           throw new Error('The message does not belong to this agent or is not ready');
         if (row.state === 'processed') continue;
-        if (this.claudeFenced(id))
+        if (this.claudeFenced(id) || this.deliveryFenced(id))
           throw new Error(
             'The message is being delivered to Claude Code or its delivery is uncertain',
           );
         // Terminal transport receipt: the client received the message. It is
         // independent of whether the model completed the requested work.
-        this.db
-          .prepare("UPDATE messages SET state='processed',error=NULL WHERE id=? AND direction='in'")
-          .run(id);
-        this.dispatch(id, connectionId, 'admitted');
-        if (row.envelope.fromNode === row.envelope.toNode) this.receipt(id, 'processed');
+        this.markDelivered(row, connectionId);
         delivered.add(id);
       }
       return delivered;
     });
+  }
+  /** The sole message/receipt mutation; callers validate their own witness first. */
+  private markDelivered(row: Message, connectionId: string, attemptId?: string): void {
+    const id = row.envelope.id;
+    const typed = this.db
+      .prepare('SELECT attempt_id FROM dispatches WHERE message_id=?')
+      .get(id) as Row | undefined;
+    if (typed?.attempt_id && typed.attempt_id !== attemptId)
+      throw new Error('Another delivery attempt owns this message');
+    this.db
+      .prepare("UPDATE messages SET state='processed',error=NULL WHERE id=? AND direction='in'")
+      .run(id);
+    if (!attemptId) this.dispatch(id, connectionId, 'admitted');
+    if (row.envelope.fromNode === row.envelope.toNode) this.receipt(id, 'processed');
+  }
+  /** Uncertainty belongs to the message, not the current connection. */
+  deliveryFenced(id: string): boolean {
+    return !!this.db
+      .prepare(
+        "SELECT 1 FROM dispatches WHERE message_id=? AND state IN ('dispatching','uncertain')",
+      )
+      .get(id);
+  }
+  reserveDelivery(input: {
+    connectionId: string;
+    ids: string[];
+    transport: DeliveryMetadata['transport'];
+    lifecycle: DeliveryMetadata['lifecycle'];
+    invocation?: DeliveryMetadata['invocation'];
+  }): DeliveryAttempt {
+    return this.transaction(() => {
+      if (
+        !input.ids.length ||
+        input.ids.length > 200 ||
+        new Set(input.ids).size !== input.ids.length
+      )
+        throw new Error('Invalid delivery member set');
+      const owner = this.assertOwner(input.connectionId);
+      const incarnation = this.sourceStamp(owner.key).incarnation;
+      const { client: _client, ...captured } = owner.binding;
+      const id = randomUUID(),
+        now = Date.now();
+      const meta: DeliveryMetadata = {
+        version: 1,
+        transport: input.transport,
+        phase: 'reserved',
+        owner: { agentKey: owner.key, incarnation: incarnation!, ...captured },
+        lifecycle: input.lifecycle,
+        ...(input.invocation ? { invocation: input.invocation } : {}),
+        payloadHash: null,
+        membersHash: membersHash(input.ids),
+        created: now,
+        updated: now,
+      };
+      const encoded = encodeDelivery(meta);
+      for (const item of input.ids) {
+        const message = this.get(item, 'in');
+        if (
+          !message ||
+          nicknameKey(message.envelope.toNickname) !== owner.key ||
+          message.state !== 'ready'
+        )
+          throw new Error('The message is not ready for this binding');
+        if (this.claudeFenced(item) || this.deliveryFenced(item))
+          throw new Error('Message delivery is in progress or uncertain; content is not repeated');
+        const previous = this.db
+          .prepare('SELECT attempt_id,attempt_meta FROM dispatches WHERE message_id=?')
+          .get(item) as Row | undefined;
+        if (
+          previous &&
+          (previous.attempt_id !== null || previous.attempt_meta !== null) &&
+          (!previous.attempt_id ||
+            !previous.attempt_meta ||
+            decodeDelivery(previous.attempt_meta).phase !== 'cancelled')
+        )
+          throw new Error('The previous attempt does not permit a new release');
+      }
+      for (const item of input.ids)
+        this.db
+          .prepare(
+            `INSERT INTO dispatches(message_id,connection_id,state,error,attempt_id,attempt_meta)
+          VALUES(?,?,'dispatching',NULL,?,?) ON CONFLICT(message_id) DO UPDATE SET
+          connection_id=excluded.connection_id,state=excluded.state,error=NULL,attempt_id=excluded.attempt_id,attempt_meta=excluded.attempt_meta`,
+          )
+          .run(item, input.connectionId, id, encoded);
+      return { id, ids: [...input.ids], meta };
+    });
+  }
+  deliveryAttempt(id: string): DeliveryAttempt {
+    const rows = this.db
+      .prepare('SELECT * FROM dispatches WHERE attempt_id=? ORDER BY message_id')
+      .all(id) as Row[];
+    if (!/^[a-f0-9-]{36}$/i.test(id) || !rows.length || rows.length > 200)
+      throw new Error('The delivery attempt is unavailable');
+    const meta = decodeDelivery(rows[0]!.attempt_meta);
+    const ids = rows.map((row) => String(row.message_id));
+    if (
+      membersHash(ids) !== meta.membersHash ||
+      rows.some(
+        (row) =>
+          row.attempt_meta !== rows[0]!.attempt_meta ||
+          row.connection_id !== meta.owner.connectionId ||
+          row.state !== coarseDelivery(meta.phase),
+      )
+    )
+      throw new Error('The delivery member set changed');
+    return { id, ids, meta };
+  }
+  assertDeliveryCurrent(id: string): DeliveryAttempt {
+    const attempt = this.deliveryAttempt(id),
+      captured = attempt.meta.owner;
+    const current = this.assertOwner(captured.connectionId);
+    if (
+      current.key !== captured.agentKey ||
+      current.binding.generation !== captured.generation ||
+      current.binding.chatId !== captured.chatId ||
+      current.binding.adapterId !== captured.adapterId ||
+      this.sourceStamp(current.key).incarnation !== captured.incarnation
+    )
+      throw new Error('The delivery binding changed');
+    for (const item of attempt.ids) {
+      const message = this.get(item, 'in');
+      if (
+        !message ||
+        nicknameKey(message.envelope.toNickname) !== current.key ||
+        message.state !== 'ready' ||
+        this.claudeFenced(item)
+      )
+        throw new Error('The delivery message is no longer available');
+    }
+    return attempt;
+  }
+  private changeDelivery(
+    id: string,
+    from: DeliveryPhase[],
+    to: DeliveryPhase,
+    patch: Partial<DeliveryMetadata> = {},
+  ): DeliveryAttempt {
+    const attempt = this.deliveryAttempt(id);
+    if (!from.includes(attempt.meta.phase)) throw new Error('The delivery phase changed');
+    const old = encodeDelivery(attempt.meta);
+    const meta = { ...attempt.meta, ...patch, phase: to, updated: Date.now() };
+    const encoded = encodeDelivery(meta);
+    for (const item of attempt.ids) {
+      const update = this.db
+        .prepare(
+          `UPDATE dispatches SET state=?,attempt_meta=?,error=NULL WHERE
+        message_id=? AND connection_id=? AND attempt_id=? AND attempt_meta=? AND state=?`,
+        )
+        .run(
+          coarseDelivery(to),
+          encoded,
+          item,
+          attempt.meta.owner.connectionId,
+          id,
+          old,
+          coarseDelivery(attempt.meta.phase),
+        );
+      if (Number(update.changes) !== 1) throw new Error('The delivery compare-and-set failed');
+    }
+    return { ...attempt, meta };
+  }
+  sealDelivery(id: string, payloadHash: string | null): void {
+    this.transaction(() => {
+      this.assertDeliveryCurrent(id);
+      this.changeDelivery(id, ['reserved'], 'sealed', { payloadHash });
+    });
+  }
+  issueDelivery(id: string): void {
+    this.transaction(() => {
+      this.assertDeliveryCurrent(id);
+      this.changeDelivery(id, ['sealed'], 'issued');
+    });
+  }
+  /** Only a trusted ordering/no-body witness can cancel after release intent. */
+  cancelDelivery(id: string, definiteNoBody = false): void {
+    this.transaction(() =>
+      this.changeDelivery(
+        id,
+        definiteNoBody ? ['reserved', 'sealed', 'issued', 'host-accepted'] : ['reserved', 'sealed'],
+        'cancelled',
+      ),
+    );
+  }
+  uncertainDelivery(id: string): void {
+    this.transaction(() => {
+      const attempt = this.changeDelivery(
+        id,
+        ['reserved', 'sealed', 'issued', 'host-accepted'],
+        'uncertain',
+      );
+      for (const item of attempt.ids)
+        this.db
+          .prepare("UPDATE messages SET error=? WHERE id=? AND direction='in' AND state='ready'")
+          .run(
+            'Delivery is uncertain; this saved message will not be repeated automatically',
+            item,
+          );
+    });
+  }
+  completeDelivery(id: string, lifecycle: DeliveryMetadata['lifecycle']): Set<string> {
+    return this.transaction(() => {
+      const previous = this.deliveryAttempt(id);
+      if (previous.meta.phase === 'committed') return new Set<string>();
+      const attempt = this.assertDeliveryCurrent(id);
+      if (JSON.stringify(attempt.meta.lifecycle) !== JSON.stringify(lifecycle))
+        throw new Error('The delivery lifecycle changed');
+      this.changeDelivery(id, ['issued', 'host-accepted'], 'committed');
+      for (const item of attempt.ids)
+        this.markDelivered(this.get(item, 'in')!, attempt.meta.owner.connectionId, id);
+      return new Set(attempt.ids);
+    });
+  }
+  private recoverDeliveries(): void {
+    const rows = this.db
+      .prepare('SELECT * FROM dispatches WHERE attempt_id IS NOT NULL OR attempt_meta IS NOT NULL')
+      .all() as Row[];
+    const groups = new Map<string, Row[]>();
+    for (const row of rows) {
+      const key = row.attempt_id === null ? 'orphan:' + row.message_id : String(row.attempt_id);
+      const group = groups.get(key) ?? [];
+      group.push(row);
+      groups.set(key, group);
+    }
+    for (const group of groups.values()) {
+      const row = group[0]!,
+        id = String(row.attempt_id ?? '');
+      try {
+        const meta = decodeDelivery(row.attempt_meta);
+        const terminal = meta.phase === 'cancelled' || meta.phase === 'committed';
+        if (
+          !/^[a-f0-9-]{36}$/i.test(id) ||
+          group.length > 200 ||
+          (!terminal &&
+            membersHash(group.map((item) => String(item.message_id))) !== meta.membersHash) ||
+          group.some(
+            (item) =>
+              item.attempt_meta !== row.attempt_meta ||
+              item.connection_id !== meta.owner.connectionId ||
+              item.state !== coarseDelivery(meta.phase),
+          ) ||
+          (meta.phase === 'committed' &&
+            group.some((item) => this.get(String(item.message_id), 'in')?.state === 'ready'))
+        )
+          throw new Error('Invalid recovered attempt');
+        // A cancelled/committed group may have been partially replaced/cleared.
+        // Terminal per-row evidence remains valid; it cannot authorize an old CAS.
+        const phase = ['reserved', 'sealed'].includes(meta.phase)
+          ? 'cancelled'
+          : ['issued', 'host-accepted'].includes(meta.phase)
+            ? 'uncertain'
+            : meta.phase;
+        this.db
+          .prepare('UPDATE dispatches SET state=?,attempt_meta=? WHERE attempt_id=?')
+          .run(coarseDelivery(phase), encodeDelivery({ ...meta, phase, updated: Date.now() }), id);
+      } catch {
+        if (row.attempt_id === null)
+          this.db
+            .prepare("UPDATE dispatches SET state='uncertain' WHERE message_id=?")
+            .run(row.message_id);
+        else
+          this.db
+            .prepare("UPDATE dispatches SET state='uncertain' WHERE attempt_id=?")
+            .run(row.attempt_id);
+      }
+    }
   }
   error(id: string, error: string): void {
     this.db.prepare("UPDATE messages SET error=? WHERE id=? AND direction='in'").run(error, id);
   }
   dispatch(id: string, connectionId: string, state: string, error: string | null = null): void {
     if (!this.get(id, 'in')) return;
+    // Only exact attempt CAS may change typed rows, including terminal ones.
+    if (
+      this.db
+        .prepare(
+          'SELECT 1 FROM dispatches WHERE message_id=? AND (attempt_id IS NOT NULL OR attempt_meta IS NOT NULL)',
+        )
+        .get(id)
+    )
+      return;
     this.db
       .prepare(
         'INSERT INTO dispatches(message_id,connection_id,state,error) VALUES(?,?,?,?) ON CONFLICT(message_id) DO UPDATE SET connection_id=excluded.connection_id,state=excluded.state,error=excluded.error',
@@ -831,6 +1124,22 @@ export class AgentStore {
         if (this.claudeFenced(id)) throw new Error('The message is already being delivered');
         if (['dispatching', 'uncertain'].includes(this.dispatchState(id)?.state ?? ''))
           throw new Error('Message delivery is in progress or uncertain; content is not repeated');
+        const common = this.db
+          .prepare('SELECT attempt_id,attempt_meta FROM dispatches WHERE message_id=?')
+          .get(id) as Row | undefined;
+        if (common && (common.attempt_id !== null || common.attempt_meta !== null)) {
+          if (
+            !common.attempt_id ||
+            !common.attempt_meta ||
+            decodeDelivery(common.attempt_meta).phase !== 'cancelled'
+          )
+            throw new Error('Another attempt still owns this message');
+          // A definite no-body attempt can be replaced by this private proof path.
+          // Its old callbacks lose their exact CAS target; uncertainty is never removed.
+          this.db
+            .prepare('DELETE FROM dispatches WHERE message_id=? AND attempt_id=?')
+            .run(id, common.attempt_id);
+        }
       }
       const id = randomUUID(),
         now = Date.now();
@@ -1040,11 +1349,7 @@ export class AgentStore {
         if (!message || nicknameKey(message.envelope.toNickname) !== String(row.agent_key))
           continue;
         if (message.state !== 'ready') continue;
-        this.db
-          .prepare("UPDATE messages SET state='processed',error=NULL WHERE id=? AND direction='in'")
-          .run(item);
-        this.dispatch(item, String(row.connection_id), 'admitted');
-        if (message.envelope.fromNode === message.envelope.toNode) this.receipt(item, 'processed');
+        this.markDelivered(message, String(row.connection_id));
         delivered.push(item);
       }
       return delivered;

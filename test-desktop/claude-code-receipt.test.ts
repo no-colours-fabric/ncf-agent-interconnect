@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -208,7 +209,7 @@ test('Concurrent reads, attachments and dispatch skip IDs reserved during file p
   // Reserved before the asynchronous preparation: no other path takes the ID.
   assert.equal(f.service.store.claudeFenced(sent.id), true);
   f.service.files.materialize = materialize;
-  await assert.rejects(f.service.read(connectionId, 0, 50, true), /in progress or uncertain/);
+  await assert.rejects(mcpRead(f.service, connectionId, 0, 50, true), /in progress or uncertain/);
   const file = f.service.store.get(sent.id, 'in')!.envelope.attachments[0];
   await assert.rejects(
     f.service.receiveFile(connectionId, sent.id, file.id),
@@ -251,7 +252,7 @@ test('A commit after a reset or an approved transfer never revives or misplaces 
   if (transferred.status !== 'connected') return;
   // No writer ordering has been proven across the transfer: do not invent receipt.
   await assert.rejects(
-    f.service.read(transferred.binding.connectionId, 0, 50, true),
+    mcpRead(f.service, transferred.binding.connectionId, 0, 50, true),
     /in progress or uncertain/,
   );
   assert.equal((await report(f, helper, deliveryOf(before), 'commit')).status, 400);

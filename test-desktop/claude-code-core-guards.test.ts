@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -74,7 +75,7 @@ test('An entirely fenced unread page returns an explicit blocked outcome', async
   const { f, connectionId, send, reserve } = await fixture(t);
   const sent = await send();
   reserve(sent.id);
-  await assert.rejects(f.service.read(connectionId, 0, 50, true), /in progress|uncertain/);
+  await assert.rejects(mcpRead(f.service, connectionId, 0, 50, true), /in progress|uncertain/);
   const owner = f.service.store.chatHistory(f.service.store.assertOwner(connectionId).key);
   assert.ok(owner.messages.some((row) => row.envelope.text === 'body'));
 });

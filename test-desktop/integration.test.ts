@@ -1,3 +1,4 @@
+import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
@@ -93,11 +94,11 @@ test('explicit peer address + one code connects two fresh nodes; isolated nickna
   });
   if (moved.status !== 'connected') throw new Error();
   assert.throws(() => b.store.assertOwner(destination.binding.connectionId), /agent_moved/);
-  await b.read(moved.binding.connectionId, 0, 50, true);
+  await mcpRead(b, moved.binding.connectionId, 0, 50, true);
   await until(() => a.store.get(id)?.state === 'processed');
   await b.stop();
   await b.start();
-  const history = (await b.read(moved.binding.connectionId)) as { messages: unknown[] };
+  const history = (await mcpRead(b, moved.binding.connectionId)) as { messages: unknown[] };
   assert.equal(history.messages.length, 1);
   assert.equal(b.store.events(destination.binding.connectionId)[0].type, 'agent_moved');
 });
@@ -235,7 +236,7 @@ test('one node serves multiple peers and keeps messages isolated by user-selecte
   await until(
     () => b.store.get(one.id)?.state === 'ready' && b.store.get(two.id)?.state === 'ready',
   );
-  const history = (await b.read(common.binding.connectionId)) as {
+  const history = (await mcpRead(b, common.binding.connectionId)) as {
     messages: { envelope: { fromNode: string } }[];
   };
   assert.deepEqual(
@@ -243,7 +244,7 @@ test('one node serves multiple peers and keeps messages isolated by user-selecte
     new Set([a.settings.value.nodeId, c.settings.value.nodeId]),
   );
   assert.equal(
-    ((await b.read(isolated.binding.connectionId)) as { messages: unknown[] }).messages.length,
+    ((await mcpRead(b, isolated.binding.connectionId)) as { messages: unknown[] }).messages.length,
     0,
   );
 });
@@ -289,7 +290,7 @@ test('same agent name on three nodes has independent routes and compact replies 
   const replies: string[] = [];
   for (const [i, service] of [b, c].entries()) {
     await until(() => a.store.get(outgoing[i].id, 'out')?.state === 'ready');
-    const before = (await a.read(owners[0].binding.connectionId)) as {
+    const before = (await mcpRead(a, owners[0].binding.connectionId)) as {
       messages: { envelope: { id: string }; delivery: string }[];
     };
     assert.equal(
@@ -360,7 +361,7 @@ test('same agent name on three nodes has independent routes and compact replies 
     );
     assert.equal(snapshots, 0);
     service.files.snapshot = snapshot;
-    await service.read(owners[i + 1].binding.connectionId);
+    await mcpRead(service, owners[i + 1].binding.connectionId);
     const reply = await service.send({
       ...address,
       recipientNickname: 'ОБЩИЙ АГЕНТ',
@@ -389,7 +390,7 @@ test('same agent name on three nodes has independent routes and compact replies 
   await until(() =>
     replies.every((id) => ['ready', 'processed'].includes(a.store.get(id, 'in')?.state ?? '')),
   );
-  const history = (await a.read(owners[0].binding.connectionId)) as {
+  const history = (await mcpRead(a, owners[0].binding.connectionId)) as {
     messages: { envelope: { id: string; fromNode: string }; direction: string; delivery: string }[];
   };
   assert.deepEqual(
