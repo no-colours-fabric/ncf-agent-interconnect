@@ -177,6 +177,65 @@ test('search UI: actual announcement reasons remain separate from search results
   }
 });
 
+test('search UI correction: all15 responder labels describe this search and localized trust/local help remains available', () => {
+  const expected: Record<Locale, string> = {
+    en: 'Found in this search',
+    ru: 'Найден в текущем поиске',
+    'zh-CN': '在本次搜索中发现',
+    fr: 'Trouvé lors de cette recherche',
+    de: 'Bei dieser Suche gefunden',
+    it: 'Trovato in questa ricerca',
+    es: 'Encontrado en esta búsqueda',
+    kk: 'Осы іздеуде табылды',
+    ja: '今回の検索で見つかりました',
+    'pt-BR': 'Encontrado nesta busca',
+    ko: '이번 검색에서 발견됨',
+    tr: 'Bu aramada bulundu',
+    pl: 'Znaleziono w tym wyszukiwaniu',
+    nl: 'Gevonden tijdens deze zoekactie',
+    uk: 'Знайдено під час поточного пошуку',
+  };
+  const escaped = (text: string) =>
+    renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
+  for (const locale of supportedLocales) {
+    const messages = lanSearchMessages(locale),
+      legacy = lanDiscoveryMessages(locale);
+    assert.equal(messages.available, expected[locale]);
+    assert.deepEqual(placeholders(messages.available), []);
+    const own = renderToStaticMarkup(
+      createElement(OwnConnectionCard, {
+        node: snapshot(),
+        code: null,
+        onCodeChange() {},
+        locale,
+        invoke: noInvoke,
+        onSettings() {},
+      }),
+    );
+    assert.ok(own.includes(escaped(legacy.listenerLocal)), locale);
+    assert.ok(!own.includes(escaped(messages.ownHelp)), locale);
+    assert.ok(own.includes(escaped(messages.createCode)), locale);
+    const html = renderToStaticMarkup(
+      createElement(NetworkPage, {
+        active: true,
+        windowVisible: true,
+        snapshot: snapshot(),
+        locale,
+        invoke: noInvoke,
+        onSettings() {},
+        ownCode: null,
+        onOwnCodeChange() {},
+        manual: { address: '', code: '', onAddressChange() {}, onCodeChange() {} },
+        children: null,
+      }),
+    );
+    assert.ok(html.includes(escaped(expected[locale])), locale);
+    assert.ok(html.includes(escaped(legacy.unverified)), locale);
+    assert.ok(html.includes('nearby-details'), locale);
+  }
+  assert.equal(lanSearchMessages('kk').expiresIn, 'Аяқталуына {time} қалды');
+});
+
 type Call = { method: string; input: Record<string, unknown> };
 interface Fixture {
   calls: Call[];
@@ -253,7 +312,7 @@ test(
 import React from 'react';
 import {createRoot} from 'react-dom/client';
 import {flushSync} from 'react-dom';
-import {ThemeProvider,CssBaseline,Box,TextField,Button} from '@mui/material';
+import {ThemeProvider,CssBaseline,Box,TextField,Button,Dialog,DialogTitle} from '@mui/material';
 import {NetworkPage} from ${JSON.stringify(source('NetworkPage.tsx'))};
 import {RemoteNodesTable} from ${JSON.stringify(source('RemoteNodesTable.tsx'))};
 import {createAppTheme} from ${JSON.stringify(source('theme.ts'))};
@@ -280,14 +339,17 @@ const invoke=(method,input)=>{
  return new Promise((resolve,reject)=>pending.push({method,resolve,reject}));
 };
 function App({patch}){
- const[state,setState]=React.useState({snapshot:structuredClone(initial),active:true,windowVisible:true,obscured:false,locale:'en',theme:'dark',ownCode:null,address:'manual-draft:7336',code:'ABCD2345',legacy:false,...patch});
+ const[state,setState]=React.useState({snapshot:structuredClone(initial),active:true,windowVisible:true,obscured:false,locale:'en',theme:'dark',ownCode:null,address:'manual-draft:7336',code:'ABCD2345',legacy:false,externalModal:false,nestedModal:false,exitHold:false,...patch});
  update=patch=>flushSync(()=>setState(value=>({...value,...patch})));
- return <ThemeProvider theme={createAppTheme(state.theme)}><CssBaseline/><Box sx={{p:4,ml:'240px'}}>
+ return <ThemeProvider theme={createAppTheme(state.theme)}><CssBaseline/><Box data-testid="fixture-owner" aria-hidden={state.exitHold?true:undefined} sx={{p:4,ml:'240px'}}>
   <NetworkPage active={state.active} windowVisible={state.windowVisible} obscured={state.obscured} snapshot={state.snapshot} locale={state.locale} invoke={invoke} onSettings={()=>calls.push({method:'settings',input:{}})} ownCode={state.ownCode} onOwnCodeChange={ownCode=>setState(value=>({...value,ownCode}))} manual={{address:state.address,code:state.code,onAddressChange:address=>setState(value=>({...value,address})),onCodeChange:code=>setState(value=>({...value,code})),content:state.legacy?<form data-testid="legacy-manual" onSubmit={event=>event.preventDefault()}><TextField label="Retained manual field" value={state.address} onChange={event=>setState(value=>({...value,address:event.target.value}))}/><Button onClick={()=>calls.push({method:'legacyConnect',input:{address:state.address,code:state.code}})}>Retained manual action</Button></form>:undefined}}>
    <RemoteNodesTable snapshot={state.snapshot} locale={state.locale} nodeName={id=>state.snapshot.peers.find(peer=>peer.id===id)?.label||id}/>
    <Button onClick={()=>calls.push({method:'retainedDetails',input:{}})}>Retained details action</Button>
   </NetworkPage>
- </Box></ThemeProvider>;
+ </Box>
+ <Dialog open={state.externalModal} data-testid="external-modal" aria-labelledby="external-modal-title"><DialogTitle id="external-modal-title">Outer modal fixture</DialogTitle>
+  <Dialog open={state.nestedModal} data-testid="nested-modal" aria-labelledby="nested-modal-title"><DialogTitle id="nested-modal-title">Nested modal fixture</DialogTitle></Dialog>
+ </Dialog></ThemeProvider>;
 }
 window.fixture={calls,update:patch=>update(patch),reset(patch={}){calls.length=0;copyFailure=false;visible=true;focused=true;mode='native';flushSync(()=>root.render(<App key={++generation} patch={patch}/>));},settle(method,result,error){const index=pending.findIndex(request=>request.method===method);if(index<0)throw new Error('No pending '+method);const [request]=pending.splice(index,1);error?request.reject(new Error(error)):request.resolve(result);},failCopy(value){copyFailure=value;},visibility(v,f){visible=v;focused=f;document.dispatchEvent(new Event('visibilitychange'));window.dispatchEvent(new Event(f?'focus':'blur'));},observerMode(value){mode=value;},observerCount:()=>observers.length,replay(index,key){const observer=observers[index];const target=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(target)observer.callback([{target,isIntersecting:true,intersectionRatio:1}]);},unmount(){root.unmount();root=createRoot(document.getElementById('root'));}};
 root.render(<App key={generation} patch={{}}/>);
@@ -637,6 +699,193 @@ root.render(<App key={generation} patch={{}}/>);
           );
           assert.equal((await callList(page, 'ackLanSearch')).length, 0);
           await dialog().getByRole('button', { name: 'Cancel', exact: true }).click();
+        },
+      );
+
+      await runCase(
+        'copy-correction',
+        'local guidance is actionable while running-only Create/Refresh/Copy/Settings remain available',
+        async () => {
+          const value = snapshot();
+          value.lanDiscovery = {
+            state: 'searching',
+            reason: null,
+            announcement: { available: false, reason: 'listener-local' },
+            nodes: [],
+          };
+          await reset(page, { snapshot: value });
+          const own = page.getByTestId('own-connection-card');
+          await own
+            .getByText(lanDiscoveryMessages('en').listenerLocal, { exact: true })
+            .first()
+            .waitFor();
+          assert.equal(await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).count(), 0);
+          assert.equal(
+            await own.getByRole('button', { name: 'Create code', exact: true }).isEnabled(),
+            true,
+          );
+          await page.getByText('Found in this search', { exact: true }).waitFor();
+          assert.equal(await page.getByText('Available to connect', { exact: true }).count(), 0);
+          const details = page.getByTestId('nearby-details');
+          await details.locator('summary').click();
+          await details.getByText(lanDiscoveryMessages('en').unverified, { exact: true }).waitFor();
+          await own.getByRole('button', { name: 'Create code', exact: true }).click();
+          await settle(page, 'accessCode', {
+            code: 'ABCD2345',
+            expiresAt: new Date(Date.now() + 600000).toISOString(),
+          });
+          await own.getByRole('button', { name: 'Copy code', exact: true }).click();
+          assert.deepEqual((await callList(page, 'copy')).at(-1)?.input, { text: 'ABCD2345' });
+          await own.getByRole('button', { name: 'Create new code', exact: true }).click();
+          await settle(page, 'accessCode', {
+            code: 'BCDE3456',
+            expiresAt: new Date(Date.now() + 600000).toISOString(),
+          });
+          await own.getByRole('button', { name: 'Network settings', exact: true }).click();
+          assert.equal((await callList(page, 'settings')).length, 1);
+          const unavailable = {
+            ...value,
+            listenHost: '0.0.0.0',
+            peerUrl: 'wss://192.0.2.1:7336/peer',
+            lanDiscovery: {
+              ...value.lanDiscovery!,
+              announcement: { available: false, reason: 'listener-unavailable' },
+            },
+          };
+          await update(page, { snapshot: unavailable });
+          assert.equal(
+            await own.getByRole('button', { name: 'Create code', exact: true }).isEnabled(),
+            true,
+          );
+          await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
+        },
+      );
+
+      await runCase(
+        'modal-correction',
+        'nested MUI cover and exit gap revoke old intersections; unhide uses fresh geometry only',
+        async () => {
+          const many = snapshot();
+          many.lanSearch!.nodes = Array.from({ length: 12 }, (_, index) => ({
+            ...first,
+            key: `cover-${index}`,
+            nodeId: `cover-node-${index}`,
+            label: `Cover computer ${index}`,
+            address: `wss://192.0.2.${index + 20}:7336/peer`,
+          }));
+          many.lanSearch!.foundCount = 12;
+          many.lanSearch!.unseenKeys = many.lanSearch!.nodes.map((node) => node.key);
+          await reset(page, { snapshot: many, obscured: true });
+          await page.evaluate(() => window.scrollTo(0, 0));
+          await page.evaluate(() =>
+            (window as unknown as { fixture: Fixture }).fixture.observerMode('manual'),
+          );
+          await update(page, { obscured: false });
+          const current = await page.evaluate(
+            () => (window as unknown as { fixture: Fixture }).fixture.observerCount() - 1,
+          );
+          // Run the queued entry in the same task as aria-hidden, before MutationObserver delivery.
+          await page.evaluate(
+            ({ current }) => {
+              document
+                .querySelector('[data-testid="fixture-owner"]')!
+                .setAttribute('aria-hidden', 'true');
+              (window as unknown as { fixture: Fixture }).fixture.replay(current, 'cover-0');
+            },
+            { current },
+          );
+          assert.equal((await callList(page, 'ackLanSearch')).length, 0);
+          await page.evaluate(() =>
+            document.querySelector('[data-testid="fixture-owner"]')!.removeAttribute('aria-hidden'),
+          );
+          await until(
+            async () =>
+              (await page.evaluate(() =>
+                (window as unknown as { fixture: Fixture }).fixture.observerCount(),
+              )) >
+              current + 1,
+            'Ancestor unhide creates a fresh observer',
+          );
+          await page.evaluate(
+            ({ current }) =>
+              (window as unknown as { fixture: Fixture }).fixture.replay(current, 'cover-0'),
+            { current },
+          );
+          assert.equal((await callList(page, 'ackLanSearch')).length, 0);
+          const beforeModal = await page.evaluate(
+            () => (window as unknown as { fixture: Fixture }).fixture.observerCount() - 1,
+          );
+          await update(page, { externalModal: true, nestedModal: true });
+          await page.getByRole('dialog', { name: 'Nested modal fixture', exact: true }).waitFor();
+          assert.equal(
+            await page
+              .locator('[data-lan-key="cover-0"]')
+              .evaluate((row) => !!row.closest('[aria-hidden="true"]')),
+            true,
+          );
+          await page.evaluate(
+            ({ beforeModal }) =>
+              (window as unknown as { fixture: Fixture }).fixture.replay(beforeModal, 'cover-0'),
+            { beforeModal },
+          );
+          assert.equal((await callList(page, 'ackLanSearch')).length, 0);
+          await update(page, { nestedModal: false });
+          await page.getByTestId('nested-modal').waitFor({ state: 'hidden' });
+          assert.equal(
+            await page
+              .locator('[data-lan-key="cover-0"]')
+              .evaluate((row) => !!row.closest('[aria-hidden="true"]')),
+            true,
+          );
+          await update(page, { externalModal: false, exitHold: true });
+          await page.getByTestId('external-modal').waitFor({ state: 'hidden' });
+          const changed = structuredClone(many);
+          changed.lanSearch!.nodes.push({
+            ...first,
+            key: 'future-cover-key',
+            label: 'New covered computer',
+          });
+          changed.lanSearch!.unseenKeys.push('future-cover-key');
+          await update(page, { snapshot: changed });
+          const hiddenObserver = await page.evaluate(
+            () => (window as unknown as { fixture: Fixture }).fixture.observerCount() - 1,
+          );
+          await page.evaluate(
+            ({ beforeModal, hiddenObserver }) => {
+              const fixture = (window as unknown as { fixture: Fixture }).fixture;
+              fixture.replay(beforeModal, 'future-cover-key');
+              fixture.replay(hiddenObserver, 'cover-0');
+            },
+            { beforeModal, hiddenObserver },
+          );
+          assert.equal((await callList(page, 'ackLanSearch')).length, 0);
+          await page.evaluate(() =>
+            (window as unknown as { fixture: Fixture }).fixture.observerMode('native'),
+          );
+          await update(page, { exitHold: false });
+          await until(
+            async () =>
+              (await callList(page, 'ackLanSearch')).some((call) =>
+                (call.input.keys as string[]).includes('cover-0'),
+              ),
+            'Fresh native IntersectionObserver acknowledges visible rows after unhide',
+          );
+          const accepted = (await callList(page, 'ackLanSearch')).flatMap(
+            (call) => call.input.keys as string[],
+          );
+          assert.ok(!accepted.includes('cover-11'));
+          assert.ok(!accepted.includes('future-cover-key'));
+          const count = (await callList(page, 'ackLanSearch')).length;
+          await page.evaluate(
+            ({ beforeModal, hiddenObserver }) => {
+              const fixture = (window as unknown as { fixture: Fixture }).fixture;
+              fixture.replay(beforeModal, 'future-cover-key');
+              fixture.replay(hiddenObserver, 'cover-11');
+            },
+            { beforeModal, hiddenObserver },
+          );
+          assert.equal((await callList(page, 'ackLanSearch')).length, count);
+          assert.deepEqual(errors, []);
         },
       );
 

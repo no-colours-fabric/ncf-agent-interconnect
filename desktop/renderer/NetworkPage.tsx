@@ -167,59 +167,86 @@ export function NetworkPage({
     };
   }, []);
   useEffect(() => {
-    const generation = ++observerGeneration.current;
+    observerGeneration.current++;
     if (!canObserve || typeof IntersectionObserver === 'undefined') return;
     const known = new Set(nodes.map((node) => node.key));
     const unseen = new Set(search?.unseenKeys ?? []);
     const runId = search?.runId;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (
-          !mounted.current ||
-          generation !== observerGeneration.current ||
-          !observationGate.current ||
-          document.visibilityState !== 'visible' ||
-          !document.hasFocus() ||
-          currentSnapshot.current.lanSearch?.runId !== runId
-        )
-          return;
-        const keys: string[] = [];
-        const currentUnseen = new Set(currentSnapshot.current.lanSearch?.unseenKeys ?? []);
-        for (const entry of entries) {
-          const key = (entry.target as HTMLElement).dataset.lanKey;
+    let observer: IntersectionObserver | undefined;
+    let disposed = false;
+    const observeFreshGeometry = () => {
+      const generation = ++observerGeneration.current;
+      observer?.disconnect();
+      if (disposed || !observationGate.current) return;
+      observer = new IntersectionObserver(
+        (entries) => {
           if (
-            entry.isIntersecting &&
-            entry.intersectionRatio >= 0.5 &&
-            entry.target.isConnected &&
-            key &&
-            known.has(key) &&
-            unseen.has(key) &&
-            currentUnseen.has(key) &&
-            currentKeys.current.has(key) &&
-            rowRefs.current.get(key) === entry.target &&
-            !pendingAcknowledgements.current.has(key)
+            !mounted.current ||
+            generation !== observerGeneration.current ||
+            !observationGate.current ||
+            document.visibilityState !== 'visible' ||
+            !document.hasFocus() ||
+            currentSnapshot.current.lanSearch?.runId !== runId
           )
-            keys.push(key);
-        }
-        const exact = [...new Set(keys)].slice(0, 128);
-        if (!exact.length) return;
-        exact.forEach((key) => pendingAcknowledgements.current.add(key));
-        void invoke('ackLanSearch', { keys: exact })
-          .catch((error: unknown) => {
-            if (mounted.current)
-              setDiagnostic(error instanceof Error ? error.message : String(error));
-          })
-          .finally(() => exact.forEach((key) => pendingAcknowledgements.current.delete(key)));
-      },
-      { threshold: 0.5 },
-    );
+            return;
+          const keys: string[] = [];
+          const currentUnseen = new Set(currentSnapshot.current.lanSearch?.unseenKeys ?? []);
+          for (const entry of entries) {
+            const key = (entry.target as HTMLElement).dataset.lanKey;
+            if (
+              entry.isIntersecting &&
+              entry.intersectionRatio >= 0.5 &&
+              entry.target.isConnected &&
+              key &&
+              known.has(key) &&
+              unseen.has(key) &&
+              currentUnseen.has(key) &&
+              currentKeys.current.has(key) &&
+              rowRefs.current.get(key) === entry.target &&
+              !pendingAcknowledgements.current.has(key)
+            )
+              keys.push(key);
+          }
+          const exact = [...new Set(keys)]
+            .filter((key) => {
+              const row = rowRefs.current.get(key);
+              return row?.isConnected && !row.closest('[aria-hidden="true"]');
+            })
+            .slice(0, 128);
+          if (!exact.length) return;
+          exact.forEach((key) => pendingAcknowledgements.current.add(key));
+          void invoke('ackLanSearch', { keys: exact })
+            .catch((error: unknown) => {
+              if (mounted.current)
+                setDiagnostic(error instanceof Error ? error.message : String(error));
+            })
+            .finally(() => exact.forEach((key) => pendingAcknowledgements.current.delete(key)));
+        },
+        { threshold: 0.5 },
+      );
+      for (const key of known) {
+        const row = rowRefs.current.get(key);
+        if (row && !row.closest('[aria-hidden="true"]')) observer.observe(row);
+      }
+    };
+    // Observe only row ancestors. Modal exit needs new intersections, not cached entries.
+    const ancestors = new Set<Element>();
     for (const key of known) {
-      const row = rowRefs.current.get(key);
-      if (row) observer.observe(row);
+      let ancestor: Element | null = rowRefs.current.get(key) ?? null;
+      while (ancestor) {
+        ancestors.add(ancestor);
+        ancestor = ancestor.parentElement;
+      }
     }
+    const modalChanges = new MutationObserver(observeFreshGeometry);
+    for (const ancestor of ancestors)
+      modalChanges.observe(ancestor, { attributes: true, attributeFilter: ['aria-hidden'] });
+    observeFreshGeometry();
     return () => {
+      disposed = true;
       observerGeneration.current++;
-      observer.disconnect();
+      modalChanges.disconnect();
+      observer?.disconnect();
     };
   }, [canObserve, keySignature, unseenSignature, search?.runId, invoke]);
 
@@ -577,6 +604,10 @@ export function NetworkPage({
               </Box>
             )}
           </Paper>
+          <Box component="details" sx={{ mt: 1.5 }} data-testid="nearby-details">
+            <summary>{m.details}</summary>
+            <Typography variant="caption">{legacy.unverified}</Typography>
+          </Box>
         </Box>
       </Stack>
       <Dialog

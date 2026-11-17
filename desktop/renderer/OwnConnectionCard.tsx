@@ -81,7 +81,10 @@ export function OwnConnectionCard({
   const remaining = Math.max(0, Math.ceil((expires - now) / 1000));
   const usable = !!code && Number.isFinite(expires) && remaining > 0 && node.running && !pending;
   const expired = !!code && !remaining;
-  const local = node.listenHost === '127.0.0.1' || node.listenHost === '::1';
+  const local =
+    announcement?.reason === 'listener-local' ||
+    node.listenHost === '127.0.0.1' ||
+    node.listenHost === '::1';
   const time = `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}`;
 
   useEffect(() => {
@@ -189,7 +192,7 @@ export function OwnConnectionCard({
         {m.ownTitle}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
-        {m.ownHelp}
+        {local ? legacy.listenerLocal : m.ownHelp}
       </Typography>
       <Box
         sx={{
