@@ -285,16 +285,25 @@ function App({
                   hint: t(locale, 'statInboxHint'),
                 },
               ].map((item) => (
-                <Box key={item.label} sx={{ minWidth: 0, pr: 2 }} title={item.hint}>
+                <Box key={item.label} sx={{ minWidth: 0, pr: 2 }}>
                   <Typography color="text.secondary" variant="body2">
                     {item.label}
                   </Typography>
-                  <Typography
-                    variant="h6"
-                    sx={{ mt: 0.5, fontSize: 24, fontVariantNumeric: 'tabular-nums' }}
+                  <Stack
+                    direction="row"
+                    useFlexGap
+                    sx={{ mt: 0.5, alignItems: 'baseline', flexWrap: 'wrap', gap: 1 }}
                   >
-                    {item.value}
-                  </Typography>
+                    <Typography
+                      component="span"
+                      sx={{ fontSize: 20, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {item.value}
+                    </Typography>
+                    <Typography component="span" color="text.secondary" variant="caption">
+                      {item.hint}
+                    </Typography>
+                  </Stack>
                 </Box>
               ))}
             </Box>
