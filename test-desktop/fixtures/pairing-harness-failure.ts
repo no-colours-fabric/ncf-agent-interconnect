@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { access } from 'node:fs/promises';
 import { PairingHarness, bidirectionalGates, type PairRequestTarget } from '../pairing-harness.js';
-import { pairingNode } from '../pairing-node-fixture.js';
+import { pairingNode, pairingNodeResources } from '../pairing-node-fixture.js';
 
 // Deliberately failing child cases: the parent requires a FAIL summary, not a timeout.
 for (const phase of ['start', 'prove', 'confirm']) {
@@ -13,10 +13,15 @@ for (const phase of ['start', 'prove', 'confirm']) {
       const context = { after: (callback: () => Promise<void>) => cleanups.push(callback) };
       const services: Awaited<ReturnType<typeof pairingNode>>[] = [];
       const originals: PairRequestTarget['pairRequest'][] = [];
+      const resources: ReturnType<typeof pairingNodeResources>[] = [];
       t.after(async () => {
         for (const cleanup of cleanups.reverse()) await cleanup();
         for (const [index, service] of services.entries()) {
-          assert.equal(service.network.server?.listening, false);
+          assert.ok(resources[index]!.servers.length > 0);
+          assert.ok(resources[index]!.servers.every((server) => !server.listening));
+          assert.equal(resources[index]!.sockets.size, 0);
+          assert.deepEqual(service.network.endpoints, []);
+          assert.deepEqual(service.network.networkStatus().listeners, []);
           assert.equal(
             (service.network as unknown as PairRequestTarget).pairRequest,
             originals[index],
@@ -26,6 +31,7 @@ for (const phase of ['start', 'prove', 'confirm']) {
         t.diagnostic('cleanup-complete ' + label);
       });
       services.push(await pairingNode(context), await pairingNode(context));
+      resources.push(...services.map(pairingNodeResources));
       const [a, b] = services;
       const networks = services.map((service) => service.network as unknown as PairRequestTarget);
       originals.push(...networks.map((network) => network.pairRequest));

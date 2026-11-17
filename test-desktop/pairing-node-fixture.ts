@@ -1,10 +1,24 @@
 import { mkdtemp, rm } from 'node:fs/promises';
+import type https from 'node:https';
 import type { Socket } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { NodeService } from '../desktop/core/service.js';
 import { SettingsFile } from '../desktop/core/settings.js';
 import { withDeadline } from './pairing-harness.js';
+
+export interface PairingNodeResources {
+  readonly servers: readonly https.Server[];
+  readonly sockets: ReadonlySet<Socket>;
+}
+
+const resources = new WeakMap<NodeService, PairingNodeResources>();
+
+export function pairingNodeResources(service: NodeService): PairingNodeResources {
+  const owned = resources.get(service);
+  if (!owned) throw new Error('Pairing node resources were not captured');
+  return owned;
+}
 
 /** Every handle here belongs to this isolated fixture, never a working hub. */
 export async function pairingNode(
@@ -24,9 +38,10 @@ export async function pairingNode(
         errors.push(error);
         // A cleanup timeout is still a test failure. Only reap this fixture's sockets.
         for (const socket of sockets) socket.destroy();
-        const server = service.network?.server;
-        if (server?.listening) server.close(() => {});
-        server?.closeAllConnections();
+        for (const server of resources.get(service)?.servers ?? []) {
+          if (server.listening) server.close(() => {});
+          server.closeAllConnections();
+        }
         try {
           await withDeadline(closing, 5000, 'Forced pairing node cleanup');
         } catch (forcedError) {
@@ -49,9 +64,15 @@ export async function pairingNode(
   await file.save();
   service = new NodeService(directory);
   await withDeadline(service.open(), 10000, 'Pairing node startup');
-  service.network.server!.on('connection', (socket: Socket) => {
-    sockets.add(socket);
-    socket.once('close', () => sockets.delete(socket));
-  });
+  const servers = [
+    ...(service.network as unknown as { servers: Map<string, https.Server> }).servers.values(),
+  ];
+  if (!servers.length) throw new Error('Pairing node did not open an owned server');
+  resources.set(service, { servers, sockets });
+  for (const server of servers)
+    server.on('connection', (socket: Socket) => {
+      sockets.add(socket);
+      socket.once('close', () => sockets.delete(socket));
+    });
   return service;
 }
