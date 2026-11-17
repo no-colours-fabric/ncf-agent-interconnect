@@ -265,7 +265,10 @@ export class OpenCodeV2Auth {
     await this.verifyRow(row);
     return row;
   }
-  private async verifyRow(row: OpenCodeV2AuthRow): Promise<OpenCodeV2Provision> {
+  private async verifyRow(
+    row: OpenCodeV2AuthRow,
+    requireConfiguration = true,
+  ): Promise<OpenCodeV2Provision> {
     const folder = this.generation(row);
     const raw = await this.readPrivate(path.join(folder, 'ncf-target.json'));
     const provision = parseOpenCodeV2Provision(JSON.parse(raw));
@@ -279,8 +282,9 @@ export class OpenCodeV2Auth {
     const asset = await this.readPrivate(path.join(folder, 'index.js'));
     if (
       hash(asset) !== row.assetHash ||
-      (await this.options.configurationHash(row.selected.configurationPath)) !==
-        row.configurationHash
+      (requireConfiguration &&
+        (await this.options.configurationHash(row.selected.configurationPath)) !==
+          row.configurationHash)
     )
       throw new Error('V2_TARGET_CONFIGURATION_MISMATCH');
     return provision;
@@ -321,8 +325,17 @@ export class OpenCodeV2Auth {
     if (row) {
       if (JSON.stringify(row.selected) !== JSON.stringify(selected))
         throw new Error('V2_TARGET_SELECTION_CHANGED');
-      const provision = await this.verifyRow(row);
-      if (!forceNewGeneration && provision.nodeId === nodeId && provision.nodeUrl === nodeUrl)
+      const provision = await this.verifyRow(row, false);
+      const coherent = await this.options.configurationHash(row.selected.configurationPath).then(
+        (value) => value === row.configurationHash,
+        () => false,
+      );
+      if (
+        !forceNewGeneration &&
+        coherent &&
+        provision.nodeId === nodeId &&
+        provision.nodeUrl === nodeUrl
+      )
         return {
           target: selected,
           provision,
@@ -413,9 +426,24 @@ export class OpenCodeV2Auth {
         throw new Error('V2_TARGET_PUBLICATION_CHANGED');
       await rename(temporary, this.registryFile);
       temporary = undefined;
-      publications.emit(this.root, row.targetId);
-      this.options.changed?.(row.targetId);
-      this.options.checkpoint?.('activated');
+      // Publication committed. Notify every observer; none may turn success into rollback.
+      for (const listener of publications.listeners(this.root)) {
+        try {
+          listener(row.targetId);
+        } catch {
+          /* Isolate an unrelated observer. */
+        }
+      }
+      try {
+        this.options.changed?.(row.targetId);
+      } catch {
+        /* Already committed. */
+      }
+      try {
+        this.options.checkpoint?.('activated');
+      } catch {
+        /* Already committed. */
+      }
     } finally {
       this.publishing = false;
       if (temporary) await unlink(temporary).catch(() => {});

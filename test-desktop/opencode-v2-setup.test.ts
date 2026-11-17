@@ -6,6 +6,7 @@ import path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { OpenCodeV2SetupService } from '../desktop/core/mcp-setup.js';
 import { McpSetupPaths } from '../desktop/core/mcp-setup-paths.js';
+import { OpenCodeV2Auth } from '../desktop/core/opencode-v2-auth.js';
 import {
   editMcpConfiguration,
   editOpenCodeV2Configuration,
@@ -111,4 +112,49 @@ test('v2 refuses selected canonical v1 path and legacy contents; legacy editor r
     () => editMcpConfiguration('opencode', '{"plugins":[],"mcp":{"servers":{}}}', '{}'),
     /not supported/,
   );
+});
+
+test('post-commit observer exceptions cannot fail Apply or suppress the next revocation observer', async (t) => {
+  const { state, target, setup } = await fixture(t, (phase) => {
+    if (phase === 'activated') throw new Error('post-commit observer');
+  });
+  const observer = new OpenCodeV2Auth(state, {
+    configurationHash: async () => {
+      throw new Error('unused');
+    },
+  });
+  const stopFirst = observer.observe(() => {
+    throw new Error('first observer');
+  });
+  let notified = 0;
+  const stopSecond = observer.observe(() => {
+    notified++;
+  });
+  t.after(() => {
+    stopFirst();
+    stopSecond();
+  });
+  const preview = await setup.v2Preview('window', target),
+    result = await setup.v2Apply('window', preview.planId, target, false);
+  assert.equal(result.status, 'applied');
+  assert.equal(notified, 1);
+  assert.equal((await setup.v2Status(target)).state, 'configured');
+});
+test('explicit owner config-drift repair creates a new generation without startup repair', async (t) => {
+  const { state, target, source, setup } = await fixture(t);
+  const first = await setup.v2Preview('window', target);
+  assert.equal((await setup.v2Apply('window', first.planId, target, false)).status, 'applied');
+  const registryFile = path.join(state, 'Integrations', 'opencode-v2', 'targets.json');
+  const old = JSON.parse(await readFile(registryFile, 'utf8')).targets[0];
+  await writeFile(target.configurationPath, source);
+  assert.equal((await setup.v2Status(target)).state, 'unavailable');
+  assert.equal(await readFile(target.configurationPath, 'utf8'), source);
+  const repair = await setup.v2Preview('window', target);
+  assert.equal(await readFile(target.configurationPath, 'utf8'), source);
+  assert.equal((await setup.v2Apply('window', repair.planId, target, true)).status, 'applied');
+  const current = JSON.parse(await readFile(registryFile, 'utf8')).targets[0];
+  assert.equal(current.targetId, old.targetId);
+  assert.notEqual(current.generation, old.generation);
+  assert.notEqual(current.credentialVerifier, old.credentialVerifier);
+  assert.equal((await setup.v2Status(target)).state, 'configured');
 });
