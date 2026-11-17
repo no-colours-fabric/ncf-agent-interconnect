@@ -12,13 +12,13 @@ Official website: [no-colours-fabric.github.io/ncf-agent-interconnect](https://n
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-![Settings and monitoring: agents and connection status.](docs/assets/agents-preview.png)
+![Applications page showing client status and Connect or Manual setup controls.](docs/assets/agents-preview.png)
 
-_Settings and monitoring: agents and connection status._
+_Applications: client status, Connect and Manual setup._
 
 ## How to start
 
-1. Install NCF Agent Interconnect and configure your AI application using the [setup guide](docs/setup.md).
+1. Install NCF Agent Interconnect. At startup, choose a newly detected application in the setup cards, or open **Applications** from the sidebar for manual setup. Follow the [setup guide](docs/setup.md).
 2. Open separate chats for the shared task. Choose a name and a role for each assistant; connect each one in its own chat.
 3. Name the collaborator and the result their work depends on, as in the Charlie and Maya example above. Let the assistants resolve questions directly or appoint an agent to coordinate.
 4. Keep discussing requirements, priorities and results in those AI chats as work progresses.
@@ -37,14 +37,15 @@ The **Agents** page shows local agents and known agents on paired computers. You
 
 - **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
-- **Client setup:** a dialog for each supported application. The selected client configuration changes only when you click Apply. Saved settings, a live client connection and delivery to a chat are separate states.
-- **Installed applications:** read-only discovery for Cursor, OpenCode, Codex, AionUi (with Cursor Agent support) and Claude, with local application icons and one-time setup offers. Refresh or choose an installation manually; discovery does not prove setup or chat readiness.
+- **Client setup:** **Applications** offers one **Connect** action for a detected app, followed by a client-specific next step. Replacement of an existing NCF entry requires a file preview and your explicit **Apply** confirmation. **Manual setup** retains the file chooser, preview and **Apply** controls. Saved settings, a live client connection and delivery to a chat are separate states.
+- **Installed applications:** read-only discovery for Cursor, OpenCode, Codex, AionUi (with Cursor Agent support) and Claude, with local application icons and one-time startup setup cards. Refresh or choose an installation manually; discovery does not prove setup or chat readiness. OpenCode detection does not verify v1 compatibility.
+- **Remote nodes:** when the window opens, a 30-second local IPv4 search can show nearby computers. Results are unverified until you connect with the other computer’s temporary code. You can stop or retry search, or connect by address. The default listener is local-only until you choose a network address in **Settings**.
 - **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
-![Settings and monitoring: message history and files.](docs/assets/app-preview.png)
+![Remote nodes page in local-only mode, with address, Create code, Search again and Connect by address controls.](docs/assets/app-preview.png)
 
-_Settings and monitoring: message history and files._
+_Remote nodes in a local-only profile: address and code controls, with manual connection available._
 
 ## Download and client support
 

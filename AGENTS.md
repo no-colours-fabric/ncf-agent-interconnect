@@ -4,8 +4,10 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 NCF Agent Interconnect is a standalone Electron message hub for AI agents.
 The application owns transport, persistent history and client adapters. Users
-configure supported MCP clients through client-specific setup dialogs. Only
-the owner's Apply action may write the selected client configuration file.
+configure supported MCP clients through client-specific setup dialogs. Client
+configuration writes require the owner's explicit Apply or automatic-setup
+Connect action for that selected application. Replacing existing settings still
+requires separate confirmation.
 
 ## Project and brand naming
 
@@ -52,10 +54,11 @@ the owner's Apply action may write the selected client configuration file.
   to its exact client chat. Receipt is not task completion.
 - Preserve history, attachments, message IDs and restart recovery. Do not blindly
   repeat an external request whose admission is uncertain.
-- Client setup may update the selected configuration only after the owner's Apply
-  action. Preserve unrelated settings and leave matching entries unchanged.
-  Startup checks are read-only. Development and tests use isolated configuration
-  files and must not modify real client configuration.
+- Client setup may update the selected configuration only after the owner's
+  explicit Apply or application-setup Connect action. Replacement requires a
+  separate confirmation. Preserve unrelated settings and leave matching entries
+  unchanged. Startup checks are read-only. Development and tests use isolated
+  configuration files and must not modify real client configuration.
 - Do not launch arbitrary agent commands or add scheduled agent polling. Network
   keepalive and event-stream reconnection belong to transport recovery.
 - Keep tokens, private keys and node state out of logs and public fixtures.
@@ -121,6 +124,15 @@ a native platform verification. Report verification limits accurately.
   in its release description. Actual UI images from one operating system are
   sufficient. Keep private data out of the images; the four installers remain
   the routine release assets.
+- Prioritize completing and publishing substantial features. Schedule small
+  improvements between substantial feature releases; do not let them repeatedly
+  interrupt implementation, extend a frozen release or block a larger feature.
+  Give isolated writers coherent implementation stages and coordinate actual
+  shared changes instead of requiring approval for every small step.
+- After every MINOR version update, replace documentation screenshots with actual
+  screenshots from that version. The key frames are Applications and Remote nodes.
+  Do not reuse older-version screenshots or substitute prototypes. Coordinate
+  capture, docs updates and public verification within the minor-release workflow.
 - Do not upload ZIP alternatives, reports, checksum manifests, screenshots or
   README copies as routine release assets. Keep diagnostics locally and put
   short changes and material limitations in the release description.

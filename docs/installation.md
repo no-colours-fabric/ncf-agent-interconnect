@@ -5,6 +5,11 @@ LLM-optimized documentation: [llms.txt](../llms.txt).
 For the complete owner-facing setup, including AI application configuration and
 a first exchange, use [Set up NCF Agent Interconnect](setup.md).
 
+At startup, newly detected AI applications can appear in **Connect your apps**
+cards. You can connect one there or return later through **Applications** in the
+sidebar; **Manual setup** remains available for another installation or profile.
+Detection alone does not verify compatibility, configuration or a connected chat.
+
 Use assets from [GitHub Releases](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases).
 Packages include the application runtime. Source-build tools are not needed to
 install a binary release.
