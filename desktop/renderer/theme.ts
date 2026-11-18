@@ -98,7 +98,9 @@ const darkTokens = {
   disabledBorder: '#ffffff0c',
   paperOutline: '#ffffff10',
   selectedHover: '#ffffff12',
-  chipBorder: '#ffffff14',
+  chipBackground: '#42464b',
+  chipText: '#e5e7e9',
+  chipBorder: '#737980',
   selectedBorder: '#ffffff16',
   inputBorder: '#ffffff17',
   controlBorder: '#ffffff18',
@@ -128,7 +130,7 @@ const darkTokens = {
   selectedGlow: '0 0 8px #9dc8bb30',
   tabGlow: '0 0 8px #9dc8bb25',
   tabShadow: 'inset 0 1px 0 #ffffff09',
-  chipShadow: 'inset 0 1px 0 #ffffff04',
+  chipShadow: 'none',
   tableHeadBorder: '#101213',
   tableHeadShadow: '0 1px 0 #ffffff07',
   tableHeadGradient: 'linear-gradient(#ffffff02, #00000009)',
@@ -266,6 +268,8 @@ const lightTokens: Record<keyof typeof darkTokens, string> = {
   disabledBorder: '#80705a2b',
   paperOutline: '#7b695036',
   selectedHover: '#6e5b4124',
+  chipBackground: '#e5dbcc',
+  chipText: '#615b50',
   chipBorder: '#907e6140',
   selectedBorder: '#8e7b5f55',
   inputBorder: '#89765a55',
@@ -892,9 +896,11 @@ export function createAppTheme(mode: 'dark' | 'light') {
         styleOverrides: {
           root: { borderRadius: 6, height: 26, fontSize: 12, fontWeight: 400 },
           colorDefault: {
-            color: designTokens.secondary,
-            borderColor: designTokens.chipBorder,
-            backgroundColor: designTokens.insetSurface,
+            color: designTokens.chipText,
+            ...(mode === 'dark'
+              ? { border: `1px solid ${designTokens.chipBorder}` }
+              : { borderColor: designTokens.chipBorder }),
+            backgroundColor: designTokens.chipBackground,
             boxShadow: designTokens.chipShadow,
           },
           label: { paddingLeft: 8, paddingRight: 8 },

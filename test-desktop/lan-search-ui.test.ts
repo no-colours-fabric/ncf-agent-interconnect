@@ -7,6 +7,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { getContrastRatio } from '@mui/material/styles';
 import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -1229,10 +1230,33 @@ root.render(<App key={generation} patch={{}}/>);
               const input = page.getByRole('textbox', { name: 'Computer address', exact: true });
               const inputBox = await input.locator('..').boundingBox();
               assert.equal(inputBox?.height, 44);
-              const header = await page
+              const nearbyHeader = page
                 .getByRole('heading', { name: 'Nearby computers', exact: true })
-                .locator('..')
-                .boundingBox();
+                .locator('..');
+              const header = await nearbyHeader.boundingBox();
+              const badge = await nearbyHeader
+                .locator('.MuiChip-root')
+                .evaluate(async (element) => {
+                  await Promise.allSettled(element.getAnimations().map(({ finished }) => finished));
+                  const style = getComputedStyle(element);
+                  return {
+                    text: style.color,
+                    background: style.backgroundColor,
+                    outline: style.borderTopColor,
+                    outlineWidth: style.borderTopWidth,
+                    page: getComputedStyle(document.body).backgroundColor,
+                    surface: style.getPropertyValue('--ncf-surface').trim(),
+                  };
+                });
+              assert.ok(
+                getContrastRatio(badge.text, badge.background) >= 4.5,
+                `${theme}: ${badge.text} on ${badge.background}`,
+              );
+              if (theme === 'dark') {
+                assert.equal(badge.outlineWidth, '1px');
+                assert.ok(getContrastRatio(badge.outline, badge.page) >= 3);
+                assert.ok(getContrastRatio(badge.outline, badge.surface) >= 3);
+              }
               const manualAction = await manual().boundingBox();
               assert.ok(
                 header &&
