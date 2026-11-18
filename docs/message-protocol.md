@@ -88,8 +88,14 @@ envelope carries node IDs, agent names, creation time, text, reply linkage and
 attachment metadata. Files have SHA-256 identities and bounded chunks. Local
 and remote routes share the same persistence and deduplication rules.
 
-Native chat delivery uses an Incoming NCF Agent Interconnect heading, From,
-unmodified body, attachment links and a short `Reply-To: r7` reference. Call
+Native chat delivery uses an Incoming NCF Agent Interconnect heading, `From`,
+`Sent`, `Delivered`, the unmodified body, attachment links and a short
+`Reply-To "<sender name>": r7` reference. `Sent` comes from the saved envelope's
+creation time; `Delivered` is recorded when the receiving app constructs the
+incoming body or read result. Both are displayed with seconds in the receiving
+app's system locale and time zone, without a time-zone offset in the label.
+These display fields do not establish receipt, model acknowledgement or task
+completion. Call
 `agent_send` with `connectionId`, `replyRef` and `text` to reply. Do not supply
 `recipientNode`, `recipientNickname` or `replyTo` together with `replyRef`, even
 as null. The server resolves the exact sender node, original agent name and

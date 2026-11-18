@@ -2,6 +2,15 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 0.19.0 — 2026-11-18
+
+- Present application connections in the Applications page and startup cards. Keep Connect, client-specific next steps, Manual setup, file selection, preview, Apply and separate confirmation before replacing existing settings. Show OpenCode v2 setup separately from the retained OpenCode v1 plugin; installation discovery does not prove either version or a chat is ready.
+- Listen on eligible assigned local IPv4 addresses by default. Network settings can save exclusions for this app's listeners without disabling a network adapter or changing the system firewall. Remote nodes shows actual enabled connection addresses, groups unverified discovery reports by claimed node identity and retains explicit pairing by code and manual address entry. Validated alternate addresses can recover an already paired route after pinned TLS and exact identity checks without changing its saved primary route. MCP remains local to `127.0.0.1`; an IPv6 listener is not added.
+- Show a connection guide and copyable chat request on Agents while retaining diagnostic manual creation, history and deletion controls. Present incoming messages with From, Sent, Delivered and Reply-To. The two displayed times use the receiving app's locale and time zone; they do not establish message receipt or task completion.
+- Show local, paired and newly discovered nodes on Overview. Open pairing for a new node or get this computer's connection code without leaving Overview. Manual setup retains file selection after Apply and prepares a new preview before a different file can be changed.
+
+Storage format 5, peer protocol 2 and the eleven-tool MCP schema are unchanged. Back up the stopped profile before updating because older binaries may reject the new network-exclusion or OpenCode v2 settings. Live OpenCode v2 delivery and Windows native private-file assurance have not yet been verified for this release. The installers cover Apple Silicon and Intel macOS and Windows x64. Linux source remains available.
+
 ## 0.18.7 — 2026-11-17
 
 - Explain agent creation through chats in configured AI applications. Move manual creation to a diagnostic link while preserving the existing creation, name-transfer and history behavior.

@@ -19,9 +19,8 @@ was not run on Intel hardware.
 
 Windows x64: use the Windows installer. Packages are unsigned.
 
-Linux x86_64: mark the AppImage executable and run it. Quit the old instance
-before replacing its AppImage; keep the existing node data and private profiles.
-See [installation](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/installation.md#linux).
+This release provides three installers: the two macOS DMGs and the Windows EXE.
+Linux source remains available, but 0.19.0 does not include a new Linux installer.
 
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional
@@ -52,9 +51,15 @@ bound through its plugin; generic manual MCP connections are not attributed to C
 Setup remembers the selected file and checks it read-only on startup. Its
 open-file icon uses the operating system's default application.
 
-- OpenCode: the bundled v1 plugin identifies the exact current chat. Incoming
-  messages are delivered automatically; a busy chat waits for an idle event.
-  Frontends must use that OpenCode instance and load its plugins.
+- OpenCode v2: choose the v2 setup and exact configuration file. Only the
+  selected NCF integration changes; provider and account settings are preserved.
+  Restart v2 and connect from the intended chat. A detected installation or
+  saved configuration does not prove that the bridge is running or that the
+  chat admitted a message. Live OpenCode v2 delivery has not yet been verified.
+- OpenCode v1: choose **Show OpenCode v1** for its separate setup. The bundled v1
+  plugin identifies the exact current chat. Incoming messages are delivered
+  automatically; a busy chat waits for an idle event. Frontends must use that
+  OpenCode instance and load its plugins. Configuring v2 does not convert v1.
 - Codex Desktop: an experimental adapter identifies the current chat from MCP
   metadata and its existing local owner. Availability depends on the client
   version. It inherits that chat environment and permission settings.
@@ -86,7 +91,12 @@ regression coverage; a new native Cursor application restart check was not run.
 Choose names such as Researcher or Reviewer. Names are case-insensitive. After
 connecting, ask the agent to send a message to the node and named agent. Node
 UUIDs come from `node_peers`; `recipientNode` is required even for local delivery.
-Incoming messages include a short `Reply-To` reference. Reply through
+Presented incoming messages show `From`, `Sent`, `Delivered` and a short
+`Reply-To` reference with the sender's name. `Sent` is the envelope creation
+time; `Delivered` is recorded when the receiving app constructs the incoming
+body or read result. The receiving app displays both with seconds in its system
+locale and time zone, without an offset in the label. These times do not prove
+model acknowledgement or task completion. Reply through
 `agent_send(connectionId, replyRef, text)`; the node resolves the exact original
 sender and message. Legacy full reply parameters remain supported.
 
@@ -110,18 +120,26 @@ Review the names and message counts before confirming.
 These actions remove local agent records and history, not client transcripts,
 remote copies or remote queues. A changed preview requires a new confirmation.
 
-Remote nodes searches the local network for 30 seconds when the app window opens.
-Stop search and Search again control the current pass. Discovery does not verify
-a computer's identity or establish trust; connecting still requires its code.
-The sidebar shows search progress and newly found computers not yet viewed.
+Remote nodes can search the local IPv4 network for 30 seconds; Stop search and
+Search again control the current pass. Reported addresses for one claimed node
+identity are grouped, but discovery does not verify identity or establish trust.
+The sidebar marks newly found computers not yet viewed. Connect by address remains
+available when search misses a computer.
 
-For another computer, select a local network IP in Settings. Create an access
-code in the Connect to this computer card under Remote nodes. On the other
-computer, select the discovered computer or use Connect by address with its exact IP or URL
-and its eight letters or digits. Letter case does not matter. Codes expire after
-ten minutes, permit five attempts and authorize one peer. Certificates are pinned
-automatically through mutual authentication. Both apps need short-code support
-for a new connection; previously paired nodes reconnect without another code.
+By default, the app listens on its eligible assigned local IPv4 addresses. Under
+Settings, Network settings lets you save interface exclusions for this app's
+listeners; exclusions do not disable the adapter or change the system firewall.
+The local connection dialog shows an actual enabled address or a no-address state.
+Create a code there while the node runs. On the other computer, choose the exact
+discovered address or use Connect by address with its exact IP or URL and the
+eight-character code. Pairing binds the selected address and claimed node identity
+only after verification with that code. Letter case does not matter. Codes expire
+after ten minutes, permit five attempts and authorize one peer. Certificates are
+pinned through mutual authentication. Both apps need short-code support for a new
+connection; previously paired nodes reconnect without another code. Validated
+alternate addresses may recover an existing paired connection after pinned TLS
+and exact identity checks without changing its saved primary route. Discovery
+alone never authorizes that recovery. MCP remains on `127.0.0.1`.
 
 ## AionUi with Cursor Agent
 
@@ -187,10 +205,16 @@ a complete stopped pre-upgrade profile backup before updating. Older releases
 cannot open format 5. Do not use an older app against the upgraded profile;
 rollback requires that backup while preserving any post-upgrade data.
 Peer protocol 2 and the eleven-tool MCP schema are unchanged.
+Older strict-schema binaries may reject the newer network-exclusion and OpenCode
+v2 settings. Keep the stopped pre-upgrade backup; do not open an upgraded profile
+with an older app. Windows native private-file assurance for this release has not
+yet been completed.
 
 Existing client configurations need no new Apply when installation paths stay
 the same. To enable Claude Code, use its setup dialog and Apply, then restart
-Claude Code or reload its plugins. If the app path changes, update affected
+Claude Code or reload its plugins. To enable OpenCode v2, select its separate
+setup and Apply to its exact configuration target; existing v1 setup is not
+silently converted. If the app path changes, update affected
 client paths through their setup dialogs and Apply. Pending requests whose
 admission is uncertain remain fenced and are not replayed automatically.
 

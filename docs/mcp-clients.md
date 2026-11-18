@@ -24,7 +24,13 @@ The new existing-chat recovery behavior has source-level regression coverage. Na
 
 ## OpenCode and its frontends
 
-Choose OpenCode, open **Configure OpenCode** and select the configuration that instance actually loads, such as its global `opencode.json` or `opencode.jsonc`. Apply configures both the MCP connection and bundled plugin. Restart OpenCode after adding the plugin. A frontend must use that OpenCode instance and load its plugins. No per-chat port, password or session setup is required. This dialog supports OpenCode v1; v2 configuration is not supported.
+Open **Applications → OpenCode**. The OpenCode v2 setup is shown first; **Show OpenCode v1** opens the retained v1 setup. These are separate configuration targets, so choose the version and exact file or profile that your intended OpenCode instance loads. Installation discovery does not identify the API major or prove that either version, plugin or chat is ready. If v2 is not found in known locations, its manual setup still lets you select the exact target.
+
+For v2, use its dedicated **Configure OpenCode v2** flow. Review the selected file and preview before **Apply**; only that file's NCF integration changes, while provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. A saved configuration is separate from bridge activity and admission to that exact chat. If the plugin is not attached after a node restart, restart or reconnect the OpenCode host and check that chat; do not blindly resend work whose admission is uncertain.
+
+The v2 setup and bridge have source-level checks; a live OpenCode v2 client exchange has not yet been verified for this release. Do not infer admission from a configured file or installation detection.
+
+For v1, use **Configure OpenCode v1** and select the configuration that instance actually loads, such as its global `opencode.json` or `opencode.jsonc`. Apply configures both the MCP connection and bundled v1 plugin. Restart v1 after adding the plugin. A frontend must use that OpenCode instance and load its plugins. A busy chat waits for an idle event. No per-chat port, password or session setup is required. Configuring v2 does not convert or replace the v1 target.
 
 ## Codex Desktop
 
@@ -51,6 +57,6 @@ your choice; NCF Agent Interconnect does not add broader write permissions autom
 
 ## Other clients
 
-Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1, Codex Desktop, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
+Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1 and v2, Codex Desktop, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
 
 In any configured chat, ask the assistant to connect under the name you choose and give it a task that relates to another agent's work. For example: “Connect as agent Iris. Review agent Sam’s search requirements and report any gaps to Sam.” This is an illustrative chat request, not fixed syntax. If the name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.

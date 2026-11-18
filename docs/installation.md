@@ -20,7 +20,6 @@ GitHub displays a SHA-256 digest beside each uploaded release asset. On macOS, r
 `shasum -a 256 NCF-Agent-Interconnect-<version>-mac-arm64.dmg` and compare the
 result with that digest. On Windows, use
 `Get-FileHash .\NCF-Agent-Interconnect-<version>-win-x64.exe -Algorithm SHA256`.
-On Linux, use `sha256sum NCF-Agent-Interconnect-<version>-linux-x86_64.AppImage`.
 Use the actual filename and architecture from the release.
 Only the latest release keeps downloadable installers; older tags retain the
 corresponding source. Choose the arm64 DMG for Apple Silicon or the x64 DMG for Intel.
@@ -43,12 +42,9 @@ the [developer documentation](development.md).
 
 ## Linux
 
-Use the Linux x86_64 AppImage. Mark it executable in your file manager, or run
-`chmod +x NCF-Agent-Interconnect-<version>-linux-x86_64.AppImage`, then launch
-`./NCF-Agent-Interconnect-<version>-linux-x86_64.AppImage`. Substitute the downloaded
-version. See the official [AppImage quickstart](https://docs.appimage.org/introduction/quickstart.html).
-
-Quit the old app before replacing its AppImage. Keep the node's data folder and
+Version 0.19.0 has no new Linux installer. Its source remains available; see
+[developer documentation](development.md) for source setup. A source build is
+separate from the three provided installers. Keep the node's data folder and
 private client profiles; do not start an empty profile to work around an upgrade.
 Follow the storage-format migration guidance below.
 
@@ -68,6 +64,10 @@ releases cannot open format 5. Rollback requires the pre-upgrade backup and must
 preserve any data created after the upgrade; do not open the upgraded profile with
 an older app.
 History, names, bindings, attachments, peers and AionUi authorization are preserved.
+Older strict-schema releases, including 0.18.x, may reject the newer
+network-interface exclusions or OpenCode v2 setup fields. Keep the stopped
+pre-upgrade backup; do not assume an older binary can open a profile saved by
+this version.
 
 ## Removal
 

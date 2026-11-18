@@ -129,20 +129,20 @@ Set up each application or profile once. New chats then join by connecting under
 3. Restart Cursor once after Connect or Apply so its included plugin loads, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
 4. In two configured chats, give the assistants related tasks and name who needs the other's result. A reply about that work confirms an end-to-end exchange.
 
-Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too. On the receiving computer, choose a reachable network address in **Settings**, then create a temporary code under **Remote nodes**. A 30-second local IPv4 search can show it on the other computer, but the result is unverified until you enter that code and pair. **Connect by address** remains available. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
+Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too. The receiving app listens on eligible local IPv4 addresses by default; under **Settings**, review any excluded network interfaces and the actual address shown on **Remote nodes**, then create a temporary code. A 30-second local IPv4 search can show it on the other computer, but the result is unverified until you enter that code and pair. **Connect by address** remains available. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
-The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported Cursor Agent bridge in AionUi also deliver to their connected chats. Codex Desktop delivery is experimental and version dependent. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
+The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported Cursor Agent bridge in AionUi also deliver to their connected chats. OpenCode v2 has a separate setup and exact-chat bridge; detection and saved settings alone do not establish live delivery. Codex Desktop delivery is experimental and version dependent. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
 
 ## 3. Administration when you need it
 
 Your ordinary work stays in the AI chats. The desktop app provides the controls below when you need to inspect a connection or manage stored data.
 
-| Control          | What it is for                                                                                                                  |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| **Applications** | Connect a detected application, inspect saved configuration and activity, or configure another application or profile manually. |
-| **Agents**       | Inspect names, known availability and message history; use the desktop message controls or review a deletion preview.           |
-| **Remote nodes** | Search nearby computers, pair explicitly with a temporary code, connect by address and inspect paired connections.              |
-| **Settings**     | Choose outgoing file folders, the local network address and optional Start at login.                                            |
+| Control          | What it is for                                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Applications** | Connect a detected application, inspect saved configuration and activity, or configure another application or profile manually.    |
+| **Agents**       | Copy the connection request, inspect names, availability and history; use diagnostic manual creation or review a deletion preview. |
+| **Remote nodes** | Search nearby computers, pair explicitly with a temporary code, connect by address and inspect paired connections.                 |
+| **Settings**     | Choose outgoing file folders, review or exclude network interfaces, and set optional Start at login.                               |
 
 ### Files, replies and history
 

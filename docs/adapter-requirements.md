@@ -114,20 +114,29 @@ MUST NOT silently perform a transfer, reset or deletion.
 
 Native delivery MUST place the complete canonical message in the exact chat's
 model-readable context and present its sender, body and reply route to the user.
-Use the shared formatter, `agentMessageText`, rather than independently inventing
-an envelope. Its text-message form is:
+Use the node-owned presentation at the exact serialization boundary. The shared
+`formatAgentMessagePresentation` formatter supplies the current canonical body;
+`agentMessageText` uses that presentation when one is available. Do not
+independently invent an envelope. Its text-message form is:
 
 ```text
 **Incoming NCF Agent Interconnect**
 From: "<sender name>"
+Sent: <receiver-local date and time with seconds>
+Delivered: <receiver-local date and time with seconds>
 
 <unmodified message body>
 
-Reply-To: <reference>
+Reply-To "<sender name>": <reference>
 Use agent_send(connectionId, replyRef="<reference>", text) to reply.
 ```
 
-The formatter also handles escaping and verified attachment links. Preserve
+`Sent` comes from the stored message envelope's creation time. `Delivered` is
+recorded when the receiving app constructs the incoming body or read result.
+Both use that app's system locale and time zone; the displayed labels have no
+time-zone offset. They are display data, not receipt authority or evidence of
+model acknowledgement or task completion. The formatter also handles escaping
+and verified attachment links. Preserve
 message text, line breaks, Unicode, sender identity and the exact reply reference.
 Resolve replies within the current mailbox; do not infer a sender's node from
 its nickname. System ownership notices have their own semantics and MUST NOT
