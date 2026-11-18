@@ -1242,21 +1242,14 @@ root.render(<App key={generation} patch={{}}/>);
                   return {
                     text: style.color,
                     background: style.backgroundColor,
-                    outline: style.borderTopColor,
-                    outlineWidth: style.borderTopWidth,
-                    page: getComputedStyle(document.body).backgroundColor,
-                    surface: style.getPropertyValue('--ncf-surface').trim(),
+                    borderWidth: style.borderTopWidth,
                   };
                 });
               assert.ok(
                 getContrastRatio(badge.text, badge.background) >= 4.5,
                 `${theme}: ${badge.text} on ${badge.background}`,
               );
-              if (theme === 'dark') {
-                assert.equal(badge.outlineWidth, '1px');
-                assert.ok(getContrastRatio(badge.outline, badge.page) >= 3);
-                assert.ok(getContrastRatio(badge.outline, badge.surface) >= 3);
-              }
+              assert.equal(badge.borderWidth, '0px', theme);
               const manualAction = await manual().boundingBox();
               assert.ok(
                 header &&

@@ -100,7 +100,7 @@ const darkTokens = {
   selectedHover: '#ffffff12',
   chipBackground: '#42464b',
   chipText: '#e5e7e9',
-  chipBorder: '#737980',
+  chipBorder: '#ffffff14',
   selectedBorder: '#ffffff16',
   inputBorder: '#ffffff17',
   controlBorder: '#ffffff18',
@@ -897,9 +897,7 @@ export function createAppTheme(mode: 'dark' | 'light') {
           root: { borderRadius: 6, height: 26, fontSize: 12, fontWeight: 400 },
           colorDefault: {
             color: designTokens.chipText,
-            ...(mode === 'dark'
-              ? { border: `1px solid ${designTokens.chipBorder}` }
-              : { borderColor: designTokens.chipBorder }),
+            borderColor: designTokens.chipBorder,
             backgroundColor: designTokens.chipBackground,
             boxShadow: designTokens.chipShadow,
           },
