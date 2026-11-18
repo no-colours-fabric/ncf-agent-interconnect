@@ -77,7 +77,9 @@ test('all five groups retain manual setup; the default v2 target does not infer 
         'data-testid="application-row-' + (client === 'opencode' ? 'opencode-v2' : client) + '"',
       ),
     );
-  assert.equal(html.match(/>Manual setup</g)?.length, 5);
+  assert.equal(html.match(/aria-label="Manual setup"/g)?.length, 5);
+  assert.equal(html.match(/data-testid="SettingsOutlinedIcon"/g)?.length, 5);
+  assert.doesNotMatch(html, />Manual setup</);
   assert.equal(html.match(/data-testid="application-connect-/g)?.length, 2);
   assert.ok(html.includes('OpenCode v2'));
   assert.ok(html.includes('OpenCode v1'));
@@ -88,14 +90,71 @@ test('all five groups retain manual setup; the default v2 target does not infer 
   assert.equal(html.match(/<img /g)?.length, 5);
 });
 
+test('only configured Applications rows show app-specific status metrics', () => {
+  const html = renderToStaticMarkup(
+    React.createElement(ApplicationRows, {
+      discovery,
+      statuses: {
+        ...statuses,
+        statuses: {
+          ...statuses.statuses,
+          cursor: { client: 'cursor', remembered: true, state: 'configured', files: [] },
+          codex: { client: 'codex', remembered: true, state: 'needs-update', files: [] },
+        },
+      },
+      invoke: noInvoke,
+      flow: new ApplicationSetupFlow(noInvoke),
+      locale: 'en',
+      onManualSetup: () => {},
+      snapshot: {
+        adapters: [
+          {
+            id: 'cursor-adapter',
+            kind: 'cursor-hook',
+            label: 'Cursor',
+            state: 'ready',
+            error: null,
+            capabilities: {
+              wakeIdle: true,
+              receiveActive: true,
+              nativeDisplay: true,
+              exactSession: true,
+            },
+          },
+        ],
+        agents: [
+          {
+            nickname: 'Agent',
+            key: 'agent',
+            binding: {
+              adapterId: 'cursor-adapter',
+              client: 'Cursor',
+              chatId: 'specific-chat',
+              connectionId: 'fixture',
+              generation: 1,
+            },
+            messageCount: 0,
+            unread: 0,
+          },
+          { nickname: 'Unbound', key: 'unbound', binding: null, messageCount: 0, unread: 0 },
+        ],
+      },
+    }),
+  );
+  assert.equal(html.match(/data-testid="client-status-panel"/g)?.length, 1);
+  assert.match(html, /data-testid="client-status-panel" data-client="cursor"/);
+  assert.match(html, /data-testid="application-agent-count"[^>]*>1</);
+  assert.ok(html.includes(mcpSetupMessages('en')['needs-update']));
+});
+
 test('new copy, help and accessibility summaries are complete in all 15 locales without English fallback', () => {
   const english = applicationSetupMessages('en');
   for (const locale of supportedLocales) {
     const copy = applicationSetupMessages(locale);
     assert.deepEqual(Object.keys(copy), Object.keys(english));
     assert.ok(Object.values(copy).every((value) => typeof value === 'string' && value.trim()));
-    for (const tool of ['agent_read', 'agent_connect', 'agent_send'])
-      assert.ok(copy.permissionsAnswer.includes(tool));
+    assert.ok(copy.claudeConfirmAnswer.includes('Allow'), locale);
+    assert.ok(copy.permissionsAnswer.includes('/permissions'), locale);
     assert.ok(copy.startupHelp.includes('NCF Agent Interconnect'));
     if (locale !== 'en')
       for (const key of ['manual', 'nextStep', 'confirmHelp', 'failed', 'uncertain'] as const)
@@ -131,7 +190,7 @@ test('a setup failure stays with its app, keeps manual recovery and cannot appea
   );
   assert.ok(html.includes(applicationSetupMessages('ru').failed));
   assert.equal(html.match(/role="alert"/g)?.length, 1);
-  assert.equal(html.match(/>Настроить вручную</g)?.length, 5);
+  assert.equal(html.match(/aria-label="Настроить вручную"/g)?.length, 5);
   assert.ok(!html.includes(discoveryMessages('ru').stateError));
 });
 
@@ -175,10 +234,26 @@ test('the real OpenCode v1 manual form keeps its selected file, review and Apply
       flow,
     }),
   );
-  assert.ok(html.includes('Configure OpenCode v1'));
+  assert.match(html, /OpenCode v1<\/h2>/);
   assert.ok(html.includes('/isolated/OpenCode v1/opencode.json'));
   assert.ok(html.includes('mcp-apply'));
-  assert.ok(html.includes('Choose file'));
+  assert.match(html, /aria-label="Configuration file path"/);
+  assert.doesNotMatch(html, />Configuration file path</);
+  const hint = html.match(
+    /<p[^>]*id="([^"]+)"[^>]*>Choose the configuration file used by this application\./,
+  );
+  assert.ok(
+    hint &&
+      hint.index !== undefined &&
+      hint.index < html.indexOf('aria-label="Choose file…"', hint.index),
+  );
+  assert.ok(html.includes('aria-describedby="' + hint[1] + '"'));
+  assert.match(html, /aria-label="Choose file…"/);
+  assert.match(html, /aria-label="Open configuration file"/);
+  assert.match(html, /data-testid="FolderOpenOutlinedIcon"/);
+  assert.match(html, /data-testid="OpenInNewOutlinedIcon"/);
+  assert.match(html, /Choose…<\/button>/);
+  assert.doesNotMatch(html, />(?:Choose file…|Open configuration file)</);
   assert.match(html, /role="combobox"/);
   assert.doesNotMatch(html, /<select|Profile [12]/);
 });
@@ -250,16 +325,18 @@ test('copy context: current uncertain attempt has a visible check summary; renew
       }),
     );
   const visible = (html: string) => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
-  const current = visible(render());
+  const current = render();
   const copy = applicationSetupMessages('en');
-  assert.ok(current.includes(copy.uncertain), 'uncertainty must be outside collapsed Details');
+  assert.doesNotMatch(current, /<details\b/);
+  assert.ok(current.includes(copy.uncertain));
   assert.ok(current.includes(copy.checkSetupResult));
   assert.ok(!current.includes(mcpSetupMessages('en').failed));
   await flow.apply();
   assert.equal(writes, 1, 'fresh target preparation is read-only');
   assert.equal(flow.getSnapshot().reviewRequired, true);
   const renewed = render();
-  assert.ok(!visible(renewed).includes(copy.checkSetupResult));
+  assert.doesNotMatch(renewed, /<details\b/);
+  assert.ok(!renewed.includes(copy.checkSetupResult));
   assert.ok(renewed.includes('>Apply<'));
   assert.ok(renewed.includes(copy.reviewHelp));
   assert.ok(renewed.includes('type="checkbox"'));
@@ -385,7 +462,7 @@ test('Overview shares the startup tiles without startup chrome, technical discov
   assert.ok(startup.includes('data-testid="startup-connect-cursor"'));
 });
 
-test('all manual routes keep configuration setup without the installation discovery section', () => {
+test('all manual routes keep configuration setup without the installation discovery or Setup details sections', () => {
   for (const target of [...mcpSetupClients, 'opencode-v2'] as const) {
     const client = target === 'opencode-v2' ? 'opencode' : target;
     const source = '/isolated/Applications/' + client + '/检查';
@@ -419,8 +496,15 @@ test('all manual routes keep configuration setup without the installation discov
       }),
     );
     assert.ok(!html.includes('data-testid="application-discovery"'), target);
+    assert.ok(!html.includes(applicationSetupMessages('en').details), target);
     assert.ok(!html.includes('Copy connection prompt'), target);
     assert.ok(!html.includes('Connect as agent &lt;a name you choose&gt;.'), target);
+    if (target === 'claude') {
+      assert.doesNotMatch(
+        html,
+        /claude-launch-command|>claude<|Start Claude Code|Copy launch command/,
+      );
+    }
     for (const text of [
       discoveryMessages('en').choose,
       discoveryMessages('en').details,
@@ -430,11 +514,23 @@ test('all manual routes keep configuration setup without the installation discov
     ])
       assert.ok(!html.includes(text), target + ':' + text);
     assert.ok(html.includes(applicationSetupMessages('en').back), target);
-    const setupForm =
-      target === 'opencode-v2'
-        ? 'data-testid="opencode-v2-manual"'
-        : 'id="mcp-setup-form-' + client + '"';
-    assert.ok(html.includes(setupForm), target);
+    const card = html.match(
+      new RegExp('<section[^>]*id="mcp-setup-form-' + target + '"[^>]*>[\\s\\S]*?</section>'),
+    )?.[0];
+    assert.ok(card, target);
+    assert.ok(card.includes('aria-labelledby="mcp-setup-page-' + target + '"'), target);
+    assert.equal(card.match(/<button[^>]*class="[^"]*\bMuiButton-sizeSmall\b/g)?.length, 1, target);
+    assert.doesNotMatch(card, />Cancel</, target);
+    assert.match(html, /data-testid="(?:mcp|opencode-v2)-settings-status"/, target);
+    const copy = mcpSetupMessages('en');
+    for (const intro of [copy.cursorDescription, copy.codexDescription, copy.claudeDescription])
+      assert.ok(!html.includes(intro), target);
+    assert.doesNotMatch(card, /<h[1-6]\b|MuiDialog(?:Title|Content|Actions)-root/, target);
+    assert.match(
+      card.replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, ''),
+      /<footer[^>]*><button[^>]*data-testid="(?:mcp|opencode-v2)-apply"[\s\S]*<\/footer>/,
+      target,
+    );
     flow.dispose();
   }
 });
@@ -536,7 +632,9 @@ test('Applications rows keep setup status and manual actions with immediate unhe
     html.indexOf('data-testid="application-row-codex"'),
     html.indexOf('data-testid="application-row-aionui"'),
   );
-  assert.ok(row.includes('aria-label="' + mcpSetupMessages('en').statusMcpConfig + '"'));
+  assert.ok(row.includes('data-testid="client-status-panel"'));
+  assert.ok(row.includes('>' + mcpSetupMessages('en').statusMcpConfig + '</dt>'));
+  assert.equal(row.split('>' + mcpSetupMessages('en').configured + '<').length - 1, 1);
   assert.ok(row.includes('width="44" height="44"'));
   assert.ok(!row.includes('data-testid="application-configured-codex"'));
   assert.ok(!row.includes('aria-expanded'));
@@ -545,7 +643,7 @@ test('Applications rows keep setup status and manual actions with immediate unhe
   assert.ok(!row.includes(applicationSetupMessages('en').nextStep));
   assert.ok(!row.includes(' hidden='));
   assert.ok(row.includes('data-testid="application-manual-codex"'));
-  assert.equal(html.match(/>Manual setup</g)?.length, 5);
+  assert.equal(html.match(/aria-label="Manual setup"/g)?.length, 5);
   assert.ok(!row.includes('<summary'));
   assert.ok(!html.includes(applicationSetupMessages('en').yourApps));
   assert.ok(!html.includes(applicationSetupMessages('en').intro));
@@ -553,7 +651,7 @@ test('Applications rows keep setup status and manual actions with immediate unhe
   const refresh = html.match(/<button[^>]*MuiLink-root[^>]*>[\s\S]*?<\/button>/)?.[0];
   assert.ok(refresh?.includes('data-testid="RefreshOutlinedIcon"'));
   assert.ok(refresh?.endsWith(discoveryMessages('en').refresh + '</button>'));
-  assert.ok(html.includes(applicationSetupMessages('en').newApps));
+  assert.ok(!html.includes('Newly detected apps will appear here'));
 });
 
 test('Applications next steps omit connection commands and their Copy action in every locale, while shared startup guidance retains them', () => {
@@ -641,7 +739,7 @@ test('Applications working guidance requires a current ready bound chat, not sav
     assert.ok(!row.includes('data-testid="application-configured-codex"'), mode);
     assert.ok(!row.includes('Copy connection prompt'), mode);
     if (mode === 'ready') {
-      assert.ok(row.includes('Open a new tab or switch to an existing one'), mode);
+      assert.ok(row.includes('In your app, open a new chat or return to an existing one'), mode);
       assert.ok(row.includes('Connect as agent &lt;a name you choose&gt;</code>'), mode);
       assert.ok(!row.includes(mcpSetupMessages('en').codexNext), mode);
     } else {

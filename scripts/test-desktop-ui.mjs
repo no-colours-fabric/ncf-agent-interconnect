@@ -12,46 +12,23 @@ import { NodeService } from '../build/core/service.js';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
-async function verifyClientStatusPanel(page, { client, state, kind, count, activity }) {
-  const panel = page.getByTestId('client-status-panel');
+async function verifyClientStatusPanel(page, { client, configured, count, activity }) {
+  const row = page.getByTestId('application-row-' + client);
+  const panel = row.getByTestId('client-status-panel');
   assert.equal(
     await page.getByTestId('application-manual').count(),
     0,
     'There is no overall manual-MCP summary',
   );
-  if (state !== 'configured' && state !== 'needs-update') {
-    assert.equal(
-      await panel.count(),
-      0,
-      'Absent, pending and unavailable setup must not show a configured Status panel',
-    );
-    const form = page.locator('#mcp-setup-form-' + client);
-    assert.ok(
-      await form
-        .getByRole('combobox', { name: 'Configuration file path', exact: true })
-        .isVisible(),
-      'The selected inline manual path remains available without configured settings',
-    );
+  if (!configured) {
+    assert.equal(await panel.count(), 0, 'Only configured applications have a status panel');
     return;
   }
   await panel.waitFor();
   assert.equal(await panel.count(), 1);
-  assert.equal(await panel.getAttribute('data-status'), state);
-  assert.equal(await page.getByTestId('client-setup-description').count(), 0);
-  const actualCount = await panel.getByTestId('application-agent-count').innerText();
+  assert.equal(await panel.getAttribute('data-status'), 'configured');
+  assert.equal(await panel.getByTestId('application-agent-count').innerText(), String(count));
   const actualActivity = await panel.getByTestId('application-last-activity').innerText();
-  if (!kind || kind === 'manual') {
-    assert.ok(actualCount.trim());
-    assert.ok(
-      !/^\d+$/.test(actualCount),
-      'Cursor count must remain unknown instead of borrowing every manual connection',
-    );
-    assert.equal(actualCount, actualActivity);
-    assert.equal(actualCount, 'Unknown');
-    assert.equal(await panel.getByTestId('application-delivery-status').count(), 0);
-    return;
-  }
-  assert.equal(actualCount, String(count));
   if (activity)
     assert.equal(
       actualActivity,
@@ -156,12 +133,9 @@ try {
     await manual.click();
     const form = page.locator('#mcp-setup-form-' + client);
     await form.waitFor();
-    await form
-      .getByRole('heading', {
-        name: client === 'aionui' ? 'MCP for Cursor Agent' : 'Configure ' + label,
-        exact: true,
-      })
-      .waitFor();
+    await page.getByRole('heading', { name: label, exact: true }).waitFor();
+    assert.equal(await form.getByRole('heading').count(), 0);
+    await form.locator('footer').getByTestId('mcp-apply').waitFor();
     assert.equal(await applicationList.count(), 0);
     assert.equal(await page.getByRole('dialog').count(), 0);
     return form;
@@ -184,7 +158,7 @@ try {
     ['claude', 'Claude Code'],
   ]) {
     const form = await openManual(client, label);
-    if (client !== 'aionui') await page.getByTestId('mcp-settings-status').waitFor();
+    assert.equal(await page.getByTestId('client-status-panel').count(), 0);
     assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
     const selectedPath = await form
       .getByRole('combobox', { name: 'Configuration file path', exact: true })
@@ -196,8 +170,8 @@ try {
         ?.querySelector('[data-testid="mcp-apply"]');
       return apply && !apply.disabled;
     }, client);
-    await form.getByRole('button', { name: 'Cancel', exact: true }).click();
-    await applicationList.waitFor();
+    assert.equal(await form.getByRole('button', { name: 'Cancel', exact: true }).count(), 0);
+    await backToApplications();
     assert.deepEqual(
       await hashes(),
       before,
@@ -206,9 +180,7 @@ try {
   }
   await openManual('aionui', 'AionUi with Cursor Agent');
   const aionSetup = page.getByTestId('aionui-setup');
-  await aionSetup
-    .getByText('Continue setting up AionUi. Follow the steps below.', { exact: true })
-    .waitFor();
+  await aionSetup.getByTestId('aionui-connection-steps').waitFor();
   assert.equal(
     await aionSetup.getByTestId('aionui-connection-steps').locator('.MuiStep-root').count(),
     3,
@@ -245,13 +217,15 @@ try {
   await backToApplications();
   assert.equal(await page.getByTestId('nav-clients').count(), 0);
   const applicationSnapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
-  for (const [client, label, kind] of [
-    ['cursor', 'Cursor', 'manual'],
-    ['opencode', 'OpenCode v1', 'opencode-http'],
-    ['codex', 'Codex', 'codex-desktop'],
-    ['aionui', 'AionUi with Cursor Agent', 'aionui'],
+  await applicationList.getByRole('switch', { name: 'Show OpenCode v1', exact: true }).check();
+  const aionState = await page.evaluate(() => window.interconnect.invoke('aionUiStatus'));
+  for (const [client, kind] of [
+    ['cursor', 'cursor-hook'],
+    ['opencode', 'opencode-http'],
+    ['codex', 'codex-desktop'],
+    ['aionui', 'aionui'],
+    ['claude', 'claude-code'],
   ]) {
-    await openManual(client, label);
     const { state } = await page.evaluate(
       (client) => window.interconnect.invoke('mcpSetupStatus', { client }),
       client,
@@ -266,8 +240,12 @@ try {
       ...profiles.map((profile) => profile.lastOwnerVerifiedAt),
     ].filter((value) => value && Number.isFinite(Date.parse(value)));
     const activity = dates.sort((a, b) => Date.parse(b) - Date.parse(a))[0];
-    await verifyClientStatusPanel(page, { client, state, kind, count: agents.length, activity });
-    await backToApplications();
+    await verifyClientStatusPanel(page, {
+      client,
+      configured: state === 'configured' && (client !== 'aionui' || aionState.state === 'paired'),
+      count: agents.length,
+      activity,
+    });
   }
   assert.equal(await page.getByRole('button', { name: 'Add adapter', exact: true }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: /Exact.*(ID|UUID)/ }).count(), 0);

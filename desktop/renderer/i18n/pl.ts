@@ -6,8 +6,7 @@ export const pl: Messages = {
   mcpSetup_statusOpencodeConfig: 'Ustawienia MCP i wtyczki',
   mcpSetup_statusOpencodeHint: 'Sprawdzane są zapisane ustawienia, a nie działanie wtyczki.',
   mcpSetup_statusUnknown: 'Nieznany',
-  mcpSetup_statusCursorMetricsHint:
-    'Dostarczanie staje się aktywne po zakończeniu tury w połączonym czacie. Po ponownym uruchomieniu Cursor wyślij dowolną wiadomość w tym czacie, aby przywrócić dostarczanie.',
+  mcpSetup_statusCursorMetricsHint: 'Uruchom ponownie Cursor i wyślij wiadomość w wybranym czacie.',
   mcpSetup_statusDelivery: 'Dostarczanie agentom',
   mcpSetup_statusAuthorization: 'Autoryzacja',
   mcpSetup_statusLiveBridge: 'Aktywny most',
@@ -19,7 +18,7 @@ export const pl: Messages = {
   settingsThemeDarkLabel: 'Ciemny',
   settingsDiagnosticNode: 'Węzeł',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'Nasłuchiwanie',
+  settingsDiagnosticListening: 'Adresy nasłuchu',
 
   settingsAppearance: 'Wygląd',
   settingsDarkTheme: 'Ciemny motyw',
@@ -37,8 +36,7 @@ export const pl: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'Połącz Cursor Agent w AionUi. Dostęp, zapisane ustawienia MCP i aktywny most to osobne stany.',
+  mcpSetup_aionDescription: 'Połącz Cursor Agent w AionUi.',
   mcpSetup_aionContinue: 'Kontynuuj konfigurację AionUi. Wykonaj poniższe kroki.',
   mcpSetup_aionAccessAction: 'Wybierz „{action}” i wykonaj instrukcje parowania.',
   mcpSetup_aionPairTitle: 'Dostęp do AionUi',
@@ -57,12 +55,9 @@ export const pl: Messages = {
   mcpSetup_aionMcpTitle: 'MCP dla Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Ustawienia mostu AionUi wymagają aktualizacji',
   mcpSetup_aionUpdateAction: 'Wybierz „{action}”, a następnie kliknij „Zastosuj”.',
-  mcpSetup_aionRestartAction:
-    'Po zastosowaniu mostu połącz ponownie Cursor Agent w odpowiedniej rozmowie AionUi, aby ponownie wczytać ustawienia MCP.',
-  mcpSetup_aionMcpHelp:
-    'Te ustawienia MCP działają zarówno z Cursor, jak i z Cursor Agent w AionUi. Bezpośredni Cursor wymaga również wtyczki; AionUi wymaga autoryzacji i połączonego czatu.',
-  mcpSetup_aionNext:
-    'Po zastosowaniu ustawień uruchom ponownie Cursor Agent w AionUi i ponownie połącz wybrany czat. Zapisane ustawienia nie potwierdzają aktywnego mostu. Ta konfiguracja nie obsługuje innych backendów AionUi.',
+  mcpSetup_aionRestartAction: 'Połącz ponownie Cursor Agent w wybranym czacie AionUi.',
+  mcpSetup_aionMcpHelp: 'Cursor i Cursor Agent w AionUi korzystają z tych samych ustawień.',
+  mcpSetup_aionNext: 'Uruchom ponownie Cursor Agent w AionUi i połącz ponownie wybrany czat.',
 
   agentsColumnMessages: 'Wiadomości',
   mcpSetup_tabsLabel: 'Klient MCP',
@@ -83,9 +78,10 @@ export const pl: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Wspólna konfiguracja Cursor / AionUi',
   mcpSetup_pathLabel: 'Ścieżka pliku konfiguracji',
   mcpSetup_browse: 'Wybierz plik…',
+  mcpSetup_browseShort: 'Wybierz…',
   mcpSetup_knownPaths: 'Inne lokalizacje',
   mcpSetup_pathHint:
-    'Wybierz plik używany przez tę aplikację. Brakujący plik zostanie utworzony po kliknięciu „Zastosuj”.',
+    'Wybierz plik konfiguracyjny używany przez tę aplikację. Brakujący plik zostanie utworzony po kliknięciu „Zastosuj”.',
   mcpSetup_checking: 'Sprawdzanie ustawień…',
   mcpSetup_ready: 'Gotowe do zastosowania',
   mcpSetup_create: 'Ustawienia połączenia zostaną dodane.',
@@ -109,17 +105,15 @@ export const pl: Messages = {
   mcpSetup_failed: 'Nie udało się zastosować konfiguracji.',
   mcpSetup_cursorNext:
     'Uruchom Cursor ponownie jeden raz, a następnie połącz agenta w docelowym czacie.',
-  mcpSetup_opencodeNext: 'Uruchom ponownie OpenCode v1, aby użyć tych ustawień.',
-  mcpSetup_codexNext:
-    'Połącz ponownie MCP w wybranej instancji lub profilu Codex, aby użyć tych ustawień.',
+  mcpSetup_opencodeNext: 'Uruchom ponownie OpenCode v1.',
+  mcpSetup_codexNext: 'Połącz ponownie MCP w wybranym czacie Codex.',
   mcpSetup_copyPrompt: 'Kopiuj polecenie połączenia',
   mcpSetup_connect: 'Połącz agenta w kliencie',
   mcpSetup_configureClaude: 'Skonfiguruj Claude Code',
   mcpSetup_claudeTitle: 'Skonfiguruj Claude Code',
   mcpSetup_claudeDescription:
     'Połącz interaktywny Claude Code z NCF Agent Interconnect. Zastosuj włącza w wybranym pliku ustawień użytkownika dwie wtyczki opublikowane przez tę aplikację: wtyczkę NCF z serwerem MCP, stałymi hookami cyklu życia i wywołań narzędzi uruchamianymi przez tę aplikację oraz modem ogłaszającym oczekujące wiadomości we właściwym czacie; oraz wtyczkę kontrolną, od której zależy i która pozwala ogłoszeniu rozpocząć turę tylko wtedy, gdy jest aktualne. Zezwala też na agent_read bez pytania. Pozostałe decyzje o uprawnieniach należą do Ciebie.',
-  mcpSetup_claudeNext:
-    'Uruchom lub wznów Claude Code jak zwykle, a następnie połącz agenta. Stan agenta pokazuje, kiedy automatyczne budzenie zostało potwierdzone w czacie; tryb awaryjny lub zasady organizacji mogą je wyłączyć.',
+  mcpSetup_claudeNext: 'Otwórz lub wznów sesję Claude Code, a następnie połącz się w czacie.',
   mcpSetup_claudeLaunch: 'Uruchom Claude Code',
   mcpSetup_copyLaunch: 'Kopiuj polecenie uruchomienia',
   mcpSetup_connectionPrompt: 'Połącz się jako agent <wybrana przez ciebie nazwa>.',
@@ -178,8 +172,6 @@ export const pl: Messages = {
   chipStopped: 'Zatrzymany',
   btnStop: 'Zatrzymaj',
   btnStart: 'Uruchom',
-  overviewIntro:
-    'Wiadomości są przechowywane na tym komputerze i pozostają dostępne po zmianie czatu lub klienta.',
   statRemoteNodes: 'Węzły zdalne',
   statRemoteNodesHint: 'połączone',
   statAgents: 'Agenci',
@@ -190,10 +182,7 @@ export const pl: Messages = {
   connectAgentsBody:
     'Połącz aplikację przyciskiem. Ustawienia zmienią się dopiero po kliknięciu „Zastosuj”.',
   connectAgentsCta: 'Otwórz konfigurację MCP',
-  connectPeerTitle: 'Łączenie innego komputera',
-  connectPeerBody:
-    'Wpisz adres IP lub URL zdalnego węzła oraz kod dostępu podany przez jego użytkownika.',
-  connectPeerCta: 'Skonfiguruj połączenie',
+  connectPeerCta: 'Ustawienia połączenia',
   agentsTitle: 'Agenci',
   ariaAddAgent: 'Dodaj agenta',
   agentListClient: 'Klient: {client}',
@@ -345,13 +334,12 @@ export const pl: Messages = {
   settingsLocalOnly: ' — tylko ten komputer',
   settingsSaved: 'Ustawienia zapisano',
   btnSave: 'Zapisz',
-  settingsBackground: 'Praca w tle',
-  settingsBackgroundBody:
-    'Zamknięcie okna pozostawia węzeł działający w zasobniku. Wyjście zamyka aplikację i jej połączenia.',
   settingsStartAtLogin: 'Uruchamiaj przy logowaniu',
   settingsStartAtLoginUnavailable:
     'Uruchamianie przy logowaniu jest dostępne w zainstalowanej aplikacji.',
   settingsExportRoots: 'Dozwolone foldery eksportu',
+  settingsExportRootsHelp:
+    'Agenci mogą przesyłać sobie pliki wyłącznie z wymienionych folderów. Wysyłanie plików z innych folderów jest blokowane.',
   btnAddFolder: 'Dodaj folder',
   settingsDiagnostics: 'Diagnostyka',
   settingsNodeId: 'Węzeł: {id}',

@@ -1,4 +1,4 @@
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useImperativeHandle, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -44,6 +44,7 @@ export interface OwnConnectionCardProps {
   invoke: McpSetupInvoke;
   active?: boolean;
   visible?: boolean;
+  openRef?: React.Ref<() => void>;
 }
 
 const linkSx = {
@@ -61,6 +62,7 @@ export function OwnConnectionCard({
   invoke,
   active = true,
   visible = true,
+  openRef,
 }: OwnConnectionCardProps): React.JSX.Element {
   const m = lanSearchMessages(locale);
   const networkMessages = networkInterfaceMessages(locale);
@@ -191,6 +193,7 @@ export function OwnConnectionCard({
     setNow(currentTime);
     if (!code || !Number.isFinite(expires) || expires <= currentTime) void createCode();
   };
+  useImperativeHandle(openRef, () => openDialog);
   const closeDialog = () => {
     setOpen(false);
     copyGeneration.current++;

@@ -158,7 +158,7 @@ test('manual agent dialog help has a localized info alert and an italic command'
   assert.equal(russian.dialogAddAgentBody, 'Используйте эту возможность только для диагностики.');
   assert.equal(
     russian.dialogManualAgentDiagnostic,
-    'Для обычной работы в любом настроенном приложении откройте новую вкладку или перейдите на уже открытую и просто напечатайте {command}.',
+    'В любом настроенном приложении откройте новый или существующий чат и введите {command}.',
   );
   for (const locale of supportedLocales) {
     const copy = agentEntryMessages(locale);

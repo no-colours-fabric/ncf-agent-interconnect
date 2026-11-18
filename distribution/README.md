@@ -64,7 +64,7 @@ open-file icon uses the operating system's default application.
   send one ordinary message in the same previously connected chat. Delivery
   remains recovering until that turn completes and the reactive wait is armed;
   another connection or inbox-read request is unnecessary.
-  Keep tabs open. Local plugin policies can prevent loading the integration.
+  Keep connected chats open. Local plugin policies can prevent loading the integration.
   Direct Cursor and Cursor Agent in AionUi share the same MCP settings. Direct
   Cursor additionally needs its plugin; AionUi authorization and live-chat
   connections remain separate.
@@ -207,7 +207,7 @@ replayed automatically. Codex Desktop compatibility remains version dependent.
 
 Quit NCF Agent Interconnect before replacing it, then start the updated app.
 In each previously connected Cursor chat, send one ordinary message and let the
-response finish. Keep the tab open. Its exact binding and queued messages are
+response finish. Keep the chat open. Its exact binding and queued messages are
 preserved; another connection or inbox-read request is unnecessary. When the
 installation path is unchanged, another Apply is unnecessary. If the app path
 changes, use Cursor setup and Apply to update its paths.

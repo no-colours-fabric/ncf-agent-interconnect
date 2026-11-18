@@ -6,8 +6,7 @@ export const en: Messages = {
   mcpSetup_statusOpencodeConfig: 'MCP and plugin settings',
   mcpSetup_statusOpencodeHint: 'This checks saved settings, not whether the plugin is running.',
   mcpSetup_statusUnknown: 'Unknown',
-  mcpSetup_statusCursorMetricsHint:
-    'Delivery becomes active after the connected chat completes a turn. After restarting Cursor, send any message in that chat to restore delivery.',
+  mcpSetup_statusCursorMetricsHint: 'Restart Cursor and send a message in the intended chat.',
   mcpSetup_statusDelivery: 'Agent delivery',
   mcpSetup_statusAuthorization: 'Authorization',
   mcpSetup_statusLiveBridge: 'Live bridge',
@@ -19,7 +18,7 @@ export const en: Messages = {
   settingsThemeDarkLabel: 'Dark',
   settingsDiagnosticNode: 'Node',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'Listening',
+  settingsDiagnosticListening: 'Listening addresses',
 
   settingsAppearance: 'Appearance',
   settingsDarkTheme: 'Dark theme',
@@ -37,8 +36,7 @@ export const en: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
+  mcpSetup_aionDescription: 'Connect Cursor Agent in AionUi.',
   mcpSetup_aionContinue: 'Continue setting up AionUi. Follow the steps below.',
   mcpSetup_aionAccessAction: 'Select {action} and follow the pairing instructions.',
   mcpSetup_aionPairTitle: 'Access to AionUi',
@@ -57,12 +55,9 @@ export const en: Messages = {
   mcpSetup_aionMcpTitle: 'MCP for Cursor Agent',
   mcpSetup_aionMcpOutdated: 'AionUi bridge settings need updating',
   mcpSetup_aionUpdateAction: 'Select {action}, then click Apply.',
-  mcpSetup_aionRestartAction:
-    'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
-  mcpSetup_aionMcpHelp:
-    'These MCP settings work with both Cursor and Cursor Agent in AionUi. Direct Cursor also needs its plugin; AionUi needs authorization and a connected chat.',
-  mcpSetup_aionNext:
-    'Restart Cursor Agent in AionUi after Apply, then reconnect the intended chat. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
+  mcpSetup_aionRestartAction: 'Reconnect Cursor Agent in the intended AionUi chat.',
+  mcpSetup_aionMcpHelp: 'Cursor and Cursor Agent in AionUi share these settings.',
+  mcpSetup_aionNext: 'Restart Cursor Agent in AionUi and reconnect the chat.',
 
   agentsColumnMessages: 'Messages',
   mcpSetup_tabsLabel: 'MCP client',
@@ -83,9 +78,10 @@ export const en: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Shared Cursor / AionUi configuration',
   mcpSetup_pathLabel: 'Configuration file path',
   mcpSetup_browse: 'Choose file…',
+  mcpSetup_browseShort: 'Choose…',
   mcpSetup_knownPaths: 'Other locations',
   mcpSetup_pathHint:
-    'Choose the file used by this application. A missing file will be created when you click Apply.',
+    'Choose the configuration file used by this application. A missing file will be created when you click Apply.',
   mcpSetup_checking: 'Checking settings…',
   mcpSetup_ready: 'Ready to apply',
   mcpSetup_create: 'The connection settings will be added.',
@@ -106,17 +102,15 @@ export const en: Messages = {
   mcpSetup_noChanges: 'Settings are already present. Nothing was changed.',
   mcpSetup_failed: 'Setup could not be applied.',
   mcpSetup_cursorNext: 'Restart Cursor once, then connect an agent in the intended chat.',
-  mcpSetup_opencodeNext: 'Restart OpenCode v1 to use these settings.',
-  mcpSetup_codexNext:
-    'Reconnect MCP in the selected Codex instance or profile to use these settings.',
+  mcpSetup_opencodeNext: 'Restart OpenCode v1.',
+  mcpSetup_codexNext: 'Reconnect MCP in the intended Codex chat.',
   mcpSetup_copyPrompt: 'Copy connection prompt',
   mcpSetup_connect: 'Connect an agent in the client',
   mcpSetup_configureClaude: 'Configure Claude Code',
   mcpSetup_claudeTitle: 'Configure Claude Code',
   mcpSetup_claudeDescription:
     'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables two plugins published by this app in the selected user settings file: the NCF plugin, with its MCP server, fixed lifecycle and tool-call hooks run by this app, and a mod that announces waiting messages in the exact chat; and the gate plugin it depends on, which lets an announcement start a turn only while it is current. Apply also allows agent_read without a prompt. Other permission decisions stay yours.',
-  mcpSetup_claudeNext:
-    'Start or resume Claude Code normally, then connect an agent. The agent status shows when automatic wake is verified in a chat; safe mode or an organization policy can turn it off.',
+  mcpSetup_claudeNext: 'Open or resume Claude Code, then connect in the chat.',
   mcpSetup_claudeLaunch: 'Start Claude Code',
   mcpSetup_copyLaunch: 'Copy launch command',
   mcpSetup_connectionPrompt: 'Connect as agent <a name you choose>.',
@@ -174,8 +168,6 @@ export const en: Messages = {
   chipStopped: 'Stopped',
   btnStop: 'Stop',
   btnStart: 'Start',
-  overviewIntro:
-    'Messages are stored on this computer and remain available when you switch chats or clients.',
   statRemoteNodes: 'Remote nodes',
   statRemoteNodesHint: 'connected',
   statAgents: 'Agents',
@@ -186,9 +178,7 @@ export const en: Messages = {
   connectAgentsBody:
     'Connect your application with a button. Settings change only after you click Apply.',
   connectAgentsCta: 'Open MCP setup',
-  connectPeerTitle: 'Connect another computer',
-  connectPeerBody: 'Enter the remote node IP or URL and the access code provided by its user.',
-  connectPeerCta: 'Set up a connection',
+  connectPeerCta: 'Connection settings',
   agentsTitle: 'Agents',
   ariaAddAgent: 'Add agent',
   agentListClient: 'Client: {client}',
@@ -333,12 +323,11 @@ export const en: Messages = {
   settingsLocalOnly: ' — this computer only',
   settingsSaved: 'Settings saved',
   btnSave: 'Save',
-  settingsBackground: 'Background operation',
-  settingsBackgroundBody:
-    'Closing the window keeps the node running in the tray. Quit closes the app and its connections.',
   settingsStartAtLogin: 'Start at login',
   settingsStartAtLoginUnavailable: 'Start at login is available in the installed app.',
   settingsExportRoots: 'Permitted export folders',
+  settingsExportRootsHelp:
+    'Agents can send files to each other only from the folders listed here. Files from other folders are blocked.',
   btnAddFolder: 'Add folder',
   settingsDiagnostics: 'Diagnostics',
   settingsNodeId: 'Node: {id}',

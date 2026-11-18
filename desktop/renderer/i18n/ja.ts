@@ -7,7 +7,7 @@ export const ja: Messages = {
   mcpSetup_statusOpencodeHint: '保存済みの設定を確認します。プラグインの稼働は確認しません。',
   mcpSetup_statusUnknown: '不明',
   mcpSetup_statusCursorMetricsHint:
-    '接続したチャットのターンが完了すると配信が有効になります。Cursor の再起動後は、そのチャットで任意のメッセージを送信すると配信が復元されます。',
+    'Cursor を再起動し、対象のチャットでメッセージを送信してください。',
   mcpSetup_statusDelivery: 'エージェントへの配信',
   mcpSetup_statusAuthorization: '認証',
   mcpSetup_statusLiveBridge: '稼働中のブリッジ',
@@ -37,8 +37,7 @@ export const ja: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'AionUi内のCursor Agentを接続します。アクセス、保存済みMCP設定、稼働中のブリッジは別の状態です。',
+  mcpSetup_aionDescription: 'AionUi で Cursor Agent を接続してください。',
   mcpSetup_aionContinue: 'AionUi の設定を続けてください。以下の手順に従ってください。',
   mcpSetup_aionAccessAction: '「{action}」を選択し、ペアリングの手順に従ってください。',
   mcpSetup_aionPairTitle: 'AionUiへのアクセス',
@@ -57,12 +56,9 @@ export const ja: Messages = {
   mcpSetup_aionMcpTitle: 'Cursor Agent用MCP',
   mcpSetup_aionMcpOutdated: 'AionUi ブリッジの設定を更新する必要があります',
   mcpSetup_aionUpdateAction: '「{action}」を選択し、「適用」をクリックしてください。',
-  mcpSetup_aionRestartAction:
-    'ブリッジの適用後、対象の AionUi チャットで Cursor Agent を再接続し、MCP 設定を再読み込みしてください。',
-  mcpSetup_aionMcpHelp:
-    'この MCP 設定は Cursor と AionUi 内の Cursor Agent の両方で使用できます。Cursor の直接接続にはプラグインも必要です。AionUi には認証と接続済みのチャットが必要です。',
-  mcpSetup_aionNext:
-    '設定を適用した後、AionUi 内の Cursor Agent を再起動し、対象のチャットを再接続してください。保存済み設定はブリッジの稼働を保証しません。この設定は他のAionUiバックエンドをサポートしません。',
+  mcpSetup_aionRestartAction: '対象の AionUi チャットで Cursor Agent を再接続してください。',
+  mcpSetup_aionMcpHelp: 'Cursor と AionUi の Cursor Agent は同じ設定を使います。',
+  mcpSetup_aionNext: 'AionUi で Cursor Agent を再起動し、対象のチャットを再接続してください。',
 
   agentsColumnMessages: 'メッセージ',
   mcpSetup_tabsLabel: 'MCPクライアント',
@@ -83,9 +79,10 @@ export const ja: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi の共有設定',
   mcpSetup_pathLabel: '設定ファイルのパス',
   mcpSetup_browse: 'ファイルを選択…',
+  mcpSetup_browseShort: '選択…',
   mcpSetup_knownPaths: 'その他の場所',
   mcpSetup_pathHint:
-    'このアプリケーションが使用するファイルを選択してください。ファイルが存在しない場合は「適用」をクリックすると作成されます。',
+    'このアプリケーションが使用する設定ファイルを選択してください。ファイルが存在しない場合は「適用」をクリックすると作成されます。',
   mcpSetup_checking: '設定を確認中…',
   mcpSetup_ready: '適用の準備完了',
   mcpSetup_create: '接続設定が追加されます。',
@@ -106,17 +103,15 @@ export const ja: Messages = {
   mcpSetup_noChanges: '設定は既に存在します。変更はありません。',
   mcpSetup_failed: '設定を適用できませんでした。',
   mcpSetup_cursorNext: 'Cursorを一度再起動し、対象のチャットでエージェントを接続してください。',
-  mcpSetup_opencodeNext: 'これらの設定を使用するには、OpenCode v1を再起動してください。',
-  mcpSetup_codexNext:
-    'これらの設定を使用するには、選択したCodexインスタンスまたはプロファイルでMCPを再接続してください。',
+  mcpSetup_opencodeNext: 'OpenCode v1 を再起動してください。',
+  mcpSetup_codexNext: '対象の Codex チャットで MCP を再接続してください。',
   mcpSetup_copyPrompt: '接続プロンプトをコピー',
   mcpSetup_connect: 'クライアントでエージェントを接続',
   mcpSetup_configureClaude: 'Claude Codeを設定',
   mcpSetup_claudeTitle: 'Claude Codeを設定',
   mcpSetup_claudeDescription:
     '対話型 Claude Code を NCF Agent Interconnect に接続します。「適用」は、選択したユーザー設定ファイルで、このアプリが公開する 2 つのプラグインを有効にします。1 つは NCF プラグインで、MCP サーバー、このアプリが実行する固定のライフサイクルフックとツール呼び出しフック、そして待機中のメッセージを正確なチャットに通知する mod を含みます。もう 1 つはそれが依存するゲートプラグインで、通知が有効な間だけターンの開始を許可します。agent_read も確認なしで許可します。その他の権限の判断はあなたに委ねられます。',
-  mcpSetup_claudeNext:
-    'いつもどおり Claude Code を起動または再開し、エージェントを接続してください。エージェントの状態に、チャットで自動起動が確認されたかどうかが表示されます。セーフモードや組織のポリシーで無効になる場合があります。',
+  mcpSetup_claudeNext: 'Claude Code を開くかセッションを再開し、チャットで接続してください。',
   mcpSetup_claudeLaunch: 'Claude Code を起動',
   mcpSetup_copyLaunch: '起動コマンドをコピー',
   mcpSetup_connectionPrompt: 'エージェント<任意の名前>として接続してください。',
@@ -175,8 +170,6 @@ export const ja: Messages = {
   chipStopped: '停止',
   btnStop: '停止',
   btnStart: '開始',
-  overviewIntro:
-    'メッセージはこのコンピューターに保存され、チャットやクライアントを切り替えても利用できます。',
   statRemoteNodes: 'リモートノード',
   statRemoteNodesHint: '接続済み',
   statAgents: 'エージェント',
@@ -187,10 +180,7 @@ export const ja: Messages = {
   connectAgentsBody:
     'ボタンでアプリケーションを接続します。「適用」をクリックした後にのみ設定が変更されます。',
   connectAgentsCta: 'MCP 設定を開く',
-  connectPeerTitle: '別のコンピューターを接続',
-  connectPeerBody:
-    'リモートノードの IP または URL と、そのユーザーが提供したアクセスコードを入力します。',
-  connectPeerCta: '接続を設定',
+  connectPeerCta: '接続設定',
   agentsTitle: 'エージェント',
   ariaAddAgent: 'エージェントを追加',
   agentListClient: 'クライアント: {client}',
@@ -338,12 +328,11 @@ export const ja: Messages = {
   settingsLocalOnly: ' — このコンピューターのみ',
   settingsSaved: '設定を保存しました',
   btnSave: '保存',
-  settingsBackground: 'バックグラウンド動作',
-  settingsBackgroundBody:
-    'ウィンドウを閉じてもノードはトレイで実行を続けます。終了するとアプリと接続が閉じられます。',
   settingsStartAtLogin: 'ログイン時に起動',
   settingsStartAtLoginUnavailable: 'ログイン時起動はインストール済みアプリで利用できます。',
   settingsExportRoots: '許可されたエクスポートフォルダー',
+  settingsExportRootsHelp:
+    'エージェント同士で送信できるのは、一覧にあるフォルダー内のファイルだけです。それ以外のフォルダーからの送信はブロックされます。',
   btnAddFolder: 'フォルダーを追加',
   settingsDiagnostics: '診断',
   settingsNodeId: 'ノード: {id}',

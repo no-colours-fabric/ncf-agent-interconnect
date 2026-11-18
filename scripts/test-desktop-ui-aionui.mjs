@@ -109,7 +109,7 @@ try {
   await page.getByRole('tab', { name: 'AionUi', exact: true }).click();
   const setup = page.getByTestId('aionui-setup');
   await setup.getByTestId('aionui-setup-panel').waitFor();
-  await setup.getByText('Continue setting up AionUi. Follow the steps below.').waitFor();
+  await setup.getByTestId('aionui-connection-steps').waitFor();
   assert.equal(
     await setup.getByTestId('aionui-connection-steps').locator('.MuiStep-root').count(),
     3,

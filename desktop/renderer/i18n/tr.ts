@@ -7,7 +7,7 @@ export const tr: Messages = {
   mcpSetup_statusOpencodeHint: 'Kayıtlı ayarlar denetlenir; eklentinin çalıştığı doğrulanmaz.',
   mcpSetup_statusUnknown: 'Bilinmiyor',
   mcpSetup_statusCursorMetricsHint:
-    'Bağlı sohbetteki bir tur tamamlandığında teslim etkinleşir. Cursor yeniden başlatıldıktan sonra teslimi geri yüklemek için o sohbette herhangi bir mesaj gönderin.',
+    'Cursor’ı yeniden başlatın ve istediğiniz sohbette bir mesaj gönderin.',
   mcpSetup_statusDelivery: 'Ajanlara teslim',
   mcpSetup_statusAuthorization: 'Yetkilendirme',
   mcpSetup_statusLiveBridge: 'Canlı köprü',
@@ -19,7 +19,7 @@ export const tr: Messages = {
   settingsThemeDarkLabel: 'Koyu',
   settingsDiagnosticNode: 'Düğüm',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'Dinleme adresi',
+  settingsDiagnosticListening: 'Dinleme adresleri',
 
   settingsAppearance: 'Görünüm',
   settingsDarkTheme: 'Koyu tema',
@@ -37,8 +37,7 @@ export const tr: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'AionUi içinde Cursor Agent bağlayın. Erişim, kaydedilmiş MCP ayarları ve etkin köprü ayrı durumlardır.',
+  mcpSetup_aionDescription: 'AionUi içinde Cursor Agent’ı bağlayın.',
   mcpSetup_aionContinue: 'AionUi kurulumuna devam edin. Aşağıdaki adımları izleyin.',
   mcpSetup_aionAccessAction: '«{action}» seçeneğini seçin ve eşleştirme adımlarını izleyin.',
   mcpSetup_aionPairTitle: 'AionUi erişimi',
@@ -57,12 +56,10 @@ export const tr: Messages = {
   mcpSetup_aionMcpTitle: 'Cursor Agent için MCP',
   mcpSetup_aionMcpOutdated: 'AionUi köprü ayarlarının güncellenmesi gerekiyor',
   mcpSetup_aionUpdateAction: '«{action}» seçeneğini seçip Uygula seçeneğine tıklayın.',
-  mcpSetup_aionRestartAction:
-    "Köprüyü uyguladıktan sonra MCP ayarlarını yeniden yüklemek için Cursor Agent'ı ilgili AionUi sohbetinde yeniden bağlayın.",
-  mcpSetup_aionMcpHelp:
-    'Bu MCP ayarları hem Cursor hem de AionUi içindeki Cursor Agent ile çalışır. Doğrudan Cursor bağlantısı eklentisini de gerektirir; AionUi için yetkilendirme ve bağlı bir sohbet gerekir.',
+  mcpSetup_aionRestartAction: 'Cursor Agent’ı istediğiniz AionUi sohbetinde yeniden bağlayın.',
+  mcpSetup_aionMcpHelp: 'Cursor ve AionUi içindeki Cursor Agent bu ayarları ortak kullanır.',
   mcpSetup_aionNext:
-    'Ayarları uyguladıktan sonra AionUi içindeki Cursor Agent uygulamasını yeniden başlatın ve istediğiniz sohbeti yeniden bağlayın. Kaydedilmiş ayarlar etkin köprüyü doğrulamaz. Bu kurulum diğer AionUi arka uçlarını desteklemez.',
+    'AionUi içinde Cursor Agent’ı yeniden başlatın ve istediğiniz sohbeti yeniden bağlayın.',
 
   agentsColumnMessages: 'Mesajlar',
   mcpSetup_tabsLabel: 'MCP istemcisi',
@@ -83,9 +80,10 @@ export const tr: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi ortak yapılandırması',
   mcpSetup_pathLabel: 'Yapılandırma dosyası yolu',
   mcpSetup_browse: 'Dosya seç…',
+  mcpSetup_browseShort: 'Seç…',
   mcpSetup_knownPaths: 'Diğer konumlar',
   mcpSetup_pathHint:
-    'Bu uygulamanın kullandığı dosyayı seçin. Eksik dosya “Uygula” düğmesine tıkladığınızda oluşturulacaktır.',
+    'Bu uygulamanın kullandığı yapılandırma dosyasını seçin. Eksik dosya “Uygula” düğmesine tıkladığınızda oluşturulacaktır.',
   mcpSetup_checking: 'Ayarlar kontrol ediliyor…',
   mcpSetup_ready: 'Uygulamaya hazır',
   mcpSetup_create: 'Bağlantı ayarları eklenecektir.',
@@ -108,17 +106,15 @@ export const tr: Messages = {
   mcpSetup_failed: 'Yapılandırma uygulanamadı.',
   mcpSetup_cursorNext:
     'Cursor uygulamasını bir kez yeniden başlatın, ardından hedef sohbette bir ajan bağlayın.',
-  mcpSetup_opencodeNext: 'Bu ayarları kullanmak için OpenCode v1 uygulamasını yeniden başlatın.',
-  mcpSetup_codexNext:
-    'Bu ayarları kullanmak için seçilen Codex örneğinde veya profilinde MCP bağlantısını yeniden kurun.',
+  mcpSetup_opencodeNext: 'OpenCode v1’i yeniden başlatın.',
+  mcpSetup_codexNext: 'İstediğiniz Codex sohbetinde MCP’yi yeniden bağlayın.',
   mcpSetup_copyPrompt: 'Bağlantı istemini kopyala',
   mcpSetup_connect: 'İstemcide bir ajan bağla',
   mcpSetup_configureClaude: "Claude Code'u yapılandır",
   mcpSetup_claudeTitle: "Claude Code'u yapılandır",
   mcpSetup_claudeDescription:
     "Etkileşimli Claude Code'u NCF Agent Interconnect'e bağlayın. Uygula, seçilen kullanıcı ayarları dosyasında bu uygulamanın yayımladığı iki eklentiyi etkinleştirir: MCP sunucusu, bu uygulamanın çalıştırdığı sabit yaşam döngüsü ve araç çağrısı kancaları ve bekleyen iletileri doğru sohbette duyuran bir mod içeren NCF eklentisi; ve bağlı olduğu, bir duyurunun yalnızca güncel olduğu sürece tur başlatmasına izin veren denetim eklentisi. Ayrıca agent_read'e sormadan izin verir. Diğer izin kararları size aittir.",
-  mcpSetup_claudeNext:
-    "Claude Code'u her zamanki gibi başlatın veya sürdürün, ardından bir ajan bağlayın. Ajan durumu, otomatik uyandırmanın bir sohbette doğrulandığını gösterir; güvenli mod veya bir kuruluş ilkesi bunu kapatabilir.",
+  mcpSetup_claudeNext: 'Claude Code’u açın veya bir oturuma dönün, ardından sohbette bağlanın.',
   mcpSetup_claudeLaunch: "Claude Code'u başlat",
   mcpSetup_copyLaunch: 'Başlatma komutunu kopyala',
   mcpSetup_connectionPrompt: '<Seçtiğiniz bir ad> adlı ajan olarak bağlan.',
@@ -177,8 +173,6 @@ export const tr: Messages = {
   chipStopped: 'Durduruldu',
   btnStop: 'Durdur',
   btnStart: 'Başlat',
-  overviewIntro:
-    'Mesajlar bu bilgisayarda saklanır ve sohbet veya istemci değiştirdiğinizde kullanılabilir durumda kalır.',
   statRemoteNodes: 'Uzak düğümler',
   statRemoteNodesHint: 'bağlı',
   statAgents: 'Aracılar',
@@ -189,10 +183,7 @@ export const tr: Messages = {
   connectAgentsBody:
     'Uygulamanızı bir düğmeyle bağlayın. Ayarlar yalnızca “Uygula” düğmesine tıkladıktan sonra değişir.',
   connectAgentsCta: 'MCP ayarlarını aç',
-  connectPeerTitle: 'Başka bir bilgisayar bağlama',
-  connectPeerBody:
-    'Uzak düğümün IP adresini veya URL’sini ve kullanıcısının verdiği erişim kodunu girin.',
-  connectPeerCta: 'Bağlantı kur',
+  connectPeerCta: 'Bağlantı ayarları',
   agentsTitle: 'Aracılar',
   ariaAddAgent: 'Aracı ekle',
   agentListClient: 'İstemci: {client}',
@@ -342,12 +333,11 @@ export const tr: Messages = {
   settingsLocalOnly: ' — yalnızca bu bilgisayar',
   settingsSaved: 'Ayarlar kaydedildi',
   btnSave: 'Kaydet',
-  settingsBackground: 'Arka planda çalışma',
-  settingsBackgroundBody:
-    'Pencereyi kapatmak düğümün tepside çalışmaya devam etmesini sağlar. Çıkış, uygulamayı ve bağlantılarını kapatır.',
   settingsStartAtLogin: 'Oturum açarken başlat',
   settingsStartAtLoginUnavailable: 'Oturum açarken başlatma, yüklü uygulamada kullanılabilir.',
   settingsExportRoots: 'İzin verilen dışa aktarma klasörleri',
+  settingsExportRootsHelp:
+    'Aracılar birbirlerine yalnızca listelenen klasörlerdeki dosyaları gönderebilir. Diğer klasörlerden dosya gönderimi engellenir.',
   btnAddFolder: 'Klasör ekle',
   settingsDiagnostics: 'Tanılama',
   settingsNodeId: 'Düğüm: {id}',

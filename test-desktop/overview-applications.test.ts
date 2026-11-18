@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import type { ApplicationDiscoverySnapshot } from '../desktop/shared/application-discovery.js';
+import type { McpSetupClient } from '../desktop/shared/mcp-setup.js';
+import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import type { AdapterState, AgentIdentity } from '../desktop/shared/contracts.js';
 import {
   OverviewApplications,
@@ -40,6 +43,47 @@ function agent(nickname: string, adapterId: string, unread = 0): AgentIdentity {
   };
 }
 
+const detected = (...clients: McpSetupClient[]): ApplicationDiscoverySnapshot => ({
+  checkedAt: '',
+  platform: 'darwin',
+  offers: [],
+  stateError: false,
+  applications: clients.map((client) => ({
+    client,
+    status: 'detected',
+    instances: [],
+    coverage: [],
+  })),
+});
+
+function setupFixture(snapshot?: ApplicationDiscoverySnapshot) {
+  const flow = new ApplicationSetupFlow(async () => assert.fail('Rendering cannot invoke setup'));
+  return {
+    flow,
+    states: flow.getSnapshot(),
+    discovery: {
+      snapshot,
+      busy: false,
+      failed: false,
+      offers: [],
+      offerError: false,
+      acknowledge: async () => {},
+      dismiss() {},
+      refresh: async () => {},
+      choose: async () => {},
+    },
+    statuses: {
+      statuses: {
+        codex: { client: 'codex', remembered: false, state: 'missing', files: [] },
+        opencode: { client: 'opencode', remembered: false, state: 'missing', files: [] },
+      } as const,
+      errors: {},
+      refreshAll: async () => {},
+    },
+    locale: 'en',
+  } satisfies Omit<React.ComponentProps<typeof OverviewApplications>, 'snapshot'>;
+}
+
 test('Overview hides an empty application section and saved profiles without a connected chat', () => {
   const snapshot = { adapters: [profile('saved', 'cursor-hook')], agents: [] };
   assert.deepEqual(connectedOverviewApplications(snapshot), []);
@@ -47,10 +91,7 @@ test('Overview hides an empty application section and saved profiles without a c
     renderToStaticMarkup(
       React.createElement(OverviewApplications, {
         snapshot,
-        locale: 'en',
-        onOpen() {
-          assert.fail('Rendering cannot navigate');
-        },
+        ...setupFixture(),
       }),
     ),
     '',
@@ -87,15 +128,12 @@ test('Overview keeps connected OpenCode v1 and v2 separate, with no setup action
   };
   assert.deepEqual(
     connectedOverviewApplications(snapshot).map(({ client }) => client),
-    ['opencode', 'opencode-v2'],
+    ['opencode-v2', 'opencode'],
   );
   const html = renderToStaticMarkup(
     React.createElement(OverviewApplications, {
       snapshot,
-      locale: 'en',
-      onOpen() {
-        assert.fail('Rendering cannot navigate');
-      },
+      ...setupFixture(detected('opencode')),
     }),
   );
   assert.equal((html.match(/data-testid="overview-application-/g) ?? []).length, 2);
@@ -103,6 +141,7 @@ test('Overview keeps connected OpenCode v1 and v2 separate, with no setup action
   assert.ok(html.includes('OpenCode v2'));
   assert.ok(html.includes('Inbox: 2'));
   assert.ok(html.includes('Inbox: 3'));
+  assert.ok(!html.includes('<button'));
   for (const text of [
     'Manual setup',
     'Connect</',
@@ -128,10 +167,74 @@ test('Overview indicators retain partial delivery and issues without exposing di
   const html = renderToStaticMarkup(
     React.createElement(OverviewApplications, {
       snapshot,
-      locale: 'en',
-      onOpen() {},
+      ...setupFixture(detected('cursor')),
     }),
   );
   assert.ok(html.includes('Inbox: 3'));
   assert.ok(!html.includes('Private diagnostic'));
+});
+
+test('Overview lists detected apps, highlights live connections, and offers setup for the rest', () => {
+  const discovery = detected('cursor', 'codex', 'opencode');
+  discovery.applications.push({
+    client: 'claude',
+    status: 'not-found-in-known-locations',
+    instances: [],
+    coverage: [],
+  });
+  const html = renderToStaticMarkup(
+    React.createElement(OverviewApplications, {
+      snapshot: {
+        adapters: [profile('cursor', 'cursor-hook'), profile('claude', 'claude-code')],
+        agents: [agent('Cursor', 'cursor', 4), agent('Claude', 'claude')],
+      },
+      ...setupFixture(discovery),
+    }),
+  );
+  assert.ok(html.includes('You can start working'));
+  assert.ok(html.includes('overview-application-cursor" data-connected="true"'));
+  assert.ok(html.includes('Inbox: 4'));
+  assert.ok(html.includes('Configured'));
+  assert.ok(html.includes('Already set up. You can work in this app now.'));
+  assert.ok(html.includes('Detected on this computer'));
+  assert.ok(html.includes('Connect — Codex'));
+  assert.ok(html.includes('Connect — OpenCode v1'));
+  assert.ok(!html.includes('overview-application-opencode-v2"'));
+  assert.ok(!html.includes('overview-application-claude"'));
+});
+
+test('Overview shows the saved v2 next step without treating it as a live connection', () => {
+  const setup = setupFixture(detected('opencode'));
+  const target = {
+    major: 2,
+    installationId: 'fixture-v2',
+    installationPath: '/fixture/opencode-v2',
+    profilePath: '/fixture/profile',
+    configurationPath: '/fixture/profile/opencode.json',
+  } as const;
+  const html = renderToStaticMarkup(
+    React.createElement(OverviewApplications, {
+      snapshot: { adapters: [], agents: [] },
+      ...setup,
+      states: {
+        ...setup.states,
+        'opencode-v2': { ...setup.states['opencode-v2'], target, phase: 'succeeded' },
+      },
+    }),
+  );
+  assert.ok(html.includes('Configured'));
+  assert.ok(html.includes('Restart OpenCode v2'));
+  const guidanceIndex = html.indexOf('data-testid="overview-chat-guidance"');
+  const gridIndex = html.indexOf('data-testid="overview-applications-grid"');
+  assert.ok(guidanceIndex >= 0 && guidanceIndex < gridIndex);
+  const command = 'Connect as agent &lt;a name you choose&gt;';
+  const guidance = html.slice(guidanceIndex, gridIndex);
+  assert.ok(
+    guidance.includes('In your app, open a new chat or return to an existing one, then type '),
+  );
+  assert.ok(guidance.includes(command));
+  assert.ok(!html.slice(gridIndex).includes(command));
+  assert.ok(!html.includes('Connect — OpenCode v2'));
+  assert.ok(!html.includes('Copy prompt'));
+  assert.ok(!html.includes('data-connected="true"'));
 });

@@ -8,7 +8,7 @@ export const nl: Messages = {
     'Deze controle betreft opgeslagen instellingen, niet of de plugin actief is.',
   mcpSetup_statusUnknown: 'Onbekend',
   mcpSetup_statusCursorMetricsHint:
-    'Bezorging wordt actief nadat de verbonden chat een beurt heeft voltooid. Stuur na het opnieuw starten van Cursor een willekeurig bericht in die chat om de bezorging te herstellen.',
+    'Start Cursor opnieuw en stuur een bericht in de gewenste chat.',
   mcpSetup_statusDelivery: 'Bezorging aan agents',
   mcpSetup_statusAuthorization: 'Autorisatie',
   mcpSetup_statusLiveBridge: 'Actieve brug',
@@ -20,7 +20,7 @@ export const nl: Messages = {
   settingsThemeDarkLabel: 'Donker',
   settingsDiagnosticNode: 'Knooppunt',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'Luisteradres',
+  settingsDiagnosticListening: 'Luisteradressen',
 
   settingsAppearance: 'Weergave',
   settingsDarkTheme: 'Donker thema',
@@ -38,8 +38,7 @@ export const nl: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'Verbind Cursor Agent in AionUi. Toegang, opgeslagen MCP-instellingen en een actieve bridge zijn aparte toestanden.',
+  mcpSetup_aionDescription: 'Verbind Cursor Agent in AionUi.',
   mcpSetup_aionContinue: 'Ga verder met het instellen van AionUi. Volg de stappen hieronder.',
   mcpSetup_aionAccessAction: 'Kies ‘{action}’ en volg de koppelingsinstructies.',
   mcpSetup_aionPairTitle: 'Toegang tot AionUi',
@@ -58,12 +57,9 @@ export const nl: Messages = {
   mcpSetup_aionMcpTitle: 'MCP voor Cursor Agent',
   mcpSetup_aionMcpOutdated: 'De AionUi-bruginstellingen moeten worden bijgewerkt',
   mcpSetup_aionUpdateAction: 'Kies ‘{action}’ en klik daarna op ‘Toepassen’.',
-  mcpSetup_aionRestartAction:
-    'Verbind Cursor Agent na het toepassen van de brug opnieuw in de bedoelde AionUi-chat om de MCP-instellingen opnieuw te laden.',
-  mcpSetup_aionMcpHelp:
-    'Deze MCP-instellingen werken met zowel Cursor als Cursor Agent in AionUi. Direct Cursor heeft ook zijn plugin nodig; AionUi heeft autorisatie en een verbonden chat nodig.',
-  mcpSetup_aionNext:
-    'Herstart Cursor Agent in AionUi nadat de instellingen zijn toegepast en verbind de gewenste chat opnieuw. Opgeslagen instellingen bevestigen geen actieve bridge. Andere AionUi-backends worden niet ondersteund door deze instelling.',
+  mcpSetup_aionRestartAction: 'Verbind Cursor Agent opnieuw in de gewenste AionUi-chat.',
+  mcpSetup_aionMcpHelp: 'Cursor en Cursor Agent in AionUi delen deze instellingen.',
+  mcpSetup_aionNext: 'Start Cursor Agent in AionUi opnieuw en verbind de gewenste chat opnieuw.',
 
   agentsColumnMessages: 'Berichten',
   mcpSetup_tabsLabel: 'MCP-client',
@@ -84,9 +80,10 @@ export const nl: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Gedeelde configuratie voor Cursor / AionUi',
   mcpSetup_pathLabel: 'Pad naar configuratiebestand',
   mcpSetup_browse: 'Bestand kiezen…',
+  mcpSetup_browseShort: 'Kiezen…',
   mcpSetup_knownPaths: 'Andere locaties',
   mcpSetup_pathHint:
-    'Kies het bestand dat deze toepassing gebruikt. Een ontbrekend bestand wordt aangemaakt wanneer u op ‘Toepassen’ klikt.',
+    'Kies het configuratiebestand dat deze toepassing gebruikt. Een ontbrekend bestand wordt aangemaakt wanneer u op ‘Toepassen’ klikt.',
   mcpSetup_checking: 'Instellingen controleren…',
   mcpSetup_ready: 'Gereed om toe te passen',
   mcpSetup_create: 'De verbindingsinstellingen worden toegevoegd.',
@@ -109,17 +106,15 @@ export const nl: Messages = {
   mcpSetup_failed: 'Instellingen konden niet worden toegepast.',
   mcpSetup_cursorNext:
     'Start Cursor één keer opnieuw en verbind daarna een agent in de bedoelde chat.',
-  mcpSetup_opencodeNext: 'Start OpenCode v1 opnieuw om deze instellingen te gebruiken.',
-  mcpSetup_codexNext:
-    'Verbind MCP opnieuw in de geselecteerde Codex-instantie of het profiel om deze instellingen te gebruiken.',
+  mcpSetup_opencodeNext: 'Start OpenCode v1 opnieuw.',
+  mcpSetup_codexNext: 'Verbind MCP opnieuw in de gewenste Codex-chat.',
   mcpSetup_copyPrompt: 'Verbindingsprompt kopiëren',
   mcpSetup_connect: 'Een agent verbinden in de client',
   mcpSetup_configureClaude: 'Claude Code instellen',
   mcpSetup_claudeTitle: 'Claude Code instellen',
   mcpSetup_claudeDescription:
     'Verbind interactieve Claude Code met NCF Agent Interconnect. Toepassen schakelt in het gekozen gebruikersinstellingenbestand twee door deze app gepubliceerde plugins in: de NCF-plugin, met zijn MCP-server, vaste levenscyclus- en toolaanroep-hooks die deze app uitvoert en een mod die wachtende berichten in de juiste chat meldt; en de controleplugin waarvan hij afhangt, die een melding alleen een beurt laat starten zolang die actueel is. Toepassen staat ook agent_read toe zonder vraag. Andere machtigingsbeslissingen blijven bij u.',
-  mcpSetup_claudeNext:
-    'Start of hervat Claude Code zoals gewoonlijk en verbind daarna een agent. De agentstatus toont wanneer automatisch wekken in een chat is bevestigd; de veilige modus of een organisatiebeleid kan het uitschakelen.',
+  mcpSetup_claudeNext: 'Open of hervat een Claude Code-sessie en maak verbinding in de chat.',
   mcpSetup_claudeLaunch: 'Claude Code starten',
   mcpSetup_copyLaunch: 'Startopdracht kopiëren',
   mcpSetup_connectionPrompt: 'Verbind als agent <een naam naar keuze>.',
@@ -178,8 +173,6 @@ export const nl: Messages = {
   chipStopped: 'Gestopt',
   btnStop: 'Stoppen',
   btnStart: 'Starten',
-  overviewIntro:
-    'Berichten worden op deze computer opgeslagen en blijven beschikbaar als u van chat of client wisselt.',
   statRemoteNodes: 'Externe knooppunten',
   statRemoteNodesHint: 'verbonden',
   statAgents: 'Agents',
@@ -190,10 +183,7 @@ export const nl: Messages = {
   connectAgentsBody:
     'Verbind uw toepassing met een knop. Instellingen veranderen pas nadat u op ‘Toepassen’ klikt.',
   connectAgentsCta: 'MCP-instellingen openen',
-  connectPeerTitle: 'Andere computer verbinden',
-  connectPeerBody:
-    'Voer het IP-adres of de URL van het externe knooppunt en de toegangscode van de gebruiker in.',
-  connectPeerCta: 'Verbinding instellen',
+  connectPeerCta: 'Verbindingsinstellingen',
   agentsTitle: 'Agents',
   ariaAddAgent: 'Agent toevoegen',
   agentListClient: 'Client: {client}',
@@ -346,12 +336,11 @@ export const nl: Messages = {
   settingsLocalOnly: ' — alleen deze computer',
   settingsSaved: 'Instellingen opgeslagen',
   btnSave: 'Opslaan',
-  settingsBackground: 'Achtergrondbewerking',
-  settingsBackgroundBody:
-    'Als u het venster sluit, blijft het knooppunt actief in het systeemvak. Afsluiten sluit de app en de verbindingen ervan.',
   settingsStartAtLogin: 'Starten bij inloggen',
   settingsStartAtLoginUnavailable: 'Starten bij inloggen is beschikbaar in de geïnstalleerde app.',
   settingsExportRoots: 'Toegestane exportmappen',
+  settingsExportRootsHelp:
+    'Agenten kunnen elkaar alleen bestanden sturen uit de mappen in deze lijst. Bestanden uit andere mappen worden geblokkeerd.',
   btnAddFolder: 'Map toevoegen',
   settingsDiagnostics: 'Diagnostiek',
   settingsNodeId: 'Knooppunt: {id}',

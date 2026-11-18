@@ -7,10 +7,11 @@ const en = {
   openCodeV2Description:
     'Configure OpenCode v2 for “NCF Agent Interconnect”. Only the selected configuration file will change; provider and account settings stay as they are.',
   openCodeV2Next: 'Restart OpenCode v2, then ask the assistant to connect from the intended chat.',
-  openCodeProfile: 'OpenCode profile',
-  selectedInstallation: 'Selected installation',
   showOpenCodeV1: 'Show OpenCode v1',
   applications: 'Applications',
+  readyTitle: 'You can start working',
+  configuredStatus: 'Configured',
+  applicationReadyHelp: 'Already set up. You can work in this app now.',
   intro: 'Connect automatically or configure an app manually',
   startupTitle: 'Connect your apps',
   startupHelp: 'Choose the apps you use. NCF Agent Interconnect will add its integration.',
@@ -24,7 +25,6 @@ const en = {
   detectionHelp: 'Detection only enables automatic setup. Manual setup is always available.',
   detected: 'Detected on this computer',
   automaticUnavailable: 'Automatic setup unavailable',
-  newApps: 'Newly detected apps will appear here',
   manual: 'Manual setup',
   back: 'Back to Applications',
   connecting: 'Connecting…',
@@ -42,17 +42,19 @@ const en = {
   checkSetupResult: 'Check setup result',
   aionUiName: 'AionUi with Cursor Agent',
   nextStep: 'Next step',
-  readyChatHelp: 'Open a new tab or switch to an existing one, and simply type {command}.',
+  readyChatHelp: 'In your app, open a new chat or return to an existing one, then type {command}.',
   confirmQuestion: 'What may I need to confirm?',
   confirmAnswer:
     'Sign in, trust the workspace and approve client prompts when requested. Moving an occupied agent name needs your approval.',
   reloadQuestion: 'After Apply or an update?',
+  claudeConfirmAnswer:
+    'If prompted, sign in and confirm that you trust the project. Claude Code may ask you to choose Allow before connecting or sending a message through NCF. Moving an occupied agent name requires your approval.',
   claudeReload:
-    'Reload the NCF plugins and reconnect MCP in this same chat. If verification is still lost, fully quit and reopen the client.',
-  cursorReload: 'Restart Cursor, then send one message in the intended chat to restore delivery.',
+    'Save any unfinished input, then reload the NCF plugins or restart Claude Code. Reconnect in the chat you want to use.',
+  cursorReload: 'Restart Cursor and send a message in the intended chat.',
   permissionsQuestion: 'Can I save permissions?',
   permissionsAnswer:
-    'In /permissions, allow only the NCF tools you want: agent_read, agent_connect and agent_send. Existing deny/ask rules still apply.',
+    'If Claude Code keeps asking or blocks an action, check its permissions. Where /permissions is available, you can save permission for that specific action. Your organization’s rules still apply.',
 };
 export type ApplicationSetupMessages = { [K in keyof typeof en]: string };
 
@@ -66,10 +68,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Настройте OpenCode v2 для «NCF Agent Interconnect». Изменения затронут только выбранный файл конфигурации; настройки провайдеров и аккаунтов сохранятся.',
     openCodeV2Next:
       'Перезапустите OpenCode v2, затем попросите помощника подключиться в нужном чате.',
-    openCodeProfile: 'Профиль OpenCode',
-    selectedInstallation: 'Выбранная копия программы',
     showOpenCodeV1: 'Показать OpenCode v1',
     applications: 'Приложения',
+    readyTitle: 'Можно начинать работу',
+    configuredStatus: 'Настроено',
+    applicationReadyHelp: 'В этом приложении уже можно работать.',
     intro: 'Подключите приложение автоматически или настройте вручную',
     startupTitle: 'Подключите свои приложения',
     startupHelp:
@@ -86,7 +89,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Обнаружение позволяет предложить автоматическую настройку. Ручная настройка доступна всегда.',
     detected: 'Обнаружено на этом компьютере',
     automaticUnavailable: 'Автоматическая настройка недоступна',
-    newApps: 'Здесь будут появляться новые обнаруженные приложения',
     manual: 'Настроить вручную',
     back: 'К приложениям',
     connecting: 'Подключение…',
@@ -103,19 +105,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Проверить результат прежней попытки',
     aionUiName: 'AionUi с Cursor Agent',
     nextStep: 'Следующий шаг',
-    readyChatHelp:
-      'Откройте новую вкладку или перейдите на уже открытую и просто напечатайте {command}.',
+    readyChatHelp: 'В своём приложении откройте новый или существующий чат и введите {command}.',
     confirmQuestion: 'Что может потребовать моего подтверждения?',
     confirmAnswer:
       'Вход в аккаунт, доверие к папке и разрешения клиента. Перенос занятого имени агента требует вашего подтверждения.',
     reloadQuestion: 'Что делать после применения настроек или обновления?',
+    claudeConfirmAnswer:
+      'Если Claude Code попросит, войдите в аккаунт и подтвердите доверие проекту. При подключении или отправке сообщения через NCF может появиться запрос с кнопкой Allow. Перенос занятого имени агента требует вашего подтверждения.',
     claudeReload:
-      'Перезагрузите плагины NCF и переподключите MCP в этом же чате. Если проверка связи не восстановилась, полностью выйдите из клиента и откройте его снова.',
-    cursorReload:
-      'Перезапустите Cursor, затем отправьте одно сообщение в нужном чате для восстановления доставки.',
+      'Сохраните незавершённый ввод, затем перезагрузите плагины NCF или перезапустите Claude Code. Подключитесь заново в нужном чате.',
+    cursorReload: 'Перезапустите Cursor и отправьте сообщение в нужном чате.',
     permissionsQuestion: 'Можно ли сохранить разрешения?',
     permissionsAnswer:
-      'В /permissions разрешите только нужные инструменты NCF: agent_read, agent_connect и agent_send. Правила запрета и обязательного подтверждения сохраняют приоритет.',
+      'Если Claude Code снова запрашивает подтверждение или блокирует действие, проверьте разрешения. Если доступна команда /permissions, можно сохранить разрешение для конкретного действия. Правила организации продолжают действовать.',
   },
   'zh-CN': {
     automaticAvailable: '可自动配置',
@@ -124,10 +126,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       '为“NCF Agent Interconnect”配置 OpenCode v2。只会修改选定的配置文件，提供商和账户设置保持不变。',
     openCodeV2Next: '重启 OpenCode v2，然后在目标聊天中请助手连接。',
-    openCodeProfile: 'OpenCode 配置方案',
-    selectedInstallation: '选定的安装实例',
     showOpenCodeV1: '显示 OpenCode v1',
     applications: '应用',
+    readyTitle: '可以开始工作了',
+    configuredStatus: '已配置',
+    applicationReadyHelp: '现在可以在此应用中工作。',
     intro: '自动连接应用，或手动配置',
     startupTitle: '连接你的应用',
     startupHelp: '选择你使用的应用。NCF Agent Interconnect 将添加集成配置。',
@@ -140,7 +143,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     detectionHelp: '检测结果仅用于提供自动配置。你始终可以手动配置。',
     detected: '已在此计算机上检测到',
     automaticUnavailable: '无法自动配置',
-    newApps: '新检测到的应用将显示在此处',
     manual: '手动配置',
     back: '返回应用',
     connecting: '正在连接…',
@@ -155,16 +157,18 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: '检查上次配置的结果',
     aionUiName: '使用 Cursor Agent 的 AionUi',
     nextStep: '下一步',
-    readyChatHelp: '打开新标签页或切换到已打开的标签页，然后直接输入 {command}。',
+    readyChatHelp: '在你的应用中打开新聊天或已有聊天，然后输入 {command}。',
     confirmQuestion: '可能需要确认哪些操作？',
     confirmAnswer: '请按提示登录、信任工作区并批准客户端请求。转移已占用的智能体名称需要你的批准。',
     reloadQuestion: '应用设置或更新后该怎么做？',
+    claudeConfirmAnswer:
+      '如果收到提示，请登录并确认信任该项目。通过 NCF 连接或发送消息时，Claude Code 可能会要求你点击 Allow（允许）。转移已被占用的智能体名称需要你确认。',
     claudeReload:
-      '重新加载 NCF 插件，并在同一聊天中重新连接 MCP。如果仍无法验证连接，请完全退出客户端后重新打开。',
-    cursorReload: '重新启动 Cursor，然后在目标聊天中发送一条消息以恢复投递。',
+      '保存尚未完成的输入，再重新加载 NCF 插件或重启 Claude Code。然后在要使用的聊天中重新连接。',
+    cursorReload: '重启 Cursor，然后在目标聊天中发送一条消息。',
     permissionsQuestion: '可以保存权限吗？',
     permissionsAnswer:
-      '在 /permissions 中，仅允许所需的 NCF 工具：agent_read、agent_connect 和 agent_send。现有的拒绝及询问规则仍然有效。',
+      '如果 Claude Code 反复要求确认或阻止某项操作，请检查权限。如果可以使用 /permissions，你可以保存对该项操作的权限。组织的规则仍然适用。',
   },
   fr: {
     automaticAvailable: 'Configuration automatique disponible',
@@ -174,10 +178,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Configurez OpenCode v2 pour « NCF Agent Interconnect ». Seul le fichier de configuration sélectionné sera modifié ; les paramètres des fournisseurs et des comptes seront conservés.',
     openCodeV2Next:
       'Redémarrez OpenCode v2, puis demandez à l’assistant de se connecter depuis la discussion souhaitée.',
-    openCodeProfile: 'Profil OpenCode',
-    selectedInstallation: 'Installation sélectionnée',
     showOpenCodeV1: 'Afficher OpenCode v1',
     applications: 'Applications',
+    readyTitle: 'Vous pouvez commencer à travailler',
+    configuredStatus: 'Configuré',
+    applicationReadyHelp: 'Vous pouvez déjà travailler dans cette application.',
     intro: 'Connectez une application automatiquement ou configurez-la manuellement',
     startupTitle: 'Connectez vos applications',
     startupHelp:
@@ -194,7 +199,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'La détection permet uniquement la configuration automatique. La configuration manuelle reste toujours disponible.',
     detected: 'Détectée sur cet ordinateur',
     automaticUnavailable: 'Configuration automatique indisponible',
-    newApps: 'Les nouvelles applications détectées apparaîtront ici',
     manual: 'Configuration manuelle',
     back: 'Retour aux applications',
     connecting: 'Connexion en cours…',
@@ -214,18 +218,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     aionUiName: 'AionUi avec Cursor Agent',
     nextStep: 'Prochaine étape',
     readyChatHelp:
-      'Ouvrez un nouvel onglet ou revenez à un onglet déjà ouvert, puis tapez simplement {command}.',
+      'Dans votre application, ouvrez une nouvelle conversation ou reprenez-en une, puis tapez {command}.',
     confirmQuestion: 'Que devrai-je éventuellement confirmer ?',
     confirmAnswer:
       'Connectez-vous, approuvez l’espace de travail et acceptez les demandes du client lorsque cela est demandé. Le transfert d’un nom d’agent déjà utilisé nécessite votre accord.',
     reloadQuestion: 'Que faire après l’application des paramètres ou une mise à jour ?',
+    claudeConfirmAnswer:
+      'Si Claude Code vous le demande, connectez-vous et confirmez que vous faites confiance au projet. Claude Code peut vous demander de choisir Allow (Autoriser) pour établir une connexion ou envoyer un message via NCF. Le transfert d’un nom d’agent déjà utilisé nécessite votre accord.',
     claudeReload:
-      'Rechargez les plugins NCF et reconnectez MCP dans cette même conversation. Si la connexion ne peut toujours pas être vérifiée, quittez complètement le client et rouvrez-le.',
-    cursorReload:
-      'Redémarrez Cursor, puis envoyez un message dans la conversation souhaitée pour rétablir la livraison.',
+      'Enregistrez votre saisie en cours, puis rechargez les plugins NCF ou redémarrez Claude Code. Reconnectez-vous dans la discussion voulue.',
+    cursorReload: 'Redémarrez Cursor et envoyez un message dans la conversation voulue.',
     permissionsQuestion: 'Puis-je enregistrer les autorisations ?',
     permissionsAnswer:
-      'Dans /permissions, autorisez uniquement les outils NCF souhaités : agent_read, agent_connect et agent_send. Les règles existantes de refus ou de confirmation restent applicables.',
+      'Si Claude Code vous demande à nouveau une confirmation ou bloque une action, vérifiez ses autorisations. Si la commande /permissions est disponible, vous pouvez mémoriser l’autorisation pour cette action précise. Les règles de votre organisation continuent de s’appliquer.',
   },
   de: {
     automaticAvailable: 'Automatische Einrichtung verfügbar',
@@ -235,10 +240,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Richten Sie OpenCode v2 für „NCF Agent Interconnect“ ein. Nur die ausgewählte Konfigurationsdatei wird geändert; Anbieter- und Kontoeinstellungen bleiben erhalten.',
     openCodeV2Next:
       'Starten Sie OpenCode v2 neu. Bitten Sie den Assistenten anschließend im gewünschten Chat, sich zu verbinden.',
-    openCodeProfile: 'OpenCode-Profil',
-    selectedInstallation: 'Ausgewählte Installation',
     showOpenCodeV1: 'OpenCode v1 anzeigen',
     applications: 'Anwendungen',
+    readyTitle: 'Sie können loslegen',
+    configuredStatus: 'Eingerichtet',
+    applicationReadyHelp: 'Sie können jetzt in dieser Anwendung arbeiten.',
     intro: 'Verbinden Sie eine Anwendung automatisch oder richten Sie sie manuell ein',
     startupTitle: 'Verbinden Sie Ihre Anwendungen',
     startupHelp:
@@ -255,7 +261,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Die Erkennung ermöglicht nur die automatische Einrichtung. Die manuelle Einrichtung ist jederzeit verfügbar.',
     detected: 'Auf diesem Computer erkannt',
     automaticUnavailable: 'Automatische Einrichtung nicht verfügbar',
-    newApps: 'Neu erkannte Anwendungen werden hier angezeigt',
     manual: 'Manuell einrichten',
     back: 'Zurück zu Anwendungen',
     connecting: 'Verbindung wird eingerichtet…',
@@ -275,18 +280,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     aionUiName: 'AionUi mit Cursor Agent',
     nextStep: 'Nächster Schritt',
     readyChatHelp:
-      'Öffnen Sie einen neuen Tab oder wechseln Sie zu einem bereits geöffneten und geben Sie einfach {command} ein.',
+      'Öffnen Sie in Ihrer App einen neuen oder bestehenden Chat und geben Sie {command} ein.',
     confirmQuestion: 'Was muss ich gegebenenfalls bestätigen?',
     confirmAnswer:
       'Melden Sie sich an, vertrauen Sie dem Arbeitsbereich und bestätigen Sie Client-Anfragen, wenn Sie dazu aufgefordert werden. Die Übertragung eines belegten Agentennamens erfordert Ihre Zustimmung.',
     reloadQuestion: 'Was ist nach dem Anwenden oder einem Update zu tun?',
+    claudeConfirmAnswer:
+      'Melden Sie sich bei Aufforderung an und bestätigen Sie, dass Sie dem Projekt vertrauen. Beim Verbinden oder Senden einer Nachricht über NCF kann Claude Code nach Ihrer Erlaubnis fragen (Allow). Die Übernahme eines bereits belegten Agentennamens erfordert Ihre Zustimmung.',
     claudeReload:
-      'Laden Sie die NCF-Plugins neu und verbinden Sie MCP in demselben Chat erneut. Lässt sich die Verbindung weiterhin nicht prüfen, beenden Sie den Client vollständig und öffnen Sie ihn erneut.',
-    cursorReload:
-      'Starten Sie Cursor neu und senden Sie anschließend eine Nachricht im gewünschten Chat, um die Zustellung wiederherzustellen.',
+      'Speichern Sie Ihre noch nicht abgeschlossene Eingabe. Laden Sie dann die NCF-Plugins neu oder starten Sie Claude Code neu. Stellen Sie die Verbindung im gewünschten Chat erneut her.',
+    cursorReload: 'Starten Sie Cursor neu und senden Sie eine Nachricht im gewünschten Chat.',
     permissionsQuestion: 'Kann ich Berechtigungen speichern?',
     permissionsAnswer:
-      'Erlauben Sie unter /permissions nur die gewünschten NCF-Werkzeuge: agent_read, agent_connect und agent_send. Bestehende Ablehnungs- und Nachfrageregeln gelten weiterhin.',
+      'Wenn Claude Code wiederholt nachfragt oder eine Aktion blockiert, prüfen Sie die Berechtigungen. Falls /permissions verfügbar ist, können Sie die Berechtigung für diese konkrete Aktion speichern. Die Regeln Ihrer Organisation gelten weiterhin.',
   },
   it: {
     automaticAvailable: 'Configurazione automatica disponibile',
@@ -296,10 +302,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Configura OpenCode v2 per «NCF Agent Interconnect». Verrà modificato solo il file di configurazione selezionato; le impostazioni dei provider e degli account rimarranno invariate.',
     openCodeV2Next:
       'Riavvia OpenCode v2, poi chiedi all’assistente di connettersi dalla chat desiderata.',
-    openCodeProfile: 'Profilo OpenCode',
-    selectedInstallation: 'Installazione selezionata',
     showOpenCodeV1: 'Mostra OpenCode v1',
     applications: 'Applicazioni',
+    readyTitle: 'Puoi iniziare a lavorare',
+    configuredStatus: 'Configurato',
+    applicationReadyHelp: 'Ora puoi lavorare in questa applicazione.',
     intro: 'Collega un’app automaticamente oppure configurala manualmente',
     startupTitle: 'Collega le tue app',
     startupHelp:
@@ -315,7 +322,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Il rilevamento serve solo alla configurazione automatica. La configurazione manuale è sempre disponibile.',
     detected: 'Rilevata su questo computer',
     automaticUnavailable: 'Configurazione automatica non disponibile',
-    newApps: 'Le nuove app rilevate appariranno qui',
     manual: 'Configurazione manuale',
     back: 'Torna alle applicazioni',
     connecting: 'Connessione in corso…',
@@ -333,19 +339,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Verifica l’esito del tentativo precedente',
     aionUiName: 'AionUi con Cursor Agent',
     nextStep: 'Passaggio successivo',
-    readyChatHelp:
-      'Apri una nuova scheda o passa a una già aperta e digita semplicemente {command}.',
+    readyChatHelp: 'Nella tua app, apri una chat nuova o esistente e digita {command}.',
     confirmQuestion: 'Che cosa potrei dover confermare?',
     confirmAnswer:
       'Accedi, considera attendibile l’area di lavoro e approva le richieste del client quando richiesto. Il trasferimento di un nome agente già in uso richiede la tua approvazione.',
     reloadQuestion: 'Che cosa fare dopo aver applicato le impostazioni o un aggiornamento?',
+    claudeConfirmAnswer:
+      'Se richiesto, accedi al tuo account e conferma che ritieni attendibile il progetto. Per connetterti o inviare un messaggio tramite NCF, Claude Code potrebbe chiederti di scegliere Allow (Consenti). Il trasferimento di un nome agente già in uso richiede la tua approvazione.',
     claudeReload:
-      'Ricarica i plugin NCF e ricollega MCP nella stessa chat. Se la connessione non è ancora verificabile, chiudi completamente il client e riaprilo.',
-    cursorReload:
-      'Riavvia Cursor, quindi invia un messaggio nella chat desiderata per ripristinare la consegna.',
+      'Salva il testo che stai scrivendo, poi ricarica i plugin NCF o riavvia Claude Code. Riconnettiti nella chat che vuoi usare.',
+    cursorReload: 'Riavvia Cursor e invia un messaggio nella chat desiderata.',
     permissionsQuestion: 'Posso salvare le autorizzazioni?',
     permissionsAnswer:
-      'In /permissions, consenti solo gli strumenti NCF desiderati: agent_read, agent_connect e agent_send. Le regole esistenti di rifiuto o conferma continuano a valere.',
+      'Se Claude Code continua a chiedere conferma o blocca un’azione, controlla le autorizzazioni. Se /permissions è disponibile, puoi salvare l’autorizzazione per quella singola azione. Le regole della tua organizzazione rimangono valide.',
   },
   es: {
     automaticAvailable: 'Configuración automática disponible',
@@ -355,10 +361,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Configura OpenCode v2 para «NCF Agent Interconnect». Solo se modificará el archivo de configuración seleccionado; se conservarán los ajustes de proveedores y cuentas.',
     openCodeV2Next:
       'Reinicia OpenCode v2 y pide al asistente que se conecte desde el chat elegido.',
-    openCodeProfile: 'Perfil de OpenCode',
-    selectedInstallation: 'Instalación seleccionada',
     showOpenCodeV1: 'Mostrar OpenCode v1',
     applications: 'Aplicaciones',
+    readyTitle: 'Ya puedes empezar a trabajar',
+    configuredStatus: 'Configurado',
+    applicationReadyHelp: 'Ya puedes trabajar en esta aplicación.',
     intro: 'Conecta una aplicación automáticamente o configúrala manualmente',
     startupTitle: 'Conecta tus aplicaciones',
     startupHelp:
@@ -375,7 +382,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'La detección solo permite la configuración automática. La configuración manual siempre está disponible.',
     detected: 'Detectada en este equipo',
     automaticUnavailable: 'Configuración automática no disponible',
-    newApps: 'Las nuevas aplicaciones detectadas aparecerán aquí',
     manual: 'Configuración manual',
     back: 'Volver a Aplicaciones',
     connecting: 'Conectando…',
@@ -393,19 +399,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Comprobar el resultado del intento anterior',
     aionUiName: 'AionUi con Cursor Agent',
     nextStep: 'Próximo paso',
-    readyChatHelp:
-      'Abre una pestaña nueva o ve a una que ya esté abierta y escribe simplemente {command}.',
+    readyChatHelp: 'En tu aplicación, abre un chat nuevo o existente y escribe {command}.',
     confirmQuestion: '¿Qué podría tener que confirmar?',
     confirmAnswer:
       'Inicia sesión, confía en el espacio de trabajo y aprueba las solicitudes del cliente cuando se te pida. Transferir un nombre de agente ocupado requiere tu aprobación.',
     reloadQuestion: '¿Qué hago después de aplicar los ajustes o de una actualización?',
+    claudeConfirmAnswer:
+      'Si se te solicita, inicia sesión y confirma que confías en el proyecto. Al conectarte o enviar un mensaje mediante NCF, Claude Code puede pedirte que selecciones Allow (Permitir). Transferir un nombre de agente que ya está en uso requiere tu aprobación.',
     claudeReload:
-      'Recarga los plugins de NCF y vuelve a conectar MCP en este mismo chat. Si la conexión sigue sin poder verificarse, cierra completamente el cliente y ábrelo de nuevo.',
-    cursorReload:
-      'Reinicia Cursor y envía un mensaje en el chat deseado para restablecer la entrega.',
+      'Guarda el texto que hayas empezado a escribir y vuelve a cargar los complementos de NCF o reinicia Claude Code. Vuelve a conectarte en el chat que quieras usar.',
+    cursorReload: 'Reinicia Cursor y envía un mensaje en el chat que quieras usar.',
     permissionsQuestion: '¿Puedo guardar los permisos?',
     permissionsAnswer:
-      'En /permissions, permite solo las herramientas NCF que necesites: agent_read, agent_connect y agent_send. Las reglas existentes de denegación o confirmación siguen vigentes.',
+      'Si Claude Code vuelve a pedir confirmación o bloquea una acción, revisa sus permisos. Si está disponible /permissions, puedes guardar el permiso para esa acción concreta. Las reglas de tu organización siguen vigentes.',
   },
   kk: {
     automaticAvailable: 'Автоматты баптау қолжетімді',
@@ -415,10 +421,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'OpenCode v2 нұсқасын «NCF Agent Interconnect» үшін баптаңыз. Тек таңдалған конфигурация файлы өзгереді; провайдерлердің және есептік жазбалардың баптаулары сақталады.',
     openCodeV2Next:
       'OpenCode v2 нұсқасын қайта іске қосып, қажетті чатта көмекшіден қосылуын сұраңыз.',
-    openCodeProfile: 'OpenCode профилі',
-    selectedInstallation: 'Таңдалған бағдарлама данасы',
     showOpenCodeV1: 'OpenCode v1 нұсқасын көрсету',
     applications: 'Қолданбалар',
+    readyTitle: 'Жұмысты бастауға болады',
+    configuredStatus: 'Бапталған',
+    applicationReadyHelp: 'Бұл қолданбада жұмысты бастай аласыз.',
     intro: 'Қолданбаны автоматты түрде қосыңыз немесе қолмен баптаңыз',
     startupTitle: 'Қолданбаларыңызды қосыңыз',
     startupHelp:
@@ -435,7 +442,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Анықтау тек автоматты баптауға мүмкіндік береді. Қолмен баптау әрдайым қолжетімді.',
     detected: 'Осы компьютерде анықталды',
     automaticUnavailable: 'Автоматты баптау қолжетімсіз',
-    newApps: 'Жаңадан анықталған қолданбалар осында көрсетіледі',
     manual: 'Қолмен баптау',
     back: 'Қолданбаларға оралу',
     connecting: 'Қосылуда…',
@@ -453,19 +459,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Алдыңғы әрекеттің нәтижесін тексеру',
     aionUiName: 'Cursor Agent қолданылатын AionUi',
     nextStep: 'Келесі қадам',
-    readyChatHelp:
-      'Жаңа қойындыны ашыңыз немесе ашық қойындыға өтіп, жай ғана {command} деп теріңіз.',
+    readyChatHelp: 'Қолданбаңызда жаңа не бұрыннан бар чатты ашып, {command} деп теріңіз.',
     confirmQuestion: 'Нені растауым қажет болуы мүмкін?',
     confirmAnswer:
       'Сұралған кезде аккаунтқа кіріңіз, жұмыс кеңістігіне сенім білдіріңіз және клиент сұрауларын мақұлдаңыз. Қолданыстағы агент атын ауыстыру үшін сіздің растауыңыз қажет.',
     reloadQuestion: 'Баптауларды қолданғаннан немесе жаңартудан кейін не істеу керек?',
+    claudeConfirmAnswer:
+      'Claude Code сұраса, есептік жазбаңызға кіріп, жобаға сенетініңізді растаңыз. NCF арқылы қосылғанда немесе хабарлама жібергенде Allow (Рұқсат ету) түймесін басу қажет болуы мүмкін. Қолданыстағы агент атын ауыстыру үшін сіздің растауыңыз қажет.',
     claudeReload:
-      'NCF плагиндерін қайта жүктеп, MCP қызметін осы чатта қайта қосыңыз. Байланыс әлі тексерілмесе, клиенттен толық шығып, қайта ашыңыз.',
-    cursorReload:
-      'Cursor қолданбасын қайта іске қосып, жеткізуді қалпына келтіру үшін қажетті чатқа бір хабар жіберіңіз.',
+      'Аяқталмаған мәтінді сақтап, NCF плагиндерін қайта жүктеңіз немесе Claude Code бағдарламасын қайта іске қосыңыз. Қажетті чатта қайта қосылыңыз.',
+    cursorReload: 'Cursor қолданбасын қайта іске қосып, қажетті чатта хабарлама жіберіңіз.',
     permissionsQuestion: 'Рұқсаттарды сақтауға бола ма?',
     permissionsAnswer:
-      '/permissions ішінде тек қажетті NCF құралдарына рұқсат беріңіз: agent_read, agent_connect және agent_send. Бар тыйым салу және растау сұрау ережелері күшінде қалады.',
+      'Claude Code қайта-қайта растауды сұраса немесе әрекетті бұғаттаса, рұқсаттарды тексеріңіз. /permissions пәрмені қолжетімді болса, нақты әрекетке берілген рұқсатты сақтай аласыз. Ұйымыңыздың ережелері күшінде қалады.',
   },
   ja: {
     automaticAvailable: '自動設定が利用可能',
@@ -475,10 +481,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'OpenCode v2 を「NCF Agent Interconnect」用に設定します。変更されるのは選択した設定ファイルのみで、プロバイダーやアカウントの設定は維持されます。',
     openCodeV2Next:
       'OpenCode v2 を再起動し、対象のチャットでアシスタントに接続を依頼してください。',
-    openCodeProfile: 'OpenCode のプロファイル',
-    selectedInstallation: '選択したインストール済みアプリ',
     showOpenCodeV1: 'OpenCode v1 を表示',
     applications: 'アプリケーション',
+    readyTitle: '作業を始められます',
+    configuredStatus: '設定済み',
+    applicationReadyHelp: 'このアプリですぐに作業できます。',
     intro: 'アプリを自動で接続するか、手動で設定します',
     startupTitle: 'アプリを接続',
     startupHelp:
@@ -492,7 +499,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     detectionHelp: '検出結果は自動設定の可否にのみ使用します。手動設定はいつでも利用できます。',
     detected: 'このコンピューターで検出済み',
     automaticUnavailable: '自動設定は利用できません',
-    newApps: '新たに検出されたアプリはここに表示されます',
     manual: '手動設定',
     back: 'アプリ一覧に戻る',
     connecting: '接続中…',
@@ -511,18 +517,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     aionUiName: 'Cursor Agent を使用する AionUi',
     nextStep: '次の手順',
     readyChatHelp:
-      '新しいタブを開くか、すでに開いているタブに切り替えて、{command} と入力してください。',
+      'お使いのアプリで新しいチャットまたは既存のチャットを開き、{command} と入力してください。',
     confirmQuestion: 'どのような確認が必要ですか？',
     confirmAnswer:
       '必要に応じてサインインし、ワークスペースを信頼し、クライアントの要求を承認してください。使用中のエージェント名を移すには承認が必要です。',
     reloadQuestion: '設定の適用や更新の後は？',
+    claudeConfirmAnswer:
+      '求められた場合は、サインインしてプロジェクトを信頼することを確認してください。NCF 経由で接続またはメッセージを送信する際に、Claude Code が Allow（許可）を求めることがあります。使用中のエージェント名を移すには、あなたの承認が必要です。',
     claudeReload:
-      'NCF プラグインを再読み込みし、同じチャットで MCP を再接続してください。接続を確認できない場合は、クライアントを完全に終了して開き直してください。',
-    cursorReload:
-      'Cursor を再起動し、使用するチャットでメッセージを一度送信すると、配信を復旧できます。',
+      '入力途中の内容を保存し、NCF プラグインを再読み込みするか、Claude Code を再起動してください。その後、使用するチャットで再接続してください。',
+    cursorReload: 'Cursor を再起動し、対象のチャットでメッセージを送信してください。',
     permissionsQuestion: '権限を保存できますか？',
     permissionsAnswer:
-      '/permissions で必要な NCF ツールのみを許可してください：agent_read、agent_connect、agent_send。既存の拒否・確認ルールは引き続き適用されます。',
+      'Claude Code が何度も確認を求めたり、操作をブロックしたりする場合は、権限を確認してください。/permissions を使用できる場合は、その操作に限って許可を保存できます。所属組織のルールは引き続き適用されます。',
   },
   'pt-BR': {
     automaticAvailable: 'Configuração automática disponível',
@@ -532,10 +539,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Configure o OpenCode v2 para o “NCF Agent Interconnect”. Apenas o arquivo de configuração selecionado será alterado; as configurações de provedores e contas serão preservadas.',
     openCodeV2Next:
       'Reinicie o OpenCode v2 e peça ao assistente para se conectar a partir do chat desejado.',
-    openCodeProfile: 'Perfil do OpenCode',
-    selectedInstallation: 'Instalação selecionada',
     showOpenCodeV1: 'Mostrar OpenCode v1',
     applications: 'Aplicativos',
+    readyTitle: 'Você já pode começar a trabalhar',
+    configuredStatus: 'Configurado',
+    applicationReadyHelp: 'Você já pode trabalhar neste aplicativo.',
     intro: 'Conecte um aplicativo automaticamente ou configure-o manualmente',
     startupTitle: 'Conecte seus aplicativos',
     startupHelp:
@@ -552,7 +560,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'A detecção permite apenas a configuração automática. A configuração manual está sempre disponível.',
     detected: 'Detectado neste computador',
     automaticUnavailable: 'Configuração automática indisponível',
-    newApps: 'Novos aplicativos detectados aparecerão aqui',
     manual: 'Configuração manual',
     back: 'Voltar aos aplicativos',
     connecting: 'Conectando…',
@@ -570,18 +577,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Verificar o resultado da tentativa anterior',
     aionUiName: 'AionUi com Cursor Agent',
     nextStep: 'Próxima etapa',
-    readyChatHelp: 'Abra uma nova aba ou vá para uma já aberta e simplesmente digite {command}.',
+    readyChatHelp: 'No seu aplicativo, abra um chat novo ou existente e digite {command}.',
     confirmQuestion: 'O que posso precisar confirmar?',
     confirmAnswer:
       'Entre na conta, confie no espaço de trabalho e aprove as solicitações do cliente quando necessário. Transferir um nome de agente já ocupado exige sua aprovação.',
     reloadQuestion: 'O que fazer após aplicar as configurações ou atualizar?',
+    claudeConfirmAnswer:
+      'Se solicitado, entre na sua conta e confirme que você confia no projeto. Ao se conectar ou enviar uma mensagem pelo NCF, o Claude Code pode pedir que você selecione Allow (Permitir). A transferência de um nome de agente já em uso exige sua aprovação.',
     claudeReload:
-      'Recarregue os plugins NCF e reconecte o MCP nesta mesma conversa. Se a conexão ainda não puder ser verificada, encerre completamente o cliente e abra-o novamente.',
-    cursorReload:
-      'Reinicie o Cursor e envie uma mensagem na conversa desejada para restaurar a entrega.',
+      'Salve o texto que está digitando e recarregue os plugins do NCF ou reinicie o Claude Code. Conecte-se novamente no chat que deseja usar.',
+    cursorReload: 'Reinicie o Cursor e envie uma mensagem no chat desejado.',
     permissionsQuestion: 'Posso salvar as permissões?',
     permissionsAnswer:
-      'Em /permissions, permita apenas as ferramentas NCF desejadas: agent_read, agent_connect e agent_send. As regras existentes de negação ou confirmação continuam válidas.',
+      'Se o Claude Code pedir confirmação repetidamente ou bloquear uma ação, verifique as permissões. Se /permissions estiver disponível, você pode salvar a permissão para essa ação específica. As regras da sua organização continuam valendo.',
   },
   ko: {
     automaticAvailable: '자동 설정 가능',
@@ -591,10 +599,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '“NCF Agent Interconnect”용으로 OpenCode v2를 설정합니다. 선택한 구성 파일만 변경되며, 공급자와 계정 설정은 유지됩니다.',
     openCodeV2Next:
       'OpenCode v2를 다시 시작한 뒤, 원하는 채팅에서 어시스턴트에게 연결을 요청하세요.',
-    openCodeProfile: 'OpenCode 프로필',
-    selectedInstallation: '선택한 설치본',
     showOpenCodeV1: 'OpenCode v1 표시',
     applications: '앱',
+    readyTitle: '작업을 시작할 수 있습니다',
+    configuredStatus: '설정 완료',
+    applicationReadyHelp: '이 앱에서 바로 작업할 수 있습니다.',
     intro: '앱을 자동으로 연결하거나 수동으로 설정하세요',
     startupTitle: '앱 연결',
     startupHelp: '사용하는 앱을 선택하세요. NCF Agent Interconnect가 연동 설정을 추가합니다.',
@@ -609,7 +618,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '앱 감지는 자동 설정 가능 여부에만 사용됩니다. 수동 설정은 항상 사용할 수 있습니다.',
     detected: '이 컴퓨터에서 감지됨',
     automaticUnavailable: '자동 설정을 사용할 수 없음',
-    newApps: '새로 감지된 앱이 여기에 표시됩니다',
     manual: '수동 설정',
     back: '앱 목록으로 돌아가기',
     connecting: '연결 중…',
@@ -625,18 +633,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: '이전 설정 결과 확인',
     aionUiName: 'Cursor Agent를 사용하는 AionUi',
     nextStep: '다음 단계',
-    readyChatHelp: '새 탭을 열거나 이미 열려 있는 탭으로 이동한 다음 {command}를 입력하세요.',
+    readyChatHelp: '사용하는 앱에서 새 채팅이나 기존 채팅을 열고 {command}를 입력하세요.',
     confirmQuestion: '어떤 내용을 확인해야 하나요?',
     confirmAnswer:
       '요청이 표시되면 로그인하고 작업 공간을 신뢰하며 클라이언트 요청을 승인하세요. 사용 중인 에이전트 이름을 이전하려면 승인이 필요합니다.',
     reloadQuestion: '설정을 적용하거나 업데이트한 후에는?',
+    claudeConfirmAnswer:
+      '요청이 표시되면 로그인하고 프로젝트를 신뢰한다고 확인하세요. NCF를 통해 연결하거나 메시지를 보낼 때 Claude Code가 Allow(허용)를 선택하라고 요청할 수 있습니다. 이미 사용 중인 에이전트 이름을 이전하려면 사용자의 승인이 필요합니다.',
     claudeReload:
-      'NCF 플러그인을 새로고침하고 같은 채팅에서 MCP를 다시 연결하세요. 연결을 계속 확인할 수 없다면 클라이언트를 완전히 종료한 뒤 다시 여세요.',
-    cursorReload:
-      'Cursor를 다시 시작한 다음 사용할 채팅에서 메시지를 한 번 보내 전달을 복구하세요.',
+      '작성 중인 내용을 저장한 뒤 NCF 플러그인을 다시 불러오거나 Claude Code를 다시 시작하세요. 사용할 채팅에서 다시 연결하세요.',
+    cursorReload: 'Cursor를 다시 시작한 뒤 원하는 채팅에 메시지를 보내세요.',
     permissionsQuestion: '권한을 저장할 수 있나요?',
     permissionsAnswer:
-      '/permissions에서 필요한 NCF 도구만 허용하세요: agent_read, agent_connect, agent_send. 기존 거부 및 확인 요청 규칙은 계속 적용됩니다.',
+      'Claude Code가 계속 확인을 요청하거나 작업을 차단하면 권한을 확인하세요. /permissions를 사용할 수 있다면 해당 작업에 대한 권한만 저장할 수 있습니다. 조직의 규칙은 계속 적용됩니다.',
   },
   tr: {
     automaticAvailable: 'Otomatik kurulum kullanılabilir',
@@ -646,10 +655,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'OpenCode v2’yi “NCF Agent Interconnect” için yapılandırın. Yalnızca seçilen yapılandırma dosyası değişir; sağlayıcı ve hesap ayarları korunur.',
     openCodeV2Next:
       'OpenCode v2’yi yeniden başlatın, ardından istediğiniz sohbette asistandan bağlanmasını isteyin.',
-    openCodeProfile: 'OpenCode profili',
-    selectedInstallation: 'Seçilen kurulum',
     showOpenCodeV1: 'OpenCode v1’i göster',
     applications: 'Uygulamalar',
+    readyTitle: 'Çalışmaya başlayabilirsiniz',
+    configuredStatus: 'Yapılandırıldı',
+    applicationReadyHelp: 'Bu uygulamada hemen çalışmaya başlayabilirsiniz.',
     intro: 'Bir uygulamayı otomatik bağlayın veya elle yapılandırın',
     startupTitle: 'Uygulamalarınızı bağlayın',
     startupHelp:
@@ -666,7 +676,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Algılama yalnızca otomatik kurulumu mümkün kılar. Elle kurulum her zaman kullanılabilir.',
     detected: 'Bu bilgisayarda algılandı',
     automaticUnavailable: 'Otomatik kurulum kullanılamıyor',
-    newApps: 'Yeni algılanan uygulamalar burada görünür',
     manual: 'Elle kurulum',
     back: 'Uygulamalara dön',
     connecting: 'Bağlanıyor…',
@@ -683,18 +692,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Önceki girişimin sonucunu kontrol et',
     aionUiName: 'Cursor Agent kullanan AionUi',
     nextStep: 'Sonraki adım',
-    readyChatHelp: 'Yeni bir sekme açın veya açık bir sekmeye geçin ve yalnızca {command} yazın.',
+    readyChatHelp: 'Uygulamanızda yeni veya mevcut bir sohbet açın ve {command} yazın.',
     confirmQuestion: 'Neleri onaylamam gerekebilir?',
     confirmAnswer:
       'İstendiğinde oturum açın, çalışma alanına güvenin ve istemci isteklerini onaylayın. Kullanılan bir ajan adının taşınması onayınızı gerektirir.',
     reloadQuestion: 'Ayarları uyguladıktan veya güncelledikten sonra ne yapmalıyım?',
+    claudeConfirmAnswer:
+      'İstenirse oturum açın ve projeye güvendiğinizi onaylayın. NCF üzerinden bağlanırken veya mesaj gönderirken Claude Code, Allow (İzin ver) seçeneğini kullanmanızı isteyebilir. Kullanılan bir ajan adının taşınması onayınızı gerektirir.',
     claudeReload:
-      'NCF eklentilerini yeniden yükleyin ve MCP’yi aynı sohbette yeniden bağlayın. Bağlantı hâlâ doğrulanamıyorsa istemciden tamamen çıkıp yeniden açın.',
-    cursorReload:
-      'Cursor’ı yeniden başlatın, ardından teslimatı geri getirmek için kullanmak istediğiniz sohbette bir mesaj gönderin.',
+      'Yazmakta olduğunuz metni kaydedin, ardından NCF eklentilerini yeniden yükleyin veya Claude Code’u yeniden başlatın. Kullanmak istediğiniz sohbette yeniden bağlanın.',
+    cursorReload: 'Cursor’ı yeniden başlatın ve istediğiniz sohbette bir mesaj gönderin.',
     permissionsQuestion: 'İzinleri kaydedebilir miyim?',
     permissionsAnswer:
-      '/permissions içinde yalnızca istediğiniz NCF araçlarına izin verin: agent_read, agent_connect ve agent_send. Mevcut reddetme ve onay isteme kuralları geçerli kalır.',
+      'Claude Code sürekli onay istiyor veya bir işlemi engelliyorsa izinleri kontrol edin. /permissions kullanılabiliyorsa yalnızca söz konusu işlem için izni kaydedebilirsiniz. Kuruluşunuzun kuralları geçerliliğini korur.',
   },
   pl: {
     automaticAvailable: 'Dostępna automatyczna konfiguracja',
@@ -704,10 +714,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Skonfiguruj OpenCode v2 do pracy z „NCF Agent Interconnect”. Zmieniony zostanie tylko wybrany plik konfiguracyjny; ustawienia dostawców i kont pozostaną bez zmian.',
     openCodeV2Next:
       'Uruchom ponownie OpenCode v2, a następnie poproś asystenta o połączenie w wybranym czacie.',
-    openCodeProfile: 'Profil OpenCode',
-    selectedInstallation: 'Wybrana instalacja',
     showOpenCodeV1: 'Pokaż OpenCode v1',
     applications: 'Aplikacje',
+    readyTitle: 'Możesz rozpocząć pracę',
+    configuredStatus: 'Skonfigurowano',
+    applicationReadyHelp: 'Możesz już pracować w tej aplikacji.',
     intro: 'Połącz aplikację automatycznie lub skonfiguruj ją ręcznie',
     startupTitle: 'Połącz swoje aplikacje',
     startupHelp: 'Wybierz używane aplikacje. NCF Agent Interconnect doda swoją integrację.',
@@ -723,7 +734,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Wykrywanie umożliwia tylko automatyczną konfigurację. Konfiguracja ręczna jest zawsze dostępna.',
     detected: 'Wykryto na tym komputerze',
     automaticUnavailable: 'Automatyczna konfiguracja jest niedostępna',
-    newApps: 'Nowo wykryte aplikacje pojawią się tutaj',
     manual: 'Konfiguracja ręczna',
     back: 'Wróć do aplikacji',
     connecting: 'Łączenie…',
@@ -741,18 +751,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Sprawdź wynik poprzedniej próby',
     aionUiName: 'AionUi z Cursor Agent',
     nextStep: 'Następny krok',
-    readyChatHelp: 'Otwórz nową kartę lub przejdź do już otwartej i po prostu wpisz {command}.',
+    readyChatHelp: 'W swojej aplikacji otwórz nowy lub istniejący czat i wpisz {command}.',
     confirmQuestion: 'Co może wymagać mojego potwierdzenia?',
     confirmAnswer:
       'Gdy pojawi się prośba, zaloguj się, zaufaj obszarowi roboczemu i zatwierdź monity klienta. Przeniesienie zajętej nazwy agenta wymaga Twojej zgody.',
     reloadQuestion: 'Co zrobić po zastosowaniu ustawień lub aktualizacji?',
+    claudeConfirmAnswer:
+      'Jeśli pojawi się monit, zaloguj się i potwierdź zaufanie do projektu. Przy łączeniu lub wysyłaniu wiadomości przez NCF Claude Code może poprosić o wybranie opcji Allow (Zezwól). Przeniesienie zajętej nazwy agenta wymaga Twojej zgody.',
     claudeReload:
-      'Przeładuj wtyczki NCF i ponownie połącz MCP w tym samym czacie. Jeśli nadal nie można zweryfikować połączenia, całkowicie zamknij klienta i otwórz go ponownie.',
-    cursorReload:
-      'Uruchom ponownie Cursor, a następnie wyślij jedną wiadomość w wybranym czacie, aby przywrócić dostarczanie.',
+      'Zapisz rozpoczęty tekst, a następnie przeładuj wtyczki NCF lub uruchom ponownie Claude Code. Połącz się ponownie w wybranym czacie.',
+    cursorReload: 'Uruchom ponownie Cursor i wyślij wiadomość w wybranym czacie.',
     permissionsQuestion: 'Czy mogę zapisać uprawnienia?',
     permissionsAnswer:
-      'W /permissions zezwól tylko na potrzebne narzędzia NCF: agent_read, agent_connect i agent_send. Istniejące reguły odmowy i pytania o zgodę nadal obowiązują.',
+      'Jeśli Claude Code wielokrotnie prosi o potwierdzenie lub blokuje działanie, sprawdź uprawnienia. Gdy polecenie /permissions jest dostępne, możesz zapisać zezwolenie na to konkretne działanie. Zasady Twojej organizacji nadal obowiązują.',
   },
   nl: {
     automaticAvailable: 'Automatische configuratie beschikbaar',
@@ -762,10 +773,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Stel OpenCode v2 in voor ‘NCF Agent Interconnect’. Alleen het geselecteerde configuratiebestand wordt gewijzigd; de instellingen voor providers en accounts blijven behouden.',
     openCodeV2Next:
       'Start OpenCode v2 opnieuw en vraag de assistent in de gewenste chat om verbinding te maken.',
-    openCodeProfile: 'OpenCode-profiel',
-    selectedInstallation: 'Geselecteerde installatie',
     showOpenCodeV1: 'OpenCode v1 tonen',
     applications: 'Apps',
+    readyTitle: 'Je kunt aan de slag',
+    configuredStatus: 'Ingesteld',
+    applicationReadyHelp: 'Je kunt nu in deze app werken.',
     intro: 'Verbind een app automatisch of stel deze handmatig in',
     startupTitle: 'Verbind je apps',
     startupHelp: 'Kies de apps die je gebruikt. NCF Agent Interconnect voegt zijn integratie toe.',
@@ -780,7 +792,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Detectie maakt alleen automatische configuratie mogelijk. Handmatig instellen blijft altijd beschikbaar.',
     detected: 'Gedetecteerd op deze computer',
     automaticUnavailable: 'Automatisch instellen niet beschikbaar',
-    newApps: 'Nieuw gedetecteerde apps verschijnen hier',
     manual: 'Handmatig instellen',
     back: 'Terug naar Apps',
     connecting: 'Verbinden…',
@@ -798,19 +809,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Resultaat van vorige poging controleren',
     aionUiName: 'AionUi met Cursor Agent',
     nextStep: 'Volgende stap',
-    readyChatHelp:
-      'Open een nieuw tabblad of ga naar een al geopend tabblad en typ gewoon {command}.',
+    readyChatHelp: 'Open in je app een nieuwe of bestaande chat en typ {command}.',
     confirmQuestion: 'Wat moet ik mogelijk bevestigen?',
     confirmAnswer:
       'Meld je aan, vertrouw de werkruimte en keur verzoeken van de client goed wanneer daarom wordt gevraagd. Het overdragen van een bezette agentnaam vereist je toestemming.',
     reloadQuestion: 'Wat doe ik na het toepassen van instellingen of een update?',
+    claudeConfirmAnswer:
+      'Meld je aan en bevestig dat je het project vertrouwt als daarom wordt gevraagd. Bij het verbinden of verzenden van een bericht via NCF kan Claude Code je vragen om Allow (Toestaan) te kiezen. Voor het overzetten van een bezette agentnaam is je toestemming nodig.',
     claudeReload:
-      'Herlaad de NCF-plug-ins en verbind MCP opnieuw in dezelfde chat. Als de verbinding nog steeds niet kan worden geverifieerd, sluit je de client volledig af en open je deze opnieuw.',
-    cursorReload:
-      'Start Cursor opnieuw en stuur vervolgens één bericht in de gewenste chat om de bezorging te herstellen.',
+      'Sla tekst waaraan je nog werkt op en laad de NCF-plug-ins opnieuw of herstart Claude Code. Maak opnieuw verbinding in de chat die je wilt gebruiken.',
+    cursorReload: 'Start Cursor opnieuw en stuur een bericht in de gewenste chat.',
     permissionsQuestion: 'Kan ik machtigingen opslaan?',
     permissionsAnswer:
-      'Sta in /permissions alleen de gewenste NCF-tools toe: agent_read, agent_connect en agent_send. Bestaande regels voor weigeren of toestemming vragen blijven gelden.',
+      'Als Claude Code om bevestiging blijft vragen of een actie blokkeert, controleer dan de machtigingen. Als /permissions beschikbaar is, kun je toestemming voor die specifieke actie opslaan. De regels van je organisatie blijven gelden.',
   },
   uk: {
     automaticAvailable: 'Доступне автоматичне налаштування',
@@ -820,10 +831,11 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Налаштуйте OpenCode v2 для «NCF Agent Interconnect». Зміни торкнуться лише вибраного файлу конфігурації; налаштування провайдерів і облікових записів буде збережено.',
     openCodeV2Next:
       'Перезапустіть OpenCode v2, потім попросіть помічника підключитися в потрібному чаті.',
-    openCodeProfile: 'Профіль OpenCode',
-    selectedInstallation: 'Вибрана копія програми',
     showOpenCodeV1: 'Показати OpenCode v1',
     applications: 'Застосунки',
+    readyTitle: 'Можна починати роботу',
+    configuredStatus: 'Налаштовано',
+    applicationReadyHelp: 'У цьому застосунку вже можна працювати.',
     intro: 'Підключіть застосунок автоматично або налаштуйте вручну',
     startupTitle: 'Підключіть свої застосунки',
     startupHelp:
@@ -839,7 +851,6 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Виявлення дає змогу запропонувати автоматичне налаштування. Ручне налаштування доступне завжди.',
     detected: 'Виявлено на цьому комп’ютері',
     automaticUnavailable: 'Автоматичне налаштування недоступне',
-    newApps: 'Тут з’являтимуться нові виявлені застосунки',
     manual: 'Налаштувати вручну',
     back: 'До застосунків',
     connecting: 'Підключення…',
@@ -857,19 +868,19 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Перевірити результат попередньої спроби',
     aionUiName: 'AionUi з Cursor Agent',
     nextStep: 'Наступний крок',
-    readyChatHelp:
-      'Відкрийте нову вкладку або перейдіть на вже відкриту й просто надрукуйте {command}.',
+    readyChatHelp: 'У своєму застосунку відкрийте новий або наявний чат і введіть {command}.',
     confirmQuestion: 'Що може потребувати мого підтвердження?',
     confirmAnswer:
       'Вхід до облікового запису, довіра до робочої області та дозволи клієнта. Перенесення зайнятого імені агента потребує вашого підтвердження.',
     reloadQuestion: 'Що робити після застосування налаштувань або оновлення?',
+    claudeConfirmAnswer:
+      'Якщо з’явиться запит, увійдіть до облікового запису й підтвердьте довіру до проєкту. Під час підключення або надсилання повідомлення через NCF Claude Code може запропонувати натиснути Allow (Дозволити). Перенесення зайнятого імені агента потребує вашого підтвердження.',
     claudeReload:
-      'Перезавантажте плагіни NCF і повторно підключіть MCP у цьому ж чаті. Якщо перевірку зв’язку не відновлено, повністю вийдіть із клієнта та відкрийте його знову.',
-    cursorReload:
-      'Перезапустіть Cursor, а потім надішліть одне повідомлення в потрібному чаті, щоб відновити доставлення.',
+      'Збережіть незавершений текст, а потім перезавантажте плагіни NCF або перезапустіть Claude Code. Підключіться знову в потрібному чаті.',
+    cursorReload: 'Перезапустіть Cursor і надішліть повідомлення в потрібному чаті.',
     permissionsQuestion: 'Чи можна зберегти дозволи?',
     permissionsAnswer:
-      'У /permissions дозвольте лише потрібні інструменти NCF: agent_read, agent_connect і agent_send. Наявні правила заборони та обов’язкового підтвердження залишаються чинними.',
+      'Якщо Claude Code повторно запитує підтвердження або блокує дію, перевірте дозволи. Якщо команда /permissions доступна, можна зберегти дозвіл на конкретну дію. Правила вашої організації залишаються чинними.',
   },
 };
 

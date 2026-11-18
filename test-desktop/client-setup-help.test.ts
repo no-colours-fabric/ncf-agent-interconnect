@@ -35,7 +35,7 @@ test('setup help is hidden for pending, failed, outdated and foreign settings', 
   }
 });
 
-test('configured help follows the adapter heading and precedes status, in the selected language', () => {
+test('configured manual help follows the adapter heading without the Applications status panel', () => {
   for (const locale of ['en', 'ru'] as const) {
     const html = renderToStaticMarkup(
       createElement(ClaudeSetupDialog, {
@@ -47,14 +47,20 @@ test('configured help follows the adapter heading and precedes status, in the se
     );
     const heading = html.indexOf('<h2');
     const help = html.indexOf('data-testid="client-setup-help"');
-    const status = html.indexOf('data-testid="client-status-panel"');
-    assert.ok(heading >= 0 && heading < help && help < status);
+    assert.ok(heading >= 0 && heading < help);
+    assert.doesNotMatch(html, /data-testid="client-status-panel"/);
     assert.equal((html.match(/data-testid="client-setup-help"/g) ?? []).length, 1);
+    assert.match(html, /MuiAlert-colorInfo/);
+    assert.match(html, /role="note"/);
+    assert.equal((html.match(/<ol\b/g) ?? []).length, 1);
+    assert.equal((html.match(/<li>/g) ?? []).length, 3);
+    assert.equal((html.match(/<em>/g) ?? []).length, 3);
     assert.ok(
       html.includes(locale === 'ru' ? 'Можно ли сохранить разрешения?' : 'Can I save permissions?'),
     );
     assert.ok(html.includes('/permissions'));
-    assert.ok(html.includes('agent_read, agent_connect'));
+    assert.ok(html.includes('Allow'));
+    assert.doesNotMatch(html, /agent_read|agent_connect|agent_send/);
     assert.ok(!html.includes('mcp__*'));
   }
 });

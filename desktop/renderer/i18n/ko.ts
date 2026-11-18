@@ -6,8 +6,7 @@ export const ko: Messages = {
   mcpSetup_statusOpencodeConfig: 'MCP 및 플러그인 설정',
   mcpSetup_statusOpencodeHint: '저장된 설정을 확인하며 플러그인의 실행 여부는 확인하지 않습니다.',
   mcpSetup_statusUnknown: '알 수 없음',
-  mcpSetup_statusCursorMetricsHint:
-    '연결된 채팅의 턴이 완료되면 메시지 전달이 활성화됩니다. Cursor를 다시 시작한 후에는 해당 채팅에 아무 메시지나 보내 전달을 복원하세요.',
+  mcpSetup_statusCursorMetricsHint: 'Cursor를 다시 시작한 뒤 원하는 채팅에 메시지를 보내세요.',
   mcpSetup_statusDelivery: '에이전트 메시지 전달',
   mcpSetup_statusAuthorization: '인증',
   mcpSetup_statusLiveBridge: '실시간 브리지',
@@ -37,8 +36,7 @@ export const ko: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'AionUi 안에서 Cursor Agent를 연결합니다. 접근, 저장된 MCP 설정, 활성 브리지는 별도 상태입니다.',
+  mcpSetup_aionDescription: 'AionUi에서 Cursor Agent를 연결하세요.',
   mcpSetup_aionContinue: 'AionUi 설정을 계속하세요. 아래 단계를 따르세요.',
   mcpSetup_aionAccessAction: '‘{action}’을 선택하고 페어링 안내를 따르세요.',
   mcpSetup_aionPairTitle: 'AionUi 접근',
@@ -57,12 +55,9 @@ export const ko: Messages = {
   mcpSetup_aionMcpTitle: 'Cursor Agent용 MCP',
   mcpSetup_aionMcpOutdated: 'AionUi 브리지 설정을 업데이트해야 합니다',
   mcpSetup_aionUpdateAction: '‘{action}’을 선택한 뒤 ‘적용’을 클릭하세요.',
-  mcpSetup_aionRestartAction:
-    '브리지를 적용한 뒤 해당 AionUi 채팅에서 Cursor Agent를 다시 연결해 MCP 설정을 다시 불러오세요.',
-  mcpSetup_aionMcpHelp:
-    '이 MCP 설정은 Cursor와 AionUi의 Cursor Agent 모두에서 사용할 수 있습니다. Cursor 직접 연결에는 플러그인도 필요하며, AionUi에는 인증과 연결된 채팅이 필요합니다.',
-  mcpSetup_aionNext:
-    '설정을 적용한 후 AionUi 안의 Cursor Agent를 다시 시작하고 원하는 채팅을 다시 연결하세요. 저장된 설정은 활성 브리지를 확인하지 않습니다. 이 설정은 다른 AionUi 백엔드를 지원하지 않습니다.',
+  mcpSetup_aionRestartAction: '원하는 AionUi 채팅에서 Cursor Agent를 다시 연결하세요.',
+  mcpSetup_aionMcpHelp: 'Cursor와 AionUi의 Cursor Agent는 이 설정을 공유합니다.',
+  mcpSetup_aionNext: 'AionUi에서 Cursor Agent를 다시 시작한 뒤 원하는 채팅을 다시 연결하세요.',
 
   agentsColumnMessages: '메시지',
   mcpSetup_tabsLabel: 'MCP 클라이언트',
@@ -83,9 +78,10 @@ export const ko: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi 공유 설정',
   mcpSetup_pathLabel: '설정 파일 경로',
   mcpSetup_browse: '파일 선택…',
+  mcpSetup_browseShort: '선택…',
   mcpSetup_knownPaths: '다른 위치',
   mcpSetup_pathHint:
-    '이 애플리케이션에서 사용하는 파일을 선택하세요. 파일이 없으면 ‘적용’을 클릭할 때 생성됩니다.',
+    '이 애플리케이션에서 사용하는 구성 파일을 선택하세요. 파일이 없으면 ‘적용’을 클릭할 때 생성됩니다.',
   mcpSetup_checking: '설정 확인 중…',
   mcpSetup_ready: '적용 준비 완료',
   mcpSetup_create: '연결 설정이 추가됩니다.',
@@ -106,17 +102,15 @@ export const ko: Messages = {
   mcpSetup_noChanges: '설정이 이미 있습니다. 변경 사항이 없습니다.',
   mcpSetup_failed: '설정을 적용할 수 없습니다.',
   mcpSetup_cursorNext: 'Cursor를 한 번 다시 시작한 다음 대상 채팅에서 에이전트를 연결하세요.',
-  mcpSetup_opencodeNext: '이 설정을 사용하려면 OpenCode v1을 다시 시작하세요.',
-  mcpSetup_codexNext:
-    '이 설정을 사용하려면 선택한 Codex 인스턴스 또는 프로필에서 MCP를 다시 연결하세요.',
+  mcpSetup_opencodeNext: 'OpenCode v1을 다시 시작하세요.',
+  mcpSetup_codexNext: '원하는 Codex 채팅에서 MCP를 다시 연결하세요.',
   mcpSetup_copyPrompt: '연결 프롬프트 복사',
   mcpSetup_connect: '클라이언트에서 에이전트 연결',
   mcpSetup_configureClaude: 'Claude Code 설정',
   mcpSetup_claudeTitle: 'Claude Code 설정',
   mcpSetup_claudeDescription:
     '대화형 Claude Code를 NCF Agent Interconnect에 연결합니다. 적용을 누르면 선택한 사용자 설정 파일에서 이 앱이 게시한 플러그인 두 개를 활성화합니다. 하나는 MCP 서버, 이 앱이 실행하는 고정된 수명 주기 및 도구 호출 훅, 대기 중인 메시지를 정확한 채팅에 알리는 mod를 포함한 NCF 플러그인이고, 다른 하나는 그것이 의존하는 게이트 플러그인으로 알림이 유효한 동안에만 턴을 시작하게 합니다. agent_read도 묻지 않고 허용합니다. 그 밖의 권한 결정은 사용자에게 남습니다.',
-  mcpSetup_claudeNext:
-    '평소처럼 Claude Code를 시작하거나 재개한 다음 에이전트를 연결하세요. 에이전트 상태에 채팅에서 자동 깨우기가 확인되었는지 표시됩니다. 안전 모드나 조직 정책으로 꺼질 수 있습니다.',
+  mcpSetup_claudeNext: 'Claude Code를 열거나 세션을 재개한 뒤 채팅에서 연결하세요.',
   mcpSetup_claudeLaunch: 'Claude Code 시작',
   mcpSetup_copyLaunch: '시작 명령 복사',
   mcpSetup_connectionPrompt: '에이전트 <원하는 이름>으로 연결해 주세요.',
@@ -175,8 +169,6 @@ export const ko: Messages = {
   chipStopped: '중지됨',
   btnStop: '중지',
   btnStart: '시작',
-  overviewIntro:
-    '메시지는 이 컴퓨터에 저장되며 채팅이나 클라이언트를 전환해도 계속 사용할 수 있습니다.',
   statRemoteNodes: '원격 노드',
   statRemoteNodesHint: '연결됨',
   statAgents: '에이전트',
@@ -187,8 +179,6 @@ export const ko: Messages = {
   connectAgentsBody:
     '버튼으로 애플리케이션을 연결하세요. 설정은 ‘적용’을 클릭한 후에만 변경됩니다.',
   connectAgentsCta: 'MCP 설정 열기',
-  connectPeerTitle: '다른 컴퓨터 연결',
-  connectPeerBody: '원격 노드의 IP 또는 URL과 해당 사용자가 제공한 액세스 코드를 입력하세요.',
   connectPeerCta: '연결 설정',
   agentsTitle: '에이전트',
   ariaAddAgent: '에이전트 추가',
@@ -333,12 +323,11 @@ export const ko: Messages = {
   settingsLocalOnly: ' — 이 컴퓨터만',
   settingsSaved: '설정이 저장되었습니다',
   btnSave: '저장',
-  settingsBackground: '백그라운드 작동',
-  settingsBackgroundBody:
-    '창을 닫아도 노드는 트레이에서 계속 실행됩니다. 종료하면 앱과 연결이 닫힙니다.',
   settingsStartAtLogin: '로그인 시 시작',
   settingsStartAtLoginUnavailable: '로그인 시 시작은 설치된 앱에서 사용할 수 있습니다.',
   settingsExportRoots: '허용된 내보내기 폴더',
+  settingsExportRootsHelp:
+    '에이전트는 목록에 있는 폴더의 파일만 서로 보낼 수 있습니다. 다른 폴더의 파일 전송은 차단됩니다.',
   btnAddFolder: '폴더 추가',
   settingsDiagnostics: '진단',
   settingsNodeId: '노드: {id}',

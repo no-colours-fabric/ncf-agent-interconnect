@@ -7,8 +7,7 @@ export const it: Messages = {
   mcpSetup_statusOpencodeHint:
     'Il controllo riguarda le impostazioni salvate, non conferma che il plugin sia in esecuzione.',
   mcpSetup_statusUnknown: 'Sconosciuto',
-  mcpSetup_statusCursorMetricsHint:
-    'La consegna si attiva dopo che la chat connessa ha completato un turno. Dopo aver riavviato Cursor, invia un messaggio qualsiasi in quella chat per ripristinare la consegna.',
+  mcpSetup_statusCursorMetricsHint: 'Riavvia Cursor e invia un messaggio nella chat desiderata.',
   mcpSetup_statusDelivery: 'Consegna agli agenti',
   mcpSetup_statusAuthorization: 'Autorizzazione',
   mcpSetup_statusLiveBridge: 'Bridge attivo',
@@ -20,7 +19,7 @@ export const it: Messages = {
   settingsThemeDarkLabel: 'Scuro',
   settingsDiagnosticNode: 'Nodo',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'In ascolto',
+  settingsDiagnosticListening: 'Indirizzi di ascolto',
 
   settingsAppearance: 'Aspetto',
   settingsDarkTheme: 'Tema scuro',
@@ -38,8 +37,7 @@ export const it: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'Collega Cursor Agent in AionUi. Accesso, impostazioni MCP salvate e bridge attivo sono stati separati.',
+  mcpSetup_aionDescription: 'Collega Cursor Agent in AionUi.',
   mcpSetup_aionContinue: 'Continua la configurazione di AionUi. Segui i passaggi qui sotto.',
   mcpSetup_aionAccessAction: 'Seleziona «{action}» e segui le istruzioni di associazione.',
   mcpSetup_aionPairTitle: 'Accesso ad AionUi',
@@ -58,12 +56,9 @@ export const it: Messages = {
   mcpSetup_aionMcpTitle: 'MCP per Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Le impostazioni del bridge AionUi devono essere aggiornate',
   mcpSetup_aionUpdateAction: 'Seleziona «{action}», poi fai clic su «Applica».',
-  mcpSetup_aionRestartAction:
-    'Dopo aver applicato il bridge, riconnetti Cursor Agent nella chat AionUi desiderata per ricaricare le impostazioni MCP.',
-  mcpSetup_aionMcpHelp:
-    'Queste impostazioni MCP funzionano sia con Cursor sia con Cursor Agent in AionUi. Cursor diretto richiede anche il suo plugin; AionUi richiede autorizzazione e una chat connessa.',
-  mcpSetup_aionNext:
-    'Dopo aver applicato le impostazioni, riavvia Cursor Agent in AionUi e riconnetti la chat desiderata. Le impostazioni salvate non confermano un bridge attivo. Questa configurazione non supporta altri backend AionUi.',
+  mcpSetup_aionRestartAction: 'Ricollega Cursor Agent nella chat AionUi desiderata.',
+  mcpSetup_aionMcpHelp: 'Cursor e Cursor Agent in AionUi condividono queste impostazioni.',
+  mcpSetup_aionNext: 'Riavvia Cursor Agent in AionUi e ricollega la chat desiderata.',
 
   agentsColumnMessages: 'Messaggi',
   mcpSetup_tabsLabel: 'Client MCP',
@@ -84,9 +79,10 @@ export const it: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Configurazione condivisa Cursor / AionUi',
   mcpSetup_pathLabel: 'Percorso del file di configurazione',
   mcpSetup_browse: 'Scegli file…',
+  mcpSetup_browseShort: 'Scegli…',
   mcpSetup_knownPaths: 'Altre posizioni',
   mcpSetup_pathHint:
-    'Scegli il file usato dall’applicazione. Un file mancante verrà creato dopo un clic su «Applica».',
+    'Scegli il file di configurazione usato dall’applicazione. Un file mancante verrà creato dopo un clic su «Applica».',
   mcpSetup_checking: 'Verifica delle impostazioni…',
   mcpSetup_ready: 'Pronto per applicare',
   mcpSetup_create: 'Le impostazioni di connessione verranno aggiunte.',
@@ -108,17 +104,15 @@ export const it: Messages = {
   mcpSetup_noChanges: 'Le impostazioni sono già presenti. Non è stato modificato nulla.',
   mcpSetup_failed: 'Impossibile applicare la configurazione.',
   mcpSetup_cursorNext: 'Riavvia Cursor una volta, quindi collega un agente nella chat prevista.',
-  mcpSetup_opencodeNext: 'Riavvia OpenCode v1 per usare queste impostazioni.',
-  mcpSetup_codexNext:
-    'Ricollega MCP nell’istanza o nel profilo Codex selezionato per usare queste impostazioni.',
+  mcpSetup_opencodeNext: 'Riavvia OpenCode v1.',
+  mcpSetup_codexNext: 'Ricollega MCP nella chat Codex desiderata.',
   mcpSetup_copyPrompt: 'Copia richiesta di connessione',
   mcpSetup_connect: 'Collega un agente nel client',
   mcpSetup_configureClaude: 'Configura Claude Code',
   mcpSetup_claudeTitle: 'Configura Claude Code',
   mcpSetup_claudeDescription:
     'Collega Claude Code interattivo a NCF Agent Interconnect. Applica abilita nel file di impostazioni utente selezionato due plugin pubblicati da questa app: il plugin NCF, con il suo server MCP, hook fissi del ciclo di vita e delle chiamate agli strumenti eseguiti da questa app e un mod che annuncia i messaggi in attesa nella chat esatta; e il plugin di verifica da cui dipende, che lascia che un annuncio avvii un turno solo finché è attuale. Consente anche agent_read senza richiesta. Le altre decisioni sui permessi restano tue.',
-  mcpSetup_claudeNext:
-    "Avvia o riprendi Claude Code normalmente, poi collega un agente. Lo stato dell'agente indica quando il risveglio automatico è verificato in una chat; la modalità provvisoria o una policy dell'organizzazione possono disattivarlo.",
+  mcpSetup_claudeNext: 'Apri o riprendi una sessione di Claude Code, poi collegati nella chat.',
   mcpSetup_claudeLaunch: 'Avvia Claude Code',
   mcpSetup_copyLaunch: 'Copia il comando di avvio',
   mcpSetup_connectionPrompt: 'Collegati come agente <un nome a tua scelta>.',
@@ -177,8 +171,6 @@ export const it: Messages = {
   chipStopped: 'Arrestato',
   btnStop: 'Arresta',
   btnStart: 'Avvia',
-  overviewIntro:
-    'I messaggi sono archiviati su questo computer e restano disponibili quando cambi chat o client.',
   statRemoteNodes: 'Nodi remoti',
   statRemoteNodesHint: 'connessi',
   statAgents: 'Agenti',
@@ -189,10 +181,7 @@ export const it: Messages = {
   connectAgentsBody:
     'Collega l’applicazione con un pulsante. Le impostazioni cambiano solo dopo un clic su «Applica».',
   connectAgentsCta: 'Apri la configurazione MCP',
-  connectPeerTitle: 'Collega un altro computer',
-  connectPeerBody:
-    'Inserisci IP o URL del nodo remoto e il codice di accesso fornito dal suo utente.',
-  connectPeerCta: 'Configura una connessione',
+  connectPeerCta: 'Impostazioni di connessione',
   agentsTitle: 'Agenti',
   ariaAddAgent: 'Aggiungi agente',
   agentListClient: 'Client: {client}',
@@ -346,12 +335,11 @@ export const it: Messages = {
   settingsLocalOnly: ' — solo questo computer',
   settingsSaved: 'Impostazioni salvate',
   btnSave: 'Salva',
-  settingsBackground: 'Operazione in background',
-  settingsBackgroundBody:
-    'La chiusura della finestra lascia il nodo attivo nel tray. Esci chiude l’app e le sue connessioni.',
   settingsStartAtLogin: 'Avvia all’accesso',
   settingsStartAtLoginUnavailable: 'L’avvio all’accesso è disponibile nell’app installata.',
   settingsExportRoots: 'Cartelle di esportazione consentite',
+  settingsExportRootsHelp:
+    'Gli agenti possono inviarsi file solo dalle cartelle elencate. L’invio di file da altre cartelle viene bloccato.',
   btnAddFolder: 'Aggiungi cartella',
   settingsDiagnostics: 'Diagnostica',
   settingsNodeId: 'Nodo: {id}',

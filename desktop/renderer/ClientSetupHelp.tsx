@@ -1,12 +1,12 @@
 import type React from 'react';
-import { Box, Typography } from '@mui/material';
+import { Alert, Box, Typography } from '@mui/material';
 import type { AdapterProfile, Snapshot } from '../shared/contracts.js';
 import type { McpSetupClient, McpSetupStatus } from '../shared/mcp-setup.js';
 import type { McpSetupMessages } from './mcp-setup-messages.js';
 import type { Locale } from './i18n/index.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
 
-const kinds: Record<McpSetupClient | 'opencode-v2', AdapterProfile['kind']> = {
+export const setupAdapterKinds: Record<McpSetupClient | 'opencode-v2', AdapterProfile['kind']> = {
   cursor: 'cursor-hook',
   opencode: 'opencode-http',
   'opencode-v2': 'opencode-v2',
@@ -29,7 +29,7 @@ export function hasUsableClientSetup(
     (client !== 'aionui' || aionUiComplete === true);
   const working = snapshot?.adapters.some(
     (adapter) =>
-      adapter.kind === kinds[client] &&
+      adapter.kind === setupAdapterKinds[client] &&
       !adapter.error &&
       !adapter.released &&
       (adapter.state === 'ready' || adapter.state === 'manual') &&
@@ -62,7 +62,7 @@ export function hasConnectedClientChat(
 ): boolean {
   return !!snapshot?.adapters.some(
     (adapter) =>
-      adapter.kind === kinds[client] &&
+      adapter.kind === setupAdapterKinds[client] &&
       !adapter.error &&
       !adapter.released &&
       adapter.state === 'ready' &&
@@ -87,26 +87,38 @@ export function ClientSetupHelp({
       ? copy.openCodeV2Next
       : clientNextStep(client, locale, messages);
   const entries = [
-    [copy.confirmQuestion, copy.confirmAnswer],
+    [copy.confirmQuestion, client === 'claude' ? copy.claudeConfirmAnswer : copy.confirmAnswer],
     [copy.reloadQuestion, next],
     ...(client === 'claude' ? [[copy.permissionsQuestion, copy.permissionsAnswer]] : []),
   ];
   return (
-    <Box
-      component="dl"
+    <Alert
+      severity="info"
+      role="note"
       data-testid="client-setup-help"
-      sx={{ m: 0, display: 'grid', gap: 1.5, maxWidth: '85ch' }}
+      sx={{ width: '100%', boxSizing: 'border-box' }}
     >
-      {entries.map(([question, answer]) => (
-        <Box key={question}>
-          <Typography component="dt" variant="body2" sx={{ fontWeight: 500 }}>
-            {question}
-          </Typography>
-          <Typography component="dd" variant="body2" color="text.secondary" sx={{ m: 0, mt: 0.5 }}>
-            {answer}
-          </Typography>
-        </Box>
-      ))}
-    </Box>
+      <Box
+        component="ol"
+        sx={{
+          m: 0,
+          pl: 2.5,
+          typography: 'body2',
+          '& > li + li': { mt: 1.5 },
+          '& > li::marker': { fontWeight: 500 },
+        }}
+      >
+        {entries.map(([question, answer]) => (
+          <li key={question}>
+            <Typography variant="body2" sx={{ fontWeight: 500 }}>
+              {question}
+            </Typography>
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              <em>{answer}</em>
+            </Typography>
+          </li>
+        ))}
+      </Box>
+    </Alert>
   );
 }

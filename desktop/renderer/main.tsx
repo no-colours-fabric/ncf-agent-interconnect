@@ -1,5 +1,7 @@
 import { OverviewApplications } from './OverviewApplications.js';
+import { OverviewConnections } from './OverviewConnections.js';
 import { NetworkInterfacesSettings } from './NetworkInterfacesSettings.js';
+import { normalizeInterfaceExclusions } from '../core/network-interfaces.js';
 import type { NetworkInterfaceExclusion } from '../shared/network-interfaces.js';
 import { networkInterfaceMessages } from './i18n/network-interfaces.js';
 import React, {
@@ -12,12 +14,13 @@ import React, {
 } from 'react';
 import { createRoot } from 'react-dom/client';
 import { createNodeLabelResolver } from './node-labels.js';
-import { AgentsPage } from './AgentsPage.js';
+import { AgentsPage, ManualAgentDialogHelp } from './AgentsPage.js';
 import { RemoteNodesTable } from './RemoteNodesTable.js';
 import {
   NetworkPage,
   PairAttemptLedger,
   type PairAttemptInput,
+  type NetworkOverviewActions,
   lanSearchNavigation,
 } from './NetworkPage.js';
 import { lanSearchMessages } from './i18n/lan-search.js';
@@ -44,6 +47,12 @@ import {
   FormControlLabel,
   Switch,
   CircularProgress,
+  Link,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableRow,
 } from '@mui/material';
 import AddOutlined from '@mui/icons-material/AddOutlined';
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
@@ -88,8 +97,10 @@ function App({
   const [client, setClient] = useState<McpSetupApplication>('cursor');
   const [manualClient, setManualClient] = useState<McpSetupApplication | null>(null);
   const [applicationsMounted, setApplicationsMounted] = useState(page === 'mcp');
-  const [nodeLabel, setNodeLabel] = useState(''),
-    [networkExclusions, setNetworkExclusions] = useState<NetworkInterfaceExclusion[]>([]);
+  const [nodeLabelDraft, setNodeLabelDraft] = useState<string | null>(null);
+  const [networkExclusionsDraft, setNetworkExclusionsDraft] = useState<
+    NetworkInterfaceExclusion[] | null
+  >(null);
   const [login, setLogin] = useState({ supported: false, openAtLogin: false });
   const [busy, setBusy] = useState(false);
   const [locale, setLocale] = useState<Locale>(() => loadLocale(() => window.localStorage));
@@ -97,6 +108,7 @@ function App({
     document.documentElement.lang = locale;
   }, [locale]);
   const [pairLedger] = useState(() => new PairAttemptLedger());
+  const overviewNetworkActions = useRef<NetworkOverviewActions | null>(null);
   const invocationContext = useRef({ snapshot, locale });
   invocationContext.current = { snapshot, locale };
   const call = useCallback(
@@ -181,17 +193,14 @@ function App({
       nav();
     };
   }, [refresh]);
+  const savedNodeLabel = snapshot?.nodeLabel;
+  const savedNetworkExclusions =
+    snapshot?.networkInterfaces?.exclusions.map((record) => record.exclusion) ?? [];
+  const savedExclusionsKey = JSON.stringify(normalizeInterfaceExclusions(savedNetworkExclusions));
   useEffect(() => {
-    if (snapshot) {
-      setNodeLabel(snapshot.nodeLabel);
-      setNetworkExclusions(
-        snapshot.networkInterfaces?.exclusions.map((record) => record.exclusion) ?? [],
-      );
-    }
-  }, [
-    snapshot?.nodeLabel,
-    JSON.stringify(snapshot?.networkInterfaces?.exclusions.map((record) => record.exclusion)),
-  ]);
+    setNodeLabelDraft(null);
+    setNetworkExclusionsDraft(null);
+  }, [savedNodeLabel, savedExclusionsKey]);
   useEffect(() => {
     if (page === 'settings')
       void call<typeof login>('loginState')
@@ -206,6 +215,12 @@ function App({
         {error && <Alert severity="error">{error}</Alert>}
       </Stack>
     );
+  const nodeLabel = nodeLabelDraft ?? snapshot.nodeLabel;
+  const networkExclusions = networkExclusionsDraft ?? savedNetworkExclusions;
+  const settingsDirty =
+    nodeLabel !== snapshot.nodeLabel ||
+    (networkExclusionsDraft !== null &&
+      JSON.stringify(normalizeInterfaceExclusions(networkExclusionsDraft)) !== savedExclusionsKey);
   const nodeName = resolveNodeLabels(snapshot, locale);
   const nameConflicts = (() => {
     try {
@@ -284,46 +299,22 @@ function App({
                 </Paper>
               ))}
             </Box>
-            <OverviewApplications
+            <OverviewConnections
               snapshot={snapshot}
               locale={locale}
-              onOpen={() => {
-                setManualClient(null);
-                navigate('mcp');
-              }}
+              nodeName={nodeName}
+              onConnect={(nodeId) => overviewNetworkActions.current?.connectFoundNode(nodeId)}
+              onSettings={() => navigate('network')}
+              onConnectionCode={() => overviewNetworkActions.current?.openConnectionCode()}
             />
-            <Box
-              data-testid="overview-connections"
-              sx={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(0, 480px)',
-                gap: 2,
-              }}
-            >
-              <Paper
-                sx={{
-                  ...surfaceSx('soft'),
-                  p: 3,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                  minHeight: 228,
-                }}
-              >
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'connectPeerTitle')}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 2 }}>
-                  {t(locale, 'connectPeerBody')}
-                </Typography>
-                <Button sx={{ mt: 'auto' }} variant="outlined" onClick={() => setPage('network')}>
-                  {t(locale, 'connectPeerCta')}
-                </Button>
-              </Paper>
-            </Box>
-            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
-              {t(locale, 'overviewIntro')}
-            </Typography>
+            <OverviewApplications
+              snapshot={snapshot}
+              discovery={discovery}
+              flow={applicationSetup}
+              states={applicationSetupStates}
+              statuses={setupStatuses}
+              locale={locale}
+            />
             {snapshot.errors.map((e, i) => (
               <Alert key={i} severity="error">
                 {e}
@@ -360,6 +351,9 @@ function App({
         )}
         <NetworkPage
           active={page === 'network'}
+          overviewActive={page === 'overview'}
+          overviewActions={overviewNetworkActions}
+          onOverviewPaired={() => setNotice(t(locale, 'networkConnectOk'))}
           windowVisible={windowVisible}
           obscured={
             nicknameDialog ||
@@ -455,11 +449,15 @@ function App({
               gap: 3,
             }}
           >
-            <Stack spacing={3}>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsAppearance')}
-                </Typography>
+            <Paper data-testid="settings-appearance" sx={{ gridColumn: '1 / -1', p: 3 }}>
+              <Typography component="h2" variant="h6" sx={{ mb: 1 }}>
+                {t(locale, 'settingsAppearance')}
+              </Typography>
+              <Stack
+                direction="row"
+                useFlexGap
+                sx={{ alignItems: 'flex-start', flexWrap: 'wrap', columnGap: 4, rowGap: 1 }}
+              >
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Stack
                     direction="row"
@@ -499,7 +497,34 @@ function App({
                     </Typography>
                   </Stack>
                 </Stack>
-              </Paper>
+                <Box sx={{ minWidth: 0 }}>
+                  <FormControlLabel
+                    sx={{ m: 0 }}
+                    control={
+                      <Switch
+                        checked={login.openAtLogin}
+                        disabled={!login.supported || busy}
+                        onChange={(_, enabled) =>
+                          run(async () => {
+                            const result = await call<{ openAtLogin: boolean }>('setLogin', {
+                              enabled,
+                            });
+                            setLogin((previous) => ({ ...previous, ...result }));
+                          })
+                        }
+                      />
+                    }
+                    label={t(locale, 'settingsStartAtLogin')}
+                  />
+                  {!login.supported && (
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {t(locale, 'settingsStartAtLoginUnavailable')}
+                    </Typography>
+                  )}
+                </Box>
+              </Stack>
+            </Paper>
+            <Stack spacing={3}>
               <Paper sx={{ p: 2 }}>
                 <Stack
                   direction="row"
@@ -509,7 +534,8 @@ function App({
                   <TextField
                     label={t(locale, 'settingsNodeName')}
                     value={nodeLabel}
-                    onChange={(e) => setNodeLabel(e.target.value)}
+                    disabled={busy}
+                    onChange={(e) => setNodeLabelDraft(e.target.value)}
                     sx={{ width: 360, maxWidth: '100%' }}
                   />
                 </Stack>
@@ -522,7 +548,7 @@ function App({
                     <NetworkInterfacesSettings
                       status={snapshot.networkInterfaces}
                       value={networkExclusions}
-                      onChange={setNetworkExclusions}
+                      onChange={setNetworkExclusionsDraft}
                       locale={locale}
                       disabled={busy}
                     />
@@ -548,16 +574,20 @@ function App({
                       </Box>
                     </Alert>
                   )}
-                  <Box>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
                     <Button
                       variant="contained"
                       disabled={busy}
+                      sx={{ flexShrink: 0 }}
                       onClick={() => {
                         setBusy(true);
                         setNetworkSaveError(null);
                         setNotice('');
                         void call('saveNode', { nodeLabel, networkExclusions })
-                          .then(() => setNotice(t(locale, 'settingsSaved')))
+                          .then(async () => {
+                            await refresh();
+                            setNotice(t(locale, 'settingsSaved'));
+                          })
                           .catch((error: unknown) =>
                             setNetworkSaveError(
                               error instanceof Error ? error.message : String(error),
@@ -568,55 +598,62 @@ function App({
                     >
                       {t(locale, 'btnSave')}
                     </Button>
-                  </Box>
+                    <Typography
+                      role="status"
+                      variant="body2"
+                      color="text.secondary"
+                      data-testid="network-unsaved-changes"
+                      sx={{ minWidth: 0, overflowWrap: 'anywhere' }}
+                    >
+                      {settingsDirty ? networkInterfaceMessages(locale).unsavedChanges : ''}
+                    </Typography>
+                  </Stack>
                 </Stack>
               </Paper>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsBackground')}
-                </Typography>
-                <Typography color="text.secondary" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsBackgroundBody')}
-                </Typography>
-                <FormControlLabel
-                  control={
-                    <Switch
-                      checked={login.openAtLogin}
-                      disabled={!login.supported || busy}
-                      onChange={(_, enabled) =>
-                        run(async () => {
-                          const result = await call<{ openAtLogin: boolean }>('setLogin', {
-                            enabled,
-                          });
-                          setLogin((previous) => ({ ...previous, ...result }));
-                        })
-                      }
-                    />
-                  }
-                  label={t(locale, 'settingsStartAtLogin')}
-                />
-                {!login.supported && (
-                  <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
-                    {t(locale, 'settingsStartAtLoginUnavailable')}
-                  </Typography>
-                )}
-              </Paper>
-              <Paper sx={{ p: 3 }}>
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'settingsExportRoots')}
-                </Typography>
-                {snapshot.exportRoots.map((root) => (
-                  <Typography key={root} variant="body2" sx={{ py: 0.5, overflowWrap: 'anywhere' }}>
-                    {root}
-                  </Typography>
-                ))}
-                <Button
-                  sx={{ mt: 1 }}
-                  startIcon={<AddOutlined />}
-                  onClick={() => run(() => call('pickExportFolder'))}
+              <Paper component="section" aria-labelledby="export-folders-title" sx={{ p: 3 }}>
+                <Stack
+                  direction="row"
+                  sx={{ alignItems: 'flex-end', justifyContent: 'space-between', gap: 2 }}
                 >
-                  {t(locale, 'btnAddFolder')}
-                </Button>
+                  <Typography id="export-folders-title" component="h2" variant="h6">
+                    {t(locale, 'settingsExportRoots')}
+                  </Typography>
+                  <Link
+                    component="button"
+                    type="button"
+                    variant="body2"
+                    underline="always"
+                    onClick={() => run(() => call('pickExportFolder'))}
+                    sx={{ p: 0, minHeight: 0, flexShrink: 0, whiteSpace: 'nowrap' }}
+                  >
+                    <AddOutlined sx={{ fontSize: '1em', verticalAlign: '-0.125em', mr: 0.5 }} />
+                    {t(locale, 'btnAddFolder')}
+                  </Link>
+                </Stack>
+                <Typography
+                  id="export-folders-help"
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ my: 1.5 }}
+                >
+                  {t(locale, 'settingsExportRootsHelp')}
+                </Typography>
+                <TableContainer sx={{ border: '1px solid', borderColor: 'divider' }}>
+                  <Table
+                    size="small"
+                    aria-labelledby="export-folders-title"
+                    aria-describedby="export-folders-help"
+                    sx={{ tableLayout: 'fixed' }}
+                  >
+                    <TableBody>
+                      {snapshot.exportRoots.map((root) => (
+                        <TableRow key={root}>
+                          <TableCell sx={{ overflowWrap: 'anywhere' }}>{root}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
               </Paper>
             </Stack>
             <Paper sx={{ ...surfaceSx('glass'), p: 3, minWidth: 0 }}>
@@ -626,22 +663,32 @@ function App({
               <Stack component="dl" spacing={2} sx={{ m: 0 }}>
                 {(
                   [
-                    ['settingsDiagnosticNode', snapshot.nodeId],
-                    ['settingsDiagnosticMcp', snapshot.mcpUrl],
-                    ['settingsDiagnosticListening', snapshot.peerUrl],
+                    ['settingsDiagnosticNode', [snapshot.nodeId]],
+                    ['settingsDiagnosticMcp', [snapshot.mcpUrl]],
+                    [
+                      'settingsDiagnosticListening',
+                      [
+                        ...new Set(
+                          snapshot.peerUrls ?? (snapshot.peerUrl ? [snapshot.peerUrl] : []),
+                        ),
+                      ],
+                    ],
                   ] as const
-                ).map(([label, value]) => (
+                ).map(([label, values]) => (
                   <Box key={label}>
                     <Typography component="dt" variant="caption" color="text.secondary">
                       {t(locale, label)}
                     </Typography>
-                    <Typography
-                      component="dd"
-                      variant="body2"
-                      sx={{ m: 0, mt: 0.5, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
-                    >
-                      {value}
-                    </Typography>
+                    {(values.length ? values : ['—']).map((value) => (
+                      <Typography
+                        key={value}
+                        component="dd"
+                        variant="body2"
+                        sx={{ m: 0, mt: 0.5, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
+                      >
+                        {value}
+                      </Typography>
+                    ))}
                   </Box>
                 ))}
               </Stack>
@@ -692,15 +739,7 @@ function App({
       >
         <DialogTitle>{agentEntryMessages(locale).dialogAddAgent}</DialogTitle>
         <DialogContent>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {agentEntryMessages(locale).dialogAddAgentBody}
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {t(locale, 'dialogAddAgentBody')}
-          </Typography>
-          <Typography color="text.secondary" sx={{ mb: 2 }}>
-            {agentEntryMessages(locale).dialogManualAgentDiagnostic}
-          </Typography>
+          <ManualAgentDialogHelp locale={locale} />
           <TextField
             autoFocus
             fullWidth
@@ -714,13 +753,6 @@ function App({
                 nodes: nameConflicts.map(({ directory }) => nodeName(directory.nodeId)).join(', '),
               })}
             </Alert>
-          )}
-          {snapshot.directories.some(
-            (directory) => !directory.local && (directory.state !== 'ready' || directory.truncated),
-          ) && (
-            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-              {t(locale, 'dialogSomeDirectories')}
-            </Typography>
           )}
         </DialogContent>
         <DialogActions>

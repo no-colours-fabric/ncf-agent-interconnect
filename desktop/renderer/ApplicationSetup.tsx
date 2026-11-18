@@ -14,13 +14,18 @@ import {
   Paper,
   Stack,
   Switch,
+  Tooltip,
   Typography,
+  type IconButtonProps,
 } from '@mui/material';
+import CheckCircleOutlineOutlined from '@mui/icons-material/CheckCircleOutlineOutlined';
 import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
+import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
+import type { AionUiApplicationState } from '../shared/aionui.js';
 import type { Snapshot } from '../shared/contracts.js';
 import { applicationNames } from '../shared/application-discovery.js';
 import { mcpSetupClients, type McpSetupClient, type McpSetupInvoke } from '../shared/mcp-setup.js';
@@ -33,7 +38,8 @@ import {
 } from './application-setup-model.js';
 import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
-import { clientNextStep, hasConnectedClientChat } from './ClientSetupHelp.js';
+import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
+import { ClientApplicationMetrics } from './application-connections.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
 import { discoveryMessages } from './i18n/application-discovery.js';
 import { lanSearchMessages } from './i18n/lan-search.js';
@@ -51,6 +57,17 @@ export const setupApplicationName = (client: ApplicationSetupClient, locale: Loc
       : client === 'opencode'
         ? 'OpenCode v1'
         : applicationNames[client];
+
+export function applicationNextStep(
+  client: ApplicationSetupClient,
+  locale: Locale,
+  messages = mcpSetupMessages(locale),
+): string {
+  if (client === 'opencode-v2') return applicationSetupMessages(locale).openCodeV2Next;
+  if (client === 'claude') return messages.claudeNext;
+  if (client === 'aionui') return messages.aionNext;
+  return clientNextStep(client, locale, messages);
+}
 
 interface SetupPresentationState {
   phase: ApplicationSetupState['phase'];
@@ -141,6 +158,33 @@ export function SetupDetails({ state, locale }: { state: SetupPresentationState;
   );
 }
 
+export function ReadyChatGuidance({ locale }: { locale: Locale }) {
+  const [beforeCommand, afterCommand] =
+    applicationSetupMessages(locale).readyChatHelp.split('{command}');
+  const command = mcpSetupMessages(locale).connectionPrompt.replace(/[.。]$/u, '');
+  return (
+    <>
+      {beforeCommand}
+      <Box
+        component="code"
+        sx={{
+          fontFamily: 'inherit',
+          fontSize: 'inherit',
+          fontStyle: 'italic',
+          bgcolor: 'action.hover',
+          px: 0.5,
+          py: 0.125,
+          borderRadius: 0.5,
+          boxDecorationBreak: 'clone',
+        }}
+      >
+        {command}
+      </Box>
+      {afterCommand}
+    </>
+  );
+}
+
 export function NextStep({
   client,
   invoke,
@@ -164,15 +208,6 @@ export function NextStep({
   const m = mcpSetupMessages(locale);
   const [copyError, setCopyError] = useState(false);
   if (inline) {
-    const [beforeCommand, afterCommand] = copy.readyChatHelp.split('{command}');
-    const instruction =
-      client === 'opencode-v2'
-        ? copy.openCodeV2Next
-        : client === 'claude'
-          ? m.claudeNext
-          : client === 'aionui'
-            ? m.aionNext
-            : clientNextStep(client, locale, m);
     return (
       <Typography
         component="p"
@@ -181,29 +216,7 @@ export function NextStep({
         data-testid={'application-guidance-' + client}
         sx={{ mt: 1.5, overflowWrap: 'anywhere', whiteSpace: 'normal' }}
       >
-        {working ? (
-          <>
-            {beforeCommand}
-            <Box
-              component="code"
-              sx={{
-                fontFamily: 'inherit',
-                fontSize: 'inherit',
-                fontStyle: 'italic',
-                bgcolor: 'action.hover',
-                px: 0.5,
-                py: 0.125,
-                borderRadius: 0.5,
-                boxDecorationBreak: 'clone',
-              }}
-            >
-              {m.connectionPrompt.replace(/[.。]$/u, '')}
-            </Box>
-            {afterCommand}
-          </>
-        ) : (
-          instruction
-        )}
+        {working ? <ReadyChatGuidance locale={locale} /> : applicationNextStep(client, locale, m)}
       </Typography>
     );
   }
@@ -221,13 +234,7 @@ export function NextStep({
         {copy.nextStep}
       </Typography>
       <Typography variant="body2" color="text.secondary">
-        {client === 'opencode-v2'
-          ? copy.openCodeV2Next
-          : client === 'claude'
-            ? m.claudeNext
-            : client === 'aionui'
-              ? m.aionNext
-              : clientNextStep(client, locale, m)}
+        {applicationNextStep(client, locale, m)}
       </Typography>
       {showConnectionPrompt && (
         <Box
@@ -340,6 +347,35 @@ export function ApplicationSetupConfirmation({
   );
 }
 
+function ManualSetupButton({
+  label,
+  disabled,
+  onClick,
+  testId,
+  sx = [],
+}: Pick<IconButtonProps, 'disabled' | 'onClick' | 'sx'> & {
+  label: string;
+  testId?: string;
+}) {
+  return (
+    <Tooltip title={disabled ? '' : label}>
+      <IconButton
+        type="button"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        data-testid={testId}
+        sx={[
+          { width: 44, height: 44, flexShrink: 0, border: '1px solid', borderColor: 'divider' },
+          ...(Array.isArray(sx) ? sx : [sx]),
+        ]}
+      >
+        <SettingsOutlined sx={{ fontSize: 20 }} />
+      </IconButton>
+    </Tooltip>
+  );
+}
+
 function OpenCodeV1Toggle({
   expanded,
   onChange,
@@ -376,7 +412,7 @@ function OpenCodeV1Toggle({
   );
 }
 
-function setupView(
+export function setupView(
   client: ApplicationSetupClient,
   states: ApplicationSetupStates,
   statuses: McpSetupStatuses,
@@ -400,6 +436,7 @@ function setupView(
         !!state.target?.installationId &&
         !!state.target.installationPath,
       hasStatus: !!status,
+      configurationState: state.availability === 'available' ? status?.state : undefined,
       checking: state.checking,
       automatic: openCodeV2AutomaticAvailable(state),
       unavailable: state.availability === 'unavailable' || status?.state === 'unavailable',
@@ -415,11 +452,27 @@ function setupView(
       (item) => item.client === client && item.status === 'detected',
     ),
     hasStatus: !!statuses.statuses[client],
+    configurationState: statuses.errors[client] ? undefined : statuses.statuses[client]?.state,
     checking: false,
     automatic: !!discovery.snapshot?.applications.some(
       (item) => item.client === client && item.status === 'detected',
     ),
     unavailable: !!statuses.errors[client],
+  };
+}
+
+export function applicationSetupAction(
+  { state, configured, automatic, checking, hasStatus }: ReturnType<typeof setupView>,
+  locale: Locale,
+  busy: boolean,
+  anyBusy: boolean,
+) {
+  const pending = hasPendingSetupResult(state);
+  const retry = state.phase === 'failed' || pending;
+  if ((configured && !pending) || (!automatic && !retry)) return undefined;
+  return {
+    label: setupActionLabel(state, locale, busy),
+    disabled: anyBusy || checking || state.phase === 'confirmation' || (!hasStatus && !retry),
   };
 }
 
@@ -592,14 +645,12 @@ function ApplicationCompactList({
               />
             )}
             {(connect || configuredDetails) && (
-              <Button
-                variant="text"
+              <ManualSetupButton
+                label={copy.manual}
                 disabled={anyBusy}
                 onClick={() => manual(client)}
                 sx={{ alignSelf: 'flex-start' }}
-              >
-                {copy.manual}
-              </Button>
+              />
             )}
             <Box component="details" sx={{ minWidth: 0, fontSize: 13 }}>
               <Box
@@ -620,9 +671,6 @@ function ApplicationCompactList({
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   {copy.detectionHelp}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {copy.newApps}
                 </Typography>
                 <SetupDetails state={state} locale={locale} />
               </Stack>
@@ -656,15 +704,13 @@ function ApplicationCompactList({
             {lanSearchMessages(locale).details}
           </Button>
         ) : (
-          <Button
-            variant="outlined"
+          <ManualSetupButton
+            label={copy.manual}
             disabled={anyBusy}
             onClick={() => manual(client)}
-            data-testid={context + '-manual-' + client}
+            testId={context + '-manual-' + client}
             sx={{ gridColumn: 3, alignSelf: 'start', justifySelf: 'end' }}
-          >
-            {copy.manual}
-          </Button>
+          />
         )}
         {(state.phase === 'failed' || pending) && (
           <Alert
@@ -729,6 +775,74 @@ function ApplicationCompactList({
   );
 }
 
+function ConfiguredApplicationStatus({
+  client,
+  snapshot,
+  locale,
+}: Pick<SetupProps, 'snapshot' | 'locale'> & { client: ApplicationSetupClient }) {
+  const m = mcpSetupMessages(locale);
+
+  return (
+    <Stack
+      spacing={1.25}
+      data-testid="client-status-panel"
+      data-client={client}
+      data-status="configured"
+      sx={{
+        mt: 2,
+        pt: 1.75,
+        borderTop: '1px solid',
+        borderColor: 'divider',
+        minWidth: 0,
+        containerType: 'inline-size',
+      }}
+    >
+      <Box
+        component="dl"
+        sx={{
+          m: 0,
+          display: 'grid',
+          gridTemplateColumns: 'minmax(0, 1fr)',
+          '@container (min-width: 280px)': {
+            gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+          },
+          '@container (min-width: 740px)': {
+            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+          },
+          columnGap: 2.5,
+          rowGap: 1.5,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography component="dt" variant="caption" color="text.secondary" sx={{ mb: 0.5 }}>
+            {client === 'codex' || client === 'aionui' ? m.statusMcpConfig : m.statusOpencodeConfig}
+          </Typography>
+          <Stack component="dd" direction="row" spacing={1} sx={{ m: 0, alignItems: 'flex-start' }}>
+            <CheckCircleOutlineOutlined
+              sx={{ fontSize: 18, color: 'success.main', flexShrink: 0, mt: '1px' }}
+            />
+            <Typography variant="body2" component="span" data-testid="mcp-settings-status">
+              {m.configured}
+            </Typography>
+          </Stack>
+        </Box>
+        <ClientApplicationMetrics
+          kind={setupAdapterKinds[client]}
+          snapshot={snapshot}
+          locale={locale}
+          unknownLabel={m.statusUnknown}
+          deliveryLabel={m.statusDelivery}
+        />
+      </Box>
+      {client === 'opencode' && (
+        <Typography variant="caption" color="text.secondary">
+          {m.statusOpencodeHint}
+        </Typography>
+      )}
+    </Stack>
+  );
+}
+
 export function ApplicationRows({
   discovery,
   flow,
@@ -744,23 +858,57 @@ export function ApplicationRows({
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
   const [showV1, setShowV1] = useState(false);
+  const aionUiConfigured = setupView('aionui', states, statuses, discovery).configured;
+  const [aionUiPaired, setAionUiPaired] = useState(false);
+  useEffect(() => {
+    if (!aionUiConfigured) {
+      setAionUiPaired(false);
+      return;
+    }
+    let revision = 0;
+    const refresh = () => {
+      const request = ++revision;
+      void invoke<AionUiApplicationState>('aionUiStatus').then(
+        (status) => {
+          if (request === revision) setAionUiPaired(status?.state === 'paired');
+        },
+        () => {
+          if (request === revision) setAionUiPaired(false);
+        },
+      );
+    };
+    refresh();
+    const off = window.interconnect.onChange(refresh);
+    return () => {
+      revision++;
+      off();
+    };
+  }, [aionUiConfigured, invoke]);
   const anyBusy = disabled || applicationSetupClients.some((client) => flow.busy(client));
   const manual = (client: ApplicationSetupClient) => {
     if (client === 'opencode' || client === 'opencode-v2')
       flow.openCodeV2.selectManualMajor(client === 'opencode' ? 1 : 2);
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
   };
-  const row = (client: ApplicationSetupClient, border: boolean) => {
-    const { state, configured, detected, hasStatus, unavailable, checking, automatic } = setupView(
-      client,
-      states,
-      statuses,
-      discovery,
-    );
+  const row = (client: ApplicationSetupClient, border = false) => {
+    const view = setupView(client, states, statuses, discovery);
+    const {
+      state,
+      configured,
+      detected,
+      hasStatus,
+      unavailable,
+      checking,
+      automatic,
+      configurationState,
+    } = view;
     const busy = flow.busy(client);
+    const action = applicationSetupAction(view, locale, busy, anyBusy);
     const pending = hasPendingSetupResult(state);
     const needsRetry = state.phase === 'failed' || pending;
     const working = hasConnectedClientChat(client, snapshot);
+    const showStatus =
+      configured && !busy && !checking && !needsRetry && (client !== 'aionui' || aionUiPaired);
     const showGuidance = !busy && !checking && !needsRetry && (configured || working);
     const setupStatus = busy
       ? copy.connecting
@@ -772,9 +920,11 @@ export function ApplicationRows({
             ? m.configured
             : unavailable || state.phase === 'failed'
               ? m.unavailable
-              : hasStatus
-                ? m['not-configured']
-                : m.statusUnknown;
+              : configurationState === 'needs-update'
+                ? m['needs-update']
+                : hasStatus
+                  ? m['not-configured']
+                  : m.statusUnknown;
     return (
       <Box
         key={client}
@@ -814,64 +964,59 @@ export function ApplicationRows({
                   : copy.automaticUnavailable}
             </Typography>
           </Box>
-          <Stack
-            direction="row"
-            spacing={1}
-            sx={{
-              alignItems: 'center',
-              gridColumn: { xs: '2', md: '2', lg: 'auto' },
-              gridRow: { md: '2', lg: 'auto' },
-              minWidth: 0,
-            }}
-            aria-label={m.statusMcpConfig}
-          >
-            {configured && !pending && (
-              <CheckOutlined sx={{ fontSize: 18, color: 'success.main' }} />
-            )}
-            <Typography
-              variant="body2"
-              color={configured && !pending ? 'success.main' : 'text.secondary'}
+          {!showStatus && (
+            <Stack
+              direction="row"
+              spacing={1}
+              sx={{
+                alignItems: 'center',
+                gridColumn: { xs: '2', md: '2', lg: 'auto' },
+                gridRow: { md: '2', lg: 'auto' },
+                minWidth: 0,
+              }}
+              aria-label={m.statusMcpConfig}
             >
-              {setupStatus}
-            </Typography>
-          </Stack>
+              {configured && !pending && (
+                <CheckOutlined sx={{ fontSize: 18, color: 'success.main' }} />
+              )}
+              <Typography
+                variant="body2"
+                color={configured && !pending ? 'success.main' : 'text.secondary'}
+              >
+                {setupStatus}
+              </Typography>
+            </Stack>
+          )}
           <Stack
             direction="row"
             spacing={1.5}
             useFlexGap
             sx={{
               flexWrap: 'wrap',
-              gridColumn: { xs: '2', md: '3', lg: 'auto' },
-              gridRow: { md: '1 / 3', lg: 'auto' },
+              gridColumn: { xs: '2', md: '3', lg: '4' },
+              gridRow: { md: showStatus ? '1' : '1 / 3', lg: '1' },
               maxWidth: 360,
               justifyContent: { md: 'flex-end' },
             }}
           >
-            {(!configured || hasPendingSetupResult(state)) && (automatic || needsRetry) && (
+            {action && (
               <Button
                 variant="contained"
-                disabled={
-                  anyBusy ||
-                  checking ||
-                  state.phase === 'confirmation' ||
-                  (!hasStatus && !needsRetry)
-                }
+                disabled={action.disabled}
                 onClick={() => {
                   void flow.connect(client);
                 }}
                 data-testid={'application-connect-' + client}
               >
-                {setupActionLabel(state, locale, busy)}
+                {action.label}
               </Button>
             )}
-            <Button
-              variant="outlined"
+            <ManualSetupButton
+              label={copy.manual}
               disabled={anyBusy}
               onClick={() => manual(client)}
-              data-testid={'application-manual-' + client}
-            >
-              {copy.manual}
-            </Button>
+              testId={'application-manual-' + client}
+            />
           </Stack>
         </Box>
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
@@ -890,12 +1035,16 @@ export function ApplicationRows({
             showConnectionPrompt={false}
           />
         )}
+        {showStatus && (
+          <ConfiguredApplicationStatus client={client} snapshot={snapshot} locale={locale} />
+        )}
       </Box>
     );
   };
   return (
     <Stack
-      spacing={3}
+      spacing={2}
+      useFlexGap
       data-testid="application-setup-list"
       sx={{ '& .MuiButton-root': { minHeight: 44, fontSize: 14 } }}
     >
@@ -938,9 +1087,8 @@ export function ApplicationRows({
           {discoveryCopy.refresh}
         </Link>
       </Stack>
-      <Paper
+      <Box
         sx={{
-          overflow: 'hidden',
           display: 'grid',
           gridTemplateColumns: {
             xs: 'max-content minmax(0, 1fr)',
@@ -948,41 +1096,39 @@ export function ApplicationRows({
             lg: 'max-content minmax(140px, 1fr) minmax(120px, .8fr) auto',
           },
           columnGap: 2.5,
+          rowGap: 2,
         }}
       >
-        {mcpSetupClients.map((client, index) =>
-          client === 'opencode' ? (
-            <Box
-              key="opencode"
-              data-testid="application-group-opencode"
-              sx={{
-                borderTop: index ? '1px solid' : 0,
-                borderColor: 'divider',
-                display: 'grid',
-                gridTemplateColumns: 'subgrid',
-                gridColumn: '1 / -1',
-                '& > *': { gridColumn: '1 / -1' },
-              }}
-            >
-              <Box sx={{ display: 'grid', gridTemplateColumns: 'subgrid', gridAutoRows: '1fr' }}>
-                {row('opencode-v2', false)}
+        {mcpSetupClients.map((client) => (
+          <Paper
+            key={client}
+            component="article"
+            data-testid={client === 'opencode' ? 'application-group-opencode' : undefined}
+            sx={{
+              overflow: 'hidden',
+              display: 'grid',
+              gridTemplateColumns: 'subgrid',
+              gridColumn: '1 / -1',
+              '& > *': { gridColumn: '1 / -1' },
+            }}
+          >
+            {client === 'opencode' ? (
+              <>
+                {row('opencode-v2')}
                 {showV1 && row('opencode', true)}
-              </Box>
-              <OpenCodeV1Toggle
-                expanded={showV1}
-                onChange={setShowV1}
-                disabled={anyBusy}
-                locale={locale}
-              />
-            </Box>
-          ) : (
-            row(client, index > 0)
-          ),
-        )}
-      </Paper>
-      <Typography variant="body2" color="text.secondary">
-        {copy.newApps}
-      </Typography>
+                <OpenCodeV1Toggle
+                  expanded={showV1}
+                  onChange={setShowV1}
+                  disabled={anyBusy}
+                  locale={locale}
+                />
+              </>
+            ) : (
+              row(client)
+            )}
+          </Paper>
+        ))}
+      </Box>
     </Stack>
   );
 }

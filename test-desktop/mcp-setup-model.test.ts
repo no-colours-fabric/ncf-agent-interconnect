@@ -130,25 +130,51 @@ test('unmounted or switched clients discard late previews and do not install sta
   );
 });
 
-test('native dialog cancellation preserves the preview; selected file requires review', async () => {
+test('native dialog cancellation preserves the preview or result; a changed file requires review', async () => {
   let picked: string | null = null;
-  const flow = new McpSetupFlow('cursor', (async (method: string) => {
-    return method === 'mcpSetupDefaults'
-      ? defaults
-      : method === 'mcpSetupPreview'
-        ? plan('first')
-        : method === 'mcpSetupBrowse'
-          ? picked
-          : {};
+  let previews = 0;
+  const writes: unknown[] = [];
+  const flow = new McpSetupFlow('cursor', (async (method: string, params: unknown) => {
+    if (method === 'mcpSetupDefaults') return defaults;
+    if (method === 'mcpSetupPreview') {
+      const preview = plan('plan-' + ++previews);
+      preview.files[0].path = (params as { files: { path: string }[] }).files[0].path;
+      return preview;
+    }
+    if (method === 'mcpSetupBrowse') return picked;
+    if (method === 'mcpSetupApply') {
+      writes.push(params);
+      return { status: 'applied', files: [] };
+    }
+    return {};
   }) as McpSetupInvoke);
   await flow.begin();
   await flow.browse('configuration');
-  assert.equal(flow.getSnapshot().preview?.planId, 'first');
+  assert.equal(flow.getSnapshot().preview?.planId, 'plan-1');
+  await flow.apply();
+  const original = flow.getSnapshot().result;
+  assert.equal(original?.status, 'applied');
+  await flow.browse('configuration');
+  assert.equal(flow.getSnapshot().result, original);
+  picked = '/isolated/mcp.json';
+  await flow.browse('configuration');
+  assert.equal(flow.getSnapshot().result, original);
   picked = '/isolated/selected.json';
   await flow.browse('configuration');
   assert.equal(flow.getSnapshot().preview, undefined);
+  assert.equal(flow.getSnapshot().result, undefined);
   assert.equal(flow.getSnapshot().files[0].path, picked);
   assert.equal(flow.getSnapshot().busy, false);
+  await flow.apply();
+  assert.equal(writes.length, 1);
+  flow.setPath('configuration', '/isolated/corrected.json');
+  await flow.review();
+  assert.equal(flow.getSnapshot().preview?.files[0].path, '/isolated/corrected.json');
+  await flow.apply();
+  assert.deepEqual(writes, [
+    { planId: 'plan-1', confirmReplace: false },
+    { planId: 'plan-2', confirmReplace: false },
+  ]);
 });
 
 test(
@@ -249,4 +275,29 @@ test('manual recovery of a changed target needs a fresh confirmation and preserv
   await flow.apply(true);
   assert.equal(applies.length, 2);
   assert.equal(flow.getSnapshot().uncertain?.preview.planId, 'p-1');
+});
+
+test('manual setup still requires confirmation after a failed write and returning to Applications', async () => {
+  let previews = 0;
+  const applies: unknown[] = [];
+  const flow = new McpSetupFlow('cursor', (async (method: string, input: unknown) => {
+    if (method === 'mcpSetupDefaults') return defaults;
+    if (method === 'mcpSetupPreview') return plan('p-' + ++previews);
+    if (method === 'mcpSetupApply') {
+      applies.push(input);
+      return { status: applies.length === 1 ? 'failed' : 'applied', files: [] };
+    }
+    return {};
+  }) as McpSetupInvoke);
+  await flow.begin();
+  await flow.apply();
+  assert.equal(flow.getSnapshot().result?.status, 'failed');
+  flow.cancel();
+  await flow.begin();
+  await flow.apply();
+  assert.equal(applies.length, 1);
+  assert.equal(flow.getSnapshot().reviewRequired, true);
+  await flow.apply(true);
+  assert.equal(applies.length, 2);
+  assert.equal(flow.getSnapshot().reviewRequired, false);
 });

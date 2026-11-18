@@ -7,8 +7,7 @@ export const ru: Messages = {
   mcpSetup_statusOpencodeHint:
     'Проверяются сохранённые настройки, а не загрузка плагина в работающем приложении.',
   mcpSetup_statusUnknown: 'Неизвестно',
-  mcpSetup_statusCursorMetricsHint:
-    'Доставка включается после завершения хода в подключённом чате. После перезапуска Cursor отправьте в этом чате любое сообщение, чтобы восстановить доставку.',
+  mcpSetup_statusCursorMetricsHint: 'Перезапустите Cursor и отправьте сообщение в нужном чате.',
   mcpSetup_statusDelivery: 'Доставка сообщений',
   mcpSetup_statusAuthorization: 'Авторизация',
   mcpSetup_statusLiveBridge: 'Активный мост',
@@ -20,7 +19,7 @@ export const ru: Messages = {
   settingsThemeDarkLabel: 'Тёмная',
   settingsDiagnosticNode: 'Узел',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'Адрес прослушивания',
+  settingsDiagnosticListening: 'Адреса прослушивания',
 
   settingsAppearance: 'Оформление',
   settingsDarkTheme: 'Тёмная тема',
@@ -38,8 +37,7 @@ export const ru: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'Подключение Cursor Agent внутри AionUi. Доступ, сохранённые настройки MCP и работающий мост — отдельные состояния.',
+  mcpSetup_aionDescription: 'Подключите Cursor Agent в AionUi.',
   mcpSetup_aionContinue: 'Продолжите настройку AionUi. Следуйте инструкциям ниже.',
   mcpSetup_aionAccessAction: 'Нажмите «{action}» и следуйте инструкциям по сопряжению.',
   mcpSetup_aionPairTitle: 'Доступ к AionUi',
@@ -58,12 +56,9 @@ export const ru: Messages = {
   mcpSetup_aionMcpTitle: 'MCP для Cursor Agent',
   mcpSetup_aionMcpOutdated: 'Настройки моста AionUi нужно обновить',
   mcpSetup_aionUpdateAction: 'Нажмите «{action}», затем «Применить».',
-  mcpSetup_aionRestartAction:
-    'После применения моста переподключите Cursor Agent в нужной беседе AionUi, чтобы он загрузил настройки MCP.',
-  mcpSetup_aionMcpHelp:
-    'Эти настройки MCP подходят и для Cursor, и для Cursor Agent в AionUi. Для прямого подключения Cursor также нужен плагин; для AionUi — авторизация и подключённый чат.',
-  mcpSetup_aionNext:
-    'После применения настроек перезапустите Cursor Agent в AionUi и переподключите нужный чат. Наличие настроек не подтверждает подключение моста. Другие backend AionUi этой настройкой не поддерживаются.',
+  mcpSetup_aionRestartAction: 'Переподключите Cursor Agent в нужном чате AionUi.',
+  mcpSetup_aionMcpHelp: 'У Cursor и Cursor Agent в AionUi общие настройки.',
+  mcpSetup_aionNext: 'Перезапустите Cursor Agent в AionUi и переподключите нужный чат.',
 
   agentsColumnMessages: 'Сообщения',
   mcpSetup_tabsLabel: 'MCP-клиент',
@@ -84,9 +79,10 @@ export const ru: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Общая конфигурация Cursor / AionUi',
   mcpSetup_pathLabel: 'Путь к файлу конфигурации',
   mcpSetup_browse: 'Выбрать файл…',
+  mcpSetup_browseShort: 'Выбрать…',
   mcpSetup_knownPaths: 'Другие расположения',
   mcpSetup_pathHint:
-    'Выберите файл, используемый этим приложением. Отсутствующий файл будет создан после нажатия «Применить».',
+    'Выберите файл конфигурации, используемый этим приложением. Отсутствующий файл будет создан после нажатия «Применить».',
   mcpSetup_checking: 'Проверка настроек…',
   mcpSetup_ready: 'Готово к применению',
   mcpSetup_create: 'Настройки подключения будут добавлены.',
@@ -108,17 +104,15 @@ export const ru: Messages = {
   mcpSetup_noChanges: 'Настройки уже присутствуют. Ничего не изменено.',
   mcpSetup_failed: 'Не удалось применить настройку.',
   mcpSetup_cursorNext: 'Один раз перезапустите Cursor, затем подключите агента в нужном чате.',
-  mcpSetup_opencodeNext: 'Перезапустите OpenCode v1, чтобы использовать эти настройки.',
-  mcpSetup_codexNext:
-    'Переподключите MCP в выбранном экземпляре или профиле Codex, чтобы использовать эти настройки.',
+  mcpSetup_opencodeNext: 'Перезапустите OpenCode v1.',
+  mcpSetup_codexNext: 'Переподключите MCP в нужном чате Codex.',
   mcpSetup_copyPrompt: 'Скопировать запрос подключения',
   mcpSetup_connect: 'Подключить агента в клиенте',
   mcpSetup_configureClaude: 'Настроить Claude Code',
   mcpSetup_claudeTitle: 'Настроить Claude Code',
   mcpSetup_claudeDescription:
     'Подключите интерактивный Claude Code к NCF Agent Interconnect. «Применить» включает в выбранном файле пользовательских настроек два плагина, опубликованных этим приложением: плагин NCF с MCP-сервером, фиксированными хуками жизненного цикла и вызовов инструментов, которые выполняет это приложение, и модом, сообщающим о ждущих сообщениях в нужный чат; и плагин-проверку, от которого он зависит и который позволяет уведомлению начать ход, только пока оно актуально. Также разрешается agent_read без запроса. Остальные решения о разрешениях остаются за вами.',
-  mcpSetup_claudeNext:
-    'Запустите или возобновите Claude Code как обычно, затем подключите агента. Статус агента показывает, когда автоматическое пробуждение подтверждено в чате; безопасный режим или политика организации могут его отключить.',
+  mcpSetup_claudeNext: 'Откройте или возобновите сеанс Claude Code и подключитесь в чате.',
   mcpSetup_claudeLaunch: 'Запуск Claude Code',
   mcpSetup_copyLaunch: 'Копировать команду запуска',
   mcpSetup_connectionPrompt: 'Подключись как агент <выбранное вами имя>.',
@@ -177,8 +171,6 @@ export const ru: Messages = {
   chipStopped: 'Остановлен',
   btnStop: 'Остановить',
   btnStart: 'Запустить',
-  overviewIntro:
-    'Сообщения хранятся на этом компьютере и остаются доступными при переключении чатов или клиентов.',
   statRemoteNodes: 'Удалённые узлы',
   statRemoteNodesHint: 'подключено',
   statAgents: 'Агенты',
@@ -189,10 +181,7 @@ export const ru: Messages = {
   connectAgentsBody:
     'Подключите приложение с помощью кнопки. Настройки изменяются только после нажатия «Применить».',
   connectAgentsCta: 'Открыть настройку MCP',
-  connectPeerTitle: 'Подключение другого компьютера',
-  connectPeerBody:
-    'Введите IP-адрес или URL удалённого узла и код доступа, который укажет его владелец.',
-  connectPeerCta: 'Настроить подключение',
+  connectPeerCta: 'Настройки подключения',
   agentsTitle: 'Агенты',
   ariaAddAgent: 'Добавить агента',
   agentListClient: 'Клиент: {client}',
@@ -342,12 +331,11 @@ export const ru: Messages = {
   settingsLocalOnly: ' — только этот компьютер',
   settingsSaved: 'Настройки сохранены',
   btnSave: 'Сохранить',
-  settingsBackground: 'Работа в фоне',
-  settingsBackgroundBody:
-    'Закрытие окна оставляет узел работающим в трее. Завершение работы закрывает приложение и его подключения.',
   settingsStartAtLogin: 'Запуск при входе в систему',
   settingsStartAtLoginUnavailable: 'Запуск при входе доступен в установленном приложении.',
   settingsExportRoots: 'Разрешённые папки экспорта',
+  settingsExportRootsHelp:
+    'Агенты могут пересылать друг другу файлы только из указанных папок. Пересылка файлов из других папок блокируется.',
   btnAddFolder: 'Добавить папку',
   settingsDiagnostics: 'Диагностика',
   settingsNodeId: 'Узел: {id}',

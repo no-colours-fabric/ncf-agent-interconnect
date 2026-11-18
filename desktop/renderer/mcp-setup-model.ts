@@ -50,7 +50,7 @@ export class McpSetupFlow {
     if (this.state.busy) return;
     const revision = ++this.revision;
     const draft = this.state.files;
-    const reviewRequired = !!this.state.uncertain || this.state.result?.status === 'failed';
+    const reviewRequired = !!this.state.uncertain || !!this.state.reviewRequired;
     this.discard(this.state.preview);
     this.set({
       open: true,
@@ -88,12 +88,15 @@ export class McpSetupFlow {
     this.discard(this.state.preview);
   }
   setPath(id: string, path: string): void {
-    if (this.state.busy || this.state.result || this.state.verified) return;
+    const file = this.state.files.find((item) => item.id === id);
+    if (this.state.busy || !file || file.path === path) return;
     ++this.revision;
     this.discard(this.state.preview);
     this.set({
       files: this.state.files.map((file) => (file.id === id ? { ...file, path } : file)),
       preview: undefined,
+      result: undefined,
+      verified: false,
       error: undefined,
       reviewRequired: this.state.reviewRequired || !!this.state.uncertain,
     });
@@ -182,7 +185,7 @@ export class McpSetupFlow {
         }
         if (check.disposition === 'configured') {
           this.discard(check.preview);
-          this.set({ verified: true });
+          this.set({ verified: true, reviewRequired: false });
           await this.refreshStatus();
           return;
         }
@@ -197,7 +200,7 @@ export class McpSetupFlow {
         confirmReplace: preview.requiresReplacement && confirmReplace,
       });
       if (revision === this.revision) {
-        this.set({ result });
+        this.set({ result, reviewRequired: result.status === 'failed' });
         await this.refreshStatus();
       }
     } catch (error) {

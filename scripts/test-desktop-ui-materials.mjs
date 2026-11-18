@@ -456,7 +456,6 @@ const inventory = [],
 const basicKeys = new Set([
   'settingsAppearance',
   'settingsNode',
-  'settingsBackground',
   'settingsExports',
   'overviewStat',
   'agentsTable',
@@ -541,7 +540,6 @@ async function inventoryMode(mode) {
   for (const [key, title, family] of [
     ['settingsAppearance', 'Appearance', 'basic'],
     ['settingsNode', 'Node settings', 'basic'],
-    ['settingsBackground', 'Background operation', 'basic'],
     ['settingsExports', 'Permitted export folders', 'basic'],
     ['settingsDiagnostics', 'Diagnostics', 'glass'],
   ])

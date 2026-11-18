@@ -191,7 +191,7 @@ export function AionUiAuthorization({
             }}
           >
             <Stack spacing={0.5} sx={{ alignItems: 'flex-start' }}>
-              <Typography variant={embedded ? 'caption' : 'subtitle2'} color="text.secondary">
+              <Typography variant={embedded ? 'body2' : 'subtitle2'} color="text.secondary">
                 {embedded ? m.statusAuthorization : m.aionPairTitle}
               </Typography>
               <Chip
@@ -228,6 +228,7 @@ export function AionUiAuthorization({
                   color: knownStatus?.state === 'paired' ? 'success.main' : 'text.secondary',
                   backgroundColor: 'transparent',
                   boxShadow: 'none',
+                  ...(embedded && { typography: 'body2' }),
                   '& .MuiChip-icon': { ml: 0, mr: 1 },
                   '& .MuiChip-label': { pl: 0, pr: 0 },
                 }}
@@ -243,7 +244,7 @@ export function AionUiAuthorization({
               )}
             </Stack>
             <Stack spacing={0.5}>
-              <Typography variant="caption" color="text.secondary">
+              <Typography variant={embedded ? 'body2' : 'caption'} color="text.secondary">
                 {m.statusLiveBridge}
               </Typography>
               <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-start' }}>
@@ -282,7 +283,10 @@ export function AionUiAuthorization({
             sx={{
               maxWidth: 680,
               py: 0.5,
-              '& .MuiStepLabel-label': { fontSize: 12, mt: 0.5 },
+              '& .MuiStepLabel-label': {
+                ...(embedded ? { typography: 'body2' } : { fontSize: 12 }),
+                mt: 0.5,
+              },
               '& .MuiStepIcon-root': { fontSize: 20 },
             }}
           >
@@ -379,7 +383,7 @@ export function AionUiAuthorization({
         <DialogTitle id="aionui-access-title">{m.aionPairTitle}</DialogTitle>
         <DialogContent sx={{ scrollbarGutter: 'stable' }}>
           <Stack spacing={2} sx={{ pt: 1 }}>
-            <Typography>{m.aionPairHelp}</Typography>
+            <Typography variant="body2">{m.aionPairHelp}</Typography>
             <TextField
               label={m.aionAddress}
               value={url}

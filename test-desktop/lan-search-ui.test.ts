@@ -1494,7 +1494,7 @@ window.IntersectionObserver=class {
  unobserve(target){this.targets.delete(target);this.native.unobserve(target);}
  disconnect(){this.native.disconnect();}
 };
-let value=${JSON.stringify(initial)},visible=true,held=false,pairError=null,saveError=null;
+let value=${JSON.stringify(initial)},visible=true,held=false,pairError=null,saveError=null,openAtLogin=false;
 const clients=['cursor','opencode','codex','aionui','claude'];
 const discovery={checkedAt:'2026-11-17T00:00:00.000Z',platform:'darwin',stateError:false,offers:${JSON.stringify(offers)},applications:clients.map(client=>({client,status:'detected',instances:[],coverage:[]}))};
 const clone=value=>structuredClone(value);
@@ -1506,7 +1506,8 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
  if(method==='snapshot')return read(method,value);
  if(method==='windowState')return read(method,{visible});
  if(method==='appVersion')return '0.18.7-fixture';
- if(method==='loginState')return {supported:true,openAtLogin:false};
+ if(method==='loginState')return {supported:true,openAtLogin};
+ if(method==='setLogin'){openAtLogin=input.enabled;return {openAtLogin};}
  if(method==='applicationDiscovery'||method==='applicationDiscoveryRefresh')return clone(discovery);
  if(method==='applicationDiscoveryOffered')return {saved:true};
  if(method==='mcpSetupStatus')return {client:input.client,remembered:false,state:'missing',files:[]};
@@ -1612,6 +1613,105 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
         }
         return;
       }
+
+      await suite.test(
+        'Overview groups node chips and opens the existing pairing and code dialogs',
+        {
+          skip: !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'overview',
+        },
+        async () => {
+          const page = await open([], 'overview');
+          try {
+            const value = snapshot();
+            value.peers = [
+              {
+                id: 'online-peer',
+                label: 'Online peer',
+                address: '',
+                connected: true,
+                error: null,
+              },
+              {
+                id: 'offline-peer',
+                label: 'Offline peer',
+                address: '',
+                connected: false,
+                error: null,
+              },
+            ];
+            await change(page, { snapshot: value });
+            const panel = page.getByTestId('overview-connections');
+            await panel.getByText('Online peer', { exact: true }).waitFor();
+            assert.equal(await panel.getByRole('heading').count(), 0);
+            const chips = panel.getByRole('listitem');
+            assert.deepEqual(await chips.allTextContents(), [
+              value.nodeLabel,
+              'Online peer',
+              'Offline peer',
+              first.label,
+            ]);
+            assert.equal(await chips.nth(0).getAttribute('data-active'), 'true');
+            assert.equal(await chips.nth(1).getAttribute('data-active'), 'true');
+            assert.equal(await chips.nth(2).getAttribute('data-active'), 'false');
+            for (const index of [0, 1, 2]) {
+              assert.equal(await chips.nth(index).getByRole('button').count(), 0);
+              assert.equal(await chips.nth(index).getAttribute('tabindex'), null);
+            }
+            const found = panel.getByRole('button', {
+              name: 'Connect ' + first.label,
+              exact: true,
+            });
+            await found.press('Enter');
+            const pair = page.getByRole('dialog', { name: lanSearchEnglish.connectTitle });
+            await pair.getByText(first.label, { exact: true }).waitFor();
+            assert.equal(await panel.isVisible(), true);
+            await pair
+              .getByRole('textbox', { name: lanSearchEnglish.connectionCode })
+              .fill('ABCD2345');
+            await pair.getByRole('button', { name: 'Connect', exact: true }).click();
+            await pair.waitFor({ state: 'hidden' });
+            assert.deepEqual(
+              (await calls(page, 'connectPeer')).map((entry) => entry.input),
+              [{ address: first.address, code: 'ABCD2345', expectedNodeId: first.nodeId }],
+            );
+            await page
+              .getByRole('alert')
+              .filter({ hasText: translate('en', 'networkConnectOk') })
+              .waitFor();
+            assert.equal(await panel.isVisible(), true);
+
+            const getCode = { name: lanSearchEnglish.createCode, exact: true };
+            const connectionSettings = panel.getByRole('button', {
+              name: 'Connection settings',
+              exact: true,
+            });
+            const [nodeListBounds, settingsBounds, codeBounds] = await Promise.all([
+              panel.getByRole('list').boundingBox(),
+              connectionSettings.boundingBox(),
+              panel.getByRole('button', getCode).boundingBox(),
+            ]);
+            assert.ok(nodeListBounds && settingsBounds && codeBounds);
+            assert.ok(Math.abs(settingsBounds.x - nodeListBounds.x) <= 1);
+            assert.ok(settingsBounds.y >= nodeListBounds.y + nodeListBounds.height);
+            assert.ok(codeBounds.x >= settingsBounds.x + settingsBounds.width);
+            const codeDialog = page.getByRole('dialog', { name: lanSearchEnglish.ownTitle });
+            await panel.getByRole('button', getCode).click();
+            await codeDialog.getByRole('button', { name: 'Copy code', exact: true }).waitFor();
+            await codeDialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await codeDialog.waitFor({ state: 'hidden' });
+            assert.equal(await panel.isVisible(), true);
+            assert.equal((await calls(page, 'ackLanSearch')).length, 0);
+            await connectionSettings.click();
+            const network = page.getByTestId('network-page');
+            await network.getByRole('button', getCode).click();
+            await codeDialog.getByRole('button', { name: 'Copy code', exact: true }).waitFor();
+            assert.equal((await calls(page, 'accessCode')).length, 1);
+            assert.deepEqual(errors, []);
+          } finally {
+            await page.close();
+          }
+        },
+      );
 
       await suite.test(
         'sidebar keeps passive indicators; the network page owns search status and Stop',
@@ -1881,24 +1981,71 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               name: 'Fixture interface: Listening enabled',
               exact: true,
             });
-            await toggle.uncheck();
             const name = page.getByRole('textbox', {
               name: translate('en', 'settingsNodeName'),
               exact: true,
             });
+            const save = page.getByRole('button', {
+              name: translate('en', 'btnSave'),
+              exact: true,
+            });
+            const unsaved = page.getByTestId('network-unsaved-changes');
+            const appearance = page.getByTestId('settings-appearance');
+            const darkTheme = appearance.getByRole('switch', {
+              name: translate('en', 'settingsDarkTheme'),
+              exact: true,
+            });
+            const startAtLogin = appearance.getByRole('switch', {
+              name: translate('en', 'settingsStartAtLogin'),
+              exact: true,
+            });
+            await darkTheme.waitFor();
+            assert.equal(
+              await page
+                .getByRole('heading', { name: 'Background operation', exact: true })
+                .count(),
+              0,
+            );
+            assert.equal(
+              await page.getByText(/^Closing the window keeps the node running/).count(),
+              0,
+            );
+            const appearanceBounds = await appearance.boundingBox();
+            const nameBounds = await name.boundingBox();
+            assert.ok(appearanceBounds && nameBounds);
+            assert.ok(appearanceBounds.y + appearanceBounds.height <= nameBounds.y);
+            const originalName = await name.inputValue();
+            const english = networkInterfaceMessages('en').unsavedChanges;
+            assert.equal(await unsaved.textContent(), '');
             await name.fill('Unsaved network name');
-            await page
-              .getByRole('switch', { name: translate('en', 'settingsDarkTheme'), exact: true })
-              .uncheck();
+            assert.equal(await unsaved.textContent(), english);
+            const buttonBounds = await save.boundingBox();
+            const statusBounds = await unsaved.boundingBox();
+            assert.ok(buttonBounds && statusBounds);
+            assert.ok(statusBounds.x >= buttonBounds.x + buttonBounds.width);
+            await name.fill(originalName);
+            assert.equal(await unsaved.textContent(), '');
+            await toggle.uncheck();
+            assert.equal(await unsaved.textContent(), english);
+            await toggle.check();
+            assert.equal(await unsaved.textContent(), '');
+            await toggle.uncheck();
+            await name.fill('Unsaved network name');
+            await darkTheme.uncheck();
+            await startAtLogin.check();
+            assert.deepEqual(
+              (await calls(page, 'setLogin')).map((call) => call.input),
+              [{ enabled: true }],
+            );
             assert.equal(await toggle.isChecked(), false);
             assert.equal((await calls(page, 'saveNode')).length, 0);
             await page.getByTestId('nav-network').click();
             await page.getByTestId('nav-settings').click();
+            assert.equal(await startAtLogin.isChecked(), true);
             assert.equal(await toggle.isChecked(), false);
             assert.equal(await name.inputValue(), 'Unsaved network name');
-            await page
-              .getByRole('button', { name: translate('en', 'btnSave'), exact: true })
-              .click();
+            assert.equal(await unsaved.textContent(), english);
+            await save.click();
             await until(
               async () => (await calls(page, 'saveNode')).length === 1,
               'Explicit owner Save sends one network update',
@@ -1907,12 +2054,21 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               nodeLabel: 'Unsaved network name',
               networkExclusions: [{ name: 'Fixture interface' }],
             });
+            await until(async () => (await unsaved.textContent()) === '', 'Save clears the status');
             assert.equal((await calls(page, 'mcpSetupApply')).length, 0);
             await page.evaluate(() => localStorage.setItem('interconnect.locale', 'ru'));
             await page.reload();
             await page
               .getByRole('button', { name: translate('ru', 'btnSave'), exact: true })
               .waitFor();
+            const editedName = 'Новое имя компьютера';
+            const localizedName = page.getByRole('textbox', {
+              name: translate('ru', 'settingsNodeName'),
+              exact: true,
+            });
+            await localizedName.fill(editedName);
+            const russian = networkInterfaceMessages('ru').unsavedChanges;
+            assert.equal(await unsaved.textContent(), russian);
             const diagnostic = 'Fixture EACCES while renaming /isolated/settings.json';
             await page.evaluate(
               (message) =>
@@ -1924,6 +2080,8 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               .click();
             const failure = page.getByTestId('network-save-error');
             await failure.waitFor();
+            assert.equal(await localizedName.inputValue(), editedName);
+            assert.equal(await unsaved.textContent(), russian);
             assert.equal(
               await page.getByTestId('network-save-summary').textContent(),
               networkInterfaceMessages('ru').saveFailed,

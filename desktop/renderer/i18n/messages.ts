@@ -72,7 +72,6 @@ export interface Messages extends McpSetupTranslations {
   chipStopped: string;
   btnStop: string;
   btnStart: string;
-  overviewIntro: string;
   statRemoteNodes: string;
   statRemoteNodesHint: string;
   statAgents: string;
@@ -82,8 +81,6 @@ export interface Messages extends McpSetupTranslations {
   connectAgentsTitle: string;
   connectAgentsBody: string;
   connectAgentsCta: string;
-  connectPeerTitle: string;
-  connectPeerBody: string;
   connectPeerCta: string;
   agentsTitle: string;
   ariaAddAgent: string;
@@ -217,11 +214,10 @@ export interface Messages extends McpSetupTranslations {
   settingsLocalOnly: string;
   settingsSaved: string;
   btnSave: string;
-  settingsBackground: string;
-  settingsBackgroundBody: string;
   settingsStartAtLogin: string;
   settingsStartAtLoginUnavailable: string;
   settingsExportRoots: string;
+  settingsExportRootsHelp: string;
   btnAddFolder: string;
   settingsDiagnostics: string;
   settingsNodeId: string;

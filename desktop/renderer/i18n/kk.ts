@@ -8,7 +8,7 @@ export const kk: Messages = {
     'Сақталған баптаулар тексеріледі, плагиннің жұмыс істеп тұрғаны расталмайды.',
   mcpSetup_statusUnknown: 'Белгісіз',
   mcpSetup_statusCursorMetricsHint:
-    'Қосылған чаттағы жүріс аяқталғаннан кейін жеткізу белсенді болады. Cursor қайта іске қосылғаннан кейін жеткізуді қалпына келтіру үшін сол чатқа кез келген хабар жіберіңіз.',
+    'Cursor қолданбасын қайта іске қосып, қажетті чатта хабарлама жіберіңіз.',
   mcpSetup_statusDelivery: 'Агенттерге жеткізу',
   mcpSetup_statusAuthorization: 'Авторизация',
   mcpSetup_statusLiveBridge: 'Белсенді көпір',
@@ -20,7 +20,7 @@ export const kk: Messages = {
   settingsThemeDarkLabel: 'Қараңғы',
   settingsDiagnosticNode: 'Түйін',
   settingsDiagnosticMcp: 'MCP',
-  settingsDiagnosticListening: 'Тыңдау мекенжайы',
+  settingsDiagnosticListening: 'Тыңдау мекенжайлары',
 
   settingsAppearance: 'Безендіру',
   settingsDarkTheme: 'Қараңғы тақырып',
@@ -38,8 +38,7 @@ export const kk: Messages = {
   clientsKindAionui: 'AionUi',
 
   clientsKindClaude: 'Claude Code',
-  mcpSetup_aionDescription:
-    'AionUi ішіндегі Cursor Agent қосу. Қол жеткізу, сақталған MCP баптаулары және белсенді көпір — бөлек күйлер.',
+  mcpSetup_aionDescription: 'AionUi ішінде Cursor Agent-ті қосыңыз.',
   mcpSetup_aionContinue: 'AionUi баптауын жалғастырыңыз. Төмендегі қадамдарды орындаңыз.',
   mcpSetup_aionAccessAction: '«{action}» тармағын таңдап, жұптастыру нұсқауларын орындаңыз.',
   mcpSetup_aionPairTitle: 'AionUi қол жеткізуі',
@@ -57,12 +56,9 @@ export const kk: Messages = {
   mcpSetup_aionMcpTitle: 'Cursor Agent үшін MCP',
   mcpSetup_aionMcpOutdated: 'AionUi көпірінің баптауларын жаңарту қажет',
   mcpSetup_aionUpdateAction: '«{action}» тармағын таңдап, содан кейін «Қолдану» түймесін басыңыз.',
-  mcpSetup_aionRestartAction:
-    'Көпірді қолданғаннан кейін MCP баптауларын қайта жүктеу үшін тиісті AionUi чатында Cursor Agent-ті қайта қосыңыз.',
-  mcpSetup_aionMcpHelp:
-    'Бұл MCP баптаулары Cursor үшін де, AionUi ішіндегі Cursor Agent үшін де жарамды. Cursor тікелей қосылымына плагин де қажет; AionUi үшін авторизация және қосылған чат қажет.',
-  mcpSetup_aionNext:
-    'Баптауларды қолданғаннан кейін AionUi ішіндегі Cursor Agent бағдарламасын қайта іске қосып, қажетті чатты қайта қосыңыз. Сақталған баптаулар белсенді көпірді растамайды. Бұл баптау басқа AionUi backend түрлерін қолдамайды.',
+  mcpSetup_aionRestartAction: 'AionUi ішіндегі қажетті чатта Cursor Agent-ті қайта қосыңыз.',
+  mcpSetup_aionMcpHelp: 'Cursor мен AionUi ішіндегі Cursor Agent ортақ баптауларды пайдаланады.',
+  mcpSetup_aionNext: 'AionUi ішінде Cursor Agent-ті қайта іске қосып, қажетті чатты қайта қосыңыз.',
 
   agentsColumnMessages: 'Хабарламалар',
   mcpSetup_tabsLabel: 'MCP клиенті',
@@ -83,9 +79,10 @@ export const kk: Messages = {
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi ортақ конфигурациясы',
   mcpSetup_pathLabel: 'Конфигурация файлының жолы',
   mcpSetup_browse: 'Файлды таңдау…',
+  mcpSetup_browseShort: 'Таңдау…',
   mcpSetup_knownPaths: 'Басқа орындар',
   mcpSetup_pathHint:
-    'Осы қолданба пайдаланатын файлды таңдаңыз. Жоқ файл «Қолдану» батырмасын басқанда жасалады.',
+    'Осы қолданба пайдаланатын конфигурация файлын таңдаңыз. Жоқ файл «Қолдану» батырмасын басқанда жасалады.',
   mcpSetup_checking: 'Баптаулар тексерілуде…',
   mcpSetup_ready: 'Қолдануға дайын',
   mcpSetup_create: 'Қосылу баптаулары қосылады.',
@@ -108,10 +105,8 @@ export const kk: Messages = {
   mcpSetup_failed: 'Баптауларды қолдану мүмкін болмады.',
   mcpSetup_cursorNext:
     'Cursor қолданбасын бір рет қайта іске қосып, содан кейін қажетті чатта агентті қосыңыз.',
-  mcpSetup_opencodeNext:
-    'Бұл баптауларды пайдалану үшін OpenCode v1 қолданбасын қайта іске қосыңыз.',
-  mcpSetup_codexNext:
-    'Бұл баптауларды пайдалану үшін таңдалған Codex данасында немесе профилінде MCP қосылымын қайта орнатыңыз.',
+  mcpSetup_opencodeNext: 'OpenCode v1 қолданбасын қайта іске қосыңыз.',
+  mcpSetup_codexNext: 'Қажетті Codex чатында MCP-ді қайта қосыңыз.',
   mcpSetup_copyPrompt: 'Қосылу сұрауын көшіру',
   mcpSetup_connect: 'Клиентте агентті қосу',
   mcpSetup_configureClaude: 'Claude Code баптау',
@@ -119,7 +114,7 @@ export const kk: Messages = {
   mcpSetup_claudeDescription:
     'Интерактивті Claude Code-ты NCF Agent Interconnect-ке қосыңыз. «Қолдану» таңдалған пайдаланушы баптаулары файлында осы қолданба жариялаған екі плагинді қосады: MCP сервері, осы қолданба орындайтын тұрақты өмірлік цикл және құрал шақыру хуктары, сондай-ақ күтіп тұрған хабарлар туралы дәл сол чатта хабарлайтын моды бар NCF плагині; және ол тәуелді болатын, хабарламаға ол өзекті болғанда ғана жүрісті бастауға мүмкіндік беретін тексеру плагині. Сондай-ақ agent_read-ке сұраусыз рұқсат беріледі. Басқа рұқсат шешімдері сізде қалады.',
   mcpSetup_claudeNext:
-    'Claude Code-ты әдеттегідей іске қосыңыз немесе жалғастырыңыз, содан кейін агентті қосыңыз. Агент күйі чатта автоматты ояту расталғанын көрсетеді; қауіпсіз режим немесе ұйым саясаты оны өшіруі мүмкін.',
+    'Claude Code сеансын ашыңыз немесе жалғастырыңыз, содан кейін чатта қосылыңыз.',
   mcpSetup_claudeLaunch: 'Claude Code-ты іске қосу',
   mcpSetup_copyLaunch: 'Іске қосу командасын көшіру',
   mcpSetup_connectionPrompt: '<Өзіңіз таңдаған ат> атты агент ретінде қосыл.',
@@ -178,8 +173,6 @@ export const kk: Messages = {
   chipStopped: 'Тоқтатылды',
   btnStop: 'Тоқтату',
   btnStart: 'Іске қосу',
-  overviewIntro:
-    'Хабарламалар осы компьютерде сақталады және чат немесе клиент ауыстырғанда да қолжетімді болады.',
   statRemoteNodes: 'Қашықтағы тораптар',
   statRemoteNodesHint: 'қосылған',
   statAgents: 'Агенттер',
@@ -190,9 +183,6 @@ export const kk: Messages = {
   connectAgentsBody:
     'Қолданбаны батырма арқылы қосыңыз. Баптаулар «Қолдану» батырмасын басқаннан кейін ғана өзгереді.',
   connectAgentsCta: 'MCP параметрлерін ашу',
-  connectPeerTitle: 'Басқа компьютерді қосу',
-  connectPeerBody:
-    'Қашықтағы тораптың IP немесе URL мекенжайын және оның иесі берген кіру кодын енгізіңіз.',
   connectPeerCta: 'Байланыс параметрлері',
   agentsTitle: 'Агенттер',
   ariaAddAgent: 'Агент қосу',
@@ -343,13 +333,12 @@ export const kk: Messages = {
   settingsLocalOnly: ' — тек осы компьютер',
   settingsSaved: 'Параметрлер сақталды',
   btnSave: 'Сақтау',
-  settingsBackground: 'Фонда жұмыс',
-  settingsBackgroundBody:
-    'Терезені жабу торапты трейде іске қоса күйде қалдырады. Шығу қолданбаны және оның байланыстарын жабады.',
   settingsStartAtLogin: 'Жүйеге кіру кезінде іске қосу',
   settingsStartAtLoginUnavailable:
     'Жүйеге кіру кезінде іске қосу орнатылған қолданбада қолжетімді.',
   settingsExportRoots: 'Рұқсат етілген экспорт қалталары',
+  settingsExportRootsHelp:
+    'Агенттер бір-біріне файлдарды тек тізімдегі қалталардан жібере алады. Басқа қалталардан файл жіберу бұғатталады.',
   btnAddFolder: 'Қалта қосу',
   settingsDiagnostics: 'Диагностика',
   settingsNodeId: 'Торап: {id}',

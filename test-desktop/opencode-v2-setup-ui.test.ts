@@ -85,12 +85,11 @@ function render(flow: OpenCodeV2SetupFlow, locale: Locale = 'en') {
       flow,
       locale,
       messages: mcpSetupMessages(locale),
-      onClose: () => {},
     }),
   );
 }
 
-test('v2 manual UI names its version and captured target; v1 keeps a separate legacy form and draft', async () => {
+test('v2 manual UI shows the configuration path without setup details; v1 keeps a separate form and draft', async () => {
   const f = fixture(),
     flow = new OpenCodeV2SetupFlow(f.invoke);
   await flow.beginManual();
@@ -100,8 +99,10 @@ test('v2 manual UI names its version and captured target; v1 keeps a separate le
   assert.ok(html.includes('id="mcp-setup-form-opencode-v2"'));
   assert.ok(html.includes('OpenCode v2'));
   assert.ok(html.includes(escape('/isolated/Custom v2/草稿.json')));
-  assert.ok(html.includes(escape(target.profilePath)));
-  assert.ok(html.includes(escape(applicationSetupMessages('ru').openCodeV2Description)));
+  assert.equal(flow.getSnapshot().target?.profilePath, target.profilePath);
+  assert.ok(!html.includes(escape(target.profilePath)));
+  assert.doesNotMatch(html, /<details\b/);
+  assert.ok(!html.includes(escape(applicationSetupMessages('ru').openCodeV2Description)));
   assert.match(html, /role="combobox"/);
   assert.doesNotMatch(html, /<select|Profile [12]/);
   const legacy = new McpSetupFlow('opencode', (async (method: string) => {
@@ -151,14 +152,16 @@ test('v2 UI checks only the active original uncertainty; renewed preview shows A
   await flow.beginManual();
   await flow.apply();
   const copy = applicationSetupMessages('en');
-  const visible = (html: string) => html.replace(/<details\b[^>]*>[\s\S]*?<\/details>/g, '');
   const original = flow.getSnapshot().uncertain;
-  assert.ok(visible(render(flow)).includes(copy.uncertain));
-  assert.ok(visible(render(flow)).includes(copy.checkSetupResult));
+  const current = render(flow);
+  assert.doesNotMatch(current, /<details\b/);
+  assert.ok(current.includes(copy.uncertain));
+  assert.ok(current.includes(copy.checkSetupResult));
   f.change();
   await flow.checkResult();
   const renewed = render(flow);
-  assert.ok(!visible(renewed).includes(copy.checkSetupResult));
+  assert.doesNotMatch(renewed, /<details\b/);
+  assert.ok(!renewed.includes(copy.checkSetupResult));
   assert.ok(renewed.includes('>Apply<'));
   assert.ok(renewed.includes('type="checkbox"'));
   assert.ok(renewed.includes(copy.reviewHelp));
@@ -172,8 +175,6 @@ test('v2 manual captions, help and target accessibility are professional complet
     'openCodeV1Description',
     'openCodeV2Description',
     'openCodeV2Next',
-    'openCodeProfile',
-    'selectedInstallation',
     'showOpenCodeV1',
   ] as const;
   const english = applicationSetupMessages('en');
@@ -187,8 +188,8 @@ test('v2 manual captions, help and target accessibility are professional complet
       assert.ok(copy[key].trim(), locale + ':' + key);
       if (locale !== 'en') assert.notEqual(copy[key], english[key], locale + ':' + key);
     }
-    assert.ok(html.includes(escape(copy.openCodeV2Description)), locale);
-    assert.ok(html.includes(escape(copy.openCodeProfile)), locale);
+    assert.ok(!html.includes(escape(copy.openCodeV2Description)), locale);
+    assert.ok(!html.includes(escape(copy.details)), locale);
     assert.ok(html.includes(escape(mcpSetupMessages(locale).pathLabel)), locale);
     assert.ok(html.includes('OpenCode v2'), locale);
   }

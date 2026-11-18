@@ -4,8 +4,7 @@ export const mcpSetupEnglish = {
   statusOpencodeConfig: 'MCP and plugin settings',
   statusOpencodeHint: 'This checks saved settings, not whether the plugin is running.',
   statusUnknown: 'Unknown',
-  statusCursorMetricsHint:
-    'Delivery becomes active after the connected chat completes a turn. After restarting Cursor, send any message in that chat to restore delivery.',
+  statusCursorMetricsHint: 'Restart Cursor and send a message in the intended chat.',
   statusDelivery: 'Agent delivery',
   statusAuthorization: 'Authorization',
   statusLiveBridge: 'Live bridge',
@@ -17,8 +16,7 @@ export const mcpSetupEnglish = {
 
   aionConfigureAccess: 'Configure access',
 
-  aionDescription:
-    'Connect Cursor Agent inside AionUi. Authorization, saved MCP settings and a live bridge are separate states.',
+  aionDescription: 'Connect Cursor Agent in AionUi.',
   aionContinue: 'Continue setting up AionUi. Follow the steps below.',
   aionAccessAction: 'Select {action} and follow the pairing instructions.',
   aionPairTitle: 'Access to AionUi',
@@ -37,12 +35,9 @@ export const mcpSetupEnglish = {
   aionMcpTitle: 'MCP for Cursor Agent',
   aionMcpOutdated: 'AionUi bridge settings need updating',
   aionUpdateAction: 'Select {action}, then click Apply.',
-  aionRestartAction:
-    'After applying the bridge, reconnect Cursor Agent in the intended AionUi chat so it reloads MCP settings.',
-  aionMcpHelp:
-    'These MCP settings work with both Cursor and Cursor Agent in AionUi. Direct Cursor also needs its plugin; AionUi needs authorization and a connected chat.',
-  aionNext:
-    'Restart Cursor Agent in AionUi after Apply, then reconnect the intended chat. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
+  aionRestartAction: 'Reconnect Cursor Agent in the intended AionUi chat.',
+  aionMcpHelp: 'Cursor and Cursor Agent in AionUi share these settings.',
+  aionNext: 'Restart Cursor Agent in AionUi and reconnect the chat.',
 
   tabsLabel: 'MCP client',
   userControl:
@@ -62,9 +57,10 @@ export const mcpSetupEnglish = {
   cursorSharedConfiguration: 'Shared Cursor / AionUi configuration',
   pathLabel: 'Configuration file path',
   browse: 'Choose file…',
+  browseShort: 'Choose…',
   knownPaths: 'Other locations',
   pathHint:
-    'Choose the file used by this application. A missing file will be created when you click Apply.',
+    'Choose the configuration file used by this application. A missing file will be created when you click Apply.',
   checking: 'Checking settings…',
   ready: 'Ready to apply',
   create: 'The connection settings will be added.',
@@ -85,14 +81,13 @@ export const mcpSetupEnglish = {
   noChanges: 'Settings are already present. Nothing was changed.',
   failed: 'Setup could not be applied.',
   cursorNext: 'Restart Cursor once, then connect an agent in the intended chat.',
-  opencodeNext: 'Restart OpenCode v1 to use these settings.',
-  codexNext: 'Reconnect MCP in the selected Codex instance or profile to use these settings.',
+  opencodeNext: 'Restart OpenCode v1.',
+  codexNext: 'Reconnect MCP in the intended Codex chat.',
   configureClaude: 'Configure Claude Code',
   claudeTitle: 'Configure Claude Code',
   claudeDescription:
     'Connect interactive Claude Code to NCF Agent Interconnect. Apply enables two plugins published by this app in the selected user settings file: the NCF plugin, with its MCP server, fixed lifecycle and tool-call hooks run by this app, and a mod that announces waiting messages in the exact chat; and the gate plugin it depends on, which lets an announcement start a turn only while it is current. Apply also allows agent_read without a prompt. Other permission decisions stay yours.',
-  claudeNext:
-    'Start or resume Claude Code normally, then connect an agent. The agent status shows when automatic wake is verified in a chat; safe mode or an organization policy can turn it off.',
+  claudeNext: 'Open or resume Claude Code, then connect in the chat.',
   claudeLaunch: 'Start Claude Code',
   copyLaunch: 'Copy launch command',
   copyPrompt: 'Copy connection prompt',

@@ -31,7 +31,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Create an agent manually',
     dialogAddAgentBody: 'Use this feature for diagnostics only.',
     dialogManualAgentDiagnostic:
-      'For normal use, open a new tab or switch to an existing one in any configured app, and simply type {command}.',
+      'In any configured app, open a new chat or return to an existing one, then type {command}.',
     agentEmptyPrompt: 'No agents yet.',
     aionUiApplication: 'AionUi with Cursor Agent',
   },
@@ -49,7 +49,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Создать агента вручную',
     dialogAddAgentBody: 'Используйте эту возможность только для диагностики.',
     dialogManualAgentDiagnostic:
-      'Для обычной работы в любом настроенном приложении откройте новую вкладку или перейдите на уже открытую и просто напечатайте {command}.',
+      'В любом настроенном приложении откройте новый или существующий чат и введите {command}.',
     agentEmptyPrompt: 'Агентов пока нет.',
     aionUiApplication: 'AionUi с Cursor Agent',
   },
@@ -65,8 +65,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticAction: '手动创建智能体以进行诊断',
     dialogAddAgent: '手动创建智能体',
     dialogAddAgentBody: '此功能仅用于诊断。',
-    dialogManualAgentDiagnostic:
-      '日常使用时，请在任意已配置的应用中打开新标签页或切换到已打开的标签页，然后直接输入 {command}。',
+    dialogManualAgentDiagnostic: '在任意已配置的应用中打开新聊天或已有聊天，然后输入 {command}。',
     agentEmptyPrompt: '暂无智能体。',
     aionUiApplication: 'AionUi（Cursor Agent）',
   },
@@ -84,7 +83,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Créer un agent manuellement',
     dialogAddAgentBody: 'Utilisez cette fonction uniquement à des fins de diagnostic.',
     dialogManualAgentDiagnostic:
-      'Pour une utilisation normale, ouvrez un nouvel onglet ou revenez à un onglet déjà ouvert dans une application configurée, puis tapez simplement {command}.',
+      'Dans une application configurée, ouvrez une nouvelle conversation ou reprenez-en une, puis tapez {command}.',
     agentEmptyPrompt: 'Aucun agent pour le moment.',
     aionUiApplication: 'AionUi avec Cursor Agent',
   },
@@ -102,7 +101,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Agent manuell erstellen',
     dialogAddAgentBody: 'Verwenden Sie diese Funktion ausschließlich zur Diagnose.',
     dialogManualAgentDiagnostic:
-      'Öffnen Sie für die normale Arbeit in einer eingerichteten App einen neuen Tab oder wechseln Sie zu einem bereits geöffneten und geben Sie einfach {command} ein.',
+      'Öffnen Sie in einer eingerichteten App einen neuen oder bestehenden Chat und geben Sie {command} ein.',
     agentEmptyPrompt: 'Noch keine Agenten vorhanden.',
     aionUiApplication: 'AionUi mit Cursor Agent',
   },
@@ -120,7 +119,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Crea un agente manualmente',
     dialogAddAgentBody: 'Usa questa funzione solo per la diagnostica.',
     dialogManualAgentDiagnostic:
-      'Per l’uso normale, apri una nuova scheda o passa a una già aperta in un’app configurata e digita semplicemente {command}.',
+      'In un’app configurata, apri una chat nuova o esistente e digita {command}.',
     agentEmptyPrompt: 'Non ci sono ancora agenti.',
     aionUiApplication: 'AionUi con Cursor Agent',
   },
@@ -138,7 +137,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Crear un agente manualmente',
     dialogAddAgentBody: 'Utiliza esta función solo para diagnóstico.',
     dialogManualAgentDiagnostic:
-      'Para el uso habitual, abre una pestaña nueva o ve a una ya abierta en cualquier aplicación configurada y escribe simplemente {command}.',
+      'En una aplicación configurada, abre un chat nuevo o existente y escribe {command}.',
     agentEmptyPrompt: 'Aún no hay agentes.',
     aionUiApplication: 'AionUi con Cursor Agent',
   },
@@ -156,7 +155,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Агентті қолмен жасау',
     dialogAddAgentBody: 'Бұл мүмкіндікті тек диагностика үшін пайдаланыңыз.',
     dialogManualAgentDiagnostic:
-      'Қалыпты жұмыс үшін бапталған кез келген қолданбада жаңа қойындыны ашыңыз немесе ашық қойындыға өтіп, жай ғана {command} деп теріңіз.',
+      'Бапталған кез келген қолданбада жаңа не бұрыннан бар чатты ашып, {command} деп теріңіз.',
     agentEmptyPrompt: 'Әзірге агенттер жоқ.',
     aionUiApplication: 'Cursor Agent қолданылатын AionUi',
   },
@@ -174,7 +173,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'エージェントを手動で作成',
     dialogAddAgentBody: 'この機能は診断目的にのみ使用してください。',
     dialogManualAgentDiagnostic:
-      '通常の作業では、設定済みのアプリで新しいタブを開くか、すでに開いているタブに切り替えて、{command} と入力してください。',
+      '設定済みのアプリで新しいチャットまたは既存のチャットを開き、{command} と入力してください。',
     agentEmptyPrompt: 'エージェントはまだありません。',
     aionUiApplication: 'AionUi（Cursor Agent）',
   },
@@ -192,7 +191,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Criar um agente manualmente',
     dialogAddAgentBody: 'Use este recurso apenas para diagnóstico.',
     dialogManualAgentDiagnostic:
-      'Para o uso normal, abra uma nova aba ou vá para uma já aberta em qualquer aplicativo configurado e simplesmente digite {command}.',
+      'Em qualquer aplicativo configurado, abra um chat novo ou existente e digite {command}.',
     agentEmptyPrompt: 'Ainda não há agentes.',
     aionUiApplication: 'AionUi com Cursor Agent',
   },
@@ -210,7 +209,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: '에이전트 수동 생성',
     dialogAddAgentBody: '이 기능은 진단 용도로만 사용하세요.',
     dialogManualAgentDiagnostic:
-      '일반적인 작업에서는 설정된 앱에서 새 탭을 열거나 이미 열려 있는 탭으로 이동한 다음 {command}를 입력하세요.',
+      '설정된 앱에서 새 채팅이나 기존 채팅을 열고 {command}를 입력하세요.',
     agentEmptyPrompt: '아직 에이전트가 없습니다.',
     aionUiApplication: 'AionUi(Cursor Agent)',
   },
@@ -228,7 +227,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Manuel ajan oluştur',
     dialogAddAgentBody: 'Bu özelliği yalnızca tanılama için kullanın.',
     dialogManualAgentDiagnostic:
-      'Normal kullanım için yapılandırılmış bir uygulamada yeni bir sekme açın veya açık bir sekmeye geçin ve yalnızca {command} yazın.',
+      'Yapılandırılmış bir uygulamada yeni veya mevcut bir sohbet açın ve {command} yazın.',
     agentEmptyPrompt: 'Henüz ajan yok.',
     aionUiApplication: 'Cursor Agent ile AionUi',
   },
@@ -246,7 +245,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Utwórz agenta ręcznie',
     dialogAddAgentBody: 'Używaj tej funkcji wyłącznie do diagnostyki.',
     dialogManualAgentDiagnostic:
-      'Aby normalnie pracować, otwórz nową kartę lub przejdź do już otwartej w dowolnej skonfigurowanej aplikacji i po prostu wpisz {command}.',
+      'W dowolnej skonfigurowanej aplikacji otwórz nowy lub istniejący czat i wpisz {command}.',
     agentEmptyPrompt: 'Nie ma jeszcze agentów.',
     aionUiApplication: 'AionUi z Cursor Agent',
   },
@@ -264,7 +263,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Handmatig een agent maken',
     dialogAddAgentBody: 'Gebruik deze functie alleen voor diagnose.',
     dialogManualAgentDiagnostic:
-      'Open voor normaal gebruik in een ingestelde app een nieuw tabblad of ga naar een al geopend tabblad en typ gewoon {command}.',
+      'Open in een ingestelde app een nieuwe of bestaande chat en typ {command}.',
     agentEmptyPrompt: 'Er zijn nog geen agenten.',
     aionUiApplication: 'AionUi met Cursor Agent',
   },
@@ -282,7 +281,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
     dialogAddAgent: 'Створити агента вручну',
     dialogAddAgentBody: 'Використовуйте цю можливість лише для діагностики.',
     dialogManualAgentDiagnostic:
-      'Для звичайної роботи в будь-якому налаштованому застосунку відкрийте нову вкладку або перейдіть на вже відкриту й просто надрукуйте {command}.',
+      'У будь-якому налаштованому застосунку відкрийте новий або наявний чат і введіть {command}.',
     agentEmptyPrompt: 'Агентів поки немає.',
     aionUiApplication: 'AionUi з Cursor Agent',
   },

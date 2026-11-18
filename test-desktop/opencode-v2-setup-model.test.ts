@@ -136,6 +136,28 @@ test('v2 manual selection retains full Browse target, invalidates a plan and nev
   await flow.apply();
   assert.deepEqual(f.writes()[0].params.target, selected);
   assert.equal(f.writes().length, 1);
+  const completed = flow.getSnapshot();
+  assert.equal(completed.phase, 'succeeded');
+  f.handlers.browse = async () => null;
+  await flow.browse();
+  assert.equal(flow.getSnapshot().phase, 'succeeded');
+  assert.equal(flow.getSnapshot().result, completed.result);
+  f.handlers.browse = async () => selected;
+  await flow.browse();
+  assert.equal(flow.getSnapshot().phase, 'succeeded');
+  await flow.apply();
+  assert.equal(f.writes().length, 1, 'closing the picker must not make a consumed plan actionable');
+  f.handlers.browse = async () => picked;
+  await flow.browse();
+  assert.deepEqual(flow.getSnapshot().target, picked);
+  assert.equal(flow.getSnapshot().result, undefined);
+  assert.equal(flow.getSnapshot().preview, undefined);
+  await flow.apply();
+  assert.equal(f.writes().length, 1);
+  await flow.review();
+  await flow.apply();
+  assert.equal(f.writes().length, 2);
+  assert.deepEqual(f.writes()[1].params.target, picked);
 });
 
 test('v2 uncertain original result is inspected at its captured target and verified configuration is not replayed', async () => {

@@ -1,6 +1,6 @@
 import { groupLanSearchNodes } from '../shared/lan-search.js';
 import { networkInterfaceMessages } from './i18n/network-interfaces.js';
-import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useId, useImperativeHandle, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -180,6 +180,9 @@ export interface NetworkManualConnection {
 }
 export interface NetworkPageProps {
   active: boolean;
+  overviewActive?: boolean;
+  overviewActions?: React.Ref<NetworkOverviewActions>;
+  onOverviewPaired?: () => void;
   windowVisible: boolean;
   obscured?: boolean;
   snapshot: Snapshot;
@@ -191,6 +194,11 @@ export interface NetworkPageProps {
   manual: NetworkManualConnection;
   /** The existing paired-node/details renderer, with all of its capabilities. */
   children: React.ReactNode;
+}
+
+export interface NetworkOverviewActions {
+  connectFoundNode(nodeId: string): void;
+  openConnectionCode(): void;
 }
 
 export function unpairedLanNodes(snapshot: Snapshot): LanSearchNode[] {
@@ -219,6 +227,9 @@ export function lanSearchNavigation(snapshot: Snapshot): {
 /** Keep mounted when inactive so navigation cannot discard drafts or an in-flight action. */
 export function NetworkPage({
   active,
+  overviewActive = false,
+  overviewActions,
+  onOverviewPaired,
   windowVisible,
   obscured = false,
   snapshot,
@@ -236,7 +247,12 @@ export function NetworkPage({
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const id = useId();
   const [manualOpen, setManualOpen] = useState(false);
-  const [selected, setSelected] = useState<Readonly<LanSearchNode> | null>(null);
+  const [selection, setSelection] = useState<{
+    node: Readonly<LanSearchNode>;
+    fromOverview: boolean;
+  } | null>(null);
+  const selected = selection?.node;
+  const openOwnCode = useRef<(() => void) | null>(null);
   const [addressChoice, setAddressChoice] = useState('auto');
   const [code, setCode] = useState('');
   const [pairPending, setPairPending] = useState(false);
@@ -284,6 +300,23 @@ export function NetworkPage({
   currentKeys.current = new Set(nodes.map((node) => node.key));
   const keySignature = nodes.map((node) => node.key).join('\n');
   const unseenSignature = search?.unseenKeys.join('\n') ?? '';
+
+  const openPair = (node: LanSearchNode, fromOverview: boolean) => {
+    if (!snapshot.running || pairFence.current) return;
+    setSelection({ node: Object.freeze({ ...node }), fromOverview });
+    setAddressChoice('auto');
+    setCode('');
+    setPairError(null);
+  };
+  useImperativeHandle(overviewActions, () => ({
+    connectFoundNode: (nodeId) => {
+      const node = nodes.find((candidate) => candidate.nodeId === nodeId);
+      if (overviewActive && node?.newlyFound) openPair(node, true);
+    },
+    openConnectionCode: () => {
+      if (overviewActive) openOwnCode.current?.();
+    },
+  }));
 
   useEffect(() => {
     mounted.current = true;
@@ -460,7 +493,7 @@ export function NetworkPage({
   };
   const closePair = () => {
     if (pairFence.current) return;
-    setSelected(null);
+    setSelection(null);
     setManualOpen(false);
     setCode('');
     setPairError(null);
@@ -501,10 +534,11 @@ export function NetworkPage({
         return next;
       });
       if (isManual) manual.onCodeChange('');
-      setSelected(null);
+      setSelection(null);
       setManualOpen(false);
       setCode('');
-      setPairedNotice(true);
+      if (!isManual && selection?.fromOverview) onOverviewPaired?.();
+      else setPairedNotice(true);
     } catch (error) {
       const detail =
         error instanceof UncertainPairAttempt
@@ -595,8 +629,9 @@ export function NetworkPage({
           onCodeChange={onOwnCodeChange}
           locale={locale}
           invoke={invoke}
-          active={active}
-          visible={canObserve}
+          active={active || overviewActive}
+          visible={canObserve || (overviewActive && windowVisible && documentVisible && !obscured)}
+          openRef={openOwnCode}
         />
         {pairedNotice && (
           <Alert severity="success" role="status" onClose={() => setPairedNotice(false)}>
@@ -764,12 +799,7 @@ export function NetworkPage({
                       sx={{ minHeight: 44 }}
                       disabled={!snapshot.running || pairPending}
                       aria-label={`${t(locale, 'btnConnect')} ${node.label}`}
-                      onClick={() => {
-                        setSelected(Object.freeze({ ...node }));
-                        setAddressChoice('auto');
-                        setCode('');
-                        setPairError(null);
-                      }}
+                      onClick={() => openPair(node, false)}
                     >
                       {t(locale, 'btnConnect')}
                     </Button>
@@ -788,7 +818,7 @@ export function NetworkPage({
         </Box>
       </Stack>
       <Dialog
-        open={active && !!selected}
+        open={!!selection && (selection.fromOverview ? overviewActive : active)}
         onClose={closePair}
         fullWidth
         maxWidth="sm"

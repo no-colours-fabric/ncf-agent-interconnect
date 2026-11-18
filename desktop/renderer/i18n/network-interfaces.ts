@@ -19,6 +19,7 @@ const translations = {
     addressLabel: 'Connection address',
     unverified: 'Unverified',
     saveFailed: 'Network settings could not be saved.',
+    unsavedChanges: 'Unsaved changes',
     localHelp:
       'Connections are currently limited to this computer. Check the network interfaces in Settings.',
   },
@@ -40,6 +41,7 @@ const translations = {
     addressLabel: 'Адрес подключения',
     unverified: 'Не проверен',
     saveFailed: 'Не удалось сохранить настройки сети.',
+    unsavedChanges: 'Изменения не сохранены',
     localHelp:
       'Сейчас подключение доступно только с этого компьютера. Проверьте сетевые интерфейсы в настройках.',
   },
@@ -59,6 +61,7 @@ const translations = {
     addressLabel: '连接地址',
     unverified: '未经验证',
     saveFailed: '无法保存网络设置。',
+    unsavedChanges: '有未保存的更改',
     localHelp: '当前仅能从本机连接。请在设置中检查网络接口。',
   },
   fr: {
@@ -79,6 +82,7 @@ const translations = {
     addressLabel: 'Adresse de connexion',
     unverified: 'Non vérifié',
     saveFailed: 'Impossible d’enregistrer les paramètres réseau.',
+    unsavedChanges: 'Modifications non enregistrées',
     localHelp:
       'Les connexions sont actuellement limitées à cet ordinateur. Vérifiez les interfaces réseau dans les paramètres.',
   },
@@ -100,6 +104,7 @@ const translations = {
     addressLabel: 'Verbindungsadresse',
     unverified: 'Nicht verifiziert',
     saveFailed: 'Netzwerkeinstellungen konnten nicht gespeichert werden.',
+    unsavedChanges: 'Ungespeicherte Änderungen',
     localHelp:
       'Verbindungen sind derzeit nur von diesem Computer aus möglich. Prüfen Sie die Netzwerkschnittstellen in den Einstellungen.',
   },
@@ -121,6 +126,7 @@ const translations = {
     addressLabel: 'Indirizzo di connessione',
     unverified: 'Non verificato',
     saveFailed: 'Impossibile salvare le impostazioni di rete.',
+    unsavedChanges: 'Modifiche non salvate',
     localHelp:
       'Al momento le connessioni sono possibili solo da questo computer. Controlla le interfacce di rete nelle impostazioni.',
   },
@@ -142,6 +148,7 @@ const translations = {
     addressLabel: 'Dirección de conexión',
     unverified: 'Sin verificar',
     saveFailed: 'No se pudo guardar la configuración de red.',
+    unsavedChanges: 'Cambios sin guardar',
     localHelp:
       'Actualmente solo se puede conectar desde este equipo. Revisa las interfaces de red en la configuración.',
   },
@@ -163,6 +170,7 @@ const translations = {
     addressLabel: 'Қосылу мекенжайы',
     unverified: 'Тексерілмеген',
     saveFailed: 'Желі параметрлерін сақтау мүмкін болмады.',
+    unsavedChanges: 'Сақталмаған өзгерістер',
     localHelp:
       'Қазір тек осы компьютерден қосылуға болады. Параметрлердегі желілік интерфейстерді тексеріңіз.',
   },
@@ -184,6 +192,7 @@ const translations = {
     addressLabel: '接続先アドレス',
     unverified: '未確認',
     saveFailed: 'ネットワーク設定を保存できませんでした。',
+    unsavedChanges: '未保存の変更があります',
     localHelp:
       '現在、このコンピューターからのみ接続できます。設定でネットワークインターフェースを確認してください。',
   },
@@ -205,6 +214,7 @@ const translations = {
     addressLabel: 'Endereço de conexão',
     unverified: 'Não verificado',
     saveFailed: 'Não foi possível salvar as configurações de rede.',
+    unsavedChanges: 'Alterações não salvas',
     localHelp:
       'No momento, as conexões só são possíveis a partir deste computador. Verifique as interfaces de rede nas configurações.',
   },
@@ -226,6 +236,7 @@ const translations = {
     addressLabel: '연결 주소',
     unverified: '확인되지 않음',
     saveFailed: '네트워크 설정을 저장하지 못했습니다.',
+    unsavedChanges: '저장하지 않은 변경 사항',
     localHelp:
       '현재는 이 컴퓨터에서만 연결할 수 있습니다. 설정에서 네트워크 인터페이스를 확인하세요.',
   },
@@ -247,6 +258,7 @@ const translations = {
     addressLabel: 'Bağlantı adresi',
     unverified: 'Doğrulanmamış',
     saveFailed: 'Ağ ayarları kaydedilemedi.',
+    unsavedChanges: 'Kaydedilmemiş değişiklikler',
     localHelp:
       'Şu anda yalnızca bu bilgisayardan bağlantı kurulabilir. Ayarlardaki ağ arayüzlerini kontrol edin.',
   },
@@ -268,6 +280,7 @@ const translations = {
     addressLabel: 'Adres połączenia',
     unverified: 'Niezweryfikowany',
     saveFailed: 'Nie udało się zapisać ustawień sieci.',
+    unsavedChanges: 'Niezapisane zmiany',
     localHelp:
       'Obecnie połączenia są możliwe tylko z tego komputera. Sprawdź interfejsy sieciowe w ustawieniach.',
   },
@@ -289,6 +302,7 @@ const translations = {
     addressLabel: 'Verbindingsadres',
     unverified: 'Niet geverifieerd',
     saveFailed: 'Netwerkinstellingen konden niet worden opgeslagen.',
+    unsavedChanges: 'Niet-opgeslagen wijzigingen',
     localHelp:
       'Verbindingen zijn momenteel alleen vanaf deze computer mogelijk. Controleer de netwerkinterfaces in de instellingen.',
   },
@@ -310,6 +324,7 @@ const translations = {
     addressLabel: 'Адреса підключення',
     unverified: 'Не перевірено',
     saveFailed: 'Не вдалося зберегти налаштування мережі.',
+    unsavedChanges: 'Незбережені зміни',
     localHelp:
       'Зараз підключення доступне лише з цього комп’ютера. Перевірте мережеві інтерфейси в налаштуваннях.',
   },
@@ -331,6 +346,7 @@ const translations = {
     | 'addressLabel'
     | 'unverified'
     | 'saveFailed'
+    | 'unsavedChanges'
     | 'localHelp',
     string
   >

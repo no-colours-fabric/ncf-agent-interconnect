@@ -187,7 +187,7 @@ export class OpenCodeV2SetupFlow {
   }
 
   setConfigurationPath(path: string): void {
-    if (this.busy() || !this.state.target) return;
+    if (this.busy() || !this.state.target || this.state.target.configurationPath === path) return;
     ++this.revision;
     ++this.statusRevision;
     this.pendingStatus = undefined;
@@ -208,6 +208,7 @@ export class OpenCodeV2SetupFlow {
     if (this.busy() || this.otherBusy() || !this.state.target) return;
     const revision = ++this.revision;
     const target = { ...this.state.target };
+    let phase = this.state.phase;
     this.set({ phase: 'preparing', error: undefined });
     try {
       const selected = await this.call('opencodeV2SetupBrowse', { target });
@@ -215,6 +216,8 @@ export class OpenCodeV2SetupFlow {
       if (selected) {
         if (!validTarget(selected))
           throw new Error('The selected OpenCode v2 target is unavailable');
+        if (sameTarget(selected, target)) return;
+        phase = 'idle';
         this.discard(this.state.preview);
         ++this.statusRevision;
         this.pendingStatus = undefined;
@@ -230,8 +233,7 @@ export class OpenCodeV2SetupFlow {
     } catch (error) {
       if (revision === this.revision) this.set({ error: message(error) });
     } finally {
-      if (revision === this.revision)
-        this.set({ phase: this.checkingOriginal() ? 'uncertain' : 'idle' });
+      if (revision === this.revision) this.set({ phase });
     }
   }
 
