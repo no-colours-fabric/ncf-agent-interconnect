@@ -202,25 +202,18 @@ export function unpairedLanNodes(snapshot: Snapshot): LanSearchNode[] {
   );
 }
 
-export function lanSearchNavigation(
-  snapshot: Snapshot,
-  locale: Locale,
-): { searching: boolean; unseenCount: number; statusLabel: string } {
+export function lanSearchNavigation(snapshot: Snapshot): {
+  searching: boolean;
+  unseenCount: number;
+} {
   const search = snapshot.lanSearch;
   const visibleNodes = unpairedLanNodes(snapshot);
   const unseen = new Set(search?.unseenKeys ?? []);
-  const searching = search?.phase === 'searching';
   return {
-    searching,
+    searching: search?.phase === 'searching',
     unseenCount: visibleNodes.filter((node) =>
       [node, ...(node.endpoints ?? [])].some((endpoint) => unseen.has(endpoint.key)),
     ).length,
-    statusLabel: searching
-      ? formatLanSearch(lanSearchMessages(locale).sidebarStatus, {
-          seconds: Math.max(0, Math.ceil((search.durationMs - search.elapsedMs) / 1000)),
-          count: search.foundCount,
-        })
-      : '',
   };
 }
 
@@ -683,6 +676,17 @@ export function NetworkPage({
             aria-hidden={!searching}
           >
             <Box sx={{ pb: 2 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 0.75, fontVariantNumeric: 'tabular-nums' }}
+              >
+                {search &&
+                  formatLanSearch(m.searchStatus, {
+                    seconds: Math.ceil((duration - elapsed) / 1000),
+                    count: search.foundCount,
+                  })}
+              </Typography>
               <LinearProgress
                 variant="determinate"
                 value={(elapsed / duration) * 100}

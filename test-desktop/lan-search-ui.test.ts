@@ -243,12 +243,12 @@ test('search UI: all 15 independent dictionaries preserve placeholders and liter
     assert.notEqual(lanSearchMessages(locale).searching, 'Caller mutation');
   }
   assert.equal(
-    formatLanSearch(lanSearchEnglish.sidebarStatus, { seconds: 18, count: 1 }),
+    formatLanSearch(lanSearchEnglish.searchStatus, { seconds: 18, count: 1 }),
     'Searching · 18s left · 1 found',
   );
 });
 
-test('search UI: navigation excludes paired identities/addresses and retains current-pass count semantics', () => {
+test('search UI: navigation counts unseen nodes while excluding paired identities and addresses', () => {
   const value = snapshot();
   value.peers = [
     { id: first.nodeId, label: 'Authenticated', address: '', connected: false, error: null },
@@ -257,10 +257,9 @@ test('search UI: navigation excludes paired identities/addresses and retains cur
     unpairedLanNodes(value).map((node) => node.key),
     [second.key],
   );
-  assert.deepEqual(lanSearchNavigation(value, 'en'), {
+  assert.deepEqual(lanSearchNavigation(value), {
     searching: true,
     unseenCount: 1,
-    statusLabel: 'Searching · 18s left · 1 found',
   });
   value.peers.push({
     id: 'different-authenticated-id',
@@ -269,12 +268,11 @@ test('search UI: navigation excludes paired identities/addresses and retains cur
     connected: true,
     error: null,
   });
-  assert.equal(lanSearchNavigation(value, 'ru').unseenCount, 0);
+  assert.equal(lanSearchNavigation(value).unseenCount, 0);
   value.lanSearch!.phase = 'stopped';
-  assert.deepEqual(lanSearchNavigation(value, 'en'), {
+  assert.deepEqual(lanSearchNavigation(value), {
     searching: false,
     unseenCount: 0,
-    statusLabel: '',
   });
   delete value.lanSearch;
   assert.deepEqual(unpairedLanNodes(value), []);
@@ -764,6 +762,7 @@ root.render(<App key={generation} patch={{}}/>);
           assert.equal(await spinner.count(), 1);
           assert.equal(await progress.getAttribute('aria-valuenow'), '40');
           assert.equal(await progress.getAttribute('aria-valuetext'), '12 of 30s');
+          await region.getByText('Searching · 18s left · 0 found', { exact: true }).waitFor();
           const expansionDuration = await progress.evaluate((bar) =>
             Number.parseFloat(
               getComputedStyle(bar.closest('.MuiCollapse-root')!).transitionDuration,
@@ -782,11 +781,19 @@ root.render(<App key={generation} patch={{}}/>);
           ]) {
             assert.equal(await region.getByText(label, { exact: true }).count(), 0);
           }
+          value.lanSearch.elapsedMs = 27000;
+          value.lanSearch.foundCount = 3;
+          await update(page, { snapshot: value });
+          const summary = region.getByText('Searching · 3s left · 3 found', { exact: true });
+          const summaryBounds = (await summary.boundingBox())!;
+          const progressBounds = (await progress.boundingBox())!;
+          assert.ok(summaryBounds.y + summaryBounds.height <= progressBounds.y);
           await stopButton.click();
           assert.deepEqual((await callList(page, 'stopLanSearch'))[0].input, {});
           value.lanSearch.phase = 'stopped';
           await update(page, { snapshot: value });
           await region.locator('[aria-label="Search time"]').waitFor({ state: 'detached' });
+          assert.equal(await summary.count(), 0);
           assert.equal(await heading.textContent(), 'Nearby computers');
           assert.equal(await badge.textContent(), '2');
           assert.equal(await spinner.count(), 0);
@@ -1564,7 +1571,7 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
       }
 
       await suite.test(
-        'sidebar Stop, preserved manual/Settings/theme drafts, paired metadata and R7 return paths',
+        'sidebar keeps passive indicators; the network page owns search status and Stop',
         {
           skip:
             !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'navigation',
@@ -1573,10 +1580,12 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
           const page = await open([], 'overview');
           try {
             await page.getByTestId('overview-applications').waitFor();
-            await page
-              .getByRole('status')
-              .filter({ hasText: 'Searching · 18s left · 1 found' })
-              .waitFor();
+            const sidebar = page.getByRole('complementary');
+            const nav = sidebar.getByTestId('nav-network');
+            const searchStatus = 'Searching · 18s left · 1 found';
+            await nav.getByRole('progressbar', { name: 'Searching your network' }).waitFor();
+            assert.equal(await sidebar.getByText(searchStatus, { exact: true }).count(), 0);
+            assert.equal(await sidebar.getByRole('button', { name: 'Stop search' }).count(), 0);
             assert.equal(
               (await calls(page, 'startLanSearch')).length,
               0,
@@ -1587,21 +1596,16 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               0,
               'inactive network page cannot acknowledge',
             );
-            await page.getByTestId('nav-network').getByText('+2', { exact: true }).waitFor();
-            const stop = page
-              .getByRole('complementary')
-              .getByRole('button', { name: 'Stop search', exact: true });
-            assert.equal(await stop.locator('button').count(), 0);
-            assert.equal(
-              await stop.locator('xpath=ancestor::*[@data-testid="nav-network"]').count(),
-              0,
-            );
+            await nav.getByText('+2', { exact: true }).waitFor();
+            await nav.click();
+            const networkPage = page.getByTestId('network-page');
+            await networkPage.getByText(searchStatus, { exact: true }).waitFor();
+            const stop = networkPage.getByRole('button', { name: 'Stop search', exact: true });
             assert.ok((await stop.boundingBox())!.height >= 44);
             await stop.click();
             assert.deepEqual((await calls(page, 'stopLanSearch'))[0].input, {});
             assert.equal((await calls(page, 'stop')).length, 0);
             assert.equal(await page.getByTestId('node-toggle').textContent(), 'Stop');
-            await page.getByTestId('nav-network').click();
             await page.getByRole('button', { name: 'Search again', exact: true }).waitFor();
             await page.getByTestId('remote-nodes-table').waitFor();
             await page.getByText('Retained fixture peer diagnostic', { exact: true }).waitFor();
@@ -1629,8 +1633,10 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               .getByRole('heading', { name: 'Applications', exact: true })
               .first()
               .waitFor();
-            for (const client of ['cursor', 'opencode', 'codex', 'aionui', 'claude'])
+            for (const client of ['cursor', 'opencode-v2', 'codex', 'aionui', 'claude'])
               await page.getByTestId('application-row-' + client).waitFor();
+            await page.getByLabel('Show OpenCode v1', { exact: true }).click();
+            await page.getByTestId('application-row-opencode').waitFor();
             await page.getByTestId('nav-settings').click();
             const settingsDraft = page.getByRole('textbox', {
               name: translate('en', 'settingsNodeName'),

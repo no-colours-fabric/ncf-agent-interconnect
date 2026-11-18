@@ -80,7 +80,6 @@ function App({
   const [networkSaveError, setNetworkSaveError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [windowVisible, setWindowVisible] = useState(false);
-  const stopSearchPending = useRef(false);
   const [nicknameDialog, setNicknameDialog] = useState(false),
     [nickname, setNickname] = useState('');
   const [address, setAddress] = useState(''),
@@ -222,15 +221,6 @@ function App({
       return [];
     }
   })();
-  const stopSearch = () => {
-    if (stopSearchPending.current) return;
-    stopSearchPending.current = true;
-    void call('stopLanSearch', {})
-      .catch(() => setError(lanSearchMessages(locale).unavailableHelp))
-      .finally(() => {
-        stopSearchPending.current = false;
-      });
-  };
   const changeLocale = (next: unknown) => {
     if (!isLocale(next)) return;
     setLocale(next);
@@ -244,11 +234,7 @@ function App({
         page={page}
         appVersion={appVersion}
         busy={busy}
-        networkDiscovery={{
-          ...lanSearchNavigation(snapshot, locale),
-          onStopSearch: stopSearch,
-          stopLabel: lanSearchMessages(locale).stopSearch,
-        }}
+        networkDiscovery={lanSearchNavigation(snapshot)}
         onNavigate={navigate}
         onLocaleChange={changeLocale}
         onToggle={() => {

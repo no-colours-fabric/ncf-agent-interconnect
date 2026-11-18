@@ -21,6 +21,7 @@ import type { Snapshot } from '../shared/contracts.js';
 import { localeLabel, supportedLocales, t, type Locale } from './i18n/index.js';
 import { contentWidth, designTokens } from './theme.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
+import { lanSearchMessages } from './i18n/lan-search.js';
 
 export type Page = 'overview' | 'agents' | 'network' | 'mcp' | 'clients' | 'settings';
 export const navigation: {
@@ -38,9 +39,6 @@ export const navigation: {
 export interface NetworkNavigationSignals {
   searching: boolean;
   unseenCount: number;
-  statusLabel: string;
-  onStopSearch?: () => void;
-  stopLabel?: string;
 }
 
 export function AppShell({
@@ -124,7 +122,6 @@ export function AppShell({
               />
               {item.id === 'network' && networkDiscovery && (
                 <Box
-                  aria-label={networkDiscovery.statusLabel}
                   sx={{
                     display: 'flex',
                     alignItems: 'center',
@@ -134,7 +131,9 @@ export function AppShell({
                     flexShrink: 0,
                   }}
                 >
-                  {networkDiscovery.searching && <CircularProgress size={14} aria-hidden="true" />}
+                  {networkDiscovery.searching && (
+                    <CircularProgress size={14} aria-label={lanSearchMessages(locale).searching} />
+                  )}
                   {networkDiscovery.unseenCount > 0 && (
                     <Typography
                       variant="caption"
@@ -149,22 +148,6 @@ export function AppShell({
             </ListItemButton>
           ))}
         </List>
-        {networkDiscovery?.searching && (
-          <Stack spacing={1} sx={{ px: 1.5, pt: 2 }}>
-            <Typography variant="caption" color="text.secondary" role="status">
-              {networkDiscovery.statusLabel}
-            </Typography>
-            {networkDiscovery.onStopSearch && (
-              <Button
-                variant="outlined"
-                onClick={networkDiscovery.onStopSearch}
-                sx={{ minHeight: 44 }}
-              >
-                {networkDiscovery.stopLabel ?? t(locale, 'btnStop')}
-              </Button>
-            )}
-          </Stack>
-        )}
         <Box sx={{ px: 1.5, pt: 5 }}>
           <TextField
             data-testid="interface-language"
