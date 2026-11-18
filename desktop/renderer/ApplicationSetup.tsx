@@ -868,9 +868,6 @@ export function ApplicationRows({
         sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 3 }}
       >
         <Box>
-          <Typography variant="h5" component="h2" sx={{ mb: 1 }}>
-            {copy.yourApps}
-          </Typography>
           <Typography variant="body2" color="text.secondary">
             {copy.detectionHelp}
           </Typography>
