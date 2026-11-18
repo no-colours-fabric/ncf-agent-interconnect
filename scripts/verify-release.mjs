@@ -314,7 +314,8 @@ try {
   assert.equal(v2Status.setupAvailability.state, 'available');
   const v2Preview = await v2Setup.v2Preview('packaged-verifier', v2Target);
   assert.ok(!JSON.stringify(v2Preview).includes('Bearer '));
-  assert.equal((await v2Setup.v2Apply('packaged-verifier', v2Preview.planId, v2Target, false)).status, 'applied');
+  const v2Apply = await v2Setup.v2Apply('packaged-verifier', v2Preview.planId, v2Target, false);
+  assert.equal(v2Apply.status, 'applied', v2Apply.error);
   const v2Configuration = JSON.parse(await readFile(v2Target.configurationPath, 'utf8'));
   const { fileURLToPath } = await import('node:url');
   const v2Directory = fileURLToPath(v2Configuration.plugins[0].package);
@@ -369,7 +370,8 @@ try {
     cwd: extracted,
     env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
     encoding: 'utf8',
-    timeout: 30000,
+    // The Windows fixture checks private files through separate native ACL processes.
+    timeout: process.platform === 'win32' ? 120000 : 30000,
     windowsHide: true,
   });
   if (result.error) throw result.error;

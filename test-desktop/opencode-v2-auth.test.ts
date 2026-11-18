@@ -146,6 +146,29 @@ test('v2 protection failure occurs before credential write and never activates',
     code: 'ENOENT',
   });
 });
+test(
+  'Windows private protection uses system modules with an inherited module path',
+  {
+    skip: process.platform !== 'win32',
+  },
+  async (t) => {
+    const { root } = await fixture(t);
+    const inherited = process.env.PSModulePath;
+    t.after(() => {
+      if (inherited === undefined) delete process.env.PSModulePath;
+      else process.env.PSModulePath = inherited;
+    });
+    process.env.PSModulePath = path.join(root, 'nonexistent-modules');
+
+    const security = openCodeV2PrivateFiles(root);
+    await security.protect(root, true);
+    await security.verify(root, true);
+    const file = path.join(root, 'private.txt');
+    await writeFile(file, 'synthetic private file');
+    await security.protect(file, false);
+    await security.verify(file, false);
+  },
+);
 test('POSIX private verification rejects broad access; no mode-only Windows claim', async (t) => {
   if (process.platform === 'win32') {
     t.skip('Native Windows DACL acceptance is separate; injected security failure tested above.');

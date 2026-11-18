@@ -45,9 +45,12 @@ export interface OpenCodeV2PrivateFiles {
 }
 
 // Fixed OS operation. The only input is an own, validated path passed as data.
-// DirectorySecurity / SetAccessRuleProtection / Get-Acl are Microsoft Windows APIs.
+// FileSystemSecurity and SetAccessControl use the Windows ACL APIs without a provider lookup.
+// Use this PowerShell installation's modules even when launched from PowerShell 7.
 const windowsAcl = String.raw`
 $ErrorActionPreference='Stop'
+$ProgressPreference='SilentlyContinue'
+$env:PSModulePath=[IO.Path]::Combine($PSHOME,'Modules')
 $p=$env:NCF_PRIVATE_PATH
 $item=Get-Item -LiteralPath $p -Force
 if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'reparse' }
@@ -55,23 +58,29 @@ $directory=$env:NCF_PRIVATE_DIRECTORY -eq '1'
 if ($item.PSIsContainer -ne $directory) { throw 'type' }
 $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
 $principals=@($sid.Value,'S-1-5-18','S-1-5-32-544') | Select-Object -Unique
+$owner=[Security.AccessControl.AccessControlSections]::Owner
 if ($env:NCF_PRIVATE_PROTECT -eq '1') {
-  if ($directory) { $acl=New-Object Security.AccessControl.DirectorySecurity }
-  else { $acl=New-Object Security.AccessControl.FileSecurity }
-  $acl.SetOwner($sid)
+  if ($directory) { $acl=[Security.AccessControl.DirectorySecurity]::new() }
+  else { $acl=[Security.AccessControl.FileSecurity]::new() }
+  if ($item.GetAccessControl($owner).GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) {
+    throw 'owner'
+  }
   $acl.SetAccessRuleProtection($true,$false)
   foreach ($principal in $principals) {
-    $who=New-Object Security.Principal.SecurityIdentifier($principal)
+    $who=[Security.Principal.SecurityIdentifier]::new($principal)
     if ($directory) {
-      $rule=New-Object Security.AccessControl.FileSystemAccessRule($who,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
+      $rule=[Security.AccessControl.FileSystemAccessRule]::new($who,'FullControl','ContainerInherit,ObjectInherit','None','Allow')
     } else {
-      $rule=New-Object Security.AccessControl.FileSystemAccessRule($who,'FullControl','Allow')
+      $rule=[Security.AccessControl.FileSystemAccessRule]::new($who,'FullControl','Allow')
     }
     $acl.AddAccessRule($rule)
   }
-  Set-Acl -LiteralPath $p -AclObject $acl
+  $item.SetAccessControl($acl)
+  $item.Refresh()
+  if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) { throw 'reparse' }
+  if ((($item.Attributes -band [IO.FileAttributes]::Directory) -ne 0) -ne $directory) { throw 'type' }
 }
-$actual=Get-Acl -LiteralPath $p
+$actual=$item.GetAccessControl(($owner -bor [Security.AccessControl.AccessControlSections]::Access))
 if ($actual.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) { throw 'owner' }
 if (!$actual.AreAccessRulesProtected) { throw 'inheritance' }
 $rules=@($actual.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
