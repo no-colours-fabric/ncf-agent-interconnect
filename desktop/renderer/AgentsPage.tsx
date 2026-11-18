@@ -47,8 +47,41 @@ import { agentRows, type AgentRow } from './agents-table-model.js';
 import { AgentChatHistory } from './AgentChatHistory.js';
 import { useChatHistory } from './useChatHistory.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
+import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import { t, type Locale } from './i18n/index.js';
 import { designTokens } from './theme.js';
+
+export function ManualAgentDialogHelp({ locale }: { locale: Locale }): React.JSX.Element {
+  const copy = agentEntryMessages(locale);
+  const [beforeCommand, afterCommand] = copy.dialogManualAgentDiagnostic.split('{command}');
+  const command = mcpSetupMessages(locale).connectionPrompt.replace(/[.。]$/u, '');
+  return (
+    <Stack spacing={2} sx={{ mb: 2 }} data-testid="manual-agent-dialog-help">
+      <Typography component="p" color="text.secondary">
+        {copy.dialogAddAgentBody}
+      </Typography>
+      <Typography component="p" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
+        {beforeCommand}
+        <Box
+          component="code"
+          sx={{
+            fontFamily: 'inherit',
+            fontSize: 'inherit',
+            fontStyle: 'italic',
+            bgcolor: 'action.hover',
+            px: 0.5,
+            py: 0.125,
+            borderRadius: 0.5,
+            boxDecorationBreak: 'clone',
+          }}
+        >
+          {command}
+        </Box>
+        {afterCommand}
+      </Typography>
+    </Stack>
+  );
+}
 
 export function AgentsPage({
   snapshot,

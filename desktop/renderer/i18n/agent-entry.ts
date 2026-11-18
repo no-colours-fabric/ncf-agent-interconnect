@@ -29,10 +29,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Create an agent manually',
     agentsManualDiagnosticAction: 'Create an agent manually for diagnostics',
     dialogAddAgent: 'Create an agent manually',
-    dialogAddAgentBody:
-      'Create agents from chats in your apps: ask the assistant to connect under a name you choose and give it a role in the shared task.',
+    dialogAddAgentBody: 'Use this feature for diagnostics only.',
     dialogManualAgentDiagnostic:
-      'After creating an agent here, open a chat in a configured app and ask the assistant to connect using the same name. You can also simulate the agent’s activity with this app’s controls for diagnostics.',
+      'For normal use, open a new tab or switch to an existing one in any configured app, and simply type {command}.',
     agentEmptyPrompt: 'No agents yet.',
     aionUiApplication: 'AionUi with Cursor Agent',
   },
@@ -48,10 +47,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Создать агента вручную',
     agentsManualDiagnosticAction: 'Создать агента вручную для диагностики',
     dialogAddAgent: 'Создать агента вручную',
-    dialogAddAgentBody:
-      'Создавайте агентов из чатов в ваших программах: попросите помощника подключиться под выбранным вами именем и назначьте ему роль в общей задаче.',
+    dialogAddAgentBody: 'Используйте эту возможность только для диагностики.',
     dialogManualAgentDiagnostic:
-      'После создания агента здесь откройте чат в настроенной программе и попросите помощника подключиться под тем же именем. Для диагностики можно также имитировать его работу средствами этого приложения.',
+      'Для обычной работы в любом настроенном приложении откройте новую вкладку или перейдите на уже открытую и просто напечатайте {command}.',
     agentEmptyPrompt: 'Агентов пока нет.',
     aionUiApplication: 'AionUi с Cursor Agent',
   },
@@ -66,10 +64,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: '手动创建智能体',
     agentsManualDiagnosticAction: '手动创建智能体以进行诊断',
     dialogAddAgent: '手动创建智能体',
-    dialogAddAgentBody:
-      '在您所用应用的聊天中创建智能体：请助手以您指定的名称连接，并为其分配共同任务中的角色。',
+    dialogAddAgentBody: '此功能仅用于诊断。',
     dialogManualAgentDiagnostic:
-      '在此创建智能体后，请在已配置的应用中打开聊天，让助手使用相同名称连接。您也可以使用本应用的控件模拟智能体的活动，以进行诊断。',
+      '日常使用时，请在任意已配置的应用中打开新标签页或切换到已打开的标签页，然后直接输入 {command}。',
     agentEmptyPrompt: '暂无智能体。',
     aionUiApplication: 'AionUi（Cursor Agent）',
   },
@@ -85,10 +82,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Créer un agent manuellement',
     agentsManualDiagnosticAction: 'Créer un agent manuellement pour le diagnostic',
     dialogAddAgent: 'Créer un agent manuellement',
-    dialogAddAgentBody:
-      'Créez les agents depuis les discussions de vos applications : demandez à l’assistant de se connecter sous le nom de votre choix et attribuez-lui un rôle dans la tâche commune.',
+    dialogAddAgentBody: 'Utilisez cette fonction uniquement à des fins de diagnostic.',
     dialogManualAgentDiagnostic:
-      'Après avoir créé un agent ici, ouvrez une discussion dans une application configurée et demandez à l’assistant de se connecter avec le même nom. Vous pouvez aussi utiliser les commandes de cette application pour simuler l’activité de l’agent à des fins de diagnostic.',
+      'Pour une utilisation normale, ouvrez un nouvel onglet ou revenez à un onglet déjà ouvert dans une application configurée, puis tapez simplement {command}.',
     agentEmptyPrompt: 'Aucun agent pour le moment.',
     aionUiApplication: 'AionUi avec Cursor Agent',
   },
@@ -104,10 +100,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Agent manuell erstellen',
     agentsManualDiagnosticAction: 'Agent zu Diagnosezwecken manuell erstellen',
     dialogAddAgent: 'Agent manuell erstellen',
-    dialogAddAgentBody:
-      'Erstellen Sie Agenten über die Chats Ihrer Apps: Bitten Sie den Assistenten, sich unter einem Namen Ihrer Wahl zu verbinden, und weisen Sie ihm eine Rolle in der gemeinsamen Aufgabe zu.',
+    dialogAddAgentBody: 'Verwenden Sie diese Funktion ausschließlich zur Diagnose.',
     dialogManualAgentDiagnostic:
-      'Nachdem Sie hier einen Agenten erstellt haben, öffnen Sie einen Chat in einer eingerichteten App und bitten Sie den Assistenten, sich unter demselben Namen zu verbinden. Zur Diagnose können Sie die Aktivität des Agenten auch mit den Bedienelementen dieser App simulieren.',
+      'Öffnen Sie für die normale Arbeit in einer eingerichteten App einen neuen Tab oder wechseln Sie zu einem bereits geöffneten und geben Sie einfach {command} ein.',
     agentEmptyPrompt: 'Noch keine Agenten vorhanden.',
     aionUiApplication: 'AionUi mit Cursor Agent',
   },
@@ -123,10 +118,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Crea un agente manualmente',
     agentsManualDiagnosticAction: 'Crea un agente manualmente per la diagnostica',
     dialogAddAgent: 'Crea un agente manualmente',
-    dialogAddAgentBody:
-      'Crea gli agenti dalle chat delle tue app: chiedi all’assistente di connettersi con un nome a tua scelta e assegnagli un ruolo nel compito comune.',
+    dialogAddAgentBody: 'Usa questa funzione solo per la diagnostica.',
     dialogManualAgentDiagnostic:
-      'Dopo aver creato un agente qui, apri una chat in un’app configurata e chiedi all’assistente di connettersi con lo stesso nome. Puoi anche usare i controlli di questa app per simulare l’attività dell’agente a fini diagnostici.',
+      'Per l’uso normale, apri una nuova scheda o passa a una già aperta in un’app configurata e digita semplicemente {command}.',
     agentEmptyPrompt: 'Non ci sono ancora agenti.',
     aionUiApplication: 'AionUi con Cursor Agent',
   },
@@ -142,10 +136,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Crear un agente manualmente',
     agentsManualDiagnosticAction: 'Crear un agente manualmente para diagnóstico',
     dialogAddAgent: 'Crear un agente manualmente',
-    dialogAddAgentBody:
-      'Crea los agentes desde los chats de tus aplicaciones: pide al asistente que se conecte con el nombre que elijas y asígnale un papel en la tarea común.',
+    dialogAddAgentBody: 'Utiliza esta función solo para diagnóstico.',
     dialogManualAgentDiagnostic:
-      'Después de crear un agente aquí, abre un chat en una aplicación configurada y pide al asistente que se conecte con el mismo nombre. También puedes usar los controles de esta aplicación para simular la actividad del agente con fines de diagnóstico.',
+      'Para el uso habitual, abre una pestaña nueva o ve a una ya abierta en cualquier aplicación configurada y escribe simplemente {command}.',
     agentEmptyPrompt: 'Aún no hay agentes.',
     aionUiApplication: 'AionUi con Cursor Agent',
   },
@@ -161,10 +154,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Агентті қолмен жасау',
     agentsManualDiagnosticAction: 'Диагностика үшін агентті қолмен жасау',
     dialogAddAgent: 'Агентті қолмен жасау',
-    dialogAddAgentBody:
-      'Агенттерді қолданбаларыңыздағы чаттардан жасаңыз: көмекшіден өзіңіз таңдаған атпен қосылуын сұрап, оған ортақ тапсырмадағы рөлін белгілеңіз.',
+    dialogAddAgentBody: 'Бұл мүмкіндікті тек диагностика үшін пайдаланыңыз.',
     dialogManualAgentDiagnostic:
-      'Агентті осында жасағаннан кейін, бапталған қолданбада чат ашып, көмекшіден сол атпен қосылуын сұраңыз. Диагностика үшін осы қолданбаның басқару құралдары арқылы агенттің жұмысын имитациялауға да болады.',
+      'Қалыпты жұмыс үшін бапталған кез келген қолданбада жаңа қойындыны ашыңыз немесе ашық қойындыға өтіп, жай ғана {command} деп теріңіз.',
     agentEmptyPrompt: 'Әзірге агенттер жоқ.',
     aionUiApplication: 'Cursor Agent қолданылатын AionUi',
   },
@@ -180,10 +172,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'エージェントを手動で作成',
     agentsManualDiagnosticAction: '診断用のエージェントを手動で作成',
     dialogAddAgent: 'エージェントを手動で作成',
-    dialogAddAgentBody:
-      'エージェントは、利用するアプリのチャットから作成します。アシスタントに、選んだ名前で接続するよう依頼し、共通のタスクでの役割を割り当ててください。',
+    dialogAddAgentBody: 'この機能は診断目的にのみ使用してください。',
     dialogManualAgentDiagnostic:
-      'ここでエージェントを作成した後は、設定済みのアプリでチャットを開き、アシスタントに同じ名前で接続するよう依頼してください。診断のために、このアプリの操作機能でエージェントの動作をシミュレートすることもできます。',
+      '通常の作業では、設定済みのアプリで新しいタブを開くか、すでに開いているタブに切り替えて、{command} と入力してください。',
     agentEmptyPrompt: 'エージェントはまだありません。',
     aionUiApplication: 'AionUi（Cursor Agent）',
   },
@@ -199,10 +190,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Criar um agente manualmente',
     agentsManualDiagnosticAction: 'Criar um agente manualmente para diagnóstico',
     dialogAddAgent: 'Criar um agente manualmente',
-    dialogAddAgentBody:
-      'Crie agentes a partir dos chats dos seus aplicativos: peça ao assistente que se conecte com um nome escolhido por você e atribua a ele um papel na tarefa conjunta.',
+    dialogAddAgentBody: 'Use este recurso apenas para diagnóstico.',
     dialogManualAgentDiagnostic:
-      'Depois de criar um agente aqui, abra um chat em um aplicativo configurado e peça ao assistente que se conecte com o mesmo nome. Você também pode usar os controles deste aplicativo para simular a atividade do agente para fins de diagnóstico.',
+      'Para o uso normal, abra uma nova aba ou vá para uma já aberta em qualquer aplicativo configurado e simplesmente digite {command}.',
     agentEmptyPrompt: 'Ainda não há agentes.',
     aionUiApplication: 'AionUi com Cursor Agent',
   },
@@ -218,10 +208,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: '에이전트 수동 생성',
     agentsManualDiagnosticAction: '진단을 위해 에이전트 수동 생성',
     dialogAddAgent: '에이전트 수동 생성',
-    dialogAddAgentBody:
-      '사용하는 앱의 채팅에서 에이전트를 만드세요. 어시스턴트에게 원하는 이름으로 연결하도록 요청하고 공동 작업에서 맡을 역할을 정해 주세요.',
+    dialogAddAgentBody: '이 기능은 진단 용도로만 사용하세요.',
     dialogManualAgentDiagnostic:
-      '여기서 에이전트를 만든 뒤에는 설정된 앱에서 채팅을 열고 어시스턴트에게 같은 이름으로 연결하도록 요청하세요. 이 앱의 기능으로 에이전트의 동작을 시뮬레이션하여 진단할 수도 있습니다.',
+      '일반적인 작업에서는 설정된 앱에서 새 탭을 열거나 이미 열려 있는 탭으로 이동한 다음 {command}를 입력하세요.',
     agentEmptyPrompt: '아직 에이전트가 없습니다.',
     aionUiApplication: 'AionUi(Cursor Agent)',
   },
@@ -237,10 +226,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Manuel ajan oluştur',
     agentsManualDiagnosticAction: 'Tanılama için manuel ajan oluştur',
     dialogAddAgent: 'Manuel ajan oluştur',
-    dialogAddAgentBody:
-      'Ajanları kullandığınız uygulamaların sohbetlerinden oluşturun: asistandan seçtiğiniz adla bağlanmasını isteyin ve ortak görevdeki rolünü belirleyin.',
+    dialogAddAgentBody: 'Bu özelliği yalnızca tanılama için kullanın.',
     dialogManualAgentDiagnostic:
-      'Burada bir ajan oluşturduktan sonra yapılandırılmış bir uygulamada sohbet açın ve asistandan aynı adla bağlanmasını isteyin. Tanılama amacıyla bu uygulamanın kontrollerini kullanarak ajanın etkinliğini de simüle edebilirsiniz.',
+      'Normal kullanım için yapılandırılmış bir uygulamada yeni bir sekme açın veya açık bir sekmeye geçin ve yalnızca {command} yazın.',
     agentEmptyPrompt: 'Henüz ajan yok.',
     aionUiApplication: 'Cursor Agent ile AionUi',
   },
@@ -256,10 +244,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Utwórz agenta ręcznie',
     agentsManualDiagnosticAction: 'Utwórz agenta ręcznie do celów diagnostycznych',
     dialogAddAgent: 'Utwórz agenta ręcznie',
-    dialogAddAgentBody:
-      'Twórz agentów z poziomu czatów w swoich aplikacjach: poproś asystenta, aby połączył się pod wybraną przez Ciebie nazwą, i przydziel mu rolę we wspólnym zadaniu.',
+    dialogAddAgentBody: 'Używaj tej funkcji wyłącznie do diagnostyki.',
     dialogManualAgentDiagnostic:
-      'Po utworzeniu agenta tutaj otwórz czat w skonfigurowanej aplikacji i poproś asystenta, aby połączył się pod tą samą nazwą. Możesz też użyć elementów sterujących tej aplikacji, aby symulować działanie agenta do celów diagnostycznych.',
+      'Aby normalnie pracować, otwórz nową kartę lub przejdź do już otwartej w dowolnej skonfigurowanej aplikacji i po prostu wpisz {command}.',
     agentEmptyPrompt: 'Nie ma jeszcze agentów.',
     aionUiApplication: 'AionUi z Cursor Agent',
   },
@@ -275,10 +262,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Handmatig een agent maken',
     agentsManualDiagnosticAction: 'Handmatig een agent maken voor diagnose',
     dialogAddAgent: 'Handmatig een agent maken',
-    dialogAddAgentBody:
-      'Maak agenten vanuit de chats in uw apps: vraag de assistent verbinding te maken onder een naam naar keuze en geef de assistent een rol in de gezamenlijke taak.',
+    dialogAddAgentBody: 'Gebruik deze functie alleen voor diagnose.',
     dialogManualAgentDiagnostic:
-      'Nadat u hier een agent hebt gemaakt, opent u een chat in een ingestelde app en vraagt u de assistent verbinding te maken onder dezelfde naam. U kunt ook de bedieningselementen van deze app gebruiken om de activiteit van de agent te simuleren voor diagnose.',
+      'Open voor normaal gebruik in een ingestelde app een nieuw tabblad of ga naar een al geopend tabblad en typ gewoon {command}.',
     agentEmptyPrompt: 'Er zijn nog geen agenten.',
     aionUiApplication: 'AionUi met Cursor Agent',
   },
@@ -294,10 +280,9 @@ const messages: Record<Locale, AgentEntryMessages> = {
     agentsManualDiagnosticLink: 'Створити агента вручну',
     agentsManualDiagnosticAction: 'Створити агента вручну для діагностики',
     dialogAddAgent: 'Створити агента вручну',
-    dialogAddAgentBody:
-      'Створюйте агентів із чатів у ваших програмах: попросіть помічника підключитися під обраним вами ім’ям і призначте йому роль у спільному завданні.',
+    dialogAddAgentBody: 'Використовуйте цю можливість лише для діагностики.',
     dialogManualAgentDiagnostic:
-      'Після створення агента тут відкрийте чат у налаштованій програмі та попросіть помічника підключитися під тим самим ім’ям. Для діагностики можна також імітувати роботу агента засобами цього застосунку.',
+      'Для звичайної роботи в будь-якому налаштованому застосунку відкрийте нову вкладку або перейдіть на вже відкриту й просто надрукуйте {command}.',
     agentEmptyPrompt: 'Агентів поки немає.',
     aionUiApplication: 'AionUi з Cursor Agent',
   },

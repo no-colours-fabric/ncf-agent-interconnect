@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { ThemeProvider } from '@mui/material/styles';
-import { AgentsPage } from '../desktop/renderer/AgentsPage.js';
+import { AgentsPage, ManualAgentDialogHelp } from '../desktop/renderer/AgentsPage.js';
 import { agentEntryMessages } from '../desktop/renderer/i18n/agent-entry.js';
 import { supportedLocales, t, type Locale } from '../desktop/renderer/i18n/index.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
@@ -150,5 +150,32 @@ test('both action links are localized in all 15 locales without restoring the re
     assert.ok(!html.includes(escaped(mcpSetupMessages(locale).connectionPrompt)), locale);
     assert.ok(!html.includes('data-testid="copy-agent-connection-command"'), locale);
     if (locale !== 'en') assert.notEqual(manual, english, locale);
+  }
+});
+
+test('manual agent dialog help has only two localized paragraphs with the translated italic command', () => {
+  const russian = agentEntryMessages('ru');
+  assert.equal(russian.dialogAddAgentBody, 'Используйте эту возможность только для диагностики.');
+  assert.equal(
+    russian.dialogManualAgentDiagnostic,
+    'Для обычной работы в любом настроенном приложении откройте новую вкладку или перейдите на уже открытую и просто напечатайте {command}.',
+  );
+  for (const locale of supportedLocales) {
+    const copy = agentEntryMessages(locale);
+    assert.equal(copy.dialogManualAgentDiagnostic.match(/\{command\}/g)?.length, 1, locale);
+    const html = renderToStaticMarkup(createElement(ManualAgentDialogHelp, { locale }));
+    const [before, after] = copy.dialogManualAgentDiagnostic.split('{command}');
+    const command = mcpSetupMessages(locale).connectionPrompt.replace(/[.。]$/u, '');
+    assert.ok(html.includes(escaped(copy.dialogAddAgentBody)), locale);
+    assert.ok(html.includes(escaped(before)), locale);
+    assert.ok(html.includes(escaped(after)), locale);
+    assert.ok(html.includes(escaped(command) + '</code>'), locale);
+    assert.equal(html.match(/<p\b/g)?.length, 2, locale);
+    assert.equal(html.match(/<code\b/g)?.length, 1, locale);
+    assert.doesNotMatch(html, /<button\b|<input\b|\{command\}/, locale);
+    assert.ok(html.includes('font-family:inherit'), locale);
+    assert.ok(html.includes('font-style:italic'), locale);
+    assert.ok(html.includes('background-color:'), locale);
+    assert.ok(!html.includes('font-family:monospace'), locale);
   }
 });
