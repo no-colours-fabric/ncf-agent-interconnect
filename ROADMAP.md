@@ -35,7 +35,7 @@ The template is an example, not an entry. Replace R-NNNN with the next available
 
 ## R-0001 — Automatic node discovery for pairing
 
-- [ ] Open
+- [x] Done — released in [v0.19.0](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/tag/v0.19.0).
 
 Make pairing multiple nodes easier through automatic discovery on the network.
 
@@ -45,6 +45,8 @@ Expected flow:
 2. The user selects a node and clicks Pair.
 3. The app immediately prompts for a pairing code.
 4. The user can repeat these steps for other nodes.
+
+Released outcome ([8c1cf91](https://github.com/no-colours-fabric/ncf-agent-interconnect/commit/8c1cf91720539dcdd3b80950030a8f47235609cd)): opening the window starts a bounded local IPv4 search. Results are grouped by claimed node ID and remain unverified until explicit pairing. The user can select an address and pair by code or enter an address manually. Verification covered isolated discovery and pairing regressions, network fixtures, and renderer UI. Native UDP discovery between two physical hosts was not run for this release.
 
 ---
 
@@ -134,26 +136,28 @@ One possible distribution model is a GitHub repository containing plugin package
 
 ## R-0010 — Listen on all network interfaces by default
 
-- [ ] Open
+- [x] Done — released in [v0.19.0](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/tag/v0.19.0).
 
-By default, NCF Agent Interconnect listens on every IP address available on the computer.
+By default, NCF Agent Interconnect listens on all eligible assigned local IPv4 addresses.
 
-- When a new network interface or local IP address becomes available, the app starts listening on it automatically.
-- The interface lets the owner disable listening on selected network interfaces.
-- The rule is to listen on all interfaces except those explicitly disabled.
+- The app updates its listeners automatically as eligible IPv4 addresses or interfaces appear or disappear.
+- Network settings let the owner save exclusions for selected interfaces and view the actual enabled connection addresses.
+- Exclusions apply to the app's peer listeners. MCP remains on `127.0.0.1`. IPv6 listener support is deferred.
+
+Verification ([8c1cf91](https://github.com/no-colours-fabric/ncf-agent-interconnect/commit/8c1cf91720539dcdd3b80950030a8f47235609cd)) covered the IPv4 listener policy, isolated renderer behavior, closing excluded TLS sockets on loopback, and recovery through an alternate address with the existing peer identity and saved address preserved. Native interface changes, firewall behavior, and two-host LAN operation were not tested.
 
 ---
 
 ## R-0011 — Show sent and chat delivery times on incoming messages
 
-- [ ] Open
+- [x] Done — released in [v0.19.0](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/tag/v0.19.0).
 
 Show two timestamps in each incoming NCF Agent Interconnect message:
 
-- **Sent:** when the sender sent the message.
-- **Delivered:** when the message reached this chat, not when it was queued or accepted by a node.
+- **Sent:** the timestamp stored when the sender created the message.
+- **Delivered:** when the receiving node prepares the message for its addressed chat adapter or for the current MCP read or history response.
 
-Format both dates and times in the recipient's locale through seconds, without displaying a time-zone offset.
+Format both dates and times through seconds using the receiving app's locale and system time zone. Hide the time-zone offset.
 
 ```text
 **Incoming NCF Agent Interconnect**
@@ -166,6 +170,8 @@ Delivered: <localized date and time through seconds>
 Reply-To "<name>": <reply reference>
 Use agent_send(connectionId, replyRef="<reply reference>", text) to reply.
 ```
+
+Verification ([8c1cf91](https://github.com/no-colours-fabric/ncf-agent-interconnect/commit/8c1cf91720539dcdd3b80950030a8f47235609cd)) covered targeted source cases and packaged Incoming message fixtures on Apple Silicon and Windows x64. The timestamps describe message presentation. Receipt and task completion are tracked separately. Live delivery across all external clients, including OpenCode v2, was not verified.
 
 ---
 
