@@ -1,4 +1,4 @@
-import { ApplicationDiscovery, ClientLogo } from './ApplicationDiscovery.js';
+import { ClientLogo } from './ApplicationDiscovery.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import {
   ApplicationRows,
@@ -1343,11 +1343,6 @@ export function McpSetup({
               </Box>
             )}
           </Stack>
-          {discovery && (
-            <Box sx={{ mt: 3 }}>
-              <ApplicationDiscovery model={discovery} locale={locale} client={selectedClient} />
-            </Box>
-          )}
         </>
       )}
       {!setupFlow && <ApplicationSetupConfirmation flow={autoFlow} locale={locale} />}

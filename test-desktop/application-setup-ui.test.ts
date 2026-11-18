@@ -384,8 +384,9 @@ test('Overview shares the startup tiles without startup chrome, technical discov
   assert.ok(startup.includes('data-testid="startup-connect-cursor"'));
 });
 
-test('Applications manual routes retain actual installation selection, coverage, Refresh and locations independently of configuration selection', () => {
-  for (const client of mcpSetupClients) {
+test('all manual routes keep configuration setup without the installation discovery section', () => {
+  for (const target of [...mcpSetupClients, 'opencode-v2'] as const) {
+    const client = target === 'opencode-v2' ? 'opencode' : target;
     const source = '/isolated/Applications/' + client + '/检查';
     const model: ApplicationDiscoveryModel = {
       ...discovery,
@@ -401,6 +402,8 @@ test('Applications manual routes retain actual installation selection, coverage,
         ],
       },
     };
+    const flow = new ApplicationSetupFlow(noInvoke);
+    if (target === 'opencode') flow.openCodeV2.selectManualMajor(1);
     const html = renderToStaticMarkup(
       React.createElement(McpSetup, {
         client,
@@ -410,22 +413,28 @@ test('Applications manual routes retain actual installation selection, coverage,
         invoke: noInvoke,
         discovery: model,
         setupStatuses: statuses,
-        setupFlow: new ApplicationSetupFlow(noInvoke),
+        setupFlow: flow,
         locale: 'en',
       }),
     );
-    assert.ok(html.includes('data-testid="installation-' + client + '"'), client);
-    assert.ok(!html.includes('Copy connection prompt'), client);
-    assert.ok(!html.includes('Connect as agent &lt;a name you choose&gt;.'), client);
+    assert.ok(!html.includes('data-testid="application-discovery"'), target);
+    assert.ok(!html.includes('Copy connection prompt'), target);
+    assert.ok(!html.includes('Connect as agent &lt;a name you choose&gt;.'), target);
     for (const text of [
       discoveryMessages('en').choose,
       discoveryMessages('en').details,
       discoveryMessages('en').refresh,
       discoveryMessages('en').limited,
       source,
-      applicationSetupMessages('en').back,
     ])
-      assert.ok(html.includes(text), client + ':' + text);
+      assert.ok(!html.includes(text), target + ':' + text);
+    assert.ok(html.includes(applicationSetupMessages('en').back), target);
+    const setupForm =
+      target === 'opencode-v2'
+        ? 'data-testid="opencode-v2-manual"'
+        : 'id="mcp-setup-form-' + client + '"';
+    assert.ok(html.includes(setupForm), target);
+    flow.dispose();
   }
 });
 
