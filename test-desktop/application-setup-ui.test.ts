@@ -503,7 +503,7 @@ test('alignment fixture preserves mixed manual-only, configured, busy and error 
   }
 });
 
-test('compact rows keep configured Details primary, one manual path per client, and explanatory copy under disclosure', () => {
+test('restored Applications rows retain separate setup status, visible manual actions and configured next-step access', () => {
   const html = renderToStaticMarkup(
     React.createElement(ApplicationRows, {
       discovery,
@@ -524,19 +524,18 @@ test('compact rows keep configured Details primary, one manual path per client, 
     html.indexOf('data-testid="application-row-codex"'),
     html.indexOf('data-testid="application-row-aionui"'),
   );
+  assert.ok(row.includes('aria-label="' + mcpSetupMessages('en').statusMcpConfig + '"'));
+  assert.ok(row.includes('width="44" height="44"'));
   assert.ok(row.includes('data-testid="application-configured-codex"'));
   assert.ok(row.includes('aria-controls="application-info-application-codex"'));
   assert.ok(row.includes('aria-expanded="false"'));
   assert.ok(row.includes('>' + lanSearchMessages('en').details + '</button>'));
-  assert.ok(!row.includes('data-testid="application-manual-codex"'));
-  assert.ok(
-    row.indexOf('>Manual setup</button>') <
-      row.indexOf('data-testid="application-configured-codex"'),
-  );
+  assert.ok(row.includes('data-testid="application-manual-codex"'));
   assert.equal(html.match(/>Manual setup</g)?.length, 5);
-  assert.ok(!html.includes(applicationSetupMessages('en').yourApps));
+  assert.ok(!row.includes('<summary'));
+  assert.ok(html.includes(applicationSetupMessages('en').yourApps));
   assert.ok(html.includes(applicationSetupMessages('en').intro));
   assert.ok(html.includes(applicationSetupMessages('en').detectionHelp));
-  assert.match(html, /<details[^>]*id="application-info-application-codex"[^>]*>/);
-  assert.doesNotMatch(row, /<details[^>]*\bopen(?:=|\s|>)/);
+  assert.ok(html.includes(applicationSetupMessages('en').newApps));
+  assert.ok(row.includes('id="application-info-application-codex" hidden=""'));
 });

@@ -15,6 +15,7 @@ import {
   Switch,
   Typography,
 } from '@mui/material';
+import CheckOutlined from '@mui/icons-material/CheckOutlined';
 import ChevronRightOutlined from '@mui/icons-material/ChevronRightOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
@@ -669,15 +670,212 @@ function ApplicationCompactList({
   );
 }
 
-export function ApplicationRows(props: SetupProps) {
-  const { discovery, flow, statuses, locale, disabled = false } = props;
-  useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+export function ApplicationRows({
+  discovery,
+  flow,
+  statuses,
+  invoke,
+  locale,
+  onManualSetup,
+  disabled = false,
+}: SetupProps) {
+  const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   const copy = applicationSetupMessages(locale);
+  const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
+  const [showV1, setShowV1] = useState(false);
+  const [guidanceClient, setGuidanceClient] = useState<ApplicationSetupClient | null>(null);
+  const [expanded, setExpanded] = useState<Partial<Record<ApplicationSetupClient, boolean>>>({});
+  const guidancePhase = guidanceClient ? states[guidanceClient].phase : undefined;
+  useEffect(() => {
+    if (guidanceClient && guidancePhase === 'succeeded')
+      setExpanded((current) =>
+        current[guidanceClient] ? current : { ...current, [guidanceClient]: true },
+      );
+  }, [guidancePhase, guidanceClient]);
   const anyBusy = disabled || applicationSetupClients.some((client) => flow.busy(client));
+  const manual = (client: ApplicationSetupClient) => {
+    if (client === 'opencode' || client === 'opencode-v2')
+      flow.openCodeV2.selectManualMajor(client === 'opencode' ? 1 : 2);
+    onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
+  };
+  const row = (client: ApplicationSetupClient, border: boolean) => {
+    const { state, configured, detected, hasStatus, unavailable, checking, automatic } = setupView(
+      client,
+      states,
+      statuses,
+      discovery,
+    );
+    const busy = flow.busy(client);
+    const pending = hasPendingSetupResult(state);
+    const needsRetry = state.phase === 'failed' || pending;
+    const configuredDetails = configured && !needsRetry;
+    const detailsId = 'application-info-application-' + client;
+    const setupStatus = busy
+      ? copy.connecting
+      : checking
+        ? m.checking
+        : pending
+          ? m.statusUnknown
+          : configured
+            ? m.configured
+            : unavailable || state.phase === 'failed'
+              ? m.unavailable
+              : hasStatus
+                ? m['not-configured']
+                : m.statusUnknown;
+    return (
+      <Box
+        key={client}
+        data-testid={'application-row-' + client}
+        sx={{
+          px: 3,
+          py: 2.5,
+          minHeight: 112,
+          boxSizing: 'border-box',
+          borderTop: border ? '1px solid' : 0,
+          borderColor: 'divider',
+          display: 'grid',
+          gridTemplateColumns: 'subgrid',
+          gridColumn: '1 / -1',
+          '& > *': { gridColumn: '1 / -1' },
+        }}
+      >
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: 'subgrid',
+            columnGap: 2.5,
+            rowGap: 1,
+            alignItems: 'center',
+          }}
+        >
+          <ClientLogo client={client === 'opencode-v2' ? 'opencode' : client} size={44} />
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="subtitle1" component="h3" sx={{ fontWeight: 500 }}>
+              {setupApplicationName(client, locale)}
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+              {detected
+                ? copy.detected
+                : automatic
+                  ? copy.automaticAvailable
+                  : copy.automaticUnavailable}
+            </Typography>
+          </Box>
+          <Stack
+            direction="row"
+            spacing={1}
+            sx={{
+              alignItems: 'center',
+              gridColumn: { xs: '2', md: '2', lg: 'auto' },
+              gridRow: { md: '2', lg: 'auto' },
+              minWidth: 0,
+            }}
+            aria-label={m.statusMcpConfig}
+          >
+            {configured && !pending && (
+              <CheckOutlined sx={{ fontSize: 18, color: 'success.main' }} />
+            )}
+            <Typography
+              variant="body2"
+              color={configured && !pending ? 'success.main' : 'text.secondary'}
+            >
+              {setupStatus}
+            </Typography>
+          </Stack>
+          <Stack
+            direction="row"
+            spacing={1.5}
+            useFlexGap
+            sx={{
+              flexWrap: 'wrap',
+              gridColumn: { xs: '2', md: '3', lg: 'auto' },
+              gridRow: { md: '1 / 3', lg: 'auto' },
+              maxWidth: 360,
+              justifyContent: { md: 'flex-end' },
+            }}
+          >
+            {(!configured || hasPendingSetupResult(state)) && (automatic || needsRetry) && (
+              <Button
+                variant="contained"
+                disabled={
+                  anyBusy ||
+                  checking ||
+                  state.phase === 'confirmation' ||
+                  (!hasStatus && !needsRetry)
+                }
+                onClick={() => {
+                  setGuidanceClient(client);
+                  void flow.connect(client);
+                }}
+                data-testid={'application-connect-' + client}
+              >
+                {setupActionLabel(state, locale, busy)}
+              </Button>
+            )}
+            {configuredDetails && (
+              <Button
+                variant="text"
+                aria-expanded={!!expanded[client]}
+                aria-controls={detailsId}
+                onClick={() =>
+                  setExpanded((current) => ({ ...current, [client]: !current[client] }))
+                }
+                data-testid={'application-configured-' + client}
+              >
+                {lanSearchMessages(locale).details}
+              </Button>
+            )}
+            <Button
+              variant="outlined"
+              disabled={anyBusy}
+              onClick={() => manual(client)}
+              data-testid={'application-manual-' + client}
+            >
+              {copy.manual}
+            </Button>
+          </Stack>
+        </Box>
+        {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
+          <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
+            {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
+          </Alert>
+        )}
+        <SetupDetails state={state} locale={locale} />
+        {configuredDetails && (
+          <Box
+            id={detailsId}
+            hidden={!expanded[client]}
+            data-testid={'application-details-' + client}
+          >
+            {expanded[client] && (
+              <NextStep client={client} invoke={invoke} locale={locale} compact />
+            )}
+          </Box>
+        )}
+      </Box>
+    );
+  };
   return (
-    <Stack spacing={1.5} data-testid="application-setup-list">
-      <Box sx={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', gap: 2 }}>
+    <Stack
+      spacing={3}
+      data-testid="application-setup-list"
+      sx={{ '& .MuiButton-root': { minHeight: 44, fontSize: 14 } }}
+    >
+      <Typography color="text.secondary">{copy.intro}</Typography>
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 3 }}
+      >
+        <Box>
+          <Typography variant="h5" component="h2" sx={{ mb: 1 }}>
+            {copy.yourApps}
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            {copy.detectionHelp}
+          </Typography>
+        </Box>
         <Button
           variant="outlined"
           startIcon={<RefreshOutlined />}
@@ -688,12 +886,56 @@ export function ApplicationRows(props: SetupProps) {
             void statuses.refreshAll(true);
             void flow.openCodeV2.refresh();
           }}
-          sx={{ flexShrink: 0, minHeight: 44 }}
+          sx={{ flexShrink: 0 }}
         >
           {discoveryCopy.refresh}
         </Button>
-      </Box>
-      <ApplicationCompactList {...props} context="application" />
+      </Stack>
+      <Paper
+        sx={{
+          overflow: 'hidden',
+          display: 'grid',
+          gridTemplateColumns: {
+            xs: 'max-content minmax(0, 1fr)',
+            md: 'max-content minmax(0, 1fr) auto',
+            lg: 'max-content minmax(140px, 1fr) minmax(120px, .8fr) auto',
+          },
+          columnGap: 2.5,
+        }}
+      >
+        {mcpSetupClients.map((client, index) =>
+          client === 'opencode' ? (
+            <Box
+              key="opencode"
+              data-testid="application-group-opencode"
+              sx={{
+                borderTop: index ? '1px solid' : 0,
+                borderColor: 'divider',
+                display: 'grid',
+                gridTemplateColumns: 'subgrid',
+                gridColumn: '1 / -1',
+                '& > *': { gridColumn: '1 / -1' },
+              }}
+            >
+              <Box sx={{ display: 'grid', gridTemplateColumns: 'subgrid', gridAutoRows: '1fr' }}>
+                {row('opencode-v2', false)}
+                {showV1 && row('opencode', true)}
+              </Box>
+              <OpenCodeV1Toggle
+                expanded={showV1}
+                onChange={setShowV1}
+                disabled={anyBusy}
+                locale={locale}
+              />
+            </Box>
+          ) : (
+            row(client, index > 0)
+          ),
+        )}
+      </Paper>
+      <Typography variant="body2" color="text.secondary">
+        {copy.newApps}
+      </Typography>
     </Stack>
   );
 }
