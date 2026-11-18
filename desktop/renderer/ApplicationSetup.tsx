@@ -863,7 +863,6 @@ export function ApplicationRows({
       data-testid="application-setup-list"
       sx={{ '& .MuiButton-root': { minHeight: 44, fontSize: 14 } }}
     >
-      <Typography color="text.secondary">{copy.intro}</Typography>
       <Stack
         direction="row"
         sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 3 }}

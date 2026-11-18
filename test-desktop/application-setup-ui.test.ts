@@ -534,7 +534,7 @@ test('restored Applications rows retain separate setup status, visible manual ac
   assert.equal(html.match(/>Manual setup</g)?.length, 5);
   assert.ok(!row.includes('<summary'));
   assert.ok(html.includes(applicationSetupMessages('en').yourApps));
-  assert.ok(html.includes(applicationSetupMessages('en').intro));
+  assert.ok(!html.includes(applicationSetupMessages('en').intro));
   assert.ok(html.includes(applicationSetupMessages('en').detectionHelp));
   assert.ok(html.includes(applicationSetupMessages('en').newApps));
   assert.ok(row.includes('id="application-info-application-codex" hidden=""'));
