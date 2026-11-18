@@ -295,27 +295,50 @@ createRoot(document.getElementById('root')).render(<App/>);
         },
       );
       await suite.test(
-        'actual error remains visible and diagnostic text is available on keyboard focus',
+        'an unsaved enable stays quiet; actual failures show a plain message',
         async () => {
           await update({
             locale: 'en',
             mode: 'light',
-            status: { ...status(), inventoryError: 'Synthetic inventory failure' },
+            status: status(),
             value: initialExclusions,
           });
+          const unavailable = networkInterfaceMessages('en').unavailable;
+          const dock = section.locator('[data-interface-name="Dock Ж <&>"]');
+          const toggle = dock.getByRole('switch');
+          assert.equal(await toggle.isChecked(), false);
+          await toggle.check();
+          assert.equal(await toggle.isChecked(), true);
+          assert.equal(await dock.getByText(unavailable, { exact: true }).count(), 0);
+
+          const saved = status([]);
+          await update({
+            status: {
+              ...saved,
+              listeners: saved.listeners.map((listener) =>
+                listener.address === '198.51.100.40'
+                  ? { ...listener, state: 'error', error: 'Synthetic bind failure' }
+                  : listener,
+              ),
+            },
+            value: [],
+          });
           const problem = section.getByTestId('network-interface-problem');
+          const rowProblem = dock.getByText(unavailable, { exact: true });
           assert.equal(await problem.isVisible(), true);
-          assert.equal(await problem.textContent(), networkInterfaceMessages('en').unavailable);
+          assert.equal(await problem.textContent(), unavailable);
+          assert.equal(await rowProblem.isVisible(), true);
+          assert.equal(await rowProblem.getAttribute('tabindex'), null);
+          assert.equal(await rowProblem.getAttribute('aria-describedby'), null);
+          await rowProblem.hover();
+          assert.equal(await page.getByRole('tooltip').count(), 0);
+          assert.equal(await section.getByText('Synthetic bind failure').count(), 0);
           assert.equal(await section.locator('pre').count(), 0);
-          await page.keyboard.press('Tab');
-          await problem.locator('[tabindex="0"]').focus();
-          await page.getByRole('tooltip').waitFor();
-          assert.ok(
-            (await page.getByRole('tooltip').textContent())!.includes(
-              'Synthetic inventory failure',
-            ),
-          );
-          await section.getByRole('switch').first().focus();
+          await update({ status: saved });
+          assert.equal(await rowProblem.count(), 0);
+          await update({ status: { ...saved, inventoryError: 'Synthetic inventory failure' } });
+          assert.equal(await problem.textContent(), unavailable);
+          assert.equal(await section.getByText('Synthetic inventory failure').count(), 0);
           const allExcluded = Object.keys(inventory).map((name) => ({ name }));
           await update({ status: status(allExcluded), value: allExcluded });
           assert.equal(

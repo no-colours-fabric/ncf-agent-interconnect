@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Box, Button, Stack, Switch, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, Stack, Switch, Typography } from '@mui/material';
 import type {
   NetworkInterfaceExclusion,
   NetworkInterfaceInventory,
@@ -56,34 +56,6 @@ export function NetworkInterfacesSettings({
   const hasError =
     !!status.inventoryError ||
     status.listeners.some((entry) => entry.state === 'error' || !!entry.error);
-  const diagnostic = JSON.stringify(
-    {
-      ...(status.inventoryError ? { inventoryError: status.inventoryError } : {}),
-      listeners: status.listeners.filter((entry) => entry.state === 'error' || entry.error),
-      rejected: status.interfaces
-        .filter((entry) => entry.rejected.length)
-        .map(({ name, rejected }) => ({ name, rejected })),
-      blocked: status.addresses.filter((entry) => !entry.allowed),
-    },
-    null,
-    2,
-  );
-  const problem = (
-    <Tooltip
-      title={
-        <Box>
-          <Typography variant="caption">{m.details}</Typography>
-          <Box component="pre" sx={{ m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
-            {diagnostic}
-          </Box>
-        </Box>
-      }
-    >
-      <Typography component="span" tabIndex={0} variant="caption" color="error">
-        {m.unavailable}
-      </Typography>
-    </Tooltip>
-  );
   const recovery = (record: (typeof draft.exclusions)[number], testId: string) => (
     <Box key={JSON.stringify(record.exclusion)} data-testid={testId}>
       <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
@@ -108,8 +80,10 @@ export function NetworkInterfacesSettings({
   const row = (entry: NetworkInterfaceInventory) => {
     const matches = draft.exclusions.filter((record) => record.matchingNames.includes(entry.name));
     const ambiguous = matches.some((record) => record.ambiguous);
+    const saved = status.interfaces.find((item) => item.name === entry.name);
     const unavailable =
       !entry.excluded &&
+      saved?.excluded === false &&
       entry.addresses.some(
         (address) =>
           status.listeners.some(
@@ -148,7 +122,11 @@ export function NetworkInterfacesSettings({
               {address.address}/{address.prefixLength}
             </Typography>
           ))}
-          {unavailable && problem}
+          {unavailable && (
+            <Typography component="span" variant="caption" color="error">
+              {m.unavailable}
+            </Typography>
+          )}
         </Box>
         <Switch
           checked={!entry.excluded}
@@ -186,7 +164,7 @@ export function NetworkInterfacesSettings({
     <Stack spacing={1} data-testid="network-interfaces-settings" sx={{ minWidth: 0 }}>
       {hasError && (
         <Alert severity="error" data-testid="network-interface-problem">
-          {problem}
+          {m.unavailable}
         </Alert>
       )}
       <Box
