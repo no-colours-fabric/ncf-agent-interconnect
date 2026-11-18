@@ -64,29 +64,32 @@ function status(
   };
 }
 
-test('compact network settings: all 15 locales retain a collapsed section and every existing recovery/help string', () => {
+test('network settings: all 15 locales show only IPv4 interfaces and explicit exclusions without disclosures or prose', () => {
   for (const locale of supportedLocales) {
     const m = networkInterfaceMessages(locale);
     const html = renderToStaticMarkup(
       createElement(NetworkInterfacesSettings, {
         status: status(),
-        value: [...initialExclusions, { name: 'Absent VPN' }],
+        value: [...initialExclusions, { name: 'utun0' }, { name: 'Absent VPN' }],
         locale,
         onChange() {
           assert.fail('Rendering must not write or alter a draft');
         },
       }),
     );
-    const disclosure = html.match(
-      /<details[^>]*data-testid="network-interfaces-settings"[^>]*>/,
-    )?.[0];
-    assert.ok(disclosure, locale);
-    assert.ok(!/\bopen(?:=|\s|>)/.test(disclosure), locale);
-    for (const text of [m.title, m.details, m.help, m.identityHint, m.absent, m.remove]) {
+    assert.ok(!html.includes('<details'), locale);
+    assert.ok(!html.includes('<summary'), locale);
+    assert.ok(html.includes('data-interface-name="Wi-Fi"'), locale);
+    assert.ok(html.includes('data-interface-name="lo0"'), locale);
+    assert.ok(!html.includes('data-interface-name="utun0"'), locale);
+    assert.ok(!html.includes('data-interface-name="utun1"'), locale);
+    assert.ok(html.includes('Dock Ж &lt;&amp;&gt;'), locale);
+    assert.ok(html.includes('Absent VPN'), locale);
+    assert.ok(html.includes(m.remove), locale);
+    for (const text of [m.help, m.identityHint]) {
       const escaped = renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
-      assert.ok(html.includes(escaped), `${locale}: ${text}`);
+      assert.ok(!html.includes(escaped), locale);
     }
-    assert.ok(html.includes('Dock Ж &lt;&amp;&gt;'));
   }
 });
 
@@ -105,7 +108,7 @@ interface Fixture {
 
 // Only the real component and theme are bundled in memory; no service, IPC or app is launched.
 test(
-  'compact network settings: real source density, drafts and focused technical recovery',
+  'network settings: direct IPv4 list, drafts and inline recovery',
   {
     skip: process.env.NCF_COMPACT_NETWORK_UI !== '1',
     timeout: 90000,
@@ -188,92 +191,52 @@ createRoot(document.getElementById('root')).render(<App/>);
           animations: 'disabled',
         });
       };
-      if (process.env.NCF_COMPACT_NETWORK_BASELINE === '1') {
-        await capture('baseline-en-light-1024');
-        if (artifacts)
-          await writeFile(
-            path.join(artifacts, 'baseline-metrics.json'),
-            JSON.stringify(
-              { sectionHeight: (await section.boundingBox())!.height, interfaces: 17 },
-              null,
-              2,
-            ),
-          );
-        return;
-      }
       await suite.test(
-        'CN1: actual errors remain visible in the closed summary without exposing diagnostics',
+        'IPv4 rows are immediately visible, empty interfaces hidden, and exact draft toggles survive theme changes',
         async () => {
-          await update({ status: status(), value: initialExclusions, locale: 'en', mode: 'light' });
-          await section.evaluate((element: HTMLDetailsElement) => (element.open = false));
-          const problem = section
-            .locator(':scope > summary')
-            .getByTestId('network-interface-problem');
-          assert.equal(await problem.count(), 0);
-          await update({ status: { ...status(), inventoryError: 'Synthetic inventory failure' } });
-          await problem.waitFor();
-          assert.equal(await problem.textContent(), networkInterfaceMessages('en').unavailable);
-          assert.equal(await section.locator('pre').isVisible(), false);
-          assert.ok(
-            !(await section.locator(':scope > summary').textContent())!.includes('Synthetic'),
+          const m = networkInterfaceMessages('en');
+          assert.equal(await section.locator('summary').count(), 0);
+          assert.equal(await section.getByRole('switch').count(), 5);
+          assert.equal(await section.getByText('utun0', { exact: true }).count(), 0);
+          assert.equal(await section.getByText(m.help, { exact: true }).count(), 0);
+          assert.equal(await section.getByText(m.identityHint, { exact: true }).count(), 0);
+          await section.getByText('192.0.2.11/24', { exact: true }).waitFor();
+          const toggle = (name: string) =>
+            section.locator(`[data-interface-name="${name}"]`).getByRole('switch');
+          assert.equal(await toggle('Dock Ж <&>').isChecked(), false);
+          assert.equal(await toggle('lo0').isChecked(), true);
+          await toggle('Ethernet').uncheck();
+          assert.deepEqual(await draft(), [
+            ...initialExclusions,
+            { name: 'Ethernet', mac: '02:00:00:00:00:02' },
+          ]);
+          await update({ mode: 'dark', locale: 'ru' });
+          assert.equal(await toggle('Ethernet').isChecked(), false);
+          await toggle('Ethernet').check();
+          assert.deepEqual(await draft(), initialExclusions);
+          await update({ value: [...initialExclusions, { name: 'utun0' }] });
+          assert.equal(await section.getByText('utun0', { exact: true }).count(), 0);
+          assert.deepEqual(await draft(), [...initialExclusions, { name: 'utun0' }]);
+          const returned = computeNetworkInterfacePolicy(
+            { ...inventory, utun0: [address('203.0.113.60')] },
+            [...initialExclusions, { name: 'utun0' }],
           );
-          await update({
-            status: {
-              ...status(),
-              listeners: [{ address: '192.0.2.10', port: 7336, state: 'error', error: null }],
-            },
-          });
+          await update({ status: { ...returned, listeners: [], inventoryError: null } });
           assert.equal(
-            await problem.isVisible(),
-            true,
-            'A listener error state is sufficient even without a diagnostic string',
-          );
-          const allExcluded = Object.keys(inventory).map((name) => ({ name }));
-          await update({ status: status(allExcluded), value: allExcluded });
-          assert.equal(
-            await problem.count(),
-            0,
-            'Intentional exclusions are not actual listener failures',
-          );
-          const noIpv4 = computeNetworkInterfacePolicy({ utun0: [] });
-          await update({ status: { ...noIpv4, listeners: [], inventoryError: null }, value: [] });
-          assert.equal(
-            await problem.count(),
-            0,
-            'No assigned IPv4 alone is not a reported runtime error',
-          );
-          await page.setViewportSize({ width: 1024, height: 900 });
-          await update({
-            locale: 'ru',
-            mode: 'dark',
-            value: initialExclusions,
-            status: {
-              ...status(),
-              listeners: [
-                {
-                  address: '192.0.2.10',
-                  port: 7336,
-                  state: 'error',
-                  error: 'Synthetic bind failure',
-                },
-              ],
-            },
-          });
-          assert.equal(await problem.textContent(), networkInterfaceMessages('ru').unavailable);
-          assert.equal(
-            await section.evaluate((element: HTMLDetailsElement) => element.open),
+            await toggle('utun0').isChecked(),
             false,
+            'A returning address retains the saved exclusion',
           );
-          assert.equal(await section.locator('pre').isVisible(), false);
-          assert.ok(
-            !(await section.locator(':scope > summary').textContent())!.includes('Synthetic'),
-          );
+          await toggle('utun0').check();
+          assert.deepEqual(await draft(), initialExclusions);
+          await update({ status: status() });
+          assert.equal(await section.getByText('utun0', { exact: true }).count(), 0);
           assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
-          await capture('cn1-closed-error-ru-dark-1024');
+          await capture('direct-list-ru-dark-1024');
         },
       );
       await suite.test(
-        'CN2: an ambiguous row explains all matches and removes only its selected record locally',
+        'ambiguous and absent exclusions have inline recovery without a Technical details disclosure',
         async () => {
           const first = { name: 'Previous Ethernet', mac: '02:00:00:00:00:02' };
           const second = { name: 'Backup Ethernet', mac: '02:00:00:00:00:02' };
@@ -299,236 +262,72 @@ createRoot(document.getElementById('root')).render(<App/>);
               })),
             },
           });
-          await section.locator(':scope > summary').focus();
-          await page.keyboard.press('Enter');
           const m = networkInterfaceMessages('ru');
           const row = section.locator('[data-interface-name="Ethernet"]');
           const toggle = row.getByRole('switch');
           assert.equal(await toggle.isDisabled(), true);
-          const globalDetails = section.getByTestId('network-technical-details');
-          assert.equal(
-            await globalDetails.evaluate((element: HTMLDetailsElement) => element.open),
-            false,
-          );
+          assert.equal(await section.locator('details').count(), 0);
           const recovery = row.getByTestId('network-row-recovery');
-          await recovery.locator(':scope > summary').focus();
-          await page.keyboard.press('Enter');
+          assert.equal(await recovery.isVisible(), true);
           const records = recovery.getByTestId('network-row-exclusion');
           assert.equal(await records.count(), 2);
           for (const record of await records.all()) {
             assert.ok((await record.textContent())!.includes(m.ambiguous));
             assert.ok((await record.textContent())!.includes('Ethernet, USB Ethernet'));
-            assert.ok((await record.textContent())!.includes(first.mac));
           }
-          assert.equal(
-            await globalDetails.evaluate((element: HTMLDetailsElement) => element.open),
-            false,
-            'Targeted explanation does not require opening unrelated Technical details',
-          );
-          await capture('cn2-targeted-recovery-ru-dark-1024');
+          await update({ disabled: true });
+          for (const button of await records.getByRole('button').all())
+            assert.equal(await button.isDisabled(), true);
+          await update({ disabled: false });
           await records
             .filter({ hasText: first.name })
             .getByRole('button', { name: m.remove, exact: true })
             .click();
           assert.deepEqual(await draft(), [absent, second, ...initialExclusions]);
-          assert.equal(
-            await toggle.isDisabled(),
-            true,
-            'Another ambiguous exclusion still applies',
-          );
-          await update({ disabled: true });
-          assert.equal(
-            await records.getByRole('button', { name: m.remove, exact: true }).isDisabled(),
-            true,
-          );
-          await update({ disabled: false });
+          assert.equal(await toggle.isDisabled(), true);
           await records.getByRole('button', { name: m.remove, exact: true }).click();
           assert.deepEqual(await draft(), [absent, ...initialExclusions]);
           assert.equal(await toggle.isDisabled(), false);
-          assert.equal(await recovery.count(), 0);
-          assert.equal(
-            await globalDetails.evaluate((element: HTMLDetailsElement) => element.open),
-            false,
-          );
-          assert.deepEqual(errors, []);
-        },
-      );
-      if (process.env.NCF_COMPACT_NETWORK_SEMANTIC === '1') return;
-      await suite.test(
-        'EN/RU narrow/wide light/dark remain compact by default and expose 48px working rows',
-        async () => {
-          const metrics: unknown[] = [];
-          for (const locale of ['en', 'ru'] as const)
-            for (const mode of ['light', 'dark'] as const)
-              for (const width of [1024, 1440]) {
-                await page.setViewportSize({ width, height: 900 });
-                await update({ locale, mode, status: status(), value: initialExclusions });
-                await section.evaluate((element: HTMLDetailsElement) => (element.open = false));
-                assert.equal((await section.boundingBox())!.height, 44);
-                assert.equal(await section.getByRole('switch').count(), 0);
-                await capture(`${locale}-${mode}-${width}-collapsed`);
-                await section.locator(':scope > summary').focus();
-                await page.keyboard.press('Enter');
-                assert.equal(await section.getByRole('switch').count(), 4);
-                const rows = section.getByTestId('network-primary-list').locator(':scope > li');
-                assert.equal(await rows.count(), 4);
-                for (const row of await rows.all()) {
-                  assert.ok(
-                    (await row.boundingBox())!.height >= 44 &&
-                      (await row.boundingBox())!.height <= 56,
-                  );
-                  const hit = await row.getByRole('switch').boundingBox();
-                  assert.ok(hit && hit.width >= 44 && hit.height >= 44);
-                }
-                assert.equal(
-                  await section
-                    .getByText(networkInterfaceMessages(locale).help, { exact: true })
-                    .isVisible(),
-                  false,
-                );
-                assert.equal(
-                  await section
-                    .getByText(networkInterfaceMessages(locale).identityHint, { exact: true })
-                    .isVisible(),
-                  false,
-                );
-                assert.equal(await section.getByText('utun0', { exact: true }).isVisible(), false);
-                assert.ok(
-                  await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
-                );
-                await capture(`${locale}-${mode}-${width}-expanded`);
-                metrics.push({
-                  locale,
-                  mode,
-                  width,
-                  collapsedHeight: 44,
-                  expandedHeight: (await section.boundingBox())!.height,
-                  rowHeights: await rows.evaluateAll((rows) =>
-                    rows.map((row) => row.getBoundingClientRect().height),
-                  ),
-                });
-              }
-          if (artifacts)
-            await writeFile(
-              path.join(artifacts, 'density-metrics.json'),
-              JSON.stringify(metrics, null, 2),
-            );
-        },
-      );
-      await suite.test(
-        'switches alter only the selected draft and secondary loopback/no-IPv4 controls remain reachable',
-        async () => {
-          await update({ locale: 'en', mode: 'light', status: status(), value: initialExclusions });
-          const wifi = section.locator('[data-interface-name="Wi-Fi"]');
-          await wifi.locator('summary').focus();
-          await page.keyboard.press('Enter');
-          await wifi.getByText('192.0.2.11/24', { exact: true }).waitFor();
-          await wifi.locator('summary').click();
-          const toggle = (name: string) =>
-            section.getByRole('switch', {
-              name: `${name}: ${networkInterfaceMessages('en').enabled}`,
-              exact: true,
-            });
-          await toggle('Ethernet').uncheck();
-          assert.deepEqual(await draft(), [
-            ...initialExclusions,
-            { name: 'Ethernet', mac: '02:00:00:00:00:02' },
-          ]);
-          await update({ mode: 'dark', locale: 'ru' });
-          assert.deepEqual(await draft(), [
-            ...initialExclusions,
-            { name: 'Ethernet', mac: '02:00:00:00:00:02' },
-          ]);
-          await update({ locale: 'en' });
-          await toggle('Ethernet').check();
-          assert.deepEqual(await draft(), initialExclusions);
-          await section
-            .getByTestId('network-technical-details')
-            .locator(':scope > summary')
-            .click();
-          await section.getByText('utun0', { exact: true }).waitFor();
-          await toggle('utun0').uncheck();
-          assert.deepEqual(await draft(), [...initialExclusions, { name: 'utun0' }]);
-          await toggle('utun0').check();
-          await toggle('lo0').uncheck();
-          assert.deepEqual(await draft(), [...initialExclusions, { name: 'lo0' }]);
-          await toggle('lo0').check();
+          const missing = section.getByTestId('network-exclusion').filter({ hasText: absent.name });
+          assert.equal(await missing.isVisible(), true);
+          await missing.getByRole('button', { name: m.remove, exact: true }).click();
           assert.deepEqual(await draft(), initialExclusions);
         },
       );
       await suite.test(
-        'absent/ambiguous exclusions, listener errors, rejected addresses and help remain accessible',
+        'actual error remains visible and diagnostic text is available on keyboard focus',
         async () => {
-          const value = [
-            ...initialExclusions,
-            { name: 'Absent VPN' },
-            { name: 'Previous Ethernet', mac: '02:00:00:00:00:02' },
-          ];
-          const policy = computeNetworkInterfacePolicy(
-            { ...inventory, 'USB Ethernet': [address('198.51.100.50', '02:00:00:00:00:02')] },
-            value,
-          );
-          const failed: NetworkInterfaceStatus = {
-            ...policy,
-            interfaces: policy.interfaces.map((entry) =>
-              entry.name === 'Wi-Fi'
-                ? { ...entry, rejected: [{ address: '0.0.0.0', reason: 'unspecified-address' }] }
-                : entry,
-            ),
-            inventoryError: 'Synthetic inventory error',
-            listeners: [
-              { address: '192.0.2.10', port: 7336, state: 'error', error: 'Synthetic EADDRINUSE' },
-            ],
-          };
-          await update({ status: failed, value, locale: 'en' });
-          const technical = section.getByTestId('network-technical-details');
-          await technical.evaluate((element: HTMLDetailsElement) => (element.open = true));
-          await technical.getByText(networkInterfaceMessages('en').help, { exact: true }).waitFor();
-          await technical
-            .getByText(networkInterfaceMessages('en').identityHint, { exact: true })
-            .waitFor();
-          assert.equal(
-            await section
-              .getByRole('switch', { name: 'Ethernet: Listening enabled', exact: true })
-              .isDisabled(),
-            true,
-          );
-          const absent = technical
-            .getByTestId('network-exclusion')
-            .filter({ hasText: 'Absent VPN' });
-          await absent.getByText(networkInterfaceMessages('en').absent, { exact: false }).waitFor();
-          await absent.getByRole('button', { name: 'Remove exclusion', exact: true }).click();
-          assert.deepEqual(
-            await draft(),
-            value.filter((entry) => entry.name !== 'Absent VPN'),
-          );
-          const ambiguous = technical
-            .getByTestId('network-exclusion')
-            .filter({ hasText: 'Previous Ethernet' });
+          await update({
+            locale: 'en',
+            mode: 'light',
+            status: { ...status(), inventoryError: 'Synthetic inventory failure' },
+            value: initialExclusions,
+          });
+          const problem = section.getByTestId('network-interface-problem');
+          assert.equal(await problem.isVisible(), true);
+          assert.equal(await problem.textContent(), networkInterfaceMessages('en').unavailable);
+          assert.equal(await section.locator('pre').count(), 0);
+          await page.keyboard.press('Tab');
+          await problem.locator('[tabindex="0"]').focus();
+          await page.getByRole('tooltip').waitFor();
           assert.ok(
-            (await ambiguous.textContent())!.includes(networkInterfaceMessages('en').ambiguous),
+            (await page.getByRole('tooltip').textContent())!.includes(
+              'Synthetic inventory failure',
+            ),
           );
-          assert.ok((await ambiguous.textContent())!.includes('USB Ethernet'));
-          await ambiguous.getByRole('button', { name: 'Remove exclusion', exact: true }).click();
-          assert.deepEqual(await draft(), initialExclusions);
+          await section.getByRole('switch').first().focus();
+          const allExcluded = Object.keys(inventory).map((name) => ({ name }));
+          await update({ status: status(allExcluded), value: allExcluded });
           assert.equal(
-            await section
-              .getByRole('switch', { name: 'Ethernet: Listening enabled', exact: true })
-              .isDisabled(),
-            false,
+            await problem.count(),
+            0,
+            'Intentional exclusions are not actual listener failures',
           );
-          assert.ok((await technical.textContent())!.includes('Synthetic EADDRINUSE'));
-          assert.ok((await technical.textContent())!.includes('Synthetic inventory error'));
-          assert.ok((await technical.textContent())!.includes('unspecified-address'));
-          await update({ disabled: true });
-          for (const control of await section.getByRole('switch').all())
-            assert.equal(await control.isDisabled(), true);
-          for (const control of await section
-            .getByRole('button', { name: 'Remove exclusion', exact: true })
-            .all())
-            assert.equal(await control.isDisabled(), true);
+          const empty = computeNetworkInterfacePolicy({ utun0: [] });
+          await update({ status: { ...empty, listeners: [], inventoryError: null }, value: [] });
+          assert.equal(await section.getByRole('switch').count(), 0);
+          assert.equal(await section.getByText('utun0', { exact: true }).count(), 0);
           assert.deepEqual(errors, []);
-          await capture('technical-recovery-en-dark-1440');
         },
       );
     } finally {

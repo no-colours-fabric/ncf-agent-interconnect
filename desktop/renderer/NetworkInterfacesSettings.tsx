@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Box, Button, Stack, Switch, Typography } from '@mui/material';
+import { Alert, Box, Button, Stack, Switch, Tooltip, Typography } from '@mui/material';
 import type {
   NetworkInterfaceExclusion,
   NetworkInterfaceInventory,
@@ -51,16 +51,60 @@ export function NetworkInterfacesSettings({
     ]),
   );
   const draft = computeNetworkInterfacePolicy(snapshot, value);
-  // Assigned external IPv4 stays in place while its draft switch changes. Loopback and
-  // no-IPv4 inventory remain controllable under Details, without guessing from OS names.
-  const primary = draft.interfaces.filter((entry) =>
-    entry.addresses.some((address) => !address.internal),
-  );
-  const secondary = draft.interfaces.filter((entry) => !primary.includes(entry));
-  const count = new Intl.NumberFormat(locale).format(draft.interfaces.length);
+  // Visibility does not alter saved exclusions; a returning IPv4 address retains its policy.
+  const visible = draft.interfaces.filter((entry) => entry.addresses.length > 0);
   const hasError =
     !!status.inventoryError ||
     status.listeners.some((entry) => entry.state === 'error' || !!entry.error);
+  const diagnostic = JSON.stringify(
+    {
+      ...(status.inventoryError ? { inventoryError: status.inventoryError } : {}),
+      listeners: status.listeners.filter((entry) => entry.state === 'error' || entry.error),
+      rejected: status.interfaces
+        .filter((entry) => entry.rejected.length)
+        .map(({ name, rejected }) => ({ name, rejected })),
+      blocked: status.addresses.filter((entry) => !entry.allowed),
+    },
+    null,
+    2,
+  );
+  const problem = (
+    <Tooltip
+      title={
+        <Box>
+          <Typography variant="caption">{m.details}</Typography>
+          <Box component="pre" sx={{ m: 0, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}>
+            {diagnostic}
+          </Box>
+        </Box>
+      }
+    >
+      <Typography component="span" tabIndex={0} variant="caption" color="error">
+        {m.unavailable}
+      </Typography>
+    </Tooltip>
+  );
+  const recovery = (record: (typeof draft.exclusions)[number], testId: string) => (
+    <Box key={JSON.stringify(record.exclusion)} data-testid={testId}>
+      <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+        {record.exclusion.name}
+        {record.exclusion.mac ? ` (${record.exclusion.mac})` : ''}
+        {record.absent ? ` — ${m.absent}` : ''}
+      </Typography>
+      {record.ambiguous && (
+        <Alert severity="warning">
+          {m.ambiguous} {record.matchingNames.join(', ')}
+        </Alert>
+      )}
+      <Button
+        disabled={disabled}
+        sx={{ minHeight: 44 }}
+        onClick={() => onChange(removeInterfaceExclusion(value, record.exclusion))}
+      >
+        {m.remove}
+      </Button>
+    </Box>
+  );
   const row = (entry: NetworkInterfaceInventory) => {
     const matches = draft.exclusions.filter((record) => record.matchingNames.includes(entry.name));
     const ambiguous = matches.some((record) => record.ambiguous);
@@ -75,9 +119,6 @@ export function NetworkInterfacesSettings({
             (candidate) => candidate.address === address.address && !candidate.allowed,
           ),
       );
-    const addresses = entry.addresses.map(
-      (address) => `${address.address}/${address.prefixLength}`,
-    );
     return (
       <Box
         component="li"
@@ -98,52 +139,16 @@ export function NetworkInterfacesSettings({
           {entry.name}
         </Typography>
         <Box sx={{ minWidth: 0, color: 'text.secondary' }}>
-          {addresses.length > 1 ? (
-            <Box
-              component="details"
-              sx={{
-                '& > summary': {
-                  cursor: 'pointer',
-                  minHeight: 44,
-                  lineHeight: '44px',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  listStylePosition: 'inside',
-                },
-              }}
-            >
-              <summary title={addresses.join(', ')}>
-                <Typography variant="body2" component="span" sx={{ fontFamily: 'monospace' }}>
-                  {addresses[0]}
-                </Typography>{' '}
-                (+{addresses.length - 1})
-              </summary>
-              {addresses.map((address) => (
-                <Typography
-                  key={address}
-                  variant="body2"
-                  sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere', pb: 0.5 }}
-                >
-                  {address}
-                </Typography>
-              ))}
-            </Box>
-          ) : (
+          {entry.addresses.map((address) => (
             <Typography
+              key={`${address.address}/${address.prefixLength}`}
               variant="body2"
-              noWrap
-              title={addresses[0] ?? m.noAddresses}
-              sx={{ fontFamily: addresses.length ? 'monospace' : undefined }}
+              sx={{ fontFamily: 'monospace', overflowWrap: 'anywhere' }}
             >
-              {addresses[0] ?? m.noAddresses}
+              {address.address}/{address.prefixLength}
             </Typography>
-          )}
-          {unavailable && (
-            <Typography variant="caption" color="error">
-              {m.unavailable}
-            </Typography>
-          )}
+          ))}
+          {unavailable && problem}
         </Box>
         <Switch
           checked={!entry.excluded}
@@ -166,164 +171,35 @@ export function NetworkInterfacesSettings({
           }}
         />
         {entry.excluded && ambiguous && (
-          <Box
-            component="details"
+          <Stack
             data-testid="network-row-recovery"
-            sx={{
-              gridColumn: '1 / -1',
-              minWidth: 0,
-              '& > summary': {
-                cursor: 'pointer',
-                minHeight: 44,
-                lineHeight: '44px',
-                listStylePosition: 'inside',
-                fontSize: 13,
-              },
-            }}
+            spacing={1}
+            sx={{ gridColumn: '1 / -1', minWidth: 0, pb: 1 }}
           >
-            <summary>{m.details}</summary>
-            <Stack spacing={1} sx={{ pb: 1 }}>
-              {matches.map((record) => (
-                <Box key={JSON.stringify(record.exclusion)} data-testid="network-row-exclusion">
-                  <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-                    {record.exclusion.name}
-                    {record.exclusion.mac ? ` (${record.exclusion.mac})` : ''}
-                  </Typography>
-                  {record.ambiguous && (
-                    <Alert severity="warning">
-                      {m.ambiguous} {record.matchingNames.join(', ')}
-                    </Alert>
-                  )}
-                  <Button
-                    disabled={disabled}
-                    sx={{ minHeight: 44 }}
-                    onClick={() => onChange(removeInterfaceExclusion(value, record.exclusion))}
-                  >
-                    {m.remove}
-                  </Button>
-                </Box>
-              ))}
-            </Stack>
-          </Box>
+            {matches.map((record) => recovery(record, 'network-row-exclusion'))}
+          </Stack>
         )}
       </Box>
     );
   };
-  const list = (entries: readonly NetworkInterfaceInventory[], testId: string) => (
-    <Box component="ul" data-testid={testId} sx={{ listStyle: 'none', p: 0, m: 0 }}>
-      {entries.map(row)}
-    </Box>
-  );
   return (
-    <Box
-      component="details"
-      data-testid="network-interfaces-settings"
-      sx={{
-        minWidth: 0,
-        '& > summary': {
-          cursor: 'pointer',
-          minHeight: 44,
-          lineHeight: '44px',
-          listStylePosition: 'inside',
-          fontSize: 13,
-          fontWeight: 500,
-        },
-      }}
-    >
-      <summary>
-        {m.title}
-        <Typography variant="body2" component="span" color="text.secondary" sx={{ ml: 1 }}>
-          ({count})
-        </Typography>
-        {hasError && (
-          <Typography
-            component="span"
-            variant="caption"
-            color="error"
-            data-testid="network-interface-problem"
-            sx={{ ml: 1 }}
-          >
-            {m.unavailable}
-          </Typography>
-        )}
-      </summary>
-      {primary.length > 0 && list(primary, 'network-primary-list')}
+    <Stack spacing={1} data-testid="network-interfaces-settings" sx={{ minWidth: 0 }}>
+      {hasError && (
+        <Alert severity="error" data-testid="network-interface-problem">
+          {problem}
+        </Alert>
+      )}
       <Box
-        component="details"
-        data-testid="network-technical-details"
-        sx={{
-          '& > summary': {
-            cursor: 'pointer',
-            minHeight: 44,
-            lineHeight: '44px',
-            listStylePosition: 'inside',
-            fontSize: 13,
-            color: 'text.secondary',
-          },
-        }}
+        component="ul"
+        aria-label={m.title}
+        data-testid="network-primary-list"
+        sx={{ listStyle: 'none', p: 0, m: 0 }}
       >
-        <summary>{m.details}</summary>
-        <Stack spacing={1} sx={{ pt: 1 }}>
-          {secondary.length > 0 && list(secondary, 'network-secondary-list')}
-          {draft.exclusions.map((record) => (
-            <Box key={JSON.stringify(record.exclusion)} data-testid="network-exclusion">
-              <Stack
-                direction="row"
-                spacing={1}
-                sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap' }}
-              >
-                <Typography variant="body2" sx={{ minWidth: 0, overflowWrap: 'anywhere' }}>
-                  {record.exclusion.name}
-                  {record.absent ? ` — ${m.absent}` : ''}
-                </Typography>
-                <Button
-                  disabled={disabled}
-                  sx={{ minHeight: 44 }}
-                  onClick={() => onChange(removeInterfaceExclusion(value, record.exclusion))}
-                >
-                  {m.remove}
-                </Button>
-              </Stack>
-              {record.ambiguous && (
-                <Alert severity="warning">
-                  {m.ambiguous} {record.matchingNames.join(', ')}
-                </Alert>
-              )}
-            </Box>
-          ))}
-          <Typography variant="body2" color="text.secondary">
-            {m.help}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {m.identityHint}
-          </Typography>
-          {(status.inventoryError ||
-            status.listeners.some((entry) => entry.error) ||
-            status.interfaces.some((entry) => entry.rejected.length)) && (
-            <Box>
-              <Typography variant="body2" color="error">
-                {m.unavailable}
-              </Typography>
-              <Box
-                component="pre"
-                sx={{ m: 0, mt: 1, fontSize: 12, whiteSpace: 'pre-wrap', overflowWrap: 'anywhere' }}
-              >
-                {JSON.stringify(
-                  {
-                    ...(status.inventoryError ? { inventoryError: status.inventoryError } : {}),
-                    listeners: status.listeners.filter((entry) => entry.error),
-                    rejected: status.interfaces
-                      .filter((entry) => entry.rejected.length)
-                      .map(({ name, rejected }) => ({ name, rejected })),
-                  },
-                  null,
-                  2,
-                )}
-              </Box>
-            </Box>
-          )}
-        </Stack>
+        {visible.map(row)}
       </Box>
-    </Box>
+      {draft.exclusions
+        .filter((record) => record.absent)
+        .map((record) => recovery(record, 'network-exclusion'))}
+    </Stack>
   );
 }
