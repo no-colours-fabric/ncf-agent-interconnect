@@ -8,6 +8,12 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
   Typography,
 } from '@mui/material';
 import type {
@@ -79,14 +85,19 @@ export function AgentClearControls({
         fullWidth
         maxWidth="sm"
         aria-labelledby="agent-clear-title"
+        slotProps={{
+          paper: { sx: { m: 3, maxHeight: 'calc(100dvh - 48px)', overflow: 'hidden' } },
+        }}
       >
         <DialogTitle id="agent-clear-title">
           {t(locale, all ? 'clearAllAgentsTitle' : 'clearAgentTitle')}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+        >
           <AgentClearSummary state={state} locale={locale} />
         </DialogContent>
-        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, flexShrink: 0 }}>
           <Button onClick={() => flow.cancel()} disabled={state.busy === 'confirm'}>
             {t(locale, 'btnCancel')}
           </Button>
@@ -119,7 +130,16 @@ export function AgentClearSummary({
 }): React.JSX.Element {
   const all = state.input?.scope === 'all';
   return (
-    <Stack spacing={2} sx={{ overflowWrap: 'anywhere' }}>
+    <Stack
+      spacing={2}
+      sx={{
+        flex: '1 1 auto',
+        minHeight: 0,
+        overflow: 'hidden',
+        overflowWrap: 'anywhere',
+        '& > :not(.agent-clear-targets)': { flexShrink: 0 },
+      }}
+    >
       <Typography>{t(locale, all ? 'clearAllAgentsWarning' : 'clearAgentWarning')}</Typography>
       <Alert severity="warning">{t(locale, 'clearIrreversible')}</Alert>
       {state.stale && <Alert severity="warning">{t(locale, 'clearPreviewStale')}</Alert>}
@@ -132,14 +152,52 @@ export function AgentClearSummary({
               messages: state.preview.messageCount,
             })}
           </Typography>
-          {state.preview.targets.map((target) => (
-            <Typography key={target.nickname} variant="body2">
-              {t(locale, 'clearAgentCount', {
-                name: target.nickname,
-                count: target.messageCount,
-              })}
-            </Typography>
-          ))}
+          {all ? (
+            <TableContainer
+              className="agent-clear-targets"
+              data-testid="agent-clear-targets"
+              tabIndex={0}
+              sx={{
+                minHeight: 0,
+                flex: '0 1 auto',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderRadius: 1,
+              }}
+            >
+              <Table stickyHeader size="small" aria-label={t(locale, 'clearAllAgentsTitle')}>
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t(locale, 'agentsColumnName')}</TableCell>
+                    <TableCell align="right">{t(locale, 'agentsColumnMessages')}</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {state.preview.targets.map((target) => (
+                    <TableRow key={target.nickname}>
+                      <TableCell component="th" scope="row" sx={{ overflowWrap: 'anywhere' }}>
+                        {target.nickname}
+                      </TableCell>
+                      <TableCell align="right" sx={{ fontVariantNumeric: 'tabular-nums' }}>
+                        {target.messageCount.toLocaleString(locale)}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ) : (
+            state.preview.targets.map((target) => (
+              <Typography key={target.nickname} variant="body2">
+                {t(locale, 'clearAgentCount', {
+                  name: target.nickname,
+                  count: target.messageCount,
+                })}
+              </Typography>
+            ))
+          )}
         </>
       )}
       {state.error && <Alert severity="error">{state.error}</Alert>}

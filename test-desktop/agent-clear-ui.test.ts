@@ -190,3 +190,50 @@ test('Local toolbar states destructive agent+history scope; confirmation renders
   assert.ok(!summary.includes(p.operationId));
   assert.ok(!summary.includes(identity.incarnation!));
 });
+
+test('all-agent deletion preview lists every Unicode name and localized message count in a table without exposing operation IDs', () => {
+  const targets = Array.from({ length: 60 }, (_, index) => ({
+    nickname: `Агент <&> 漢字 ${index}`,
+    messageCount: index * 1000,
+  }));
+  const preview: AgentClearPreview = {
+    ...makePreview(),
+    scope: 'all',
+    targets,
+    agentCount: targets.length,
+    messageCount: targets.reduce((sum, item) => sum + item.messageCount, 0),
+  };
+  const escaped = (text: string) =>
+    renderToStaticMarkup(React.createElement('span', null, text)).slice(6, -7);
+  for (const locale of ['en', 'ru', 'de'] as const) {
+    const html = renderToStaticMarkup(
+      React.createElement(AgentClearSummary, {
+        locale,
+        state: {
+          open: true,
+          busy: null,
+          input: { scope: 'all' },
+          preview,
+          stale: true,
+          error: 'Isolated preview error',
+        },
+      }),
+    );
+    assert.equal(html.match(/<table\b/g)?.length, 1, locale);
+    assert.equal(html.match(/<thead\b/g)?.length, 1, locale);
+    assert.equal(html.match(/<tbody\b/g)?.length, 1, locale);
+    assert.equal(html.match(/<tr\b/g)?.length, targets.length + 1, locale);
+    assert.ok(html.includes(escaped(t(locale, 'agentsColumnName'))), locale);
+    assert.ok(html.includes(escaped(t(locale, 'agentsColumnMessages'))), locale);
+    assert.ok(html.includes('MuiTableCell-stickyHeader'), locale);
+    assert.ok(html.includes('data-testid="agent-clear-targets" tabindex="0"'), locale);
+    for (const target of targets) {
+      assert.ok(html.includes(escaped(target.nickname)), locale + target.nickname);
+      assert.ok(html.includes('>' + target.messageCount.toLocaleString(locale) + '</td>'), locale);
+    }
+    assert.ok(html.includes(escaped(t(locale, 'clearIrreversible'))), locale);
+    assert.ok(html.includes(escaped(t(locale, 'clearPreviewStale'))), locale);
+    assert.ok(html.includes('Isolated preview error'), locale);
+    assert.ok(!html.includes(preview.operationId), locale);
+  }
+});

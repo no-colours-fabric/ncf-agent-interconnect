@@ -409,9 +409,10 @@ export function AgentsPage({
           data-testid="create-agent-manually"
           onClick={onAdd}
           sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            minHeight: 44,
+            display: 'inline',
+            p: 0,
+            m: 0,
+            minHeight: 0,
             minWidth: 0,
             textAlign: 'right',
           }}
@@ -430,9 +431,10 @@ export function AgentsPage({
             void clear.begin({ scope: 'all' });
           }}
           sx={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            minHeight: 44,
+            display: 'inline',
+            p: 0,
+            m: 0,
+            minHeight: 0,
             minWidth: 0,
             textAlign: 'right',
             '&:disabled': { color: 'text.disabled', cursor: 'default', textDecoration: 'none' },
@@ -639,14 +641,19 @@ export function AgentsPage({
         fullWidth
         maxWidth="sm"
         aria-labelledby="agent-clear-title"
+        slotProps={{
+          paper: { sx: { m: 3, maxHeight: 'calc(100dvh - 48px)', overflow: 'hidden' } },
+        }}
       >
         <DialogTitle id="agent-clear-title">
           {t(locale, all ? 'clearAllAgentsTitle' : 'clearAgentTitle')}
         </DialogTitle>
-        <DialogContent>
+        <DialogContent
+          sx={{ display: 'flex', flexDirection: 'column', minHeight: 0, overflow: 'hidden' }}
+        >
           <AgentClearSummary state={deletion} locale={locale} />
         </DialogContent>
-        <DialogActions sx={{ flexWrap: 'wrap', gap: 1 }}>
+        <DialogActions sx={{ flexWrap: 'wrap', gap: 1, flexShrink: 0 }}>
           <Button disabled={deletion.busy === 'confirm'} onClick={() => clear.cancel()}>
             {t(locale, 'btnCancel')}
           </Button>
