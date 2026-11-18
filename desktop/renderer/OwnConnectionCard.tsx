@@ -28,7 +28,6 @@ import type { LanDiscoverySnapshot } from '../shared/lan-discovery.js';
 import type { McpSetupInvoke } from '../shared/mcp-setup.js';
 import { t, type Locale } from './i18n/index.js';
 import { formatLanSearch, lanSearchMessages } from './i18n/lan-search.js';
-import { lanDiscoveryMessages } from './i18n/lan-discovery.js';
 import { networkInterfaceMessages } from './i18n/network-interfaces.js';
 
 export interface OwnConnectionCode {
@@ -43,7 +42,6 @@ export interface OwnConnectionCardProps {
   onCodeChange: (value: OwnConnectionCode | null) => void;
   locale: Locale;
   invoke: McpSetupInvoke;
-  onSettings: () => void;
   active?: boolean;
   visible?: boolean;
 }
@@ -61,34 +59,21 @@ export function OwnConnectionCard({
   onCodeChange,
   locale,
   invoke,
-  onSettings,
   active = true,
   visible = true,
 }: OwnConnectionCardProps): React.JSX.Element {
   const m = lanSearchMessages(locale);
   const networkMessages = networkInterfaceMessages(locale);
-  const legacy = lanDiscoveryMessages(locale);
   const urls = [...new Set(node.peerUrls ?? (node.peerUrl ? [node.peerUrl] : []))];
   const local =
     announcement?.reason === 'listener-local' ||
     (urls.length > 0 && urls.every((url) => /^wss:\/\/(127\.|\[::1\])/u.test(url)));
-  const announcementDetail = announcement?.available
-    ? legacy.announcing
-    : announcement?.reason === 'stopped'
-      ? legacy.stopped
-      : announcement?.reason === 'listener-local' || announcement?.reason === 'listener-unavailable'
-        ? null
-        : announcement?.reason === 'no-interfaces'
-          ? legacy.noInterfaces
-          : announcement?.reason === 'transport-error'
-            ? legacy.transportError
-            : legacy.notAnnouncing;
 
   const id = useId();
   const [open, setOpen] = useState(false);
   const [now, setNow] = useState(() => Date.now());
   const [pending, setPending] = useState(false);
-  const [failure, setFailure] = useState<{ kind: 'code' | 'copy'; detail: string } | null>(null);
+  const [failure, setFailure] = useState<'code' | 'copy' | null>(null);
   const [copied, setCopied] = useState<number | null>(null);
   const mounted = useRef(true);
   const inFlight = useRef(false);
@@ -185,16 +170,13 @@ export function OwnConnectionCard({
         focusCopy.current = true;
         onCodeChange({ code: value.code, expiresAt: value.expiresAt });
       }
-    } catch (error) {
+    } catch {
       if (
         mounted.current &&
         generation.current === request &&
         currentContext.current === ownerContext
       )
-        setFailure({
-          kind: 'code',
-          detail: error instanceof Error ? error.message : String(error),
-        });
+        setFailure('code');
     } finally {
       if (mounted.current && generation.current === request) {
         inFlight.current = false;
@@ -213,13 +195,13 @@ export function OwnConnectionCard({
     setOpen(false);
     copyGeneration.current++;
     setCopied(null);
-    setFailure((current) => (current?.kind === 'copy' ? null : current));
+    setFailure((current) => (current === 'copy' ? null : current));
   };
   const copy = async (value: string, selectOnFailure?: () => void) => {
     if (!dialogOpen) return;
     const request = ++copyGeneration.current;
     const ownerContext = context;
-    setFailure((current) => (current?.kind === 'copy' ? null : current));
+    setFailure((current) => (current === 'copy' ? null : current));
     setCopied(null);
     const isCurrent = () =>
       mounted.current &&
@@ -228,9 +210,9 @@ export function OwnConnectionCard({
     try {
       await invoke('copy', { text: value });
       if (isCurrent()) setCopied(request);
-    } catch (error) {
+    } catch {
       if (!isCurrent()) return;
-      setFailure({ kind: 'copy', detail: error instanceof Error ? error.message : String(error) });
+      setFailure('copy');
       if (visibleRef.current && document.visibilityState === 'visible') selectOnFailure?.();
     }
   };
@@ -350,7 +332,7 @@ export function OwnConnectionCard({
                         ? m.codeExpired
                         : null}
                 </Typography>
-                {(code || failure?.kind === 'code') && (
+                {(code || failure === 'code') && (
                   <Tooltip title={m.refreshHint} describeChild>
                     <Link
                       component="button"
@@ -425,36 +407,9 @@ export function OwnConnectionCard({
                   {local ? networkMessages.localHelp : m.ownHelp}
                 </Typography>
               )}
-              <Link
-                component="button"
-                type="button"
-                variant="body2"
-                underline="always"
-                onClick={() => {
-                  closeDialog();
-                  onSettings();
-                }}
-                sx={{ ...linkSx, mt: 1 }}
-              >
-                {m.networkSettings}
-              </Link>
-              {announcement && announcementDetail && (
-                <Box component="details" sx={{ mt: 1 }} data-testid="announcement-details">
-                  <summary>{m.details}</summary>
-                  <Typography variant="caption">{announcementDetail}</Typography>
-                </Box>
-              )}
             </Box>
             {failure && (
-              <Alert severity="error">
-                {failure.kind === 'code' ? m.codeFailed : m.copyFailed}
-                <Box component="details" sx={{ mt: 1 }}>
-                  <summary>{m.details}</summary>
-                  <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
-                    {failure.detail}
-                  </Typography>
-                </Box>
-              </Alert>
+              <Alert severity="error">{failure === 'code' ? m.codeFailed : m.copyFailed}</Alert>
             )}
           </Stack>
         </DialogContent>

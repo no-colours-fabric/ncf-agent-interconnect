@@ -370,7 +370,6 @@ function App({
           locale={locale}
           invoke={call}
           pairLedger={pairLedger}
-          onSettings={() => navigate('settings')}
           ownCode={ownCode}
           onOwnCodeChange={setOwnCode}
           manual={{

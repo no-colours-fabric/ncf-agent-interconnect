@@ -78,7 +78,6 @@ test('an all-excluded node keeps the access-code dialog action available', () =>
       onCodeChange: () => assert.fail('Rendering must never change a code'),
       locale: 'en',
       invoke: async () => assert.fail('Rendering must never call the service'),
-      onSettings: () => {},
     }),
   );
   assert.ok(html.includes('Get connection code'));

@@ -186,7 +186,6 @@ export interface NetworkPageProps {
   locale: Locale;
   invoke: McpSetupInvoke;
   pairLedger?: PairAttemptLedger;
-  onSettings: () => void;
   ownCode: OwnConnectionCode | null;
   onOwnCodeChange: (value: OwnConnectionCode | null) => void;
   manual: NetworkManualConnection;
@@ -226,7 +225,6 @@ export function NetworkPage({
   locale,
   invoke,
   pairLedger,
-  onSettings,
   ownCode,
   onOwnCodeChange,
   manual,
@@ -597,7 +595,6 @@ export function NetworkPage({
           onCodeChange={onOwnCodeChange}
           locale={locale}
           invoke={invoke}
-          onSettings={onSettings}
           active={active}
           visible={canObserve}
         />

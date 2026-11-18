@@ -189,7 +189,6 @@ test('Nearby computers has a count badge and keeps address choices out of the ro
         snapshot: value,
         locale,
         invoke: noInvoke,
-        onSettings() {},
         ownCode: null,
         onOwnCodeChange() {},
         manual: { address: '', code: '', onAddressChange() {}, onCodeChange() {} },
@@ -229,7 +228,6 @@ test('search UI: all 15 independent dictionaries preserve placeholders and liter
         snapshot: snapshot(),
         locale,
         invoke: noInvoke,
-        onSettings() {},
         ownCode: null,
         onOwnCodeChange() {},
         manual: { address: 'host:7336', code: '', onAddressChange() {}, onCodeChange() {} },
@@ -295,7 +293,6 @@ test('the connection card presents just the heading and code action in every ann
         onCodeChange() {},
         locale: 'en',
         invoke: noInvoke,
-        onSettings() {},
       }),
     );
     assert.ok(html.includes(lanSearchEnglish.ownTitle));
@@ -337,7 +334,6 @@ test('search UI: localized responder labels and local help remain without the ne
         onCodeChange() {},
         locale,
         invoke: noInvoke,
-        onSettings() {},
       }),
     );
     assert.ok(!own.includes(escaped(networkInterfaceMessages(locale).localHelp)), locale);
@@ -350,7 +346,6 @@ test('search UI: localized responder labels and local help remain without the ne
         snapshot: snapshot(),
         locale,
         invoke: noInvoke,
-        onSettings() {},
         ownCode: null,
         onOwnCodeChange() {},
         manual: { address: '', code: '', onAddressChange() {}, onCodeChange() {} },
@@ -386,7 +381,6 @@ test('Remote nodes shows one current address in the table and no saved or discon
         snapshot: value,
         locale: 'ru',
         invoke: noInvoke,
-        onSettings() {},
         ownCode: null,
         onOwnCodeChange() {},
         manual: { address: '', code: '', onAddressChange() {}, onCodeChange() {} },
@@ -522,7 +516,7 @@ function App({patch}){
  const[state,setState]=React.useState({snapshot:structuredClone(initial),active:true,windowVisible:true,obscured:false,locale:'en',theme:'dark',ownCode:null,address:'manual-draft:7336',code:'ABCD2345',legacy:false,externalModal:false,nestedModal:false,exitHold:false,...patch});
  update=patch=>flushSync(()=>setState(value=>({...value,...patch})));
  return <ThemeProvider theme={createAppTheme(state.theme)}><CssBaseline/><Box data-testid="fixture-owner" aria-hidden={state.exitHold?true:undefined} sx={{p:4,ml:'240px'}}>
-  <NetworkPage active={state.active} windowVisible={state.windowVisible} obscured={state.obscured} snapshot={state.snapshot} locale={state.locale} invoke={invoke} onSettings={()=>calls.push({method:'settings',input:{}})} ownCode={state.ownCode} onOwnCodeChange={ownCode=>setState(value=>({...value,ownCode}))} manual={{address:state.address,code:state.code,onAddressChange:address=>setState(value=>({...value,address})),onCodeChange:code=>setState(value=>({...value,code})),content:state.legacy?<form data-testid="legacy-manual" onSubmit={event=>event.preventDefault()}><TextField label="Retained manual field" value={state.address} onChange={event=>setState(value=>({...value,address:event.target.value}))}/><Button onClick={()=>calls.push({method:'legacyConnect',input:{address:state.address,code:state.code}})}>Retained manual action</Button></form>:undefined}}>
+  <NetworkPage active={state.active} windowVisible={state.windowVisible} obscured={state.obscured} snapshot={state.snapshot} locale={state.locale} invoke={invoke} ownCode={state.ownCode} onOwnCodeChange={ownCode=>setState(value=>({...value,ownCode}))} manual={{address:state.address,code:state.code,onAddressChange:address=>setState(value=>({...value,address})),onCodeChange:code=>setState(value=>({...value,code})),content:state.legacy?<form data-testid="legacy-manual" onSubmit={event=>event.preventDefault()}><TextField label="Retained manual field" value={state.address} onChange={event=>setState(value=>({...value,address:event.target.value}))}/><Button onClick={()=>calls.push({method:'legacyConnect',input:{address:state.address,code:state.code}})}>Retained manual action</Button></form>:undefined}}>
    <RemoteNodesTable snapshot={state.snapshot} locale={state.locale} nodeName={id=>state.snapshot.peers.find(peer=>peer.id===id)?.label||id}/>
    <Button onClick={()=>calls.push({method:'retainedDetails',input:{}})}>Retained details action</Button>
   </NetworkPage>
@@ -643,6 +637,7 @@ root.render(<App key={generation} patch={{}}/>);
             .getByRole('alert')
             .filter({ hasText: lanSearchEnglish.copyFailed })
             .waitFor();
+          assert.equal(await ownDialog.locator('details').count(), 0);
           assert.deepEqual(errors, [], 'Address copy failure still allows manual selection');
           await refresh.click();
           await settle(page, 'accessCode', {
@@ -1035,7 +1030,7 @@ root.render(<App key={generation} patch={{}}/>);
 
       await runCase(
         'copy-correction',
-        'the dialog retains local and empty-endpoint help with a route to Network settings',
+        'the connection dialog keeps local and empty-endpoint help without Settings or Details',
         async () => {
           const value = snapshot();
           value.lanDiscovery = {
@@ -1048,6 +1043,11 @@ root.render(<App key={generation} patch={{}}/>);
           const own = page.getByTestId('own-connection-card');
           const open = own.getByRole('button', { name: lanSearchEnglish.createCode, exact: true });
           const ownDialog = dialog();
+          const close = ownDialog.getByRole('button', { name: 'Close', exact: true });
+          const settings = ownDialog.getByRole('button', {
+            name: lanSearchEnglish.networkSettings,
+            exact: true,
+          });
           const expiry = new Date(Date.now() + 600000).toISOString();
           assert.equal(await own.getByText(networkInterfaceMessages('en').localHelp).count(), 0);
           assert.equal(await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).count(), 0);
@@ -1062,32 +1062,34 @@ root.render(<App key={generation} patch={{}}/>);
             .getByText(networkInterfaceMessages('en').localHelp, { exact: true })
             .first()
             .waitFor();
-          await ownDialog.getByRole('button', { name: 'Network settings', exact: true }).click();
+          assert.equal(await settings.count(), 0);
+          assert.equal(await ownDialog.locator('details').count(), 0);
+          await close.click();
           await ownDialog.waitFor({ state: 'hidden' });
-          assert.equal((await callList(page, 'settings')).length, 1);
 
-          const unavailable = {
+          const available = {
             ...value,
             peerUrl: 'wss://192.0.2.1:7336/peer',
             lanDiscovery: {
               ...value.lanDiscovery!,
-              announcement: { available: false, reason: 'listener-unavailable' },
+              announcement: { available: true, reason: null },
             },
           };
-          await update(page, { snapshot: unavailable });
+          await update(page, { snapshot: available });
           await open.click();
           assert.equal((await callList(page, 'accessCode')).length, 1);
           assert.equal(await codeInput().inputValue(), 'ABCD2345');
           await ownDialog.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
-          assert.equal(await ownDialog.getByTestId('announcement-details').count(), 0);
+          assert.equal(await settings.count(), 0);
+          assert.equal(await ownDialog.locator('details').count(), 0);
 
-          await update(page, { snapshot: { ...unavailable, peerUrl: '', peerUrls: [] } });
+          await update(page, { snapshot: { ...available, peerUrl: '', peerUrls: [] } });
           await ownDialog
             .getByText(networkInterfaceMessages('en').emptyEndpoint, { exact: true })
             .waitFor();
           assert.equal(await ownDialog.getByRole('table').count(), 0);
-          await ownDialog.getByRole('button', { name: 'Network settings', exact: true }).click();
-          assert.equal((await callList(page, 'settings')).length, 2);
+          await close.click();
+          await ownDialog.waitFor({ state: 'hidden' });
         },
       );
 
