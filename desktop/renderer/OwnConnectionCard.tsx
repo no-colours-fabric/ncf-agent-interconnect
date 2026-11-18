@@ -6,16 +6,14 @@ import {
   Box,
   Button,
   IconButton,
-  InputBase,
-  Select,
   Paper,
   Stack,
+  TextField,
   Tooltip,
   Typography,
 } from '@mui/material';
 import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
-import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import type { Snapshot } from '../shared/contracts.js';
 import type { LanDiscoverySnapshot } from '../shared/lan-discovery.js';
 import type { McpSetupInvoke } from '../shared/mcp-setup.js';
@@ -76,8 +74,6 @@ export function OwnConnectionCard({
   const [pending, setPending] = useState(false);
   const [failure, setFailure] = useState<{ kind: 'code' | 'copy'; detail: string } | null>(null);
   const [copied, setCopied] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const [connectionIntent, setConnectionIntent] = useState(false);
   const mounted = useRef(true);
   const inFlight = useRef(false);
   const generation = useRef(0);
@@ -118,7 +114,6 @@ export function OwnConnectionCard({
       setFailure(null);
       setCopied(false);
       onCodeChange(null);
-      setConnectionIntent(false);
     }
   }, [context, onCodeChange]);
   useEffect(() => {
@@ -135,7 +130,6 @@ export function OwnConnectionCard({
 
   const createCode = async () => {
     if (!node.running || inFlight.current) return;
-    setConnectionIntent(true);
     const request = ++generation.current;
     const ownerContext = context;
     inFlight.current = true;
@@ -195,7 +189,10 @@ export function OwnConnectionCard({
       }
     }
   };
-  const addressWidth = `${Math.min(56, Math.max(18, effectiveAddress.length))}ch`;
+  const readOnly = {
+    input: { readOnly: true, notched: false },
+    inputLabel: { shrink: true, disableAnimation: true },
+  };
 
   return (
     <Paper
@@ -203,84 +200,42 @@ export function OwnConnectionCard({
       variant="outlined"
       aria-labelledby={id + '-title'}
       data-testid="own-connection-card"
-      sx={{ p: 2 }}
+      sx={{ p: 3 }}
     >
-      <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-        <Typography id={id + '-title'} component="h2" variant="subtitle1" sx={{ flex: 1 }}>
-          {m.ownTitle}
-        </Typography>
-        <Tooltip title={m.networkSettings}>
-          <IconButton
-            aria-label={m.networkSettings}
-            onClick={onSettings}
-            sx={{ width: 44, height: 44, flexShrink: 0 }}
-          >
-            <SettingsOutlined sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Tooltip>
-        <Button
-          aria-expanded={detailsOpen}
-          aria-controls={id + '-details'}
-          onClick={() => setDetailsOpen((open) => !open)}
-          sx={{ minHeight: 44, minWidth: 0, px: 1, color: 'text.secondary' }}
-        >
-          {m.details}
-        </Button>
-      </Stack>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+      <Typography id={id + '-title'} variant="h6">
+        {m.ownTitle}
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 2 }}>
         {local ? networkMessages.localHelp : m.ownHelp}
       </Typography>
-      <Stack direction="row" spacing={2} useFlexGap sx={{ alignItems: 'center', flexWrap: 'wrap' }}>
-        {(connectionIntent || code || detailsOpen) && (
-          <Stack
-            direction="row"
-            spacing={0.5}
-            sx={{ alignItems: 'center', minWidth: 0, maxWidth: '100%' }}
-          >
-            {urls.length > 1 ? (
-              <Select
-                variant="standard"
-                disableUnderline
-                value={effectiveAddress}
-                onChange={(event) => setSelectedAddress(event.target.value)}
-                inputRef={addressInput}
-                inputProps={{ 'aria-label': m.ownAddress }}
-                sx={{
-                  width: `calc(${addressWidth} + 28px)`,
-                  maxWidth: 'calc(100% - 48px)',
-                  minHeight: 44,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  '& .MuiSelect-select': { py: 1, textOverflow: 'ellipsis' },
-                }}
-              >
-                {urls.map((url) => (
-                  <MenuItem
-                    key={url}
-                    value={url}
-                    sx={{ overflowWrap: 'anywhere', whiteSpace: 'normal' }}
-                  >
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: 'minmax(0, 1.1fr) minmax(0, .9fr)' },
+          gap: 3,
+          alignItems: 'start',
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
+            <TextField
+              fullWidth
+              label={m.ownAddress}
+              select={urls.length > 1}
+              value={effectiveAddress}
+              onChange={(event) => setSelectedAddress(event.target.value)}
+              placeholder={networkMessages.emptyEndpoint}
+              inputRef={addressInput}
+              slotProps={urls.length > 1 ? { inputLabel: readOnly.inputLabel } : readOnly}
+              sx={{ '& input': { fontFamily: 'monospace' } }}
+            >
+              {urls.length > 1 &&
+                urls.map((url) => (
+                  <MenuItem key={url} value={url}>
                     {url}
                   </MenuItem>
                 ))}
-              </Select>
-            ) : (
-              <InputBase
-                value={effectiveAddress}
-                readOnly
-                placeholder={networkMessages.emptyEndpoint}
-                inputRef={addressInput}
-                slotProps={{ input: { 'aria-label': m.ownAddress } }}
-                sx={{
-                  width: addressWidth,
-                  maxWidth: 'calc(100% - 48px)',
-                  minHeight: 44,
-                  fontFamily: 'monospace',
-                  fontSize: 13,
-                  '& input': { minWidth: 0, textOverflow: 'ellipsis' },
-                }}
-              />
-            )}
+            </TextField>
             <Tooltip title={m.copyAddress}>
               <IconButton
                 aria-label={m.copyAddress}
@@ -292,104 +247,107 @@ export function OwnConnectionCard({
               </IconButton>
             </Tooltip>
           </Stack>
-        )}
-        <Stack
-          direction="row"
-          spacing={0.5}
-          useFlexGap
-          sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-        >
+          {!effectiveAddress && (
+            <Typography role="status" variant="body2">
+              {networkMessages.emptyEndpoint}
+            </Typography>
+          )}
+          <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center', flexWrap: 'wrap' }}>
+            {local && (
+              <Typography variant="caption" color="text.secondary">
+                {m.localOnly}
+              </Typography>
+            )}
+            <Button
+              variant="text"
+              onClick={onSettings}
+              sx={{ minWidth: 0, p: 0, fontSize: 13, textDecoration: 'underline' }}
+            >
+              {m.networkSettings}
+            </Button>
+          </Stack>
+        </Box>
+        <Box sx={{ minWidth: 0 }}>
           {usable ? (
             <>
-              <InputBase
-                value={code.code}
-                readOnly
-                inputRef={codeInput}
-                slotProps={{ input: { 'aria-label': m.connectionCode } }}
-                sx={{ width: '9ch', minHeight: 44, fontFamily: 'monospace', fontSize: 20 }}
-              />
-              <Button
-                ref={copyCodeButton}
-                variant="outlined"
-                aria-label={t(locale, 'btnCopyCode')}
-                onClick={() => void copy(code.code, codeInput)}
-                startIcon={<ContentCopyOutlined sx={{ fontSize: 18 }} />}
-                sx={{ minHeight: 44, flexShrink: 0 }}
-              >
-                {t(locale, 'btnCopyCode')}
-              </Button>
-              <Tooltip title={m.refreshHint}>
-                <IconButton
-                  aria-label={m.refreshCode}
-                  onClick={() => void createCode()}
-                  sx={{ width: 44, height: 44, flexShrink: 0 }}
-                >
-                  <RefreshOutlined sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-              <Typography variant="caption" color="text.secondary">
-                {m.singleUse}
-              </Typography>
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'flex-end' }}>
+                <TextField
+                  fullWidth
+                  label={m.connectionCode}
+                  value={code.code}
+                  inputRef={codeInput}
+                  slotProps={readOnly}
+                  sx={{
+                    '& input': { fontFamily: 'monospace', fontSize: 24, letterSpacing: '.15em' },
+                  }}
+                />
+                <Tooltip title={t(locale, 'btnCopyCode')}>
+                  <IconButton
+                    ref={copyCodeButton}
+                    aria-label={t(locale, 'btnCopyCode')}
+                    onClick={() => void copy(code.code, codeInput)}
+                    sx={{ width: 44, height: 44, mb: 1, flexShrink: 0 }}
+                  >
+                    <ContentCopyOutlined sx={{ fontSize: 18 }} />
+                  </IconButton>
+                </Tooltip>
+              </Stack>
+              <Stack direction="row" spacing={0.5} sx={{ mt: 0.5, alignItems: 'center' }}>
+                <Tooltip title={m.refreshHint}>
+                  <IconButton
+                    aria-label={m.refreshCode}
+                    onClick={() => void createCode()}
+                    sx={{ width: 24, height: 24, p: 0.5 }}
+                  >
+                    <RefreshOutlined sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+                <Typography variant="caption" color="text.secondary" data-testid="own-code-expiry">
+                  {m.singleUse} · {formatLanSearch(m.expiresIn, { time })}
+                </Typography>
+              </Stack>
             </>
           ) : (
             <>
-              {expired && node.running && !pending && (
-                <Typography role="status" variant="body2">
-                  {m.codeExpired}
-                </Typography>
-              )}
-              <Button
-                variant="outlined"
-                onClick={() => void createCode()}
-                disabled={!node.running || pending}
-                sx={{ minHeight: 44 }}
-                aria-label={pending ? m.creatingCode : m.createCode}
-                aria-busy={pending}
+              <Typography
+                component="div"
+                id={id + '-code-label'}
+                variant="body2"
+                color="text.secondary"
+                sx={{ fontSize: 13, mb: 1 }}
               >
-                {pending ? m.creatingCode : m.createCode}
-              </Button>
-              {!node.running && (
-                <Typography variant="caption" color="text.secondary">
-                  {m.startNodeHint}
-                </Typography>
-              )}
+                {m.connectionCode}
+              </Typography>
+              <Stack direction="row" spacing={2} sx={{ alignItems: 'center' }}>
+                {expired && node.running && !pending && (
+                  <Typography role="status" variant="body2">
+                    {m.codeExpired}
+                  </Typography>
+                )}
+                <Button
+                  variant="contained"
+                  onClick={() => void createCode()}
+                  disabled={!node.running || pending}
+                  sx={{ minHeight: 44 }}
+                  aria-describedby={id + '-code-label'}
+                  aria-busy={pending}
+                >
+                  {pending ? m.creatingCode : m.createCode}
+                </Button>
+              </Stack>
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+                {node.running ? `${m.singleUse} · ${m.validFor}` : m.startNodeHint}
+              </Typography>
             </>
           )}
-        </Stack>
-      </Stack>
-      {(node.running || connectionIntent || code || detailsOpen) && !effectiveAddress && (
-        <Typography
-          role="status"
-          variant="body2"
-          color="warning.main"
-          data-testid="own-address-unavailable"
-          sx={{ mt: 1 }}
-        >
-          {networkMessages.emptyEndpoint}
-        </Typography>
-      )}
-      <Box
-        id={id + '-details'}
-        hidden={!detailsOpen}
-        data-testid="announcement-details"
-        sx={{ mt: 1 }}
-      >
-        <Stack spacing={0.5}>
-          {local && (
-            <Typography variant="caption" color="text.secondary">
-              {m.localOnly}
-            </Typography>
-          )}
-          {announcement && (
-            <Typography variant="caption" color="text.secondary">
-              {announcementDetail}
-            </Typography>
-          )}
-          <Typography variant="caption" color="text.secondary" data-testid="own-code-expiry">
-            {usable ? formatLanSearch(m.expiresIn, { time }) : `${m.singleUse} · ${m.validFor}`}
-          </Typography>
-        </Stack>
+        </Box>
       </Box>
+      {announcement && (
+        <Box component="details" sx={{ mt: 1 }} data-testid="announcement-details">
+          <summary>{m.details}</summary>
+          <Typography variant="caption">{announcementDetail}</Typography>
+        </Box>
+      )}
       {copied && (
         <Typography
           role="status"

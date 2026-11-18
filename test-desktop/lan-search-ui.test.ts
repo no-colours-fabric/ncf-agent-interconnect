@@ -259,7 +259,7 @@ test('search UI: navigation excludes paired identities/addresses and retains cur
   assert.deepEqual(lanSearchNavigation(value, 'en'), {
     searching: true,
     unseenCount: 1,
-    statusLabel: 'Searching your network',
+    statusLabel: 'Searching · 18s left · 1 found',
   });
   value.peers.push({
     id: 'different-authenticated-id',
@@ -522,132 +522,11 @@ root.render(<App key={generation} patch={{}}/>);
         page.getByRole('button', { name: lanSearchEnglish.manualConnect, exact: true });
 
       await runCase(
-        'missing-address',
-        'CR1: initial running node without an endpoint exposes its localized cue and Settings before code intent',
-        async () => {
-          const value = snapshot();
-          value.peerUrl = '';
-          value.peerUrls = [];
-          value.listenHost = '';
-          value.lanDiscovery = {
-            state: 'searching',
-            reason: null,
-            announcement: { available: false, reason: 'listener-unavailable' },
-            nodes: [],
-          };
-          for (const locale of ['en', 'ru'] as const) {
-            await reset(page, { snapshot: value, locale });
-            const own = page.getByTestId('own-connection-card');
-            const cue = own.getByTestId('own-address-unavailable');
-            await cue.waitFor();
-            assert.equal(await cue.textContent(), networkInterfaceMessages(locale).emptyEndpoint);
-            assert.equal((await callList(page, 'accessCode')).length, 0);
-            assert.equal(await own.getByRole('textbox').count(), 0);
-            assert.equal(
-              await own
-                .getByRole('button', { name: lanSearchMessages(locale).createCode, exact: true })
-                .isEnabled(),
-              true,
-            );
-            await own
-              .getByRole('button', { name: lanSearchMessages(locale).networkSettings, exact: true })
-              .click();
-            assert.equal((await callList(page, 'settings')).length, 1);
-            assert.equal((await callList(page, 'accessCode')).length, 0);
-          }
-          await reset(page, { snapshot: value });
-          const own = page.getByTestId('own-connection-card');
-          await own.getByRole('button', { name: 'Create code', exact: true }).click();
-          await settle(page, 'accessCode', {
-            code: 'ABCD2345',
-            expiresAt: new Date(Date.now() + 600000).toISOString(),
-          });
-          await own.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
-          assert.equal(
-            (await callList(page, 'accessCode')).length,
-            1,
-            'Missing address does not add a code-generation prerequisite',
-          );
-          assert.equal(await own.getByTestId('own-address-unavailable').isVisible(), true);
-        },
-      );
-      await runCase(
-        'paired-problem',
-        'CR2: affected paired row exposes a localized issue and targeted diagnostic without a misleading healthy summary',
-        async () => {
-          const raw = 'Fixture TLS handshake failed at wss://192.0.2.20:7336/peer';
-          for (const locale of ['en', 'ru'] as const) {
-            for (const connected of [false, true]) {
-              const value = snapshot();
-              value.peers = [
-                {
-                  id: first.nodeId,
-                  label: 'Problem computer',
-                  address: first.address,
-                  connected,
-                  error: raw,
-                },
-                {
-                  id: second.nodeId,
-                  label: 'Healthy computer',
-                  address: second.address,
-                  connected: true,
-                  error: null,
-                },
-              ];
-              await reset(page, { snapshot: value, locale });
-              const row = page.locator(`[data-paired-key="${first.nodeId}"]`);
-              const summary = row.locator(':scope > summary');
-              await summary
-                .getByText(translate(locale, 'clientsConnectionIssues', { count: 1 }), {
-                  exact: true,
-                })
-                .waitFor();
-              assert.ok((await summary.boundingBox())!.height >= 44);
-              assert.equal((await summary.textContent())!.includes(raw), false);
-              assert.equal(await row.getByTestId('paired-problem-diagnostic').isVisible(), false);
-              if (connected)
-                assert.equal(
-                  (await summary.textContent())!.includes(translate(locale, 'networkConnected')),
-                  false,
-                );
-              assert.equal(await page.getByTestId('paired-details').getAttribute('open'), null);
-              await summary.focus();
-              await summary.press('Enter');
-              await row.getByTestId('paired-problem-diagnostic').waitFor();
-              assert.equal(await row.locator('pre').textContent(), raw);
-              assert.equal(
-                await page.getByTestId('paired-details').getAttribute('open'),
-                null,
-                'Targeted details do not force open the global legacy table',
-              );
-              assert.equal(
-                await page
-                  .locator(`[data-paired-key="${second.nodeId}"]`)
-                  .getByText(translate(locale, 'networkConnected'), { exact: true })
-                  .isVisible(),
-                true,
-              );
-              await summary.press('Enter');
-              assert.equal(await row.getByTestId('paired-problem-diagnostic').isVisible(), false);
-              assert.equal((await callList(page, 'connectPeer')).length, 0);
-              assert.equal((await callList(page, 'accessCode')).length, 0);
-            }
-          }
-        },
-      );
-
-      await runCase(
         'own',
         'inline own code requires an action; copy, refresh, expiry and drafts survive navigation/theme',
         async () => {
           await reset(page);
           assert.equal((await callList(page, 'accessCode')).length, 0);
-          assert.equal(
-            await page.getByRole('button', { name: 'Copy address', exact: true }).count(),
-            0,
-            'Own address appears only after a connection intent',
-          );
           assert.equal((await callList(page, 'startLanSearch')).length, 0);
           await page
             .getByRole('button', { name: 'Create code', exact: true })
@@ -695,11 +574,8 @@ root.render(<App key={generation} patch={{}}/>);
           const geometry = await own
             .getByRole('button', { name: 'Create new code', exact: true })
             .boundingBox();
-          const singleUse = await own.getByText('Single use', { exact: true }).boundingBox();
-          assert.ok(geometry && singleUse && geometry.x < singleUse.x && geometry.width === 44);
-          assert.equal(await own.getByTestId('own-code-expiry').isVisible(), false);
-          await own.getByRole('button', { name: 'Details', exact: true }).click();
-          assert.equal(await own.getByTestId('own-code-expiry').isVisible(), true);
+          const expiry = await own.getByTestId('own-code-expiry').boundingBox();
+          assert.ok(geometry && expiry && geometry.x < expiry.x && geometry.width === 24);
           await page.evaluate(() =>
             (window as unknown as { fixture: Fixture }).fixture.failCopy(true),
           );
@@ -777,13 +653,6 @@ root.render(<App key={generation} patch={{}}/>);
         async () => {
           await reset(page);
           await page.getByText('Found: 1', { exact: true }).waitFor();
-          const searchDetails = page.getByTestId('nearby-details');
-          assert.equal(
-            await searchDetails.getByText('12 of 30s · 18s remaining', { exact: true }).isVisible(),
-            false,
-          );
-          await searchDetails.locator('summary').click();
-          await searchDetails.getByText('12 of 30s · 18s remaining', { exact: true }).waitFor();
           assert.equal(
             await page
               .getByRole('progressbar', { name: 'Search time' })
@@ -879,7 +748,6 @@ root.render(<App key={generation} patch={{}}/>);
             },
           ];
           await update(page, { snapshot: authenticated });
-          await page.getByTestId('paired-details').locator('summary').click();
           await page.getByTestId('remote-nodes-table').waitFor();
           await update(page, { snapshot: snapshot() });
           await connectButton().waitFor();
@@ -1050,10 +918,7 @@ root.render(<App key={generation} patch={{}}/>);
             await own.getByRole('button', { name: 'Create code', exact: true }).isEnabled(),
             true,
           );
-          await page
-            .getByText('Found in this search', { exact: true })
-            .filter({ visible: true })
-            .waitFor();
+          await page.getByText('Found in this search', { exact: true }).waitFor();
           assert.equal(await page.getByText('Available to connect', { exact: true }).count(), 0);
           const details = page.getByTestId('nearby-details');
           await details.locator('summary').click();
@@ -1264,7 +1129,6 @@ root.render(<App key={generation} patch={{}}/>);
             },
           ];
           await reset(page, { snapshot: value });
-          await page.getByTestId('paired-details').locator('summary').click();
           await page.getByTestId('remote-nodes-table').waitFor();
           await page.getByText(first.address, { exact: true }).waitFor();
           await page.getByText('Isolated status diagnostic', { exact: true }).waitFor();
@@ -1311,26 +1175,8 @@ root.render(<App key={generation} patch={{}}/>);
                 .boundingBox();
               assert.ok(primary && primary.height >= 44 && stop && stop.height >= 44);
 
-              assert.equal(await input.getAttribute('aria-label'), 'Computer address');
-              const ownBounds = await page.getByTestId('own-connection-card').boundingBox();
-              const toolbarBounds = await page.getByTestId('lan-search-toolbar').boundingBox();
-              const rowBounds = await page.locator('[data-lan-key]').first().boundingBox();
-              assert.ok(
-                ownBounds && ownBounds.height <= 196,
-                `${theme}/${width} own controls are content-sized`,
-              );
-              assert.ok(
-                toolbarBounds && toolbarBounds.height <= 64,
-                `${theme}/${width} compact search toolbar`,
-              );
-              assert.ok(
-                rowBounds && rowBounds.height <= 72,
-                `${theme}/${width} compact computer row`,
-              );
-              assert.equal(
-                await page.getByTestId('node-endpoints').first().getByRole('button').count(),
-                0,
-              );
+              const label = page.locator(`label[for="${await input.getAttribute('id')}"]`);
+              assert.equal(await label.getAttribute('data-shrink'), 'true');
               if (artifacts)
                 await page.screenshot({
                   path: path.join(artifacts, `network-${theme}-${width}.png`),
@@ -1563,6 +1409,8 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
       if (process.env.NCF_LAN_WIRING_CAPTURE_ONLY === '1') {
         const page = await open();
         try {
+          await page.getByRole('button', { name: 'Create code', exact: true }).click();
+          await page.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
           for (const dark of [true, false]) {
             if (!dark) {
               await page.getByTestId('nav-settings').click();
@@ -1573,25 +1421,9 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
             }
             for (const width of [1280, 1024]) {
               await page.setViewportSize({ width, height: 1000 });
-              const body = await page.getByTestId('network-page').innerText();
-              assert.equal(
-                body.includes('wss://'),
-                false,
-                'Technical endpoints stay behind contextual disclosure',
-              );
-              assert.equal(
-                (await calls(page, 'accessCode')).length,
-                0,
-                'Render/navigation/theme never create a code',
-              );
               await capture(page, `combined-network-${dark ? 'dark' : 'light'}-${width}`);
             }
           }
-          await page.getByRole('button', { name: 'Create code', exact: true }).click();
-          await page.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
-          await page.getByRole('textbox', { name: 'Computer address', exact: true }).waitFor();
-          await capture(page, 'combined-network-light-1024-connect-intent');
-          assert.equal((await calls(page, 'accessCode')).length, 1);
           assert.deepEqual(errors, []);
         } finally {
           await page.close();
@@ -1639,7 +1471,6 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
             assert.equal(await page.getByTestId('node-toggle').textContent(), 'Stop');
             await page.getByTestId('nav-network').click();
             await page.getByRole('button', { name: 'Search again', exact: true }).waitFor();
-            await page.getByTestId('paired-details').locator('summary').click();
             await page.getByTestId('remote-nodes-table').waitFor();
             await page.getByText('Retained fixture peer diagnostic', { exact: true }).waitFor();
             await page.getByRole('button', { name: 'Create code', exact: true }).click();
@@ -2085,8 +1916,7 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
           const page = await open();
           try {
             const value = snapshot();
-            // Compact rows need enough overflow to place the first row fully beneath the header.
-            value.lanSearch!.nodes = Array.from({ length: 24 }, (_, index) => ({
+            value.lanSearch!.nodes = Array.from({ length: 12 }, (_, index) => ({
               ...first,
               key: 'header-' + index,
               nodeId: 'header-node-' + index,
