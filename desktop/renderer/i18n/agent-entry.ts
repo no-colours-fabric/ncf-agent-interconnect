@@ -8,6 +8,7 @@ export interface AgentEntryMessages {
   agentsCreationNoConnected: string;
   agentsManualDiagnosticIntro: string;
   agentsManualDiagnosticLink: string;
+  agentsManualDiagnosticAction: string;
   dialogAddAgent: string;
   dialogAddAgentBody: string;
   dialogManualAgentDiagnostic: string;
@@ -26,6 +27,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Choose a name and a role in the shared task, then ask the assistant to connect in a chat in your app. For application or profile setup, open {applicationsPage}. Supported apps: {applications}.',
     agentsManualDiagnosticIntro: 'For diagnostics:',
     agentsManualDiagnosticLink: 'Create an agent manually',
+    agentsManualDiagnosticAction: 'Create an agent manually for diagnostics',
     dialogAddAgent: 'Create an agent manually',
     dialogAddAgentBody:
       'Create agents from chats in your apps: ask the assistant to connect under a name you choose and give it a role in the shared task.',
@@ -44,6 +46,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Выберите имя и роль в общей задаче, затем попросите помощника подключиться в чате вашей программы. Настройка программ и профилей — в разделе «{applicationsPage}». Поддерживаемые программы: {applications}.',
     agentsManualDiagnosticIntro: 'Для диагностики:',
     agentsManualDiagnosticLink: 'Создать агента вручную',
+    agentsManualDiagnosticAction: 'Создать агента вручную для диагностики',
     dialogAddAgent: 'Создать агента вручную',
     dialogAddAgentBody:
       'Создавайте агентов из чатов в ваших программах: попросите помощника подключиться под выбранным вами именем и назначьте ему роль в общей задаче.',
@@ -61,6 +64,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       '选择名称和共同任务中的角色，然后在您所用应用的聊天中请助手连接。如需设置应用或配置方案，请打开“{applicationsPage}”。支持的应用：{applications}。',
     agentsManualDiagnosticIntro: '诊断用途：',
     agentsManualDiagnosticLink: '手动创建智能体',
+    agentsManualDiagnosticAction: '手动创建智能体以进行诊断',
     dialogAddAgent: '手动创建智能体',
     dialogAddAgentBody:
       '在您所用应用的聊天中创建智能体：请助手以您指定的名称连接，并为其分配共同任务中的角色。',
@@ -79,6 +83,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Choisissez un nom et un rôle dans la tâche commune, puis demandez à l’assistant de se connecter dans une discussion de votre application. Pour configurer une application ou un profil, ouvrez « {applicationsPage} ». Applications prises en charge : {applications}.',
     agentsManualDiagnosticIntro: 'Pour le diagnostic :',
     agentsManualDiagnosticLink: 'Créer un agent manuellement',
+    agentsManualDiagnosticAction: 'Créer un agent manuellement pour le diagnostic',
     dialogAddAgent: 'Créer un agent manuellement',
     dialogAddAgentBody:
       'Créez les agents depuis les discussions de vos applications : demandez à l’assistant de se connecter sous le nom de votre choix et attribuez-lui un rôle dans la tâche commune.',
@@ -97,6 +102,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Wählen Sie einen Namen und eine Rolle in der gemeinsamen Aufgabe. Bitten Sie dann den Assistenten in einem Chat Ihrer App, sich zu verbinden. Zum Einrichten einer App oder eines Profils öffnen Sie „{applicationsPage}“. Unterstützte Apps: {applications}.',
     agentsManualDiagnosticIntro: 'Für die Diagnose:',
     agentsManualDiagnosticLink: 'Agent manuell erstellen',
+    agentsManualDiagnosticAction: 'Agent zu Diagnosezwecken manuell erstellen',
     dialogAddAgent: 'Agent manuell erstellen',
     dialogAddAgentBody:
       'Erstellen Sie Agenten über die Chats Ihrer Apps: Bitten Sie den Assistenten, sich unter einem Namen Ihrer Wahl zu verbinden, und weisen Sie ihm eine Rolle in der gemeinsamen Aufgabe zu.',
@@ -115,6 +121,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Scegli un nome e un ruolo nel compito comune, poi chiedi all’assistente di connettersi in una chat della tua app. Per configurare un’app o un profilo, apri «{applicationsPage}». App supportate: {applications}.',
     agentsManualDiagnosticIntro: 'Per la diagnostica:',
     agentsManualDiagnosticLink: 'Crea un agente manualmente',
+    agentsManualDiagnosticAction: 'Crea un agente manualmente per la diagnostica',
     dialogAddAgent: 'Crea un agente manualmente',
     dialogAddAgentBody:
       'Crea gli agenti dalle chat delle tue app: chiedi all’assistente di connettersi con un nome a tua scelta e assegnagli un ruolo nel compito comune.',
@@ -133,6 +140,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Elige un nombre y un papel en la tarea común y pide al asistente que se conecte desde un chat de tu aplicación. Para configurar una aplicación o un perfil, abre «{applicationsPage}». Aplicaciones compatibles: {applications}.',
     agentsManualDiagnosticIntro: 'Para el diagnóstico:',
     agentsManualDiagnosticLink: 'Crear un agente manualmente',
+    agentsManualDiagnosticAction: 'Crear un agente manualmente para diagnóstico',
     dialogAddAgent: 'Crear un agente manualmente',
     dialogAddAgentBody:
       'Crea los agentes desde los chats de tus aplicaciones: pide al asistente que se conecte con el nombre que elijas y asígnale un papel en la tarea común.',
@@ -151,6 +159,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Ортақ тапсырма үшін ат пен рөл таңдап, қолданбаңыздың чатында көмекшіден қосылуын сұраңыз. Қолданба мен профильді баптау «{applicationsPage}» бөлімінде. Қолдау көрсетілетін қолданбалар: {applications}.',
     agentsManualDiagnosticIntro: 'Диагностика үшін:',
     agentsManualDiagnosticLink: 'Агентті қолмен жасау',
+    agentsManualDiagnosticAction: 'Диагностика үшін агентті қолмен жасау',
     dialogAddAgent: 'Агентті қолмен жасау',
     dialogAddAgentBody:
       'Агенттерді қолданбаларыңыздағы чаттардан жасаңыз: көмекшіден өзіңіз таңдаған атпен қосылуын сұрап, оған ортақ тапсырмадағы рөлін белгілеңіз.',
@@ -169,6 +178,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       '名前と共通のタスクでの役割を決めて、利用するアプリのチャットでアシスタントに接続を依頼してください。アプリやプロファイルの設定は「{applicationsPage}」から行えます。対応アプリ：{applications}。',
     agentsManualDiagnosticIntro: '診断用：',
     agentsManualDiagnosticLink: 'エージェントを手動で作成',
+    agentsManualDiagnosticAction: '診断用のエージェントを手動で作成',
     dialogAddAgent: 'エージェントを手動で作成',
     dialogAddAgentBody:
       'エージェントは、利用するアプリのチャットから作成します。アシスタントに、選んだ名前で接続するよう依頼し、共通のタスクでの役割を割り当ててください。',
@@ -187,6 +197,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Escolha um nome e um papel na tarefa conjunta e depois peça ao assistente que se conecte em um chat do seu aplicativo. Para configurar um aplicativo ou perfil, abra “{applicationsPage}”. Aplicativos compatíveis: {applications}.',
     agentsManualDiagnosticIntro: 'Para diagnóstico:',
     agentsManualDiagnosticLink: 'Criar um agente manualmente',
+    agentsManualDiagnosticAction: 'Criar um agente manualmente para diagnóstico',
     dialogAddAgent: 'Criar um agente manualmente',
     dialogAddAgentBody:
       'Crie agentes a partir dos chats dos seus aplicativos: peça ao assistente que se conecte com um nome escolhido por você e atribua a ele um papel na tarefa conjunta.',
@@ -205,6 +216,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       '공동 작업에서 사용할 이름과 역할을 정한 뒤, 사용하는 앱의 채팅에서 어시스턴트에게 연결을 요청하세요. 앱이나 프로필을 설정하려면 ‘{applicationsPage}’를 여세요. 지원하는 앱: {applications}.',
     agentsManualDiagnosticIntro: '진단용:',
     agentsManualDiagnosticLink: '에이전트 수동 생성',
+    agentsManualDiagnosticAction: '진단을 위해 에이전트 수동 생성',
     dialogAddAgent: '에이전트 수동 생성',
     dialogAddAgentBody:
       '사용하는 앱의 채팅에서 에이전트를 만드세요. 어시스턴트에게 원하는 이름으로 연결하도록 요청하고 공동 작업에서 맡을 역할을 정해 주세요.',
@@ -223,6 +235,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Ortak görev için bir ad ve rol seçin, ardından kullandığınız uygulamanın sohbetinde asistandan bağlanmasını isteyin. Uygulama veya profil yapılandırması için “{applicationsPage}” bölümünü açın. Desteklenen uygulamalar: {applications}.',
     agentsManualDiagnosticIntro: 'Tanılama için:',
     agentsManualDiagnosticLink: 'Manuel ajan oluştur',
+    agentsManualDiagnosticAction: 'Tanılama için manuel ajan oluştur',
     dialogAddAgent: 'Manuel ajan oluştur',
     dialogAddAgentBody:
       'Ajanları kullandığınız uygulamaların sohbetlerinden oluşturun: asistandan seçtiğiniz adla bağlanmasını isteyin ve ortak görevdeki rolünü belirleyin.',
@@ -241,6 +254,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Wybierz nazwę i rolę we wspólnym zadaniu, a następnie poproś asystenta na czacie w swojej aplikacji, aby się połączył. Aby skonfigurować aplikację lub profil, otwórz sekcję „{applicationsPage}”. Obsługiwane aplikacje: {applications}.',
     agentsManualDiagnosticIntro: 'Do diagnostyki:',
     agentsManualDiagnosticLink: 'Utwórz agenta ręcznie',
+    agentsManualDiagnosticAction: 'Utwórz agenta ręcznie do celów diagnostycznych',
     dialogAddAgent: 'Utwórz agenta ręcznie',
     dialogAddAgentBody:
       'Twórz agentów z poziomu czatów w swoich aplikacjach: poproś asystenta, aby połączył się pod wybraną przez Ciebie nazwą, i przydziel mu rolę we wspólnym zadaniu.',
@@ -259,6 +273,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Kies een naam en een rol in de gezamenlijke taak. Vraag de assistent daarna in een chat van uw app om verbinding te maken. Voor het instellen van een app of profiel opent u ‘{applicationsPage}’. Ondersteunde apps: {applications}.',
     agentsManualDiagnosticIntro: 'Voor diagnose:',
     agentsManualDiagnosticLink: 'Handmatig een agent maken',
+    agentsManualDiagnosticAction: 'Handmatig een agent maken voor diagnose',
     dialogAddAgent: 'Handmatig een agent maken',
     dialogAddAgentBody:
       'Maak agenten vanuit de chats in uw apps: vraag de assistent verbinding te maken onder een naam naar keuze en geef de assistent een rol in de gezamenlijke taak.',
@@ -277,6 +292,7 @@ const messages: Record<Locale, AgentEntryMessages> = {
       'Виберіть ім’я та роль у спільному завданні, потім попросіть помічника підключитися в чаті вашої програми. Налаштування програм і профілів — у розділі «{applicationsPage}». Підтримувані програми: {applications}.',
     agentsManualDiagnosticIntro: 'Для діагностики:',
     agentsManualDiagnosticLink: 'Створити агента вручну',
+    agentsManualDiagnosticAction: 'Створити агента вручну для діагностики',
     dialogAddAgent: 'Створити агента вручну',
     dialogAddAgentBody:
       'Створюйте агентів із чатів у ваших програмах: попросіть помічника підключитися під обраним вами ім’ям і призначте йому роль у спільному завданні.',

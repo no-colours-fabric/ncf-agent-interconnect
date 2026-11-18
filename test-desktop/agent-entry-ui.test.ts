@@ -63,36 +63,45 @@ function renderAgents(snapshot: Snapshot, locale: Locale): string {
   );
 }
 
-test('connection panel groups the guide and request before manual diagnostics and Delete All', () => {
+test('Agents exposes only two link actions before the table, without the connection panel or command', () => {
   const copy = agentEntryMessages('en');
-  const request = mcpSetupMessages('en');
   const html = renderAgents(emptySnapshot(), 'en');
-  assert.ok(html.includes('data-testid="agents-connection-panel"'));
-  assert.ok(html.includes('data-testid="agents-creation-guidance"'));
-  assert.ok(html.includes(escaped(copy.agentsConnectionGuide)));
-  assert.ok(html.includes(escaped(request.connectionPrompt)));
-  assert.ok(html.includes('aria-label="' + escaped(request.copyPrompt) + '"'));
-  assert.ok(html.includes(escaped(copy.agentsCopyCommand)));
-  assert.ok(html.includes('data-testid="create-agent-manually"'));
-  assert.ok(html.includes(escaped(copy.agentsManualDiagnosticLink)));
-  assert.ok(html.includes('data-testid="agents-empty"'));
-  assert.ok(html.includes(escaped(copy.agentEmptyPrompt)));
-  assert.ok(!html.includes(escaped(t('en', 'ariaAddAgent'))));
-  const order = [
+  assert.ok(html.includes('data-testid="agents-page-actions"'));
+  for (const removed of [
     'agents-connection-panel',
     'agents-creation-guidance',
     'agent-connection-command',
     'copy-agent-connection-command',
+  ])
+    assert.ok(!html.includes('data-testid="' + removed + '"'), removed);
+  assert.ok(!html.includes(escaped(copy.agentsConnectionGuide)));
+  assert.ok(html.includes(escaped(copy.agentsManualDiagnosticAction)));
+  const manual = html.match(
+    /<button\b[^>]*data-testid="create-agent-manually"[^>]*>[\s\S]*?<\/button>/,
+  );
+  const clear = html.match(
+    /<button\b[^>]*data-testid="clear-all-local-agents"[^>]*>[\s\S]*?<\/button>/,
+  );
+  assert.ok(manual && clear);
+  assert.ok(manual[0].includes('MuiLink-root'));
+  assert.ok(clear[0].includes('MuiLink-root'));
+  assert.ok(!manual[0].includes('disabled=""'));
+  assert.ok(
+    clear[0].includes('disabled=""'),
+    'clearing remains unavailable when there are no local agents',
+  );
+  assert.ok(html.includes('data-testid="agents-empty"'));
+  assert.ok(html.includes(escaped(copy.agentEmptyPrompt)));
+  const order = [
+    'agents-page-actions',
     'create-agent-manually',
     'clear-all-local-agents',
     'agents-empty',
   ].map((id) => html.indexOf('data-testid="' + id + '"'));
   assert.ok(order.every((offset, index) => offset >= 0 && (!index || offset > order[index - 1])));
-  assert.ok(!html.includes('Codex Desktop'));
-  assert.ok(!html.includes('AionUi with Cursor Agent'));
 });
 
-test('connection panel does not add an application list and preserves unknown bound-agent status', () => {
+test('Agents action links preserve unknown bound-agent status and the existing table', () => {
   const snapshot = emptySnapshot();
   snapshot.adapters.push({
     id: 'aion',
@@ -123,7 +132,7 @@ test('connection panel does not add an application list and preserves unknown bo
   snapshot.directories[0].total = 1;
   const html = renderAgents(snapshot, 'ru');
   const copy = agentEntryMessages('ru');
-  assert.ok(html.includes(escaped(copy.agentsConnectionGuide)));
+  assert.ok(html.includes(escaped(copy.agentsManualDiagnosticAction)));
   assert.ok(!html.includes(escaped(copy.agentsCreationConnected.split('{applications}')[0])));
   assert.ok(!html.includes(escaped(copy.agentsCreationNoConnected.split('{applicationsPage}')[0])));
   assert.ok(html.includes('Диагност'));
@@ -131,20 +140,15 @@ test('connection panel does not add an application list and preserves unknown bo
   assert.ok(!html.includes(t('ru', 'directoryOnline')));
 });
 
-test('connection panel renders the existing localized command and copy action in all 15 locales', () => {
+test('both action links are localized in all 15 locales without restoring the removed guide or Copy', () => {
+  const english = agentEntryMessages('en').agentsManualDiagnosticAction;
   for (const locale of supportedLocales) {
     const html = renderAgents(emptySnapshot(), locale);
-    const command = html.match(
-      /<code\b[^>]*data-testid="agent-connection-command"[^>]*>([\s\S]*?)<\/code>/,
-    );
-    assert.ok(command, locale);
-    assert.equal(command[1], escaped(mcpSetupMessages(locale).connectionPrompt), locale);
-    assert.ok(html.includes(escaped(agentEntryMessages(locale).agentsConnectionGuide)), locale);
-    assert.ok(html.includes(escaped(agentEntryMessages(locale).agentsCopyCommand)), locale);
-    assert.ok(
-      html.includes(escaped(agentEntryMessages(locale).agentsManualDiagnosticLink)),
-      locale,
-    );
+    const manual = agentEntryMessages(locale).agentsManualDiagnosticAction;
+    assert.ok(html.includes(escaped(manual)), locale);
     assert.ok(html.includes(escaped(t(locale, 'clearAllLocalAgents'))), locale);
+    assert.ok(!html.includes(escaped(mcpSetupMessages(locale).connectionPrompt)), locale);
+    assert.ok(!html.includes('data-testid="copy-agent-connection-command"'), locale);
+    if (locale !== 'en') assert.notEqual(manual, english, locale);
   }
 });
