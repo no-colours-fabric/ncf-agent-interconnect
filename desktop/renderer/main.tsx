@@ -1,3 +1,4 @@
+import { OverviewApplications } from './OverviewApplications.js';
 import { NetworkInterfacesSettings } from './NetworkInterfacesSettings.js';
 import type { NetworkInterfaceExclusion } from '../shared/network-interfaces.js';
 import { networkInterfaceMessages } from './i18n/network-interfaces.js';
@@ -54,7 +55,6 @@ import { agentEntryMessages } from './i18n/agent-entry.js';
 import { useMcpSetupStatuses } from './mcp-setup-status.js';
 import {
   ApplicationSetup,
-  ApplicationTiles,
   useApplicationSetup,
   useApplicationSetupStartup,
 } from './ApplicationSetup.js';
@@ -256,16 +256,13 @@ function App({
         }}
       >
         {page === 'overview' && (
-          <Stack spacing={2.5} data-testid="overview-sections">
+          <Stack spacing={3} data-testid="overview-sections">
             <Box
               data-testid="overview-statistics"
               sx={{
                 display: 'grid',
                 gridTemplateColumns: { xs: 'repeat(3, minmax(0, 1fr))' },
-                gap: 0,
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                pb: 2,
+                gap: 2,
               }}
             >
               {[
@@ -285,98 +282,62 @@ function App({
                   hint: t(locale, 'statInboxHint'),
                 },
               ].map((item) => (
-                <Box key={item.label} sx={{ minWidth: 0, pr: 2 }}>
+                <Paper key={item.label} sx={{ p: 2.5, minWidth: 0 }}>
                   <Typography color="text.secondary" variant="body2">
                     {item.label}
                   </Typography>
-                  <Stack
-                    direction="row"
-                    useFlexGap
-                    sx={{ mt: 0.5, alignItems: 'baseline', flexWrap: 'wrap', gap: 1 }}
+                  <Typography
+                    variant="h4"
+                    sx={{ my: 1.5, fontSize: 40, fontVariantNumeric: 'tabular-nums' }}
                   >
-                    <Typography
-                      component="span"
-                      sx={{ fontSize: 20, fontWeight: 500, fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {item.value}
-                    </Typography>
-                    <Typography component="span" color="text.secondary" variant="caption">
-                      {item.hint}
-                    </Typography>
-                  </Stack>
-                </Box>
+                    {item.value}
+                  </Typography>
+                  <Typography color="text.secondary" variant="caption">
+                    {item.hint}
+                  </Typography>
+                </Paper>
               ))}
             </Box>
-            <Stack spacing={2} data-testid="overview-applications">
-              <Typography variant="h6" component="h2">
-                {applicationSetupMessages(locale).applications}
-              </Typography>
-              <ApplicationTiles
-                discovery={discovery}
-                flow={applicationSetup}
-                statuses={setupStatuses}
-                invoke={call}
-                locale={locale}
-                onManualSetup={openManualSetup}
-              />
-            </Stack>
+            <OverviewApplications
+              snapshot={snapshot}
+              locale={locale}
+              onOpen={() => {
+                setManualClient(null);
+                navigate('mcp');
+              }}
+            />
             <Box
               data-testid="overview-connections"
               sx={{
                 display: 'grid',
-                gridTemplateColumns: '1fr',
-                '@media (min-width: 1000px)': { gridTemplateColumns: '1.45fr 1fr' },
+                gridTemplateColumns: 'minmax(0, 480px)',
                 gap: 2,
               }}
             >
               <Paper
                 sx={{
-                  ...surfaceSx('raised'),
-                  p: 2,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'flex-start',
-                }}
-              >
-                <Typography variant="h6" sx={{ mb: 1 }}>
-                  {t(locale, 'connectAgentsTitle')}
-                </Typography>
-                <Button variant="text" sx={{ minHeight: 44 }} onClick={() => navigate('mcp')}>
-                  {applicationSetupMessages(locale).applications}
-                </Button>
-                <Box component="details" sx={{ mt: 0.5, color: 'text.secondary', fontSize: 12 }}>
-                  <summary>{applicationSetupMessages(locale).details}</summary>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {applicationSetupMessages(locale).intro}
-                  </Typography>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {t(locale, 'overviewIntro')}
-                  </Typography>
-                </Box>
-              </Paper>
-              <Paper
-                sx={{
                   ...surfaceSx('soft'),
-                  p: 2,
+                  p: 3,
                   display: 'flex',
                   flexDirection: 'column',
                   alignItems: 'flex-start',
+                  minHeight: 228,
                 }}
               >
                 <Typography variant="h6" sx={{ mb: 1 }}>
                   {t(locale, 'connectPeerTitle')}
                 </Typography>
-                <Button variant="text" sx={{ minHeight: 44 }} onClick={() => setPage('network')}>
+                <Typography color="text.secondary" sx={{ mb: 2 }}>
+                  {t(locale, 'connectPeerBody')}
+                </Typography>
+                <Button sx={{ mt: 'auto' }} variant="outlined" onClick={() => setPage('network')}>
                   {t(locale, 'connectPeerCta')}
                 </Button>
-                <Box component="details" sx={{ mt: 0.5, color: 'text.secondary', fontSize: 12 }}>
-                  <summary>{applicationSetupMessages(locale).details}</summary>
-                  <Typography variant="body2" sx={{ mt: 1 }}>
-                    {t(locale, 'connectPeerBody')}
-                  </Typography>
-                </Box>
               </Paper>
             </Box>
+            <Typography variant="body2" color="text.secondary" sx={{ maxWidth: '76ch' }}>
+              {t(locale, 'overviewIntro')}
+            </Typography>
             {snapshot.errors.map((e, i) => (
               <Alert key={i} severity="error">
                 {e}
