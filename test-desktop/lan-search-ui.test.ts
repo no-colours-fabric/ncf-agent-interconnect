@@ -743,7 +743,7 @@ root.render(<App key={generation} patch={{}}/>);
           const idleListTop = (await list.boundingBox())!.y;
           const start = (await searchButton.boundingBox())!;
           const manualAction = (await manual().boundingBox())!;
-          assert.ok(start.x + start.width < manualAction.x);
+          assert.ok(manualAction.x + manualAction.width < start.x);
           assert.ok(
             Math.abs(start.y + start.height / 2 - (manualAction.y + manualAction.height / 2)) < 3,
           );
@@ -1301,18 +1301,15 @@ root.render(<App key={generation} patch={{}}/>);
                 `${theme}: ${badge.text} on ${badge.background}`,
               );
               assert.equal(badge.borderWidth, '0px', theme);
-              const manualAction = await manual().boundingBox();
-              assert.ok(
-                header &&
-                  manualAction &&
-                  Math.abs(header.x + header.width - manualAction.x - manualAction.width) < 2,
-                'Manual action stays at the right edge of the Nearby heading row',
-              );
-              const primary = await connectButton().boundingBox();
               const search = await page
                 .getByRole('button', { name: 'Search again', exact: true })
                 .boundingBox();
-              assert.ok(primary && primary.height >= 44 && search && search.height >= 44);
+              assert.ok(
+                header && search && Math.abs(header.x + header.width - search.x - search.width) < 2,
+                'Search stays at the right edge of the Nearby heading row',
+              );
+              const primary = await connectButton().boundingBox();
+              assert.ok(primary && primary.height >= 44 && search.height >= 44);
 
               const label = page.locator(`label[for="${await input.getAttribute('id')}"]`);
               assert.equal(await label.getAttribute('data-shrink'), 'true');

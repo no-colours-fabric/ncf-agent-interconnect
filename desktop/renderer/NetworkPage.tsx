@@ -641,15 +641,6 @@ export function NetworkPage({
               }}
             >
               <Button
-                variant={nodes.length || searching ? 'outlined' : 'contained'}
-                disabled={!snapshot.running || searchPending}
-                startIcon={searching ? <StopOutlined /> : <RefreshOutlined />}
-                onClick={() => void searchAction(searching)}
-                sx={{ minHeight: 44 }}
-              >
-                {searching ? m.stopSearch : m.searchAgain}
-              </Button>
-              <Button
                 variant="text"
                 onClick={() => {
                   setPairError(null);
@@ -665,6 +656,15 @@ export function NetworkPage({
                 }}
               >
                 {m.manualConnect}
+              </Button>
+              <Button
+                variant={nodes.length || searching ? 'outlined' : 'contained'}
+                disabled={!snapshot.running || searchPending}
+                startIcon={searching ? <StopOutlined /> : <RefreshOutlined />}
+                onClick={() => void searchAction(searching)}
+                sx={{ minHeight: 44 }}
+              >
+                {searching ? m.stopSearch : m.searchAgain}
               </Button>
             </Stack>
           </Stack>
