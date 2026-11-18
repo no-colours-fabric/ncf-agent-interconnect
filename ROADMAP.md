@@ -183,3 +183,20 @@ Prepare a developer signing and distribution-trust plan for NCF Agent Interconne
 The availability of developer accounts and certificates is not yet known. Planning does not include account registration, payments, or handling private keys.
 
 ---
+
+## R-0013 — Approve a connection request on the receiving node
+
+- [ ] Open
+
+Provide two ways to complete a connection request: approval on the receiving node or entry of a pairing code.
+
+1. On the requesting node, the existing Connect button opens the existing pairing-code dialog and sends a connection request.
+2. The receiving node opens a separate window above other applications. It shows the requesting node's details and a Confirm button.
+3. The code dialog shows an indicator when the request notification has been displayed to the receiving user.
+4. If the receiving user confirms, the connection completes without entering a code. Alternatively, the receiving user can provide a pairing code, which the requesting user enters in the same dialog.
+
+If the receiving window was closed, clicking Connect again opens it again. The receiving user can select **Don't show again** for that node; subsequent requests from it do not open the window. This setting is cleared if the user later connects that node through an explicitly provided pairing code.
+
+Closing the window without confirmation does not establish a connection.
+
+---
