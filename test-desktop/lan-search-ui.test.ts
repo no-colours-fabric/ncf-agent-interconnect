@@ -180,6 +180,7 @@ test('Nearby computers has a count badge and keeps address choices out of the ro
     lastSeenAgoMs: 1,
   };
   value.lanSearch!.nodes = [first, alias];
+  value.lanSearch!.phase = 'stopped';
   for (const locale of supportedLocales) {
     const html = renderToStaticMarkup(
       createElement(NetworkPage, {
@@ -722,43 +723,84 @@ root.render(<App key={generation} patch={{}}/>);
 
       await runCase(
         'search',
-        'Stop/Retry use explicit empty inputs and retain results independently of current-pass count',
+        'Nearby header owns Search/Stop and expands and collapses progress while retaining results',
         async () => {
-          await reset(page);
-          await page.getByText('Found: 1', { exact: true }).waitFor();
-          assert.equal(
-            await page
-              .getByRole('progressbar', { name: 'Search time' })
-              .getAttribute('aria-valuenow'),
-            '40',
-          );
-          await page.getByRole('button', { name: 'Stop search', exact: true }).click();
-          assert.deepEqual((await callList(page, 'stopLanSearch'))[0].input, {});
+          const region = page.getByRole('region', {
+            name: /Nearby computers|Searching your network/,
+          });
+          const heading = region.getByRole('heading');
+          const progress = region.getByRole('progressbar', { name: 'Search time' });
+          const badge = region.locator('.MuiChip-root');
+          const spinner = region.locator('.MuiCircularProgress-root');
+          const searchButton = region.getByRole('button', { name: 'Search again', exact: true });
+          const stopButton = region.getByRole('button', { name: 'Stop search', exact: true });
+          const list = region.getByRole('list');
           const value = snapshot();
-          value.lanSearch!.phase = 'stopped';
-          await update(page, { snapshot: value });
-          await page.getByRole('button', { name: 'Search again', exact: true }).click();
+          value.lanSearch!.phase = 'complete';
+          await reset(page, { snapshot: value });
+          assert.equal(await heading.textContent(), 'Nearby computers');
+          assert.equal(await badge.textContent(), '2');
+          assert.equal(await spinner.count(), 0);
+          assert.equal(await progress.count(), 0);
+          const idleListTop = (await list.boundingBox())!.y;
+          const start = (await searchButton.boundingBox())!;
+          const manualAction = (await manual().boundingBox())!;
+          assert.ok(start.x + start.width < manualAction.x);
+          assert.ok(
+            Math.abs(start.y + start.height / 2 - (manualAction.y + manualAction.height / 2)) < 3,
+          );
+          await searchButton.click();
           assert.deepEqual((await callList(page, 'startLanSearch'))[0].input, {});
           value.lanSearch = {
             ...value.lanSearch!,
             phase: 'searching',
             runId: 2,
-            elapsedMs: 0,
+            elapsedMs: 12000,
             foundCount: 0,
           };
           await update(page, { snapshot: value });
-          await page.getByText('Found: 0', { exact: true }).waitFor();
-          assert.equal(await page.locator('[data-lan-key]').count(), 2);
-          const heading = await page
-            .getByRole('heading', { name: 'Nearby computers', exact: true })
-            .boundingBox();
-          const action = await manual().boundingBox();
-          assert.ok(
-            heading &&
-              action &&
-              action.x > heading.x + heading.width &&
-              Math.abs(heading.y + heading.height / 2 - (action.y + action.height / 2)) < 3,
+          assert.equal(await heading.textContent(), 'Searching your network');
+          assert.equal(await badge.count(), 0);
+          assert.equal(await spinner.count(), 1);
+          assert.equal(await progress.getAttribute('aria-valuenow'), '40');
+          assert.equal(await progress.getAttribute('aria-valuetext'), '12 of 30s');
+          const expansionDuration = await progress.evaluate((bar) =>
+            Number.parseFloat(
+              getComputedStyle(bar.closest('.MuiCollapse-root')!).transitionDuration,
+            ),
           );
+          assert.ok(expansionDuration > 0);
+          await until(
+            async () => (await list.boundingBox())!.y > idleListTop + 16,
+            'List moves down',
+          );
+          for (const label of [
+            'Found: 0',
+            '12 of 30s',
+            '18s remaining',
+            lanSearchEnglish.searchingHelp,
+          ]) {
+            assert.equal(await region.getByText(label, { exact: true }).count(), 0);
+          }
+          await stopButton.click();
+          assert.deepEqual((await callList(page, 'stopLanSearch'))[0].input, {});
+          value.lanSearch.phase = 'stopped';
+          await update(page, { snapshot: value });
+          await region.locator('[aria-label="Search time"]').waitFor({ state: 'detached' });
+          assert.equal(await heading.textContent(), 'Nearby computers');
+          assert.equal(await badge.textContent(), '2');
+          assert.equal(await spinner.count(), 0);
+          assert.equal((await list.boundingBox())!.y, idleListTop);
+          assert.equal(await list.getByRole('listitem').count(), 2);
+
+          value.lanSearch.phase = 'searching';
+          await update(page, { snapshot: value });
+          await progress.waitFor();
+          value.lanSearch.phase = 'complete';
+          await update(page, { snapshot: value });
+          await region.locator('[aria-label="Search time"]').waitFor({ state: 'detached' });
+          assert.equal(await heading.textContent(), 'Nearby computers');
+          assert.equal((await list.boundingBox())!.y, idleListTop);
         },
       );
 
@@ -1209,12 +1251,14 @@ root.render(<App key={generation} patch={{}}/>);
           assert.equal((await callList(page, 'retainedDetails')).length, 1);
           const artifacts = process.env.NCF_LAN_SEARCH_UI_ARTIFACTS;
           if (artifacts) await mkdir(artifacts, { recursive: true });
+          const idle = snapshot();
+          idle.lanSearch!.phase = 'complete';
           for (const width of [1280, 1024]) {
             await page.setViewportSize({ width, height: 1000 });
             for (const theme of ['dark', 'light']) {
               await update(page, {
                 theme,
-                snapshot: snapshot(),
+                snapshot: idle,
                 ownCode: {
                   code: 'ABCD2345',
                   expiresAt: new Date(Date.now() + 600000).toISOString(),
@@ -1233,7 +1277,7 @@ root.render(<App key={generation} patch={{}}/>);
               const nearbyHeader = page
                 .getByRole('heading', { name: 'Nearby computers', exact: true })
                 .locator('..');
-              const header = await nearbyHeader.boundingBox();
+              const header = await nearbyHeader.locator('..').boundingBox();
               const badge = await nearbyHeader
                 .locator('.MuiChip-root')
                 .evaluate(async (element) => {
@@ -1258,10 +1302,10 @@ root.render(<App key={generation} patch={{}}/>);
                 'Manual action stays at the right edge of the Nearby heading row',
               );
               const primary = await connectButton().boundingBox();
-              const stop = await page
-                .getByRole('button', { name: 'Stop search', exact: true })
+              const search = await page
+                .getByRole('button', { name: 'Search again', exact: true })
                 .boundingBox();
-              assert.ok(primary && primary.height >= 44 && stop && stop.height >= 44);
+              assert.ok(primary && primary.height >= 44 && search && search.height >= 44);
 
               const label = page.locator(`label[for="${await input.getAttribute('id')}"]`);
               assert.equal(await label.getAttribute('data-shrink'), 'true');

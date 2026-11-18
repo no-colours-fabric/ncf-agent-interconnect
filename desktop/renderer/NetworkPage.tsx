@@ -7,6 +7,7 @@ import {
   Button,
   Chip,
   CircularProgress,
+  Collapse,
   Dialog,
   DialogActions,
   DialogContent,
@@ -19,6 +20,8 @@ import {
   Stack,
   TextField,
   Typography,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined';
 import StopOutlined from '@mui/icons-material/StopOutlined';
@@ -238,6 +241,8 @@ export function NetworkPage({
 }: NetworkPageProps): React.JSX.Element {
   const m = lanSearchMessages(locale);
   const legacy = lanDiscoveryMessages(locale);
+  const theme = useTheme();
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const id = useId();
   const [manualOpen, setManualOpen] = useState(false);
   const [selected, setSelected] = useState<Readonly<LanSearchNode> | null>(null);
@@ -443,6 +448,7 @@ export function NetworkPage({
     searchFence.current = true;
     setSearchPending(true);
     setSearchError(false);
+    setDiagnostic('');
     try {
       const result = await invoke<{ started?: boolean }>(
         stop ? 'stopLanSearch' : 'startLanSearch',
@@ -537,20 +543,13 @@ export function NetworkPage({
     elapsed: Math.floor(elapsed / 1000),
     total: Math.ceil(duration / 1000),
   });
-  const title = searching
-    ? m.searching
-    : search?.phase === 'complete'
-      ? m.searchComplete
-      : search?.phase === 'stopped'
-        ? m.searchStopped
-        : m.unavailableHelp;
-  const helper = searching
-    ? m.searchingHelp
-    : search?.phase === 'stopped'
-      ? m.stoppedHelp
-      : search?.reason === 'no-interfaces'
-        ? m.noInterfaces
-        : '';
+  const searchDiagnostic =
+    diagnostic ||
+    (search?.reason === 'no-interfaces'
+      ? legacy.noInterfaces
+      : search?.reason
+        ? legacy.transportError
+        : '');
   const selectedInput = selected && {
     address: addressChoice === 'auto' ? selected.address : addressChoice,
     code,
@@ -613,110 +612,91 @@ export function NetworkPage({
             {legacy.success}
           </Alert>
         )}
-        <Paper
-          component="section"
-          variant="outlined"
-          aria-labelledby={id + '-search-title'}
-          sx={{ p: 3 }}
-        >
-          <Stack
-            direction="row"
-            spacing={2}
-            sx={{ justifyContent: 'space-between', alignItems: 'start' }}
-          >
-            <Box sx={{ minWidth: 0 }}>
-              <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
-                {searching && <CircularProgress size={16} aria-hidden="true" />}
-                <Typography id={id + '-search-title'} variant="h6">
-                  {title}
-                </Typography>
-              </Stack>
-              {helper && (
-                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                  {helper}
-                </Typography>
-              )}
-            </Box>
-            <Button
-              variant={nodes.length || searching ? 'outlined' : 'contained'}
-              disabled={!snapshot.running || searchPending}
-              startIcon={searching ? <StopOutlined /> : <RefreshOutlined />}
-              onClick={() => void searchAction(searching)}
-              sx={{ flexShrink: 0, minHeight: 44 }}
-            >
-              {searching ? m.stopSearch : m.searchAgain}
-            </Button>
-          </Stack>
-          <Stack
-            direction="row"
-            spacing={2}
-            useFlexGap
-            sx={{ mt: 2.5, alignItems: 'center', flexWrap: 'wrap', gap: 1 }}
-          >
-            <Typography variant="body2">
-              {formatLanSearch(m.found, { count: search?.foundCount ?? 0 })}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {elapsedText}
-            </Typography>
-            {searching && (
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                {formatLanSearch(m.remaining, {
-                  seconds: Math.max(0, Math.ceil((duration - elapsed) / 1000)),
-                })}
-              </Typography>
-            )}
-          </Stack>
-          {searching && (
-            <LinearProgress
-              variant="determinate"
-              value={(elapsed / duration) * 100}
-              aria-label={m.searchTime}
-              aria-valuetext={elapsedText}
-              sx={{ mt: 1.5 }}
-            />
-          )}
-          {searchError && (
-            <Typography role="alert" variant="body2" color="error" sx={{ mt: 1 }}>
-              {m.unavailableHelp}
-            </Typography>
-          )}
-          {(diagnostic || search?.reason) &&
-            diagnostics(
-              diagnostic ||
-                (search?.reason === 'no-interfaces' ? legacy.noInterfaces : legacy.transportError),
-            )}
-        </Paper>
         {snapshot.peers.length > 0 && (
           <Box component="section" aria-label={m.pairedTitle} data-testid="retained-paired-content">
             {children}
           </Box>
         )}
         <Box component="section" aria-labelledby={id + '-nearby-title'}>
-          <Stack direction="row" spacing={1.5} useFlexGap sx={{ alignItems: 'center', mb: 2 }}>
-            <Typography id={id + '-nearby-title'} variant="h6">
-              {legacy.title}
-            </Typography>
-            <Chip component="span" size="small" label={nodes.length.toLocaleString(locale)} />
-            <Button
-              variant="text"
-              onClick={() => {
-                setPairError(null);
-                setManualOpen(true);
-              }}
+          <Stack
+            direction="row"
+            useFlexGap
+            spacing={1.5}
+            sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', mb: 2 }}
+          >
+            <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', minWidth: 0 }}>
+              <Typography id={id + '-nearby-title'} variant="h6" aria-live="polite">
+                {searching ? m.searching : legacy.title}
+              </Typography>
+              {searching ? (
+                <Box sx={{ display: 'grid', placeItems: 'center', width: 26, flexShrink: 0 }}>
+                  <CircularProgress size={16} aria-hidden="true" />
+                </Box>
+              ) : (
+                <Chip component="span" size="small" label={nodes.length.toLocaleString(locale)} />
+              )}
+            </Stack>
+            <Stack
+              direction="row"
+              spacing={2}
+              useFlexGap
               sx={{
                 ml: 'auto',
-                p: 0,
-                minHeight: 36,
-                minWidth: 0,
-                fontSize: 13,
-                textDecoration: 'underline',
-                color: 'text.secondary',
+                alignItems: 'center',
+                justifyContent: 'flex-end',
+                flexWrap: 'wrap',
               }}
             >
-              {m.manualConnect}
-            </Button>
+              <Button
+                variant={nodes.length || searching ? 'outlined' : 'contained'}
+                disabled={!snapshot.running || searchPending}
+                startIcon={searching ? <StopOutlined /> : <RefreshOutlined />}
+                onClick={() => void searchAction(searching)}
+                sx={{ minHeight: 44 }}
+              >
+                {searching ? m.stopSearch : m.searchAgain}
+              </Button>
+              <Button
+                variant="text"
+                onClick={() => {
+                  setPairError(null);
+                  setManualOpen(true);
+                }}
+                sx={{
+                  p: 0,
+                  minHeight: 36,
+                  minWidth: 0,
+                  fontSize: 13,
+                  textDecoration: 'underline',
+                  color: 'text.secondary',
+                }}
+              >
+                {m.manualConnect}
+              </Button>
+            </Stack>
           </Stack>
+          <Collapse
+            in={searching}
+            timeout={reducedMotion ? 0 : theme.transitions.duration.short}
+            easing={theme.transitions.easing.easeInOut}
+            unmountOnExit
+            aria-hidden={!searching}
+          >
+            <Box sx={{ pb: 2 }}>
+              <LinearProgress
+                variant="determinate"
+                value={(elapsed / duration) * 100}
+                aria-label={m.searchTime}
+                aria-valuetext={elapsedText}
+              />
+            </Box>
+          </Collapse>
+          {(searchError || searchDiagnostic) && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {m.unavailableHelp}
+              {searchDiagnostic && diagnostics(searchDiagnostic)}
+            </Alert>
+          )}
           <Paper variant="outlined">
             {nodes.length ? (
               <List disablePadding>
