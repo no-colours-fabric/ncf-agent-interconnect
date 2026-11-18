@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import type { Snapshot } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
+import { lanSearchMessages } from './i18n/lan-search.js';
 import { designTokens } from './theme.js';
 
 export function RemoteNodesTable({
@@ -24,13 +25,14 @@ export function RemoteNodesTable({
   locale: Locale;
   nodeName: (id: string) => string;
 }): React.JSX.Element {
+  const title = lanSearchMessages(locale).pairedTitle;
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
-      <Typography variant="h6">{t(locale, 'navNetwork')}</Typography>
+      <Typography variant="h6">{title}</Typography>
       <TableContainer component={Paper}>
         <Table
           data-testid="remote-nodes-table"
-          aria-label={t(locale, 'navNetwork')}
+          aria-label={title}
           sx={{
             minWidth: 660,
             '& td, & th': { verticalAlign: 'middle', overflowWrap: 'anywhere' },

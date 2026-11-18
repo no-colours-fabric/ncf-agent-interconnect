@@ -168,7 +168,7 @@ test('pair attempt provenance: bounded aliases block the same code without trust
   );
 });
 
-test('endpoint freshness: previous-run addresses retain the previous label in all 15 locales', () => {
+test('Nearby computers has a count badge and keeps address choices out of the rows in all 15 locales', () => {
   const value = snapshot();
   const alias = {
     ...first,
@@ -194,13 +194,11 @@ test('endpoint freshness: previous-run addresses retain the previous label in al
         children: null,
       }),
     );
-    const text = html.replace(/<[^>]+>/g, '');
-    const messages = lanSearchMessages(locale);
-    const escaped = (text: string) =>
-      renderToStaticMarkup(createElement('span', null, text)).slice(6, -7);
-    assert.ok(text.includes(`${first.address} — ${escaped(messages.available)}`), locale);
-    assert.ok(text.includes(`${alias.address} — ${escaped(messages.previous)}`), locale);
-    assert.ok(!text.includes(`${alias.address} — ${escaped(messages.available)}`), locale);
+    assert.match(html, /<span class="MuiChip-label[^"]*">1<\/span>/, locale);
+    assert.equal(html.match(/data-lan-key=/g)?.length, 1, locale);
+    assert.ok(!html.includes('node-endpoints'), locale);
+    assert.ok(!html.includes(first.address), locale);
+    assert.ok(!html.includes(alias.address), locale);
   }
 });
 
@@ -402,6 +400,7 @@ test('Remote nodes shows one current address in the table and no saved or discon
       }),
     );
   const connected = render();
+  assert.ok(connected.includes('aria-label="Подключённые узлы"'));
   assert.ok(connected.includes('>' + current + '</td>'));
   assert.equal(connected.split(current).length, 2);
   assert.ok(!connected.includes(saved));
@@ -655,40 +654,55 @@ root.render(<App key={generation} patch={{}}/>);
 
       await runCase(
         'group',
-        'one claimed UUID has one card with explicit frozen endpoint choices',
+        'one row opens with Auto, offers explicit addresses, and keeps the chosen route and pairing fence',
         async () => {
           await reset(page);
           const value = snapshot();
-          value.lanSearch!.nodes = [
-            { ...first },
-            { ...first, key: 'alternate', address: 'wss://192.0.2.21:7336/peer' },
-            { ...second },
-          ];
+          const alternate = {
+            ...first,
+            key: 'alternate',
+            address: 'wss://192.0.2.21:7336/peer',
+            observedInRun: false,
+            lastSeenAgoMs: 2,
+          };
+          value.lanSearch!.nodes = [alternate, first, second];
           await update(page, { snapshot: value });
           assert.equal(await page.locator('[data-lan-key]').count(), 2);
           const row = page.locator('[data-lan-key]').filter({ hasText: first.label });
-          await row.getByTestId('node-endpoints').locator('summary').click();
+          assert.equal(await row.locator('details').count(), 0);
           assert.ok((await row.textContent())?.includes('Unverified'));
-          await row
-            .getByRole('button', { name: 'Connect wss://192.0.2.21:7336/peer', exact: true })
-            .click();
+          await connectButton().click();
+          const address = dialog().getByRole('combobox', {
+            name: 'Connection address',
+            exact: true,
+          });
+          assert.equal(await address.textContent(), 'Auto');
+          assert.equal(await address.locator('..').evaluate((element) => element.clientHeight), 44);
+          assert.equal(await dialog().locator('details').count(), 0);
+          await address.click();
+          const options = page.getByRole('listbox').getByRole('option');
+          assert.deepEqual(await options.allTextContents(), [
+            'Auto',
+            `${first.address} — ${lanSearchEnglish.available}`,
+            `${alternate.address} — ${lanSearchEnglish.previous}`,
+          ]);
+          await options.filter({ hasText: alternate.address }).click();
+          assert.equal(await address.textContent(), alternate.address);
           value.lanSearch!.nodes = [];
           await update(page, { snapshot: value });
           await codeInput().fill('ABCD2345');
           await submit().click();
           assert.deepEqual((await callList(page, 'connectPeer')).at(-1)?.input, {
-            address: 'wss://192.0.2.21:7336/peer',
+            address: alternate.address,
             code: 'ABCD2345',
             expectedNodeId: first.nodeId,
           });
           await settle(page, 'connectPeer', undefined, 'Pairing confirmation is uncertain.');
           await dialog().getByRole('button', { name: 'Close', exact: true }).click();
-          value.lanSearch!.nodes = [
-            { ...first },
-            { ...first, key: 'alternate', address: 'wss://192.0.2.21:7336/peer' },
-          ];
+          value.lanSearch!.nodes = [alternate, first];
           await update(page, { snapshot: value });
           await connectButton().click();
+          assert.equal(await address.textContent(), 'Auto');
           await codeInput().fill('ABCD2345');
           assert.ok(
             await submit().isDisabled(),
@@ -696,6 +710,11 @@ root.render(<App key={generation} patch={{}}/>);
           );
           await codeInput().fill('BCDE3456');
           await submit().click();
+          assert.deepEqual((await callList(page, 'connectPeer')).at(-1)?.input, {
+            address: first.address,
+            code: 'BCDE3456',
+            expectedNodeId: first.nodeId,
+          });
           await settle(page, 'connectPeer', { id: first.nodeId });
         },
       );
@@ -1181,8 +1200,8 @@ root.render(<App key={generation} patch={{}}/>);
             },
           ];
           await reset(page, { snapshot: value });
-          await page.getByTestId('remote-nodes-table').waitFor();
-          await page.getByText(first.address, { exact: true }).waitFor();
+          const table = page.getByTestId('remote-nodes-table');
+          await table.getByText('—', { exact: true }).waitFor();
           await page.getByText('Isolated status diagnostic', { exact: true }).waitFor();
           assert.equal(await connectButton().count(), 0);
           await page.getByRole('button', { name: 'Retained details action', exact: true }).click();

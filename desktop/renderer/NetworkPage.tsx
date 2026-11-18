@@ -5,6 +5,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   CircularProgress,
   Dialog,
   DialogActions,
@@ -13,6 +14,7 @@ import {
   LinearProgress,
   List,
   ListItem,
+  MenuItem,
   Paper,
   Stack,
   TextField,
@@ -22,7 +24,6 @@ import ComputerOutlined from '@mui/icons-material/ComputerOutlined';
 import StopOutlined from '@mui/icons-material/StopOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import type { Snapshot } from '../shared/contracts.js';
-import type { LanPairSelection } from '../shared/lan-discovery.js';
 import type { LanSearchNode } from '../shared/lan-search.js';
 import type { McpSetupInvoke } from '../shared/mcp-setup.js';
 import { OwnConnectionCard, type OwnConnectionCode } from './OwnConnectionCard.js';
@@ -239,7 +240,8 @@ export function NetworkPage({
   const legacy = lanDiscoveryMessages(locale);
   const id = useId();
   const [manualOpen, setManualOpen] = useState(false);
-  const [selected, setSelected] = useState<LanPairSelection | null>(null);
+  const [selected, setSelected] = useState<Readonly<LanSearchNode> | null>(null);
+  const [addressChoice, setAddressChoice] = useState('auto');
   const [code, setCode] = useState('');
   const [pairPending, setPairPending] = useState(false);
   const [pairError, setPairError] = useState<{ uncertain: boolean; detail: string } | null>(null);
@@ -549,16 +551,21 @@ export function NetworkPage({
       : search?.reason === 'no-interfaces'
         ? m.noInterfaces
         : '';
-  const blockedSelection =
-    !!selected &&
-    ledger.blocked(snapshot, { address: selected.address, code, expectedNodeId: selected.nodeId });
+  const selectedInput = selected && {
+    address: addressChoice === 'auto' ? selected.address : addressChoice,
+    code,
+    expectedNodeId: selected.nodeId,
+  };
+  const blockedSelection = !!selectedInput && ledger.blocked(snapshot, selectedInput);
   const blockedManual = ledger.blocked(snapshot, { address: manual.address, code: manual.code });
   const selectionMissing =
-    !!selected &&
+    !!selectedInput &&
     !search?.nodes.some(
       (node) =>
-        node.nodeId === selected.nodeId &&
-        [node, ...(node.endpoints ?? [])].some((endpoint) => endpoint.address === selected.address),
+        node.nodeId === selectedInput.expectedNodeId &&
+        [node, ...(node.endpoints ?? [])].some(
+          (endpoint) => endpoint.address === selectedInput.address,
+        ),
     );
   const diagnostics = (detail: string) => (
     <Box component="details" sx={{ mt: 1 }}>
@@ -690,9 +697,7 @@ export function NetworkPage({
             <Typography id={id + '-nearby-title'} variant="h6">
               {legacy.title}
             </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {nodes.length}
-            </Typography>
+            <Chip component="span" size="small" label={nodes.length.toLocaleString(locale)} />
             <Button
               variant="text"
               onClick={() => {
@@ -771,46 +776,6 @@ export function NetworkPage({
                           ? m.available
                           : m.previous}
                       </Typography>
-                      {node.endpoints && (
-                        <Box component="details" data-testid="node-endpoints">
-                          <summary>
-                            {m.details} ({node.endpoints.length})
-                          </summary>
-                          {node.endpoints.map((endpoint) => (
-                            <Stack
-                              key={endpoint.address}
-                              direction="row"
-                              spacing={1}
-                              sx={{ alignItems: 'center', flexWrap: 'wrap' }}
-                            >
-                              <Typography variant="caption" sx={{ overflowWrap: 'anywhere' }}>
-                                {endpoint.address} —{' '}
-                                {endpoint.observedInRun && endpoint.lastSeenAgoMs < 30000
-                                  ? m.available
-                                  : m.previous}
-                              </Typography>
-                              <Button
-                                disabled={!snapshot.running || pairPending}
-                                aria-label={`${t(locale, 'btnConnect')} ${endpoint.address}`}
-                                onClick={() => {
-                                  setSelected(
-                                    Object.freeze({
-                                      key: endpoint.key,
-                                      nodeId: endpoint.nodeId,
-                                      label: endpoint.label,
-                                      address: endpoint.address,
-                                    }),
-                                  );
-                                  setCode('');
-                                  setPairError(null);
-                                }}
-                              >
-                                {t(locale, 'btnConnect')}
-                              </Button>
-                            </Stack>
-                          ))}
-                        </Box>
-                      )}
                     </Box>
                     <Button
                       variant="contained"
@@ -818,14 +783,8 @@ export function NetworkPage({
                       disabled={!snapshot.running || pairPending}
                       aria-label={`${t(locale, 'btnConnect')} ${node.label}`}
                       onClick={() => {
-                        setSelected(
-                          Object.freeze({
-                            key: node.key,
-                            nodeId: node.nodeId,
-                            label: node.label,
-                            address: node.address,
-                          }),
-                        );
+                        setSelected(Object.freeze({ ...node }));
+                        setAddressChoice('auto');
                         setCode('');
                         setPairError(null);
                       }}
@@ -857,7 +816,7 @@ export function NetworkPage({
           component="form"
           onSubmit={(event: React.FormEvent) => {
             event.preventDefault();
-            if (selected) void connect(selected.address, code, false);
+            if (selectedInput) void connect(selectedInput.address, code, false);
           }}
         >
           <DialogTitle id={id + '-pair-title'}>{m.connectTitle}</DialogTitle>
@@ -888,13 +847,42 @@ export function NetworkPage({
                   },
                 }}
               />
-              {selected && diagnostics(selected.address)}
-              {selected &&
-                pairFailure(blockedSelection, {
-                  address: selected.address,
-                  code,
-                  expectedNodeId: selected.nodeId,
-                })}
+              {selected && (
+                <TextField
+                  id={id + '-pair-address'}
+                  select
+                  fullWidth
+                  label={networkInterfaceMessages(locale).addressLabel}
+                  value={addressChoice}
+                  disabled={pairPending}
+                  onChange={(event) => {
+                    setAddressChoice(event.target.value);
+                    setPairError(null);
+                  }}
+                  slotProps={{
+                    input: { notched: false },
+                    inputLabel: { shrink: true, disableAnimation: true },
+                    select: {
+                      renderValue: (value) => (value === 'auto' ? m.autoAddress : String(value)),
+                    },
+                  }}
+                >
+                  <MenuItem value="auto">{m.autoAddress}</MenuItem>
+                  {(selected.endpoints ?? [selected]).map((endpoint) => (
+                    <MenuItem
+                      key={endpoint.address}
+                      value={endpoint.address}
+                      sx={{ display: 'block', whiteSpace: 'normal', overflowWrap: 'anywhere' }}
+                    >
+                      {endpoint.address} —{' '}
+                      {endpoint.observedInRun && endpoint.lastSeenAgoMs < 30000
+                        ? m.available
+                        : m.previous}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              )}
+              {selectedInput && pairFailure(blockedSelection, selectedInput)}
             </Stack>
           </DialogContent>
           <DialogActions>
