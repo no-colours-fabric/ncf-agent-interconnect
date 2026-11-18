@@ -70,7 +70,7 @@ test('all 15 locales cover interface state, exclusion recovery, diagnostics and 
     assert.notEqual(networkInterfaceMessages(locale).help, m.help);
   }
 });
-test('an all-excluded node renders a recoverable empty endpoint and keeps access-code creation available', () => {
+test('an all-excluded node keeps the access-code dialog action available', () => {
   const html = renderToStaticMarkup(
     createElement(OwnConnectionCard, {
       node: { nodeId: 'fixture', running: true, peerUrl: '', listenHost: '', peerUrls: [] },
@@ -81,7 +81,6 @@ test('an all-excluded node renders a recoverable empty endpoint and keeps access
       onSettings: () => {},
     }),
   );
-  assert.ok(html.includes(networkInterfaceMessages('en').emptyEndpoint));
-  assert.ok(html.includes('Create code'));
+  assert.ok(html.includes('Get connection code'));
   assert.ok(!html.includes('wss://0.0.0.0'));
 });

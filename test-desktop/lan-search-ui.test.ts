@@ -278,20 +278,19 @@ test('search UI: navigation counts unseen nodes while excluding paired identitie
   assert.deepEqual(unpairedLanNodes(value), []);
 });
 
-test('search UI: announcement details omit the listener-unavailable message and preserve code generation', () => {
-  const legacy = lanDiscoveryMessages('en');
-  const reasons = {
-    stopped: legacy.stopped,
-    'listener-local': networkInterfaceMessages('en').localHelp,
-    'listener-unavailable': legacy.listenerUnavailable,
-    'no-interfaces': legacy.noInterfaces,
-    'transport-error': legacy.transportError,
-  } as const;
-  for (const [reason, message] of Object.entries(reasons)) {
+test('the connection card presents just the heading and code action in every announcement state', () => {
+  const reasons = [
+    'stopped',
+    'listener-local',
+    'listener-unavailable',
+    'no-interfaces',
+    'transport-error',
+  ] as const;
+  for (const reason of reasons) {
     const html = renderToStaticMarkup(
       createElement(OwnConnectionCard, {
         node: snapshot(),
-        announcement: { available: false, reason: reason as keyof typeof reasons },
+        announcement: { available: false, reason },
         code: null,
         onCodeChange() {},
         locale: 'en',
@@ -299,11 +298,10 @@ test('search UI: announcement details omit the listener-unavailable message and 
         onSettings() {},
       }),
     );
-    const showDetails = reason !== 'listener-unavailable';
-    assert.equal(html.includes(message), showDetails, reason);
+    assert.ok(html.includes(lanSearchEnglish.ownTitle));
     assert.ok(html.includes(lanSearchEnglish.createCode));
-    assert.equal(html.includes('announcement-details'), showDetails, reason);
-    assert.ok(!html.includes('<details open'));
+    assert.equal(html.match(/<button\b/g)?.length, 1, reason);
+    assert.doesNotMatch(html, /<p\b|<details\b|<input\b/, reason);
   }
 });
 
@@ -342,7 +340,7 @@ test('search UI: localized responder labels and local help remain without the ne
         onSettings() {},
       }),
     );
-    assert.ok(own.includes(escaped(networkInterfaceMessages(locale).localHelp)), locale);
+    assert.ok(!own.includes(escaped(networkInterfaceMessages(locale).localHelp)), locale);
     assert.ok(!own.includes(escaped(messages.ownHelp)), locale);
     assert.ok(own.includes(escaped(messages.createCode)), locale);
     const html = renderToStaticMarkup(
@@ -575,80 +573,97 @@ root.render(<App key={generation} patch={{}}/>);
 
       await runCase(
         'own',
-        'inline own code requires an action; copy, refresh, expiry and drafts survive navigation/theme',
+        'the connection code dialog retains a live code and supports all three copy actions',
         async () => {
-          await reset(page);
+          const urls = ['wss://192.0.2.10:7336/peer', 'wss://[2001:db8::10]:7336/peer'];
+          const value = { ...snapshot(), peerUrl: urls[0], peerUrls: urls };
+          await reset(page, { snapshot: value });
           assert.equal((await callList(page, 'accessCode')).length, 0);
-          assert.equal((await callList(page, 'startLanSearch')).length, 0);
-          await page
-            .getByRole('button', { name: 'Create code', exact: true })
-            .evaluate((button: HTMLButtonElement) => {
-              button.click();
-              button.click();
-            });
-          assert.equal((await callList(page, 'accessCode')).length, 1);
-          const expiresAt = new Date(Date.now() + 600000).toISOString();
-          await settle(page, 'accessCode', { code: 'ABCD2345', expiresAt });
           const own = page.getByTestId('own-connection-card');
-          await own.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
-          assert.equal(await page.getByRole('dialog').count(), 0);
-          await own.getByRole('button', { name: 'Copy code', exact: true }).click();
-          assert.deepEqual((await callList(page, 'copy')).at(-1)?.input, { text: 'ABCD2345' });
-          await update(page, { active: false, theme: 'light' });
-          await update(page, { active: true });
-          assert.equal(
-            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
-            'ABCD2345',
-          );
-          assert.equal((await callList(page, 'accessCode')).length, 1);
-          await update(page, {
-            snapshot: {
-              ...snapshot(),
-              peerUrl: 'wss://192.0.2.10:7336/peer',
-              listenHost: '192.0.2.10',
-              peerUrls: ['wss://192.0.2.10:7336/peer', 'wss://198.51.100.10:7336/peer'],
-            },
+          const open = own.getByRole('button', { name: lanSearchEnglish.createCode, exact: true });
+          const ownDialog = dialog();
+          const code = ownDialog.getByRole('textbox', { name: lanSearchEnglish.connectionCode });
+          const codeCopy = ownDialog.getByRole('button', { name: 'Copy code', exact: true });
+          const copyInfo = ownDialog.getByRole('button', {
+            name: lanSearchEnglish.copyConnectionInfo,
           });
-          assert.equal(
-            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
-            'ABCD2345',
-          );
+          const close = ownDialog.getByRole('button', { name: 'Close', exact: true });
+          const footerStatus = ownDialog.locator('.MuiDialogActions-root').getByRole('status');
+          const refresh = ownDialog.getByRole('button', { name: lanSearchEnglish.refreshCode });
+
+          await open.evaluate((button: HTMLButtonElement) => {
+            button.click();
+            button.click();
+          });
           assert.equal((await callList(page, 'accessCode')).length, 1);
-          await own.getByRole('button', { name: 'Create new code', exact: true }).click();
-          await settle(page, 'accessCode', { code: 'BCDE3456', expiresAt });
-          await until(
-            async () =>
-              (await own
-                .getByRole('textbox', { name: 'Connection code', exact: true })
-                .inputValue()) === 'BCDE3456',
-            'Refresh replaces code once',
+          await ownDialog.getByText(lanSearchEnglish.creatingCode, { exact: true }).waitFor();
+          await close.click();
+          await settle(page, 'accessCode', {
+            code: 'ABCD2345',
+            expiresAt: new Date(Date.now() + 600000).toISOString(),
+          });
+          await ownDialog.waitFor({ state: 'hidden' });
+          await open.click();
+          assert.equal(await code.inputValue(), 'ABCD2345');
+          assert.equal((await callList(page, 'accessCode')).length, 1);
+          assert.equal(await own.locator('input').count(), 0);
+          assert.equal(await ownDialog.getByRole('rowheader').count(), 2);
+
+          const fieldBox = (await code.boundingBox())!;
+          const copyBox = (await codeCopy.boundingBox())!;
+          assert.ok(
+            Math.abs(fieldBox.y + fieldBox.height / 2 - (copyBox.y + copyBox.height / 2)) < 1,
           );
-          const geometry = await own
-            .getByRole('button', { name: 'Create new code', exact: true })
-            .boundingBox();
-          const expiry = await own.getByTestId('own-code-expiry').boundingBox();
-          assert.ok(geometry && expiry && geometry.x < expiry.x && geometry.width === 24);
+          await ownDialog
+            .getByTestId('own-code-expiry')
+            .getByText(/Expires in 9:|Expires in 10:/)
+            .waitFor();
+
+          await codeCopy.click();
+          assert.deepEqual((await callList(page, 'copy')).at(-1)?.input, { text: 'ABCD2345' });
+          await footerStatus.getByText('Copied', { exact: true }).waitFor();
+          for (const url of urls) {
+            const row = ownDialog.getByRole('row').filter({ hasText: url });
+            await row.getByRole('button', { name: 'Copy address ' + url }).click();
+            assert.deepEqual((await callList(page, 'copy')).at(-1)?.input, { text: url });
+            await footerStatus.getByText('Copied', { exact: true }).waitFor();
+          }
+          await copyInfo.click();
+          assert.deepEqual((await callList(page, 'copy')).at(-1)?.input, {
+            text: ['ABCD2345', ...urls].join('\n'),
+          });
+          await footerStatus.getByText('Copied', { exact: true }).waitFor();
+          await footerStatus.getByText('Copied', { exact: true }).waitFor({ state: 'hidden' });
+
           await page.evaluate(() =>
             (window as unknown as { fixture: Fixture }).fixture.failCopy(true),
           );
-          await own.getByRole('button', { name: 'Copy address', exact: true }).click();
-          await own.getByRole('alert').filter({ hasText: lanSearchEnglish.copyFailed }).waitFor();
-          assert.deepEqual(errors, [], 'A failed copy from the address selector must not throw');
-          await update(page, {
-            ownCode: { code: 'ABCD2345', expiresAt: new Date(Date.now() - 1000).toISOString() },
+          await ownDialog.getByRole('button', { name: 'Copy address ' + urls[0] }).click();
+          await ownDialog
+            .getByRole('alert')
+            .filter({ hasText: lanSearchEnglish.copyFailed })
+            .waitFor();
+          assert.deepEqual(errors, [], 'Address copy failure still allows manual selection');
+          await refresh.click();
+          await settle(page, 'accessCode', {
+            code: 'BCDE3456',
+            expiresAt: new Date(Date.now() + 1200).toISOString(),
           });
-          await own.getByText('Code expired', { exact: true }).waitFor();
-          assert.equal(
-            await own.getByRole('button', { name: 'Copy code', exact: true }).count(),
-            0,
+          assert.equal((await callList(page, 'accessCode')).length, 2);
+          await until(
+            async () => (await code.inputValue()) === 'BCDE3456',
+            'Refresh replaces the original code',
           );
-          await update(page, { snapshot: { ...snapshot(), running: false } });
-          assert.ok(
-            await own.getByRole('button', { name: 'Create code', exact: true }).isDisabled(),
-          );
-          await own.getByText(lanSearchEnglish.startNodeHint, { exact: true }).waitFor();
-          await own.getByRole('button', { name: 'Network settings', exact: true }).click();
-          assert.equal((await callList(page, 'settings')).length, 1);
+          await ownDialog.getByText(lanSearchEnglish.codeExpired, { exact: true }).waitFor();
+          assert.equal(await code.inputValue(), '********');
+          assert.equal(await codeCopy.isDisabled(), true);
+          assert.equal(await copyInfo.isDisabled(), true);
+          assert.equal(await refresh.isEnabled(), true);
+          assert.equal(await ownDialog.getByRole('rowheader').count(), 2);
+          await close.click();
+          await ownDialog.waitFor({ state: 'hidden' });
+          await update(page, { snapshot: { ...value, running: false } });
+          assert.ok(await open.isDisabled());
         },
       );
 
@@ -1020,7 +1035,7 @@ root.render(<App key={generation} patch={{}}/>);
 
       await runCase(
         'copy-correction',
-        'local guidance is actionable while running-only Create/Refresh/Copy/Settings remain available',
+        'the dialog retains local and empty-endpoint help with a route to Network settings',
         async () => {
           const value = snapshot();
           value.lanDiscovery = {
@@ -1031,35 +1046,28 @@ root.render(<App key={generation} patch={{}}/>);
           };
           await reset(page, { snapshot: value });
           const own = page.getByTestId('own-connection-card');
-          await own
-            .getByText(networkInterfaceMessages('en').localHelp, { exact: true })
-            .first()
-            .waitFor();
+          const open = own.getByRole('button', { name: lanSearchEnglish.createCode, exact: true });
+          const ownDialog = dialog();
+          const expiry = new Date(Date.now() + 600000).toISOString();
+          assert.equal(await own.getByText(networkInterfaceMessages('en').localHelp).count(), 0);
           assert.equal(await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).count(), 0);
-          assert.equal(
-            await own.getByRole('button', { name: 'Create code', exact: true }).isEnabled(),
-            true,
-          );
+          assert.ok(await open.isEnabled());
           await page.getByText('Found in this search', { exact: true }).waitFor();
           assert.equal(await page.getByText('Available to connect', { exact: true }).count(), 0);
           assert.equal(await page.getByTestId('nearby-details').count(), 0);
-          await own.getByRole('button', { name: 'Create code', exact: true }).click();
-          await settle(page, 'accessCode', {
-            code: 'ABCD2345',
-            expiresAt: new Date(Date.now() + 600000).toISOString(),
-          });
-          await own.getByRole('button', { name: 'Copy code', exact: true }).click();
-          assert.deepEqual((await callList(page, 'copy')).at(-1)?.input, { text: 'ABCD2345' });
-          await own.getByRole('button', { name: 'Create new code', exact: true }).click();
-          await settle(page, 'accessCode', {
-            code: 'BCDE3456',
-            expiresAt: new Date(Date.now() + 600000).toISOString(),
-          });
-          await own.getByRole('button', { name: 'Network settings', exact: true }).click();
+
+          await open.click();
+          await settle(page, 'accessCode', { code: 'ABCD2345', expiresAt: expiry });
+          await ownDialog
+            .getByText(networkInterfaceMessages('en').localHelp, { exact: true })
+            .first()
+            .waitFor();
+          await ownDialog.getByRole('button', { name: 'Network settings', exact: true }).click();
+          await ownDialog.waitFor({ state: 'hidden' });
           assert.equal((await callList(page, 'settings')).length, 1);
+
           const unavailable = {
             ...value,
-            listenHost: '0.0.0.0',
             peerUrl: 'wss://192.0.2.1:7336/peer',
             lanDiscovery: {
               ...value.lanDiscovery!,
@@ -1067,16 +1075,19 @@ root.render(<App key={generation} patch={{}}/>);
             },
           };
           await update(page, { snapshot: unavailable });
-          assert.equal(
-            await own.getByRole('button', { name: 'Create new code', exact: true }).isEnabled(),
-            true,
-          );
-          assert.equal(
-            await own.getByRole('textbox', { name: 'Connection code', exact: true }).inputValue(),
-            'BCDE3456',
-          );
-          await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
-          assert.equal(await own.getByTestId('announcement-details').count(), 0);
+          await open.click();
+          assert.equal((await callList(page, 'accessCode')).length, 1);
+          assert.equal(await codeInput().inputValue(), 'ABCD2345');
+          await ownDialog.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
+          assert.equal(await ownDialog.getByTestId('announcement-details').count(), 0);
+
+          await update(page, { snapshot: { ...unavailable, peerUrl: '', peerUrls: [] } });
+          await ownDialog
+            .getByText(networkInterfaceMessages('en').emptyEndpoint, { exact: true })
+            .waitFor();
+          assert.equal(await ownDialog.getByRole('table').count(), 0);
+          await ownDialog.getByRole('button', { name: 'Network settings', exact: true }).click();
+          assert.equal((await callList(page, 'settings')).length, 2);
         },
       );
 
@@ -1221,17 +1232,22 @@ root.render(<App key={generation} patch={{}}/>);
           await reset(page);
           assert.equal(await page.getByText('Computer paired.', { exact: true }).count(), 0);
           assert.equal(await connectButton().count(), 1);
-          await page.getByRole('button', { name: 'Create code', exact: true }).click();
+          await page
+            .getByRole('button', { name: lanSearchEnglish.createCode, exact: true })
+            .click();
           await update(page, { snapshot: { ...snapshot(), nodeId: 'replacement-node' } });
           await settle(page, 'accessCode', {
             code: 'BCDE3456',
             expiresAt: new Date(Date.now() + 600000).toISOString(),
           });
+          await dialog().waitFor({ state: 'hidden' });
           assert.equal(
             await page.getByRole('textbox', { name: 'Connection code', exact: true }).count(),
             0,
           );
-          await page.getByRole('button', { name: 'Create code', exact: true }).waitFor();
+          await page
+            .getByRole('button', { name: lanSearchEnglish.createCode, exact: true })
+            .waitFor();
         },
       );
 
@@ -1260,6 +1276,8 @@ root.render(<App key={generation} patch={{}}/>);
           if (artifacts) await mkdir(artifacts, { recursive: true });
           const idle = snapshot();
           idle.lanSearch!.phase = 'complete';
+          idle.peerUrl = 'wss://192.0.2.10:7336/peer';
+          idle.peerUrls = [idle.peerUrl, 'wss://[2001:db8::10]:7336/peer'];
           for (const width of [1280, 1024]) {
             await page.setViewportSize({ width, height: 1000 });
             for (const theme of ['dark', 'light']) {
@@ -1272,15 +1290,11 @@ root.render(<App key={generation} patch={{}}/>);
                 },
               });
               await page.evaluate(() => window.scrollTo(0, 0));
-              await page.getByRole('textbox', { name: 'Computer address', exact: true }).waitFor();
               const layout = await page.evaluate(() => ({
                 width: document.documentElement.clientWidth,
                 scrollWidth: document.documentElement.scrollWidth,
               }));
               assert.ok(layout.scrollWidth <= layout.width, `${theme}/${width} overflow`);
-              const input = page.getByRole('textbox', { name: 'Computer address', exact: true });
-              const inputBox = await input.locator('..').boundingBox();
-              assert.equal(inputBox?.height, 44);
               const nearbyHeader = page
                 .getByRole('heading', { name: 'Nearby computers', exact: true })
                 .locator('..');
@@ -1311,27 +1325,52 @@ root.render(<App key={generation} patch={{}}/>);
               const primary = await connectButton().boundingBox();
               assert.ok(primary && primary.height >= 44 && search.height >= 44);
 
-              const label = page.locator(`label[for="${await input.getAttribute('id')}"]`);
-              assert.equal(await label.getAttribute('data-shrink'), 'true');
               if (artifacts)
                 await page.screenshot({
                   path: path.join(artifacts, `network-${theme}-${width}.png`),
                   fullPage: true,
                 });
+              await page.getByRole('button', { name: lanSearchEnglish.createCode }).click();
+              const field = codeInput();
+              const inputBox = (await field.locator('..').boundingBox())!;
+              assert.equal(inputBox.height, 44);
+              const label = dialog().locator(`label[for="${await field.getAttribute('id')}"]`);
+              const labelBox = (await label.boundingBox())!;
+              assert.ok(labelBox.y + labelBox.height < inputBox.y);
+              assert.equal(await dialog().getByRole('rowheader').count(), 2);
+              if (artifacts)
+                await dialog().screenshot({
+                  path: path.join(artifacts, `own-code-${theme}-${width}.png`),
+                  animations: 'disabled',
+                });
+              await dialog().getByRole('button', { name: 'Close', exact: true }).click();
+              await dialog().waitFor({ state: 'hidden' });
             }
           }
           await update(page, { locale: 'ru' });
           await page
             .getByRole('heading', { name: lanSearchMessages('ru').ownTitle, exact: true })
             .waitFor();
+          await page.getByRole('button', { name: lanSearchMessages('ru').createCode }).click();
           assert.equal(
             await page
               .getByRole('textbox', { name: lanSearchMessages('ru').connectionCode, exact: true })
               .inputValue(),
             'ABCD2345',
           );
+          if (artifacts)
+            await dialog().screenshot({
+              path: path.join(artifacts, 'own-code-ru-light-1024.png'),
+              animations: 'disabled',
+            });
+          await dialog()
+            .getByRole('button', { name: translate('ru', 'mcpSetup_close') })
+            .click();
+          await dialog().waitFor({ state: 'hidden' });
           await update(page, { locale: 'en', snapshot: snapshot(), ownCode: null });
-          await page.getByRole('button', { name: 'Create code', exact: true }).click();
+          await page
+            .getByRole('button', { name: lanSearchEnglish.createCode, exact: true })
+            .click();
           await page.evaluate(() => (window as unknown as { fixture: Fixture }).fixture.unmount());
           await settle(page, 'accessCode', {
             code: 'BCDE3456',
@@ -1545,8 +1584,6 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
       if (process.env.NCF_LAN_WIRING_CAPTURE_ONLY === '1') {
         const page = await open();
         try {
-          await page.getByRole('button', { name: 'Create code', exact: true }).click();
-          await page.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
           for (const dark of [true, false]) {
             if (!dark) {
               await page.getByTestId('nav-settings').click();
@@ -1555,10 +1592,17 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
                 .uncheck();
               await page.getByTestId('nav-network').click();
             }
+            await page
+              .getByRole('button', { name: lanSearchEnglish.createCode, exact: true })
+              .click();
+            const ownDialog = page.getByRole('dialog');
+            await ownDialog.getByRole('button', { name: 'Copy code', exact: true }).waitFor();
             for (const width of [1280, 1024]) {
               await page.setViewportSize({ width, height: 1000 });
               await capture(page, `combined-network-${dark ? 'dark' : 'light'}-${width}`);
             }
+            await ownDialog.getByRole('button', { name: 'Close', exact: true }).click();
+            await ownDialog.waitFor({ state: 'hidden' });
           }
           assert.deepEqual(errors, []);
         } finally {
@@ -1606,8 +1650,15 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
             await page.getByRole('button', { name: 'Search', exact: true }).waitFor();
             await page.getByTestId('remote-nodes-table').waitFor();
             await page.getByText('Retained fixture peer diagnostic', { exact: true }).waitFor();
-            await page.getByRole('button', { name: 'Create code', exact: true }).click();
-            await page.getByRole('textbox', { name: 'Connection code', exact: true }).waitFor();
+            await page
+              .getByRole('button', { name: lanSearchEnglish.createCode, exact: true })
+              .click();
+            const ownDialog = page.getByRole('dialog', { name: lanSearchEnglish.ownTitle });
+            const ownCodeCopy = ownDialog.getByRole('button', { name: 'Copy code', exact: true });
+            await until(() => ownCodeCopy.isEnabled(), 'The initial code is ready');
+            const closeOwn = ownDialog.getByRole('button', { name: 'Close', exact: true });
+            await closeOwn.click();
+            await ownDialog.waitFor({ state: 'hidden' });
             await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
             let dialog = page.getByRole('dialog');
             const address = dialog.getByRole('textbox', {
@@ -1645,13 +1696,18 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               .uncheck();
             assert.equal(await settingsDraft.inputValue(), 'Unsaved fixture name');
             await page.getByTestId('nav-network').click();
+            await page
+              .getByRole('button', { name: lanSearchEnglish.createCode, exact: true })
+              .click();
             assert.equal(
-              await page
+              await ownDialog
                 .getByRole('textbox', { name: 'Connection code', exact: true })
                 .inputValue(),
               'ABCD2345',
             );
             assert.equal((await calls(page, 'accessCode')).length, 1);
+            await closeOwn.click();
+            await ownDialog.waitFor({ state: 'hidden' });
             await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
             dialog = page.getByRole('dialog');
             assert.equal(

@@ -598,6 +598,7 @@ export function NetworkPage({
           locale={locale}
           invoke={invoke}
           onSettings={onSettings}
+          active={active}
           visible={canObserve}
         />
         {pairedNotice && (
