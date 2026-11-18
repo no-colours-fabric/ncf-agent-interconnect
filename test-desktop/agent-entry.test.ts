@@ -8,7 +8,6 @@ import {
   supportedAgentApplications,
 } from '../desktop/renderer/i18n/agent-entry.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
-import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import type {
   AdapterState,
   AgentDirectory,
@@ -132,8 +131,6 @@ test('all agent entry translations are complete and keep their required placehol
     assert.equal(messages.agentsManualDiagnosticLink, messages.dialogAddAgent, locale);
     if (locale !== 'en')
       for (const key of [
-        'agentsConnectionGuide',
-        'agentsCopyCommand',
         'agentsCreationConnected',
         'agentsCreationNoConnected',
         'agentsManualDiagnosticIntro',
@@ -144,27 +141,6 @@ test('all agent entry translations are complete and keep their required placehol
         'aionUiApplication',
       ] as const)
         assert.notEqual(messages[key], english[key], `${locale}: English fallback in ${key}`);
-  }
-});
-
-test('connection panel copy is localized in all 15 locales and reuses the chosen-name request', () => {
-  const english = agentEntryMessages('en');
-  assert.equal(
-    english.agentsConnectionGuide,
-    'Open a new or existing chat in a supported app and ask the assistant to connect under a name you choose.',
-  );
-  assert.equal(english.agentsCopyCommand, 'Copy');
-  for (const locale of supportedLocales) {
-    const copy = agentEntryMessages(locale);
-    const request = mcpSetupMessages(locale);
-    for (const key of ['agentsConnectionGuide', 'agentsCopyCommand'] as const) {
-      assert.ok(copy[key].trim(), `${locale}: ${key}`);
-      if (locale !== 'en') assert.notEqual(copy[key], english[key], `${locale}: ${key}`);
-    }
-    assert.ok(request.connectionPrompt.trim(), `${locale}: visible request`);
-    assert.ok(request.copyPrompt.trim(), `${locale}: accessible copy action`);
-    assert.ok(!copy.agentsConnectionGuide.includes('{applications}'));
-    assert.ok(!copy.agentsConnectionGuide.includes('{applicationsPage}'));
   }
 });
 

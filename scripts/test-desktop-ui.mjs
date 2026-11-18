@@ -270,7 +270,6 @@ try {
   assert.equal(await page.getByRole('button', { name: 'Add adapter', exact: true }).count(), 0);
   assert.equal(await page.getByRole('textbox', { name: /Exact.*(ID|UUID)/ }).count(), 0);
   await page.getByRole('button', { name: 'Agents', exact: true }).click();
-  await page.getByTestId('agents-connection-details').locator('summary').click();
   await page.getByTestId('create-agent-manually').click();
   await page.getByRole('textbox', { name: 'Agent name' }).fill('Interface check');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
