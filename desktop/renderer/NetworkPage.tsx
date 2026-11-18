@@ -856,10 +856,6 @@ export function NetworkPage({
               </Box>
             )}
           </Paper>
-          <Box component="details" sx={{ mt: 1.5 }} data-testid="nearby-details">
-            <summary>{m.details}</summary>
-            <Typography variant="caption">{legacy.unverified}</Typography>
-          </Box>
         </Box>
       </Stack>
       <Dialog

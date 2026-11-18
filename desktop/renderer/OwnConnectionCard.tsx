@@ -63,7 +63,7 @@ export function OwnConnectionCard({
       : announcement?.reason === 'listener-local'
         ? networkMessages.localHelp
         : announcement?.reason === 'listener-unavailable'
-          ? legacy.listenerUnavailable
+          ? null
           : announcement?.reason === 'no-interfaces'
             ? legacy.noInterfaces
             : announcement?.reason === 'transport-error'
@@ -342,7 +342,7 @@ export function OwnConnectionCard({
           )}
         </Box>
       </Box>
-      {announcement && (
+      {announcement && announcementDetail && (
         <Box component="details" sx={{ mt: 1 }} data-testid="announcement-details">
           <summary>{m.details}</summary>
           <Typography variant="caption">{announcementDetail}</Typography>

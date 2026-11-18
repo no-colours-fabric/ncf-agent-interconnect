@@ -279,7 +279,7 @@ test('search UI: navigation excludes paired identities/addresses and retains cur
   assert.deepEqual(unpairedLanNodes(value), []);
 });
 
-test('search UI: actual announcement reasons remain separate from search results and code generation', () => {
+test('search UI: announcement details omit the listener-unavailable message and preserve code generation', () => {
   const legacy = lanDiscoveryMessages('en');
   const reasons = {
     stopped: legacy.stopped,
@@ -300,14 +300,15 @@ test('search UI: actual announcement reasons remain separate from search results
         onSettings() {},
       }),
     );
-    assert.ok(html.includes(message));
+    const showDetails = reason !== 'listener-unavailable';
+    assert.equal(html.includes(message), showDetails, reason);
     assert.ok(html.includes(lanSearchEnglish.createCode));
-    assert.ok(html.includes('announcement-details'));
+    assert.equal(html.includes('announcement-details'), showDetails, reason);
     assert.ok(!html.includes('<details open'));
   }
 });
 
-test('search UI correction: all15 responder labels describe this search and localized trust/local help remains available', () => {
+test('search UI: localized responder labels and local help remain without the nearby trust disclosure', () => {
   const expected: Record<Locale, string> = {
     en: 'Found in this search',
     ru: 'Найден в текущем поиске',
@@ -360,8 +361,8 @@ test('search UI correction: all15 responder labels describe this search and loca
       }),
     );
     assert.ok(html.includes(escaped(expected[locale])), locale);
-    assert.ok(html.includes(escaped(legacy.unverified)), locale);
-    assert.ok(html.includes('nearby-details'), locale);
+    assert.ok(!html.includes(escaped(legacy.unverified)), locale);
+    assert.ok(!html.includes('nearby-details'), locale);
   }
   assert.equal(lanSearchMessages('kk').expiresIn, 'Аяқталуына {time} қалды');
 });
@@ -920,9 +921,7 @@ root.render(<App key={generation} patch={{}}/>);
           );
           await page.getByText('Found in this search', { exact: true }).waitFor();
           assert.equal(await page.getByText('Available to connect', { exact: true }).count(), 0);
-          const details = page.getByTestId('nearby-details');
-          await details.locator('summary').click();
-          await details.getByText(lanDiscoveryMessages('en').unverified, { exact: true }).waitFor();
+          assert.equal(await page.getByTestId('nearby-details').count(), 0);
           await own.getByRole('button', { name: 'Create code', exact: true }).click();
           await settle(page, 'accessCode', {
             code: 'ABCD2345',
@@ -956,6 +955,7 @@ root.render(<App key={generation} patch={{}}/>);
             'BCDE3456',
           );
           await own.getByText(lanSearchEnglish.ownHelp, { exact: true }).waitFor();
+          assert.equal(await own.getByTestId('announcement-details').count(), 0);
         },
       );
 
