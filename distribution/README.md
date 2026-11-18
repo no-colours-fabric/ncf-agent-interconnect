@@ -207,8 +207,8 @@ rollback requires that backup while preserving any post-upgrade data.
 Peer protocol 2 and the eleven-tool MCP schema are unchanged.
 Older strict-schema binaries may reject the newer network-exclusion and OpenCode
 v2 settings. Keep the stopped pre-upgrade backup; do not open an upgraded profile
-with an older app. Windows native private-file assurance for this release has not
-yet been completed.
+with an older app. The packaged OpenCode v2 setup verified private-file ACLs on
+a Windows x64 test host.
 
 Existing client configurations need no new Apply when installation paths stay
 the same. To enable Claude Code, use its setup dialog and Apply, then restart

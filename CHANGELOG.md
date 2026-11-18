@@ -9,7 +9,7 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 - Show a connection guide and copyable chat request on Agents while retaining diagnostic manual creation, history and deletion controls. Present incoming messages with From, Sent, Delivered and Reply-To. The two displayed times use the receiving app's locale and time zone; they do not establish message receipt or task completion.
 - Show local, paired and newly discovered nodes on Overview. Open pairing for a new node or get this computer's connection code without leaving Overview. Manual setup retains file selection after Apply and prepares a new preview before a different file can be changed.
 
-Storage format 5, peer protocol 2 and the eleven-tool MCP schema are unchanged. Back up the stopped profile before updating because older binaries may reject the new network-exclusion or OpenCode v2 settings. Live OpenCode v2 delivery and Windows native private-file assurance have not yet been verified for this release. The installers cover Apple Silicon and Intel macOS and Windows x64. Linux source remains available.
+Storage format 5, peer protocol 2 and the eleven-tool MCP schema are unchanged. Back up the stopped profile before updating because older binaries may reject the new network-exclusion or OpenCode v2 settings. The packaged setup verified Windows private-file ACLs on a Windows x64 test host. Live delivery through the OpenCode v2 client has not yet been verified. The installers cover Apple Silicon and Intel macOS and Windows x64. Linux source remains available.
 
 ## 0.18.7 — 2026-11-17
 
