@@ -683,18 +683,6 @@ export function NetworkPage({
         {snapshot.peers.length > 0 && (
           <Box component="section" aria-label={m.pairedTitle} data-testid="retained-paired-content">
             {children}
-            {snapshot.peers
-              .filter((peer) => peer.connected && peer.activeAddress)
-              .map((peer) => (
-                <Typography
-                  key={peer.id}
-                  variant="caption"
-                  sx={{ display: 'block', mt: 1, overflowWrap: 'anywhere' }}
-                >
-                  {peer.label} · {networkInterfaceMessages(locale).addressLabel}:{' '}
-                  {peer.activeAddress}
-                </Typography>
-              ))}
           </Box>
         )}
         <Box component="section" aria-labelledby={id + '-nearby-title'}>

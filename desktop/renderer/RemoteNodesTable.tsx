@@ -48,6 +48,7 @@ export function RemoteNodesTable({
           <TableBody>
             {snapshot.peers.map((peer) => {
               const directory = snapshot.directories.find((item) => item.nodeId === peer.id);
+              const activeAddress = peer.connected ? peer.activeAddress : null;
               const status = !peer.connected
                 ? 'networkWaiting'
                 : directory?.state === 'unsupported'
@@ -61,9 +62,9 @@ export function RemoteNodesTable({
                     {nodeName(peer.id)}
                   </TableCell>
                   <TableCell
-                    sx={{ fontFamily: peer.address ? 'monospace' : 'inherit', fontSize: 12 }}
+                    sx={{ fontFamily: activeAddress ? 'monospace' : 'inherit', fontSize: 12 }}
                   >
-                    {peer.address || t(locale, 'networkIncoming')}
+                    {activeAddress || (peer.connected ? t(locale, 'networkIncoming') : '—')}
                   </TableCell>
                   <TableCell align="right">{directory?.epoch ? directory.total : ''}</TableCell>
                   <TableCell>

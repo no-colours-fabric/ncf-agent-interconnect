@@ -27,6 +27,7 @@ function fixture(): Snapshot {
         id: remote,
         label: 'Remote',
         address: 'wss://fixture.invalid/peer',
+        activeAddress: 'wss://active.fixture.invalid/peer',
         connected: true,
         error: null,
       },
@@ -169,7 +170,8 @@ test('remote nodes table reports counts and update time without exposing agent l
     );
   const html = render();
   assert.ok(html.includes('>1</td>'));
-  assert.ok(html.includes('wss://fixture.invalid/peer'));
+  assert.ok(html.includes('>wss://active.fixture.invalid/peer</td>'));
+  assert.ok(!html.includes('wss://fixture.invalid/peer'));
   assert.ok(!html.includes('Агент'));
   snapshot.directories[1].epoch = null;
   snapshot.directories[1].state = 'unsupported';

@@ -1,6 +1,7 @@
 import { computeNetworkInterfacePolicy } from '../desktop/core/network-interfaces.js';
 import { networkInterfaceMessages } from '../desktop/renderer/i18n/network-interfaces.js';
 import { OwnConnectionCard } from '../desktop/renderer/OwnConnectionCard.js';
+import { RemoteNodesTable } from '../desktop/renderer/RemoteNodesTable.js';
 import { lanDiscoveryMessages } from '../desktop/renderer/i18n/lan-discovery.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -365,6 +366,57 @@ test('search UI: localized responder labels and local help remain without the ne
     assert.ok(!html.includes('nearby-details'), locale);
   }
   assert.equal(lanSearchMessages('kk').expiresIn, 'Аяқталуына {time} қалды');
+});
+
+test('Remote nodes shows one current address in the table and no saved or disconnected address', () => {
+  const value = snapshot();
+  const saved = 'wss://192.0.2.20:7336/peer';
+  const current = 'wss://192.0.2.34:7336/peer';
+  const peer: Snapshot['peers'][number] = {
+    id: first.nodeId,
+    label: first.label,
+    address: saved,
+    activeAddress: current,
+    connected: true,
+    error: null,
+  };
+  value.peers = [peer];
+  delete value.lanSearch;
+  const render = () =>
+    renderToStaticMarkup(
+      createElement(NetworkPage, {
+        active: true,
+        windowVisible: true,
+        snapshot: value,
+        locale: 'ru',
+        invoke: noInvoke,
+        onSettings() {},
+        ownCode: null,
+        onOwnCodeChange() {},
+        manual: { address: '', code: '', onAddressChange() {}, onCodeChange() {} },
+        children: createElement(RemoteNodesTable, {
+          snapshot: value,
+          locale: 'ru',
+          nodeName: () => first.label,
+        }),
+      }),
+    );
+  const connected = render();
+  assert.ok(connected.includes('>' + current + '</td>'));
+  assert.equal(connected.split(current).length, 2);
+  assert.ok(!connected.includes(saved));
+
+  peer.connected = false;
+  const offline = render();
+  assert.ok(offline.includes('>—</td>'));
+  assert.ok(!offline.includes(current));
+  assert.ok(!offline.includes(saved));
+
+  peer.connected = true;
+  peer.activeAddress = null;
+  const incoming = render();
+  assert.ok(incoming.includes('>' + translate('ru', 'networkIncoming') + '</td>'));
+  assert.ok(!incoming.includes(saved));
 });
 
 type Call = { method: string; input: Record<string, unknown> };
