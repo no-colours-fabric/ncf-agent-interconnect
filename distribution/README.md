@@ -56,7 +56,7 @@ open-file icon uses the operating system's default application.
   Restart v2 and connect from the intended chat. A detected installation or
   saved configuration does not prove that the bridge is running or that the
   chat admitted a message. Live OpenCode v2 delivery has not yet been verified.
-- OpenCode v1: choose **Show OpenCode v1** for its separate setup. The bundled v1
+- OpenCode v1: turn on the **OpenCode v1** switch for its separate setup. The bundled v1
   plugin identifies the exact current chat. Incoming messages are delivered
   automatically; a busy chat waits for an idle event. Frontends must use that
   OpenCode instance and load its plugins. Configuring v2 does not convert v1.

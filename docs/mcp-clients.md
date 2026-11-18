@@ -24,7 +24,7 @@ The new existing-chat recovery behavior has source-level regression coverage. Na
 
 ## OpenCode and its frontends
 
-Open **Applications → OpenCode**. The OpenCode v2 setup is shown first; **Show OpenCode v1** opens the retained v1 setup. These are separate configuration targets, so choose the version and exact file or profile that your intended OpenCode instance loads. Installation discovery does not identify the API major or prove that either version, plugin or chat is ready. If v2 is not found in known locations, its manual setup still lets you select the exact target.
+Open **Applications → OpenCode**. The OpenCode v2 setup is shown first; turn on the **OpenCode v1** switch to open the retained v1 setup. These are separate configuration targets, so choose the version and exact file or profile that your intended OpenCode instance loads. Installation discovery does not identify the API major or prove that either version, plugin or chat is ready. If v2 is not found in known locations, its manual setup still lets you select the exact target.
 
 For v2, use its dedicated **Configure OpenCode v2** flow. Review the selected file and preview before **Apply**; only that file's NCF integration changes, while provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. A saved configuration is separate from bridge activity and admission to that exact chat. If the plugin is not attached after a node restart, restart or reconnect the OpenCode host and check that chat; do not blindly resend work whose admission is uncertain.
 
