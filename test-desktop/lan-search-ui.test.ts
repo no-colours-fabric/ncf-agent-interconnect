@@ -730,7 +730,7 @@ root.render(<App key={generation} patch={{}}/>);
           const progress = region.getByRole('progressbar', { name: 'Search time' });
           const badge = region.locator('.MuiChip-root');
           const spinner = region.locator('.MuiCircularProgress-root');
-          const searchButton = region.getByRole('button', { name: 'Search again', exact: true });
+          const searchButton = region.getByRole('button', { name: 'Search', exact: true });
           const stopButton = region.getByRole('button', { name: 'Stop search', exact: true });
           const list = region.getByRole('list');
           const value = snapshot();
@@ -1302,7 +1302,7 @@ root.render(<App key={generation} patch={{}}/>);
               );
               assert.equal(badge.borderWidth, '0px', theme);
               const search = await page
-                .getByRole('button', { name: 'Search again', exact: true })
+                .getByRole('button', { name: 'Search', exact: true })
                 .boundingBox();
               assert.ok(
                 header && search && Math.abs(header.x + header.width - search.x - search.width) < 2,
@@ -1603,7 +1603,7 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
             assert.deepEqual((await calls(page, 'stopLanSearch'))[0].input, {});
             assert.equal((await calls(page, 'stop')).length, 0);
             assert.equal(await page.getByTestId('node-toggle').textContent(), 'Stop');
-            await page.getByRole('button', { name: 'Search again', exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Search', exact: true }).waitFor();
             await page.getByTestId('remote-nodes-table').waitFor();
             await page.getByText('Retained fixture peer diagnostic', { exact: true }).waitFor();
             await page.getByRole('button', { name: 'Create code', exact: true }).click();
@@ -1683,7 +1683,7 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               'Legacy success preserves the address and clears only the submitted code',
             );
             await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-            await page.getByRole('button', { name: 'Search again', exact: true }).click();
+            await page.getByRole('button', { name: 'Search', exact: true }).click();
             assert.deepEqual((await calls(page, 'startLanSearch')).at(-1)?.input, {});
             await capture(page, 'combined-network-light-1280');
             await page.setViewportSize({ width: 1024, height: 1000 });

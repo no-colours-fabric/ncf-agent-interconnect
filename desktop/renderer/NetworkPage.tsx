@@ -664,7 +664,7 @@ export function NetworkPage({
                 onClick={() => void searchAction(searching)}
                 sx={{ minHeight: 44 }}
               >
-                {searching ? m.stopSearch : m.searchAgain}
+                {searching ? m.stopSearch : m.search}
               </Button>
             </Stack>
           </Stack>
