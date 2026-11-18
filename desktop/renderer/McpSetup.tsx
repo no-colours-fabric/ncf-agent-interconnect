@@ -11,6 +11,7 @@ import { applicationSetupMessages } from './i18n/application-setup.js';
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Chip,
@@ -97,6 +98,110 @@ const keys = {
     button: 'configureClaude',
   },
 } as const;
+
+function ConfigurationPathField({
+  path,
+  locations,
+  disabled,
+  browseDisabled,
+  openDisabled,
+  testId,
+  messages: m,
+  onPathChange,
+  onBrowse,
+  onOpen,
+}: {
+  path: string;
+  locations: readonly string[];
+  disabled: boolean;
+  browseDisabled: boolean;
+  openDisabled: boolean;
+  testId: string;
+  messages: McpSetupMessages;
+  onPathChange: (path: string) => void;
+  onBrowse: () => void;
+  onOpen: () => void;
+}): React.JSX.Element {
+  const buttonSx = { gridRow: 2, minHeight: 44, overflowWrap: 'anywhere' };
+  return (
+    <Box
+      sx={{
+        display: 'grid',
+        gridTemplateColumns: 'fit-content(26%) minmax(0, 1fr) fit-content(32%)',
+        columnGap: 1.5,
+        alignItems: 'center',
+      }}
+    >
+      <Button
+        variant="outlined"
+        disabled={browseDisabled}
+        onClick={onBrowse}
+        sx={{ ...buttonSx, gridColumn: 1 }}
+      >
+        {m.browse}
+      </Button>
+      <Autocomplete
+        freeSolo
+        disableClearable
+        size="small"
+        forcePopupIcon={locations.length > 0}
+        openText={m.knownPaths}
+        closeText={m.close}
+        options={locations}
+        value={path}
+        inputValue={path}
+        disabled={disabled}
+        onInputChange={(_event, value, reason) => {
+          if (reason === 'input' && value !== path) onPathChange(value);
+        }}
+        onChange={(_event, value) => {
+          if (value !== path) onPathChange(value);
+        }}
+        sx={{
+          gridColumn: 2,
+          gridRow: '1 / span 3',
+          display: 'grid',
+          gridTemplateRows: 'subgrid',
+          minWidth: 0,
+          '&& .MuiOutlinedInput-root': { minHeight: 44, flexWrap: 'nowrap' },
+          '&&.MuiAutocomplete-hasPopupIcon .MuiOutlinedInput-root': { pr: 5.5 },
+          '&& .MuiAutocomplete-endAdornment': { right: 0 },
+          '& .MuiAutocomplete-input': { minWidth: 0 },
+        }}
+        slotProps={{
+          listbox: { sx: { '& .MuiAutocomplete-option': { overflowWrap: 'anywhere' } } },
+          popupIndicator: { sx: { m: 0, width: 44, height: 44 } },
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={m.pathLabel}
+            helperText={m.pathHint}
+            sx={{ gridRow: '1 / span 3', display: 'grid', gridTemplateRows: 'subgrid' }}
+            slotProps={{
+              ...params.slotProps,
+              input: { ...params.slotProps.input, notched: false },
+              htmlInput: {
+                ...params.slotProps.htmlInput,
+                spellCheck: false,
+                'data-testid': testId,
+              },
+            }}
+          />
+        )}
+      />
+      <Button
+        startIcon={<OpenInNewOutlined />}
+        disabled={openDisabled}
+        onClick={onOpen}
+        sx={{ ...buttonSx, gridColumn: 3 }}
+      >
+        {m.openFile}
+      </Button>
+    </Box>
+  );
+}
+
 function SetupErrorNote({
   summary,
   error,
@@ -566,16 +671,20 @@ function ClientSetupDialog({
               const checked = state.preview?.files.find((item) => item.id === file.id);
               return (
                 <Stack key={file.id} spacing={1.5}>
-                  <TextField
-                    fullWidth
-                    label={m.pathLabel}
-                    value={file.path}
+                  <ConfigurationPathField
+                    path={file.path}
+                    locations={file.alternatives}
                     disabled={state.busy || !!result}
-                    onChange={(event) => flow.setPath(file.id, event.target.value)}
-                    helperText={m.pathHint}
-                    slotProps={{
-                      htmlInput: { spellCheck: false, 'data-testid': 'mcp-path-' + file.id },
-                    }}
+                    browseDisabled={state.busy || !!result}
+                    openDisabled={
+                      !canOpen ||
+                      file.path !== status?.files.find((item) => item.id === file.id)?.path
+                    }
+                    testId={'mcp-path-' + file.id}
+                    messages={m}
+                    onPathChange={(path) => flow.setPath(file.id, path)}
+                    onBrowse={() => void flow.browse(file.id)}
+                    onOpen={() => void flow.openFile()}
                   />
                   {sharedCursorConfiguration && (
                     <Alert
@@ -588,60 +697,6 @@ function ClientSetupDialog({
                     >
                       {m.aionMcpHelp}
                     </Alert>
-                  )}
-                  <Box>
-                    <Button
-                      variant="outlined"
-                      disabled={state.busy || !!result}
-                      onClick={() => void flow.browse(file.id)}
-                    >
-                      {m.browse}
-                    </Button>
-                    {inline && (
-                      <Button
-                        startIcon={<OpenInNewOutlined />}
-                        disabled={
-                          !canOpen ||
-                          file.path !== status?.files.find((item) => item.id === file.id)?.path
-                        }
-                        onClick={() => void flow.openFile()}
-                        sx={{ ml: 1.5 }}
-                      >
-                        {m.openFile}
-                      </Button>
-                    )}
-                  </Box>
-                  {file.alternatives.length > 1 && !result && (
-                    <Box>
-                      <Typography variant="caption">{m.knownPaths}</Typography>
-                      {file.alternatives.map((location) => (
-                        <Tooltip key={location} title={location}>
-                          <Box component="span" sx={{ display: 'block', minWidth: 0 }}>
-                            <Button
-                              size="small"
-                              disabled={state.busy}
-                              onClick={() => flow.setPath(file.id, location)}
-                              sx={{
-                                display: 'flex',
-                                justifyContent: 'flex-start',
-                                maxWidth: '100%',
-                                width: '100%',
-                                overflow: 'hidden',
-                              }}
-                            >
-                              <Typography
-                                component="span"
-                                variant="caption"
-                                noWrap
-                                sx={{ fontFamily: 'monospace', color: 'secondary.main' }}
-                              >
-                                {location}
-                              </Typography>
-                            </Button>
-                          </Box>
-                        </Tooltip>
-                      ))}
-                    </Box>
                   )}
                   <Box sx={{ minHeight: '3em' }}>
                     {checked && !result && (
@@ -793,7 +848,7 @@ export function OpenCodeV2SetupDialog({
   const copy = applicationSetupMessages(locale);
   const state = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   const [confirmed, setConfirmed] = useState(false);
-  const busy = flow.busy() || state.checking;
+  const busy = flow.busy() || !!state.checking;
   const target = state.target;
   const status =
     state.status &&
@@ -802,7 +857,7 @@ export function OpenCodeV2SetupDialog({
       ? state.status
       : undefined;
   const checkingOriginal = flow.checkingOriginal();
-  const completed = state.phase === 'succeeded' || state.verified;
+  const completed = state.phase === 'succeeded' || !!state.verified;
   useEffect(() => {
     void flow.beginManual();
   }, [flow]);
@@ -849,36 +904,20 @@ export function OpenCodeV2SetupDialog({
           <Stack spacing={2} sx={{ pt: 1 }}>
             {target && (
               <>
-                <TextField
-                  fullWidth
-                  label={m.pathLabel}
-                  value={target.configurationPath}
-                  onChange={(event) => flow.setConfigurationPath(event.target.value)}
+                <ConfigurationPathField
+                  path={target.configurationPath}
+                  locations={state.alternatives}
                   disabled={busy || completed}
-                  helperText={m.pathHint}
-                  slotProps={{
-                    htmlInput: {
-                      spellCheck: false,
-                      'data-testid': 'opencode-v2-configuration-path',
-                    },
-                  }}
+                  browseDisabled={busy || completed || !!setupBusy}
+                  openDisabled={
+                    busy || !status || ['missing', 'unavailable'].includes(status.state)
+                  }
+                  testId="opencode-v2-configuration-path"
+                  messages={m}
+                  onPathChange={(path) => flow.setConfigurationPath(path)}
+                  onBrowse={() => void flow.browse()}
+                  onOpen={() => void flow.openFile()}
                 />
-                <Stack direction="row" spacing={1.5} useFlexGap sx={{ flexWrap: 'wrap' }}>
-                  <Button
-                    variant="outlined"
-                    disabled={busy || completed || setupBusy}
-                    onClick={() => void flow.browse()}
-                  >
-                    {m.browse}
-                  </Button>
-                  <Button
-                    startIcon={<OpenInNewOutlined />}
-                    disabled={busy || !status || ['missing', 'unavailable'].includes(status.state)}
-                    onClick={() => void flow.openFile()}
-                  >
-                    {m.openFile}
-                  </Button>
-                </Stack>
                 <Box component="details" sx={{ overflowWrap: 'anywhere' }}>
                   <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
                     {copy.details}
@@ -896,26 +935,6 @@ export function OpenCodeV2SetupDialog({
                     </>
                   )}
                 </Box>
-                {!completed && state.alternatives.length > 1 && (
-                  <Box>
-                    <Typography variant="caption">{m.knownPaths}</Typography>
-                    {state.alternatives.map((path) => (
-                      <Button
-                        key={path}
-                        disabled={busy || setupBusy}
-                        onClick={() => flow.setConfigurationPath(path)}
-                        sx={{
-                          display: 'block',
-                          textAlign: 'left',
-                          overflowWrap: 'anywhere',
-                          maxWidth: '100%',
-                        }}
-                      >
-                        {path}
-                      </Button>
-                    ))}
-                  </Box>
-                )}
               </>
             )}
             {state.preview && !completed && (

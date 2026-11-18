@@ -250,7 +250,8 @@ try {
     if (client === 'opencode') {
       const alternatives = (await setup.defaults(client)).files[0].alternatives;
       const releaseLocation = holdOperation('mcpSetupPreview');
-      await dialog.getByRole('button', { name: alternatives[1], exact: true }).click();
+      await dialog.getByRole('button', { name: 'Other locations', exact: true }).click();
+      await page.getByRole('option', { name: alternatives[1], exact: true }).click();
       await waitForBusy();
       assertGeometry(await geometry(dialog), stable, 'OpenCode location while checking');
       releaseLocation();
@@ -289,7 +290,7 @@ try {
       assertGeometry(await geometry(dialog), stable, client + ' after picker cancellation');
     }
     const selected = await dialog
-      .getByRole('textbox', { name: 'Configuration file path', exact: true })
+      .getByRole('combobox', { name: 'Configuration file path', exact: true })
       .inputValue();
     await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
     await dialog.getByText('Setup applied.', { exact: true }).waitFor();
@@ -337,7 +338,7 @@ try {
     .getByText('These settings are already present. No changes are needed.', { exact: true })
     .waitFor();
   await dialog
-    .getByRole('textbox', { name: 'Configuration file path', exact: true })
+    .getByRole('combobox', { name: 'Configuration file path', exact: true })
     .fill(conflict);
   await page.waitForFunction(
     () => {

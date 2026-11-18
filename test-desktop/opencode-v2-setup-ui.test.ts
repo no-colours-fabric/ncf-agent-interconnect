@@ -102,7 +102,8 @@ test('v2 manual UI names its version and captured target; v1 keeps a separate le
   assert.ok(html.includes(escape('/isolated/Custom v2/草稿.json')));
   assert.ok(html.includes(escape(target.profilePath)));
   assert.ok(html.includes(escape(applicationSetupMessages('ru').openCodeV2Description)));
-  assert.doesNotMatch(html, /<select|role="combobox"|Profile [12]/);
+  assert.match(html, /role="combobox"/);
+  assert.doesNotMatch(html, /<select|Profile [12]/);
   const legacy = new McpSetupFlow('opencode', (async (method: string) => {
     if (method === 'mcpSetupDefaults')
       return {

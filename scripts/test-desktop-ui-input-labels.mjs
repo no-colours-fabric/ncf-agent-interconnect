@@ -969,7 +969,7 @@ rejected.push(method);throw Error('Rejected layout fixture IPC '+method);
     await page.getByTestId('mcp-configure-opencode').click();
     const mcp = await dialog('Configure OpenCode', 640);
     const config = await field(
-      mcp.element.getByRole('textbox', { name: 'Configuration file path', exact: true }),
+      mcp.element.getByRole('combobox', { name: 'Configuration file path', exact: true }),
       'OpenCode path',
     );
     inside(config.form, mcp.content, 'OpenCode path');

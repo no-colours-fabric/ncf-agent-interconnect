@@ -179,7 +179,8 @@ test('the real OpenCode v1 manual form keeps its selected file, review and Apply
   assert.ok(html.includes('/isolated/OpenCode v1/opencode.json'));
   assert.ok(html.includes('mcp-apply'));
   assert.ok(html.includes('Choose file'));
-  assert.doesNotMatch(html, /<select|role="combobox"|Profile [12]/);
+  assert.match(html, /role="combobox"/);
+  assert.doesNotMatch(html, /<select|Profile [12]/);
 });
 
 test('copy context: all 15 locales name the original check, generic copied text and qualified AionUi target', () => {

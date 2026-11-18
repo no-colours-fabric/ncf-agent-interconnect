@@ -27,7 +27,9 @@ async function verifyClientStatusPanel(page, { client, state, kind, count, activ
     );
     const form = page.locator('#mcp-setup-form-' + client);
     assert.ok(
-      await form.getByRole('textbox', { name: 'Configuration file path', exact: true }).isVisible(),
+      await form
+        .getByRole('combobox', { name: 'Configuration file path', exact: true })
+        .isVisible(),
       'The selected inline manual path remains available without configured settings',
     );
     return;
@@ -185,7 +187,7 @@ try {
     if (client !== 'aionui') await page.getByTestId('mcp-settings-status').waitFor();
     assert.equal(await page.locator('pre, textarea, [contenteditable="true"]').count(), 0);
     const selectedPath = await form
-      .getByRole('textbox', { name: 'Configuration file path', exact: true })
+      .getByRole('combobox', { name: 'Configuration file path', exact: true })
       .inputValue();
     assert.ok(clientConfigs.includes(selectedPath));
     await page.waitForFunction((client) => {

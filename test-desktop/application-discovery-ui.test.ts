@@ -221,7 +221,7 @@ test(
       await page.getByTestId('overview-application-cursor').click();
       const dialog = page.getByRole('main');
       await dialog
-        .getByRole('textbox', { name: 'Configuration file path', exact: true })
+        .getByRole('combobox', { name: 'Configuration file path', exact: true })
         .fill('/isolated/unsaved.json');
       await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
       assert.equal(
