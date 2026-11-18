@@ -63,7 +63,7 @@ export const ptBR: Messages = {
   mcpSetup_aionMcpHelp:
     'Estas configurações MCP funcionam tanto com o Cursor quanto com o Cursor Agent no AionUi. O Cursor direto também precisa do plugin; o AionUi precisa de autorização e de uma conversa conectada.',
   mcpSetup_aionNext:
-    'Reinicie Cursor Agent no AionUi após aplicar e use o comando abaixo. Configurações salvas não confirmam uma ponte ativa. Esta configuração não oferece suporte a outros backends AionUi.',
+    'Após aplicar as configurações, reinicie o Cursor Agent no AionUi e reconecte o chat desejado. Configurações salvas não confirmam uma ponte ativa. Esta configuração não oferece suporte a outros backends AionUi.',
 
   agentsColumnMessages: 'Mensagens',
   mcpSetup_tabsLabel: 'Cliente MCP',

@@ -62,7 +62,7 @@ export const tr: Messages = {
   mcpSetup_aionMcpHelp:
     'Bu MCP ayarları hem Cursor hem de AionUi içindeki Cursor Agent ile çalışır. Doğrudan Cursor bağlantısı eklentisini de gerektirir; AionUi için yetkilendirme ve bağlı bir sohbet gerekir.',
   mcpSetup_aionNext:
-    'Uyguladıktan sonra AionUi içindeki Cursor Agent uygulamasını yeniden başlatın ve aşağıdaki komutu kullanın. Kaydedilmiş ayarlar etkin köprüyü doğrulamaz. Bu kurulum diğer AionUi arka uçlarını desteklemez.',
+    'Ayarları uyguladıktan sonra AionUi içindeki Cursor Agent uygulamasını yeniden başlatın ve istediğiniz sohbeti yeniden bağlayın. Kaydedilmiş ayarlar etkin köprüyü doğrulamaz. Bu kurulum diğer AionUi arka uçlarını desteklemez.',
 
   agentsColumnMessages: 'Mesajlar',
   mcpSetup_tabsLabel: 'MCP istemcisi',

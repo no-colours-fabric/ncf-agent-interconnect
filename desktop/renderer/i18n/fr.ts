@@ -63,7 +63,7 @@ export const fr: Messages = {
   mcpSetup_aionMcpHelp:
     'Ces paramètres MCP fonctionnent avec Cursor et Cursor Agent dans AionUi. Cursor en accès direct nécessite aussi son plugin ; AionUi nécessite une autorisation et une conversation connectée.',
   mcpSetup_aionNext:
-    'Redémarrez Cursor Agent dans AionUi après application, puis utilisez la commande ci-dessous. Des réglages enregistrés ne confirment pas un pont actif. Les autres moteurs AionUi ne sont pas pris en charge par cette configuration.',
+    'Après application, redémarrez Cursor Agent dans AionUi, puis reconnectez la discussion souhaitée. Des réglages enregistrés ne confirment pas un pont actif. Les autres moteurs AionUi ne sont pas pris en charge par cette configuration.',
 
   agentsColumnMessages: 'Messages',
   mcpSetup_tabsLabel: 'Client MCP',

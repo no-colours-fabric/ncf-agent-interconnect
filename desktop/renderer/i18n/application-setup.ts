@@ -6,8 +6,7 @@ const en = {
     'Configure OpenCode v1 for “NCF Agent Interconnect”. OpenCode v2 has separate settings.',
   openCodeV2Description:
     'Configure OpenCode v2 for “NCF Agent Interconnect”. Only the selected configuration file will change; provider and account settings stay as they are.',
-  openCodeV2Next:
-    'Restart OpenCode v2, then connect from the intended chat using the request below.',
+  openCodeV2Next: 'Restart OpenCode v2, then ask the assistant to connect from the intended chat.',
   openCodeProfile: 'OpenCode profile',
   selectedInstallation: 'Selected installation',
   showOpenCodeV1: 'Show OpenCode v1',
@@ -65,7 +64,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Настройте OpenCode v2 для «NCF Agent Interconnect». Изменения затронут только выбранный файл конфигурации; настройки провайдеров и аккаунтов сохранятся.',
     openCodeV2Next:
-      'Перезапустите OpenCode v2, затем используйте приведённую ниже просьбу в нужном чате, чтобы подключить помощника.',
+      'Перезапустите OpenCode v2, затем попросите помощника подключиться в нужном чате.',
     openCodeProfile: 'Профиль OpenCode',
     selectedInstallation: 'Выбранная копия программы',
     showOpenCodeV1: 'Показать OpenCode v1',
@@ -121,7 +120,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       '为“NCF Agent Interconnect”配置 OpenCode v1。OpenCode v2 使用独立的设置。',
     openCodeV2Description:
       '为“NCF Agent Interconnect”配置 OpenCode v2。只会修改选定的配置文件，提供商和账户设置保持不变。',
-    openCodeV2Next: '重启 OpenCode v2，然后在要连接的聊天中使用下方的请求，让助手连接。',
+    openCodeV2Next: '重启 OpenCode v2，然后在目标聊天中请助手连接。',
     openCodeProfile: 'OpenCode 配置方案',
     selectedInstallation: '选定的安装实例',
     showOpenCodeV1: '显示 OpenCode v1',
@@ -170,7 +169,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Configurez OpenCode v2 pour « NCF Agent Interconnect ». Seul le fichier de configuration sélectionné sera modifié ; les paramètres des fournisseurs et des comptes seront conservés.',
     openCodeV2Next:
-      'Redémarrez OpenCode v2, puis connectez l’assistant depuis la discussion souhaitée à l’aide de la demande ci-dessous.',
+      'Redémarrez OpenCode v2, puis demandez à l’assistant de se connecter depuis la discussion souhaitée.',
     openCodeProfile: 'Profil OpenCode',
     selectedInstallation: 'Installation sélectionnée',
     showOpenCodeV1: 'Afficher OpenCode v1',
@@ -229,7 +228,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Richten Sie OpenCode v2 für „NCF Agent Interconnect“ ein. Nur die ausgewählte Konfigurationsdatei wird geändert; Anbieter- und Kontoeinstellungen bleiben erhalten.',
     openCodeV2Next:
-      'Starten Sie OpenCode v2 neu. Verbinden Sie den Assistenten anschließend im gewünschten Chat mit der unten stehenden Anfrage.',
+      'Starten Sie OpenCode v2 neu. Bitten Sie den Assistenten anschließend im gewünschten Chat, sich zu verbinden.',
     openCodeProfile: 'OpenCode-Profil',
     selectedInstallation: 'Ausgewählte Installation',
     showOpenCodeV1: 'OpenCode v1 anzeigen',
@@ -288,7 +287,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Configura OpenCode v2 per «NCF Agent Interconnect». Verrà modificato solo il file di configurazione selezionato; le impostazioni dei provider e degli account rimarranno invariate.',
     openCodeV2Next:
-      'Riavvia OpenCode v2, poi usa la richiesta qui sotto nella chat desiderata per connettere l’assistente.',
+      'Riavvia OpenCode v2, poi chiedi all’assistente di connettersi dalla chat desiderata.',
     openCodeProfile: 'Profilo OpenCode',
     selectedInstallation: 'Installazione selezionata',
     showOpenCodeV1: 'Mostra OpenCode v1',
@@ -345,7 +344,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Configura OpenCode v2 para «NCF Agent Interconnect». Solo se modificará el archivo de configuración seleccionado; se conservarán los ajustes de proveedores y cuentas.',
     openCodeV2Next:
-      'Reinicia OpenCode v2 y pide al asistente que se conecte desde el chat elegido usando la solicitud de abajo.',
+      'Reinicia OpenCode v2 y pide al asistente que se conecte desde el chat elegido.',
     openCodeProfile: 'Perfil de OpenCode',
     selectedInstallation: 'Instalación seleccionada',
     showOpenCodeV1: 'Mostrar OpenCode v1',
@@ -403,7 +402,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'OpenCode v2 нұсқасын «NCF Agent Interconnect» үшін баптаңыз. Тек таңдалған конфигурация файлы өзгереді; провайдерлердің және есептік жазбалардың баптаулары сақталады.',
     openCodeV2Next:
-      'OpenCode v2 нұсқасын қайта іске қосып, көмекшіні қажетті чаттан қосу үшін төмендегі сұрауды пайдаланыңыз.',
+      'OpenCode v2 нұсқасын қайта іске қосып, қажетті чатта көмекшіден қосылуын сұраңыз.',
     openCodeProfile: 'OpenCode профилі',
     selectedInstallation: 'Таңдалған бағдарлама данасы',
     showOpenCodeV1: 'OpenCode v1 нұсқасын көрсету',
@@ -461,7 +460,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'OpenCode v2 を「NCF Agent Interconnect」用に設定します。変更されるのは選択した設定ファイルのみで、プロバイダーやアカウントの設定は維持されます。',
     openCodeV2Next:
-      'OpenCode v2 を再起動し、対象のチャットで以下の依頼文を使ってアシスタントを接続してください。',
+      'OpenCode v2 を再起動し、対象のチャットでアシスタントに接続を依頼してください。',
     openCodeProfile: 'OpenCode のプロファイル',
     selectedInstallation: '選択したインストール済みアプリ',
     showOpenCodeV1: 'OpenCode v1 を表示',
@@ -516,7 +515,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Configure o OpenCode v2 para o “NCF Agent Interconnect”. Apenas o arquivo de configuração selecionado será alterado; as configurações de provedores e contas serão preservadas.',
     openCodeV2Next:
-      'Reinicie o OpenCode v2 e use a solicitação abaixo no chat desejado para conectar o assistente.',
+      'Reinicie o OpenCode v2 e peça ao assistente para se conectar a partir do chat desejado.',
     openCodeProfile: 'Perfil do OpenCode',
     selectedInstallation: 'Instalação selecionada',
     showOpenCodeV1: 'Mostrar OpenCode v1',
@@ -574,7 +573,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       '“NCF Agent Interconnect”용으로 OpenCode v2를 설정합니다. 선택한 구성 파일만 변경되며, 공급자와 계정 설정은 유지됩니다.',
     openCodeV2Next:
-      'OpenCode v2를 다시 시작한 뒤, 원하는 채팅에서 아래 요청문을 사용해 어시스턴트를 연결하세요.',
+      'OpenCode v2를 다시 시작한 뒤, 원하는 채팅에서 어시스턴트에게 연결을 요청하세요.',
     openCodeProfile: 'OpenCode 프로필',
     selectedInstallation: '선택한 설치본',
     showOpenCodeV1: 'OpenCode v1 표시',
@@ -628,7 +627,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'OpenCode v2’yi “NCF Agent Interconnect” için yapılandırın. Yalnızca seçilen yapılandırma dosyası değişir; sağlayıcı ve hesap ayarları korunur.',
     openCodeV2Next:
-      'OpenCode v2’yi yeniden başlatın, ardından istediğiniz sohbette aşağıdaki isteği kullanarak asistanı bağlayın.',
+      'OpenCode v2’yi yeniden başlatın, ardından istediğiniz sohbette asistandan bağlanmasını isteyin.',
     openCodeProfile: 'OpenCode profili',
     selectedInstallation: 'Seçilen kurulum',
     showOpenCodeV1: 'OpenCode v1’i göster',
@@ -685,7 +684,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Skonfiguruj OpenCode v2 do pracy z „NCF Agent Interconnect”. Zmieniony zostanie tylko wybrany plik konfiguracyjny; ustawienia dostawców i kont pozostaną bez zmian.',
     openCodeV2Next:
-      'Uruchom ponownie OpenCode v2, a następnie w wybranym czacie poproś asystenta o połączenie, korzystając z poniższego tekstu.',
+      'Uruchom ponownie OpenCode v2, a następnie poproś asystenta o połączenie w wybranym czacie.',
     openCodeProfile: 'Profil OpenCode',
     selectedInstallation: 'Wybrana instalacja',
     showOpenCodeV1: 'Pokaż OpenCode v1',
@@ -742,7 +741,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Stel OpenCode v2 in voor ‘NCF Agent Interconnect’. Alleen het geselecteerde configuratiebestand wordt gewijzigd; de instellingen voor providers en accounts blijven behouden.',
     openCodeV2Next:
-      'Start OpenCode v2 opnieuw en gebruik het onderstaande verzoek in de gewenste chat om de assistent te verbinden.',
+      'Start OpenCode v2 opnieuw en vraag de assistent in de gewenste chat om verbinding te maken.',
     openCodeProfile: 'OpenCode-profiel',
     selectedInstallation: 'Geselecteerde installatie',
     showOpenCodeV1: 'OpenCode v1 tonen',
@@ -798,7 +797,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     openCodeV2Description:
       'Налаштуйте OpenCode v2 для «NCF Agent Interconnect». Зміни торкнуться лише вибраного файлу конфігурації; налаштування провайдерів і облікових записів буде збережено.',
     openCodeV2Next:
-      'Перезапустіть OpenCode v2, а потім скористайтеся наведеним нижче проханням у потрібному чаті, щоб підключити помічника.',
+      'Перезапустіть OpenCode v2, потім попросіть помічника підключитися в потрібному чаті.',
     openCodeProfile: 'Профіль OpenCode',
     selectedInstallation: 'Вибрана копія програми',
     showOpenCodeV1: 'Показати OpenCode v1',

@@ -62,7 +62,7 @@ export const ja: Messages = {
   mcpSetup_aionMcpHelp:
     'この MCP 設定は Cursor と AionUi 内の Cursor Agent の両方で使用できます。Cursor の直接接続にはプラグインも必要です。AionUi には認証と接続済みのチャットが必要です。',
   mcpSetup_aionNext:
-    '適用後にAionUi内のCursor Agentを再起動し、以下のコマンドを使用してください。保存済み設定はブリッジの稼働を保証しません。この設定は他のAionUiバックエンドをサポートしません。',
+    '設定を適用した後、AionUi 内の Cursor Agent を再起動し、対象のチャットを再接続してください。保存済み設定はブリッジの稼働を保証しません。この設定は他のAionUiバックエンドをサポートしません。',
 
   agentsColumnMessages: 'メッセージ',
   mcpSetup_tabsLabel: 'MCPクライアント',

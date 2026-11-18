@@ -5,6 +5,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import {
   ApplicationRows,
   ApplicationTiles,
+  NextStep,
   setupApplicationName,
 } from '../desktop/renderer/ApplicationSetup.js';
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
@@ -415,6 +416,8 @@ test('Applications manual routes retain actual installation selection, coverage,
       }),
     );
     assert.ok(html.includes('data-testid="installation-' + client + '"'), client);
+    assert.ok(!html.includes('Copy connection prompt'), client);
+    assert.ok(!html.includes('Connect as agent &lt;a name you choose&gt;.'), client);
     for (const text of [
       discoveryMessages('en').choose,
       discoveryMessages('en').details,
@@ -538,4 +541,30 @@ test('restored Applications rows retain separate setup status, visible manual ac
   assert.ok(html.includes(applicationSetupMessages('en').detectionHelp));
   assert.ok(html.includes(applicationSetupMessages('en').newApps));
   assert.ok(row.includes('id="application-info-application-codex" hidden=""'));
+});
+
+test('Applications next steps omit connection commands and their Copy action in every locale, while shared startup guidance retains them', () => {
+  const escaped = (text: string) =>
+    renderToStaticMarkup(React.createElement('span', null, text)).slice(6, -7);
+  for (const locale of supportedLocales) {
+    for (const client of [...mcpSetupClients, 'opencode-v2'] as const) {
+      const html = renderToStaticMarkup(
+        React.createElement(NextStep, {
+          client,
+          invoke: noInvoke,
+          locale,
+          showConnectionPrompt: false,
+        }),
+      );
+      const copy = mcpSetupMessages(locale);
+      assert.ok(!html.includes(escaped(copy.connectionPrompt)), locale + client);
+      assert.ok(!html.includes(escaped(copy.copyPrompt)), locale + client);
+      assert.ok(html.includes(escaped(applicationSetupMessages(locale).nextStep)), locale + client);
+    }
+  }
+  const startup = renderToStaticMarkup(
+    React.createElement(NextStep, { client: 'opencode-v2', invoke: noInvoke, locale: 'en' }),
+  );
+  assert.ok(startup.includes(escaped(mcpSetupMessages('en').connectionPrompt)));
+  assert.ok(startup.includes(escaped(mcpSetupMessages('en').copyPrompt)));
 });

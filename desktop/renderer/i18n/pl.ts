@@ -62,7 +62,7 @@ export const pl: Messages = {
   mcpSetup_aionMcpHelp:
     'Te ustawienia MCP działają zarówno z Cursor, jak i z Cursor Agent w AionUi. Bezpośredni Cursor wymaga również wtyczki; AionUi wymaga autoryzacji i połączonego czatu.',
   mcpSetup_aionNext:
-    'Po zastosowaniu uruchom ponownie Cursor Agent w AionUi i użyj polecenia poniżej. Zapisane ustawienia nie potwierdzają aktywnego mostu. Ta konfiguracja nie obsługuje innych backendów AionUi.',
+    'Po zastosowaniu ustawień uruchom ponownie Cursor Agent w AionUi i ponownie połącz wybrany czat. Zapisane ustawienia nie potwierdzają aktywnego mostu. Ta konfiguracja nie obsługuje innych backendów AionUi.',
 
   agentsColumnMessages: 'Wiadomości',
   mcpSetup_tabsLabel: 'Klient MCP',

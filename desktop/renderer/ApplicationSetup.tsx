@@ -145,12 +145,14 @@ export function NextStep({
   locale,
   compact,
   onManualSetup,
+  showConnectionPrompt = true,
 }: {
   client: ApplicationSetupClient;
   invoke: McpSetupInvoke;
   locale: Locale;
   compact?: boolean;
   onManualSetup?: () => void;
+  showConnectionPrompt?: boolean;
 }) {
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
@@ -177,12 +179,14 @@ export function NextStep({
               ? m.aionNext
               : clientNextStep(client, locale, m)}
       </Typography>
-      <Box
-        component="code"
-        sx={{ ...surfaceSx('inset'), p: 1.5, fontSize: 12, overflowWrap: 'anywhere' }}
-      >
-        {m.connectionPrompt}
-      </Box>
+      {showConnectionPrompt && (
+        <Box
+          component="code"
+          sx={{ ...surfaceSx('inset'), p: 1.5, fontSize: 12, overflowWrap: 'anywhere' }}
+        >
+          {m.connectionPrompt}
+        </Box>
+      )}
       {client === 'claude' && (
         <Box>
           <Typography variant="caption" color="text.secondary">
@@ -193,18 +197,22 @@ export function NextStep({
           </Typography>
         </Box>
       )}
-      <Button
-        variant="outlined"
-        startIcon={<ContentCopyOutlined />}
-        onClick={() => {
-          void invoke('copy', { text: m.connectionPrompt })
-            .then(() => setCopyError(false))
-            .catch(() => setCopyError(true));
-        }}
-      >
-        {m.copyPrompt}
-      </Button>
-      {copyError && <Alert severity="error">{copy.copyFailed}</Alert>}
+      {showConnectionPrompt && (
+        <>
+          <Button
+            variant="outlined"
+            startIcon={<ContentCopyOutlined />}
+            onClick={() => {
+              void invoke('copy', { text: m.connectionPrompt })
+                .then(() => setCopyError(false))
+                .catch(() => setCopyError(true));
+            }}
+          >
+            {m.copyPrompt}
+          </Button>
+          {copyError && <Alert severity="error">{copy.copyFailed}</Alert>}
+        </>
+      )}
       {client === 'aionui' && onManualSetup && (
         <Button onClick={onManualSetup}>{m.aionConfigureAccess}</Button>
       )}
@@ -529,6 +537,7 @@ function ApplicationCompactList({
                 invoke={invoke}
                 locale={locale}
                 compact
+                showConnectionPrompt={context !== 'application'}
                 onManualSetup={() => manual(client)}
               />
             )}
@@ -850,7 +859,13 @@ export function ApplicationRows({
             data-testid={'application-details-' + client}
           >
             {expanded[client] && (
-              <NextStep client={client} invoke={invoke} locale={locale} compact />
+              <NextStep
+                client={client}
+                invoke={invoke}
+                locale={locale}
+                compact
+                showConnectionPrompt={false}
+              />
             )}
           </Box>
         )}

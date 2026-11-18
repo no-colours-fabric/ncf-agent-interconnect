@@ -62,7 +62,7 @@ export const ko: Messages = {
   mcpSetup_aionMcpHelp:
     '이 MCP 설정은 Cursor와 AionUi의 Cursor Agent 모두에서 사용할 수 있습니다. Cursor 직접 연결에는 플러그인도 필요하며, AionUi에는 인증과 연결된 채팅이 필요합니다.',
   mcpSetup_aionNext:
-    '적용 후 AionUi 안의 Cursor Agent를 재시작하고 아래 명령을 사용하세요. 저장된 설정은 활성 브리지를 확인하지 않습니다. 이 설정은 다른 AionUi 백엔드를 지원하지 않습니다.',
+    '설정을 적용한 후 AionUi 안의 Cursor Agent를 다시 시작하고 원하는 채팅을 다시 연결하세요. 저장된 설정은 활성 브리지를 확인하지 않습니다. 이 설정은 다른 AionUi 백엔드를 지원하지 않습니다.',
 
   agentsColumnMessages: '메시지',
   mcpSetup_tabsLabel: 'MCP 클라이언트',

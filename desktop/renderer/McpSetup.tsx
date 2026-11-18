@@ -1227,7 +1227,6 @@ export function McpSetup({
     aionui: AionUiSetupDialog,
     claude: ClaudeSetupDialog,
   }[selectedClient];
-  const [copyError, setCopyError] = React.useState('');
   const ownStatuses = useMcpSetupStatuses(invoke, !setupStatuses);
   const checks = setupStatuses ?? ownStatuses;
   const autoFlow = useApplicationSetup(invoke, () => checks.refreshAll(true), setupFlow);
@@ -1342,47 +1341,6 @@ export function McpSetup({
                 />
               </Box>
             )}
-            <Divider sx={{ mt: 3 }} />
-            <Stack spacing={2} sx={{ pt: 3 }}>
-              <Typography variant="subtitle2" component="h3">
-                {m.connect}
-              </Typography>
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <Box
-                  component="code"
-                  sx={{
-                    minWidth: 0,
-                    ...surfaceSx('inset'),
-                    flex: 1,
-                    px: 1.75,
-                    py: 1.25,
-                    fontFamily: 'ui-monospace, SFMono-Regular, Menlo, Consolas, monospace',
-                    fontSize: 13,
-                    lineHeight: 1.6,
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  {m.connectionPrompt}
-                </Box>
-                <Tooltip title={m.copyPrompt}>
-                  <IconButton
-                    size="small"
-                    aria-label={m.copyPrompt}
-                    sx={{ flexShrink: 0 }}
-                    onClick={() =>
-                      void invoke('copy', { text: m.connectionPrompt }).catch((error) =>
-                        setCopyError((error as Error).message),
-                      )
-                    }
-                  >
-                    <ContentCopyOutlined fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-              {copyError && (
-                <SetupErrorNote summary={copy.copyFailed} error={copyError} locale={locale} />
-              )}
-            </Stack>
           </Stack>
           {discovery && (
             <Box sx={{ mt: 3 }}>

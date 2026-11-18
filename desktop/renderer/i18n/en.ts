@@ -62,7 +62,7 @@ export const en: Messages = {
   mcpSetup_aionMcpHelp:
     'These MCP settings work with both Cursor and Cursor Agent in AionUi. Direct Cursor also needs its plugin; AionUi needs authorization and a connected chat.',
   mcpSetup_aionNext:
-    'Restart Cursor Agent in AionUi after Apply, then connect using the command below. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
+    'Restart Cursor Agent in AionUi after Apply, then reconnect the intended chat. Saved settings do not confirm a live bridge. Other AionUi backends are not supported by this setup.',
 
   agentsColumnMessages: 'Messages',
   mcpSetup_tabsLabel: 'MCP client',

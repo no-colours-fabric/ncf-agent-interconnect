@@ -63,7 +63,7 @@ export const nl: Messages = {
   mcpSetup_aionMcpHelp:
     'Deze MCP-instellingen werken met zowel Cursor als Cursor Agent in AionUi. Direct Cursor heeft ook zijn plugin nodig; AionUi heeft autorisatie en een verbonden chat nodig.',
   mcpSetup_aionNext:
-    'Herstart Cursor Agent in AionUi na toepassen en gebruik het onderstaande commando. Opgeslagen instellingen bevestigen geen actieve bridge. Andere AionUi-backends worden niet ondersteund door deze instelling.',
+    'Herstart Cursor Agent in AionUi nadat de instellingen zijn toegepast en verbind de gewenste chat opnieuw. Opgeslagen instellingen bevestigen geen actieve bridge. Andere AionUi-backends worden niet ondersteund door deze instelling.',
 
   agentsColumnMessages: 'Berichten',
   mcpSetup_tabsLabel: 'MCP-client',

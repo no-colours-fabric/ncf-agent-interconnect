@@ -63,7 +63,7 @@ export const ru: Messages = {
   mcpSetup_aionMcpHelp:
     'Эти настройки MCP подходят и для Cursor, и для Cursor Agent в AionUi. Для прямого подключения Cursor также нужен плагин; для AionUi — авторизация и подключённый чат.',
   mcpSetup_aionNext:
-    'После применения перезапустите Cursor Agent в AionUi и используйте команду ниже. Наличие настроек не подтверждает подключение моста. Другие backend AionUi этой настройкой не поддерживаются.',
+    'После применения настроек перезапустите Cursor Agent в AionUi и переподключите нужный чат. Наличие настроек не подтверждает подключение моста. Другие backend AionUi этой настройкой не поддерживаются.',
 
   agentsColumnMessages: 'Сообщения',
   mcpSetup_tabsLabel: 'MCP-клиент',

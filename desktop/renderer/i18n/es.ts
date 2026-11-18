@@ -63,7 +63,7 @@ export const es: Messages = {
   mcpSetup_aionMcpHelp:
     'Estos ajustes MCP sirven tanto para Cursor como para Cursor Agent en AionUi. Cursor directo también necesita su plugin; AionUi necesita autorización y un chat conectado.',
   mcpSetup_aionNext:
-    'Reinicie Cursor Agent en AionUi después de aplicar y use el comando siguiente. Los ajustes guardados no confirman un puente activo. Esta configuración no admite otros motores AionUi.',
+    'Después de aplicar los ajustes, reinicia Cursor Agent en AionUi y vuelve a conectar el chat elegido. Los ajustes guardados no confirman un puente activo. Esta configuración no admite otros motores AionUi.',
 
   agentsColumnMessages: 'Mensajes',
   mcpSetup_tabsLabel: 'Cliente MCP',

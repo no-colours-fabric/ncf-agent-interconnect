@@ -61,7 +61,7 @@ export const zh: Messages = {
   mcpSetup_aionMcpHelp:
     '这些 MCP 设置同时适用于 Cursor 和 AionUi 中的 Cursor Agent。Cursor 直接连接还需要插件；AionUi 需要授权和已连接的聊天。',
   mcpSetup_aionNext:
-    '应用后请重启 AionUi 内的 Cursor Agent，再使用下面的命令。已保存设置不代表桥接已连接。此设置不支持其他 AionUi 后端。',
+    '应用设置后，请重启 AionUi 内的 Cursor Agent，并在目标聊天中重新连接。已保存设置不代表桥接已连接。此设置不支持其他 AionUi 后端。',
 
   agentsColumnMessages: '消息',
   mcpSetup_tabsLabel: 'MCP 客户端',
