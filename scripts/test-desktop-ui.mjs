@@ -75,13 +75,14 @@ try {
     args: [...(packaged ? [] : [process.cwd()]), '--data-dir', path.join(temp, 'desktop')],
     cwd: temp,
     env: launchEnv,
+    chromiumSandbox: true,
     timeout: 30000,
   });
   application.process().stderr?.on('data', (b) => {
     stderr += b.toString();
   });
   const page = await application.firstWindow();
-  await page.getByText('Connect agents', { exact: true }).waitFor();
+  await page.getByTestId('overview-connections').waitFor();
   await page.evaluate(async () => {
     let timer;
     try {
