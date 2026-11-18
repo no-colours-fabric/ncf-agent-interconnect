@@ -11,7 +11,6 @@ import {
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
-import { lanSearchMessages } from '../desktop/renderer/i18n/lan-search.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
 import { mcpSetupClients, type McpSetupInvoke } from '../desktop/shared/mcp-setup.js';
@@ -506,7 +505,7 @@ test('alignment fixture preserves mixed manual-only, configured, busy and error 
   }
 });
 
-test('restored Applications rows retain separate setup status, visible manual actions and configured next-step access', () => {
+test('Applications rows keep setup status and manual actions with immediate unheaded guidance', () => {
   const html = renderToStaticMarkup(
     React.createElement(ApplicationRows, {
       discovery,
@@ -529,10 +528,12 @@ test('restored Applications rows retain separate setup status, visible manual ac
   );
   assert.ok(row.includes('aria-label="' + mcpSetupMessages('en').statusMcpConfig + '"'));
   assert.ok(row.includes('width="44" height="44"'));
-  assert.ok(row.includes('data-testid="application-configured-codex"'));
-  assert.ok(row.includes('aria-controls="application-info-application-codex"'));
-  assert.ok(row.includes('aria-expanded="false"'));
-  assert.ok(row.includes('>' + lanSearchMessages('en').details + '</button>'));
+  assert.ok(!row.includes('data-testid="application-configured-codex"'));
+  assert.ok(!row.includes('aria-expanded'));
+  assert.ok(row.includes('data-testid="application-guidance-codex"'));
+  assert.ok(row.includes(mcpSetupMessages('en').codexNext));
+  assert.ok(!row.includes(applicationSetupMessages('en').nextStep));
+  assert.ok(!row.includes(' hidden='));
   assert.ok(row.includes('data-testid="application-manual-codex"'));
   assert.equal(html.match(/>Manual setup</g)?.length, 5);
   assert.ok(!row.includes('<summary'));
@@ -540,7 +541,6 @@ test('restored Applications rows retain separate setup status, visible manual ac
   assert.ok(!html.includes(applicationSetupMessages('en').intro));
   assert.ok(html.includes(applicationSetupMessages('en').detectionHelp));
   assert.ok(html.includes(applicationSetupMessages('en').newApps));
-  assert.ok(row.includes('id="application-info-application-codex" hidden=""'));
 });
 
 test('Applications next steps omit connection commands and their Copy action in every locale, while shared startup guidance retains them', () => {
@@ -567,4 +567,108 @@ test('Applications next steps omit connection commands and their Copy action in 
   );
   assert.ok(startup.includes(escaped(mcpSetupMessages('en').connectionPrompt)));
   assert.ok(startup.includes(escaped(mcpSetupMessages('en').copyPrompt)));
+});
+
+test('Applications working guidance requires a current ready bound chat, not saved configuration or an old binding', () => {
+  for (const mode of ['ready', 'checking', 'released', 'error'] as const) {
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicationRows, {
+        discovery,
+        statuses: {
+          ...statuses,
+          statuses: {
+            ...statuses.statuses,
+            codex: { client: 'codex', remembered: true, state: 'configured', files: [] },
+          },
+        },
+        snapshot: {
+          adapters: [
+            {
+              id: 'codex-live',
+              label: 'Codex',
+              kind: 'codex-desktop',
+              state: mode === 'checking' ? 'checking' : mode === 'error' ? 'error' : 'ready',
+              released: mode === 'released',
+              error: mode === 'error' ? 'Isolated error' : null,
+              capabilities: {
+                wakeIdle: true,
+                receiveActive: true,
+                nativeDisplay: true,
+                exactSession: true,
+              },
+            },
+          ],
+          agents: [
+            {
+              key: 'test',
+              nickname: 'Test',
+              messageCount: 0,
+              unread: 0,
+              binding: {
+                adapterId: 'codex-live',
+                chatId: 'intended',
+                client: 'Codex',
+                connectionId: 'isolated',
+                generation: 1,
+              },
+            },
+          ],
+        },
+        invoke: noInvoke,
+        flow: new ApplicationSetupFlow(noInvoke),
+        locale: 'en',
+        onManualSetup: () => {},
+      }),
+    );
+    const row = html.slice(
+      html.indexOf('data-testid="application-row-codex"'),
+      html.indexOf('data-testid="application-row-aionui"'),
+    );
+    assert.ok(row.includes('data-testid="application-guidance-codex"'), mode);
+    assert.ok(!row.includes('data-testid="application-configured-codex"'), mode);
+    assert.ok(!row.includes('Copy connection prompt'), mode);
+    if (mode === 'ready') {
+      assert.ok(row.includes('Open a new tab or switch to an existing one'), mode);
+      assert.ok(row.includes('Connect as agent &lt;a name you choose&gt;</code>'), mode);
+      assert.ok(!row.includes(mcpSetupMessages('en').codexNext), mode);
+    } else {
+      assert.ok(row.includes(mcpSetupMessages('en').codexNext), mode);
+      assert.ok(!row.includes('Connect as agent &lt;a name you choose&gt;'), mode);
+    }
+  }
+});
+
+test('inline working hints are one localized paragraph with the exact visible command and no heading or Copy', () => {
+  const escaped = (text: string) =>
+    renderToStaticMarkup(React.createElement('span', null, text)).slice(6, -7);
+  const english = applicationSetupMessages('en').readyChatHelp;
+  for (const locale of supportedLocales) {
+    const copy = applicationSetupMessages(locale).readyChatHelp;
+    assert.equal(copy.match(/\{command\}/g)?.length, 1, locale);
+    if (locale !== 'en') assert.notEqual(copy, english, locale);
+    const html = renderToStaticMarkup(
+      React.createElement(NextStep, {
+        client: 'codex',
+        locale,
+        invoke: noInvoke,
+        inline: true,
+        working: true,
+      }),
+    );
+    const [before, after] = copy.split('{command}');
+    assert.ok(html.includes(escaped(before)), locale);
+    assert.ok(html.includes(escaped(after)), locale);
+    assert.ok(
+      html.includes(
+        escaped(mcpSetupMessages(locale).connectionPrompt.replace(/[.。]$/u, '')) + '</code>',
+      ),
+      locale,
+    );
+    assert.ok(html.includes('font-family:inherit'), locale);
+    assert.ok(html.includes('font-style:italic'), locale);
+    assert.ok(html.includes('background-color:'), locale);
+    assert.ok(!html.includes('font-family:monospace'), locale);
+    assert.equal(html.match(/<p\b/g)?.length, 1, locale);
+    assert.doesNotMatch(html, /<h[1-6]\b|<button\b|<summary\b/, locale);
+  }
 });

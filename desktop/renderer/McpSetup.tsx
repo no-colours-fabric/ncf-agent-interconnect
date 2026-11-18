@@ -1281,6 +1281,7 @@ export function McpSetup({
           discovery={discovery}
           flow={autoFlow}
           statuses={checks}
+          snapshot={snapshot}
           invoke={invoke}
           disabled={activeManual.busy}
           locale={locale}

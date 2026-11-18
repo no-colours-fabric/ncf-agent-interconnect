@@ -102,6 +102,7 @@ interface SetupProps {
   invoke: McpSetupInvoke;
   locale: Locale;
   onManualSetup: (client: McpSetupClient) => void;
+  snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
   disabled?: boolean;
 }
 
@@ -146,6 +147,8 @@ export function NextStep({
   compact,
   onManualSetup,
   showConnectionPrompt = true,
+  inline = false,
+  working = false,
 }: {
   client: ApplicationSetupClient;
   invoke: McpSetupInvoke;
@@ -153,10 +156,56 @@ export function NextStep({
   compact?: boolean;
   onManualSetup?: () => void;
   showConnectionPrompt?: boolean;
+  inline?: boolean;
+  working?: boolean;
 }) {
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
   const [copyError, setCopyError] = useState(false);
+  if (inline) {
+    const [beforeCommand, afterCommand] = copy.readyChatHelp.split('{command}');
+    const instruction =
+      client === 'opencode-v2'
+        ? copy.openCodeV2Next
+        : client === 'claude'
+          ? m.claudeNext
+          : client === 'aionui'
+            ? m.aionNext
+            : clientNextStep(client, locale, m);
+    return (
+      <Typography
+        component="p"
+        variant="body2"
+        color="text.secondary"
+        data-testid={'application-guidance-' + client}
+        sx={{ mt: 1.5, overflowWrap: 'anywhere', whiteSpace: 'normal' }}
+      >
+        {working ? (
+          <>
+            {beforeCommand}
+            <Box
+              component="code"
+              sx={{
+                fontFamily: 'inherit',
+                fontSize: 'inherit',
+                fontStyle: 'italic',
+                bgcolor: 'action.hover',
+                px: 0.5,
+                py: 0.125,
+                borderRadius: 0.5,
+                boxDecorationBreak: 'clone',
+              }}
+            >
+              {m.connectionPrompt.replace(/[.。]$/u, '')}
+            </Box>
+            {afterCommand}
+          </>
+        ) : (
+          instruction
+        )}
+      </Typography>
+    );
+  }
   return (
     <Stack
       spacing={1.5}
@@ -686,6 +735,7 @@ export function ApplicationRows({
   invoke,
   locale,
   onManualSetup,
+  snapshot,
   disabled = false,
 }: SetupProps) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
@@ -693,15 +743,6 @@ export function ApplicationRows({
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
   const [showV1, setShowV1] = useState(false);
-  const [guidanceClient, setGuidanceClient] = useState<ApplicationSetupClient | null>(null);
-  const [expanded, setExpanded] = useState<Partial<Record<ApplicationSetupClient, boolean>>>({});
-  const guidancePhase = guidanceClient ? states[guidanceClient].phase : undefined;
-  useEffect(() => {
-    if (guidanceClient && guidancePhase === 'succeeded')
-      setExpanded((current) =>
-        current[guidanceClient] ? current : { ...current, [guidanceClient]: true },
-      );
-  }, [guidancePhase, guidanceClient]);
   const anyBusy = disabled || applicationSetupClients.some((client) => flow.busy(client));
   const manual = (client: ApplicationSetupClient) => {
     if (client === 'opencode' || client === 'opencode-v2')
@@ -718,8 +759,8 @@ export function ApplicationRows({
     const busy = flow.busy(client);
     const pending = hasPendingSetupResult(state);
     const needsRetry = state.phase === 'failed' || pending;
-    const configuredDetails = configured && !needsRetry;
-    const detailsId = 'application-info-application-' + client;
+    const working = hasConnectedClientChat(client, snapshot);
+    const showGuidance = !busy && !checking && !needsRetry && (configured || working);
     const setupStatus = busy
       ? copy.connecting
       : checking
@@ -815,25 +856,11 @@ export function ApplicationRows({
                   (!hasStatus && !needsRetry)
                 }
                 onClick={() => {
-                  setGuidanceClient(client);
                   void flow.connect(client);
                 }}
                 data-testid={'application-connect-' + client}
               >
                 {setupActionLabel(state, locale, busy)}
-              </Button>
-            )}
-            {configuredDetails && (
-              <Button
-                variant="text"
-                aria-expanded={!!expanded[client]}
-                aria-controls={detailsId}
-                onClick={() =>
-                  setExpanded((current) => ({ ...current, [client]: !current[client] }))
-                }
-                data-testid={'application-configured-' + client}
-              >
-                {lanSearchMessages(locale).details}
               </Button>
             )}
             <Button
@@ -852,22 +879,15 @@ export function ApplicationRows({
           </Alert>
         )}
         <SetupDetails state={state} locale={locale} />
-        {configuredDetails && (
-          <Box
-            id={detailsId}
-            hidden={!expanded[client]}
-            data-testid={'application-details-' + client}
-          >
-            {expanded[client] && (
-              <NextStep
-                client={client}
-                invoke={invoke}
-                locale={locale}
-                compact
-                showConnectionPrompt={false}
-              />
-            )}
-          </Box>
+        {showGuidance && (
+          <NextStep
+            client={client}
+            invoke={invoke}
+            locale={locale}
+            inline
+            working={working}
+            showConnectionPrompt={false}
+          />
         )}
       </Box>
     );

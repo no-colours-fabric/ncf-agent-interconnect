@@ -42,6 +42,7 @@ const en = {
   checkSetupResult: 'Check setup result',
   aionUiName: 'AionUi with Cursor Agent',
   nextStep: 'Next step',
+  readyChatHelp: 'Open a new tab or switch to an existing one, and simply type {command}.',
   confirmQuestion: 'What may I need to confirm?',
   confirmAnswer:
     'Sign in, trust the workspace and approve client prompts when requested. Moving an occupied agent name needs your approval.',
@@ -102,6 +103,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Проверить результат прежней попытки',
     aionUiName: 'AionUi с Cursor Agent',
     nextStep: 'Следующий шаг',
+    readyChatHelp:
+      'Откройте новую вкладку или перейдите на уже открытую и просто напечатайте {command}.',
     confirmQuestion: 'Что может потребовать моего подтверждения?',
     confirmAnswer:
       'Вход в аккаунт, доверие к папке и разрешения клиента. Перенос занятого имени агента требует вашего подтверждения.',
@@ -152,6 +155,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: '检查上次配置的结果',
     aionUiName: '使用 Cursor Agent 的 AionUi',
     nextStep: '下一步',
+    readyChatHelp: '打开新标签页或切换到已打开的标签页，然后直接输入 {command}。',
     confirmQuestion: '可能需要确认哪些操作？',
     confirmAnswer: '请按提示登录、信任工作区并批准客户端请求。转移已占用的智能体名称需要你的批准。',
     reloadQuestion: '应用设置或更新后该怎么做？',
@@ -209,6 +213,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Vérifier le résultat de la tentative précédente',
     aionUiName: 'AionUi avec Cursor Agent',
     nextStep: 'Prochaine étape',
+    readyChatHelp:
+      'Ouvrez un nouvel onglet ou revenez à un onglet déjà ouvert, puis tapez simplement {command}.',
     confirmQuestion: 'Que devrai-je éventuellement confirmer ?',
     confirmAnswer:
       'Connectez-vous, approuvez l’espace de travail et acceptez les demandes du client lorsque cela est demandé. Le transfert d’un nom d’agent déjà utilisé nécessite votre accord.',
@@ -268,6 +274,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Ergebnis des ursprünglichen Versuchs prüfen',
     aionUiName: 'AionUi mit Cursor Agent',
     nextStep: 'Nächster Schritt',
+    readyChatHelp:
+      'Öffnen Sie einen neuen Tab oder wechseln Sie zu einem bereits geöffneten und geben Sie einfach {command} ein.',
     confirmQuestion: 'Was muss ich gegebenenfalls bestätigen?',
     confirmAnswer:
       'Melden Sie sich an, vertrauen Sie dem Arbeitsbereich und bestätigen Sie Client-Anfragen, wenn Sie dazu aufgefordert werden. Die Übertragung eines belegten Agentennamens erfordert Ihre Zustimmung.',
@@ -325,6 +333,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Verifica l’esito del tentativo precedente',
     aionUiName: 'AionUi con Cursor Agent',
     nextStep: 'Passaggio successivo',
+    readyChatHelp:
+      'Apri una nuova scheda o passa a una già aperta e digita semplicemente {command}.',
     confirmQuestion: 'Che cosa potrei dover confermare?',
     confirmAnswer:
       'Accedi, considera attendibile l’area di lavoro e approva le richieste del client quando richiesto. Il trasferimento di un nome agente già in uso richiede la tua approvazione.',
@@ -383,6 +393,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Comprobar el resultado del intento anterior',
     aionUiName: 'AionUi con Cursor Agent',
     nextStep: 'Próximo paso',
+    readyChatHelp:
+      'Abre una pestaña nueva o ve a una que ya esté abierta y escribe simplemente {command}.',
     confirmQuestion: '¿Qué podría tener que confirmar?',
     confirmAnswer:
       'Inicia sesión, confía en el espacio de trabajo y aprueba las solicitudes del cliente cuando se te pida. Transferir un nombre de agente ocupado requiere tu aprobación.',
@@ -441,6 +453,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Алдыңғы әрекеттің нәтижесін тексеру',
     aionUiName: 'Cursor Agent қолданылатын AionUi',
     nextStep: 'Келесі қадам',
+    readyChatHelp:
+      'Жаңа қойындыны ашыңыз немесе ашық қойындыға өтіп, жай ғана {command} деп теріңіз.',
     confirmQuestion: 'Нені растауым қажет болуы мүмкін?',
     confirmAnswer:
       'Сұралған кезде аккаунтқа кіріңіз, жұмыс кеңістігіне сенім білдіріңіз және клиент сұрауларын мақұлдаңыз. Қолданыстағы агент атын ауыстыру үшін сіздің растауыңыз қажет.',
@@ -496,6 +510,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: '前回の設定結果を確認',
     aionUiName: 'Cursor Agent を使用する AionUi',
     nextStep: '次の手順',
+    readyChatHelp:
+      '新しいタブを開くか、すでに開いているタブに切り替えて、{command} と入力してください。',
     confirmQuestion: 'どのような確認が必要ですか？',
     confirmAnswer:
       '必要に応じてサインインし、ワークスペースを信頼し、クライアントの要求を承認してください。使用中のエージェント名を移すには承認が必要です。',
@@ -554,6 +570,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Verificar o resultado da tentativa anterior',
     aionUiName: 'AionUi com Cursor Agent',
     nextStep: 'Próxima etapa',
+    readyChatHelp: 'Abra uma nova aba ou vá para uma já aberta e simplesmente digite {command}.',
     confirmQuestion: 'O que posso precisar confirmar?',
     confirmAnswer:
       'Entre na conta, confie no espaço de trabalho e aprove as solicitações do cliente quando necessário. Transferir um nome de agente já ocupado exige sua aprovação.',
@@ -608,6 +625,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: '이전 설정 결과 확인',
     aionUiName: 'Cursor Agent를 사용하는 AionUi',
     nextStep: '다음 단계',
+    readyChatHelp: '새 탭을 열거나 이미 열려 있는 탭으로 이동한 다음 {command}를 입력하세요.',
     confirmQuestion: '어떤 내용을 확인해야 하나요?',
     confirmAnswer:
       '요청이 표시되면 로그인하고 작업 공간을 신뢰하며 클라이언트 요청을 승인하세요. 사용 중인 에이전트 이름을 이전하려면 승인이 필요합니다.',
@@ -665,6 +683,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Önceki girişimin sonucunu kontrol et',
     aionUiName: 'Cursor Agent kullanan AionUi',
     nextStep: 'Sonraki adım',
+    readyChatHelp: 'Yeni bir sekme açın veya açık bir sekmeye geçin ve yalnızca {command} yazın.',
     confirmQuestion: 'Neleri onaylamam gerekebilir?',
     confirmAnswer:
       'İstendiğinde oturum açın, çalışma alanına güvenin ve istemci isteklerini onaylayın. Kullanılan bir ajan adının taşınması onayınızı gerektirir.',
@@ -722,6 +741,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Sprawdź wynik poprzedniej próby',
     aionUiName: 'AionUi z Cursor Agent',
     nextStep: 'Następny krok',
+    readyChatHelp: 'Otwórz nową kartę lub przejdź do już otwartej i po prostu wpisz {command}.',
     confirmQuestion: 'Co może wymagać mojego potwierdzenia?',
     confirmAnswer:
       'Gdy pojawi się prośba, zaloguj się, zaufaj obszarowi roboczemu i zatwierdź monity klienta. Przeniesienie zajętej nazwy agenta wymaga Twojej zgody.',
@@ -778,6 +798,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Resultaat van vorige poging controleren',
     aionUiName: 'AionUi met Cursor Agent',
     nextStep: 'Volgende stap',
+    readyChatHelp:
+      'Open een nieuw tabblad of ga naar een al geopend tabblad en typ gewoon {command}.',
     confirmQuestion: 'Wat moet ik mogelijk bevestigen?',
     confirmAnswer:
       'Meld je aan, vertrouw de werkruimte en keur verzoeken van de client goed wanneer daarom wordt gevraagd. Het overdragen van een bezette agentnaam vereist je toestemming.',
@@ -835,6 +857,8 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     checkSetupResult: 'Перевірити результат попередньої спроби',
     aionUiName: 'AionUi з Cursor Agent',
     nextStep: 'Наступний крок',
+    readyChatHelp:
+      'Відкрийте нову вкладку або перейдіть на вже відкриту й просто надрукуйте {command}.',
     confirmQuestion: 'Що може потребувати мого підтвердження?',
     confirmAnswer:
       'Вхід до облікового запису, довіра до робочої області та дозволи клієнта. Перенесення зайнятого імені агента потребує вашого підтвердження.',
