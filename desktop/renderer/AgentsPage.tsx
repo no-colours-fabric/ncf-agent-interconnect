@@ -57,9 +57,7 @@ export function ManualAgentDialogHelp({ locale }: { locale: Locale }): React.JSX
   const command = mcpSetupMessages(locale).connectionPrompt.replace(/[.。]$/u, '');
   return (
     <Stack spacing={2} sx={{ mb: 2 }} data-testid="manual-agent-dialog-help">
-      <Typography component="p" color="text.secondary">
-        {copy.dialogAddAgentBody}
-      </Typography>
+      <Alert severity="info">{copy.dialogAddAgentBody}</Alert>
       <Typography component="p" color="text.secondary" sx={{ overflowWrap: 'anywhere' }}>
         {beforeCommand}
         <Box

@@ -153,7 +153,7 @@ test('both action links are localized in all 15 locales without restoring the re
   }
 });
 
-test('manual agent dialog help has only two localized paragraphs with the translated italic command', () => {
+test('manual agent dialog help has a localized info alert and an italic command', () => {
   const russian = agentEntryMessages('ru');
   assert.equal(russian.dialogAddAgentBody, 'Используйте эту возможность только для диагностики.');
   assert.equal(
@@ -166,11 +166,12 @@ test('manual agent dialog help has only two localized paragraphs with the transl
     const html = renderToStaticMarkup(createElement(ManualAgentDialogHelp, { locale }));
     const [before, after] = copy.dialogManualAgentDiagnostic.split('{command}');
     const command = mcpSetupMessages(locale).connectionPrompt.replace(/[.。]$/u, '');
+    assert.match(html, /class="[^"]*\bMuiAlert-colorInfo\b[^"]*" role="alert"/, locale);
     assert.ok(html.includes(escaped(copy.dialogAddAgentBody)), locale);
     assert.ok(html.includes(escaped(before)), locale);
     assert.ok(html.includes(escaped(after)), locale);
     assert.ok(html.includes(escaped(command) + '</code>'), locale);
-    assert.equal(html.match(/<p\b/g)?.length, 2, locale);
+    assert.equal(html.match(/<p\b/g)?.length, 1, locale);
     assert.equal(html.match(/<code\b/g)?.length, 1, locale);
     assert.doesNotMatch(html, /<button\b|<input\b|\{command\}/, locale);
     assert.ok(html.includes('font-family:inherit'), locale);
