@@ -542,6 +542,7 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
     let bridge: Awaited<ReturnType<typeof startClaudeBridge>> | undefined;
     let replacement: FakeHelper | undefined;
     let pending: ReturnType<Client['callTool']> | undefined;
+    let endHelperStream = () => {};
     globalThis.fetch = async (input, init) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       const method = init?.method ?? (input instanceof Request ? input.method : 'GET');
@@ -594,6 +595,7 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
       );
       const oldHelper = f.service.claude.route(session).helper;
       assert.ok(oldHelper);
+      endHelperStream = () => oldHelper.writer.end();
       const nativeBefore = await readNativeLease(f.nodeFile, session);
 
       // A failed read-only request makes the bridge reconnect its node MCP client.
@@ -631,6 +633,9 @@ for (const invalidation of ['native-end', 'route-replacement'] as const)
       assert.equal(forwardedPeers, 0);
     } finally {
       release();
+      // End this fixture's server-side stream before awaiting the in-process
+      // bridge reader. Revoking a helper does not end its HTTP response.
+      endHelperStream();
       try {
         const cleanup = await Promise.allSettled([
           client.close(),
