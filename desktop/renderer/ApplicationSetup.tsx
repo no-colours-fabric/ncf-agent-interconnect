@@ -10,6 +10,7 @@ import {
   DialogTitle,
   FormControlLabel,
   IconButton,
+  Link,
   Paper,
   Stack,
   Switch,
@@ -900,16 +901,22 @@ export function ApplicationRows({
     >
       <Stack
         direction="row"
-        sx={{ alignItems: 'flex-start', justifyContent: 'space-between', gap: 3 }}
+        sx={{
+          alignItems: 'flex-end',
+          justifyContent: 'space-between',
+          flexWrap: 'wrap',
+          columnGap: 3,
+          rowGap: 1,
+        }}
       >
-        <Box>
-          <Typography variant="body2" color="text.secondary">
-            {copy.detectionHelp}
-          </Typography>
-        </Box>
-        <Button
-          variant="outlined"
-          startIcon={<RefreshOutlined />}
+        <Typography variant="body2" color="text.secondary" sx={{ flex: '1 1 14rem', minWidth: 0 }}>
+          {copy.detectionHelp}
+        </Typography>
+        <Link
+          component="button"
+          type="button"
+          variant="body2"
+          underline="always"
           disabled={discovery.busy || anyBusy}
           onClick={() => {
             flow.invalidateSucceeded();
@@ -917,10 +924,19 @@ export function ApplicationRows({
             void statuses.refreshAll(true);
             void flow.openCodeV2.refresh();
           }}
-          sx={{ flexShrink: 0 }}
+          sx={{
+            display: 'inline',
+            flexShrink: 0,
+            ml: 'auto',
+            p: 0,
+            minHeight: 0,
+            whiteSpace: 'nowrap',
+            '&:disabled': { color: 'text.disabled', cursor: 'default', textDecoration: 'none' },
+          }}
         >
+          <RefreshOutlined sx={{ fontSize: '1em', verticalAlign: '-0.125em', mr: 0.5 }} />
           {discoveryCopy.refresh}
-        </Button>
+        </Link>
       </Stack>
       <Paper
         sx={{

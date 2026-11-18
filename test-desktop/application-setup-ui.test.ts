@@ -540,6 +540,9 @@ test('Applications rows keep setup status and manual actions with immediate unhe
   assert.ok(!html.includes(applicationSetupMessages('en').yourApps));
   assert.ok(!html.includes(applicationSetupMessages('en').intro));
   assert.ok(html.includes(applicationSetupMessages('en').detectionHelp));
+  const refresh = html.match(/<button[^>]*MuiLink-root[^>]*>[\s\S]*?<\/button>/)?.[0];
+  assert.ok(refresh?.includes('data-testid="RefreshOutlinedIcon"'));
+  assert.ok(refresh?.endsWith(discoveryMessages('en').refresh + '</button>'));
   assert.ok(html.includes(applicationSetupMessages('en').newApps));
 });
 
