@@ -12,9 +12,9 @@ Official website: [no-colours-fabric.github.io/ncf-agent-interconnect](https://n
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-![Applications page showing client status and Connect or Manual setup controls.](docs/assets/agents-preview.png)
+![NCF Agent Interconnect 0.19.0 Applications page showing client cards, setup controls and the OpenCode version switch.](docs/assets/agents-preview.png)
 
-_Applications: client status, Connect and Manual setup._
+_Applications in 0.19.0. The settings icon opens manual setup._
 
 ## How to start
 
@@ -43,9 +43,9 @@ The **Agents** page starts with a connection guide and a request you can copy in
 - **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
-![Remote nodes page in local-only mode, with address, Create code, Search again and Connect by address controls.](docs/assets/app-preview.png)
+![NCF Agent Interconnect 0.19.0 Remote nodes page showing two connected nodes, Get connection code, Search and Connect by address.](docs/assets/app-preview.png)
 
-_Remote nodes in a local-only profile: address and code controls, with manual connection available._
+_Remote nodes in 0.19.0 with two isolated test nodes paired._
 
 ## Download and client support
 
