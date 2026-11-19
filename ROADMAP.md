@@ -206,3 +206,19 @@ If the receiving window was closed, clicking Connect again opens it again. The r
 Closing the window without confirmation does not establish a connection.
 
 ---
+
+## R-0014 — Quick scenarios for everyday agent workflows
+
+- [ ] Open
+
+Create a dedicated documentation page with short, practical scenarios for NCF Agent Interconnect. For each scenario, show where to start, what to do, and how to verify the result. Link to detailed guides where needed.
+
+- **Getting started:** Create an agent. Create several agents and coordinate them on one task.
+- **Moving agents:** Move agents to new chats in the same application. Move an agent to a chat in another supported application. After a move, reconstruct the task context from the agent’s message history.
+- **Connection and recovery:** Check whether an agent is connected. Restore an agent’s connection in different supported applications. Disconnect an agent from its chat.
+- **History and diagnostics:** View an agent’s message history, clear it, or delete the agent. Explain what each action preserves or removes.
+- **Other computers:** Pair a second computer and verify that the connection works.
+
+Keep the list open to additional short scenarios.
+
+---
