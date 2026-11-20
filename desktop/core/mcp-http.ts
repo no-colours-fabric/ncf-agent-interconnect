@@ -75,6 +75,13 @@ export function createAgentMcp(
       let delivery: string | undefined;
       const handoff = handoffs?.context.getStore();
       try {
+        const connectionId = (args as Record<string, unknown>).connectionId;
+        if (name !== 'agent_connect' && typeof connectionId === 'string')
+          service.assertCodexQueueCall(
+            connectionId,
+            { client: mcp.server.getClientVersion()?.name ?? 'MCP', meta: extra._meta },
+            name === 'connection_events',
+          );
         let nativeIdentity: OpenCodeV2Identity | undefined;
         if (openCodeV2) {
           const sessionID = extra._meta?.['ai.opencode/sessionID'];
@@ -91,7 +98,6 @@ export function createAgentMcp(
             handoff.response.once('close', detach);
             nativeIdentity.assertCurrent();
           }
-          const connectionId = (args as Record<string, unknown>).connectionId;
           if (
             name !== 'agent_connect' &&
             name !== 'connection_events' &&
@@ -222,10 +228,17 @@ export function createAgentMcp(
   );
   register(
     'agent_connect',
-    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. When reconnecting this same previously bound Codex chat, reuse its existing connectionId if you still have it internally. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters. contextToken is supplied only by the installed host integration; never invent it.',
+    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. When reconnecting the same Codex chat, reuse its connectionId if you still have it internally. If codex_recovery_pending is returned, wait for the NCF Agent Interconnect confirmation in this same Codex chat. Use the original nickname and the exact codexRecoveryToken from that confirmation in a single follow-up agent_connect call. Keep the code internal. Do not poll or copy a code from a different chat. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters. contextToken is supplied only by the installed host integration; never invent it.',
     {
       nickname: nicknameSchema.describe('The agent nickname chosen by the user.'),
       connectionId: z.uuid().optional(),
+      codexRecoveryToken: z
+        .string()
+        .regex(/^[a-f0-9]{64}$/)
+        .optional()
+        .describe(
+          'One-use code from the NCF confirmation in this exact Codex chat. Omit otherwise.',
+        ),
       transferId: z.uuid().optional(),
       confirmTransfer: z.boolean().default(false),
       resetHistory: z
@@ -243,6 +256,8 @@ export function createAgentMcp(
     },
     false,
     async (args, extra) => {
+      if (extra.openCodeV2Identity && args.codexRecoveryToken)
+        throw new Error('The Codex confirmation must be submitted from its exact chat');
       const result = extra.openCodeV2Identity
         ? await service.connectOpenCodeV2(args, extra.openCodeV2Identity)
         : await service.connectAutomatic(args, {

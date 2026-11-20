@@ -564,6 +564,11 @@ export class AdapterRegistry extends EventEmitter {
   states(): AdapterState[] {
     return [...this.adapters.values()].map((a) => a.status());
   }
+  async remove(id: string): Promise<void> {
+    const adapter = this.adapters.get(id);
+    this.adapters.delete(id);
+    await adapter?.stop();
+  }
   get(id: string): AgentAdapter {
     const adapter = this.adapters.get(id);
     if (!adapter) throw new Error('Adapter not found');

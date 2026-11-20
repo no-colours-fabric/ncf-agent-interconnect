@@ -824,23 +824,58 @@ test(
     const offer = t.mock.method(CodexQueueAdapter.prototype, 'deliver', async () => ({
       state: 'offered',
     }));
-    const connect = (id: string, connectionId?: string) =>
+    const challenges: string[] = [];
+    t.mock.method(
+      CodexQueueAdapter.prototype,
+      'challenge',
+      async function (this: CodexQueueAdapter, token: string, isCurrent: () => boolean) {
+        assert.equal(this.profile.threadId, threadId);
+        assert.equal(this.profile.socket, f.profile.socket);
+        assert.equal(isCurrent(), true);
+        challenges.push(token);
+        return 'uncertain';
+      },
+    );
+    const connect = (
+      id: string,
+      proof: { connectionId?: string; codexRecoveryToken?: string } = {},
+    ) =>
       client.callTool({
         name: 'agent_connect',
-        arguments: { nickname: 'Recipient', ...(connectionId ? { connectionId } : {}) },
+        arguments: { nickname: 'Recipient', ...proof },
         _meta: { threadId: id },
       });
-    assert.equal((await connect(threadId)).isError, true);
-    assert.equal((await connect(threadId, randomUUID())).isError, true);
-    assert.equal((await connect(randomUUID(), binding.connectionId)).isError, true);
+    const status = (result: Awaited<ReturnType<typeof connect>>) =>
+      (result.structuredContent as { status?: string } | undefined)?.status;
+    assert.equal((await connect(threadId, { connectionId: randomUUID() })).isError, true);
+    assert.equal(
+      (await connect(randomUUID(), { connectionId: binding.connectionId })).isError,
+      true,
+    );
+    const pending = await connect(threadId);
+    assert.equal(pending.isError, undefined);
+    assert.equal(status(pending), 'codex_recovery_pending');
+    assert.equal(status(await connect(threadId)), 'codex_recovery_pending');
+    assert.equal(challenges.length, 1);
+    const token = challenges[0]!;
+    assert.match(token, /^[a-f0-9]{64}$/);
+    assert.ok(!JSON.stringify(pending).includes(token));
+    assert.ok(!JSON.stringify(pending).includes(binding.connectionId));
+    assert.equal((await connect(threadId, { codexRecoveryToken: '0'.repeat(64) })).isError, true);
+    assert.equal((await connect(randomUUID(), { codexRecoveryToken: token })).isError, true);
     assert.equal(start.mock.callCount(), 0);
-    const result = await connect(threadId, binding.connectionId);
+    const result = await connect(threadId, { codexRecoveryToken: token });
     assert.equal(result.isError, undefined);
     const recovered =
       result.structuredContent as unknown as import('../desktop/core/agent-store.js').ConnectResult;
     if (recovered.status !== 'connected')
       throw new Error('The saved Codex binding was not recovered');
     assert.deepEqual(recovered.binding, binding);
+    assert.equal((await connect(threadId, { codexRecoveryToken: token })).isError, true);
+    assert.equal(
+      status(await connect(threadId, { connectionId: binding.connectionId })),
+      'connected',
+    );
     assert.equal(
       service.settings.value.adapters.find((a) => a.id === binding.adapterId)?.codexQueue,
       true,
@@ -858,6 +893,15 @@ test(
     }
     assert.equal(offer.mock.callCount(), 1);
     assert.equal(service.store.get(message.id, 'out')?.state, 'ready');
+    for (const meta of [{ threadId: randomUUID() }, undefined]) {
+      const denied = await client.callTool({
+        name: 'agent_read',
+        arguments: { connectionId: binding.connectionId },
+        _meta: meta,
+      });
+      assert.equal(denied.isError, true);
+      assert.equal(service.store.get(message.id, 'out')?.state, 'ready');
+    }
     const incoming = await client.callTool({
       name: 'agent_read',
       arguments: { connectionId: binding.connectionId },

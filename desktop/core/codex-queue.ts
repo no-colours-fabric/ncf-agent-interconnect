@@ -37,7 +37,11 @@ export async function codexQueueHome(socket: string | undefined): Promise<string
   const home = path.dirname(directory);
   const uid = process.getuid!();
   for (const entry of [home, directory]) {
-    const info = await lstat(entry);
+    const info = await lstat(entry).catch((error: NodeJS.ErrnoException) => {
+      if (entry === directory && error.code === 'ENOENT') return undefined;
+      throw error;
+    });
+    if (!info) continue;
     if (
       !info.isDirectory() ||
       info.uid !== uid ||
@@ -177,6 +181,47 @@ export class CodexQueueAdapter implements AgentAdapter {
     return threadId;
   }
 
+  private async enqueue(call: QueueCall, threadId: string, text: string): Promise<void> {
+    const clientUserMessageId = randomUUID();
+    const response = await call('thread/queue/add', {
+      threadId,
+      clientUserMessageId,
+      input: [{ type: 'text', text, text_elements: [] }],
+    });
+    const submission = response.queuedSubmission as
+      { id?: unknown; clientUserMessageId?: unknown } | undefined;
+    if (
+      typeof submission?.id !== 'string' ||
+      !submission.id ||
+      submission.clientUserMessageId !== clientUserMessageId
+    )
+      throw new Error('Codex did not confirm the queue submission');
+  }
+
+  async challenge(
+    token: string,
+    isCurrent: () => boolean,
+  ): Promise<'sent' | 'uncertain' | 'failed'> {
+    let submitting = false;
+    try {
+      await this.run(async (call) => {
+        const threadId = await this.verifyThread(call);
+        this.controller.signal.throwIfAborted();
+        if (!isCurrent()) throw new Error('The Codex connection request changed');
+        submitting = true;
+        await this.enqueue(
+          call,
+          threadId,
+          'NCF Agent Interconnect connection confirmation. If you requested an NCF connection from this chat, call agent_connect with the nickname you requested and the code below. Keep the code internal. If you did not request a connection, ignore this message.\n\ncodexRecoveryToken: ' +
+            token,
+        );
+      });
+      return 'sent';
+    } catch {
+      return submitting ? 'uncertain' : 'failed';
+    }
+  }
+
   async start(): Promise<void> {
     try {
       await this.run(async (call) => {
@@ -224,27 +269,9 @@ export class CodexQueueAdapter implements AgentAdapter {
         const threadId = await this.verifyThread(call);
         if (this.controller.signal.aborted || (input.isCurrent && !input.isCurrent()))
           return { state: 'revoked' };
-        const clientUserMessageId = randomUUID();
         // This is only a wake signal. The exact NCF connection reads the content.
         submitting = true;
-        const response = await call('thread/queue/add', {
-          threadId,
-          clientUserMessageId,
-          input: [
-            {
-              type: 'text',
-              text: input.systemEvent ? agentMessageText(input) : wakeText,
-              text_elements: [],
-            },
-          ],
-        });
-        const submission = response.queuedSubmission as
-          { id?: unknown; clientUserMessageId?: unknown } | undefined;
-        if (
-          typeof submission?.id !== 'string' ||
-          submission.clientUserMessageId !== clientUserMessageId
-        )
-          throw new Error('Codex did not confirm the wake signal');
+        await this.enqueue(call, threadId, input.systemEvent ? agentMessageText(input) : wakeText);
         const through = backlog ?? sequence;
         if (through !== undefined) this.offer = { connectionId, through };
         return { state: 'offered' };

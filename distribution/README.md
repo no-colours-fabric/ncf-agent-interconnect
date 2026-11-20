@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 0.19.0
+# NCF Agent Interconnect 1.0.0
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -20,7 +20,7 @@ was not run on Intel hardware.
 Windows x64: use the Windows installer. Packages are unsigned.
 
 This release provides three installers: the two macOS DMGs and the Windows EXE.
-Linux source remains available, but 0.19.0 does not include a new Linux installer.
+Linux source remains available, but 1.0.0 does not include a new Linux installer.
 
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional
@@ -60,9 +60,12 @@ open-file icon uses the operating system's default application.
   plugin identifies the exact current chat. Incoming messages are delivered
   automatically; a busy chat waits for an idle event. Frontends must use that
   OpenCode instance and load its plugins. Configuring v2 does not convert v1.
-- Codex Desktop: an experimental adapter identifies the current chat from MCP
-  metadata and its existing local owner. Availability depends on the client
-  version. It inherits that chat environment and permission settings.
+- Codex Desktop: clients with compatible local IPC receive the full Incoming
+  message in the exact chat. Recent macOS builds can use the native Codex queue
+  to notify the exact chat. In that mode the agent calls `agent_read` to receive
+  the body and attachment links. NCF records receipt when that read succeeds.
+  Open an unloaded chat to let Codex process its queue. The queue mode remains
+  version-dependent.
 - Cursor: Apply configures MCP and installs the included local plugin. Restart
   Cursor once and connect in the intended chat. Open bound chats can receive
   messages in the IDE and Agents Window without being selected. After a restart,
@@ -204,7 +207,10 @@ are preserved. The first start upgrades storage to format 5. Quit NCF Agent Inte
 a complete stopped pre-upgrade profile backup before updating. Older releases
 cannot open format 5. Do not use an older app against the upgraded profile;
 rollback requires that backup while preserving any post-upgrade data.
-Peer protocol 2 and the eleven-tool MCP schema are unchanged.
+Peer protocol remains version 2. In macOS Codex queue mode, `agent_connect` may
+return `codex_recovery_pending`. The confirmation arrives in the exact Codex
+chat. Complete it there with the same nickname and the one-use code. Recovering
+an existing connection preserves its history.
 Older strict-schema binaries may reject the newer network-exclusion and OpenCode
 v2 settings. Keep the stopped pre-upgrade backup; do not open an upgraded profile
 with an older app. The packaged OpenCode v2 setup verified private-file ACLs on

@@ -1,0 +1,52 @@
+name: Windows release package (fallback)
+
+on:
+  push:
+    branches: [codex/windows-release]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    name: Windows x64 installer and installed smoke
+    runs-on: windows-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - name: Build installer and verify packaged runtime
+        run: npm run build:release -- --win --x64 --skip-source-checks
+      - name: Install and verify the Windows package
+        shell: pwsh
+        run: |
+          $version = node -p "require('./package.json').version"
+          if ($LASTEXITCODE -ne 0) { throw 'Could not read the source version' }
+          $installer = (Resolve-Path -LiteralPath "release/NCF-Agent-Interconnect-$version-win-x64.exe").Path
+          $destination = Join-Path $env:RUNNER_TEMP "ncf-$version-installed"
+          if (Test-Path -LiteralPath $destination) { throw 'Install directory already exists' }
+          $process = Start-Process -FilePath $installer -ArgumentList '/S', "/D=$destination" -PassThru -Wait
+          if ($process.ExitCode -ne 0) { throw "NSIS install exited with $($process.ExitCode)" }
+          $expected = (Get-FileHash -LiteralPath 'release/win-unpacked/resources/app.asar').Hash
+          $actual = (Get-FileHash -LiteralPath (Join-Path $destination 'resources/app.asar')).Hash
+          if ($actual -cne $expected) { throw 'Installed app.asar differs from the verified package' }
+          $application = Join-Path $destination 'NCF Agent Interconnect.exe'
+          $env:INTERCONNECT_TEST_EXECUTABLE = (Resolve-Path -LiteralPath $application).Path
+          npm run test:ui
+          if ($LASTEXITCODE -ne 0) { throw 'The installed application smoke failed' }
+          Get-FileHash -LiteralPath $installer -Algorithm SHA256 | Format-List
+      - name: Retain installer from this exact source
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-x64-installer
+          path: release/NCF-Agent-Interconnect-*-win-x64.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
