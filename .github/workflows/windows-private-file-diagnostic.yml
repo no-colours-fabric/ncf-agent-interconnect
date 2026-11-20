@@ -1,0 +1,29 @@
+name: Windows private-file diagnostic
+
+on:
+  push:
+    branches: [codex/windows-1.0.0-diagnostic]
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostic:
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Compare Windows temporary roots with the exact private-file checks
+        shell: pwsh
+        run: |
+          $env:ELECTRON_RUN_AS_NODE = '1'
+          & '.\node_modules\electron\dist\electron.exe' scripts/windows-private-file-diagnostic.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'The diagnostic harness could not run' }
