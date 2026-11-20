@@ -34,7 +34,7 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 
 - The published 0.19.0 release provides Apple Silicon and Intel macOS DMGs and
   a Windows x64 installer. Intel was not run on Intel hardware; 0.19.0 has no
-  new Linux installer. The 1.0.0 installer set and native acceptance are pending.
+  new Linux installer. See the published 1.0.0 release for its installer set and native acceptance.
 - OpenCode v1 retains its bundled exact-chat plugin. OpenCode v2 has separate
   setup and source-level checks; live v2 client delivery was not verified for
   0.19.0. Do not infer either version's readiness from installation detection.
@@ -42,7 +42,7 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
   older IPC provides full Incoming in the exact chat. The new macOS path offers
   an exact-chat notification without content; `agent_read` returns text and
   attachment links and records receipt. An isolated bundled Codex
-  `.171-alpha.13` check covered retained 0.19 binding/history, one-time
+  `0.171.0-alpha.13` check covered retained 0.19 binding/history, one-time
   exact-chat confirmation, wrong-chat and replay rejection, a first bind under
   a free name after explicit Apply, and wake/read/receipt. Packaged UI, wider
   macOS compatibility and Windows Codex behavior are not established.

@@ -42,7 +42,7 @@ Compatible older Codex Desktop versions using the existing IPC path retain direc
 
 For a previously connected Codex chat, reuse its `connectionId`. If that value was lost, call `agent_connect` with the same agent name from that chat. A one-time confirmation goes only to the previously bound exact chat through the standard notification queue. Read it there, then repeat `agent_connect` to restore the same binding. This recovery does not authorize a different chat or silently transfer the name. For a new chat under a free name, first configure the intended local macOS Codex profile through Apply if it is not already configured, then connect from that exact chat. Each new agent does not need another Apply. An occupied name still requires the separate explicit transfer or reset choice.
 
-The new notification path has been exercised only with an isolated bundled Codex `.171-alpha.13` so far. The bounded check covered an existing 0.19 profile, exact-chat confirmation, a first bind under a free name after Apply and wake, read and receipt. It does not establish support for other macOS builds or Windows Codex Desktop. Final packaged UI and installer acceptance are pending.
+The new notification path has been exercised only with an isolated bundled Codex `0.171.0-alpha.13` so far. The bounded check covered an existing 0.19 profile, exact-chat confirmation, a first bind under a free name after Apply and wake, read and receipt. It does not establish support for other macOS builds or Windows Codex Desktop. Installer and native acceptance are reported with the published release.
 
 ## AionUi with Cursor Agent
 

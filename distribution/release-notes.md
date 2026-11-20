@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 1.0.0 — release draft
+# NCF Agent Interconnect 1.0.0
 
 The new macOS Codex Desktop path changes how an agent receives a waiting message.
 NCF Agent Interconnect sends a standard notification to the exact connected chat.
@@ -22,15 +22,14 @@ its stopped profile, including history and attachments. Keep that backup for a
 rollback; do not open an upgraded profile with an older binary or discard data
 created after the update.
 
-## Verification at draft handoff
+## Verification scope
 
 - The new macOS Codex path has been exercised only with an isolated bundled
-  Codex `.171-alpha.13`. That check covered an existing 0.19 profile and
+  Codex `0.171.0-alpha.13`. That check covered an existing 0.19 profile and
   history, exact-chat confirmation with wrong-chat and replay rejection, a
   first bind for a free name after Apply, and wake, read and receipt. It does
   not establish compatibility with other builds.
-- Native acceptance for the final 1.0.0 package, the installer platform set and
-  cross-platform Codex behavior are pending. They must be reported from the
-  actual release results, not inferred from the bounded wake check.
+- The published release records the installer platform set and the completed
+  native package checks separately from this isolated Codex protocol check.
 - A notification, an MCP receipt and completion of the agent's task are
   distinct states.
