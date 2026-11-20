@@ -212,7 +212,7 @@ export class CodexQueueAdapter implements AgentAdapter {
         await this.enqueue(
           call,
           threadId,
-          'NCF Agent Interconnect connection confirmation. If you requested an NCF connection from this chat, call agent_connect with the nickname you requested and the code below. Keep the code internal. If you did not request a connection, ignore this message.\n\ncodexRecoveryToken: ' +
+          'NCF Agent Interconnect connection confirmation. If you requested an NCF connection from this chat, call agent_connect with the nickname you requested and the contextToken below. Keep the code internal. If you did not request a connection, ignore this message.\n\ncontextToken: ' +
             token,
         );
       });

@@ -838,7 +838,7 @@ test(
     );
     const connect = (
       id: string,
-      proof: { connectionId?: string; codexRecoveryToken?: string } = {},
+      proof: { connectionId?: string; contextToken?: string; codexRecoveryToken?: string } = {},
     ) =>
       client.callTool({
         name: 'agent_connect',
@@ -858,19 +858,24 @@ test(
     assert.equal(status(await connect(threadId)), 'codex_recovery_pending');
     assert.equal(challenges.length, 1);
     const token = challenges[0]!;
-    assert.match(token, /^[a-f0-9]{64}$/);
+    assert.match(token, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
     assert.ok(!JSON.stringify(pending).includes(token));
     assert.ok(!JSON.stringify(pending).includes(binding.connectionId));
-    assert.equal((await connect(threadId, { codexRecoveryToken: '0'.repeat(64) })).isError, true);
-    assert.equal((await connect(randomUUID(), { codexRecoveryToken: token })).isError, true);
+    assert.equal((await connect(threadId, { contextToken: randomUUID() })).isError, true);
+    assert.equal((await connect(randomUUID(), { contextToken: token })).isError, true);
+    assert.equal(
+      (await connect(threadId, { contextToken: token, codexRecoveryToken: token })).isError,
+      true,
+    );
     assert.equal(start.mock.callCount(), 0);
-    const result = await connect(threadId, { codexRecoveryToken: token });
+    const result = await connect(threadId, { contextToken: token });
     assert.equal(result.isError, undefined);
     const recovered =
       result.structuredContent as unknown as import('../desktop/core/agent-store.js').ConnectResult;
     if (recovered.status !== 'connected')
       throw new Error('The saved Codex binding was not recovered');
     assert.deepEqual(recovered.binding, binding);
+    assert.equal((await connect(threadId, { contextToken: token })).isError, true);
     assert.equal((await connect(threadId, { codexRecoveryToken: token })).isError, true);
     assert.equal(
       status(await connect(threadId, { connectionId: binding.connectionId })),

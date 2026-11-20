@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { randomUUID, randomBytes, createHash } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -994,18 +994,20 @@ export class NodeService extends EventEmitter {
     host: McpHost,
   ): Promise<AutomaticConnectResult> {
     const { contextToken, codexRecoveryToken, ...input } = args;
-    if (codexRecoveryToken) {
+    const recoveryToken =
+      codexRecoveryToken ?? (/codex/i.test(host.client) ? contextToken : undefined);
+    if (recoveryToken) {
       const threadId = codexThreadId(host);
       if (
         !threadId ||
-        contextToken ||
+        (codexRecoveryToken && contextToken) ||
         input.connectionId ||
         input.transferId ||
         input.confirmTransfer ||
         input.resetHistory
       )
         throw new Error('The Codex confirmation must be submitted from its exact chat');
-      return this.confirmCodexRecovery(input.nickname, threadId, codexRecoveryToken);
+      return this.confirmCodexRecovery(input.nickname, threadId, recoveryToken);
     }
     let context: ClientContext | undefined;
     if (contextToken) {
@@ -1567,7 +1569,7 @@ export class NodeService extends EventEmitter {
         'Too many Codex confirmations are pending. Wait five minutes before retrying.',
       );
 
-    const token = randomBytes(32).toString('hex');
+    const token = randomUUID();
     const challenge: CodexRecoveryChallenge = {
       target,
       digest: contentHash(token),

@@ -12,8 +12,8 @@ Compatible older Codex Desktop versions using the existing IPC path retain full
 Incoming directly in the exact chat. An unavailable exact chat is not replaced
 with another recent chat. Existing chats can reuse their `connectionId`. If it
 was lost, `agent_connect` sends a one-time confirmation only to the previously
-bound exact chat; repeating `agent_connect` after confirmation restores that
-same binding. A first bind under a free name passed after explicit Apply to the
+bound exact chat. The assistant repeats `agent_connect` once with its original
+nickname and the one-use `contextToken` from that chat to restore the binding. A first bind under a free name passed after explicit Apply to the
 intended local macOS Codex profile. Occupied-name transfer and reset remain
 separate owner choices.
 

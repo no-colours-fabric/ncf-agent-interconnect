@@ -209,7 +209,8 @@ cannot open format 5. Do not use an older app against the upgraded profile;
 rollback requires that backup while preserving any post-upgrade data.
 Peer protocol remains version 2. In macOS Codex queue mode, `agent_connect` may
 return `codex_recovery_pending`. The confirmation arrives in the exact Codex
-chat. Complete it there with the same nickname and the one-use code. Recovering
+chat. In that chat the assistant repeats `agent_connect` with the same nickname and
+the one-use `contextToken`. Recovering
 an existing connection preserves its history.
 Older strict-schema binaries may reject the newer network-exclusion and OpenCode
 v2 settings. Keep the stopped pre-upgrade backup; do not open an upgraded profile

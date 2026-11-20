@@ -228,16 +228,15 @@ export function createAgentMcp(
   );
   register(
     'agent_connect',
-    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. When reconnecting the same Codex chat, reuse its connectionId if you still have it internally. If codex_recovery_pending is returned, wait for the NCF Agent Interconnect confirmation in this same Codex chat. Use the original nickname and the exact codexRecoveryToken from that confirmation in a single follow-up agent_connect call. Keep the code internal. Do not poll or copy a code from a different chat. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters. contextToken is supplied only by the installed host integration; never invent it.',
+    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. When reconnecting the same Codex chat, reuse its connectionId if you still have it internally. If codex_recovery_pending is returned, wait for the NCF Agent Interconnect confirmation in this same Codex chat. Use the original nickname and the exact contextToken from that confirmation in a single follow-up agent_connect call. Keep the code internal. Do not poll or copy a code from a different chat. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters or invent a contextToken.',
     {
       nickname: nicknameSchema.describe('The agent nickname chosen by the user.'),
       connectionId: z.uuid().optional(),
       codexRecoveryToken: z
-        .string()
-        .regex(/^[a-f0-9]{64}$/)
+        .uuid()
         .optional()
         .describe(
-          'One-use code from the NCF confirmation in this exact Codex chat. Omit otherwise.',
+          'Alias for contextToken in the NCF confirmation in this exact Codex chat. Do not supply both.',
         ),
       transferId: z.uuid().optional(),
       confirmTransfer: z.boolean().default(false),
@@ -251,7 +250,7 @@ export function createAgentMcp(
         .uuid()
         .optional()
         .describe(
-          'Integration-owned one-use current-chat context. The installed Cursor, OpenCode, AionUi or Claude Code integration injects this automatically; otherwise omit.',
+          'One-use current-chat context. In Codex, use only the token from the NCF confirmation in this chat. The installed Cursor, OpenCode, AionUi or Claude Code integration injects its own context automatically. Otherwise omit.',
         ),
     },
     false,
