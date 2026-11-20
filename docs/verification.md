@@ -20,9 +20,10 @@ and snapshots, transport evidence, shared sessions and legacy peer compatibility
 These checks do not constitute an independent cryptographic audit.
 
 The OpenCode fixture uses the bundled plugin and a simulated SDK session host.
-The Codex fixture implements the expected local desktop IPC frames. Both inspect
-the exact body, attachment links and From/Reply-To envelope sent to the target.
-These fixtures do not invoke a live model.
+The existing Codex fixture implements the compatible older local desktop IPC
+frames and inspects the complete Incoming body, attachment links and reply route.
+It does not prove the separate new macOS Codex notification-and-read path. These
+fixtures do not invoke a live model.
 
 The installed-runtime verifier extracts the packaged app outside the source
 checkout, loads the shipped integration and checks real MCP exchange using the
@@ -31,19 +32,29 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 
 ## Platform and client limits
 
-- macOS Apple Silicon is the initial packaged target. Build reports and package
-  checksums accompany its release.
-- Windows x64 installer and ZIP builds, shipped-runtime verification and isolated
-  packaged GUI checks are covered. Interactive installation/uninstallation and
-  Start at login still require manual smoke checks. Windows packages are unsigned.
-- OpenCode support targets the v1 plugin/SDK contract. OpenCode v2 is not claimed.
-- Codex Desktop delivery is experimental and version-dependent. Protocol fixture
-  coverage does not establish support for every installed desktop version.
-- Claude Code delivery uses the Channels research preview and is experimental.
-  Source checks use synthetic and real helper/hook processes, not a live
-  Claude Code session; see [Claude Code integration](claude-code-adapter.md).
-- Standard MCP clients can send and receive through tools. Idle wake-up needs a
-  client adapter; Cursor has no reactive adapter in this release.
+- The published 0.19.0 release provides Apple Silicon and Intel macOS DMGs and
+  a Windows x64 installer. Intel was not run on Intel hardware; 0.19.0 has no
+  new Linux installer. The 1.0.0 installer set and native acceptance are pending.
+- OpenCode v1 retains its bundled exact-chat plugin. OpenCode v2 has separate
+  setup and source-level checks; live v2 client delivery was not verified for
+  0.19.0. Do not infer either version's readiness from installation detection.
+- Codex Desktop delivery is experimental and version-dependent. Compatible
+  older IPC provides full Incoming in the exact chat. The new macOS path offers
+  an exact-chat notification without content; `agent_read` returns text and
+  attachment links and records receipt. An isolated bundled Codex
+  `.171-alpha.13` check covered retained 0.19 binding/history, one-time
+  exact-chat confirmation, wrong-chat and replay rejection, a first bind under
+  a free name after explicit Apply, and wake/read/receipt. Packaged UI, wider
+  macOS compatibility and Windows Codex behavior are not established.
+- Cursor has a bundled plugin for open exact chats, including unselected chats.
+  AionUi support is limited to Cursor Agent after owner authorization and a
+  live bridge. Client and platform results have the narrower scopes recorded
+  in [application-specific setup](mcp-clients.md).
+- Claude Code's full Incoming uses compatible mods. Its Linux Desktop and
+  terminal evidence is frontend-specific; live Claude behavior on macOS and
+  Windows was not verified for 0.19.0. See the [Claude Code guide](claude-code-adapter.md).
+- Standard MCP clients can send and read through tools. Idle notification or
+  automatic full-content delivery requires a supported client integration.
 
 Release notes should list checks actually completed for their exact source
 revision, runtime and platform. Keep private client configuration and live

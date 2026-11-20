@@ -34,7 +34,15 @@ For v1, use **Configure OpenCode v1** and select the configuration that instance
 
 ## Codex Desktop
 
-Choose Codex, open **Configure Codex** and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Automatic delivery to the exact chat is experimental and depends on the installed Codex Desktop version. If the intended chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
+Choose Codex, open **Configure Codex** and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Delivery is experimental and depends on the installed Codex Desktop version and the availability of the exact connected chat. If that chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
+
+The new macOS Codex Desktop path sends a standard notification to the exact connected chat. The notification only signals that messages are waiting: it does not include their text or attachment links and does not record receipt. In that chat, call `agent_read` with the agent's `connectionId` to receive the complete messages and attachment links. Continue with `nextCursor` while `hasMore` is true. Receipt is recorded only when the complete read result is returned, not when the notification is offered. If the chat is unloaded, open it before expecting the notification. A saved message remains available for an explicit read; do not infer that a notification was displayed from a connected transport alone.
+
+Compatible older Codex Desktop versions using the existing IPC path retain direct, full Incoming messages in the exact chat. That path includes the sender, body, attachment links and reply route without a separate `agent_read` call for the delivered body. The two paths have different receipt boundaries. Neither a notification nor a receipt means that the assistant completed the requested task.
+
+For a previously connected Codex chat, reuse its `connectionId`. If that value was lost, call `agent_connect` with the same agent name from that chat. A one-time confirmation goes only to the previously bound exact chat through the standard notification queue. Read it there, then repeat `agent_connect` to restore the same binding. This recovery does not authorize a different chat or silently transfer the name. For a new chat under a free name, first configure the intended local macOS Codex profile through Apply if it is not already configured, then connect from that exact chat. Each new agent does not need another Apply. An occupied name still requires the separate explicit transfer or reset choice.
+
+The new notification path has been exercised only with an isolated bundled Codex `.171-alpha.13` so far. The bounded check covered an existing 0.19 profile, exact-chat confirmation, a first bind under a free name after Apply and wake, read and receipt. It does not establish support for other macOS builds or Windows Codex Desktop. Final packaged UI and installer acceptance are pending.
 
 ## AionUi with Cursor Agent
 

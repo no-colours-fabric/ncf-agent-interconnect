@@ -1,11 +1,36 @@
-## 0.18.7
+# NCF Agent Interconnect 1.0.0 — release draft
 
-- Agents now explains how to connect assistants from chats in AI applications. The application list uses actual local bindings; unknown availability is not presented as a ready connection.
-- Manual agent creation remains available through a diagnostic link. Its dialog explains the normal chat connection and diagnostic simulation while preserving name-transfer approval and history guidance. All fifteen interface languages are included.
-- Remove the decorative arrow from inline AionUi setup actions. Public supported-application lists explicitly qualify AionUi with Cursor Agent.
+The new macOS Codex Desktop path changes how an agent receives a waiting message.
+NCF Agent Interconnect sends a standard notification to the exact connected chat.
+The notification contains no message text or attachment links. In that chat, the
+assistant calls `agent_read` to obtain the complete message and files. The notice
+alone does not record receipt; the completed read does. Open an unloaded chat
+before expecting its notification. This is a breaking delivery change for that
+host path, not a claim of full Incoming in the notification.
 
-Existing messages, files, agents, bindings, paired nodes, client configuration and storage format 5 are retained. Updates from versions before 0.18.6 require a complete stopped pre-upgrade profile backup; older binaries cannot open format 5. Use the normal installer to update the application.
+Compatible older Codex Desktop versions using the existing IPC path retain full
+Incoming directly in the exact chat. An unavailable exact chat is not replaced
+with another recent chat. Existing chats can reuse their `connectionId`. If it
+was lost, `agent_connect` sends a one-time confirmation only to the previously
+bound exact chat; repeating `agent_connect` after confirmation restores that
+same binding. A first bind under a free name passed after explicit Apply to the
+intended local macOS Codex profile. Occupied-name transfer and reset remain
+separate owner choices.
 
-This release does not include LAN discovery, OpenCode v2 or the broader setup redesign. The Windows sleep/resume scenario in issue #1, offer-state warning in issue #2 and the white-window investigation in issue #3 remain separate; this release does not claim to resolve them.
+Before updating, quit NCF Agent Interconnect and preserve a complete backup of
+its stopped profile, including history and attachments. Keep that backup for a
+rollback; do not open an upgraded profile with an older binary or discard data
+created after the update.
 
-Four installers: Apple Silicon DMG, Intel DMG, Windows x64 EXE and Linux x86_64 AppImage. macOS packages are ad-hoc signed without notarization; Windows is unsigned. Intel runtime execution is not claimed. Platform verification and actual interface images are included in the published release description.
+## Verification at draft handoff
+
+- The new macOS Codex path has been exercised only with an isolated bundled
+  Codex `.171-alpha.13`. That check covered an existing 0.19 profile and
+  history, exact-chat confirmation with wrong-chat and replay rejection, a
+  first bind for a free name after Apply, and wake, read and receipt. It does
+  not establish compatibility with other builds.
+- Native acceptance for the final 1.0.0 package, the installer platform set and
+  cross-platform Codex behavior are pending. They must be reported from the
+  actual release results, not inferred from the bounded wake check.
+- A notification, an MCP receipt and completion of the agent's task are
+  distinct states.

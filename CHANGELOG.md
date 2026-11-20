@@ -2,6 +2,14 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 1.0.0 — pending release
+
+- **Breaking Codex Desktop delivery change on the new macOS path:** NCF Agent Interconnect sends a standard notification to the exact connected chat. The notification does not contain the message body or attachments. The assistant obtains them through `agent_read`; offering the notification is not a receipt. A chat that has been unloaded must be opened before it can receive the notification.
+- Compatible older Codex Desktop versions using the existing IPC path retain direct, full Incoming messages in the exact chat. They do not need a read to obtain that native Incoming body. The app must not route a message to another chat when the intended chat is unavailable.
+- An existing Codex chat can reuse its `connectionId`. If it was lost, `agent_connect` sends a one-time confirmation only to the previously bound exact chat through the standard notification queue; repeating `agent_connect` after that confirmation restores the same binding. The intended local macOS Codex profile must be configured through Apply before its first connection; each new agent does not need a separate Apply. Existing occupied-name transfer choices remain separate.
+
+Before updating, quit NCF Agent Interconnect and retain a complete backup of the stopped profile. Do not open an upgraded profile with an older binary; rollback requires the pre-upgrade backup and must account for data created after the upgrade. The new macOS Codex notification path has so far been exercised only with an isolated bundled Codex `.171-alpha.13`: an existing 0.19 profile retained its binding and history, exact-chat confirmation rejected wrong-chat and replay attempts, and a first bind for a free name passed after explicit Apply. These results do not establish wider host compatibility. Final packaged UI, native installer acceptance and installer platforms remain pending.
+
 ## 0.19.0 — 2026-11-18
 
 - Present application connections in the Applications page and startup cards. Keep Connect, client-specific next steps, Manual setup, file selection, preview, Apply and separate confirmation before replacing existing settings. Show OpenCode v2 setup separately from the retained OpenCode v1 plugin; installation discovery does not prove either version or a chat is ready.

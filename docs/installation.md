@@ -53,9 +53,11 @@ Follow the storage-format migration guidance below.
 Closing the window leaves the node running in the tray. Choose Quit to stop
 the app and its connections. Start at login is optional under Settings.
 
-To update, quit the installed application before replacing it. Its data folder is
-separate from the app binary. Reconnect MCP after an update to refresh tool and
-server instructions. Restart Cursor or OpenCode if its included plugin changed.
+To update, quit the installed application before replacing it. Before upgrading
+to 1.0.0, retain a complete backup of its stopped profile, including history and
+attachments. Its data folder is separate from the app binary. Reconnect MCP
+after an update to refresh tool and server instructions. Restart Cursor or
+OpenCode if its included plugin changed.
 Restart Claude Code or reload its plugins after changing its NCF setup.
 
 Version 0.18.6 upgrades the stored history to format 5 on first start. Before

@@ -55,13 +55,15 @@ _Remote nodes in 0.19.0 with two isolated test nodes paired._
 | ----------------------------------- | -------------------- | ------------------------------------------------------------------ |
 | OpenCode v2                         | Through MCP          | Exact-chat bridge; live v2 delivery has not yet been verified      |
 | OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                       |
-| Codex Desktop                       | Yes                  | Experimental, version dependent                                    |
+| Codex Desktop                       | Yes                  | Version dependent; see Codex setup                                 |
 | Cursor                              | Yes                  | Bundled plugin delivers to open exact chats; see setup limits      |
 | AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup     |
 | Claude Code with compatible mods    | Yes                  | Full exact-chat Incoming; see native version and permission limits |
 | Other compatible MCP clients        | Through MCP          | Requires a client adapter                                          |
 
 Cursor setup installs its included reactive plugin after your Apply action; the verified Mac scope and platform limits are in [application setup](docs/mcp-clients.md#cursor). Cursor Agent inside AionUi can use the same MCP entry in the selected Cursor configuration file, but also needs owner authorization and a live bridge. OpenCode v2 uses a separate setup and bridge; the existing OpenCode v1 plugin remains available. Installation detection alone proves neither version nor readiness. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
+
+Codex Desktop delivery differs by host version. Compatible older IPC provides full Incoming in the exact chat. The new macOS path notifies that chat without message content; its assistant uses `agent_read` for text and attachment links. The notice alone does not record receipt, and an unloaded chat must be opened. See [Codex Desktop setup](docs/mcp-clients.md#codex-desktop) for current verification limits.
 
 Claude Code uses bundled main and gate plugins enabled by Apply. The owner saves exact connect/send allow rules through Claude's native permissions UI for the tested auto-mode setup; Apply adds only the read rule. Full native Incoming carries sender, body, attachment links and the reply route directly to the model and visible chat. Linux Desktop and terminal evidence is frontend-specific; live Claude behavior on macOS and Windows is unverified. See [Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 

@@ -13,9 +13,16 @@ explicit limitation, not a passing result.
 
 Conformance is assessed against the declared delivery mode. An MCP-only
 integration provides tools, explicit reads and history; it MUST NOT advertise
-automatic native delivery. A reactive adapter additionally implements sections
-4 and 5 for its supported host/version/frontend. A supported limitation narrows
-that advertised mode; it does not excuse wrong-chat delivery, premature receipt,
+automatic native delivery. A reactive full-content adapter additionally
+implements sections 4 and 5 for its supported host/version/frontend. A declared
+notification-and-read mode MAY wake an exact chat without delivering content in
+the notice. It MUST identify that mode to users, keep the message available
+through `agent_read` and MUST NOT claim full-content native admission or receipt
+from the notice. Sections 4 and 5 apply to that mode where they concern
+exact-chat routing, safe wake, durability and recovery; their full-body and
+automatic-reaction requirements remain mandatory for adapters advertised as
+reactive full-content delivery. A supported limitation narrows that advertised
+mode; it does not excuse wrong-chat delivery, premature receipt,
 unapproved configuration changes or loss of durable state. A concrete code path
 that violates a requirement is a conformance gap even when ordinary exchange
 scenarios pass. Record such a gap explicitly rather than treating this document
@@ -112,8 +119,9 @@ MUST NOT silently perform a transfer, reset or deletion.
 
 ## 4. Canonical incoming message and automatic reaction
 
-Native delivery MUST place the complete canonical message in the exact chat's
-model-readable context and present its sender, body and reply route to the user.
+Reactive full-content native delivery MUST place the complete canonical message
+in the exact chat's model-readable context and present its sender, body and reply
+route to the user.
 Use the node-owned presentation at the exact serialization boundary. The shared
 `formatAgentMessagePresentation` formatter supplies the current canonical body;
 `agentMessageText` uses that presentation when one is available. Do not
@@ -142,8 +150,8 @@ Resolve replies within the current mailbox; do not infer a sender's node from
 its nickname. System ownership notices have their own semantics and MUST NOT
 be fabricated as incoming peer messages.
 
-The main incoming message MUST NOT add explanatory plugin prose, receipt claims,
-raw Message IDs, debug metadata, a requested answer, or an instruction to call
+The main full-content incoming message MUST NOT add explanatory plugin prose,
+receipt claims, raw Message IDs, debug metadata, a requested answer, or an instruction to call
 `agent_read` before obtaining the body. Raw identifiers and diagnostics may be
 available in a separate expanded view. Ordinary host controls such as a long-row
 expander are frontend behavior and MUST be described accurately.
@@ -155,11 +163,16 @@ original incoming was displayed correctly. A renderer MUST derive content from
 the actual admitted result, not a predicted queue entry, and MUST NOT alter
 foreign rows, typed user input or history rows into new incoming messages.
 
-The supported path MUST automatically permit a normal agent turn after incoming
-delivery, subject to the user's existing stop and permission controls. Do not
+The supported reactive full-content path MUST automatically permit a normal
+agent turn after incoming delivery, subject to the user's existing stop and
+permission controls. Do not
 depend on a second arrival, receiver prompt, manual read or periodic agent check.
 Internal reads are an implementation option only when they preserve this complete
 presentation and automatic behavior without a visible command-only substitute.
+An explicitly declared notification-and-read path is different: its wake has no
+body or attachment links and no receipt authority. A completed `agent_read`
+returns the canonical incoming content and is the receipt boundary. It MUST NOT
+be reported as satisfying the full-content automatic-reaction requirement.
 
 Choose the host API that satisfies this contract. The adapter MUST NOT impose
 a generic ban on a supported host mode solely because it differs from another
@@ -376,17 +389,17 @@ Use focused automated tests for the affected boundaries and one bounded native
 plan. At minimum, cover the following, reporting a specific supported outcome or
 explicit limitation for each relevant case:
 
-| Area          | Required cases                                                                                                                                   |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Setup         | Clean standard installation; Apply; unchanged repeat Apply; unrelated settings preserved; startup/restart read-only; optional custom paths       |
-| Identity      | Two chats in one folder; different folders/instances; Unicode names; explicit transfer; stale connection; no wrong-chat fallback                 |
-| Delivery      | First pending message on exact resume; idle and subsequent input; busy defer; draft; question/permission; user stop                              |
-| Content       | Canonical sender/body/reply route; Unicode and multiline text; attachments; one body; no host framing or read-command substitute                 |
-| Receipt       | Exact admitted ID/content; host rewrite/deny; request cancellation and ID reuse; empty/error response; response release and commit crash windows |
-| Recovery      | Node/client restart; plugin reload/reconnect; compaction; clear/fork; helper replacement; stale callbacks and late responses                     |
-| Durability    | Multiple messages/pages; blocked and uncertain backlog; concurrent consumers; no replay after uncertain admission or after receipt               |
-| Shutdown      | Ordinary supported Quit; actual main-process exit; no late closed-storage access                                                                 |
-| Compatibility | Existing supported version/adapter behavior retained; declared frontend/version boundaries                                                       |
+| Area          | Required cases                                                                                                                                                                                                                         |
+| ------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Setup         | Clean standard installation; Apply; unchanged repeat Apply; unrelated settings preserved; startup/restart read-only; optional custom paths                                                                                             |
+| Identity      | Two chats in one folder; different folders/instances; Unicode names; explicit transfer; stale connection; no wrong-chat fallback                                                                                                       |
+| Delivery      | First pending message on exact resume; idle and subsequent input; busy defer; draft; question/permission; user stop                                                                                                                    |
+| Content       | Canonical sender/body/reply route; Unicode, multiline text and attachments; full-content mode has one native body without a read-command substitute; notification-and-read mode has a content-free notice and one complete read result |
+| Receipt       | Exact admitted ID/content; host rewrite/deny; request cancellation and ID reuse; empty/error response; response release and commit crash windows                                                                                       |
+| Recovery      | Node/client restart; plugin reload/reconnect; compaction; clear/fork; helper replacement; stale callbacks and late responses                                                                                                           |
+| Durability    | Multiple messages/pages; blocked and uncertain backlog; concurrent consumers; no replay after uncertain admission or after receipt                                                                                                     |
+| Shutdown      | Ordinary supported Quit; actual main-process exit; no late closed-storage access                                                                                                                                                       |
+| Compatibility | Existing supported version/adapter behavior retained; declared frontend/version boundaries                                                                                                                                             |
 
 For the end-to-end product proof, use a genuinely empty ordinary native chat.
 Submit only the ordinary user request to connect as the user-chosen agent name.
@@ -395,12 +408,20 @@ test instructions to that chat. From another real NCF agent, send a normal
 substantive question whose body specifies neither the expected answer nor a
 special reply tool. The standard envelope footer remains present.
 
-Record the full Incoming in the receiving chat, its automatic reaction, the
-actual reply arriving at the sender and the exact message's admission/receipt
+For a reactive full-content adapter, record the full Incoming in the receiving
+chat, its automatic reaction, the actual reply arriving at the sender and the
+exact message's admission/receipt
 witness. Verify the body occurs once and no extra receiver prompt or manual read
 was needed. A scripted marker exchange may test routing but MUST NOT be presented
 as this clean-dialogue proof. Keep technical correlation and user-visible
 observation as separate evidence.
+
+For a declared notification-and-read adapter, instead record the exact-chat
+notification without message content, the explicit `agent_read` result with
+body and attachment links, the read-based receipt and the resulting reply.
+Report an unloaded chat and first binding separately. This evidence MUST NOT be
+labelled as proof of full-content native delivery or generalized to another
+host version or operating system.
 
 Every report MUST state exact source/package/runtime identity, client/frontend,
 account/permission mode, relevant owner actions, case IDs and outcomes. Use
