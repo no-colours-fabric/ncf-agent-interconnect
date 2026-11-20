@@ -59,6 +59,15 @@ jobs:
           $dir = New-Item -ItemType Directory -Path $env:TEMP -ErrorAction Stop
           $owner = $dir.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier])
           if ($owner.Value -ne $identity.User.Value) { throw 'The native temporary directory has a different owner' }
+          # Start-Process inherits the calling runner's environment. Keep every
+          # cache and user-directory lookup in the standard user's fixture.
+          $env:HOME = Join-Path $env:TEMP 'home'
+          $env:USERPROFILE = $env:HOME
+          $env:LOCALAPPDATA = Join-Path $env:HOME 'AppData/Local'
+          $env:APPDATA = Join-Path $env:HOME 'AppData/Roaming'
+          $env:ELECTRON_BUILDER_CACHE = Join-Path $env:LOCALAPPDATA 'electron-builder'
+          $env:ELECTRON_CACHE = Join-Path $env:LOCALAPPDATA 'electron'
+          $null = New-Item -ItemType Directory -Path $env:LOCALAPPDATA,$env:APPDATA -Force
           $env:PATH = (Split-Path $Node) + ';' + $env:PATH
           $env:npm_config_cache = Join-Path $env:TEMP 'npm'
           $env:GIT_CONFIG_COUNT = '1'
