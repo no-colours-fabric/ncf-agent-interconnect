@@ -29,7 +29,15 @@ created after the update.
   history, exact-chat confirmation with wrong-chat and replay rejection, a
   first bind for a free name after Apply, and wake, read and receipt. It does
   not establish compatibility with other builds.
-- The published release records the installer platform set and the completed
-  native package checks separately from this isolated Codex protocol check.
+- An installed Apple Silicon build also passed a live two-way NCF exchange in
+  two previously bound macOS Codex Desktop chats. Both received the native
+  notice, read the message and recorded receipt. This covers the tested desktop
+  build only. Live Codex delivery on Windows was not tested.
+- The Apple Silicon DMG was installed and exercised on macOS. The Intel DMG
+  layout and architecture were verified without Intel hardware. The Windows
+  x64 installer passed the packaged runtime verifier, installation and installed
+  application smoke on a hosted Windows runner. The macOS packages are ad-hoc
+  signed and not notarized. The Windows installer is unsigned. There is no
+  new Linux installer.
 - A notification, an MCP receipt and completion of the agent's task are
   distinct states.

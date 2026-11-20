@@ -1,8 +1,6 @@
 name: Windows release package (fallback)
 
 on:
-  push:
-    branches: [codex/windows-release]
   workflow_dispatch:
 
 permissions:
@@ -22,8 +20,71 @@ jobs:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Build installer and verify packaged runtime
-        run: npm run build:release -- --win --x64 --skip-source-checks
+      - run: npm run prepare:runtime
+      - name: Build installer and verify as a standard Windows user
+        shell: pwsh
+        run: |
+          $workspace = (Resolve-Path -LiteralPath $env:GITHUB_WORKSPACE).Path
+          $node = (Get-Command node.exe -ErrorAction Stop).Source
+          $npm = (Resolve-Path -LiteralPath (Join-Path (Split-Path $node) 'node_modules/npm/bin/npm-cli.js')).Path
+          $windowsPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          $fixture = Join-Path $workspace '.local/windows-hosted-fixture'
+          $null = New-Item -ItemType Directory -Path $fixture -Force
+          $qaName = "ncfqa-$env:GITHUB_RUN_ID"
+          $secret = ConvertTo-SecureString ("A9!" + [Guid]::NewGuid().ToString('N')) -AsPlainText -Force
+          $account = "$env:COMPUTERNAME\$qaName"
+          $qa = New-LocalUser -Name $qaName -Password $secret -ErrorAction Stop
+          try {
+            $users = Get-LocalGroup -SID 'S-1-5-32-545'
+            if (!(Get-LocalGroupMember -Group $users.Name | Where-Object SID -eq $qa.SID)) {
+              Add-LocalGroupMember -Group $users.Name -Member $account -ErrorAction Stop
+            }
+            icacls.exe $workspace /grant "$($account):(OI)(CI)M"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not grant the disposable runner account access to the checkout' }
+            $script = Join-Path $fixture 'build.ps1'
+            Set-Content -LiteralPath $script -Encoding utf8 -Value @'
+          param([string]$Workspace, [string]$Node, [string]$Npm)
+          $ErrorActionPreference = 'Stop'
+          Set-Location -LiteralPath $Workspace
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+          $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+          if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw 'The packaging token must be a standard user'
+          }
+          $env:TEMP = Join-Path $Workspace '.local/windows-hosted-fixture/native-tmp'
+          $env:TMP = $env:TEMP
+          $dir = New-Item -ItemType Directory -Path $env:TEMP -ErrorAction Stop
+          $owner = $dir.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier])
+          if ($owner.Value -ne $identity.User.Value) { throw 'The native temporary directory has a different owner' }
+          # Start-Process inherits the calling runner's environment. Keep every
+          # cache and user-directory lookup in the standard user's fixture.
+          $env:HOME = Join-Path $env:TEMP 'home'
+          $env:USERPROFILE = $env:HOME
+          $env:LOCALAPPDATA = Join-Path $env:HOME 'AppData/Local'
+          $env:APPDATA = Join-Path $env:HOME 'AppData/Roaming'
+          $env:ELECTRON_BUILDER_CACHE = Join-Path $env:LOCALAPPDATA 'electron-builder'
+          $env:ELECTRON_CACHE = Join-Path $env:LOCALAPPDATA 'electron'
+          $null = New-Item -ItemType Directory -Path $env:LOCALAPPDATA,$env:APPDATA -Force
+          $env:PATH = (Split-Path $Node) + ';' + $env:PATH
+          $env:npm_config_cache = Join-Path $env:TEMP 'npm'
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $Workspace
+          Write-Output 'standardUser=true; temporaryOwnerMatches=true'
+          & $Node $Npm run build:release -- --win --x64 --skip-source-checks
+          exit $LASTEXITCODE
+          '@
+            $arguments = '-NoLogo -NoProfile -NonInteractive -File "{0}" -Workspace "{1}" -Node "{2}" -Npm "{3}"' -f $script, $workspace, $node, $npm
+            $credential = [Management.Automation.PSCredential]::new($account, $secret)
+            $stdout = Join-Path $fixture 'build.stdout'
+            $stderr = Join-Path $fixture 'build.stderr'
+            $process = Start-Process -FilePath $windowsPowerShell -Credential $credential -LoadUserProfile -WorkingDirectory $workspace -ArgumentList $arguments -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru -Wait
+            Get-Content -LiteralPath $stdout
+            Get-Content -LiteralPath $stderr
+            if ($process.ExitCode -ne 0) { throw "Windows packaging or runtime verification exited with $($process.ExitCode)" }
+          } finally {
+            Remove-LocalUser -SID $qa.SID
+          }
       - name: Install and verify the Windows package
         shell: pwsh
         run: |

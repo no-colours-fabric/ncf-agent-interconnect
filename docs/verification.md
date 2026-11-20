@@ -32,9 +32,11 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 
 ## Platform and client limits
 
-- The published 0.19.0 release provides Apple Silicon and Intel macOS DMGs and
-  a Windows x64 installer. Intel was not run on Intel hardware; 0.19.0 has no
-  new Linux installer. See the published 1.0.0 release for its installer set and native acceptance.
+- NCF Agent Interconnect 1.0.0 provides Apple Silicon and Intel macOS DMGs and
+  a Windows x64 installer. The Apple Silicon package was installed and exercised
+  on a Mac. The Intel package was checked for layout and architecture. The
+  Windows verifier and the installed-app smoke passed on a hosted x64 Windows
+  runner. There is no new Linux installer.
 - OpenCode v1 retains its bundled exact-chat plugin. OpenCode v2 has separate
   setup and source-level checks; live v2 client delivery was not verified for
   0.19.0. Do not infer either version's readiness from installation detection.
@@ -44,8 +46,11 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
   attachment links and records receipt. An isolated bundled Codex
   `0.171.0-alpha.13` check covered retained 0.19 binding/history, one-time
   exact-chat confirmation, wrong-chat and replay rejection, a first bind under
-  a free name after explicit Apply, and wake/read/receipt. Packaged UI, wider
-  macOS compatibility and Windows Codex behavior are not established.
+  a free name after explicit Apply, and wake/read/receipt. An installed 1.0.0
+  Apple Silicon build also passed a two-way exchange through two previously
+  bound macOS Codex Desktop chats, including native notices and read receipts.
+  That exchange covers the tested desktop build; it does not establish wider
+  macOS compatibility or Windows Codex delivery.
 - Cursor has a bundled plugin for open exact chats, including unselected chats.
   AionUi support is limited to Cursor Agent after owner authorization and a
   live bridge. Client and platform results have the narrower scopes recorded
