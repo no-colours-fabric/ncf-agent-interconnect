@@ -16,14 +16,77 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: '958d742176d58376ca2c9da547c1dd29f43d5547'
           persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '24'
           cache: npm
       - run: npm ci
-      - name: Build installer and verify packaged runtime
-        run: npm run build:release -- --win --x64 --skip-source-checks
+      - run: npm run prepare:runtime
+      - name: Build installer and verify as a standard Windows user
+        shell: pwsh
+        run: |
+          $workspace = (Resolve-Path -LiteralPath $env:GITHUB_WORKSPACE).Path
+          $node = (Get-Command node.exe -ErrorAction Stop).Source
+          $npm = (Resolve-Path -LiteralPath (Join-Path (Split-Path $node) 'node_modules/npm/bin/npm-cli.js')).Path
+          $windowsPowerShell = Join-Path $env:SystemRoot 'System32/WindowsPowerShell/v1.0/powershell.exe'
+          $fixture = Join-Path $workspace '.local/windows-hosted-fixture'
+          $null = New-Item -ItemType Directory -Path $fixture -Force
+          $qaName = "ncfqa-$env:GITHUB_RUN_ID"
+          $secret = ConvertTo-SecureString ("A9!" + [Guid]::NewGuid().ToString('N')) -AsPlainText -Force
+          $account = "$env:COMPUTERNAME\$qaName"
+          $qa = New-LocalUser -Name $qaName -Password $secret -ErrorAction Stop
+          try {
+            $users = Get-LocalGroup -SID 'S-1-5-32-545'
+            if (!(Get-LocalGroupMember -Group $users.Name | Where-Object SID -eq $qa.SID)) {
+              Add-LocalGroupMember -Group $users.Name -Member $account -ErrorAction Stop
+            }
+            icacls.exe $workspace /grant "$($account):(OI)(CI)M"
+            if ($LASTEXITCODE -ne 0) { throw 'Could not grant the disposable runner account access to the checkout' }
+            $script = Join-Path $fixture 'build.ps1'
+            Set-Content -LiteralPath $script -Encoding utf8 -Value @'
+          param([string]$Workspace, [string]$Node, [string]$Npm)
+          $ErrorActionPreference = 'Stop'
+          Set-Location -LiteralPath $Workspace
+          $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+          $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+          if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            throw 'The packaging token must be a standard user'
+          }
+          $env:TEMP = Join-Path $Workspace '.local/windows-hosted-fixture/native-tmp'
+          $env:TMP = $env:TEMP
+          $dir = New-Item -ItemType Directory -Path $env:TEMP -ErrorAction Stop
+          $owner = $dir.GetAccessControl([Security.AccessControl.AccessControlSections]::Owner).GetOwner([Security.Principal.SecurityIdentifier])
+          if ($owner.Value -ne $identity.User.Value) { throw 'The native temporary directory has a different owner' }
+          $env:PATH = (Split-Path $Node) + ';' + $env:PATH
+          $env:npm_config_cache = Join-Path $env:TEMP 'npm'
+          $env:GIT_CONFIG_COUNT = '1'
+          $env:GIT_CONFIG_KEY_0 = 'safe.directory'
+          $env:GIT_CONFIG_VALUE_0 = $Workspace
+          Write-Output 'standardUser=true; temporaryOwnerMatches=true'
+          & $Node $Npm run build:release -- --win --x64 --skip-source-checks
+          exit $LASTEXITCODE
+          '@
+            $arguments = '-NoLogo -NoProfile -NonInteractive -File "{0}" -Workspace "{1}" -Node "{2}" -Npm "{3}"' -f $script, $workspace, $node, $npm
+            $credential = [Management.Automation.PSCredential]::new($account, $secret)
+            $stdout = Join-Path $fixture 'build.stdout'
+            $stderr = Join-Path $fixture 'build.stderr'
+            $process = Start-Process -FilePath $windowsPowerShell -Credential $credential -LoadUserProfile -WorkingDirectory $workspace -ArgumentList $arguments -RedirectStandardOutput $stdout -RedirectStandardError $stderr -PassThru -Wait
+            Get-Content -LiteralPath $stdout
+            Get-Content -LiteralPath $stderr
+            if ($process.ExitCode -ne 0) { throw "Windows packaging or runtime verification exited with $($process.ExitCode)" }
+          } finally {
+            Remove-LocalUser -SID $qa.SID
+          }
+      - name: Retain installer from this exact source
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: windows-x64-installer
+          path: release/NCF-Agent-Interconnect-*-win-x64.exe
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
       - name: Install and verify the Windows package
         shell: pwsh
         run: |
@@ -42,11 +105,3 @@ jobs:
           npm run test:ui
           if ($LASTEXITCODE -ne 0) { throw 'The installed application smoke failed' }
           Get-FileHash -LiteralPath $installer -Algorithm SHA256 | Format-List
-      - name: Retain installer from this exact source
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: windows-x64-installer
-          path: release/NCF-Agent-Interconnect-*-win-x64.exe
-          if-no-files-found: error
-          compression-level: 0
-          retention-days: 7
