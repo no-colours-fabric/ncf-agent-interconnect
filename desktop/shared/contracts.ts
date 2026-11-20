@@ -171,6 +171,7 @@ export interface AdapterProfile {
   password?: string;
   threadId?: string;
   socket?: string;
+  codexQueue?: true;
   workspace?: string;
   instanceId?: string;
   hostPid?: number;

@@ -41,7 +41,8 @@ import type { ResponseInvocation } from './mcp-response-handoff.js';
 import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
-import { discoverCodex, codexEndpoints } from './codex-adapter.js';
+import { discoverCodex, codexEndpoints, CodexDesktopUnavailable } from './codex-adapter.js';
+import { CodexQueueAdapter } from './codex-queue.js';
 import { AionUiSessions } from './aionui-sessions.js';
 import { ClaudeSessions, helperCallSchema, type ClaudeProofLease } from './claude-sessions.js';
 import {
@@ -763,6 +764,9 @@ export class NodeService extends EventEmitter {
           .states()
           .find((value) => value.id === agent.binding!.adapterId);
         const cursor = adapter?.kind === 'cursor-hook';
+        const codexQueue =
+          adapter?.kind === 'codex-desktop' &&
+          this.adapters.get(adapter.id) instanceof CodexQueueAdapter;
         const adapterInstance = cursor ? this.adapters.get(agent.binding.adapterId) : undefined;
         const cursorActive =
           adapterInstance instanceof CursorHookAdapter && adapterInstance.hasActiveWait();
@@ -772,6 +776,7 @@ export class NodeService extends EventEmitter {
         const automatic =
           adapter?.state === 'ready' &&
           adapter.capabilities.wakeIdle &&
+          !codexQueue &&
           (!cursor || cursorActive === true);
         return [
           {
@@ -977,10 +982,40 @@ export class NodeService extends EventEmitter {
         throw new Error(
           'Codex did not provide the current chat context. Automatic binding is not supported by this client version.',
         );
-      const result = await this.connectCodex(
-        { ...input, client: 'Codex' },
-        { threadId: threadId.data },
-      );
+      let result: ConnectResult;
+      try {
+        result = await this.connectCodex(
+          { ...input, client: 'Codex' },
+          { threadId: threadId.data },
+        );
+      } catch (error) {
+        // The local store can confirm a saved destination. Only its existing
+        // binding credential authorizes the caller to recover that mailbox.
+        if (
+          !(error instanceof CodexDesktopUnavailable) ||
+          process.platform !== 'darwin' ||
+          !input.connectionId ||
+          input.transferId ||
+          input.confirmTransfer ||
+          input.resetHistory
+        )
+          throw error;
+        const owner = this.store.assertOwner(input.connectionId);
+        const saved = owner.binding;
+        const profile = this.settings.value.adapters.find((a) => a.id === saved.adapterId);
+        if (
+          owner.key !== nicknameKey(input.nickname) ||
+          saved.client !== 'Codex' ||
+          saved.chatId !== threadId.data ||
+          profile?.kind !== 'codex-desktop' ||
+          profile.threadId !== saved.chatId ||
+          !profile.socket ||
+          (!profile.codexQueue &&
+            this.adapters.get(profile.id).status().error !== 'Codex IPC: ECONNREFUSED')
+        )
+          throw error;
+        return this.reconnectCodexQueue(input.nickname, saved.connectionId, profile);
+      }
       return {
         ...result,
         delivery: {
@@ -1261,10 +1296,12 @@ export class NodeService extends EventEmitter {
         await this.settings.save();
         await this.adapters.add(profile);
       } else if (
+        profile.codexQueue ||
         profile.socket !== socket ||
         this.adapters.get(profile.id).status().state !== 'ready'
       ) {
         profile.socket = socket;
+        delete profile.codexQueue;
         await this.settings.save();
         await this.adapters.add(profile);
       }
@@ -1286,6 +1323,74 @@ export class NodeService extends EventEmitter {
         : undefined);
     return this.connect({ ...args, connectionId, chatId: validated.threadId, adapterId });
   }
+  private async reconnectCodexQueue(
+    nickname: string,
+    connectionId: string,
+    profile: AdapterProfile,
+  ) {
+    const setup = this.adapterSetup.then(async () => {
+      const index = this.settings.value.adapters.findIndex((a) => a.id === profile.id);
+      const saved = this.settings.value.adapters[index];
+      if (!saved || saved.socket !== profile.socket || saved.threadId !== profile.threadId)
+        throw new Error('The saved Codex profile changed');
+      const assertSameBinding = () => {
+        const owner = this.store.assertOwner(connectionId);
+        if (
+          owner.key !== nicknameKey(nickname) ||
+          owner.binding.adapterId !== saved.id ||
+          owner.binding.chatId !== saved.threadId ||
+          owner.binding.client !== 'Codex'
+        )
+          throw new Error('The connection belongs to another Codex chat');
+      };
+      assertSameBinding();
+      const updated = { ...saved, codexQueue: true as const };
+      if (!saved.codexQueue) {
+        const probe = new CodexQueueAdapter(updated, () => {});
+        try {
+          await probe.start();
+          if (probe.status().state !== 'ready') throw new Error(probe.status().error!);
+        } finally {
+          await probe.stop();
+        }
+        assertSameBinding();
+        this.settings.value.adapters[index] = updated;
+        try {
+          await this.settings.save();
+        } catch (error) {
+          this.settings.value.adapters[index] = saved;
+          throw error;
+        }
+      }
+      const adapter = this.adapters.get(saved.id);
+      if (!(adapter instanceof CodexQueueAdapter) || adapter.status().state !== 'ready')
+        await this.adapters.add(updated);
+      const status = this.adapters.get(saved.id).status();
+      if (status.state !== 'ready') throw new Error(status.error!);
+      assertSameBinding();
+      const result = this.connect({
+        nickname,
+        connectionId,
+        chatId: saved.threadId,
+        adapterId: saved.id,
+        client: 'Codex',
+      });
+      return {
+        ...result,
+        delivery: {
+          automatic: false,
+          description:
+            'Codex can queue a wake notification for this saved chat. Use agent_read with this connection to receive the message body and attachments.',
+        },
+      };
+    });
+    this.adapterSetup = setup.then(
+      () => {},
+      () => {},
+    );
+    return setup;
+  }
+
   /**
    * A fenced incoming message (held by an active or uncertain Claude Code
    * delivery) appears in history without its content, so no path repeats it.
@@ -2118,7 +2223,8 @@ export class NodeService extends EventEmitter {
       if (this.dispatching.has(key) || !adapter.status().capabilities.wakeIdle) continue;
       this.dispatching.add(key);
       const job = (async () => {
-        this.store.systemDispatch(event.id, adapter.wakeOnly ? 'offering' : 'dispatching');
+        const replaySafe = adapter.wakeOnly && !(adapter instanceof CodexQueueAdapter);
+        this.store.systemDispatch(event.id, replaySafe ? 'offering' : 'dispatching');
         try {
           const result = await adapter.deliver({
             nickname: event.nickname,
@@ -2130,7 +2236,7 @@ export class NodeService extends EventEmitter {
         } catch (e) {
           this.store.systemDispatch(
             event.id,
-            adapter.wakeOnly ? 'failed' : 'uncertain',
+            replaySafe ? 'failed' : 'uncertain',
             (e as Error).message,
           );
         } finally {

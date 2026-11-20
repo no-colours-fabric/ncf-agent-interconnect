@@ -34,6 +34,14 @@ export function codexEndpoint(explicit?: string): string {
   return sockets[0] ?? path.join(os.homedir(), '.codex', 'ipc', 'ipc.sock');
 }
 
+export class CodexDesktopUnavailable extends Error {
+  constructor() {
+    super(
+      'The current chat is unavailable through the Codex Desktop integration. Messages are saved; this client version has not confirmed chat delivery.',
+    );
+  }
+}
+
 export async function discoverCodex(
   threadId: string,
   endpoints = codexEndpoints(),
@@ -58,11 +66,10 @@ export async function discoverCodex(
     }),
   );
   const owners = results.filter((value): value is string => !!value);
+  if (!owners.length) throw new CodexDesktopUnavailable();
   if (owners.length !== 1)
     throw new Error(
-      owners.length
-        ? 'Multiple Codex instances claimed the same chat. Automatic routing is ambiguous.'
-        : 'The current chat is unavailable through the Codex Desktop integration. Messages are saved; this client version has not confirmed chat delivery.',
+      'Multiple Codex instances claimed the same chat. Automatic routing is ambiguous.',
     );
   return owners[0];
 }

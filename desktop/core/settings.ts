@@ -27,6 +27,7 @@ export const adapterSchema = z
     password: z.string().max(2000).optional(),
     threadId: z.uuid().optional(),
     socket: z.string().min(1).max(2000).optional(),
+    codexQueue: z.literal(true).optional(),
     workspace: z.string().max(4000).optional(),
     instanceId: z.uuid().optional(),
     hostPid: z.number().int().positive().optional(),
@@ -62,6 +63,12 @@ export const adapterSchema = z
         code: 'custom',
         message: 'The Codex integration did not provide the current chat',
         path: ['threadId'],
+      });
+    if (profile.codexQueue && (profile.kind !== 'codex-desktop' || !profile.socket))
+      ctx.addIssue({
+        code: 'custom',
+        message: 'The Codex queue must use the saved chat profile',
+        path: ['socket'],
       });
     if (profile.kind === 'cursor-hook' && !profile.sessionId)
       ctx.addIssue({

@@ -13,6 +13,7 @@ import {
   codexExchange,
 } from '../desktop/core/codex-adapter.js';
 import { AdapterRegistry, type EventInput } from '../desktop/core/adapters.js';
+import { CodexQueueAdapter } from '../desktop/core/codex-queue.js';
 import { NodeService } from '../desktop/core/service.js';
 import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
@@ -780,6 +781,93 @@ test('Codex MCP metadata automatically selects the exact chat and profile among 
   assert.equal(metadataMissing.isError, true);
   assert.match(JSON.stringify(metadataMissing), /current chat context/);
 });
+
+test(
+  'Codex queue recovery preserves the exact binding and receipts come from agent_read',
+  { skip: process.platform !== 'darwin' },
+  async (t) => {
+    const f = await fixture(t);
+    const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-queue-node-'));
+    const service = new NodeService(directory, { codexSockets: () => [f.profile.socket!] });
+    await service.open();
+    const client = new Client({ name: 'Codex', version: 'test' });
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
+        requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+      }),
+    );
+    t.after(async () => {
+      await client.close();
+      await service.close();
+      await rm(directory, { recursive: true, force: true });
+    });
+    const threadId = f.profile.threadId!;
+    const receiver = await service.connectCodex(
+      { nickname: 'Recipient', client: 'Codex' },
+      { threadId, socket: f.profile.socket },
+    );
+    const sender = service.connect({ nickname: 'Sender', client: 'MCP' });
+    if (receiver.status !== 'connected' || sender.status !== 'connected') throw new Error();
+    const binding = receiver.binding;
+    const old = service.adapters.get(binding.adapterId);
+    const oldStatus = old.status();
+    f.state.discoveryResult = 'error';
+    t.mock.method(old, 'status', () => ({
+      ...oldStatus,
+      state: 'error',
+      error: 'Codex IPC: ECONNREFUSED',
+    }));
+    const start = t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {});
+    t.mock.method(CodexQueueAdapter.prototype, 'status', function (this: CodexQueueAdapter) {
+      return { ...oldStatus, id: this.profile.id };
+    });
+    const offer = t.mock.method(CodexQueueAdapter.prototype, 'deliver', async () => ({
+      state: 'offered',
+    }));
+    const connect = (id: string, connectionId?: string) =>
+      client.callTool({
+        name: 'agent_connect',
+        arguments: { nickname: 'Recipient', ...(connectionId ? { connectionId } : {}) },
+        _meta: { threadId: id },
+      });
+    assert.equal((await connect(threadId)).isError, true);
+    assert.equal((await connect(threadId, randomUUID())).isError, true);
+    assert.equal((await connect(randomUUID(), binding.connectionId)).isError, true);
+    assert.equal(start.mock.callCount(), 0);
+    const result = await connect(threadId, binding.connectionId);
+    assert.equal(result.isError, undefined);
+    const recovered =
+      result.structuredContent as unknown as import('../desktop/core/agent-store.js').ConnectResult;
+    if (recovered.status !== 'connected')
+      throw new Error('The saved Codex binding was not recovered');
+    assert.deepEqual(recovered.binding, binding);
+    assert.equal(
+      service.settings.value.adapters.find((a) => a.id === binding.adapterId)?.codexQueue,
+      true,
+    );
+    const message = await service.send({
+      connectionId: sender.binding.connectionId,
+      recipientNode: service.settings.value.nodeId,
+      recipientNickname: 'Recipient',
+      text: 'NCF delivers the original message.',
+    });
+    const deadline = Date.now() + 2000;
+    while (service.store.dispatchState(message.id)?.state !== 'offered') {
+      if (Date.now() > deadline) throw new Error('Codex wake offer was not recorded');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(offer.mock.callCount(), 1);
+    assert.equal(service.store.get(message.id, 'out')?.state, 'ready');
+    const incoming = await client.callTool({
+      name: 'agent_read',
+      arguments: { connectionId: binding.connectionId },
+      _meta: { threadId },
+    });
+    assert.equal(incoming.isError, undefined);
+    assert.match(JSON.stringify(incoming.structuredContent), /NCF delivers the original message/);
+    assert.equal(service.store.get(message.id, 'out')?.state, 'processed');
+  },
+);
 
 test('Codex records a last-verified observation on success and keeps it as history after a later failure', async (t) => {
   const f = await fixture(t),

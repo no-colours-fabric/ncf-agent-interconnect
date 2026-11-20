@@ -12,6 +12,7 @@ import type { AionUiSessions } from './aionui-sessions.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import type { ClaudeSessions } from './claude-sessions.js';
 import { CodexDesktopAdapter } from './codex-adapter.js';
+import { CodexQueueAdapter } from './codex-queue.js';
 import { OpenCodeV2Adapter, type OpenCodeV2Bridges } from './opencode-v2-adapter.js';
 import type { DeliveryAttempt, DeliveryMetadata } from './delivery-attempt.js';
 
@@ -545,7 +546,9 @@ export class AdapterRegistry extends EventEmitter {
       profile.kind === 'manual'
         ? new ManualAdapter(profile)
         : profile.kind === 'codex-desktop'
-          ? new CodexDesktopAdapter(profile, changed)
+          ? profile.codexQueue
+            ? new CodexQueueAdapter(profile, changed)
+            : new CodexDesktopAdapter(profile, changed)
           : profile.kind === 'cursor-hook'
             ? new CursorHookAdapter(profile, changed, idle)
             : profile.kind === 'aionui'
