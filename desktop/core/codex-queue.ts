@@ -7,12 +7,6 @@ import path from 'node:path';
 import WebSocket from 'ws';
 import type { AdapterProfile, AdapterState } from '../shared/contracts.js';
 import {
-  bundledCodex,
-  codexControlDirectory,
-  codexControlSocket,
-  ncfCodexControlSocket,
-} from '../shared/codex-desktop.js';
-import {
   agentMessageText,
   type Admission,
   type AgentAdapter,
@@ -20,6 +14,12 @@ import {
 } from './adapters.js';
 import { codexQueueWitness, contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 
+const bundledCodex =
+  '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
+const rolloutId = '[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}';
+const rolloutFilename = new RegExp(
+  '^rollout-.+-(' + rolloutId + ')(?:_' + rolloutId + ')?\\.jsonl$',
+);
 const maximumFrameBytes = 2 * 1024 * 1024;
 const operationTimeout = 8000;
 const projectionPageSize = 4;
@@ -134,6 +134,10 @@ export async function codexQueueHome(socket: string | undefined): Promise<string
   return home;
 }
 
+export function codexTranscriptMatchesThread(filename: string, threadId: string): boolean {
+  return rolloutFilename.exec(filename)?.[1] === threadId;
+}
+
 async function codexTranscript(
   profile: AdapterProfile,
   threadId: string,
@@ -145,7 +149,7 @@ async function codexTranscript(
   const [scope] = path.relative(home, transcript).split(path.sep);
   if (
     (scope !== 'sessions' && scope !== 'archived_sessions') ||
-    !path.basename(transcript).endsWith('-' + threadId + '.jsonl') ||
+    !codexTranscriptMatchesThread(path.basename(transcript), threadId) ||
     (await realpath(transcript)) !== transcript
   )
     throw new Error('Codex returned a transcript outside the saved profile');
@@ -222,15 +226,8 @@ const appServerSession: QueueSession = async (profile, stopped, operation) => {
 const sharedAppServerSession: QueueSession = async (profile, stopped, operation) => {
   const home = await codexQueueHome(profile.socket);
   const uid = process.getuid!();
-  const directory = path.join(home, codexControlDirectory);
-  const bridgedSocket = path.join(directory, ncfCodexControlSocket);
-  const socketPath = await lstat(bridgedSocket).then(
-    () => bridgedSocket,
-    (error: NodeJS.ErrnoException) => {
-      if (error.code !== 'ENOENT') throw error;
-      return path.join(directory, codexControlSocket);
-    },
-  );
+  const directory = path.join(home, 'app-server-control');
+  const socketPath = path.join(directory, 'app-server-control.sock');
   const directoryInfo = await lstat(directory);
   if (
     !directoryInfo.isDirectory() ||
