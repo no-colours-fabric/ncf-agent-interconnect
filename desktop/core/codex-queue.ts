@@ -170,15 +170,23 @@ async function codexTranscript(
   const home = await codexQueueHome(profile.socket);
   if (typeof transcript !== 'string' || !path.isAbsolute(transcript))
     throw new Error('Codex did not expose the saved chat transcript');
-  const [scope] = path.relative(home, transcript).split(path.sep);
-  const canonical = await realpath(transcript);
+  const transcriptPath =
+    process.platform === 'win32' &&
+    transcript.startsWith('\\\\?\\') &&
+    /^[a-z]:\\/i.test(transcript.slice(4))
+      ? transcript.slice(4)
+      : transcript;
+  const [scope] = path.relative(home, transcriptPath).split(path.sep);
+  const canonical = await realpath(transcriptPath);
   if (
     (scope !== 'sessions' && scope !== 'archived_sessions') ||
-    !codexTranscriptMatchesThread(path.basename(transcript), threadId) ||
-    (process.platform === 'win32' ? path.relative(canonical, transcript) : canonical !== transcript)
+    !codexTranscriptMatchesThread(path.basename(transcriptPath), threadId) ||
+    (process.platform === 'win32'
+      ? path.relative(canonical, transcriptPath)
+      : canonical !== transcriptPath)
   )
     throw new Error('Codex returned a transcript outside the saved profile');
-  const stat = await lstat(transcript);
+  const stat = await lstat(transcriptPath);
   if (
     !stat.isFile() ||
     (process.platform === 'win32'
@@ -186,7 +194,7 @@ async function codexTranscript(
       : stat.uid !== process.getuid!() || (stat.mode & 0o022) !== 0)
   )
     throw new Error('The saved Codex transcript failed its ownership check');
-  return transcript;
+  return transcriptPath;
 }
 
 const appServerSession: QueueSession = async (profile, stopped, operation) => {

@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
+import { link, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
@@ -36,6 +36,77 @@ test(
       await assert.rejects(codexQueueHome(codexQueueLocator(directory)));
     await assert.rejects(codexQueueHome('\\\\.\\pipe\\codex-ipc'));
     await assert.rejects(codexQueueHome(path.join(home, 'app-server-control', 'other.sock')));
+  },
+);
+
+test(
+  'Windows transcript verification accepts only a verbatim spelling of the exact canonical local file',
+  { skip: process.platform !== 'win32' },
+  async (t) => {
+    const directory = await mkdtemp(path.join(tmpdir(), 'ncf-win-transcript-'));
+    const outside = await mkdtemp(path.join(tmpdir(), 'ncf-win-transcript-outside-'));
+    t.after(async () => {
+      await rm(directory, { recursive: true, force: true });
+      await rm(outside, { recursive: true, force: true });
+    });
+    const home = await realpath(directory);
+    const sessions = path.join(home, 'sessions');
+    await mkdir(sessions);
+    const threadId = randomUUID();
+    const filename = 'rollout-2026-11-22T00-00-00-' + threadId + '.jsonl';
+    const transcript = path.join(sessions, filename);
+    await writeFile(transcript, '');
+    const profile: AdapterProfile = {
+      id: randomUUID(),
+      kind: 'codex-desktop',
+      label: 'Codex',
+      codexQueue: true,
+      socket: codexQueueLocator(home),
+      threadId,
+    };
+    async function stateFor(returnedPath: string) {
+      const adapter = new CodexQueueAdapter(
+        profile,
+        () => {},
+        undefined,
+        undefined,
+        async (_profile, _signal, operation) =>
+          operation(async (method) => {
+            if (method === 'thread/read')
+              return {
+                thread: {
+                  id: threadId,
+                  ephemeral: false,
+                  path: returnedPath,
+                  status: { type: 'idle' },
+                },
+              };
+            if (method === 'thread/queue/list' || method === 'thread/items/list')
+              return { data: [] };
+            throw new Error('Unexpected synthetic operation');
+          }),
+      );
+      try {
+        await adapter.start();
+        return adapter.status().state;
+      } finally {
+        await adapter.stop();
+      }
+    }
+    assert.equal(await stateFor(transcript), 'ready');
+    assert.equal(await stateFor(path.toNamespacedPath(transcript)), 'ready');
+    const external = path.join(await realpath(outside), filename);
+    await writeFile(external, '');
+    assert.equal(await stateFor(path.toNamespacedPath(external)), 'error');
+    const wrongThread = path.join(
+      sessions,
+      'rollout-2026-11-22T00-00-00-' + randomUUID() + '.jsonl',
+    );
+    await writeFile(wrongThread, '');
+    assert.equal(await stateFor(path.toNamespacedPath(wrongThread)), 'error');
+    assert.equal(await stateFor('\\\\?\\GLOBALROOT\\Device\\' + filename), 'error');
+    await link(transcript, path.join(sessions, 'second-link.jsonl'));
+    assert.equal(await stateFor(path.toNamespacedPath(transcript)), 'error');
   },
 );
 
@@ -153,7 +224,8 @@ async function fixture(t: TestContext, shared = false) {
       assert.equal(value, transcript);
       return transcript;
     },
-    shared ? session : undefined,
+    // Both loaded and unloaded chats use the synthetic server on every platform.
+    session,
   );
   t.after(async () => {
     await adapter.stop();
