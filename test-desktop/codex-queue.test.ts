@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
@@ -26,11 +26,14 @@ test(
     skip: process.platform !== 'win32',
   },
   async (t) => {
-    const home = await mkdtemp(path.join(tmpdir(), 'ncf-win-codex-home-'));
-    t.after(() => rm(home, { recursive: true, force: true }));
+    const directory = await mkdtemp(path.join(tmpdir(), 'ncf-win-codex-home-'));
+    t.after(() => rm(directory, { recursive: true, force: true }));
+    const home = await realpath(directory);
     const locator = codexQueueLocator(home);
     assert.equal(locator, path.join(home, 'app-server-control', 'app-server-control.sock'));
     assert.equal(path.relative(await codexQueueHome(locator), home), '');
+    if (path.relative(home, directory))
+      await assert.rejects(codexQueueHome(codexQueueLocator(directory)));
     await assert.rejects(codexQueueHome('\\\\.\\pipe\\codex-ipc'));
     await assert.rejects(codexQueueHome(path.join(home, 'app-server-control', 'other.sock')));
   },
