@@ -1,4 +1,6 @@
 import { mkdir, writeFile, copyFile } from 'node:fs/promises';
+import { execFileSync } from 'node:child_process';
+import path from 'node:path';
 import { deflateSync } from 'node:zlib';
 const table = Array.from({ length: 256 }, (_, i) => {
   let n = i;
@@ -68,5 +70,26 @@ await copyFile('desktop/assets/app-icon.icns', 'build/assets/icon.icns');
 await copyFile('desktop/assets/app-icon.ico', 'build/assets/icon.ico');
 await writeFile('build/assets/trayTemplate.png', image(22, true));
 await writeFile('build/assets/trayTemplate@2x.png', image(44, true));
+if (process.platform === 'win32') {
+  const csc = path.join(
+    process.env.SystemRoot ?? 'C:\\Windows',
+    'Microsoft.NET',
+    'Framework64',
+    'v4.0.30319',
+    'csc.exe',
+  );
+  execFileSync(
+    csc,
+    [
+      '/nologo',
+      '/optimize+',
+      '/target:exe',
+      process.arch === 'x64' ? '/platform:x64' : '/platform:anycpu',
+      '/out:build/assets/codex-win-socket.exe',
+      'desktop/integrations/codex-win-socket.cs',
+    ],
+    { stdio: 'inherit', windowsHide: true },
+  );
+}
 await mkdir('release', { recursive: true });
 await copyFile('distribution/README.md', 'release/README.md');

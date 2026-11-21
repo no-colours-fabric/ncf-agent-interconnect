@@ -8,6 +8,8 @@ import { setTimeout as delay } from 'node:timers/promises';
 import {
   CodexQueueAdapter,
   CodexRpcRejection,
+  codexQueueHome,
+  codexQueueLocator,
   codexTranscriptMatchesThread,
 } from '../desktop/core/codex-queue.js';
 import type { EventInput } from '../desktop/core/adapters.js';
@@ -17,6 +19,22 @@ import {
   type DeliveryAttempt,
 } from '../desktop/core/delivery-attempt.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
+
+test(
+  'Windows queue discovery binds only a canonical local profile and never stats its socket',
+  {
+    skip: process.platform !== 'win32',
+  },
+  async (t) => {
+    const home = await mkdtemp(path.join(tmpdir(), 'ncf-win-codex-home-'));
+    t.after(() => rm(home, { recursive: true, force: true }));
+    const locator = codexQueueLocator(home);
+    assert.equal(locator, path.join(home, 'app-server-control', 'app-server-control.sock'));
+    assert.equal(path.relative(await codexQueueHome(locator), home), '');
+    await assert.rejects(codexQueueHome('\\\\.\\pipe\\codex-ipc'));
+    await assert.rejects(codexQueueHome(path.join(home, 'app-server-control', 'other.sock')));
+  },
+);
 
 async function fixture(t: TestContext, shared = false) {
   const directory = await mkdtemp(path.join(tmpdir(), 'ncf-codex-projection-'));
@@ -75,7 +93,12 @@ async function fixture(t: TestContext, shared = false) {
   };
   const queued: object[] = [];
   const steered: object[] = [];
+  const started: object[] = [];
+  const queuedId = randomUUID();
   const activeTurn = randomUUID();
+  let threadState = shared ? 'active' : 'notLoaded';
+  let latestTurn = { id: activeTurn, status: 'inProgress' };
+  let queueStartError: CodexRpcRejection | undefined;
   let projection: object[] = [];
   let validThread = true;
   let matchingAck = true;
@@ -93,24 +116,28 @@ async function fixture(t: TestContext, shared = false) {
             id: validThread ? threadId : randomUUID(),
             ephemeral: false,
             path: transcript,
-            status: { type: shared ? 'active' : 'notLoaded' },
+            status: { type: threadState },
           },
         };
       if (method === 'thread/queue/list') return { data: [] };
       if (method === 'thread/items/list') return { data: projection };
-      if (method === 'thread/turns/list')
-        return { data: [{ id: activeTurn, status: 'inProgress' }] };
+      if (method === 'thread/turns/list') return { data: [latestTurn] };
       assert.equal(attempt.meta.phase, 'issued');
       if (method === 'turn/steer') {
         steered.push(params);
         if (expiredTurn) throw new CodexRpcRejection(-32600, 'no active turn to steer');
         return { turnId: matchingAck ? activeTurn : randomUUID() };
       }
+      if (method === 'thread/queue/start') {
+        started.push(params);
+        if (queueStartError) throw queueStartError;
+        return { turn: { id: randomUUID(), status: 'inProgress' } };
+      }
       assert.equal(method, 'thread/queue/add');
       queued.push(params);
       return {
         queuedSubmission: {
-          id: randomUUID(),
+          id: queuedId,
           clientUserMessageId: matchingAck ? attempt.id : randomUUID(),
         },
       };
@@ -149,6 +176,8 @@ async function fixture(t: TestContext, shared = false) {
     attempt,
     queued,
     steered,
+    started,
+    queuedId,
     activeTurn,
     body,
     setProjection,
@@ -157,6 +186,13 @@ async function fixture(t: TestContext, shared = false) {
     },
     expireTurn: () => {
       expiredTurn = true;
+    },
+    interrupt: () => {
+      threadState = 'idle';
+      latestTurn = { id: activeTurn, status: 'interrupted' };
+    },
+    rejectQueueStart: (reason: string) => {
+      queueStartError = new CodexRpcRejection(-32600, reason);
     },
     loseAck: () => {
       matchingAck = false;
@@ -204,6 +240,28 @@ test('queues the full Codex Incoming and admits only the persisted exact client 
   );
   assert.equal((await adapter.deliver({ ...input, isCurrent: () => false })).state, 'revoked');
   assert.equal(queued.length, 1);
+});
+
+test('commits a queued Codex message manually steered with one trailing line feed', async (t) => {
+  const { adapter, input, attempt, body, setProjection } = await fixture(t);
+  await adapter.start();
+  assert.deepEqual(await adapter.deliver(input), { state: 'queued' });
+  let receipts = 0;
+  adapter.observeDelivery(
+    attempt,
+    () => true,
+    () => receipts++,
+  );
+  await setProjection(randomUUID(), body + '\n');
+  await delay(250);
+  assert.equal(receipts, 0);
+  await setProjection(attempt.id, body + '\n\n');
+  await delay(250);
+  assert.equal(receipts, 0);
+  await setProjection(attempt.id, body + '\n');
+  const deadline = Date.now() + 3000;
+  while (!receipts && Date.now() < deadline) await delay(25);
+  assert.equal(receipts, 1);
 });
 
 test('an ambiguous queue submission retains the exact projection witness and never retries', async (t) => {
@@ -265,6 +323,59 @@ test('a mismatched active-turn response cannot duplicate a possible release into
   assert.equal((await adapter.deliver(input)).state, 'uncertain');
   assert.equal(steered.length, 1);
   assert.deepEqual(queued, []);
+});
+
+test('starts only the new full Incoming after an explicit interruption on the owning App Server', async (t) => {
+  const {
+    adapter,
+    input,
+    attempt,
+    body,
+    queued,
+    steered,
+    started,
+    queuedId,
+    interrupt,
+    setProjection,
+  } = await fixture(t, true);
+  interrupt();
+  await adapter.start();
+  assert.deepEqual(await adapter.deliver(input), { state: 'queued' });
+  assert.deepEqual(started, [{ threadId: input.binding.chatId, queuedSubmissionId: queuedId }]);
+  assert.equal(steered.length, 0);
+  assert.equal(queued.length, 1);
+  let receipts = 0;
+  adapter.observeDelivery(
+    attempt,
+    () => true,
+    () => receipts++,
+  );
+  await delay(250);
+  assert.equal(receipts, 0);
+  await setProjection(attempt.id, body);
+  const deadline = Date.now() + 3000;
+  while (!receipts && Date.now() < deadline) await delay(25);
+  assert.equal(receipts, 1);
+});
+
+test('leaves one queued Incoming when a concurrent turn prevents its explicit start', async (t) => {
+  const { adapter, input, started, queued, interrupt, rejectQueueStart } = await fixture(t, true);
+  interrupt();
+  rejectQueueStart('thread already has an active or pending turn');
+  await adapter.start();
+  assert.deepEqual(await adapter.deliver(input), { state: 'queued' });
+  assert.equal(started.length, 1);
+  assert.equal(queued.length, 1);
+});
+
+test('does not retry an ambiguous explicit Codex queue start', async (t) => {
+  const { adapter, input, started, queued, interrupt, rejectQueueStart } = await fixture(t, true);
+  interrupt();
+  rejectQueueStart('unknown error');
+  await adapter.start();
+  assert.equal((await adapter.deliver(input)).state, 'uncertain');
+  assert.equal(started.length, 1);
+  assert.equal(queued.length, 1);
 });
 
 test('a definite expired-turn rejection queues the same delivery attempt once', async (t) => {

@@ -1,6 +1,7 @@
 import { EventEmitter } from 'node:events';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, lstat, realpath } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
@@ -42,7 +43,7 @@ import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints, CodexDesktopUnavailable } from './codex-adapter.js';
-import { CodexQueueAdapter, codexQueueHome } from './codex-queue.js';
+import { CodexQueueAdapter, codexQueueHome, codexQueueLocator } from './codex-queue.js';
 import { AionUiSessions } from './aionui-sessions.js';
 import { ClaudeSessions, helperCallSchema, type ClaudeProofLease } from './claude-sessions.js';
 import {
@@ -99,6 +100,7 @@ interface CodexRecoveryTarget {
   key: string;
   threadId: string;
   socket: string;
+  previousSocket?: string;
   binding?: Binding;
   epoch: string;
 }
@@ -1047,7 +1049,7 @@ export class NodeService extends EventEmitter {
       } catch (error) {
         if (
           !(error instanceof CodexDesktopUnavailable) ||
-          process.platform !== 'darwin' ||
+          (process.platform !== 'darwin' && process.platform !== 'win32') ||
           input.transferId ||
           input.confirmTransfer ||
           input.resetHistory
@@ -1067,7 +1069,11 @@ export class NodeService extends EventEmitter {
           !(await this.codexQueueCanRecover(profile))
         )
           throw error;
-        return this.reconnectCodexQueue(input.nickname, saved.connectionId, profile);
+        const socket =
+          process.platform === 'win32' && !profile.codexQueue
+            ? await this.configuredCodexQueueSocket()
+            : profile.socket;
+        return this.reconnectCodexQueue(input.nickname, saved.connectionId, profile, socket);
       }
       return {
         ...result,
@@ -1328,7 +1334,12 @@ export class NodeService extends EventEmitter {
           this.integrationOptions.codexSockets?.() ?? [
             ...codexEndpoints(),
             ...this.settings.value.adapters
-              .filter((a) => a.kind === 'codex-desktop' && a.socket)
+              .filter(
+                (a) =>
+                  a.kind === 'codex-desktop' &&
+                  a.socket &&
+                  !(process.platform === 'win32' && a.codexQueue),
+              )
               .map((a) => a.socket!),
           ],
         ));
@@ -1380,6 +1391,7 @@ export class NodeService extends EventEmitter {
     nickname: string,
     connectionId: string,
     profile: AdapterProfile,
+    socket = profile.socket,
   ) {
     const epoch = this.deliveryIncarnation;
     const setup = this.adapterSetup.then(async () => {
@@ -1400,8 +1412,14 @@ export class NodeService extends EventEmitter {
           throw new Error('The connection belongs to another Codex chat');
       };
       assertSameBinding();
-      const updated = { ...saved, codexQueue: true as const };
-      if (!saved.codexQueue) {
+      if (
+        process.platform === 'win32' &&
+        !saved.codexQueue &&
+        socket !== (await this.configuredCodexQueueSocket())
+      )
+        throw new Error('The selected Codex profile changed');
+      const updated = { ...saved, socket, codexQueue: true as const };
+      if (!saved.codexQueue || saved.socket !== socket) {
         const probe = new CodexQueueAdapter(updated, () => {});
         try {
           await probe.start();
@@ -1409,6 +1427,8 @@ export class NodeService extends EventEmitter {
         } finally {
           await probe.stop();
         }
+        if (process.platform === 'win32' && socket !== (await this.configuredCodexQueueSocket()))
+          throw new Error('The selected Codex profile changed');
         assertSameBinding();
         this.settings.value.adapters[index] = updated;
         try {
@@ -1454,6 +1474,7 @@ export class NodeService extends EventEmitter {
   private async codexQueueCanRecover(profile: AdapterProfile): Promise<boolean> {
     if (!profile.socket) return false;
     if (profile.codexQueue) return true;
+    if (process.platform === 'win32') return profile.socket === codexEndpoints()[0];
     if (this.adapters.get(profile.id).status().error === 'Codex IPC: ECONNREFUSED') return true;
     try {
       await lstat(profile.socket);
@@ -1465,18 +1486,22 @@ export class NodeService extends EventEmitter {
 
   private async configuredCodexQueueSocket(): Promise<string> {
     try {
-      const filename = await new McpSetupPaths(this.directory).get('codex');
+      const selected = await new McpSetupPaths(this.directory).get('codex');
+      const filename =
+        selected ??
+        (process.platform === 'win32' ? path.join(homedir(), '.codex', 'config.toml') : undefined);
       if (!filename || path.basename(filename) !== 'config.toml') throw new Error();
-      const socket = path.join(path.dirname(filename), 'ipc', 'ipc.sock');
+      const socket = codexQueueLocator(path.dirname(filename));
       await codexQueueHome(socket);
       const info = await lstat(filename);
+      const canonical = await realpath(filename);
       if (
         !info.isFile() ||
         info.nlink !== 1 ||
-        info.uid !== process.getuid!() ||
-        (info.mode & 0o022) !== 0 ||
         info.size > 1024 * 1024 ||
-        (await realpath(filename)) !== filename
+        (process.platform === 'win32'
+          ? path.relative(canonical, filename)
+          : canonical !== filename || info.uid !== process.getuid!() || (info.mode & 0o022) !== 0)
       )
         throw new Error();
       const configuration = this.clientInstructions('codex').configuration;
@@ -1514,7 +1539,7 @@ export class NodeService extends EventEmitter {
       binding.client !== 'Codex' ||
       profiles.length !== 1 ||
       profiles[0]!.id !== saved.adapterId ||
-      profiles[0]!.socket !== target.socket
+      profiles[0]!.socket !== target.previousSocket
     )
       throw new Error('The saved Codex connection changed');
     return profiles[0]!;
@@ -1541,8 +1566,18 @@ export class NodeService extends EventEmitter {
       throw new Error(
         'The requested name is already bound. Use its original Codex chat or restore the Desktop integration.',
       );
-    const socket = profile?.socket ?? (await this.configuredCodexQueueSocket());
-    const target: CodexRecoveryTarget = { key, threadId, socket, binding, epoch };
+    const socket =
+      profile && (profile.codexQueue || process.platform !== 'win32')
+        ? profile.socket!
+        : await this.configuredCodexQueueSocket();
+    const target: CodexRecoveryTarget = {
+      key,
+      threadId,
+      socket,
+      previousSocket: profile?.socket,
+      binding,
+      epoch,
+    };
     this.assertCodexRecoveryTarget(target);
 
     const now = Date.now();
@@ -1628,7 +1663,12 @@ export class NodeService extends EventEmitter {
     // Consume synchronously before any adapter or profile changes.
     challenge.state = 'used';
     if (target.binding && profile)
-      return this.reconnectCodexQueue(nickname, target.binding.connectionId, profile);
+      return this.reconnectCodexQueue(
+        nickname,
+        target.binding.connectionId,
+        profile,
+        target.socket,
+      );
 
     const setup = this.adapterSetup.then(async () => {
       this.assertCodexRecoveryTarget(target);

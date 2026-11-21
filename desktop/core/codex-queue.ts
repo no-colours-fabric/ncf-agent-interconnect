@@ -4,6 +4,8 @@ import { watch, type FSWatcher } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
 import { createConnection } from 'node:net';
 import path from 'node:path';
+import { Duplex, Readable, Writable } from 'node:stream';
+import { fileURLToPath } from 'node:url';
 import WebSocket from 'ws';
 import type { AdapterProfile, AdapterState } from '../shared/contracts.js';
 import {
@@ -24,6 +26,8 @@ const maximumFrameBytes = 2 * 1024 * 1024;
 const operationTimeout = 8000;
 const projectionPageSize = 4;
 const projectionPageLimit = 32;
+const controlDirectory = 'app-server-control';
+const controlSocket = 'app-server-control.sock';
 
 type Projection = {
   payloadHash: string;
@@ -105,7 +109,27 @@ async function exchange<T>(
   return operation(call);
 }
 
+export function codexQueueLocator(home: string): string {
+  return process.platform === 'win32'
+    ? path.join(home, controlDirectory, controlSocket)
+    : path.join(home, 'ipc', 'ipc.sock');
+}
+
 export async function codexQueueHome(socket: string | undefined): Promise<string> {
+  if (process.platform === 'win32') {
+    if (
+      !socket ||
+      !/^[a-z]:[\\/]/i.test(socket) ||
+      path.basename(socket) !== controlSocket ||
+      path.basename(path.dirname(socket)) !== controlDirectory
+    )
+      throw new Error('The saved Codex binding does not identify a local Windows profile');
+    const home = path.dirname(path.dirname(socket));
+    const canonical = await realpath(home);
+    if (path.relative(canonical, home) || !(await lstat(canonical)).isDirectory())
+      throw new Error('The saved Codex profile is outside its canonical directory');
+    return canonical;
+  }
   if (
     process.platform !== 'darwin' ||
     !socket ||
@@ -147,14 +171,20 @@ async function codexTranscript(
   if (typeof transcript !== 'string' || !path.isAbsolute(transcript))
     throw new Error('Codex did not expose the saved chat transcript');
   const [scope] = path.relative(home, transcript).split(path.sep);
+  const canonical = await realpath(transcript);
   if (
     (scope !== 'sessions' && scope !== 'archived_sessions') ||
     !codexTranscriptMatchesThread(path.basename(transcript), threadId) ||
-    (await realpath(transcript)) !== transcript
+    (process.platform === 'win32' ? path.relative(canonical, transcript) : canonical !== transcript)
   )
     throw new Error('Codex returned a transcript outside the saved profile');
   const stat = await lstat(transcript);
-  if (!stat.isFile() || stat.uid !== process.getuid!() || (stat.mode & 0o022) !== 0)
+  if (
+    !stat.isFile() ||
+    (process.platform === 'win32'
+      ? stat.nlink !== 1
+      : stat.uid !== process.getuid!() || (stat.mode & 0o022) !== 0)
+  )
     throw new Error('The saved Codex transcript failed its ownership check');
   return transcript;
 }
@@ -223,11 +253,10 @@ const appServerSession: QueueSession = async (profile, stopped, operation) => {
   }
 };
 
-const sharedAppServerSession: QueueSession = async (profile, stopped, operation) => {
-  const home = await codexQueueHome(profile.socket);
+async function macControlSocket(home: string) {
   const uid = process.getuid!();
-  const directory = path.join(home, 'app-server-control');
-  const socketPath = path.join(directory, 'app-server-control.sock');
+  const directory = path.join(home, controlDirectory);
+  const socketPath = path.join(directory, controlSocket);
   const directoryInfo = await lstat(directory);
   if (
     !directoryInfo.isDirectory() ||
@@ -253,12 +282,52 @@ const sharedAppServerSession: QueueSession = async (profile, stopped, operation)
   const info = await lstat(endpoint);
   if (alias.uid !== uid || !info.isSocket() || info.uid !== uid || (info.mode & 0o077) !== 0)
     throw new Error('The local Codex control socket failed its ownership check');
+  return endpoint;
+}
 
+function connectWindowsControlSocket(home: string, signal: AbortSignal) {
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const resources = path.join(
+    path.basename(root).endsWith('.asar')
+      ? path.join(path.dirname(root), 'app.asar.unpacked')
+      : root,
+    'build',
+    'assets',
+  );
+  const child = spawn(
+    path.join(resources, 'codex-win-socket.exe'),
+    [path.join(home, controlDirectory, controlSocket)],
+    { windowsHide: true, stdio: ['pipe', 'pipe', 'ignore'], signal },
+  );
+  const stream: Duplex = Object.assign(
+    Duplex.fromWeb({
+      readable: Readable.toWeb(child.stdout, {
+        strategy: {
+          highWaterMark: child.stdout.readableHighWaterMark,
+          size: (chunk: Buffer) => chunk.byteLength,
+        },
+      }),
+      writable: Writable.toWeb(child.stdin),
+    }),
+    {
+      setTimeout: () => stream,
+      setNoDelay: () => stream,
+      setKeepAlive: () => stream,
+    },
+  );
+  child.once('error', () => stream.destroy(new Error('The private Codex socket is unavailable')));
+  return stream as ReturnType<typeof createConnection>;
+}
+
+const sharedAppServerSession: QueueSession = async (profile, stopped, operation) => {
+  const home = await codexQueueHome(profile.socket);
+  const endpoint = process.platform === 'win32' ? undefined : await macControlSocket(home);
   const lifetime = new AbortController();
   const signal = AbortSignal.any([stopped, lifetime.signal, AbortSignal.timeout(operationTimeout)]);
   signal.throwIfAborted();
   const ws = new WebSocket('ws://localhost/rpc', {
-    createConnection: () => createConnection(endpoint),
+    createConnection: () =>
+      endpoint ? createConnection(endpoint) : connectWindowsControlSocket(home, signal),
     maxPayload: maximumFrameBytes,
     handshakeTimeout: 2000,
   });
@@ -291,6 +360,7 @@ const sharedAppServerSession: QueueSession = async (profile, stopped, operation)
     );
   } finally {
     ws.terminate();
+    lifetime.abort();
   }
 };
 
@@ -344,7 +414,7 @@ export class CodexQueueAdapter implements AgentAdapter {
         });
       } catch (error) {
         // Once an operation has started, the server may have accepted content.
-        if (began || signal.aborted) throw error;
+        if (began || signal.aborted || process.platform === 'win32') throw error;
       }
       return this.session(this.profile, signal, (call) => operation(call, false));
     })();
@@ -369,7 +439,7 @@ export class CodexQueueAdapter implements AgentAdapter {
     threadId: string,
     text: string,
     clientUserMessageId: string = randomUUID(),
-  ): Promise<void> {
+  ): Promise<string> {
     const response = await call('thread/queue/add', {
       threadId,
       clientUserMessageId,
@@ -383,6 +453,20 @@ export class CodexQueueAdapter implements AgentAdapter {
       submission.clientUserMessageId !== clientUserMessageId
     )
       throw new Error('Codex did not confirm the queue submission');
+    return submission.id;
+  }
+
+  private async latestTurn(call: QueueCall, threadId: string) {
+    const { data } = await call('thread/turns/list', {
+      threadId,
+      limit: 1,
+      sortDirection: 'desc',
+    });
+    const turn: { id?: unknown; status?: unknown } | undefined = Array.isArray(data)
+      ? data[0]
+      : undefined;
+    if (typeof turn?.id !== 'string' || !turn.id) return;
+    return { id: turn.id, status: turn.status };
   }
 
   async challenge(
@@ -543,7 +627,13 @@ export class CodexQueueAdapter implements AgentAdapter {
     )
       return;
     const projection = this.projections.get(clientId);
-    if (!projection || contentHash(content[0].text) !== projection.payloadHash) return;
+    if (!projection) return;
+    const text = content[0].text;
+    // Desktop can append one line feed when its composer steers a queued message.
+    const matches =
+      contentHash(text) === projection.payloadHash ||
+      (text.endsWith('\n') && contentHash(text.slice(0, -1)) === projection.payloadHash);
+    if (!matches) return;
     if (projection.isCurrent()) projection.admit();
     this.projections.delete(clientId);
   }
@@ -562,17 +652,14 @@ export class CodexQueueAdapter implements AgentAdapter {
       return await this.run(async (call, shared) => {
         const thread = await this.verifyThread(call);
         const threadId = thread.id;
-        let activeTurn: string | undefined;
-        if (shared && thread.state === 'active' && !input.systemEvent) {
-          const { data } = await call('thread/turns/list', {
-            threadId,
-            limit: 1,
-            sortDirection: 'desc',
-          });
-          const turn = Array.isArray(data) ? data[0] : undefined;
-          if (turn?.status === 'inProgress' && typeof turn.id === 'string' && turn.id)
-            activeTurn = turn.id;
-        }
+        const turn =
+          shared && !input.systemEvent && (thread.state === 'active' || thread.state === 'idle')
+            ? await this.latestTurn(call, threadId)
+            : undefined;
+        const activeTurn =
+          thread.state === 'active' && turn?.status === 'inProgress' ? turn.id : undefined;
+        const interruptedTurn =
+          thread.state === 'idle' && turn?.status === 'interrupted' ? turn.id : undefined;
         if (this.controller.signal.aborted || (input.isCurrent && !input.isCurrent()))
           return { state: 'revoked' };
         const text = agentMessageText(input);
@@ -608,7 +695,28 @@ export class CodexQueueAdapter implements AgentAdapter {
               throw error;
           }
         }
-        await this.enqueue(call, threadId, text, messageId);
+        const queuedSubmissionId = await this.enqueue(call, threadId, text, messageId);
+        if (interruptedTurn) {
+          const latest = await this.latestTurn(call, threadId);
+          if (
+            latest?.id === interruptedTurn &&
+            latest.status === 'interrupted' &&
+            !this.controller.signal.aborted &&
+            (!input.isCurrent || input.isCurrent())
+          ) {
+            try {
+              await call('thread/queue/start', { threadId, queuedSubmissionId });
+            } catch (error) {
+              if (
+                !(error instanceof CodexRpcRejection) ||
+                error.code !== -32600 ||
+                (error.reason !== 'thread already has an active or pending turn' &&
+                  error.reason !== `queued submission not found: ${queuedSubmissionId}`)
+              )
+                throw error;
+            }
+          }
+        }
         return { state: 'queued' };
       });
     } catch {

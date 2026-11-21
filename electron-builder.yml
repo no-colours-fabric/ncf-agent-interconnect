@@ -2,6 +2,8 @@ appId: io.github.no-colours-fabric.ncf-agent-interconnect
 productName: NCF Agent Interconnect
 publish: null
 asar: true
+asarUnpack:
+  - build/assets/codex-win-socket.exe
 electronDist: node_modules/electron/dist
 directories:
   output: release

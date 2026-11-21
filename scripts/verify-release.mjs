@@ -1,5 +1,6 @@
 import * as asar from '@electron/asar';
 import { spawnSync } from 'node:child_process';
+import { randomUUID } from 'node:crypto';
 import { mkdtemp, readFile, writeFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -34,6 +35,28 @@ const executable = fileURLToPath(
   ),
 );
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
+if (process.platform === 'win32') {
+  const helper = fileURLToPath(
+    new URL('resources/app.asar.unpacked/build/assets/codex-win-socket.exe', base),
+  );
+  assert.equal((await readFile(helper)).subarray(0, 2).toString('ascii'), 'MZ');
+  const missingSocket = path.join(
+    os.tmpdir(),
+    randomUUID(),
+    'app-server-control',
+    'app-server-control.sock',
+  );
+  const probe = spawnSync(helper, [missingSocket], {
+    timeout: 5000,
+    windowsHide: true,
+    encoding: 'utf8',
+  });
+  assert.ifError(probe.error);
+  assert.ok(
+    probe.status && probe.stdout.length === 0,
+    'Rejects an unavailable Windows Codex socket',
+  );
+}
 assert.ok(entries.includes('/build/integrations/opencode.js'));
 assert.ok(entries.includes('/build/integrations/opencode-v2.js'));
 assert.ok(entries.includes('/build/core/opencode-v2-adapter.js'));
