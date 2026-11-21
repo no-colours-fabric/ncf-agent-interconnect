@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
 
+export const codexQueueWitness = 'codex-queue';
+
 const text = z.string().min(1).max(200);
 const hash = z.string().regex(/^[a-f0-9]{64}$/);
 export const deliveryPhase = z.enum([

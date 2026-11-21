@@ -219,6 +219,7 @@ export class NodeService extends EventEmitter {
   private adapterSetup: Promise<void> = Promise.resolve();
   private readonly codexRecovery = new Map<string, CodexRecoveryChallenge>();
   private readonly codexRecoveryAdapters = new Set<CodexQueueAdapter>();
+  private readonly restoredCodexProjections = new WeakMap<CodexQueueAdapter, string>();
   private acceptingIntegrations = false;
   private directoryPublish?: NodeJS.Timeout;
   get integrationsReady(): boolean {
@@ -822,9 +823,6 @@ export class NodeService extends EventEmitter {
           .states()
           .find((value) => value.id === agent.binding!.adapterId);
         const cursor = adapter?.kind === 'cursor-hook';
-        const codexQueue =
-          adapter?.kind === 'codex-desktop' &&
-          this.adapters.get(adapter.id) instanceof CodexQueueAdapter;
         const adapterInstance = cursor ? this.adapters.get(agent.binding.adapterId) : undefined;
         const cursorActive =
           adapterInstance instanceof CursorHookAdapter && adapterInstance.hasActiveWait();
@@ -834,7 +832,6 @@ export class NodeService extends EventEmitter {
         const automatic =
           adapter?.state === 'ready' &&
           adapter.capabilities.wakeIdle &&
-          !codexQueue &&
           (!cursor || cursorActive === true);
         return [
           {
@@ -1448,9 +1445,9 @@ export class NodeService extends EventEmitter {
 
   private codexQueueDelivery() {
     return {
-      automatic: false,
+      automatic: true,
       description:
-        'Codex can queue a wake notification for this chat. Use agent_read with this connection to receive the message body and attachments.',
+        'Full messages and attachment links are queued for this exact Codex chat. Receipt is recorded after Codex saves the message in the chat.',
     };
   }
 
@@ -2523,6 +2520,37 @@ export class NodeService extends EventEmitter {
       snapshot.after = Math.min(page.nextCursor, snapshot.finalCursor);
     }
   }
+  private observeCodexProjection(adapter: CodexQueueAdapter, attempt: DeliveryAttempt): void {
+    const owner = attempt.meta.owner;
+    const serviceEpoch = this.deliveryIncarnation;
+    adapter.observeDelivery(
+      attempt,
+      () => {
+        try {
+          if (
+            !this.running ||
+            this.deliveryIncarnation !== serviceEpoch ||
+            this.adapters.get(owner.adapterId) !== adapter
+          )
+            return false;
+          this.store.assertDeliveryCurrent(attempt.id);
+          return true;
+        } catch {
+          return false;
+        }
+      },
+      () => {
+        const delivered = this.store.completeCodexQueueDelivery(attempt);
+        void this.notifyDelivery(owner.connectionId, delivered)
+          .then(() => {
+            this.emit('change');
+            this.drainAdapters();
+          })
+          .catch(() => {});
+      },
+    );
+  }
+
   private drainAdapters(adapterWake = false): void {
     if (!this.running) return;
     for (const event of this.store.pendingSystemEvents()) {
@@ -2531,7 +2559,7 @@ export class NodeService extends EventEmitter {
       if (this.dispatching.has(key) || !adapter.status().capabilities.wakeIdle) continue;
       this.dispatching.add(key);
       const job = (async () => {
-        const replaySafe = adapter.wakeOnly && !(adapter instanceof CodexQueueAdapter);
+        const replaySafe = adapter.wakeOnly;
         this.store.systemDispatch(event.id, replaySafe ? 'offering' : 'dispatching');
         try {
           const result = await adapter.deliver({
@@ -2581,6 +2609,14 @@ export class NodeService extends EventEmitter {
       }
       const status = adapter.status();
       if (!status.capabilities.wakeIdle) continue;
+      if (
+        adapter instanceof CodexQueueAdapter &&
+        this.restoredCodexProjections.get(adapter) !== binding.connectionId
+      ) {
+        this.restoredCodexProjections.set(adapter, binding.connectionId);
+        for (const attempt of this.store.pendingCodexQueueDeliveries(binding.connectionId))
+          this.observeCodexProjection(adapter, attempt);
+      }
       if (adapter instanceof ClaudeCodeAdapter && !adapter.nativeIncomingAvailable) {
         // No content stream can take this mailbox. A bounded private lookup
         // records waiting without materializing files or censusing the backlog.
@@ -2799,10 +2835,11 @@ export class NodeService extends EventEmitter {
             admitted = true;
           } else {
             if (attempt) {
-              if (!submitting) this.store.cancelDelivery(attempt.id, submitting);
+              if (!submitting) this.store.cancelDelivery(attempt.id);
               else if (adapter instanceof OpenCodeV2Adapter && result.definiteNoBody)
                 this.store.cancelDelivery(attempt.id, true);
-              else this.store.uncertainDelivery(attempt.id);
+              else if (!(adapter instanceof CodexQueueAdapter && result.state === 'queued'))
+                this.store.uncertainDelivery(attempt.id);
             }
             // Wake-only offers may coexist with a completed explicit read.
             if (adapter.wakeOnly && this.store.get(row.envelope.id, 'in')?.state === 'ready')
@@ -2838,6 +2875,15 @@ export class NodeService extends EventEmitter {
               (e as Error).message,
             );
         } finally {
+          if (submitting && attempt && adapter instanceof CodexQueueAdapter) {
+            try {
+              const saved = this.store.deliveryAttempt(attempt.id);
+              if (saved.meta.phase === 'issued' || saved.meta.phase === 'uncertain')
+                this.observeCodexProjection(adapter, saved);
+            } catch {
+              // A concurrent clear or replacement can remove the attempt.
+            }
+          }
           this.dispatching.delete(dispatchKey);
           const redrain = this.adapterRedrain.delete(dispatchKey);
           this.emit('change');

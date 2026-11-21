@@ -60,12 +60,10 @@ open-file icon uses the operating system's default application.
   plugin identifies the exact current chat. Incoming messages are delivered
   automatically; a busy chat waits for an idle event. Frontends must use that
   OpenCode instance and load its plugins. Configuring v2 does not convert v1.
-- Codex Desktop: clients with compatible local IPC receive the full Incoming
-  message in the exact chat. Recent macOS builds can use the native Codex queue
-  to notify the exact chat. In that mode the agent calls `agent_read` to receive
-  the body and attachment links. NCF records receipt when that read succeeds.
-  Open an unloaded chat to let Codex process its queue. The queue mode remains
-  version-dependent.
+- Codex Desktop: compatible local IPC and the new macOS queue deliver the full
+  Incoming and attachment links directly to the exact chat. In queue mode NCF
+  records receipt after Codex saves the full item in the chat. Open an unloaded
+  chat to let Codex process its queue. Compatibility is version-dependent.
 - Cursor: Apply configures MCP and installs the included local plugin. Restart
   Cursor once and connect in the intended chat. Open bound chats can receive
   messages in the IDE and Agents Window without being selected. After a restart,

@@ -3,6 +3,7 @@ import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import {
+  codexQueueWitness,
   type DeliveryAttempt,
   type DeliveryMetadata,
   type DeliveryPhase,
@@ -1024,11 +1025,46 @@ export class AgentStore {
       payloadHash,
     });
   }
+  pendingCodexQueueDeliveries(connectionId: string): DeliveryAttempt[] {
+    const rows = this.db
+      .prepare(
+        "SELECT DISTINCT attempt_id FROM dispatches WHERE connection_id=? AND state IN ('dispatching','uncertain') AND attempt_id IS NOT NULL",
+      )
+      .all(connectionId) as Row[];
+    return rows.flatMap((row) => {
+      try {
+        const attempt = this.deliveryAttempt(String(row.attempt_id));
+        const { host, phase } = attempt.meta;
+        return attempt.ids.length === 1 &&
+          (phase === 'issued' || phase === 'uncertain') &&
+          host?.runtime === codexQueueWitness &&
+          host.messageId === attempt.id
+          ? [attempt]
+          : [];
+      } catch {
+        return [];
+      }
+    });
+  }
+  completeCodexQueueDelivery(attempt: DeliveryAttempt): Set<string> {
+    const { host, payloadHash, lifecycle } = attempt.meta;
+    if (
+      !host ||
+      host.runtime !== codexQueueWitness ||
+      host.messageId !== attempt.id ||
+      !payloadHash
+    )
+      throw new Error('The Codex transcript witness is unavailable');
+    return this.finishDelivery(attempt.id, lifecycle, ['issued', 'uncertain'], {
+      host,
+      payloadHash,
+    });
+  }
   private finishDelivery(
     id: string,
     lifecycle: DeliveryMetadata['lifecycle'],
     phases: DeliveryPhase[],
-    v2?: { host: NonNullable<DeliveryMetadata['host']>; payloadHash: string },
+    witness?: { host: NonNullable<DeliveryMetadata['host']>; payloadHash: string },
   ): Set<string> {
     return this.transaction(() => {
       const previous = this.deliveryAttempt(id);
@@ -1037,13 +1073,13 @@ export class AgentStore {
       if (JSON.stringify(attempt.meta.lifecycle) !== JSON.stringify(lifecycle))
         throw new Error('The delivery lifecycle changed');
       if (
-        v2 &&
+        witness &&
         (attempt.meta.transport !== 'native' ||
-          JSON.stringify(attempt.meta.host) !== JSON.stringify(v2.host) ||
-          attempt.meta.payloadHash !== v2.payloadHash ||
-          v2.host.session !== attempt.meta.owner.chatId)
+          JSON.stringify(attempt.meta.host) !== JSON.stringify(witness.host) ||
+          attempt.meta.payloadHash !== witness.payloadHash ||
+          witness.host.session !== attempt.meta.owner.chatId)
       )
-        throw new Error('The OpenCode v2 projection witness changed');
+        throw new Error('The native projection witness changed');
       this.changeDelivery(id, phases, 'committed');
       for (const item of attempt.ids)
         this.markDelivered(this.get(item, 'in')!, attempt.meta.owner.connectionId, id);

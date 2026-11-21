@@ -12,8 +12,9 @@ import {
   CodexDesktopAdapter,
   codexExchange,
 } from '../desktop/core/codex-adapter.js';
-import { AdapterRegistry, type EventInput } from '../desktop/core/adapters.js';
+import { AdapterRegistry, agentMessageText, type EventInput } from '../desktop/core/adapters.js';
 import { CodexQueueAdapter } from '../desktop/core/codex-queue.js';
+import { codexQueueWitness } from '../desktop/core/delivery-attempt.js';
 import { NodeService } from '../desktop/core/service.js';
 import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
@@ -783,7 +784,7 @@ test('Codex MCP metadata automatically selects the exact chat and profile among 
 });
 
 test(
-  'Codex queue recovery preserves the exact binding and receipts come from agent_read',
+  'Codex queue recovery preserves the exact binding and waits for native receipt evidence',
   { skip: process.platform !== 'darwin' },
   async (t) => {
     const f = await fixture(t);
@@ -821,9 +822,32 @@ test(
     t.mock.method(CodexQueueAdapter.prototype, 'status', function (this: CodexQueueAdapter) {
       return { ...oldStatus, id: this.profile.id };
     });
-    const offer = t.mock.method(CodexQueueAdapter.prototype, 'deliver', async () => ({
-      state: 'offered',
-    }));
+    const queued: string[] = [];
+    let project: (() => void) | undefined;
+    const offer = t.mock.method(
+      CodexQueueAdapter.prototype,
+      'deliver',
+      async (event: EventInput) => {
+        const text = agentMessageText(event);
+        event.beforeRelease!(text, {
+          messageId: event.deliveryAttempt!.id,
+          runtime: codexQueueWitness,
+          session: threadId,
+        });
+        queued.push(text);
+        return { state: 'queued' };
+      },
+    );
+    t.mock.method(
+      CodexQueueAdapter.prototype,
+      'observeDelivery',
+      (_attempt: object, isCurrent: () => boolean, admit: () => void) => {
+        project = () => {
+          assert.equal(isCurrent(), true);
+          admit();
+        };
+      },
+    );
     const challenges: string[] = [];
     t.mock.method(
       CodexQueueAdapter.prototype,
@@ -892,11 +916,14 @@ test(
       text: 'NCF delivers the original message.',
     });
     const deadline = Date.now() + 2000;
-    while (service.store.dispatchState(message.id)?.state !== 'offered') {
-      if (Date.now() > deadline) throw new Error('Codex wake offer was not recorded');
+    while (!project) {
+      if (Date.now() > deadline) throw new Error('Codex receipt observer was not registered');
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     assert.equal(offer.mock.callCount(), 1);
+    assert.match(queued[0]!, /^\*\*Incoming NCF Agent Interconnect\*\*/);
+    assert.match(queued[0]!, /NCF delivers the original message/);
+    assert.equal(service.store.dispatchState(message.id)?.state, 'dispatching');
     assert.equal(service.store.get(message.id, 'out')?.state, 'ready');
     for (const meta of [{ threadId: randomUUID() }, undefined]) {
       const denied = await client.callTool({
@@ -907,14 +934,13 @@ test(
       assert.equal(denied.isError, true);
       assert.equal(service.store.get(message.id, 'out')?.state, 'ready');
     }
-    const incoming = await client.callTool({
-      name: 'agent_read',
-      arguments: { connectionId: binding.connectionId },
-      _meta: { threadId },
-    });
-    assert.equal(incoming.isError, undefined);
-    assert.match(JSON.stringify(incoming.structuredContent), /NCF delivers the original message/);
-    assert.equal(service.store.get(message.id, 'out')?.state, 'processed');
+    project();
+    assert.equal(service.store.get(message.id, 'in')?.state, 'processed');
+    while (service.store.get(message.id, 'out')?.state !== 'processed') {
+      if (Date.now() > deadline) throw new Error('Codex receipt was not returned to sender');
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assert.equal(offer.mock.callCount(), 1);
   },
 );
 

@@ -16,9 +16,9 @@ import { CodexQueueAdapter } from './codex-queue.js';
 import { OpenCodeV2Adapter, type OpenCodeV2Bridges } from './opencode-v2-adapter.js';
 import type { DeliveryAttempt, DeliveryMetadata } from './delivery-attempt.js';
 
-// 'offered' means only that a wake signal was written; it is never a receipt.
+// Offers and queued submissions do not establish receipt.
 export type Admission = {
-  state: 'admitted' | 'offered' | 'waiting' | 'failed' | 'uncertain' | 'revoked';
+  state: 'admitted' | 'offered' | 'queued' | 'waiting' | 'failed' | 'uncertain' | 'revoked';
   error?: string;
   /** A contract rejection proves no body was accepted; never inferred from revoke/timeout. */
   definiteNoBody?: true;

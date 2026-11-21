@@ -22,7 +22,7 @@ These checks do not constitute an independent cryptographic audit.
 The OpenCode fixture uses the bundled plugin and a simulated SDK session host.
 The existing Codex fixture implements the compatible older local desktop IPC
 frames and inspects the complete Incoming body, attachment links and reply route.
-It does not prove the separate new macOS Codex notification-and-read path. These
+The separate macOS queue check verifies the saved native chat item before receipt. These
 fixtures do not invoke a live model.
 
 The installed-runtime verifier extracts the packaged app outside the source
@@ -32,25 +32,16 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 
 ## Platform and client limits
 
-- NCF Agent Interconnect 1.0.0 provides Apple Silicon and Intel macOS DMGs and
-  a Windows x64 installer. The Apple Silicon package was installed and exercised
-  on a Mac. The Intel package was checked for layout and architecture. The
-  Windows verifier and the installed-app smoke passed on a hosted x64 Windows
-  runner. There is no new Linux installer.
+- Installer and native platform checks are reported for the exact published
+  source revision in its release notes. Intel runtime checks require Intel
+  hardware; package layout and architecture are separate checks.
 - OpenCode v1 retains its bundled exact-chat plugin. OpenCode v2 has separate
   setup and source-level checks; live v2 client delivery was not verified for
   0.19.0. Do not infer either version's readiness from installation detection.
 - Codex Desktop delivery is experimental and version-dependent. Compatible
-  older IPC provides full Incoming in the exact chat. The new macOS path offers
-  an exact-chat notification without content; `agent_read` returns text and
-  attachment links and records receipt. An isolated bundled Codex
-  `0.171.0-alpha.13` check covered retained 0.19 binding/history, one-time
-  exact-chat confirmation, wrong-chat and replay rejection, a first bind under
-  a free name after explicit Apply, and wake/read/receipt. An installed 1.0.0
-  Apple Silicon build also passed a two-way exchange through two previously
-  bound macOS Codex Desktop chats, including native notices and read receipts.
-  That exchange covers the tested desktop build; it does not establish wider
-  macOS compatibility or Windows Codex delivery.
+  older IPC provides full Incoming in the exact chat. The macOS queue sends
+  the same full Incoming and records receipt after Codex saves the matching
+  item. See the release notes for tested Codex versions and platforms.
 - Cursor has a bundled plugin for open exact chats, including unselected chats.
   AionUi support is limited to Cursor Agent after owner authorization and a
   live bridge. Client and platform results have the narrower scopes recorded

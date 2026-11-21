@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
+import { watch, type FSWatcher } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import type { AdapterProfile, AdapterState } from '../shared/contracts.js';
@@ -9,13 +10,20 @@ import {
   type AgentAdapter,
   type EventInput,
 } from './adapters.js';
+import { codexQueueWitness, contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 
 const bundledCodex =
   '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
 const maximumFrameBytes = 2 * 1024 * 1024;
 const operationTimeout = 8000;
-const wakeText =
-  'NCF Agent Interconnect has incoming messages for this chat. Use agent_read with this chat’s existing NCF connection to receive unread messages. Continue reading if there are more messages.';
+const projectionPageSize = 4;
+const projectionPageLimit = 32;
+
+type Projection = {
+  payloadHash: string;
+  isCurrent: () => boolean;
+  admit: () => void;
+};
 
 type QueueCall = (method: string, params: object) => Promise<Record<string, unknown>>;
 type QueueSession = <T>(
@@ -51,6 +59,27 @@ export async function codexQueueHome(socket: string | undefined): Promise<string
       throw new Error('The saved Codex profile failed its ownership check');
   }
   return home;
+}
+
+async function codexTranscript(
+  profile: AdapterProfile,
+  threadId: string,
+  transcript: unknown,
+): Promise<string> {
+  const home = await codexQueueHome(profile.socket);
+  if (typeof transcript !== 'string' || !path.isAbsolute(transcript))
+    throw new Error('Codex did not expose the saved chat transcript');
+  const [scope] = path.relative(home, transcript).split(path.sep);
+  if (
+    (scope !== 'sessions' && scope !== 'archived_sessions') ||
+    !path.basename(transcript).endsWith('-' + threadId + '.jsonl') ||
+    (await realpath(transcript)) !== transcript
+  )
+    throw new Error('Codex returned a transcript outside the saved profile');
+  const stat = await lstat(transcript);
+  if (!stat.isFile() || stat.uid !== process.getuid!() || (stat.mode & 0o022) !== 0)
+    throw new Error('The saved Codex transcript failed its ownership check');
+  return transcript;
 }
 
 const appServerSession: QueueSession = async (profile, stopped, operation) => {
@@ -136,17 +165,24 @@ const appServerSession: QueueSession = async (profile, stopped, operation) => {
 };
 
 export class CodexQueueAdapter implements AgentAdapter {
-  readonly wakeOnly = true;
+  readonly contentGate = true;
+  readonly wakeOnly = false;
   private readonly controller = new AbortController();
   private readonly jobs = new Set<Promise<unknown>>();
   private state: AdapterState['state'] = 'checking';
   private error: string | null = null;
-  private offer?: { connectionId: string; through: number };
+  private transcript?: string;
+  private watcher?: FSWatcher;
+  private readonly projections = new Map<string, Projection>();
+  private projectionTimer?: ReturnType<typeof setTimeout>;
+  private projecting = false;
+  private projectionChanged = false;
 
   constructor(
     readonly profile: AdapterProfile,
     private readonly changed: () => void,
     private readonly session: QueueSession = appServerSession,
+    private readonly resolveTranscript = codexTranscript,
   ) {}
 
   status(): AdapterState {
@@ -157,7 +193,7 @@ export class CodexQueueAdapter implements AgentAdapter {
       capabilities: {
         wakeIdle: this.state === 'ready',
         receiveActive: false,
-        nativeDisplay: false,
+        nativeDisplay: this.state === 'ready',
         exactSession: this.state === 'ready',
       },
       state: this.state,
@@ -171,18 +207,23 @@ export class CodexQueueAdapter implements AgentAdapter {
     return job.finally(() => this.jobs.delete(job));
   }
 
-  private async verifyThread(call: QueueCall): Promise<string> {
+  private async verifyThread(call: QueueCall): Promise<{ id: string; path?: unknown }> {
     const threadId = this.profile.threadId;
     if (!threadId) throw new Error('The saved Codex chat is missing');
     const result = await call('thread/read', { threadId, includeTurns: false });
-    const thread = result.thread as { id?: unknown; ephemeral?: unknown } | undefined;
+    const thread = result.thread as
+      { id?: unknown; ephemeral?: unknown; path?: unknown } | undefined;
     if (thread?.id !== threadId || thread.ephemeral !== false)
       throw new Error('Codex did not confirm the saved chat in this profile');
-    return threadId;
+    return { id: threadId, path: thread.path };
   }
 
-  private async enqueue(call: QueueCall, threadId: string, text: string): Promise<void> {
-    const clientUserMessageId = randomUUID();
+  private async enqueue(
+    call: QueueCall,
+    threadId: string,
+    text: string,
+    clientUserMessageId: string = randomUUID(),
+  ): Promise<void> {
     const response = await call('thread/queue/add', {
       threadId,
       clientUserMessageId,
@@ -205,7 +246,7 @@ export class CodexQueueAdapter implements AgentAdapter {
     let submitting = false;
     try {
       await this.run(async (call) => {
-        const threadId = await this.verifyThread(call);
+        const { id: threadId } = await this.verifyThread(call);
         this.controller.signal.throwIfAborted();
         if (!isCurrent()) throw new Error('The Codex connection request changed');
         submitting = true;
@@ -222,12 +263,25 @@ export class CodexQueueAdapter implements AgentAdapter {
     }
   }
 
+  private async projectionPage(call: QueueCall, threadId: string, cursor?: string) {
+    const result = await call('thread/items/list', {
+      threadId,
+      limit: projectionPageSize,
+      sortDirection: 'desc',
+      ...(cursor === undefined ? {} : { cursor }),
+    });
+    if (!Array.isArray(result.data)) throw new Error('Codex did not confirm transcript access');
+    return result;
+  }
+
   async start(): Promise<void> {
     try {
       await this.run(async (call) => {
-        const threadId = await this.verifyThread(call);
-        const response = await call('thread/queue/list', { threadId, limit: 1 });
+        const thread = await this.verifyThread(call);
+        const response = await call('thread/queue/list', { threadId: thread.id, limit: 1 });
         if (!Array.isArray(response.data)) throw new Error('Codex did not confirm queue support');
+        await this.projectionPage(call, thread.id);
+        this.transcript = await this.resolveTranscript(this.profile, thread.id, thread.path);
       });
       if (this.controller.signal.aborted) return;
       this.state = 'ready';
@@ -235,14 +289,116 @@ export class CodexQueueAdapter implements AgentAdapter {
     } catch {
       if (this.controller.signal.aborted) return;
       this.state = 'error';
-      this.error = 'The saved Codex chat or its input queue is unavailable';
+      this.error = 'The saved Codex chat, its input queue or its transcript is unavailable';
     }
     this.changed();
   }
 
-  // The offer is persisted by NCF. Do not enqueue a second wake on a restart.
-  offerCurrent(): boolean {
-    return true;
+  observeDelivery(attempt: DeliveryAttempt, isCurrent: () => boolean, admit: () => void): void {
+    const { host, payloadHash, owner } = attempt.meta;
+    if (
+      this.state !== 'ready' ||
+      this.controller.signal.aborted ||
+      !host ||
+      !payloadHash ||
+      host.runtime !== codexQueueWitness ||
+      host.messageId !== attempt.id ||
+      host.session !== this.profile.threadId ||
+      owner.chatId !== host.session ||
+      owner.adapterId !== this.profile.id ||
+      this.projections.has(host.messageId)
+    )
+      return;
+    this.projections.set(host.messageId, { payloadHash, isCurrent, admit });
+    this.ensureWatcher();
+    // The item may have been persisted before observation was registered.
+    this.scheduleProjection();
+  }
+
+  private ensureWatcher(): void {
+    if (this.watcher || !this.transcript) return;
+    try {
+      const watcher = watch(this.transcript, { persistent: false }, (event) => {
+        if (this.watcher !== watcher) return;
+        if (event === 'rename') {
+          watcher.close();
+          this.watcher = undefined;
+        }
+        this.scheduleProjection();
+      });
+      this.watcher = watcher;
+      watcher.once('error', () => {
+        watcher.close();
+        if (this.watcher === watcher) this.watcher = undefined;
+      });
+    } catch {
+      // The immediate check can still confirm a persisted item.
+    }
+  }
+
+  private scheduleProjection(): void {
+    if (this.controller.signal.aborted || !this.projections.size) return;
+    if (this.projecting) {
+      this.projectionChanged = true;
+      return;
+    }
+    if (this.projectionTimer) return;
+    this.projectionTimer = setTimeout(() => {
+      this.projectionTimer = undefined;
+      this.projecting = true;
+      const job = this.run(async (call) => {
+        const thread = await this.verifyThread(call);
+        if (thread.path !== this.transcript) {
+          this.transcript = await this.resolveTranscript(this.profile, thread.id, thread.path);
+          this.watcher?.close();
+          this.watcher = undefined;
+        }
+        this.ensureWatcher();
+        for (const [id, projection] of this.projections)
+          if (!projection.isCurrent()) this.projections.delete(id);
+        let cursor: string | undefined;
+        for (let page = 0; page < projectionPageLimit && this.projections.size; page++) {
+          const { data, nextCursor } = await this.projectionPage(call, thread.id, cursor);
+          for (const entry of data as { item?: unknown }[]) this.project(entry?.item);
+          if (typeof nextCursor !== 'string' || !nextCursor || nextCursor === cursor) break;
+          cursor = nextCursor;
+        }
+      }).catch(() => {});
+      void job.finally(() => {
+        this.projecting = false;
+        if (!this.projections.size) {
+          this.watcher?.close();
+          this.watcher = undefined;
+        }
+        if (this.projectionChanged) {
+          this.projectionChanged = false;
+          this.scheduleProjection();
+        }
+      });
+    }, 100);
+    this.projectionTimer.unref?.();
+  }
+
+  private project(item: unknown): void {
+    if (!item || typeof item !== 'object') return;
+    const { id, type, clientId, completedAtMs, content } = item as Record<string, unknown>;
+    if (
+      typeof id !== 'string' ||
+      !id ||
+      type !== 'userMessage' ||
+      typeof clientId !== 'string' ||
+      typeof completedAtMs !== 'number' ||
+      !Number.isFinite(completedAtMs) ||
+      !Array.isArray(content) ||
+      content.length !== 1 ||
+      content[0]?.type !== 'text' ||
+      typeof content[0]?.text !== 'string'
+    )
+      return;
+    const projection = this.projections.get(clientId);
+    if (!projection || contentHash(content[0].text) !== projection.payloadHash) return;
+    if (projection.isCurrent()) projection.admit();
+    this.projections.delete(clientId);
   }
 
   async deliver(input: EventInput): Promise<Admission> {
@@ -254,33 +410,31 @@ export class CodexQueueAdapter implements AgentAdapter {
       return { state: 'failed', error: 'The saved Codex chat is unavailable' };
     if (this.controller.signal.aborted || (input.isCurrent && !input.isCurrent()))
       return { state: 'revoked' };
-    const sequence = 'sequence' in input ? input.sequence : undefined;
-    const backlog = 'backlogUntil' in input ? input.backlogUntil : undefined;
-    const connectionId = input.binding.connectionId;
-    if (
-      sequence !== undefined &&
-      this.offer?.connectionId === connectionId &&
-      sequence <= this.offer.through
-    )
-      return { state: 'offered' };
     let submitting = false;
     try {
       return await this.run(async (call) => {
-        const threadId = await this.verifyThread(call);
+        const { id: threadId } = await this.verifyThread(call);
         if (this.controller.signal.aborted || (input.isCurrent && !input.isCurrent()))
           return { state: 'revoked' };
-        // This is only a wake signal. The exact NCF connection reads the content.
+        const text = agentMessageText(input);
+        if (input.systemEvent) {
+          submitting = true;
+          await this.enqueue(call, threadId, text);
+          return { state: 'offered' };
+        }
+        if (!input.deliveryAttempt || !input.beforeRelease)
+          return { state: 'failed', error: 'The native delivery attempt is unavailable' };
+        const messageId = input.deliveryAttempt.id;
+        input.beforeRelease(text, { messageId, runtime: codexQueueWitness, session: threadId });
         submitting = true;
-        await this.enqueue(call, threadId, input.systemEvent ? agentMessageText(input) : wakeText);
-        const through = backlog ?? sequence;
-        if (through !== undefined) this.offer = { connectionId, through };
-        return { state: 'offered' };
+        await this.enqueue(call, threadId, text, messageId);
+        return { state: 'queued' };
       });
     } catch {
       return {
         state: submitting ? 'uncertain' : 'failed',
         error: submitting
-          ? 'Codex did not confirm the wake signal'
+          ? 'Codex did not confirm the queued message'
           : 'The saved Codex chat is unavailable',
       };
     }
@@ -288,6 +442,10 @@ export class CodexQueueAdapter implements AgentAdapter {
 
   async stop(): Promise<void> {
     this.controller.abort();
+    clearTimeout(this.projectionTimer);
+    this.watcher?.close();
+    this.watcher = undefined;
+    this.projections.clear();
     await Promise.allSettled([...this.jobs]);
   }
 }

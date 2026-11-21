@@ -95,12 +95,11 @@ creation time; `Delivered` is recorded when the receiving app constructs the
 incoming body or read result. Both are displayed with seconds in the receiving
 app's system locale and time zone, without a time-zone offset in the label.
 These display fields do not establish receipt, model acknowledgement or task
-completion. The new macOS Codex Desktop path instead notifies the exact chat
-that messages are waiting. The notification carries no body or attachment links
-and does not record receipt. `agent_read` returns the complete incoming content;
-the completed read records receipt. An unloaded chat must be opened to receive
-its notification. Compatible older Codex Desktop IPC retains full-content native
-Incoming. These modes do not alter the stored message or its address.
+completion. The new macOS Codex Desktop path queues the same full Incoming
+in the exact chat. Receipt requires a saved Codex chat item with the original
+submission ID and the complete message text, including attachment links. An
+unloaded chat must be opened to process its queue. Compatible older Codex
+Desktop IPC retains full-content native Incoming.
 
 Call
 `agent_send` with `connectionId`, `replyRef` and `text` to reply. Do not supply

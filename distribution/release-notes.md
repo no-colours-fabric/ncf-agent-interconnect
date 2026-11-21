@@ -1,16 +1,14 @@
 # NCF Agent Interconnect 1.0.0
 
-The new macOS Codex Desktop path changes how an agent receives a waiting message.
-NCF Agent Interconnect sends a standard notification to the exact connected chat.
-The notification contains no message text or attachment links. In that chat, the
-assistant calls `agent_read` to obtain the complete message and files. The notice
-alone does not record receipt; the completed read does. Open an unloaded chat
-before expecting its notification. This is a breaking delivery change for that
-host path, not a claim of full Incoming in the notification.
+The new macOS Codex Desktop path sends full Incoming directly to the exact
+connected chat through the native Codex queue. The message includes its sender,
+body, attachment links and reply route. NCF records receipt once Codex saves
+the complete matching item in that chat. Open an unloaded chat to process its
+queue. An active turn delays automatic queue delivery until it finishes.
+Compatible older Codex Desktop versions continue to receive full Incoming
+through the existing IPC path.
 
-Compatible older Codex Desktop versions using the existing IPC path retain full
-Incoming directly in the exact chat. An unavailable exact chat is not replaced
-with another recent chat. Existing chats can reuse their `connectionId`. If it
+Existing chats can reuse their `connectionId`. If it
 was lost, `agent_connect` sends a one-time confirmation only to the previously
 bound exact chat. The assistant repeats `agent_connect` once with its original
 nickname and the one-use `contextToken` from that chat to restore the binding. A first bind under a free name passed after explicit Apply to the
@@ -24,20 +22,13 @@ created after the update.
 
 ## Verification scope
 
-- The new macOS Codex path has been exercised only with an isolated bundled
-  Codex `0.171.0-alpha.13`. That check covered an existing 0.19 profile and
-  history, exact-chat confirmation with wrong-chat and replay rejection, a
-  first bind for a free name after Apply, and wake, read and receipt. It does
-  not establish compatibility with other builds.
-- An installed Apple Silicon build also passed a live two-way NCF exchange in
-  two previously bound macOS Codex Desktop chats. Both received the native
-  notice, read the message and recorded receipt. This covers the tested desktop
-  build only. Live Codex delivery on Windows was not tested.
-- The Apple Silicon DMG was installed and exercised on macOS. The Intel DMG
-  layout and architecture were verified without Intel hardware. The Windows
-  x64 installer passed the packaged runtime verifier, installation and installed
-  application smoke on a hosted Windows runner. The macOS packages are ad-hoc
-  signed and not notarized. The Windows installer is unsigned. There is no
-  new Linux installer.
+- On Apple Silicon, an isolated bundled Codex `0.171.0-alpha.13` accepted the
+  full message and a readable attachment link in the exact connected chat. The
+  sender's receipt stayed pending until Codex saved the item, including across an
+  NCF restart with an unloaded chat. The active-turn test showed that the
+  separate queue connection delivers in the next turn. This check used a local
+  synthetic provider and exercised the native Codex app-server protocol.
+- Source regression coverage exercises compatible IPC, including exact-chat
+  addressing, attachment links and the existing receipt boundary.
 - A notification, an MCP receipt and completion of the agent's task are
   distinct states.

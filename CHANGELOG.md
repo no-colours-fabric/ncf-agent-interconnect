@@ -4,11 +4,11 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 ## 1.0.0
 
-- **Breaking Codex Desktop delivery change on the new macOS path:** NCF Agent Interconnect sends a standard notification to the exact connected chat. The notification does not contain the message body or attachments. The assistant obtains them through `agent_read`; offering the notification is not a receipt. A chat that has been unloaded must be opened before it can receive the notification.
-- Compatible older Codex Desktop versions using the existing IPC path retain direct, full Incoming messages in the exact chat. They do not need a read to obtain that native Incoming body. The app must not route a message to another chat when the intended chat is unavailable.
+- Restore full Incoming in the exact chat on recent macOS Codex Desktop versions through the native Codex queue. The text, attachment links and reply route arrive directly. NCF records receipt after Codex saves the complete item in that chat. An unloaded chat must be opened to process its queue.
+- Compatible older Codex Desktop versions continue to use the existing IPC path for full Incoming.
 - An existing Codex chat can reuse its `connectionId`. If it was lost, `agent_connect` sends a one-time confirmation only to the previously bound exact chat through the standard notification queue; the assistant repeats `agent_connect` with the original nickname and the one-use `contextToken` from that same chat to restore the binding. The intended local macOS Codex profile must be configured through Apply before its first connection; each new agent does not need a separate Apply. Existing occupied-name transfer choices remain separate.
 
-Before updating, quit NCF Agent Interconnect and retain a complete backup of the stopped profile. Do not open an upgraded profile with an older binary; rollback requires the pre-upgrade backup and must account for data created after the upgrade. The isolated Codex `0.171.0-alpha.13` check retained a 0.19 profile and binding, rejected wrong-chat and replay attempts, and connected a free name after explicit Apply. An installed Apple Silicon build also passed a live two-way message exchange in two previously bound Codex Desktop chats with read receipts. The release notes record the covered platforms and compatibility limits.
+Before updating, quit NCF Agent Interconnect and retain a complete backup of the stopped profile. Do not open an upgraded profile with an older binary; rollback requires the pre-upgrade backup and must account for data created after the upgrade. The isolated Codex `0.171.0-alpha.13` check retained a 0.19 profile and binding, rejected wrong-chat and replay attempts, and connected a free name after explicit Apply. See the release notes for exact direct-delivery verification and platform limits.
 
 ## 0.19.0 — 2026-11-18
 
