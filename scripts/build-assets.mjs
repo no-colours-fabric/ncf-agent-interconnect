@@ -85,8 +85,8 @@ if (process.platform === 'win32') {
       '/optimize+',
       '/target:exe',
       process.arch === 'x64' ? '/platform:x64' : '/platform:anycpu',
-      '/out:build/assets/codex-win-socket.exe',
-      'desktop/integrations/codex-win-socket.cs',
+      '/out:' + path.resolve('build', 'assets', 'codex-win-socket.exe'),
+      path.resolve('desktop', 'integrations', 'codex-win-socket.cs'),
     ],
     { stdio: 'inherit', windowsHide: true },
   );
