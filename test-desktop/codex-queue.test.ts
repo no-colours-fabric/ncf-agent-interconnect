@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test, type TestContext } from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
-import { CodexQueueAdapter } from '../desktop/core/codex-queue.js';
+import { CodexQueueAdapter, CodexRpcRejection } from '../desktop/core/codex-queue.js';
 import type { EventInput } from '../desktop/core/adapters.js';
 import {
   codexQueueWitness,
@@ -75,6 +75,7 @@ async function fixture(t: TestContext, shared = false) {
   let projection: object[] = [];
   let validThread = true;
   let matchingAck = true;
+  let expiredTurn = false;
   const session: NonNullable<ConstructorParameters<typeof CodexQueueAdapter>[2]> = async (
     _profile,
     _signal,
@@ -98,6 +99,7 @@ async function fixture(t: TestContext, shared = false) {
       assert.equal(attempt.meta.phase, 'issued');
       if (method === 'turn/steer') {
         steered.push(params);
+        if (expiredTurn) throw new CodexRpcRejection(-32600, 'no active turn to steer');
         return { turnId: matchingAck ? activeTurn : randomUUID() };
       }
       assert.equal(method, 'thread/queue/add');
@@ -148,6 +150,9 @@ async function fixture(t: TestContext, shared = false) {
     setProjection,
     changeThread: () => {
       validThread = false;
+    },
+    expireTurn: () => {
+      expiredTurn = true;
     },
     loseAck: () => {
       matchingAck = false;
@@ -256,4 +261,14 @@ test('a mismatched active-turn response cannot duplicate a possible release into
   assert.equal((await adapter.deliver(input)).state, 'uncertain');
   assert.equal(steered.length, 1);
   assert.deepEqual(queued, []);
+});
+
+test('a definite expired-turn rejection queues the same delivery attempt once', async (t) => {
+  const { adapter, input, attempt, steered, queued, expireTurn } = await fixture(t, true);
+  await adapter.start();
+  expireTurn();
+  assert.equal((await adapter.deliver(input)).state, 'queued');
+  assert.equal(steered.length, 1);
+  assert.equal(queued.length, 1);
+  assert.equal((queued[0] as { clientUserMessageId?: string }).clientUserMessageId, attempt.id);
 });

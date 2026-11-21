@@ -46,6 +46,23 @@ type RpcConnection = {
   fail: () => void;
 };
 
+export class CodexRpcRejection extends Error {
+  constructor(
+    readonly code: unknown,
+    readonly reason: unknown,
+  ) {
+    super('Codex app-server rejected the request');
+  }
+
+  expiredTurn(expected: string): boolean {
+    if (this.code !== -32600 || typeof this.reason !== 'string') return false;
+    const mismatch = /^expected active turn id `([a-f0-9-]{36})` but found `[a-f0-9-]{36}`$/i.exec(
+      this.reason,
+    );
+    return this.reason === 'no active turn to steer' || mismatch?.[1] === expected;
+  }
+}
+
 async function exchange<T>(
   signal: AbortSignal,
   connection: RpcConnection,
@@ -71,8 +88,11 @@ async function exchange<T>(
         if (reply.id !== id) return;
         signal.removeEventListener('abort', abort);
         pending = undefined;
-        if (reply.error || !reply.result || typeof reply.result !== 'object')
-          reject(new Error('Codex app-server rejected the request'));
+        if (reply.error && typeof reply.error === 'object') {
+          const error = reply.error as Record<string, unknown>;
+          reject(new CodexRpcRejection(error.code, error.message));
+        } else if (reply.error || !reply.result || typeof reply.result !== 'object')
+          reject(new Error('Codex app-server did not return a result'));
         else resolve(reply.result as Record<string, unknown>);
       };
       connection.send(JSON.stringify({ id, method, params }));
@@ -553,9 +573,8 @@ export class CodexQueueAdapter implements AgentAdapter {
             sortDirection: 'desc',
           });
           const turn = Array.isArray(data) ? data[0] : undefined;
-          if (turn?.status !== 'inProgress' || typeof turn.id !== 'string' || !turn.id)
-            return { state: 'failed', error: 'Codex did not confirm the active turn' };
-          activeTurn = turn.id;
+          if (turn?.status === 'inProgress' && typeof turn.id === 'string' && turn.id)
+            activeTurn = turn.id;
         }
         if (this.controller.signal.aborted || (input.isCurrent && !input.isCurrent()))
           return { state: 'revoked' };
@@ -571,17 +590,28 @@ export class CodexQueueAdapter implements AgentAdapter {
         input.beforeRelease(text, { messageId, runtime: codexQueueWitness, session: threadId });
         submitting = true;
         if (activeTurn) {
-          const result = await call('turn/steer', {
-            threadId,
-            expectedTurnId: activeTurn,
-            clientUserMessageId: messageId,
-            input: [{ type: 'text', text, text_elements: [] }],
-          });
-          if (result.turnId !== activeTurn)
-            throw new Error('Codex did not confirm the active turn');
-        } else {
-          await this.enqueue(call, threadId, text, messageId);
+          try {
+            const result = await call('turn/steer', {
+              threadId,
+              expectedTurnId: activeTurn,
+              clientUserMessageId: messageId,
+              input: [{ type: 'text', text, text_elements: [] }],
+            });
+            if (result.turnId !== activeTurn)
+              throw new Error('Codex did not confirm the active turn');
+            return { state: 'queued' };
+          } catch (error) {
+            // Only the host's explicit precondition failure proves that Steer did not admit the body.
+            if (
+              !(error instanceof CodexRpcRejection) ||
+              !error.expiredTurn(activeTurn) ||
+              this.controller.signal.aborted ||
+              (input.isCurrent && !input.isCurrent())
+            )
+              throw error;
+          }
         }
+        await this.enqueue(call, threadId, text, messageId);
         return { state: 'queued' };
       });
     } catch {
