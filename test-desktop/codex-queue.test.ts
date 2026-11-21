@@ -14,7 +14,7 @@ import {
 } from '../desktop/core/delivery-attempt.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
 
-async function fixture(t: TestContext) {
+async function fixture(t: TestContext, shared = false) {
   const directory = await mkdtemp(path.join(tmpdir(), 'ncf-codex-projection-'));
   const transcript = path.join(directory, 'rollout.jsonl');
   await writeFile(transcript, '');
@@ -70,39 +70,54 @@ async function fixture(t: TestContext) {
     },
   };
   const queued: object[] = [];
+  const steered: object[] = [];
+  const activeTurn = randomUUID();
   let projection: object[] = [];
   let validThread = true;
   let matchingAck = true;
+  const session: NonNullable<ConstructorParameters<typeof CodexQueueAdapter>[2]> = async (
+    _profile,
+    _signal,
+    operation,
+  ) =>
+    operation(async (method, params) => {
+      assert.equal((params as { threadId: string }).threadId, threadId);
+      if (method === 'thread/read')
+        return {
+          thread: {
+            id: validThread ? threadId : randomUUID(),
+            ephemeral: false,
+            path: transcript,
+            status: { type: shared ? 'active' : 'notLoaded' },
+          },
+        };
+      if (method === 'thread/queue/list') return { data: [] };
+      if (method === 'thread/items/list') return { data: projection };
+      if (method === 'thread/turns/list')
+        return { data: [{ id: activeTurn, status: 'inProgress' }] };
+      assert.equal(attempt.meta.phase, 'issued');
+      if (method === 'turn/steer') {
+        steered.push(params);
+        return { turnId: matchingAck ? activeTurn : randomUUID() };
+      }
+      assert.equal(method, 'thread/queue/add');
+      queued.push(params);
+      return {
+        queuedSubmission: {
+          id: randomUUID(),
+          clientUserMessageId: matchingAck ? attempt.id : randomUUID(),
+        },
+      };
+    });
   const adapter = new CodexQueueAdapter(
     profile,
     () => {},
-    async (_profile, _signal, operation) =>
-      operation(async (method, params) => {
-        assert.equal((params as { threadId: string }).threadId, threadId);
-        if (method === 'thread/read')
-          return {
-            thread: {
-              id: validThread ? threadId : randomUUID(),
-              ephemeral: false,
-              path: transcript,
-            },
-          };
-        if (method === 'thread/queue/list') return { data: [] };
-        if (method === 'thread/items/list') return { data: projection };
-        assert.equal(method, 'thread/queue/add');
-        queued.push(params);
-        assert.equal(attempt.meta.phase, 'issued');
-        return {
-          queuedSubmission: {
-            id: randomUUID(),
-            clientUserMessageId: matchingAck ? attempt.id : randomUUID(),
-          },
-        };
-      }),
+    session,
     async (_profile, _threadId, value) => {
       assert.equal(value, transcript);
       return transcript;
     },
+    shared ? session : undefined,
   );
   t.after(async () => {
     await adapter.stop();
@@ -127,6 +142,8 @@ async function fixture(t: TestContext) {
     input,
     attempt,
     queued,
+    steered,
+    activeTurn,
     body,
     setProjection,
     changeThread: () => {
@@ -201,4 +218,42 @@ test('an ambiguous queue submission retains the exact projection witness and nev
   changeThread();
   assert.equal((await adapter.deliver(input)).state, 'failed');
   assert.equal(queued.length, 1);
+});
+
+test('steers a verified active Codex turn and waits for the saved native item', async (t) => {
+  const { adapter, input, attempt, queued, steered, activeTurn, body, setProjection } =
+    await fixture(t, true);
+  await adapter.start();
+  assert.equal(adapter.status().capabilities.receiveActive, true);
+  assert.equal((await adapter.deliver(input)).state, 'queued');
+  assert.deepEqual(steered, [
+    {
+      threadId: input.binding.chatId,
+      expectedTurnId: activeTurn,
+      clientUserMessageId: attempt.id,
+      input: [{ type: 'text', text: body, text_elements: [] }],
+    },
+  ]);
+  assert.deepEqual(queued, []);
+  let receipts = 0;
+  adapter.observeDelivery(
+    attempt,
+    () => true,
+    () => receipts++,
+  );
+  await delay(250);
+  assert.equal(receipts, 0);
+  await setProjection(attempt.id, body);
+  const deadline = Date.now() + 3000;
+  while (!receipts && Date.now() < deadline) await delay(25);
+  assert.equal(receipts, 1);
+});
+
+test('a mismatched active-turn response cannot duplicate a possible release into the queue', async (t) => {
+  const { adapter, input, queued, steered, loseAck } = await fixture(t, true);
+  await adapter.start();
+  loseAck();
+  assert.equal((await adapter.deliver(input)).state, 'uncertain');
+  assert.equal(steered.length, 1);
+  assert.deepEqual(queued, []);
 });

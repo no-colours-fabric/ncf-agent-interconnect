@@ -36,13 +36,38 @@ For v1, use **Configure OpenCode v1** and select the configuration that instance
 
 Choose Codex, open **Configure Codex** and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Delivery is experimental and depends on the installed Codex Desktop version and the availability of the exact connected chat. If that chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
 
-The new macOS Codex Desktop path queues the full Incoming in the exact connected chat, including the sender, original text, attachment links and reply route. No `agent_read` call is required. The sender receives a receipt after Codex records the complete message in that chat. An unloaded chat must be opened to process its queue. If a turn is active, automatic queue delivery waits for that turn to finish. A receipt confirms delivery to the chat. Task completion is reported separately by the receiving agent.
+The new macOS Codex Desktop path queues the full Incoming in the exact connected chat, including the sender, original text, attachment links and reply route. No `agent_read` call is required. The sender receives a receipt after Codex records the complete message in that chat. An unloaded chat must be opened to process its queue. On the ordinary queue connection, an active turn delays delivery until it finishes. A shared server that owns the connected chat can admit Incoming to the active turn. A receipt confirms delivery to the chat. Task completion is reported separately by the receiving agent.
 
 Compatible older Codex Desktop versions continue to deliver the full Incoming through the existing local IPC path.
 
+### Use active-turn delivery in the current macOS Desktop
+
+Quit the intended Codex Desktop instance normally after its work has finished.
+Use the launcher included with the installed macOS package. Pass the exact
+existing Codex home configured in NCF Agent Interconnect. If the intended
+Desktop instance uses a separate Electron user-data directory, pass that
+existing directory as the third argument.
+
+```sh
+"/Applications/NCF Agent Interconnect.app/Contents/Resources/open-codex-with-ncf" --launch "$HOME/.codex"
+```
+
+The launcher changes the transport for that Desktop process. The bundled Codex
+App Server remains the process that owns the chat and accepts the same Desktop
+startup arguments through the private local socket. It continues using the
+selected Codex profile and Desktop user-data directory. The launcher does not
+copy either profile or change its MCP configuration. Delivery to an active
+turn requires the matching thread and active turn ID. The receipt requires the
+persisted item with matching submission ID and complete content.
+
+This launcher is specific to macOS and was tested with ChatGPT Desktop
+`26.1117.31558` and bundled Codex `0.171.0-alpha.13`. Compatible Windows
+versions retain their existing IPC delivery. Active-turn delivery in newer
+Windows Desktop versions without that IPC still needs native validation.
+
 For a previously connected Codex chat, reuse its `connectionId`. If that value was lost, call `agent_connect` with the same agent name from that chat. A one-time confirmation goes only to the previously bound exact chat through the standard notification queue. After `codex_recovery_pending`, wait for the confirmation in that chat. The assistant repeats `agent_connect` once with the original nickname and the one-use `contextToken` from the confirmation. This recovery does not authorize a different chat or silently transfer the name. For a new chat under a free name, first configure the intended local macOS Codex profile through Apply if it is not already configured, then connect from that exact chat. Each new agent does not need another Apply. The new queue path connects a free name or restores its original chat. Moving an occupied name requires the existing supported transfer flow.
 
-The macOS queue API was exercised with bundled Codex `0.171.0-alpha.13`. The release notes record the direct-delivery checks and their platform limits.
+The release notes record the direct-delivery checks and their platform limits.
 
 ## AionUi with Cursor Agent
 

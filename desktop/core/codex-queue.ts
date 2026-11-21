@@ -2,8 +2,16 @@ import { spawn } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { watch, type FSWatcher } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
+import { createConnection } from 'node:net';
 import path from 'node:path';
+import WebSocket from 'ws';
 import type { AdapterProfile, AdapterState } from '../shared/contracts.js';
+import {
+  bundledCodex,
+  codexControlDirectory,
+  codexControlSocket,
+  ncfCodexControlSocket,
+} from '../shared/codex-desktop.js';
 import {
   agentMessageText,
   type Admission,
@@ -12,8 +20,6 @@ import {
 } from './adapters.js';
 import { codexQueueWitness, contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 
-const bundledCodex =
-  '/Applications/ChatGPT.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
 const maximumFrameBytes = 2 * 1024 * 1024;
 const operationTimeout = 8000;
 const projectionPageSize = 4;
@@ -31,6 +37,53 @@ type QueueSession = <T>(
   signal: AbortSignal,
   operation: (call: QueueCall) => Promise<T>,
 ) => Promise<T>;
+
+type QueueOperation<T> = (call: QueueCall, shared: boolean) => Promise<T>;
+
+type RpcConnection = {
+  send: (line: string) => void;
+  receive: (listener: (frame: string) => void) => void;
+  fail: () => void;
+};
+
+async function exchange<T>(
+  signal: AbortSignal,
+  connection: RpcConnection,
+  operation: (call: QueueCall) => Promise<T>,
+): Promise<T> {
+  let requestId = 0;
+  let pending: ((reply: Record<string, unknown>) => void) | undefined;
+  connection.receive((frame) => {
+    try {
+      const reply = JSON.parse(frame) as Record<string, unknown>;
+      if (reply && typeof reply === 'object') pending?.(reply);
+    } catch {
+      connection.fail();
+    }
+  });
+  const call: QueueCall = (method, params) =>
+    new Promise((resolve, reject) => {
+      signal.throwIfAborted();
+      const id = ++requestId;
+      const abort = () => reject(new Error('Codex app-server did not confirm the request'));
+      signal.addEventListener('abort', abort, { once: true });
+      pending = (reply) => {
+        if (reply.id !== id) return;
+        signal.removeEventListener('abort', abort);
+        pending = undefined;
+        if (reply.error || !reply.result || typeof reply.result !== 'object')
+          reject(new Error('Codex app-server rejected the request'));
+        else resolve(reply.result as Record<string, unknown>);
+      };
+      connection.send(JSON.stringify({ id, method, params }));
+    });
+  await call('initialize', {
+    clientInfo: { name: 'ncf_agent_interconnect', title: 'NCF Agent Interconnect', version: '1' },
+    capabilities: { experimentalApi: true },
+  });
+  connection.send(JSON.stringify({ method: 'initialized' }));
+  return operation(call);
+}
 
 export async function codexQueueHome(socket: string | undefined): Promise<string> {
   if (
@@ -111,56 +164,116 @@ const appServerSession: QueueSession = async (profile, stopped, operation) => {
   child.on('error', disconnected);
   child.stdin.on('error', disconnected);
   child.once('close', disconnected);
-  let buffer = Buffer.alloc(0);
-  let pending: ((reply: Record<string, unknown>) => void) | undefined;
-  child.stdout.on('data', (chunk: Buffer) => {
-    buffer = Buffer.concat([buffer, chunk]);
-    let next: number;
-    while ((next = buffer.indexOf(10)) !== -1) {
-      const frame = buffer.subarray(0, next);
-      buffer = buffer.subarray(next + 1);
-      try {
-        if (frame.length > maximumFrameBytes) throw new Error();
-        const reply = JSON.parse(frame.toString('utf8')) as Record<string, unknown>;
-        if (reply && typeof reply === 'object') pending?.(reply);
-      } catch {
-        disconnected();
-        return;
-      }
-    }
-    if (buffer.length > maximumFrameBytes) disconnected();
-  });
-
-  let requestId = 0;
-  const call: QueueCall = (method, params) =>
-    new Promise((resolve, reject) => {
-      signal.throwIfAborted();
-      const id = ++requestId;
-      const abort = () => reject(new Error('Codex app-server did not confirm the queue request'));
-      signal.addEventListener('abort', abort, { once: true });
-      pending = (reply) => {
-        if (reply.id !== id) return;
-        signal.removeEventListener('abort', abort);
-        pending = undefined;
-        if (reply.error || !reply.result || typeof reply.result !== 'object')
-          reject(new Error('Codex app-server rejected the queue request'));
-        else resolve(reply.result as Record<string, unknown>);
-      };
-      child.stdin.write(JSON.stringify({ id, method, params }) + '\n');
-    });
   try {
-    await call('initialize', {
-      clientInfo: { name: 'ncf_agent_interconnect', title: 'NCF Agent Interconnect', version: '1' },
-      capabilities: { experimentalApi: true },
-    });
-    child.stdin.write(JSON.stringify({ method: 'initialized' }) + '\n');
-    return await operation(call);
+    return await exchange(
+      signal,
+      {
+        send: (line) => child.stdin.write(line + '\n'),
+        receive: (listener) => {
+          let buffer = Buffer.alloc(0);
+          child.stdout.on('data', (chunk: Buffer) => {
+            buffer = Buffer.concat([buffer, chunk]);
+            let next: number;
+            while ((next = buffer.indexOf(10)) !== -1) {
+              const frame = buffer.subarray(0, next);
+              buffer = buffer.subarray(next + 1);
+              if (frame.length > maximumFrameBytes) {
+                disconnected();
+                return;
+              }
+              listener(frame.toString('utf8'));
+            }
+            if (buffer.length > maximumFrameBytes) disconnected();
+          });
+        },
+        fail: disconnected,
+      },
+      operation,
+    );
   } finally {
     // Abort only the app-server child created for this operation.
     lifetime.abort();
     const force = setTimeout(() => child.kill('SIGKILL'), 1000);
     await closed;
     clearTimeout(force);
+  }
+};
+
+const sharedAppServerSession: QueueSession = async (profile, stopped, operation) => {
+  const home = await codexQueueHome(profile.socket);
+  const uid = process.getuid!();
+  const directory = path.join(home, codexControlDirectory);
+  const bridgedSocket = path.join(directory, ncfCodexControlSocket);
+  const socketPath = await lstat(bridgedSocket).then(
+    () => bridgedSocket,
+    (error: NodeJS.ErrnoException) => {
+      if (error.code !== 'ENOENT') throw error;
+      return path.join(directory, codexControlSocket);
+    },
+  );
+  const directoryInfo = await lstat(directory);
+  if (
+    !directoryInfo.isDirectory() ||
+    directoryInfo.uid !== uid ||
+    (directoryInfo.mode & 0o022) !== 0 ||
+    (await realpath(directory)) !== directory
+  )
+    throw new Error('The local Codex control directory failed its ownership check');
+
+  const alias = await lstat(socketPath);
+  const endpoint = await realpath(socketPath);
+  if (alias.isSymbolicLink()) {
+    // Codex places long Unix socket paths under a private, same-user daemon directory.
+    const temporary = path.join(await realpath('/tmp'), 'codex-daemon-' + uid);
+    if (endpoint !== path.join(temporary, contentHash(socketPath)))
+      throw new Error('The local Codex control socket has an unexpected target');
+    const info = await lstat(temporary);
+    if (!info.isDirectory() || info.uid !== uid || (info.mode & 0o077) !== 0)
+      throw new Error('The local Codex daemon directory failed its ownership check');
+  } else if (endpoint !== socketPath) {
+    throw new Error('The local Codex control socket has an unexpected target');
+  }
+  const info = await lstat(endpoint);
+  if (alias.uid !== uid || !info.isSocket() || info.uid !== uid || (info.mode & 0o077) !== 0)
+    throw new Error('The local Codex control socket failed its ownership check');
+
+  const lifetime = new AbortController();
+  const signal = AbortSignal.any([stopped, lifetime.signal, AbortSignal.timeout(operationTimeout)]);
+  signal.throwIfAborted();
+  const ws = new WebSocket('ws://localhost/rpc', {
+    createConnection: () => createConnection(endpoint),
+    maxPayload: maximumFrameBytes,
+    handshakeTimeout: 2000,
+  });
+  const disconnected = () => lifetime.abort(new Error('The Codex control connection closed'));
+  ws.on('error', disconnected);
+  ws.once('close', disconnected);
+  try {
+    await new Promise<void>((resolve, reject) => {
+      signal.throwIfAborted();
+      const abort = () => reject(signal.reason);
+      signal.addEventListener('abort', abort, { once: true });
+      ws.once('open', () => {
+        signal.removeEventListener('abort', abort);
+        resolve();
+      });
+    });
+    return await exchange(
+      signal,
+      {
+        send: (line) => ws.send(line),
+        receive: (listener) => {
+          ws.on('message', (frame, binary) => {
+            if (binary) disconnected();
+            else listener(frame.toString());
+          });
+        },
+        fail: disconnected,
+      },
+      operation,
+    );
+  } finally {
+    ws.terminate();
   }
 };
 
@@ -172,6 +285,7 @@ export class CodexQueueAdapter implements AgentAdapter {
   private state: AdapterState['state'] = 'checking';
   private error: string | null = null;
   private transcript?: string;
+  private sharedOwner = false;
   private watcher?: FSWatcher;
   private readonly projections = new Map<string, Projection>();
   private projectionTimer?: ReturnType<typeof setTimeout>;
@@ -183,6 +297,7 @@ export class CodexQueueAdapter implements AgentAdapter {
     private readonly changed: () => void,
     private readonly session: QueueSession = appServerSession,
     private readonly resolveTranscript = codexTranscript,
+    private readonly ownerSession: QueueSession = sharedAppServerSession,
   ) {}
 
   status(): AdapterState {
@@ -192,7 +307,7 @@ export class CodexQueueAdapter implements AgentAdapter {
       kind: 'codex-desktop',
       capabilities: {
         wakeIdle: this.state === 'ready',
-        receiveActive: false,
+        receiveActive: this.state === 'ready' && this.sharedOwner,
         nativeDisplay: this.state === 'ready',
         exactSession: this.state === 'ready',
       },
@@ -201,21 +316,35 @@ export class CodexQueueAdapter implements AgentAdapter {
     };
   }
 
-  private run<T>(operation: (call: QueueCall) => Promise<T>): Promise<T> {
-    const job = this.session(this.profile, this.controller.signal, operation);
+  private run<T>(operation: QueueOperation<T>): Promise<T> {
+    const signal = this.controller.signal;
+    const job = (async () => {
+      let began = false;
+      try {
+        return await this.ownerSession(this.profile, signal, (call) => {
+          began = true;
+          return operation(call, true);
+        });
+      } catch (error) {
+        // Once an operation has started, the server may have accepted content.
+        if (began || signal.aborted) throw error;
+      }
+      return this.session(this.profile, signal, (call) => operation(call, false));
+    })();
     this.jobs.add(job);
     return job.finally(() => this.jobs.delete(job));
   }
 
-  private async verifyThread(call: QueueCall): Promise<{ id: string; path?: unknown }> {
+  private async verifyThread(call: QueueCall) {
     const threadId = this.profile.threadId;
     if (!threadId) throw new Error('The saved Codex chat is missing');
     const result = await call('thread/read', { threadId, includeTurns: false });
     const thread = result.thread as
-      { id?: unknown; ephemeral?: unknown; path?: unknown } | undefined;
+      | { id?: unknown; ephemeral?: unknown; path?: unknown; status?: { type?: unknown } }
+      | undefined;
     if (thread?.id !== threadId || thread.ephemeral !== false)
       throw new Error('Codex did not confirm the saved chat in this profile');
-    return { id: threadId, path: thread.path };
+    return { id: threadId, path: thread.path, state: thread.status?.type };
   }
 
   private async enqueue(
@@ -276,12 +405,13 @@ export class CodexQueueAdapter implements AgentAdapter {
 
   async start(): Promise<void> {
     try {
-      await this.run(async (call) => {
+      await this.run(async (call, shared) => {
         const thread = await this.verifyThread(call);
         const response = await call('thread/queue/list', { threadId: thread.id, limit: 1 });
         if (!Array.isArray(response.data)) throw new Error('Codex did not confirm queue support');
         await this.projectionPage(call, thread.id);
         this.transcript = await this.resolveTranscript(this.profile, thread.id, thread.path);
+        this.sharedOwner = shared && (thread.state === 'active' || thread.state === 'idle');
       });
       if (this.controller.signal.aborted) return;
       this.state = 'ready';
@@ -412,8 +542,21 @@ export class CodexQueueAdapter implements AgentAdapter {
       return { state: 'revoked' };
     let submitting = false;
     try {
-      return await this.run(async (call) => {
-        const { id: threadId } = await this.verifyThread(call);
+      return await this.run(async (call, shared) => {
+        const thread = await this.verifyThread(call);
+        const threadId = thread.id;
+        let activeTurn: string | undefined;
+        if (shared && thread.state === 'active' && !input.systemEvent) {
+          const { data } = await call('thread/turns/list', {
+            threadId,
+            limit: 1,
+            sortDirection: 'desc',
+          });
+          const turn = Array.isArray(data) ? data[0] : undefined;
+          if (turn?.status !== 'inProgress' || typeof turn.id !== 'string' || !turn.id)
+            return { state: 'failed', error: 'Codex did not confirm the active turn' };
+          activeTurn = turn.id;
+        }
         if (this.controller.signal.aborted || (input.isCurrent && !input.isCurrent()))
           return { state: 'revoked' };
         const text = agentMessageText(input);
@@ -427,7 +570,18 @@ export class CodexQueueAdapter implements AgentAdapter {
         const messageId = input.deliveryAttempt.id;
         input.beforeRelease(text, { messageId, runtime: codexQueueWitness, session: threadId });
         submitting = true;
-        await this.enqueue(call, threadId, text, messageId);
+        if (activeTurn) {
+          const result = await call('turn/steer', {
+            threadId,
+            expectedTurnId: activeTurn,
+            clientUserMessageId: messageId,
+            input: [{ type: 'text', text, text_elements: [] }],
+          });
+          if (result.turnId !== activeTurn)
+            throw new Error('Codex did not confirm the active turn');
+        } else {
+          await this.enqueue(call, threadId, text, messageId);
+        }
         return { state: 'queued' };
       });
     } catch {

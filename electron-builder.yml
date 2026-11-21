@@ -27,6 +27,9 @@ fileOptions:
       to: licenses/Chromium.LICENSES.html
 artifactName: NCF-Agent-Interconnect-${version}-${os}-${arch}.${ext}
 mac:
+  extraResources:
+    - from: scripts/open-codex-with-ncf.sh
+      to: open-codex-with-ncf
   category: public.app-category.developer-tools
   sign:
     identity: '-'
