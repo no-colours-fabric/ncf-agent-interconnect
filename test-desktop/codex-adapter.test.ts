@@ -3,17 +3,19 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { mkdtemp, rm, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, realpath, rm, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
+import { syncBuiltinESMExports } from 'node:module';
 import {
   CODEX_IPC_MAX_FRAME_BYTES,
+  codexEndpoints,
   CodexDesktopAdapter,
   codexExchange,
 } from '../desktop/core/codex-adapter.js';
 import { AdapterRegistry, agentMessageText, type EventInput } from '../desktop/core/adapters.js';
-import { CodexQueueAdapter } from '../desktop/core/codex-queue.js';
+import { CodexQueueAdapter, codexQueueLocator } from '../desktop/core/codex-queue.js';
 import { codexQueueWitness } from '../desktop/core/delivery-attempt.js';
 import { NodeService } from '../desktop/core/service.js';
 import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
@@ -943,6 +945,161 @@ test(
     assert.equal(offer.mock.callCount(), 1);
   },
 );
+
+test('Disconnected Codex can confirm the same exact chat under the old or a free name', async (t) => {
+  for (const nickname of ['Идея7', 'Мика']) {
+    await t.test(nickname, async (t) => {
+      const f = await fixture(t);
+      const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-rebind-'));
+      const service = new NodeService(directory, { codexSockets: () => [] });
+      const client = new Client({ name: 'Codex', version: 'test' });
+      t.after(async () => {
+        await client.close();
+        await service.close();
+        await rm(directory, { recursive: true, force: true });
+      });
+      await service.open();
+      const threadId = f.profile.threadId!;
+      const first = await service.connectCodex(
+        { nickname: 'Идея7', client: 'Codex' },
+        {
+          threadId,
+          socket: f.profile.socket,
+        },
+      );
+      if (first.status !== 'connected') throw new Error('Missing fixture binding');
+      const saved = service.settings.value.adapters.find((p) => p.id === first.binding.adapterId)!;
+      let expectedSocket = saved.socket;
+      if (process.platform === 'win32') {
+        const fixtureHome = await realpath(directory);
+        const home = path.join(fixtureHome, '.codex');
+        await mkdir(home);
+        expectedSocket = codexQueueLocator(home);
+        if (nickname === 'Идея7') {
+          // Cover a Desktop pipe without a remembered config.toml or a real profile.
+          const homeMock = t.mock.method(os, 'homedir', () => fixtureHome);
+          syncBuiltinESMExports();
+          t.after(() => {
+            homeMock.mock.restore();
+            syncBuiltinESMExports();
+          });
+          saved.socket = codexEndpoints()[0];
+        } else {
+          saved.socket = expectedSocket;
+          saved.codexQueue = true;
+        }
+        await service.settings.save();
+      }
+      const sent = await service.send({
+        connectionId: first.binding.connectionId,
+        recipientNode: service.settings.value.nodeId,
+        recipientNickname: 'History recipient',
+        text: 'History before disconnect',
+      });
+      const before = await service.userCall('chatHistory', { nickname: 'Идея7' });
+      assert.match(JSON.stringify(before), new RegExp(sent.id));
+      const challenges: string[] = [];
+      t.mock.method(
+        CodexQueueAdapter.prototype,
+        'challenge',
+        async function (this: CodexQueueAdapter, token: string, current: () => boolean) {
+          assert.equal(this.profile.threadId, threadId);
+          assert.equal(this.profile.socket, expectedSocket);
+          assert.equal(current(), true);
+          challenges.push(token);
+          return 'sent';
+        },
+      );
+      t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {});
+      const ready = service.adapters.get(saved.id).status();
+      t.mock.method(CodexQueueAdapter.prototype, 'status', function (this: CodexQueueAdapter) {
+        return { ...ready, id: this.profile.id };
+      });
+      t.mock.method(service.adapters.get(saved.id), 'status', () => ({
+        ...ready,
+        state: 'error',
+        error: 'Codex IPC: ECONNREFUSED',
+      }));
+      await client.connect(
+        new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
+          requestInit: {
+            headers: { authorization: 'Bearer ' + service.settings.value.localToken },
+          },
+        }),
+      );
+      const call = (name: string, args: Record<string, unknown>, thread = threadId) =>
+        client.callTool({ name, arguments: args, _meta: { threadId: thread } });
+      const connect = (name: string, contextToken?: string, thread?: string) =>
+        call(
+          'agent_connect',
+          { nickname: name, ...(contextToken ? { contextToken } : {}) },
+          thread,
+        );
+      const disconnect = (connectionId: string) => call('agent_disconnect', { connectionId });
+      const status = (result: Awaited<ReturnType<typeof connect>>) =>
+        (result.structuredContent as { status?: string } | undefined)?.status;
+      assert.equal((await connect('Мика')).isError, true, 'Active owner blocks an alias');
+      assert.equal((await disconnect(first.binding.connectionId)).isError, undefined);
+      const occupied = service.connect({ nickname: 'Occupied', client: 'MCP' });
+      if (occupied.status !== 'connected') throw new Error('Missing occupied name');
+      assert.equal((await connect(occupied.nickname)).isError, true);
+      const duplicate = { ...saved, id: randomUUID() };
+      service.settings.value.adapters.push(duplicate);
+      try {
+        assert.equal((await connect(nickname)).isError, true);
+      } finally {
+        service.settings.value.adapters.pop();
+      }
+      assert.equal(challenges.length, 0);
+      const pending = await connect(nickname);
+      assert.equal(pending.isError, undefined, JSON.stringify(pending));
+      assert.equal(status(pending), 'codex_recovery_pending');
+      assert.equal(challenges.length, 1);
+      const stale = challenges[0]!;
+      assert.equal((await connect(nickname, stale, randomUUID())).isError, true);
+      assert.equal((await connect('Another name', stale)).isError, true);
+      // An intervening owner can claim and release this exact chat. The earlier
+      // confirmation must not become valid again after that disconnect.
+      const intervening = service.connect({
+        nickname: 'Other owner',
+        client: 'Codex',
+        chatId: threadId,
+        adapterId: saved.id,
+      });
+      if (intervening.status !== 'connected') throw new Error('Missing intervening owner');
+      assert.equal((await connect(nickname, stale)).isError, true);
+      assert.equal((await disconnect(intervening.binding.connectionId)).isError, undefined);
+      assert.equal((await connect(nickname, stale)).isError, true);
+      assert.equal(status(await connect(nickname)), 'codex_recovery_pending');
+      assert.equal(challenges.length, 2);
+      const token = challenges[1]!;
+      const result = await connect(nickname, token);
+      assert.equal(result.isError, undefined, JSON.stringify(result));
+      const recovered = result.structuredContent as unknown as typeof first;
+      assert.equal(recovered.status, 'connected');
+      assert.equal(recovered.binding.chatId, threadId);
+      assert.equal(recovered.binding.adapterId, first.binding.adapterId);
+      assert.notEqual(recovered.binding.connectionId, first.binding.connectionId);
+      assert.equal(recovered.binding.generation, nickname === 'Идея7' ? 2 : 1);
+      assert.equal((await connect(nickname, token)).isError, true);
+      assert.equal(
+        service.settings.value.adapters.filter((p) => p.threadId === threadId).length,
+        1,
+      );
+      assert.deepEqual(await service.userCall('chatHistory', { nickname: 'Идея7' }), before);
+      if (nickname === 'Мика') {
+        assert.equal(
+          service.store.list().find((agent) => agent.nickname === 'Идея7')?.binding,
+          null,
+        );
+        assert.doesNotMatch(
+          JSON.stringify(await service.userCall('chatHistory', { nickname })),
+          /History before disconnect/,
+        );
+      }
+    });
+  }
+});
 
 test('Codex records a last-verified observation on success and keeps it as history after a later failure', async (t) => {
   const f = await fixture(t),

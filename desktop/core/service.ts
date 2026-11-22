@@ -100,8 +100,9 @@ interface CodexRecoveryTarget {
   key: string;
   threadId: string;
   socket: string;
-  previousSocket?: string;
+  profile?: AdapterProfile;
   binding?: Binding;
+  nameStamp: ReturnType<AgentStore['sourceStamp']>;
   epoch: string;
 }
 
@@ -756,6 +757,18 @@ export class NodeService extends EventEmitter {
       adapterId,
     });
     if (result.status === 'connected') {
+      for (const [threadId, challenge] of this.codexRecovery)
+        if (
+          (challenge.target.key === nicknameKey(result.nickname) ||
+            (profile?.kind === 'codex-desktop' && threadId === result.binding.chatId)) &&
+          !(
+            challenge.state === 'used' &&
+            challenge.target.key === nicknameKey(result.nickname) &&
+            result.binding.client === 'Codex' &&
+            threadId === result.binding.chatId
+          )
+        )
+          this.codexRecovery.delete(threadId);
       this.nativeIncoming.observe();
       this.mcp.notify({
         source: 'application',
@@ -808,7 +821,9 @@ export class NodeService extends EventEmitter {
     this.presence.close(session);
   }
   disconnect(connectionId: string): { disconnected: true } {
+    const { binding } = this.store.assertOwner(connectionId);
     this.store.disconnect(connectionId);
+    if (binding.client === 'Codex') this.codexRecovery.delete(binding.chatId);
     this.nativeIncoming.observe();
     for (const [key, snapshot] of this.claudeDispatchSnapshots)
       if (snapshot.connectionId === connectionId) this.claudeDispatchSnapshots.delete(key);
@@ -1326,7 +1341,12 @@ export class NodeService extends EventEmitter {
     if (args.chatId && args.chatId !== validated.threadId)
       throw new Error('chatId and codexTarget.threadId must refer to the same chat');
     let adapterId = '';
+    const assertNoOtherOwner = () => {
+      if (this.codexChatOwned(validated.threadId, nicknameKey(args.nickname)))
+        throw new Error('The Codex chat already has an active binding');
+    };
     const setup = this.adapterSetup.then(async () => {
+      assertNoOtherOwner();
       const socket =
         validated.socket ??
         (await discoverCodex(
@@ -1377,6 +1397,7 @@ export class NodeService extends EventEmitter {
     });
     this.adapterSetup = setup.catch(() => {});
     await setup;
+    assertNoOtherOwner();
     const existing = this.store.list().find((a) => a.key === nicknameKey(args.nickname))?.binding;
     const connectionId =
       args.connectionId ??
@@ -1519,7 +1540,31 @@ export class NodeService extends EventEmitter {
     }
   }
 
-  private assertCodexRecoveryTarget(target: CodexRecoveryTarget): AdapterProfile | undefined {
+  private async savedCodexQueueSocket(profile: AdapterProfile): Promise<string> {
+    if (!profile.socket) throw new Error('The saved Codex profile has no endpoint');
+    if (process.platform !== 'win32' || profile.codexQueue) return profile.socket;
+    // The Windows Desktop pipe does not encode the profile directory. Locate
+    // the control socket, then require the exact saved chat/transcript there.
+    const selected = await new McpSetupPaths(this.directory).get('codex');
+    const home = selected ? path.dirname(selected) : path.join(homedir(), '.codex');
+    const socket = codexQueueLocator(home);
+    await codexQueueHome(socket);
+    return socket;
+  }
+
+  private codexChatOwned(threadId: string, exceptKey?: string): boolean {
+    return this.store
+      .list()
+      .some(
+        ({ key, binding }) =>
+          key !== exceptKey && binding?.client === 'Codex' && binding.chatId === threadId,
+      );
+  }
+
+  private assertCodexRecoveryTarget(
+    target: Omit<CodexRecoveryTarget, 'socket'>,
+    expected = target.profile,
+  ): AdapterProfile | undefined {
     if (!this.integrationsReady || this.deliveryIncarnation !== target.epoch)
       throw new Error('The Codex connection lifecycle changed');
     const binding = this.store.list().find((agent) => agent.key === target.key)?.binding;
@@ -1528,21 +1573,36 @@ export class NodeService extends EventEmitter {
     );
     const saved = target.binding;
     if (!saved) {
-      if (binding || profiles.length) throw new Error('The Codex connection changed');
-      return;
-    }
-    if (
+      const stamp = this.store.sourceStamp(target.key);
+      if (
+        binding ||
+        this.codexChatOwned(target.threadId) ||
+        (expected && this.store.list().some(({ binding }) => binding?.adapterId === expected.id))
+      )
+        throw new Error('The Codex chat or requested name already has an active binding');
+      if (
+        stamp.generation !== target.nameStamp.generation ||
+        stamp.incarnation !== target.nameStamp.incarnation
+      )
+        throw new Error('The requested agent name changed during confirmation');
+    } else if (
       binding?.connectionId !== saved.connectionId ||
       binding.generation !== saved.generation ||
       binding.adapterId !== saved.adapterId ||
       binding.chatId !== target.threadId ||
-      binding.client !== 'Codex' ||
-      profiles.length !== 1 ||
-      profiles[0]!.id !== saved.adapterId ||
-      profiles[0]!.socket !== target.previousSocket
+      binding.client !== 'Codex'
+    ) {
+      throw new Error('The saved Codex connection changed');
+    }
+    if (
+      profiles.length !== (expected ? 1 : 0) ||
+      (expected &&
+        (profiles[0]?.id !== expected.id ||
+          profiles[0]?.socket !== expected.socket ||
+          profiles[0]?.codexQueue !== expected.codexQueue))
     )
       throw new Error('The saved Codex connection changed');
-    return profiles[0]!;
+    return profiles[0];
   }
 
   private async requestCodexRecovery(
@@ -1552,9 +1612,13 @@ export class NodeService extends EventEmitter {
     const key = nicknameKey(nickname);
     const epoch = this.deliveryIncarnation;
     const binding = this.store.list().find((agent) => agent.key === key)?.binding ?? undefined;
+    const candidates = this.settings.value.adapters.filter(
+      (candidate) => candidate.kind === 'codex-desktop' && candidate.threadId === threadId,
+    );
+    if (candidates.length > 1) throw new Error('Multiple saved Codex profiles match this chat');
     const profile = binding
       ? this.settings.value.adapters.find((candidate) => candidate.id === binding.adapterId)
-      : undefined;
+      : candidates[0];
     if (
       binding &&
       (binding.client !== 'Codex' ||
@@ -1566,18 +1630,28 @@ export class NodeService extends EventEmitter {
       throw new Error(
         'The requested name is already bound. Use its original Codex chat or restore the Desktop integration.',
       );
-    const socket =
-      profile && (profile.codexQueue || process.platform !== 'win32')
-        ? profile.socket!
-        : await this.configuredCodexQueueSocket();
-    const target: CodexRecoveryTarget = {
+    const savedTarget = {
       key,
       threadId,
-      socket,
-      previousSocket: profile?.socket,
+      profile: profile && structuredClone(profile),
       binding,
+      nameStamp: this.store.sourceStamp(key),
       epoch,
     };
+    this.assertCodexRecoveryTarget(savedTarget);
+    if (
+      !binding &&
+      process.platform === 'win32' &&
+      profile &&
+      !(await this.codexQueueCanRecover(profile))
+    )
+      throw new Error('The saved Codex profile cannot use native recovery');
+    const windowsDesktop = process.platform === 'win32' && profile && !profile.codexQueue;
+    const socket =
+      !profile || (binding && windowsDesktop)
+        ? await this.configuredCodexQueueSocket()
+        : await this.savedCodexQueueSocket(profile);
+    const target: CodexRecoveryTarget = { ...savedTarget, socket };
     this.assertCodexRecoveryTarget(target);
 
     const now = Date.now();
@@ -1585,6 +1659,7 @@ export class NodeService extends EventEmitter {
       if (challenge.expires <= now) this.codexRecovery.delete(id);
     const current = this.codexRecovery.get(threadId);
     if (current) {
+      this.assertCodexRecoveryTarget(current.target);
       if (
         current.target.key !== key ||
         current.target.socket !== socket ||
@@ -1615,6 +1690,12 @@ export class NodeService extends EventEmitter {
     );
     this.codexRecoveryAdapters.add(adapter);
     try {
+      if (!binding && profile && !profile.codexQueue) {
+        await adapter.start();
+        const status = adapter.status();
+        if (status.state !== 'ready')
+          throw new Error(status.error ?? 'The exact Codex chat is unavailable');
+      }
       const outcome = await adapter.challenge(token, () => {
         this.assertCodexRecoveryTarget(target);
         return (
@@ -1623,13 +1704,14 @@ export class NodeService extends EventEmitter {
           challenge.expires > Date.now()
         );
       });
-      if (outcome === 'failed') {
-        challenge.state = 'failed';
+      if (outcome === 'failed')
         throw new Error('The Codex confirmation could not be queued for this chat.');
-      }
       if (this.codexRecovery.get(threadId) !== challenge)
         throw new Error('The Codex connection lifecycle changed');
       return this.codexRecoveryPending();
+    } catch (error) {
+      challenge.state = 'failed';
+      throw error;
     } finally {
       await adapter.stop();
       this.codexRecoveryAdapters.delete(adapter);
@@ -1671,12 +1753,21 @@ export class NodeService extends EventEmitter {
       );
 
     const setup = this.adapterSetup.then(async () => {
-      this.assertCodexRecoveryTarget(target);
-      if ((await this.configuredCodexQueueSocket()) !== target.socket)
+      const assertCurrent = (expected = target.profile) => {
+        if (this.codexRecovery.get(threadId) !== challenge || challenge.expires <= Date.now())
+          throw new Error('The Codex confirmation is invalid or expired');
+        return this.assertCodexRecoveryTarget(target, expected);
+      };
+      const previous = assertCurrent();
+      if (
+        (await (previous
+          ? this.savedCodexQueueSocket(previous)
+          : this.configuredCodexQueueSocket())) !== target.socket
+      )
         throw new Error('The selected Codex profile changed');
-      this.assertCodexRecoveryTarget(target);
+      assertCurrent();
       const profile: AdapterProfile = {
-        id: randomUUID(),
+        id: previous?.id ?? randomUUID(),
         kind: 'codex-desktop',
         label: 'Codex',
         threadId,
@@ -1686,17 +1777,18 @@ export class NodeService extends EventEmitter {
       let persisted = false;
       try {
         await this.adapters.add(profile);
-        this.assertCodexRecoveryTarget(target);
+        assertCurrent();
         const status = this.adapters.get(profile.id).status();
         if (status.state !== 'ready')
           throw new Error(status.error ?? 'The exact Codex chat is unavailable');
-        this.settings.value.adapters.push(profile);
+        if (previous)
+          this.settings.value.adapters = this.settings.value.adapters.map((candidate) =>
+            candidate === previous ? profile : candidate,
+          );
+        else this.settings.value.adapters.push(profile);
         await this.settings.save();
         persisted = true;
-        if (!this.integrationsReady || this.deliveryIncarnation !== target.epoch)
-          throw new Error('The Codex connection lifecycle changed');
-        if (this.store.list().some((agent) => agent.key === target.key && agent.binding))
-          throw new Error('The requested agent name was bound during confirmation');
+        assertCurrent(profile);
         const result = this.connect({
           nickname,
           client: 'Codex',
@@ -1705,10 +1797,12 @@ export class NodeService extends EventEmitter {
         });
         return { ...result, delivery: this.codexQueueDelivery() };
       } catch (error) {
-        this.settings.value.adapters = this.settings.value.adapters.filter(
-          (candidate) => candidate.id !== profile.id,
+        this.settings.value.adapters = this.settings.value.adapters.flatMap((candidate) =>
+          candidate !== profile ? [candidate] : previous ? [previous] : [],
         );
-        await this.adapters.remove(profile.id);
+        if (previous && this.integrationsReady && this.deliveryIncarnation === target.epoch)
+          await this.adapters.add(previous);
+        else await this.adapters.remove(profile.id);
         if (persisted) await this.settings.save();
         throw error;
       }
