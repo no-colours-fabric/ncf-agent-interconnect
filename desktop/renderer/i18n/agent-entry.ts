@@ -301,7 +301,7 @@ export function agentEntryMessages(locale: Locale): AgentEntryMessages {
 
 export function agentApplicationLabel(locale: Locale, application: AgentApplication): string {
   if (application.startsWith('client:')) return application.slice('client:'.length);
-  if (application === 'codex-desktop') return 'Codex Desktop';
+  if (application === 'codex-desktop') return 'ChatGPT';
   if (application === 'claude-code') return 'Claude Code';
   if (application === 'cursor') return 'Cursor';
   if (application === 'opencode') return 'OpenCode';

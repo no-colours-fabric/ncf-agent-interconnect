@@ -34,7 +34,7 @@ export function createMcpSetupHandler(
       desktop: string;
       boundProfiles: () => readonly { socket?: string; codexQueue?: boolean }[];
       reveal: (filename: string) => void;
-      dialog: Pick<Dialog, 'showSaveDialog'>;
+      dialog: Pick<Dialog, 'showOpenDialog'>;
     };
   },
 ): (
@@ -61,6 +61,7 @@ export function createMcpSetupHandler(
     if (
       method === 'codexShortcutPlatform' ||
       method === 'codexShortcutCreate' ||
+      method === 'codexShortcutLocations' ||
       method === 'codexShortcutRevealDock'
     ) {
       if (!owner) throw new Error('The desktop interface session is missing');

@@ -399,7 +399,7 @@ async function verifyClientPanel(client, count, delivery) {
   const heading = await page
     .getByRole('tabpanel')
     .getByRole('heading', {
-      name: { cursor: 'Cursor', opencode: 'OpenCode', codex: 'Codex', aionui: 'AionUi' }[client],
+      name: { cursor: 'Cursor', opencode: 'OpenCode', codex: 'ChatGPT', aionui: 'AionUi' }[client],
       exact: true,
     })
     .boundingBox();

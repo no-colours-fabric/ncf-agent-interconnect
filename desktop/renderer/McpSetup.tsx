@@ -57,7 +57,7 @@ import { ClientSetupHelp, hasUsableClientSetup } from './ClientSetupHelp.js';
 const labels = {
   cursor: 'Cursor',
   opencode: 'OpenCode v1',
-  codex: 'Codex',
+  codex: 'ChatGPT',
   aionui: 'AionUi',
   claude: 'Claude Code',
 };

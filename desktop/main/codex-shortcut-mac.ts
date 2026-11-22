@@ -13,6 +13,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { codexShortcutDisplayName, type CodexShortcutResult } from '../shared/codex-shortcut.js';
 import { discoveryCatalog } from '../core/application-discovery-catalog.js';
@@ -134,6 +135,68 @@ export async function macShortcutDirectory(filename: string): Promise<string> {
   if (!info.isDirectory() || info.uid !== process.getuid!() || info.mode & 0o022)
     throw new Error('Invalid Codex profile directory');
   return canonical;
+}
+
+export async function isMacCodexShortcut(filename: string): Promise<boolean> {
+  try {
+    if ((await macShortcutDirectory(filename)) !== filename) return false;
+    const info = path.join(filename, 'Contents', 'Info.plist');
+    if ((await realpath(info)) !== info) return false;
+    const { stdout } = await execute(
+      '/usr/libexec/PlistBuddy',
+      ['-c', 'Print :CFBundleIdentifier', '-c', 'Print :CFBundleExecutable', info],
+      { timeout: 3000, maxBuffer: 4096 },
+    );
+    const [identifier, executable] = stdout.trim().split('\n');
+    if (
+      !/^io\.github\.no-colours-fabric\.ncf-agent-interconnect\.codex\.[a-f0-9-]{36}$/.test(
+        identifier,
+      ) ||
+      executable !== 'CodexNCF'
+    )
+      return false;
+    await execute('/usr/bin/codesign', ['--verify', '--strict', filename], { timeout: 3000 });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function macCodexDockShortcuts(home: string): Promise<string[]> {
+  try {
+    const { stdout } = await execute(
+      '/usr/bin/plutil',
+      [
+        '-extract',
+        'persistent-apps',
+        'json',
+        '-o',
+        '-',
+        path.join(home, 'Library', 'Preferences', 'com.apple.dock.plist'),
+      ],
+      { timeout: 3000, maxBuffer: 131072 },
+    );
+    const entries = z
+      .array(
+        z.object({
+          'tile-data': z
+            .object({ 'file-data': z.object({ _CFURLString: z.string() }).optional() })
+            .optional(),
+        }),
+      )
+      .parse(JSON.parse(stdout));
+    return entries.flatMap((entry) => {
+      const url = entry['tile-data']?.['file-data']?._CFURLString;
+      if (!url?.startsWith('file:')) return [];
+      try {
+        return [fileURLToPath(url)];
+      } catch {
+        return [];
+      }
+    });
+  } catch {
+    return [];
+  }
 }
 
 interface MacShortcutOptions extends MacCodexInstall {

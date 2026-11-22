@@ -154,7 +154,7 @@ try {
   for (const [client, label] of [
     ['cursor', 'Cursor'],
     ['opencode', 'OpenCode v1'],
-    ['codex', 'Codex'],
+    ['codex', 'ChatGPT'],
     ['aionui', 'AionUi with Cursor Agent'],
     ['claude', 'Claude Code'],
   ]) {

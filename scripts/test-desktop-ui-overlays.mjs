@@ -353,7 +353,7 @@ contextBridge.exposeInMainWorld('interconnect',{
                 : client === 'opencode'
                   ? 'OpenCode'
                   : client === 'codex'
-                    ? 'Codex'
+                    ? 'ChatGPT'
                     : 'Cursor',
             exact: true,
           })

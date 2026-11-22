@@ -67,16 +67,16 @@ export const tr: Messages = {
     'Uygulamanızı bir düğmeyle bağlayın. Ayarlar yalnızca “Uygula” düğmesine tıkladıktan sonra değişir.',
   mcpSetup_configureCursor: 'Cursor uygulamasını yapılandır',
   mcpSetup_configureOpencode: 'OpenCode uygulamasını yapılandır',
-  mcpSetup_configureCodex: 'Codex uygulamasını yapılandır',
+  mcpSetup_configureCodex: 'ChatGPT uygulamasını yapılandır',
   mcpSetup_cursorTitle: 'Cursor uygulamasını yapılandır',
   mcpSetup_opencodeTitle: 'OpenCode uygulamasını yapılandır',
-  mcpSetup_codexTitle: 'Codex uygulamasını yapılandır',
+  mcpSetup_codexTitle: 'ChatGPT uygulamasını yapılandır',
   mcpSetup_cursorDescription:
     'Cursor uygulamasını NCF Agent Interconnect sistemine bağlayın. Uygula işlemi MCP bağlantısını ekler ve birlikte gelen reaktif eklentiyi otomatik olarak kurar.',
   mcpSetup_opencodeDescription:
     'OpenCode v1 uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları eklenecek ve paketle gelen entegrasyon etkinleştirilecektir. OpenCode v2 desteklenmez.',
   mcpSetup_codexDescription:
-    'Codex uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları seçilen örneğe veya profile eklenecektir.',
+    'ChatGPT uygulamasını NCF Agent Interconnect sistemine bağlayın. Bağlantı ayarları seçilen örneğe veya profile eklenecektir.',
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi ortak yapılandırması',
   mcpSetup_pathLabel: 'Yapılandırma dosyası yolu',
   mcpSetup_browse: 'Dosya seç…',
@@ -107,7 +107,7 @@ export const tr: Messages = {
   mcpSetup_cursorNext:
     'Cursor uygulamasını bir kez yeniden başlatın, ardından hedef sohbette bir ajan bağlayın.',
   mcpSetup_opencodeNext: 'OpenCode v1’i yeniden başlatın.',
-  mcpSetup_codexNext: 'İstediğiniz Codex sohbetinde MCP’yi yeniden bağlayın.',
+  mcpSetup_codexNext: 'İstediğiniz ChatGPT sohbetinde MCP’yi yeniden bağlayın.',
   mcpSetup_copyPrompt: 'Bağlantı istemini kopyala',
   mcpSetup_connect: 'İstemcide bir ajan bağla',
   mcpSetup_configureClaude: "Claude Code'u yapılandır",
@@ -251,7 +251,7 @@ export const tr: Messages = {
   mcpYourClient: 'İstemciniz',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / ayrı profil',
+  mcpClientCodex: 'ChatGPT / ayrı profil',
   mcpStep1: '1. Yapılandırmayı ekleyin',
   btnCopyConfig: 'Yapılandırmayı kopyala',
   mcpStep2: '2. Herhangi bir sohbette aracı adı seçin',
@@ -261,7 +261,7 @@ export const tr: Messages = {
   clientsIntro:
     'Uygulamayı bir kez bağlayın, ardından sohbetlerinden herhangi birinde aracı adı seçin. Entegrasyon sohbet bağlarını ve teslimatı yönetir.',
   clientsKindOpencode: 'OpenCode ve ön yüzleri',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor ve diğer MCP istemcileri',
   clientsConnected: 'Bağlı',
   clientsPartiallyConnected: 'Bazı ajanlar bağlı',
@@ -321,7 +321,7 @@ export const tr: Messages = {
   clientsDetailOpencode:
     'Paket içindeki eklenti geçerli sohbeti tanır ve gelen mesajları otomatik olarak iletir. Meşgul bir aracı mesajları boşaldığında alır.',
   clientsDetailCodex:
-    'Sohbet ve profil MCP meta verilerinden tanımlanır. Mesajlar göndereni, metni ve ek bağlantılarını içerir. Desktop entegrasyonu deneyseldir ve Codex sürümüne bağlıdır.',
+    'Sohbet ve profil MCP meta verilerinden tanımlanır. Mesajlar göndereni, metni ve ek bağlantılarını içerir. Desktop entegrasyonu deneyseldir ve ChatGPT sürümüne bağlıdır.',
   clientsDetailManual:
     'Manuel oturum kurulumu gerekmez. MCP üzerinden gönderin ve alın. Bu bağlantı boştaki bir sohbeti otomatik olarak uyandıramaz.',
   clientsAuto: 'Otomatik teslimat',

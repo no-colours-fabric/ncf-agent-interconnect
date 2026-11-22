@@ -51,8 +51,8 @@ export function mcpInstructions(
   if (client === 'codex')
     return {
       client,
-      location: 'MCP settings for the selected Codex profile — config.toml',
-      text: 'Add this section and reconnect MCP. Configure each profile once. The current chat and its Codex Desktop instance are detected automatically. You choose the agent name.',
+      location: 'MCP settings for the selected ChatGPT profile — config.toml',
+      text: 'Add this section and reconnect MCP. Configure each profile once. The current chat and its ChatGPT instance are detected automatically. You choose the agent name.',
       configuration: `[mcp_servers.ncf_agent_interconnect]\nurl = ${JSON.stringify(url)}\nhttp_headers = { Authorization = ${JSON.stringify('Bearer ' + token)} }\n`,
       testPrompt,
     };

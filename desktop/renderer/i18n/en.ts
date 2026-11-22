@@ -65,16 +65,16 @@ export const en: Messages = {
     'Connect your application with a button. Settings change only after you click Apply.',
   mcpSetup_configureCursor: 'Configure Cursor',
   mcpSetup_configureOpencode: 'Configure OpenCode',
-  mcpSetup_configureCodex: 'Configure Codex',
+  mcpSetup_configureCodex: 'Configure ChatGPT',
   mcpSetup_cursorTitle: 'Configure Cursor',
   mcpSetup_opencodeTitle: 'Configure OpenCode',
-  mcpSetup_codexTitle: 'Configure Codex',
+  mcpSetup_codexTitle: 'Configure ChatGPT',
   mcpSetup_cursorDescription:
     'Connect Cursor to NCF Agent Interconnect. Apply adds the MCP connection and installs the included reactive plugin automatically.',
   mcpSetup_opencodeDescription:
     'Connect OpenCode v1 to NCF Agent Interconnect. We will add the connection settings and enable the included integration. OpenCode v2 is not supported.',
   mcpSetup_codexDescription:
-    'Connect Codex to NCF Agent Interconnect. We will add the connection settings to the selected instance or profile.',
+    'Connect ChatGPT to NCF Agent Interconnect. We will add the connection settings to the selected instance or profile.',
   mcpSetup_cursorSharedConfiguration: 'Shared Cursor / AionUi configuration',
   mcpSetup_pathLabel: 'Configuration file path',
   mcpSetup_browse: 'Choose file…',
@@ -103,7 +103,7 @@ export const en: Messages = {
   mcpSetup_failed: 'Setup could not be applied.',
   mcpSetup_cursorNext: 'Restart Cursor once, then connect an agent in the intended chat.',
   mcpSetup_opencodeNext: 'Restart OpenCode v1.',
-  mcpSetup_codexNext: 'Reconnect MCP in the intended Codex chat.',
+  mcpSetup_codexNext: 'Reconnect MCP in the intended ChatGPT chat.',
   mcpSetup_copyPrompt: 'Copy connection prompt',
   mcpSetup_connect: 'Connect an agent in the client',
   mcpSetup_configureClaude: 'Configure Claude Code',
@@ -244,7 +244,7 @@ export const en: Messages = {
   mcpYourClient: 'Your client',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / separate profile',
+  mcpClientCodex: 'ChatGPT / separate profile',
   mcpStep1: '1. Add the configuration',
   btnCopyConfig: 'Copy configuration',
   mcpStep2: '2. Choose an agent name in any chat',
@@ -254,7 +254,7 @@ export const en: Messages = {
   clientsIntro:
     'Connect an application once, then choose an agent name in any of its chats. The integration manages chat bindings and delivery.',
   clientsKindOpencode: 'OpenCode and its frontends',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor and other MCP clients',
   clientsConnected: 'Connected',
   clientsPartiallyConnected: 'Some agents connected',
@@ -311,7 +311,7 @@ export const en: Messages = {
   clientsDetailOpencode:
     'The bundled plugin identifies the current chat and delivers incoming messages automatically. A busy agent receives messages when it becomes idle.',
   clientsDetailCodex:
-    'The chat and profile are identified from MCP metadata. Messages include the sender, body and attachment links. The Desktop integration is experimental and depends on the Codex version.',
+    'The chat and profile are identified from MCP metadata. Messages include the sender, body and attachment links. The Desktop integration is experimental and depends on the ChatGPT version.',
   clientsDetailManual:
     'No manual session setup is required. Send and receive through MCP. This connection cannot wake an idle chat automatically.',
   clientsAuto: 'Automatic delivery',

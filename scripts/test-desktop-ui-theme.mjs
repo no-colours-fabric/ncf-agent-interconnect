@@ -182,7 +182,7 @@ async function verifyApplicationSummaries() {
   for (const [client, kind] of [
     ['Cursor', 'manual'],
     ['OpenCode', 'opencode-http'],
-    ['Codex', 'codex-desktop'],
+    ['ChatGPT', 'codex-desktop'],
     ['AionUi', 'aionui'],
   ]) {
     await page.getByRole('tab', { name: client, exact: true }).click();

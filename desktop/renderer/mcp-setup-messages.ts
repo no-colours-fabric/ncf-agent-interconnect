@@ -44,16 +44,16 @@ export const mcpSetupEnglish = {
     'Connect your application with a button. Settings change only after you click Apply.',
   configureCursor: 'Configure Cursor',
   configureOpencode: 'Configure OpenCode',
-  configureCodex: 'Configure Codex',
+  configureCodex: 'Configure ChatGPT',
   cursorTitle: 'Configure Cursor',
   opencodeTitle: 'Configure OpenCode',
-  codexTitle: 'Configure Codex',
+  codexTitle: 'Configure ChatGPT',
   cursorDescription:
     'Connect Cursor to NCF Agent Interconnect. Apply adds the MCP connection and installs the included reactive plugin automatically.',
   opencodeDescription:
     'Connect OpenCode v1 to NCF Agent Interconnect. We will add the connection settings and enable the included integration. OpenCode v2 is not supported.',
   codexDescription:
-    'Connect Codex to NCF Agent Interconnect. We will add the connection settings to the selected instance or profile.',
+    'Connect ChatGPT to NCF Agent Interconnect. We will add the connection settings to the selected instance or profile.',
   cursorSharedConfiguration: 'Shared Cursor / AionUi configuration',
   pathLabel: 'Configuration file path',
   browse: 'Choose file…',
@@ -82,7 +82,7 @@ export const mcpSetupEnglish = {
   failed: 'Setup could not be applied.',
   cursorNext: 'Restart Cursor once, then connect an agent in the intended chat.',
   opencodeNext: 'Restart OpenCode v1.',
-  codexNext: 'Reconnect MCP in the intended Codex chat.',
+  codexNext: 'Reconnect MCP in the intended ChatGPT chat.',
   configureClaude: 'Configure Claude Code',
   claudeTitle: 'Configure Claude Code',
   claudeDescription:

@@ -209,7 +209,7 @@ try {
   for (const [client, label] of [
     ['cursor', 'Cursor'],
     ['opencode', 'OpenCode'],
-    ['codex', 'Codex'],
+    ['codex', 'ChatGPT'],
     ['claude', 'Claude Code'],
   ]) {
     await page.getByRole('tab', { name: label, exact: true }).click();

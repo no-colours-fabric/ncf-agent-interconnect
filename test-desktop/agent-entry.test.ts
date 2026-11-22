@@ -173,7 +173,7 @@ test('application lists use localized conjunctions and preserve the complete sup
   assert.equal(formatAgentApplications('ru', ['cursor', 'opencode']), 'Cursor и OpenCode');
   const supported = supportedAgentApplications('fr');
   for (const product of [
-    'Codex Desktop',
+    'ChatGPT',
     'Claude Code',
     'Cursor',
     'OpenCode',

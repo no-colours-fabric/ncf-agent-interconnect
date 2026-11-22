@@ -23,14 +23,21 @@ const query = new URLSearchParams(location.search);
 const platform = query.get('platform') ?? 'mac';
 const calls = [];
 let settle;
+let existing = platform === "windows" ? ["desktop"] : [];
 const invoke = async (method, input) => {
   calls.push({ method, input });
   if (method === 'codexShortcutPlatform') return platform === 'linux' ? null : platform;
   if (method === 'codexShortcutRevealDock') return true;
+  if (method === 'codexShortcutLocations') return existing;
   if (method === 'codexShortcutCreate') return new Promise(resolve => { settle = resolve; });
   throw new Error('Unexpected fixture operation: ' + method);
 };
-window.fixture = { calls, finish: result => settle(result) };
+window.fixture = { calls, finish: result => {
+  if (result.state === 'complete') existing = [...new Set([
+    ...existing, ...result.destinations.filter(entry => entry.result === 'created').map(entry => entry.destination)
+  ])];
+  settle(result);
+} };
 const discovery = { busy: false, failed: false, offers: [], refresh: async () => {} };
 const statuses = {
   statuses: { codex: { client: 'codex', remembered: false, state: 'configured', files: [] } },
@@ -79,44 +86,52 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
 
   await page.goto('http://ncf-shortcut.test/');
   const codex = page.getByTestId('application-row-codex');
-  const action = codex.getByRole('button', {
-    name: 'Create ChatGPT shortcut',
-    exact: true,
-  });
+  await codex.getByRole('heading', { name: 'ChatGPT', exact: true }).waitFor();
+  const action = codex.getByRole('button', { name: 'Create ChatGPT shortcuts', exact: true });
   await action.waitFor();
   assert.equal(
     await codex.getByTestId('mcp-settings-status').textContent(),
     'Settings are present',
   );
-  assert.equal(await codex.getByTestId('application-manual-codex').isVisible(), true);
+  assert.equal(
+    await action.evaluate((element) => element.previousElementSibling?.getAttribute('data-testid')),
+    'application-manual-codex',
+  );
   assert.deepEqual(await page.evaluate(() => window.fixture.calls), [
     { method: 'codexShortcutPlatform', input: {} },
   ]);
   const picker = page.getByRole('dialog');
   const confirm = picker.getByRole('button', { name: 'Create', exact: true });
-  await action.click();
-  await picker.waitFor();
+  await action.focus();
+  await page.keyboard.press('Enter');
+  await picker.getByRole('heading', { name: 'Create ChatGPT shortcuts' }).waitFor();
+  await picker
+    .getByText('To let agents exchange messages in ChatGPT, create separate shortcuts once.')
+    .waitFor();
   for (const name of ['Desktop', 'Applications (this user)', 'Dock', 'Other location…']) {
     assert.equal(await picker.getByRole('checkbox', { name, exact: true }).isChecked(), false);
   }
   assert.equal(await confirm.isDisabled(), true);
-  await picker.getByRole('button', { name: 'Cancel', exact: true }).click();
-  assert.equal(await page.evaluate(() => window.fixture.calls.length), 1);
+  await page.keyboard.press('Escape');
+  await picker.waitFor({ state: 'hidden' });
+  assert.equal(await action.evaluate((element) => element === document.activeElement), true);
+  assert.equal(
+    await page.evaluate(() =>
+      window.fixture.calls.some((entry) => entry.method === 'codexShortcutCreate'),
+    ),
+    false,
+  );
 
   await action.click();
   await picker.getByRole('checkbox', { name: 'Dock', exact: true }).check();
   assert.equal(await picker.getByRole('textbox').count(), 0);
-  assert.equal(await picker.getByText('Choose where to save the shortcut first.').count(), 0);
   await confirm.click();
-  assert.equal(await codex.getByRole('button', { name: 'Creating shortcut…' }).isDisabled(), true);
+  assert.equal(await confirm.isDisabled(), true);
   await page.evaluate(() => window.fixture.finish({ state: 'cancelled' }));
-  await action.waitFor();
-  assert.equal(await codex.getByRole('alert').count(), 0);
-
-  await action.click();
-  for (const name of ['Desktop', 'Applications (this user)', 'Dock']) {
-    await picker.getByRole('checkbox', { name, exact: true }).check();
-  }
+  await confirm.waitFor();
+  assert.equal(await picker.getByRole('alert').count(), 0);
+  await picker.getByRole('checkbox', { name: 'Desktop', exact: true }).check();
+  await picker.getByRole('checkbox', { name: 'Applications (this user)', exact: true }).check();
   await confirm.click();
   await page.evaluate(() =>
     window.fixture.finish({
@@ -128,22 +143,22 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
       ],
     }),
   );
-  await codex.getByText('ChatGPT shortcut created.', { exact: true }).waitFor();
-  await codex
+  const created = picker.getByTestId('chatgpt-shortcut-created-applications');
+  await created.getByText('Created', { exact: true }).waitFor();
+  assert.equal(await created.locator('img').count(), 1);
+  assert.equal(
+    await picker.getByRole('checkbox', { name: 'Applications (this user)', exact: true }).count(),
+    0,
+  );
+  await picker.getByText('ChatGPT shortcut created.', { exact: true }).waitFor();
+  await picker
     .getByText('Shortcut saved. Drag it from Finder to the apps area of the Dock to finish.')
     .waitFor();
-  await codex.getByRole('button', { name: 'Show in Finder', exact: true }).click();
+  await picker.getByRole('button', { name: 'Show in Finder', exact: true }).click();
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.at(-1)), {
     method: 'codexShortcutRevealDock',
     input: {},
   });
-  assert.equal(
-    await codex
-      .getByText('A shortcut with this name already exists. Choose another location or name.')
-      .isVisible(),
-    true,
-  );
-  assert.equal(await action.isEnabled(), true);
   assert.deepEqual(
     await page.evaluate(() =>
       window.fixture.calls
@@ -156,33 +171,64 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
     ],
   );
 
+  await page.setViewportSize({ width: 480, height: 720 });
+  assert.equal(
+    await picker.evaluate((element) => element.scrollWidth > element.clientWidth),
+    false,
+  );
+  const left = await picker.getByTestId('chatgpt-shortcut-explanation').boundingBox();
+  const right = await picker.getByTestId('chatgpt-shortcut-locations').boundingBox();
+  assert.ok(left && right && right.y > left.y);
+  await page.setViewportSize({ width: 1024, height: 840 });
   await page.goto('http://ncf-shortcut.test/?locale=ru&platform=windows');
-  await codex.getByRole('button', { name: 'Создать ярлык ChatGPT', exact: true }).click();
+  await codex.getByRole('button', { name: 'Создать ярлыки ChatGPT', exact: true }).click();
+  await picker.getByRole('heading', { name: 'Создать ярлыки ChatGPT' }).waitFor();
+  await picker
+    .getByText(
+      'Чтобы агенты могли обмениваться сообщениями в ChatGPT, нужно один раз создать отдельные значки запуска.',
+      { exact: true },
+    )
+    .waitFor();
+  await picker
+    .getByText(
+      'Когда вам нужны функции «NCF Agent Interconnect», открывайте ChatGPT через эти значки. При другом способе запуска ChatGPT работает как обычно, а функции «NCF Agent Interconnect» недоступны.',
+      { exact: true },
+    )
+    .waitFor();
+  const desktopStatus = picker.getByTestId('chatgpt-shortcut-created-desktop');
+  await desktopStatus.getByText('Создан', { exact: true }).waitFor();
+  assert.equal(
+    await picker.getByRole('checkbox', { name: 'Рабочий стол', exact: true }).count(),
+    0,
+  );
   assert.equal(await picker.getByRole('checkbox', { name: 'Dock', exact: true }).count(), 0);
   assert.equal(await picker.getByRole('textbox').count(), 0);
-  for (const name of ['Рабочий стол', 'Список приложений в меню «Пуск»', 'Другая папка…']) {
+  for (const name of ['Список приложений в меню «Пуск»', 'Другая папка…'])
     assert.equal(await picker.getByRole('checkbox', { name, exact: true }).isChecked(), false);
-  }
-  await picker.getByRole('checkbox', { name: 'Рабочий стол', exact: true }).check();
   await picker
     .getByRole('checkbox', { name: 'Список приложений в меню «Пуск»', exact: true })
     .check();
   await picker.getByRole('button', { name: 'Создать', exact: true }).click();
+  assert.deepEqual(
+    await page.evaluate(
+      () => window.fixture.calls.findLast((entry) => entry.method === 'codexShortcutCreate').input,
+    ),
+    {
+      locale: 'ru',
+      destinations: ['startMenu'],
+    },
+  );
   await page.evaluate(() =>
     window.fixture.finish({
       state: 'complete',
-      destinations: [
-        { destination: 'desktop', result: 'alreadyExists' },
-        { destination: 'startMenu', result: 'created' },
-      ],
+      destinations: [{ destination: 'startMenu', result: 'created' }],
     }),
   );
-  await codex.getByText('Ярлык с таким именем уже есть. Выберите другую папку или имя.').waitFor();
-  await codex.getByText('Ярлык ChatGPT создан.').waitFor();
-  assert.deepEqual(await page.evaluate(() => window.fixture.calls.at(-1).input), {
-    locale: 'ru',
-    destinations: ['desktop', 'startMenu'],
-  });
+  await picker
+    .getByTestId('chatgpt-shortcut-created-startMenu')
+    .getByText('Создан', { exact: true })
+    .waitFor();
+  await picker.getByText('Ярлык ChatGPT создан.').waitFor();
 
   await page.goto('http://ncf-shortcut.test/?platform=linux');
   await codex.getByTestId('mcp-settings-status').waitFor();
@@ -190,7 +236,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   assert.equal(await codex.getByTestId('codex-create-shortcut').count(), 0);
   assert.equal(await codex.getByTestId('application-manual-codex').isVisible(), true);
   process.stdout.write(
-    'Codex shortcut UI: explicit Mac and Windows choices, cancellation, individual outcomes, Dock instruction and unsupported platform passed.\n',
+    'ChatGPT shortcut UI: gear adjacency, keyboard, fresh and existing locations, exact Russian text, narrow layout, and Dock handoff passed.\n',
   );
 } finally {
   await browser?.close();

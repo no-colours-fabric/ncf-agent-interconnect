@@ -24,7 +24,8 @@ import {
   type CodexShortcutDestination,
   type CodexShortcutDestinationResult,
 } from '../desktop/shared/codex-shortcut.js';
-import { supportedLocales } from '../desktop/renderer/i18n/index.js';
+import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
+import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import {
   codexShortcutLocales,
   codexShortcutMessages,
@@ -47,6 +48,10 @@ test('shortcut supports installed desktop platforms and provides independent loc
     const copy = codexShortcutMessages(locale);
     assert.match(copy.action, /ChatGPT/);
     assert.match(copy.created, /ChatGPT/);
+    assert.match(copy.helpBefore, /ChatGPT/);
+    assert.match(copy.helpWhen, /NCF Agent Interconnect/);
+    assert.match(mcpSetupMessages(locale).codexNext, /ChatGPT/);
+    assert.equal(t(locale, 'clientsKindCodex'), 'ChatGPT');
     for (const [key, value] of Object.entries(copy)) {
       assert.ok(value.trim(), locale + '.' + key);
       if (locale !== 'en' && key !== 'dock')
@@ -93,7 +98,10 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
     instructions: () => instructions,
   });
   const owner = { isDestroyed: () => false } as BrowserWindow;
-  const selectedDestination = path.join(root, 'Custom shortcut.app');
+  const customFolder = path.join(root, 'Other location');
+  await mkdir(customFolder);
+  const selectedDestination = path.join(customFolder, macShortcutName);
+  let pinned: string[] = [];
   const input = (...destinations: CodexShortcutDestination[]) => ({ locale: 'en', destinations });
   const complete = (...destinations: CodexShortcutDestinationResult[]) => ({
     state: 'complete',
@@ -123,11 +131,12 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
     configuredFile: (filename) => service.configuredCodexFile(filename),
     reveal: (filename) => revealed.push(filename),
     dialog: {
-      showSaveDialog: async (_owner, options) => {
+      showOpenDialog: async (_owner, options) => {
         dialogs.push(options.defaultPath ?? '');
+        assert.deepEqual(options.properties, ['openDirectory', 'createDirectory']);
         return cancelSave
-          ? { canceled: true, filePath: '' }
-          : { canceled: false, filePath: selectedDestination };
+          ? { canceled: true, filePaths: [] }
+          : { canceled: false, filePaths: [customFolder] };
       },
     },
   };
@@ -143,6 +152,9 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
           ? null
           : undefined,
     inspectMacCodexDesktop: async () => macWitnesses.shift() ?? { state: 'notRunning' },
+    isMacCodexShortcut: async (filename) =>
+      createRequests.some(({ destination }) => destination === filename),
+    macCodexDockShortcuts: async () => pinned,
     macShortcutDirectory: realpath,
     verifyMacCodexShortcut: async ({ destination, profile, desktopData: data }) =>
       reuseDock &&
@@ -173,10 +185,14 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
         await handle('codexShortcutCreate', input('custom')),
         complete({ destination: 'custom', result: 'created' }),
       );
-      assert.deepEqual(dialogs.splice(0), [path.join(root, macShortcutName)]);
+      assert.deepEqual(dialogs.splice(0), [root]);
       assert.equal(createRequests.length, 1);
       assert.equal(createRequests[0].profile, defaultProfile);
       assert.equal(createRequests[0].desktopData, desktopData);
+      assert.equal(createRequests[0].destination, selectedDestination);
+      await assert.rejects(stat(path.join(customFolder, 'Untitled.app')), { code: 'ENOENT' });
+      assert.deepEqual(await handle('codexShortcutLocations', {}), []);
+      await assert.rejects(handle('codexShortcutLocations', { path: customFolder }));
       assert.equal(await readFile(defaultConfig, 'utf8'), matching);
       assert.equal(await readFile(otherConfig, 'utf8'), matching);
       await assert.rejects(stat(pathsFile), { code: 'ENOENT' });
@@ -240,7 +256,7 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
       await handle('codexShortcutCreate', input('desktop', 'applications', 'dock', 'custom')),
       { state: 'cancelled' },
     );
-    assert.deepEqual(dialogs.splice(0), [path.join(root, macShortcutName)]);
+    assert.deepEqual(dialogs.splice(0), [root]);
     assert.equal(createRequests.length, 1);
     await assert.rejects(stat(path.join(root, 'Applications')), { code: 'ENOENT' });
     await assert.rejects(stat(path.join(stateDirectory, 'codex-dock')), { code: 'ENOENT' });
@@ -302,6 +318,11 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
       assert.deepEqual(revealed.splice(0), [applicationsShortcut]);
       assert.equal(await readFile(alreadyPresent, 'utf8'), 'Existing shortcut stays');
       assert.equal(await readFile(previousName, 'utf8'), 'Legacy shortcut stays');
+      assert.deepEqual(await handle('codexShortcutLocations', {}), ['applications']);
+      pinned = [applicationsShortcut];
+      assert.deepEqual(await handle('codexShortcutLocations', {}), ['applications', 'dock']);
+      pinned = [];
+
       await assert.rejects(stat(pathsFile), { code: 'ENOENT' });
     },
   );
@@ -330,6 +351,16 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
           assert.deepEqual(context, { userData: stateDirectory });
           return existing ? 'alreadyExists' : 'created';
         },
+        readLink: async () =>
+          ({
+            target: options.appExecutable,
+            args:
+              '--launch-codex --launcher-manifest "' +
+              path.join(stateDirectory, 'codex-launchers', 'a'.repeat(32), 'manifest.json') +
+              '"',
+          }) as Awaited<
+            ReturnType<NonNullable<Parameters<typeof createCodexShortcutHandler>[2]>['readLink']>
+          >,
         programs: async () => {
           resolveCalls++;
           return programs;
@@ -360,6 +391,17 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
       );
       assert.deepEqual(createCalls, [desktop, path.join(programs, windowsShortcutName), desktop]);
       assert.equal(await readFile(desktop, 'utf8'), 'Existing Windows link');
+      assert.deepEqual(await create('codexShortcutLocations', {}), []);
+      const manifest = path.join(
+        stateDirectory,
+        'codex-launchers',
+        'a'.repeat(32),
+        'manifest.json',
+      );
+      await mkdir(path.dirname(manifest), { recursive: true });
+      await writeFile(manifest, '{}');
+      assert.deepEqual(await create('codexShortcutLocations', {}), ['desktop']);
+
       assert.deepEqual(await create('codexShortcutCreate', input('dock')), failure('failed'));
       await assert.rejects(create('codexShortcutCreate', input('desktop', 'desktop')));
       for (const state of ['appMissing', 'profileUnavailable'] as const) {

@@ -66,16 +66,16 @@ export const kk: Messages = {
     'Қолданбаны батырма арқылы қосыңыз. Баптаулар «Қолдану» батырмасын басқаннан кейін ғана өзгереді.',
   mcpSetup_configureCursor: 'Cursor баптау',
   mcpSetup_configureOpencode: 'OpenCode баптау',
-  mcpSetup_configureCodex: 'Codex баптау',
+  mcpSetup_configureCodex: 'ChatGPT баптау',
   mcpSetup_cursorTitle: 'Cursor баптау',
   mcpSetup_opencodeTitle: 'OpenCode баптау',
-  mcpSetup_codexTitle: 'Codex баптау',
+  mcpSetup_codexTitle: 'ChatGPT баптау',
   mcpSetup_cursorDescription:
     'Cursor қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. «Қолдану» басылғанда MCP қосылымы қосылып, жинақтағы реактивті плагин автоматты түрде орнатылады.',
   mcpSetup_opencodeDescription:
     'OpenCode v1 қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары қосылып, жинақтағы интеграция іске қосылады. OpenCode v2 нұсқасына қолдау көрсетілмейді.',
   mcpSetup_codexDescription:
-    'Codex қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары таңдалған данаға немесе профильге қосылады.',
+    'ChatGPT қолданбасын NCF Agent Interconnect жүйесіне қосыңыз. Қосылу баптаулары таңдалған данаға немесе профильге қосылады.',
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi ортақ конфигурациясы',
   mcpSetup_pathLabel: 'Конфигурация файлының жолы',
   mcpSetup_browse: 'Файлды таңдау…',
@@ -106,7 +106,7 @@ export const kk: Messages = {
   mcpSetup_cursorNext:
     'Cursor қолданбасын бір рет қайта іске қосып, содан кейін қажетті чатта агентті қосыңыз.',
   mcpSetup_opencodeNext: 'OpenCode v1 қолданбасын қайта іске қосыңыз.',
-  mcpSetup_codexNext: 'Қажетті Codex чатында MCP-ді қайта қосыңыз.',
+  mcpSetup_codexNext: 'Қажетті ChatGPT чатында MCP-ді қайта қосыңыз.',
   mcpSetup_copyPrompt: 'Қосылу сұрауын көшіру',
   mcpSetup_connect: 'Клиентте агентті қосу',
   mcpSetup_configureClaude: 'Claude Code баптау',
@@ -250,7 +250,7 @@ export const kk: Messages = {
   mcpYourClient: 'Клиентіңіз',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / жеке профиль',
+  mcpClientCodex: 'ChatGPT / жеке профиль',
   mcpStep1: '1. Конфигурацияны қосыңыз',
   btnCopyConfig: 'Конфигурацияны көшіру',
   mcpStep2: '2. Кез келген чатта агенттің атын таңдаңыз',
@@ -260,7 +260,7 @@ export const kk: Messages = {
   clientsIntro:
     'Қолданбаны бір рет қосыңыз, содан кейін оның кез келген чатында агенттің атын таңдаңыз. Интеграция чат байланысын және жеткізуді басқарады.',
   clientsKindOpencode: 'OpenCode және оның фронтендтері',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor және басқа MCP клиенттері',
   clientsConnected: 'Қосылған',
   clientsPartiallyConnected: 'Агенттердің бір бөлігі қосылған',
@@ -321,7 +321,7 @@ export const kk: Messages = {
   clientsDetailOpencode:
     'Жиынтықтағы плагин ағымдағы чатты анықтайды және кіріс хабарламаларды автоматты түрде жеткізеді. Бос емес агент босаған кезде хабарламаларды алады.',
   clientsDetailCodex:
-    'Чат пен профиль MCP метадеректерінен анықталады. Хабарламалар жіберушіні, мәтінді және тіркеме сілтемелерін қамтиды. Desktop интеграциясы эксперименталды және Codex нұсқасына байланысты.',
+    'Чат пен профиль MCP метадеректерінен анықталады. Хабарламалар жіберушіні, мәтінді және тіркеме сілтемелерін қамтиды. Desktop интеграциясы эксперименталды және ChatGPT нұсқасына байланысты.',
   clientsDetailManual:
     'Сеансты қолмен конфигурациялау қажет емес. MCP арқылы жіберу және қабылдау. Бұл байланыс бос тұрған чатты автоматты түрде оята алмайды.',
   clientsAuto: 'Автоматты жеткізу',

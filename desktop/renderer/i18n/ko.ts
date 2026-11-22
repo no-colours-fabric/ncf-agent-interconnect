@@ -65,16 +65,16 @@ export const ko: Messages = {
     '버튼으로 애플리케이션을 연결하세요. 설정은 ‘적용’을 클릭한 후에만 변경됩니다.',
   mcpSetup_configureCursor: 'Cursor 설정',
   mcpSetup_configureOpencode: 'OpenCode 설정',
-  mcpSetup_configureCodex: 'Codex 설정',
+  mcpSetup_configureCodex: 'ChatGPT 설정',
   mcpSetup_cursorTitle: 'Cursor 설정',
   mcpSetup_opencodeTitle: 'OpenCode 설정',
-  mcpSetup_codexTitle: 'Codex 설정',
+  mcpSetup_codexTitle: 'ChatGPT 설정',
   mcpSetup_cursorDescription:
     'Cursor를 NCF Agent Interconnect에 연결하세요. 적용하면 MCP 연결이 추가되고 포함된 반응형 플러그인이 자동으로 설치됩니다.',
   mcpSetup_opencodeDescription:
     'OpenCode v1을 NCF Agent Interconnect에 연결하세요. 연결 설정이 추가되고 포함된 통합 기능이 활성화됩니다. OpenCode v2는 지원하지 않습니다.',
   mcpSetup_codexDescription:
-    'Codex를 NCF Agent Interconnect에 연결하세요. 선택한 인스턴스 또는 프로필에 연결 설정이 추가됩니다.',
+    'ChatGPT를 NCF Agent Interconnect에 연결하세요. 선택한 인스턴스 또는 프로필에 연결 설정이 추가됩니다.',
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi 공유 설정',
   mcpSetup_pathLabel: '설정 파일 경로',
   mcpSetup_browse: '파일 선택…',
@@ -103,7 +103,7 @@ export const ko: Messages = {
   mcpSetup_failed: '설정을 적용할 수 없습니다.',
   mcpSetup_cursorNext: 'Cursor를 한 번 다시 시작한 다음 대상 채팅에서 에이전트를 연결하세요.',
   mcpSetup_opencodeNext: 'OpenCode v1을 다시 시작하세요.',
-  mcpSetup_codexNext: '원하는 Codex 채팅에서 MCP를 다시 연결하세요.',
+  mcpSetup_codexNext: '원하는 ChatGPT 채팅에서 MCP를 다시 연결하세요.',
   mcpSetup_copyPrompt: '연결 프롬프트 복사',
   mcpSetup_connect: '클라이언트에서 에이전트 연결',
   mcpSetup_configureClaude: 'Claude Code 설정',
@@ -244,7 +244,7 @@ export const ko: Messages = {
   mcpYourClient: '클라이언트',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / 별도 프로필',
+  mcpClientCodex: 'ChatGPT / 별도 프로필',
   mcpStep1: '1. 구성 추가',
   btnCopyConfig: '구성 복사',
   mcpStep2: '2. 아무 채팅에서나 에이전트 이름 선택',
@@ -254,7 +254,7 @@ export const ko: Messages = {
   clientsIntro:
     '애플리케이션을 한 번 연결한 후 임의의 채팅에서 에이전트 이름을 선택하세요. 통합이 채팅 바인딩과 전달을 관리합니다.',
   clientsKindOpencode: 'OpenCode 및 해당 프런트엔드',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor 및 기타 MCP 클라이언트',
   clientsConnected: '연결됨',
   clientsPartiallyConnected: '일부 에이전트 연결됨',
@@ -311,7 +311,7 @@ export const ko: Messages = {
   clientsDetailOpencode:
     '번들 플러그인이 현재 채팅을 식별하고 수신 메시지를 자동으로 전달합니다. 바쁜 에이전트는 비게 되면 메시지를 받습니다.',
   clientsDetailCodex:
-    '채팅과 프로필이 MCP 메타데이터로 식별됩니다. 메시지에는 발신자, 본문, 첨부 파일 링크가 포함됩니다. Desktop 통합은 실험적이며 Codex 버전에 따라 달라집니다.',
+    '채팅과 프로필이 MCP 메타데이터로 식별됩니다. 메시지에는 발신자, 본문, 첨부 파일 링크가 포함됩니다. Desktop 통합은 실험적이며 ChatGPT 버전에 따라 달라집니다.',
   clientsDetailManual:
     '수동 세션 설정이 필요하지 않습니다. MCP를 통해 보내고 받으세요. 이 연결은 유휴 채팅을 자동으로 깨울 수 없습니다.',
   clientsAuto: '자동 전달',

@@ -1,4 +1,4 @@
-import type { BrowserWindow, SaveDialogOptions, SaveDialogReturnValue } from 'electron';
+import type { BrowserWindow, OpenDialogOptions, OpenDialogReturnValue } from 'electron';
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { lstat, mkdir } from 'node:fs/promises';
@@ -11,6 +11,7 @@ import {
   codexShortcutDisplayName,
   codexShortcutDestinationsFor,
   type CodexShortcutCreateResult,
+  type CodexShortcutDestination,
   type CodexShortcutDestinationResult,
   type CodexShortcutFailure,
   type CodexShortcutPlatform,
@@ -18,6 +19,8 @@ import {
 import {
   createMacCodexShortcut,
   findMacCodex,
+  isMacCodexShortcut,
+  macCodexDockShortcuts,
   inspectMacCodexDesktop,
   macShortcutDirectory,
   verifyMacCodexShortcut,
@@ -78,10 +81,10 @@ interface CodexShortcutOptions {
   desktopDataOverride?: string;
   desktop: string;
   dialog: {
-    showSaveDialog: (
+    showOpenDialog: (
       owner: BrowserWindow,
-      options: SaveDialogOptions,
-    ) => Promise<SaveDialogReturnValue>;
+      options: OpenDialogOptions,
+    ) => Promise<OpenDialogReturnValue>;
   };
   reveal: (filename: string) => void;
   window: () => BrowserWindow | null;
@@ -134,6 +137,8 @@ export function createCodexShortcutHandler(
   options: CodexShortcutOptions,
   mac = {
     findMacCodex,
+    isMacCodexShortcut,
+    macCodexDockShortcuts,
     inspectMacCodexDesktop,
     createMacCodexShortcut,
     macShortcutDirectory,
@@ -143,6 +148,8 @@ export function createCodexShortcutHandler(
     create: async (request: WindowsCodexShortcutRequest, context: WindowsCodexShortcutContext) =>
       (await import('./codex-shortcut-windows.js')).createWindowsCodexShortcut(request, context),
     programs: windowsProgramsDirectory,
+    readLink: async (filename: string) =>
+      (await import('electron')).shell.readShortcutLink(filename),
     desktopData: async (appData: string) =>
       (await import('./codex-shortcut-windows.js')).resolveWindowsCodexDesktopData(appData),
   },
@@ -153,7 +160,9 @@ export function createCodexShortcutHandler(
   return async (
     method: string,
     raw: unknown,
-  ): Promise<CodexShortcutPlatform | CodexShortcutCreateResult | boolean | null> => {
+  ): Promise<
+    CodexShortcutPlatform | CodexShortcutCreateResult | CodexShortcutDestination[] | boolean | null
+  > => {
     const platform = codexShortcutPlatform(
       options.platform,
       options.installed,
@@ -162,6 +171,65 @@ export function createCodexShortcutHandler(
     if (method === 'codexShortcutPlatform') {
       z.object({}).strict().parse(raw);
       return platform;
+    }
+    if (method === 'codexShortcutLocations') {
+      z.object({}).strict().parse(raw);
+      if (!platform) return [];
+      const extension = platform === 'mac' ? 'app' : 'lnk';
+      const filenames = [codexShortcutDisplayName + '.' + extension, 'Codex with NCF.' + extension];
+      const isExisting = async (filename: string): Promise<boolean> => {
+        if (platform === 'mac') return mac.isMacCodexShortcut(filename);
+        try {
+          if (!(await lstat(filename)).isFile()) return false;
+          const link = await windows.readLink(filename);
+          if (!samePath(link.target, options.appExecutable, platform)) return false;
+          const match = /^--launch-codex --launcher-manifest "([^"\r\n]+)"$/.exec(link.args ?? '');
+          const manifestFile = match?.[1];
+          if (!manifestFile) return false;
+          const relative = path.relative(
+            path.join(options.userData, 'codex-launchers'),
+            manifestFile,
+          );
+          const [key, manifest, ...rest] = relative.split(path.sep);
+          return (
+            /^[a-f0-9]{32}$/.test(key) &&
+            manifest === 'manifest.json' &&
+            !rest.length &&
+            (await lstat(manifestFile)).isFile()
+          );
+        } catch {
+          return false;
+        }
+      };
+      const folders =
+        platform === 'mac'
+          ? ([
+              ['desktop', options.desktop],
+              ['applications', path.join(options.home, 'Applications')],
+            ] as const)
+          : ([
+              ['desktop', options.desktop],
+              ['startMenu', await windows.programs().catch(() => undefined)],
+            ] as const);
+      const statuses = await Promise.all(
+        folders.map(async ([location, folder]) => {
+          if (!folder) return undefined;
+          for (const filename of filenames)
+            if (await isExisting(path.join(folder, filename))) return location;
+        }),
+      );
+      const existing: CodexShortcutDestination[] = statuses.filter(
+        (location) => location !== undefined,
+      );
+      if (platform === 'mac') {
+        for (const filename of await mac.macCodexDockShortcuts(options.home)) {
+          if (filenames.includes(path.basename(filename)) && (await isExisting(filename))) {
+            existing.push('dock');
+            break;
+          }
+        }
+      }
+      return existing;
     }
     if (method === 'codexShortcutRevealDock') {
       z.object({}).strict().parse(raw);
@@ -198,13 +266,14 @@ export function createCodexShortcutHandler(
       const shortcutName = codexShortcutDisplayName + '.' + extension;
       let chosenFile: string | undefined;
       if (destinations.includes('custom')) {
-        const saved = await options.dialog.showSaveDialog(owner, {
+        const folder = await options.dialog.showOpenDialog(owner, {
           title: copy.save,
-          defaultPath: path.join(options.desktop, shortcutName),
-          filters: [{ name: codexShortcutDisplayName, extensions: [extension] }],
+          defaultPath: options.desktop,
+          properties: ['openDirectory', 'createDirectory'],
         });
-        if (saved.canceled || !saved.filePath || !isCurrent()) return cancelled;
-        chosenFile = saved.filePath;
+        if (folder.canceled || !path.isAbsolute(folder.filePaths[0] ?? '') || !isCurrent())
+          return cancelled;
+        chosenFile = path.join(folder.filePaths[0], shortcutName);
       }
       const standardProfile = path.join(options.home, '.codex');
       const standardData = path.join(options.appData, 'Codex');

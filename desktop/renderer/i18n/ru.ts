@@ -66,16 +66,16 @@ export const ru: Messages = {
     'Подключите приложение с помощью кнопки. Настройки изменяются только после нажатия «Применить».',
   mcpSetup_configureCursor: 'Настроить Cursor',
   mcpSetup_configureOpencode: 'Настроить OpenCode',
-  mcpSetup_configureCodex: 'Настроить Codex',
+  mcpSetup_configureCodex: 'Настроить ChatGPT',
   mcpSetup_cursorTitle: 'Настроить Cursor',
   mcpSetup_opencodeTitle: 'Настроить OpenCode',
-  mcpSetup_codexTitle: 'Настроить Codex',
+  mcpSetup_codexTitle: 'Настроить ChatGPT',
   mcpSetup_cursorDescription:
     'Подключите Cursor к NCF Agent Interconnect. После применения будут добавлены настройки MCP и автоматически установлен встроенный реактивный плагин.',
   mcpSetup_opencodeDescription:
     'Подключите OpenCode v1 к NCF Agent Interconnect. Будут добавлены настройки подключения и включена встроенная интеграция. OpenCode v2 не поддерживается.',
   mcpSetup_codexDescription:
-    'Подключите Codex к NCF Agent Interconnect. Настройки подключения будут добавлены в выбранный экземпляр или профиль.',
+    'Подключите ChatGPT к NCF Agent Interconnect. Настройки подключения будут добавлены в выбранный экземпляр или профиль.',
   mcpSetup_cursorSharedConfiguration: 'Общая конфигурация Cursor / AionUi',
   mcpSetup_pathLabel: 'Путь к файлу конфигурации',
   mcpSetup_browse: 'Выбрать файл…',
@@ -105,7 +105,7 @@ export const ru: Messages = {
   mcpSetup_failed: 'Не удалось применить настройку.',
   mcpSetup_cursorNext: 'Один раз перезапустите Cursor, затем подключите агента в нужном чате.',
   mcpSetup_opencodeNext: 'Перезапустите OpenCode v1.',
-  mcpSetup_codexNext: 'Переподключите MCP в нужном чате Codex.',
+  mcpSetup_codexNext: 'Переподключите MCP в нужном чате ChatGPT.',
   mcpSetup_copyPrompt: 'Скопировать запрос подключения',
   mcpSetup_connect: 'Подключить агента в клиенте',
   mcpSetup_configureClaude: 'Настроить Claude Code',
@@ -248,7 +248,7 @@ export const ru: Messages = {
   mcpYourClient: 'Ваш клиент',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / отдельный профиль',
+  mcpClientCodex: 'ChatGPT / отдельный профиль',
   mcpStep1: '1. Добавьте конфигурацию',
   btnCopyConfig: 'Скопировать конфигурацию',
   mcpStep2: '2. Выберите имя агента в любом чате',
@@ -258,7 +258,7 @@ export const ru: Messages = {
   clientsIntro:
     'Подключите приложение один раз, затем выберите имя агента в любом из его чатов. Интеграция управляет привязкой чатов и доставкой.',
   clientsKindOpencode: 'OpenCode и его интерфейсы',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor и другие MCP-клиенты',
   clientsConnected: 'Подключено',
   clientsPartiallyConnected: 'Часть агентов подключена',
@@ -319,7 +319,7 @@ export const ru: Messages = {
   clientsDetailOpencode:
     'Встроенный плагин определяет текущий чат и доставляет входящие сообщения автоматически. Занятый агент получает сообщения, когда освободится.',
   clientsDetailCodex:
-    'Чат и профиль определяются из метаданных MCP. Сообщения включают отправителя, текст и ссылки на вложения. Интеграция Desktop экспериментальна и зависит от версии Codex.',
+    'Чат и профиль определяются из метаданных MCP. Сообщения включают отправителя, текст и ссылки на вложения. Интеграция Desktop экспериментальна и зависит от версии ChatGPT.',
   clientsDetailManual:
     'Ручная настройка сеанса не требуется. Отправка и получение через MCP. Это подключение не может автоматически разбудить простаивающий чат.',
   clientsAuto: 'Автоматическая доставка',

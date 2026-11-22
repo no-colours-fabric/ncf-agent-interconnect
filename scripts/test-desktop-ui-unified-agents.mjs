@@ -354,7 +354,7 @@ contextBridge.exposeInMainWorld('interconnect', {
   for (const [tab, kind, count] of [
     ['Cursor', 'manual', 0],
     ['OpenCode', 'opencode-http', 0],
-    ['Codex', 'codex-desktop', 1],
+    ['ChatGPT', 'codex-desktop', 1],
     ['AionUi', 'aionui', 0],
   ]) {
     await page.getByRole('tab', { name: tab, exact: true }).click();

@@ -67,16 +67,16 @@ export const nl: Messages = {
     'Verbind uw toepassing met een knop. Instellingen veranderen pas nadat u op ‘Toepassen’ klikt.',
   mcpSetup_configureCursor: 'Cursor instellen',
   mcpSetup_configureOpencode: 'OpenCode instellen',
-  mcpSetup_configureCodex: 'Codex instellen',
+  mcpSetup_configureCodex: 'ChatGPT instellen',
   mcpSetup_cursorTitle: 'Cursor instellen',
   mcpSetup_opencodeTitle: 'OpenCode instellen',
-  mcpSetup_codexTitle: 'Codex instellen',
+  mcpSetup_codexTitle: 'ChatGPT instellen',
   mcpSetup_cursorDescription:
     'Verbind Cursor met NCF Agent Interconnect. Met Toepassen wordt de MCP-verbinding toegevoegd en de meegeleverde reactieve plugin automatisch geïnstalleerd.',
   mcpSetup_opencodeDescription:
     'Verbind OpenCode v1 met NCF Agent Interconnect. De verbindingsinstellingen worden toegevoegd en de meegeleverde integratie wordt ingeschakeld. OpenCode v2 wordt niet ondersteund.',
   mcpSetup_codexDescription:
-    'Verbind Codex met NCF Agent Interconnect. De verbindingsinstellingen worden aan de geselecteerde instantie of het profiel toegevoegd.',
+    'Verbind ChatGPT met NCF Agent Interconnect. De verbindingsinstellingen worden aan de geselecteerde instantie of het profiel toegevoegd.',
   mcpSetup_cursorSharedConfiguration: 'Gedeelde configuratie voor Cursor / AionUi',
   mcpSetup_pathLabel: 'Pad naar configuratiebestand',
   mcpSetup_browse: 'Bestand kiezen…',
@@ -107,7 +107,7 @@ export const nl: Messages = {
   mcpSetup_cursorNext:
     'Start Cursor één keer opnieuw en verbind daarna een agent in de bedoelde chat.',
   mcpSetup_opencodeNext: 'Start OpenCode v1 opnieuw.',
-  mcpSetup_codexNext: 'Verbind MCP opnieuw in de gewenste Codex-chat.',
+  mcpSetup_codexNext: 'Verbind MCP opnieuw in de gewenste ChatGPT-chat.',
   mcpSetup_copyPrompt: 'Verbindingsprompt kopiëren',
   mcpSetup_connect: 'Een agent verbinden in de client',
   mcpSetup_configureClaude: 'Claude Code instellen',
@@ -250,7 +250,7 @@ export const nl: Messages = {
   mcpYourClient: 'Uw client',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / afzonderlijk profiel',
+  mcpClientCodex: 'ChatGPT / afzonderlijk profiel',
   mcpStep1: '1. Configuratie toevoegen',
   btnCopyConfig: 'Configuratie kopiëren',
   mcpStep2: '2. Kies een agentnaam in een willekeurige chat',
@@ -260,7 +260,7 @@ export const nl: Messages = {
   clientsIntro:
     'Verbind een toepassing één keer en kies daarna een agentnaam in een van de chats. De integratie beheert chatkoppelingen en bezorging.',
   clientsKindOpencode: 'OpenCode en de frontends ervan',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor en andere MCP-clients',
   clientsConnected: 'Verbonden',
   clientsPartiallyConnected: 'Sommige agenten zijn verbonden',
@@ -324,7 +324,7 @@ export const nl: Messages = {
   clientsDetailOpencode:
     'De meegeleverde plug-in herkent de huidige chat en levert inkomende berichten automatisch. Een bezette agent ontvangt berichten zodra die vrij is.',
   clientsDetailCodex:
-    'Chat en profiel worden herkend aan MCP-metagegevens. Berichten bevatten afzender, tekst en bijlagekoppelingen. De Desktop-integratie is experimenteel en is afhankelijk van de Codex-versie.',
+    'Chat en profiel worden herkend aan MCP-metagegevens. Berichten bevatten afzender, tekst en bijlagekoppelingen. De Desktop-integratie is experimenteel en is afhankelijk van de ChatGPT-versie.',
   clientsDetailManual:
     'Geen handmatige sessie-instellingen nodig. Verzenden en ontvangen via MCP. Deze verbinding kan een inactieve chat niet automatisch activeren.',
   clientsAuto: 'Automatische bezorging',

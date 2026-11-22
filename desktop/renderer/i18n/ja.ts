@@ -66,16 +66,16 @@ export const ja: Messages = {
     'ボタンでアプリケーションを接続します。「適用」をクリックした後にのみ設定が変更されます。',
   mcpSetup_configureCursor: 'Cursorを設定',
   mcpSetup_configureOpencode: 'OpenCodeを設定',
-  mcpSetup_configureCodex: 'Codexを設定',
+  mcpSetup_configureCodex: 'ChatGPTを設定',
   mcpSetup_cursorTitle: 'Cursorを設定',
   mcpSetup_opencodeTitle: 'OpenCodeを設定',
-  mcpSetup_codexTitle: 'Codexを設定',
+  mcpSetup_codexTitle: 'ChatGPTを設定',
   mcpSetup_cursorDescription:
     'CursorをNCF Agent Interconnectに接続します。「適用」を実行すると、MCP接続が追加され、同梱のリアクティブプラグインが自動的にインストールされます。',
   mcpSetup_opencodeDescription:
     'OpenCode v1をNCF Agent Interconnectに接続します。接続設定を追加し、付属の連携機能を有効にします。OpenCode v2はサポートされていません。',
   mcpSetup_codexDescription:
-    'CodexをNCF Agent Interconnectに接続します。選択したインスタンスまたはプロファイルに接続設定を追加します。',
+    'ChatGPTをNCF Agent Interconnectに接続します。選択したインスタンスまたはプロファイルに接続設定を追加します。',
   mcpSetup_cursorSharedConfiguration: 'Cursor / AionUi の共有設定',
   mcpSetup_pathLabel: '設定ファイルのパス',
   mcpSetup_browse: 'ファイルを選択…',
@@ -104,7 +104,7 @@ export const ja: Messages = {
   mcpSetup_failed: '設定を適用できませんでした。',
   mcpSetup_cursorNext: 'Cursorを一度再起動し、対象のチャットでエージェントを接続してください。',
   mcpSetup_opencodeNext: 'OpenCode v1 を再起動してください。',
-  mcpSetup_codexNext: '対象の Codex チャットで MCP を再接続してください。',
+  mcpSetup_codexNext: '対象の ChatGPT チャットで MCP を再接続してください。',
   mcpSetup_copyPrompt: '接続プロンプトをコピー',
   mcpSetup_connect: 'クライアントでエージェントを接続',
   mcpSetup_configureClaude: 'Claude Codeを設定',
@@ -247,7 +247,7 @@ export const ja: Messages = {
   mcpYourClient: 'クライアント',
   mcpClientCursor: 'Cursor',
   mcpClientOpencode: 'OpenCode',
-  mcpClientCodex: 'Codex / 別プロファイル',
+  mcpClientCodex: 'ChatGPT / 別プロファイル',
   mcpStep1: '1. 設定を追加',
   btnCopyConfig: '設定をコピー',
   mcpStep2: '2. 任意のチャットでエージェント名を選択',
@@ -257,7 +257,7 @@ export const ja: Messages = {
   clientsIntro:
     'アプリケーションを一度接続し、そのいずれかのチャットでエージェント名を選択します。統合がチャットバインドと配信を管理します。',
   clientsKindOpencode: 'OpenCode とそのフロントエンド',
-  clientsKindCodex: 'Codex Desktop',
+  clientsKindCodex: 'ChatGPT',
   clientsKindManual: 'Cursor およびその他の MCP クライアント',
   clientsConnected: '接続済み',
   clientsPartiallyConnected: '一部のエージェントが接続済み',
@@ -316,7 +316,7 @@ export const ja: Messages = {
   clientsDetailOpencode:
     '同梱プラグインが現在のチャットを識別し、受信メッセージを自動的に配信します。ビジー状態のエージェントは空いたときにメッセージを受け取ります。',
   clientsDetailCodex:
-    'チャットとプロファイルは MCP メタデータから識別されます。メッセージには送信者、本文、添付リンクが含まれます。Desktop 統合は実験的で、Codex のバージョンに依存します。',
+    'チャットとプロファイルは MCP メタデータから識別されます。メッセージには送信者、本文、添付リンクが含まれます。Desktop 統合は実験的で、ChatGPT のバージョンに依存します。',
   clientsDetailManual:
     '手動でのセッション設定は不要です。MCP 経由で送受信します。この接続はアイドル中のチャットを自動的に起動できません。',
   clientsAuto: '自動配信',

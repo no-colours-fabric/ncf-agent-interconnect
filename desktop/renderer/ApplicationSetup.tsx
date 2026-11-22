@@ -1039,26 +1039,35 @@ export function ApplicationRows({
                 {action.label}
               </Button>
             )}
-            <ManualSetupButton
-              label={copy.manual}
-              disabled={anyBusy}
-              onClick={() => manual(client)}
-              testId={'application-manual-' + client}
-            />
+            {client === 'codex' && codexShortcutPlatform ? (
+              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                <ManualSetupButton
+                  label={copy.manual}
+                  disabled={anyBusy}
+                  onClick={() => manual(client)}
+                  testId={'application-manual-' + client}
+                />
+                <CodexShortcut
+                  invoke={invoke}
+                  locale={locale}
+                  platform={codexShortcutPlatform}
+                  disabled={anyBusy}
+                />
+              </Stack>
+            ) : (
+              <ManualSetupButton
+                label={copy.manual}
+                disabled={anyBusy}
+                onClick={() => manual(client)}
+                testId={'application-manual-' + client}
+              />
+            )}
           </Stack>
         </Box>
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
           <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
             {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
           </Alert>
-        )}
-        {client === 'codex' && codexShortcutPlatform && (
-          <CodexShortcut
-            invoke={invoke}
-            locale={locale}
-            platform={codexShortcutPlatform}
-            disabled={anyBusy}
-          />
         )}
         <SetupDetails state={state} locale={locale} />
         {showGuidance && (

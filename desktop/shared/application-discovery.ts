@@ -41,7 +41,7 @@ export interface ApplicationDiscoverySnapshot {
 export const applicationNames: Record<McpSetupClient, string> = {
   cursor: 'Cursor',
   opencode: 'OpenCode',
-  codex: 'Codex',
+  codex: 'ChatGPT',
   aionui: 'AionUi',
   claude: 'Claude Code',
 };
