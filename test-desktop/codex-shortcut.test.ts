@@ -342,147 +342,110 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
     },
   );
 
-  await t.test(
-    'Windows uses the verified ordinary profile for Desktop and the user Programs folder',
-    async () => {
-      const desktop = path.join(root, windowsShortcutName);
-      const programs = path.join(root, 'Redirected Programs');
-      await mkdir(programs);
-      const startMenu = path.join(programs, windowsShortcutName);
-      const legacyStartMenu = path.join(programs, 'Codex with NCF.lnk');
-      const manifest = path.join(
-        stateDirectory,
-        'codex-launchers',
-        'a'.repeat(32),
-        'manifest.json',
-      );
-      const installed = { asarHash: '2'.repeat(64), profile: defaultProfile };
-      const stale = { ...installed, asarHash: '6'.repeat(64) };
-      const verificationCalls: string[] = [];
-      let linkTarget = options.appExecutable;
-      let linkManifest = manifest;
-      let resolveCalls = 0;
-      let existing = false;
-      let profileState: 'ready' | 'appMissing' | 'profileUnavailable' = 'ready';
-      const createCalls: string[] = [];
-      const create = createCodexShortcutHandler({ ...options, platform: 'win32' }, undefined, {
+  await t.test('Windows status and creation use only canonical shortcut files', async () => {
+    const desktopFolder = path.join(root, 'Windows Desktop');
+    const programs = path.join(root, 'Redirected Programs');
+    await Promise.all([mkdir(desktopFolder), mkdir(programs)]);
+    const desktop = path.join(desktopFolder, windowsShortcutName);
+    const startMenu = path.join(programs, windowsShortcutName);
+    const legacyDesktop = path.join(desktopFolder, 'Codex with NCF.lnk');
+    const legacyStartMenu = path.join(programs, 'Codex with NCF.lnk');
+    for (const legacy of [legacyDesktop, legacyStartMenu]) await writeFile(legacy, 'Legacy link');
+
+    let configurationLookups = 0;
+    let programsLookups = 0;
+    const nativeWrites: string[] = [];
+    const audits: string[] = [];
+    const unexpectedAudit = (name: string): never => {
+      audits.push(name);
+      throw new Error('Unexpected Windows shortcut audit: ' + name);
+    };
+    const handleWindows = createCodexShortcutHandler(
+      {
+        ...options,
+        platform: 'win32',
+        desktop: desktopFolder,
+        configurationPath: async () => {
+          configurationLookups++;
+          return defaultConfig;
+        },
+        configuredFile: async () => unexpectedAudit('configuration contents'),
+        boundProfiles: () => unexpectedAudit('bound profiles'),
+      },
+      undefined,
+      {
         create: async (request, context) => {
-          createCalls.push(request.destination);
+          nativeWrites.push(request.destination);
           assert.deepEqual(request, {
-            destination:
-              createCalls.length === 2 ? path.join(programs, windowsShortcutName) : desktop,
+            destination: request.destination,
             profile: defaultProfile,
             desktopData,
             appExecutable: options.appExecutable,
             appPath: root,
           });
           assert.deepEqual(context, { userData: stateDirectory });
-          if (existing) return 'alreadyExists';
-          await writeFile(request.destination, 'New Windows link', { flag: 'wx' });
-          return 'created';
+          try {
+            await writeFile(request.destination, 'New Windows link', { flag: 'wx' });
+            return 'created';
+          } catch (error) {
+            if ((error as NodeJS.ErrnoException).code === 'EEXIST') return 'alreadyExists';
+            throw error;
+          }
         },
-        readLink: async () =>
-          ({
-            target: linkTarget,
-            args: '--launch-codex --launcher-manifest "' + linkManifest + '"',
-          }) as Awaited<
-            ReturnType<NonNullable<Parameters<typeof createCodexShortcutHandler>[2]>['readLink']>
-          >,
         programs: async () => {
-          resolveCalls++;
+          programsLookups++;
           return programs;
         },
-        desktopData: async (appData) => {
-          assert.equal(appData, path.dirname(desktopData));
-          return profileState === 'ready'
-            ? { state: 'ready', directory: desktopData }
-            : { state: profileState };
-        },
-        verifyManifest: async (filename: string, expected: Record<string, string>) => {
-          verificationCalls.push(filename);
-          assert.deepEqual(expected, {
-            userData: stateDirectory,
-            appExecutable: options.appExecutable,
-            appPath: options.appPath,
-            profile: defaultProfile,
-            desktopData,
-          });
-          const saved = JSON.parse(await readFile(filename, 'utf8'));
-          return saved.asarHash === installed.asarHash && saved.profile === expected.profile;
-        },
-      });
-      assert.equal((await service.status('codex')).remembered, false);
-      boundProfiles = [{ socket: String.raw`\\.\pipe\codex-ipc` }];
-      assert.deepEqual(
-        await create('codexShortcutCreate', input('desktop', 'startMenu')),
-        complete(
-          { destination: 'desktop', result: 'created' },
-          { destination: 'startMenu', result: 'created' },
-        ),
-      );
-      assert.equal(createCalls.length, 2);
-      assert.equal(resolveCalls, 1);
-      existing = true;
-      await writeFile(desktop, 'Existing Windows link');
-      await rm(startMenu);
-      assert.deepEqual(
-        await create('codexShortcutCreate', input('desktop')),
-        complete({ destination: 'desktop', result: 'alreadyExists' }),
-      );
-      assert.deepEqual(createCalls, [desktop, path.join(programs, windowsShortcutName), desktop]);
-      assert.equal(await readFile(desktop, 'utf8'), 'Existing Windows link');
-      assert.deepEqual(await create('codexShortcutLocations', {}), []);
-      await mkdir(path.dirname(manifest), { recursive: true });
-      await writeFile(legacyStartMenu, 'Legacy Windows link');
-      await writeFile(manifest, JSON.stringify(stale));
-      assert.deepEqual(
-        await create('codexShortcutLocations', {}),
-        [],
-        '690 manifest after update to 2ac',
-      );
-      await writeFile(manifest, JSON.stringify(installed));
-      assert.deepEqual(await create('codexShortcutLocations', {}), ['desktop']);
-      assert.equal(await readFile(legacyStartMenu, 'utf8'), 'Legacy Windows link');
-      await writeFile(startMenu, 'Current Windows link');
-      const previousVerifications = verificationCalls.length;
-      assert.deepEqual(await create('codexShortcutLocations', {}), ['desktop', 'startMenu']);
-      assert.deepEqual(verificationCalls.slice(previousVerifications), [manifest]);
-      await rm(desktop);
-      assert.deepEqual(await create('codexShortcutLocations', {}), ['startMenu']);
-      existing = false;
-      assert.deepEqual(
-        await create('codexShortcutCreate', input('desktop')),
-        complete({ destination: 'desktop', result: 'created' }),
-      );
-      assert.equal(await readFile(desktop, 'utf8'), 'New Windows link');
-      assert.deepEqual(await create('codexShortcutLocations', {}), ['desktop', 'startMenu']);
-      const beforeForeignLinks = verificationCalls.length;
-      linkTarget = path.join(root, 'Not NCF');
-      assert.deepEqual(await create('codexShortcutLocations', {}), []);
-      linkTarget = options.appExecutable;
-      linkManifest = path.join(root, 'manifest.json');
-      await writeFile(linkManifest, JSON.stringify(installed));
-      assert.deepEqual(await create('codexShortcutLocations', {}), []);
-      assert.equal(verificationCalls.length, beforeForeignLinks);
-      linkManifest = manifest;
-      await writeFile(manifest, JSON.stringify({ ...installed, profile: otherProfile }));
-      assert.deepEqual(await create('codexShortcutLocations', {}), []);
-      await writeFile(manifest, '{');
-      assert.deepEqual(await create('codexShortcutLocations', {}), []);
-      assert.equal(await readFile(manifest, 'utf8'), '{');
+        readLink: async () => unexpectedAudit('shell link contents'),
+        desktopData: async () => unexpectedAudit('vendor/profile discovery'),
+        verifyManifest: async () => unexpectedAudit('launcher manifest'),
+      },
+    );
 
-      assert.deepEqual(await create('codexShortcutCreate', input('dock')), failure('failed'));
-      await assert.rejects(create('codexShortcutCreate', input('desktop', 'desktop')));
-      for (const state of ['appMissing', 'profileUnavailable'] as const) {
-        profileState = state;
-        assert.deepEqual(await create('codexShortcutCreate', input('desktop')), failure(state));
-      }
-      assert.equal(createCalls.length, 4);
-      assert.deepEqual(dialogs, []);
-      boundProfiles = [];
-      await assert.rejects(stat(pathsFile), { code: 'ENOENT' });
-    },
-  );
+    assert.deepEqual(await handleWindows('codexShortcutLocations', {}), []);
+    assert.equal(configurationLookups, 0);
+    assert.deepEqual(nativeWrites, []);
+    assert.deepEqual(
+      await handleWindows('codexShortcutCreate', input('desktop', 'startMenu')),
+      complete(
+        { destination: 'desktop', result: 'created' },
+        { destination: 'startMenu', result: 'created' },
+      ),
+    );
+    assert.equal(await readFile(desktop, 'utf8'), 'New Windows link');
+    assert.equal(await readFile(startMenu, 'utf8'), 'New Windows link');
+    assert.deepEqual(await handleWindows('codexShortcutLocations', {}), ['desktop', 'startMenu']);
+
+    await rm(desktop);
+    assert.deepEqual(await handleWindows('codexShortcutLocations', {}), ['startMenu']);
+    assert.deepEqual(
+      await handleWindows('codexShortcutCreate', input('desktop')),
+      complete({ destination: 'desktop', result: 'created' }),
+    );
+    assert.equal(await readFile(desktop, 'utf8'), 'New Windows link');
+    assert.deepEqual(await handleWindows('codexShortcutLocations', {}), ['desktop', 'startMenu']);
+
+    const foreignLink = Buffer.from('Foreign shortcut contents');
+    await writeFile(desktop, foreignLink);
+    assert.deepEqual(await handleWindows('codexShortcutLocations', {}), ['desktop', 'startMenu']);
+    assert.deepEqual(
+      await handleWindows('codexShortcutCreate', input('desktop')),
+      complete({ destination: 'desktop', result: 'alreadyExists' }),
+    );
+    assert.deepEqual(await readFile(desktop), foreignLink);
+    for (const legacy of [legacyDesktop, legacyStartMenu]) {
+      assert.equal(await readFile(legacy, 'utf8'), 'Legacy link');
+    }
+
+    assert.deepEqual(await handleWindows('codexShortcutCreate', input('dock')), failure('failed'));
+    await assert.rejects(handleWindows('codexShortcutCreate', input('desktop', 'desktop')));
+    assert.deepEqual(nativeWrites, [desktop, startMenu, desktop, desktop]);
+    assert.equal(configurationLookups, 3);
+    assert.equal(programsLookups, 1);
+    assert.deepEqual(audits, []);
+    assert.deepEqual(dialogs, []);
+    await assert.rejects(stat(pathsFile), { code: 'ENOENT' });
+  });
 
   await t.test(
     'the exact running Mac Work pair wins with stock configuration and mixed bindings',

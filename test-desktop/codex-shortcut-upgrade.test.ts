@@ -4,7 +4,6 @@ import { createRequire } from 'node:module';
 import { copyFile, mkdir, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { test, type TestContext } from 'node:test';
 import {
   createWindowsCodexShortcut,
@@ -13,10 +12,9 @@ import {
 } from '../desktop/main/codex-shortcut-windows.js';
 
 const bridge = createRequire(import.meta.url)('../desktop/integrations/codex-windows-bridge.cjs');
-const approvedIcon = fileURLToPath(new URL('../desktop/assets/chatgpt-ncf.ico', import.meta.url));
 const digest = (text: string) => createHash('sha256').update(text).digest('hex');
 
-async function fixture(t: TestContext, upgrade = true) {
+async function fixture(t: TestContext) {
   const root = await realpath(await mkdtemp(path.join(tmpdir(), 'ncu-')));
   t.after(() => rm(root, { recursive: true, force: true }));
   const userData = path.join(root, 'ncf-data');
@@ -25,18 +23,14 @@ async function fixture(t: TestContext, upgrade = true) {
   const resources = path.join(root, 'installed', 'resources');
   const appPath = path.join(resources, 'app.asar');
   const appExecutable = path.join(root, 'installed', 'NCF.exe');
-  const desktop = path.join(root, 'Desktop');
   const programs = path.join(root, 'Programs');
-  for (const directory of [userData, profile, desktopData, resources, desktop, programs])
+  for (const directory of [userData, profile, desktopData, resources, programs])
     await mkdir(directory, { recursive: true });
   await writeFile(appExecutable, 'synthetic NCF executable');
   await writeFile(appPath, 'old archive');
   const assets = bridge.assets(appPath);
   await mkdir(path.dirname(assets.shim), { recursive: true });
   for (const name of ['shim', 'helper', 'stop']) await writeFile(assets[name], 'old-' + name);
-  await mkdir(path.join(resources, 'icons'));
-  const icon = path.join(resources, 'icons', 'chatgpt-ncf.ico');
-  await copyFile(approvedIcon, icon);
   const launchers = path.join(userData, 'codex-launchers');
   const directory = path.join(launchers, bridge.keyFor(profile, desktopData));
   for (const own of [launchers, directory]) {
@@ -100,71 +94,22 @@ $l.Description='Open Codex with NCF Agent Interconnect';$l.Save()`,
     validate(file, context, runtime),
   );
   await bridge.validateManifest(manifest, expected);
-  if (upgrade) {
-    await writeFile(appPath, 'new archive');
-    for (const name of ['shim', 'helper', 'stop']) await writeFile(assets[name], 'new-' + name);
-  }
+  await writeFile(appPath, 'new archive');
+  for (const name of ['shim', 'helper', 'stop']) await writeFile(assets[name], 'new-' + name);
   return {
-    root,
     userData,
     profile,
     desktopData,
     appPath,
     appExecutable,
     assets,
-    icon,
-    directory,
     manifest,
     shim,
     legacyLink,
-    desktop,
     expected,
     pkg,
   };
 }
-
-test(
-  'Windows upgrade recreates a missing Desktop link while preserving the existing Programs link',
-  { skip: process.platform !== 'win32' },
-  async (t) => {
-    const f = await fixture(t);
-    const legacyBytes = await readFile(f.legacyLink);
-    await assert.rejects(
-      bridge.validateManifest(f.manifest, f.expected),
-      /NCF_CODEX_ASSET_IDENTITY/,
-    );
-    const destination = path.join(f.desktop, 'ChatGPT — NCF Agent Interconnect.lnk');
-    assert.equal(
-      await createWindowsCodexShortcut(
-        {
-          destination,
-          profile: f.profile,
-          desktopData: f.desktopData,
-          appExecutable: f.appExecutable,
-          appPath: f.appPath,
-        },
-        { userData: f.userData },
-      ),
-      'created',
-    );
-    const current = await bridge.validateManifest(f.manifest, f.expected);
-    assert.equal(current.m.asarHash, await bridge.fileHash(f.appPath));
-    assert.equal(current.m.shimHash, await bridge.fileHash(f.assets.shim));
-    assert.deepEqual(await readFile(f.legacyLink), legacyBytes);
-    const readback = JSON.parse(
-      await bridge.runPowerShell(
-        String.raw`
-$d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
-$l=(New-Object -ComObject WScript.Shell).CreateShortcut($d.link)
-[pscustomobject]@{arguments=$l.Arguments;icon=$l.IconLocation;description=$l.Description}|ConvertTo-Json -Compress`,
-        { link: destination },
-      ),
-    );
-    assert.equal(readback.arguments, `--launch-codex --launcher-manifest "${f.manifest}"`);
-    assert.equal(readback.icon, f.icon + ',0');
-    assert.equal(readback.description, 'Open ChatGPT with NCF Agent Interconnect');
-  },
-);
 
 test(
   'Windows stale legacy launch refreshes state before synthetic native alias dispatch',
@@ -172,6 +117,10 @@ test(
   async (t) => {
     const f = await fixture(t);
     const linkBytes = await readFile(f.legacyLink);
+    await assert.rejects(
+      bridge.validateManifest(f.manifest, f.expected),
+      /NCF_CODEX_ASSET_IDENTITY/,
+    );
     // No Desktop is launched: the injected synthetic vendor alias is Node with
     // ignored stdin, which exits normally without reading or writing a profile.
     f.pkg.alias = process.execPath;
@@ -182,16 +131,16 @@ test(
       ),
       'launched',
     );
-    assert.equal(
-      (await bridge.validateManifest(f.manifest, f.expected)).m.asarHash,
-      await bridge.fileHash(f.appPath),
-    );
+    const { m } = await bridge.validateManifest(f.manifest, f.expected);
+    assert.equal(m.asarHash, await bridge.fileHash(f.appPath));
+    assert.equal(m.shimHash, await bridge.fileHash(f.assets.shim));
+    assert.equal(await bridge.fileHash(f.shim), m.shimHash);
     assert.deepEqual(await readFile(f.legacyLink), linkBytes);
   },
 );
 
 test(
-  'Windows upgrade refuses a modified existing link before changing private state',
+  'Windows shortcut creation leaves an existing foreign link and private state untouched',
   { skip: process.platform !== 'win32' },
   async (t) => {
     const f = await fixture(t);
@@ -216,7 +165,7 @@ $l.Arguments='--foreign-arguments';$l.Save()`,
         },
         { userData: f.userData },
       ),
-      'failed',
+      'alreadyExists',
     );
     assert.deepEqual(await readFile(f.manifest), oldManifest);
     assert.deepEqual(await readFile(f.shim), oldShim);
@@ -250,56 +199,19 @@ test(
 );
 
 test(
-  'Windows upgrade leaves state unchanged while Desktop is open',
+  'Windows launch migration leaves stale state unchanged while Desktop is open',
   { skip: process.platform !== 'win32' },
   async (t) => {
     const f = await fixture(t);
     const oldManifest = await readFile(f.manifest);
     const oldShim = await readFile(f.shim);
     f.pkg.running = 1;
-    assert.equal(
-      await createWindowsCodexShortcut(
-        {
-          destination: path.join(f.desktop, 'ChatGPT — NCF Agent Interconnect.lnk'),
-          profile: f.profile,
-          desktopData: f.desktopData,
-          appExecutable: f.appExecutable,
-          appPath: f.appPath,
-        },
-        { userData: f.userData },
-      ),
-      'closeToUpdate',
-    );
     await assert.rejects(
       refreshWindowsCodexLauncher(f.manifest, f.expected),
       /NCF_CODEX_DESKTOP_RUNNING/,
     );
     assert.deepEqual(await readFile(f.manifest), oldManifest);
     assert.deepEqual(await readFile(f.shim), oldShim);
-  },
-);
-
-test(
-  'Windows current-state link creation remains available while Desktop is open',
-  { skip: process.platform !== 'win32' },
-  async (t) => {
-    const f = await fixture(t, false);
-    const before = await readFile(f.manifest);
-    f.pkg.running = 1;
-    assert.equal(
-      await createWindowsCodexShortcut(
-        {
-          destination: path.join(f.desktop, 'ChatGPT — NCF Agent Interconnect.lnk'),
-          profile: f.profile,
-          desktopData: f.desktopData,
-          appExecutable: f.appExecutable,
-          appPath: f.appPath,
-        },
-        { userData: f.userData },
-      ),
-      'created',
-    );
-    assert.deepEqual(await readFile(f.manifest), before);
   },
 );
 
