@@ -119,8 +119,9 @@ export async function readNativeLease(
 
 /**
  * A fresh helper waits only for an already-running private lifecycle write.
- * Filesystem events trigger checks; the deadline denies instead of fabricating
- * readiness. Pinned helpers never use this path to adopt another incarnation.
+ * Filesystem events can be delayed or missed, so also check the same private
+ * lease locally within the initial wait budget. Pinned helpers never use this
+ * path to adopt another incarnation.
  */
 export async function readInitialNativeLease(
   nodeFile: string,
@@ -137,11 +138,13 @@ export async function readInitialNativeLease(
   return new Promise((resolve, reject) => {
     let settled = false;
     let timer: NodeJS.Timeout | undefined;
+    let recheck: NodeJS.Timeout | undefined;
     let watcher: ReturnType<typeof watch> | undefined;
     const finish = (error?: unknown, lease?: NativeLease | null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
+      clearInterval(recheck);
       watcher?.close();
       if (error) {
         traceClaude(nodeFile, 'lease.initial-wait-failed', {
@@ -157,20 +160,21 @@ export async function readInitialNativeLease(
         resolve(lease ?? null);
       }
     };
-    const check = () => {
+    const check = (final = false) => {
       if (settled) return;
       try {
         finish(undefined, readNativeLeaseSync(nodeFile, sessionId));
       } catch (error) {
-        if (!(error instanceof NativeLeaseBusyError)) finish(error);
+        if (final || !(error instanceof NativeLeaseBusyError)) finish(error);
       }
     };
     try {
       if (!privateEntry(lstatSync(value.directory), true)) throw unavailable();
-      watcher = watch(value.directory, check);
+      watcher = watch(value.directory, () => check());
       watcher.once('error', finish);
-      timer = setTimeout(() => finish(unavailable()), deadlineMs);
-      // Subscribe before checking again, so lock release cannot be missed.
+      timer = setTimeout(() => check(true), deadlineMs);
+      recheck = setInterval(check, 100);
+      // The writer can finish before the watcher is installed.
       check();
     } catch (error) {
       finish(error);

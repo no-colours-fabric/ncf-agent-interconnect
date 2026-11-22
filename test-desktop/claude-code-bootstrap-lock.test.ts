@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
+import fs from 'node:fs';
 import { mkdir, rm, writeFile } from 'node:fs/promises';
+import { syncBuiltinESMExports } from 'node:module';
 import path from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
@@ -122,4 +124,33 @@ test('An abandoned initial lease lock expires as unavailable, without authorizin
   await mkdir(directory, { recursive: true, mode: 0o700 });
   await mkdir(lock, { mode: 0o700 });
   await assert.rejects(readInitialNativeLease(f.nodeFile, session, 25), /lease is unavailable/);
+});
+
+test('A released initial lease is found even when the directory watcher delivers no events', async (t) => {
+  const f = await claudeFixture(t);
+  const session = randomUUID();
+  const directory = path.join(path.dirname(f.nodeFile), 'claude-native');
+  const filename = path.join(directory, session + '.json');
+  const lock = filename + '.lock';
+  await mkdir(directory, { recursive: true, mode: 0o700 });
+  await mkdir(lock, { mode: 0o700 });
+  const lease = { version: 1, sessionId: session, nonce: randomUUID(), active: true };
+  const watch = fs.watch;
+  let subscribed = false;
+  const silent = t.mock.method(fs, 'watch', (...args: Parameters<typeof fs.watch>) => {
+    if (args[0] !== directory) return Reflect.apply(watch, fs, args);
+    subscribed = true;
+    return watch(directory, {});
+  });
+  syncBuiltinESMExports();
+  try {
+    const pending = readInitialNativeLease(f.nodeFile, session, 500);
+    assert.equal(subscribed, true);
+    await writeFile(filename, JSON.stringify(lease), { mode: 0o600 });
+    await rm(lock, { recursive: true });
+    assert.deepEqual(await pending, lease);
+  } finally {
+    silent.mock.restore();
+    syncBuiltinESMExports();
+  }
 });
