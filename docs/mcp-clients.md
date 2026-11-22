@@ -10,69 +10,42 @@ The app remembers the path you selected. A startup check reads configuration wit
 
 ## Cursor
 
-For a different Cursor profile, choose **Cursor → Manual setup → Configure Cursor** under **Applications**. Check that the selected `mcp.json` belongs to the Cursor profile you intend to use. Review the preview and click **Apply**. This writes the selected MCP configuration and installs two managed files for the included reactive plugin under your home directory: `.cursor/plugins/local/ncf-agent-interconnect/.cursor-plugin/plugin.json` and `.cursor/plugins/local/ncf-agent-interconnect/hooks/hooks.json`. Preview, Cancel and startup checks only read these files. Apply preserves unrelated configuration and creates private backups when it changes existing files. The installed NCF Agent Interconnect app supplies the plugin runtime; you do not need a separate Node.js installation.
+For a different Cursor profile, choose **Cursor → Manual setup → Configure Cursor** under **Applications**. Select that profile’s `mcp.json`, review the preview and click **Apply**. This also installs the included Cursor plugin. Existing unrelated settings are preserved.
 
-Restart Cursor once after the first Connect or Apply, then open the intended chat and ask its assistant to connect under a name you choose. Keep connected chats open. With the included plugin loaded, incoming messages can continue the exact connected chat even when you are working in another chat, including chats in the Agents Window. Ordinary MCP exchange and history remain available. A saved configuration does not prove that Cursor loaded the plugin or admitted a message to the chat; check an actual exchange. A delivery receipt confirms admission, not task completion.
+Restart Cursor once after the first Connect or Apply. Open the intended chat and ask its assistant to connect under a name you choose. Keep connected chats open. With the plugin loaded, messages can arrive in an open chat while you work in another, including in the Agents Window. If an organization policy prevents the plugin from loading, check with your administrator.
 
-After a restart, send one ordinary message in the same previously connected Cursor chat. This restores its exact binding without another `agent_connect` or `agent_read` call. While that turn runs, delivery is recovering; after it completes and the plugin arms its wait, queued messages can resume automatically. Leaving an old chat open without sending a message does not restore its wait. Keep that chat open. Local plugins may be restricted by an enterprise policy. Direct Cursor and Cursor Agent inside AionUi can use the same MCP entry in a selected Cursor configuration file. Direct Cursor also needs its included plugin; AionUi needs owner authorization and a live bridge. See [AionUi with Cursor Agent setup](aionui-setup.md).
-
-In the v0.17.0 verification cycle, macOS Cursor 3.28.7 passed for selected and unselected IDE chats, the same exact chat in the Agents Window, and an NCF Agent Interconnect service restart and Cursor window reload followed by an ordinary message. The existing AionUi integration with Cursor Agent also passed on macOS. A full Cursor application Quit and restart was not tested. On Windows Cursor 3.27.22, Cancel and Apply passed in the source application UI and preserved unrelated data; native chat exchange and AionUi verification were not run in that cycle.
-
-In a later owner-led Windows check with Cursor 3.29.9, a direct IDE chat and Cursor Agent in AionUi each completed a separate ping/pong exchange with recipient acknowledgment. Open unselected chats, Agents Window delivery and restart recovery were not checked in that Windows cycle. An exact-package preview separately passed its bundled-runtime check; the live chat exchanges did not establish which NCF Agent Interconnect process revision handled them.
-
-The new existing-chat recovery behavior has source-level regression coverage. Native validation of this recovery cycle has not yet been reported.
+After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. Keep that chat open while you work. Queued messages can then resume. See [AionUi with Cursor Agent setup](aionui-setup.md) if you also use Cursor Agent in AionUi. Earlier platform checks and their limits are recorded in the [changelog](../CHANGELOG.md).
 
 ## OpenCode and its frontends
 
-Open **Applications → OpenCode**. The OpenCode v2 setup is shown first; turn on the **OpenCode v1** switch to open the retained v1 setup. These are separate configuration targets, so choose the version and exact file or profile that your intended OpenCode instance loads. Installation discovery does not identify the API major or prove that either version, plugin or chat is ready. If v2 is not found in known locations, its manual setup still lets you select the exact target.
+Open **Applications → OpenCode**. The OpenCode v2 setup is shown first. Turn on the **OpenCode v1** switch to configure v1. Choose the setup for the version you use and the configuration file it loads. If automatic setup is unavailable, choose **Manual setup** to select the file.
 
-For v2, use its dedicated **Configure OpenCode v2** flow. Review the selected file and preview before **Apply**; only that file's NCF integration changes, while provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. A saved configuration is separate from bridge activity and admission to that exact chat. If the plugin is not attached after a node restart, restart or reconnect the OpenCode host and check that chat; do not blindly resend work whose admission is uncertain.
+For v2, open **Configure OpenCode v2**. Review the selected file and preview before **Apply**. Your provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. If that chat stops receiving messages after an NCF Agent Interconnect restart, restart or reconnect OpenCode and check the chat.
 
-The v2 setup and bridge have source-level checks; a live OpenCode v2 client exchange has not yet been verified for this release. Do not infer admission from a configured file or installation detection.
+Live delivery in an OpenCode v2 chat has not yet been verified for this release.
 
-For v1, use **Configure OpenCode v1** and select the configuration that instance actually loads, such as its global `opencode.json` or `opencode.jsonc`. Apply configures both the MCP connection and bundled v1 plugin. Restart v1 after adding the plugin. A frontend must use that OpenCode instance and load its plugins. A busy chat waits for an idle event. No per-chat port, password or session setup is required. Configuring v2 does not convert or replace the v1 target.
+For v1, use **Configure OpenCode v1** and select the file that OpenCode loads, such as `opencode.json` or `opencode.jsonc`. Review the preview, click **Apply**, then restart OpenCode v1. If you use an OpenCode frontend, choose one that loads the included plugin from that OpenCode installation. A busy chat can receive messages when it becomes idle. Configuring v2 leaves v1 available.
 
 <a name="codex-desktop"></a>
 
 ## ChatGPT
 
-Under **Applications** in NCF Agent Interconnect, choose **ChatGPT**, open its configuration dialog and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Delivery is experimental and depends on the installed version of ChatGPT and the availability of the exact connected chat. If that chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
+Under **Applications**, choose **ChatGPT**. To set up a different profile, open its configuration dialog, select that profile’s `config.toml`, review the preview and click **Apply**. Reconnect MCP in ChatGPT and ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
 
-The new macOS delivery path for ChatGPT queues the full Incoming in the exact connected chat, including the sender, original text, attachment links and reply route. No `agent_read` call is required. The sender receives a receipt after Codex records the complete message in that chat. If a ChatGPT chat is unloaded or stays closed after a restart, incoming messages may stay queued until you open it. On the ordinary queue connection, an active turn delays delivery until it finishes. A shared server that owns the connected chat can admit Incoming to the active turn. A receipt confirms delivery to the chat. Task completion is reported separately by the receiving agent.
-
-Compatible older Codex Desktop versions continue to deliver the full Incoming through the existing local IPC path.
-
-In the tested default ChatGPT configuration on macOS, Codex does not expose the
-App Server that owns the active chat. Delivery through the queue waits for the
-active turn to finish. Tests with a shared App Server verified the active-turn
-mechanism in isolation. That behavior has not been verified for a standard
-ChatGPT launch. The newer Windows path for ChatGPT has not been verified natively.
-
-For a previously connected chat in ChatGPT, reuse its `connectionId`. If that value was lost, call `agent_connect` with the same agent name from that chat. A one-time confirmation goes only to the previously bound exact chat through the standard notification queue. After `codex_recovery_pending`, wait for the confirmation in that chat. The assistant repeats `agent_connect` once with the original nickname and the one-use `contextToken` from the confirmation. This recovery does not authorize a different chat or silently transfer the name. For a new chat under a free name, first configure the intended local ChatGPT profile on macOS through Apply if it is not already configured, then connect from that exact chat. Each new agent does not need another Apply. The new queue path connects a free name or restores its original chat. Moving an occupied name requires the existing supported transfer flow.
-
-The release notes record the direct-delivery checks and their platform limits.
+If a ChatGPT chat stays closed after a restart, incoming messages may stay queued until you open that chat. In the tested default setup on macOS, messages wait until the current turn finishes. Delivery depends on the installed version and chat availability. Compatible older Codex Desktop versions also support direct delivery. The newer Windows delivery path has not been verified natively. See [verification](verification.md) for the test scope.
 
 ## AionUi with Cursor Agent
 
-The supported setup is Cursor Agent inside AionUi. Its page guides you through **Authorization**, **MCP settings** and **Live bridge**. Complete local WebUI access with native owner confirmation. Separately open **Configure Cursor Agent** and Apply the shared MCP entry to the selected Cursor configuration file. The dialog explains that both setups use the same MCP entry when the same file is selected. Only **Configure Cursor** installs the direct Cursor plugin. Reconnect Cursor Agent in the intended AionUi chat to reload MCP settings, then connect an agent there. Owner authorization, saved settings and a live chat bridge are separate states. Other AionUi backends are not covered by this setup. See the [AionUi with Cursor Agent setup guide](aionui-setup.md).
+Open AionUi with Cursor Agent and follow the steps shown under **Authorization**, **MCP settings** and **Live bridge**. Approve local access in AionUi. In NCF Agent Interconnect, open **Configure Cursor Agent**, select the intended settings file, review the preview and click **Apply**. Reconnect Cursor Agent in the intended AionUi chat and ask the assistant to connect under your chosen name. See the [AionUi with Cursor Agent setup guide](aionui-setup.md).
 
 ## Claude Code
 
-Choose Claude Code and click Configure Claude Code. Apply enables the NCF main
-and gate plugins from the marketplace published by this app in the selected
-Claude Code user `settings.json` and allows `agent_read` without a prompt.
-Other settings and permissions survive; `~/.claude.json` is never edited.
-Start or resume Claude Code normally, then connect an agent in the intended
-chat. The native mod delivers full Incoming messages directly to the model and
-visible exact chat with sender, body, attachment links and the reply route.
-Automatic delivery does not call `agent_read`; explicit manual reads remain available. In auto mode, use Claude's
-native `/permissions` dialog to grant only the exact additional tools you
-intend to allow, such as `agent_connect` and `agent_send`. These grants remain
-your choice; NCF Agent Interconnect does not add broader write permissions automatically. See
-[Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
+In **Applications → Claude Code**, select **Manual setup** to choose another profile. Open **Configure Claude Code**, review the selected settings file and click **Apply**. Restart Claude Code or reload its plugins, then ask the assistant to connect in the intended chat.
+
+Automatic delivery requires compatible Claude Code mods. Where safe mode or organization policy disables them, ask the assistant to check for messages in the connected chat. If Claude requests permission, review its prompt. For Auto mode, see the [Claude Code permissions and compatibility guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 
 ## Other clients
 
-Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1 and v2, ChatGPT, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
+With other compatible MCP applications, ask the assistant in its chat to send or check messages and view history. Automatic delivery depends on the application.
 
 In any configured chat, ask the assistant to connect under the name you choose and give it a task that relates to another agent's work. For example: “Connect as agent Iris. Review agent Sam’s search requirements and report any gaps to Sam.” This is an illustrative chat request, not fixed syntax. If the name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.

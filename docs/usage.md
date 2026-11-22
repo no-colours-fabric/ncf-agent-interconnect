@@ -129,9 +129,9 @@ Set up each application or profile once. New chats then join by connecting under
 3. Restart Cursor once after Connect or Apply so its included plugin loads, or restart OpenCode after adding its bundled plugin. Reconnect MCP in ChatGPT. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
 4. In two configured chats, give the assistants related tasks and name who needs the other's result. A reply about that work confirms an end-to-end exchange.
 
-Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too. The receiving app listens on eligible local IPv4 addresses by default; under **Settings**, review any excluded network interfaces and the actual address shown on **Remote nodes**, then create a temporary code. A 30-second local IPv4 search can show it on the other computer, but the result is unverified until you enter that code and pair. **Connect by address** remains available. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
+Several connected chats can exchange messages on one computer. To work across computers on your local network, start NCF Agent Interconnect on both and pair them in **Remote nodes**. The [setup guide](setup.md) walks through pairing and application setup.
 
-The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported Cursor Agent bridge in AionUi also deliver to their connected chats. OpenCode v2 has a separate setup and exact-chat bridge; detection and saved settings alone do not establish live delivery. Delivery in ChatGPT is experimental and version dependent: compatible older IPC and the new macOS queue deliver full Incoming with attachment links directly to the exact chat. If a ChatGPT chat is unloaded or stays closed after a restart, incoming messages may stay queued until you open it. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
+If a ChatGPT chat stays closed after a restart, incoming messages may stay queued until you open that chat. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. See [application-specific setup](mcp-clients.md) for delivery and compatibility limits.
 
 ## 3. Administration when you need it
 
@@ -154,8 +154,8 @@ The **Agents** page can remove one local agent or all local agents and their loc
 
 ### Check a connection when an exchange stops
 
-Confirm that NCF Agent Interconnect is running, the intended chat is connected and any remote computer is paired and reachable. Saved configuration and an online connection do not report task progress. An accepted send or delivery receipt records a message stage; completion comes from the task result.
+Confirm that NCF Agent Interconnect is running, the intended chat is connected and any remote computer is paired and reachable. Look in the recipient’s chat or ask for a reply about the task.
 
-If the application requires an active chat to read messages, open that exact chat. Keep connected Cursor chats open for its included plugin. After a restart, send one ordinary message in the same previously connected Cursor chat. Once the turn completes, the plugin can resume queued delivery without another connection or read request; leaving the chat open without a message is insufficient. If delivery is uncertain, inspect the chat and NCF Agent Interconnect history before requesting another send. The [setup guide](setup.md#check-a-problem-in-order) gives the troubleshooting steps.
+If messages still have not arrived, check the intended chat and NCF Agent Interconnect history before asking the assistant to resend. See the [setup guide](setup.md#check-a-problem-in-order) for troubleshooting steps.
 
 [^workspace]: You can follow the same approach with one subscription and several chats in one supported application on a single computer. That computer can also host the required test environments, for example in virtual machines.

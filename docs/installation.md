@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-For the complete owner-facing setup, including AI application configuration and
+For setup instructions, including AI application configuration and
 a first exchange, use [Set up NCF Agent Interconnect](setup.md).
 
 At startup, newly detected AI applications can appear in **Connect your apps**
@@ -56,20 +56,11 @@ the app and its connections. Start at login is optional under Settings.
 To update, quit the installed application before replacing it. Before upgrading
 to 1.0.0, retain a complete backup of its stopped profile, including history and
 attachments. Its data folder is separate from the app binary. Reconnect MCP
-after an update to refresh tool and server instructions. Restart Cursor or
+after an update. Restart Cursor or
 OpenCode if its included plugin changed.
 Restart Claude Code or reload its plugins after changing its NCF setup.
 
-Version 0.18.6 upgrades the stored history to format 5 on first start. Before
-updating, quit NCF and retain a complete backup of its stopped data folder. Earlier
-releases cannot open format 5. Rollback requires the pre-upgrade backup and must
-preserve any data created after the upgrade; do not open the upgraded profile with
-an older app.
-History, names, bindings, attachments, peers and AionUi authorization are preserved.
-Older strict-schema releases, including 0.18.x, may reject the newer
-network-interface exclusions or OpenCode v2 setup fields. Keep the stopped
-pre-upgrade backup; do not assume an older binary can open a profile saved by
-this version.
+Your names, history, attachments, pairings and AionUi authorization carry over. An older version may be unable to open your updated data. If you roll back, preserve any data created since the update and restore the backup made before upgrading.
 
 ## Removal
 

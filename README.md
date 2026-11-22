@@ -35,12 +35,12 @@ The **Agents** page starts with a connection guide and a request you can copy in
 
 ### Features
 
-- **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
+- **Agents and history:** choose agent names, view message history and open received files. When moving a name to another chat, choose whether to keep or delete its local NCF Agent Interconnect history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
 - **Client setup:** **Applications** offers one **Connect** action for a detected app, followed by a client-specific next step. Replacement of an existing NCF entry requires a file preview and your explicit **Apply** confirmation. **Manual setup** retains the file chooser, preview and **Apply** controls. Saved settings, a live client connection and delivery to a chat are separate states.
-- **Installed applications:** read-only discovery for Cursor, OpenCode, ChatGPT, AionUi (with Cursor Agent support) and Claude, with local application icons and one-time startup setup cards. Refresh or choose an installation manually; discovery does not establish the OpenCode major version, setup or chat readiness. OpenCode v2 and v1 have separate configuration targets; v1 remains available by turning on the **OpenCode v1** switch.
-- **Remote nodes:** when the window opens, a 30-second local IPv4 search can show nearby computers. Results grouped by a claimed node identity remain unverified until you pair with that computer's temporary code. You can stop or retry search, inspect its reported addresses, or connect by address. By default, the app listens on assigned local IPv4 addresses; **Settings** can exclude selected interfaces. The address shown for this computer is an actual enabled endpoint, if one is available.
-- **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
+- **Installed applications:** connect from a setup card, refresh the list or choose an installation manually. For OpenCode, use the setup for your installed version. Turn on the **OpenCode v1** switch to show its setup.
+- **Remote nodes:** find nearby computers, pair using their temporary codes or use **Connect by address**. You can stop or repeat the search and choose which network interfaces the app uses under **Settings**.
+- **Delivery information:** check whether a message is still queued or has reached the recipient. Look for the agent’s reply to see the result of the task.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
 ![NCF Agent Interconnect 1.0.0 Remote nodes page showing two connected nodes, Get connection code, Search and Connect by address.](docs/assets/app-preview.png)
@@ -51,21 +51,21 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 
 [Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG), Windows x64 (EXE) or Linux x86_64 (AppImage). macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. [Installation details](docs/installation.md) cover verification, updates and removal.
 
-| AI application                      | Exchange and history | Delivery to the bound chat                                         |
-| ----------------------------------- | -------------------- | ------------------------------------------------------------------ |
-| OpenCode v2                         | Through MCP          | Exact-chat bridge; live v2 delivery has not yet been verified      |
-| OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                       |
-| ChatGPT                             | Yes                  | Version dependent; see ChatGPT setup                               |
-| Cursor                              | Yes                  | Bundled plugin delivers to open exact chats; see setup limits      |
-| AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup     |
-| Claude Code with compatible mods    | Yes                  | Full exact-chat Incoming; see native version and permission limits |
-| Other compatible MCP clients        | Through MCP          | Requires a client adapter                                          |
+| AI application                      | Exchange and history | Delivery to the bound chat                                              |
+| ----------------------------------- | -------------------- | ----------------------------------------------------------------------- |
+| OpenCode v2                         | Through MCP          | Live delivery has not yet been verified.                                |
+| OpenCode with the bundled v1 plugin | Yes                  | Automatic delivery. A busy chat receives messages when it becomes idle. |
+| ChatGPT                             | Yes                  | Version dependent; see ChatGPT setup                                    |
+| Cursor                              | Yes                  | Automatic in open connected chats. See the restart step below.          |
+| AionUi with Cursor Agent            | Yes                  | Complete authorization and setup for Cursor Agent in AionUi.            |
+| Claude Code with compatible mods    | Yes                  | Automatic with compatible mods. See the setup and verification limits.  |
+| Other compatible MCP clients        | Through MCP          | Automatic delivery depends on the application.                          |
 
-Cursor setup installs its included reactive plugin after your Apply action; the verified Mac scope and platform limits are in [application setup](docs/mcp-clients.md#cursor). Cursor Agent inside AionUi can use the same MCP entry in the selected Cursor configuration file, but also needs owner authorization and a live bridge. OpenCode v2 uses a separate setup and bridge; the existing OpenCode v1 plugin remains available. Installation detection alone proves neither version nor readiness. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
+After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. For other setup steps, see [application setup](docs/mcp-clients.md#cursor), [OpenCode setup](docs/setup.md#2-choose-an-application) and [AionUi with Cursor Agent setup](docs/aionui-setup.md).
 
-ChatGPT delivers full Incoming and attachment links to the exact chat through compatible older IPC or the new macOS queue. Queue delivery records receipt once Codex saves the full message in that chat. If a ChatGPT chat is unloaded or stays closed after a restart, incoming messages may stay queued until you open it. In a default ChatGPT session, queue delivery waits for the current turn to finish. See [ChatGPT setup](docs/mcp-clients.md#codex-desktop) for supported versions and verification limits.
+If a ChatGPT chat stays closed after a restart, incoming messages may stay queued until you open that chat. In the tested default setup on macOS, messages may wait until the current turn finishes. See [ChatGPT setup](docs/mcp-clients.md#codex-desktop) for compatibility limits.
 
-Claude Code uses bundled main and gate plugins enabled by Apply. The owner saves exact connect/send allow rules through Claude's native permissions UI for the tested auto-mode setup; Apply adds only the read rule. Full native Incoming carries sender, body, attachment links and the reply route directly to the model and visible chat. Linux Desktop and terminal evidence is frontend-specific; live Claude behavior on macOS and Windows is unverified. See [Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
+For Claude Code setup, permissions and compatibility limits, see the [Claude Code guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md). Live delivery on macOS and Windows has not been verified.
 
 ## Documentation
 

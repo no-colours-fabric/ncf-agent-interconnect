@@ -27,9 +27,7 @@ window only hides the window; the node keeps running. Start at login is optional
 under Settings.
 
 Choose the interface language at the bottom of the sidebar. Fifteen languages
-are available, with English as the default. The choice is saved in
-this application's profile. Names, messages, filenames and addresses retain
-their original content; MCP instructions and core diagnostics remain in English.
+are available, with English as the default.
 
 ## Connect a client
 
@@ -44,136 +42,81 @@ their original content; MCP instructions and core diagnostics remain in English.
    For example: “Connect as agent Kai. Verify search behavior against agent
    Beth’s requirements and report any gaps to Beth.”
 
-Configure each application once. New chats do not need separate session, port or
-adapter settings. Applications distinguishes saved settings, known delivery
-state and typed application metrics. Cursor totals and activity refer to chats
-bound through its plugin; generic manual MCP connections are not attributed to Cursor.
-Setup remembers the selected file and checks it read-only on startup. Its
-open-file icon uses the operating system's default application.
+Configure each application or profile once. To add agents, ask the assistants in
+their own chats to connect under names you choose.
 
-- OpenCode v2: choose the v2 setup and exact configuration file. Only the
-  selected NCF integration changes; provider and account settings are preserved.
-  Restart v2 and connect from the intended chat. A detected installation or
-  saved configuration does not prove that the bridge is running or that the
-  chat admitted a message. Live OpenCode v2 delivery has not yet been verified.
-- OpenCode v1: turn on the **OpenCode v1** switch for its separate setup. The bundled v1
-  plugin identifies the exact current chat. Incoming messages are delivered
-  automatically; a busy chat waits for an idle event. Frontends must use that
-  OpenCode instance and load its plugins. Configuring v2 does not convert v1.
-- ChatGPT: compatible local IPC and the new macOS queue deliver the full
-  Incoming and attachment links directly to the exact chat. In queue mode NCF
-  records receipt after the full item is saved in the chat. If a ChatGPT chat
-  is unloaded or stays closed after a restart, incoming messages may stay queued
-  until you open it. Compatibility is version-dependent.
-- Cursor: Apply configures MCP and installs the included local plugin. Restart
-  Cursor once and connect in the intended chat. Open bound chats can receive
-  messages in the IDE and Agents Window without being selected. After a restart,
-  send one ordinary message in the same previously connected chat. Delivery
-  remains recovering until that turn completes and the reactive wait is armed;
-  another connection or inbox-read request is unnecessary.
-  Keep connected chats open. Local plugin policies can prevent loading the integration.
-  Direct Cursor and Cursor Agent in AionUi share the same MCP settings. Direct
-  Cursor additionally needs its plugin; AionUi authorization and live-chat
-  connections remain separate.
-- Other standard MCP clients: send, receive and history are available;
-  automatic delivery requires a supported adapter.
+- **OpenCode v2:** choose the separate v2 setup and the configuration file it
+  uses. Restart OpenCode v2 and connect in the intended chat. Live OpenCode v2
+  delivery has not yet been verified.
+- **OpenCode v1:** turn on the **OpenCode v1** switch and complete its setup.
+  Restart OpenCode v1. If you use a frontend, choose one that loads the included
+  plugin from that OpenCode installation. A busy chat can receive messages when
+  it becomes idle.
+- **ChatGPT:** reconnect MCP after setup and ask the assistant to connect in the
+  intended chat. If a ChatGPT chat stays closed after a restart, incoming
+  messages may stay queued until you open that chat. Compatibility depends on
+  the installed version.
+- **Cursor:** restart Cursor once after setup, then connect in the intended
+  chat and keep it open. Open connected chats can receive messages even when
+  they are not selected in the IDE or Agents Window. After a restart, send one
+  ordinary message in the same previously connected Cursor chat and let that
+  turn finish. Queued delivery can then resume. If an organization policy
+  prevents the plugin from loading, check with your administrator.
+- **Other compatible MCP applications:** ask the assistant in its chat to send
+  or check messages and view history. Automatic delivery depends on the
+  application.
 
-During the v0.17.1 cycle, owner-led Windows Cursor 3.29.9 checks confirmed two-way exchanges
-and recipient acknowledgments in direct Cursor IDE and Cursor Agent through
-AionUi. The exact running helper revision was not captured for those exchanges;
-installed preview.2 files separately matched the tested package. Unselected
-chats, Agents Window and restart recovery were not repeated in that fix cycle.
-Earlier macOS Cursor 3.28.7 checks covered those open-chat paths and window
-reload recovery, but not a full Cursor Quit/restart. Application package checks
-are separate from native client checks. The newer persisted recovery has source
-regression coverage; a new native Cursor application restart check was not run.
+See [application-specific setup](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)
+for client and platform limits.
 
 ## Exchange messages
 
-Choose names such as Researcher or Reviewer. Names are case-insensitive. After
-connecting, ask the agent to send a message to the node and named agent. Node
-UUIDs come from `node_peers`; `recipientNode` is required even for local delivery.
-Presented incoming messages show `From`, `Sent`, `Delivered` and a short
-`Reply-To` reference with the sender's name. `Sent` is the envelope creation
-time; `Delivered` is recorded when the receiving app constructs the incoming
-body or read result. The receiving app displays both with seconds in its system
-locale and time zone, without an offset in the label. These times do not prove
-model acknowledgement or task completion. Reply through
-`agent_send(connectionId, replyRef, text)`; the node resolves the exact original
-sender and message. Legacy full reply parameters remain supported.
+Choose names such as Researcher or Reviewer. Names are case-insensitive. Ask an
+assistant in its connected chat to contact another agent by name. If your team
+uses paired computers, give the computer name as well. To answer a message,
+ask your assistant to reply to it in the chat.
 
-Agents shows local agents and the agent directory of each paired node. Remote
-nodes lists connections and agent counts without repeating agent lists. MCP clients
-can use `agents_list` for full node/name addresses and client availability.
-Matching a name on another node produces a warning and does not block the name.
-Use `agent_disconnect` to release a chat binding while preserving its history.
+Use **Agents** to find agents on this computer and on paired computers. Open
+the chat icon on a local row to view its history or send a message. A remote
+row lets you choose a local sender and send a message. To disconnect a chat
+and keep its history, ask its assistant to disconnect.
 
-Local exchange needs no remote peers. Open a local row's chat icon for its history
-and expandable composer. A remote row opens a send-only dialog with an explicit local sender.
-Computer names appear in normal UI; MCP routing retains exact node addresses.
-Messages can be stored before the recipient chat connects.
+To continue as the same agent in another chat, ask that assistant to connect
+under the same name. If the name is occupied, choose whether to transfer it
+with its history or start fresh by deleting the old local history.
 
-To continue as the same agent in another chat, use the same name. An occupied
-name offers a transfer preserving history or a fresh start deleting old local
-history. Approve the selected mode explicitly. The previous binding is revoked.
+To delete local agents and their history, use the trash icon on a local row or
+**Delete all local agents and history**. Review the names and message counts
+before confirming. Your AI chat transcripts and copies of messages on other
+computers remain available.
 
-Use a local row's trash icon or Delete all local agents and history.
-Review the names and message counts before confirming.
-These actions remove local agent records and history, not client transcripts,
-remote copies or remote queues. A changed preview requires a new confirmation.
-
-Remote nodes can search the local IPv4 network for 30 seconds; Stop search and
-Search again control the current pass. Reported addresses for one claimed node
-identity are grouped, but discovery does not verify identity or establish trust.
-The sidebar marks newly found computers not yet viewed. Connect by address remains
-available when search misses a computer.
-
-By default, the app listens on its eligible assigned local IPv4 addresses. Under
-Settings, Network settings lets you save interface exclusions for this app's
-listeners; exclusions do not disable the adapter or change the system firewall.
-The local connection dialog shows an actual enabled address or a no-address state.
-Create a code there while the node runs. On the other computer, choose the exact
-discovered address or use Connect by address with its exact IP or URL and the
-eight-character code. Pairing binds the selected address and claimed node identity
-only after verification with that code. Letter case does not matter. Codes expire
-after ten minutes, permit five attempts and authorize one peer. Certificates are
-pinned through mutual authentication. Both apps need short-code support for a new
-connection; previously paired nodes reconnect without another code. Validated
-alternate addresses may recover an existing paired connection after pinned TLS
-and exact identity checks without changing its saved primary route. Discovery
-alone never authorizes that recovery. MCP remains on `127.0.0.1`.
+To use another computer, start NCF Agent Interconnect there. Open **Remote
+nodes** and create a temporary code for that computer. On the other computer,
+choose the intended search result or use **Connect by address**, enter the
+address and code and confirm the pairing. Use **Stop search** or **Search
+again** as needed. If no usable address appears, review excluded interfaces
+under **Settings → Network settings**. Keep the code private. It expires after
+ten minutes and authorizes one pairing. See the
+[setup guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md)
+for the full steps.
 
 ## AionUi with Cursor Agent
 
-The supported setup is Cursor Agent inside AionUi. Open Applications and choose
-Manual setup for AionUi with Cursor Agent.
-Configure access and approve it in AionUi, then separately configure Cursor
-Agent with the owner-operated file dialog and Apply. The selected MCP entry
-supports both Cursor and Cursor Agent in AionUi. Follow the Authorization,
-MCP settings and Live bridge stages. Reconnect Cursor Agent in the intended AionUi
-chat to reload MCP settings, then use the connection command. No session IDs or JSON configuration are entered.
-Authorization, saved settings and a connected bridge are distinct states.
-See the included `guides/AionUi.md` for instructions and verification limits.
+In **Applications**, choose **Manual setup** for AionUi with Cursor Agent.
+Approve access in AionUi. Open **Configure Cursor Agent**, select the intended
+file, review the preview and click **Apply**. Reconnect Cursor Agent in the
+intended AionUi chat, then ask the assistant to connect under a name you
+choose. See the included `guides/AionUi.md` for the full steps.
 
 ## Claude Code
 
-Open Applications → Claude Code → Manual setup and configure it with the owner-operated file
-dialog and Apply. This enables the bundled NCF plugin and its gate plugin in the
-selected Claude Code user settings and allows `agent_read` without a prompt.
-Start or resume Claude Code normally, then use the connection command. The native mod delivers full Incoming messages to the exact chat with sender,
-original body, attachment links and the standard reply instruction. Content
-reaches the model without an automatic read command. Receipt requires the exact
-final host-kept row under current authority. Safe mode or an organization policy
-that turns mods off leaves messages available through explicit `agent_read`.
-
-For the tested auto-mode setup, the owner saves exact allow rules for
-`mcp__plugin_ncf-agent-interconnect_ncf__agent_connect` and
-`mcp__plugin_ncf-agent-interconnect_ncf__agent_send` through Claude's native
-`/permissions` UI in User scope for the selected profile. Apply adds only the
-exact read rule. Preserve existing deny/ask and managed rules; no wildcard is
-needed. Unconfigured auto mode can reject hook-updated arguments. Linux Claude
-Code 2.1.319 was checked; Claude terminal behavior on macOS and Windows was not.
-See the included `guides/ClaudeCode.md` for evidence and lifecycle limits.
+In **Applications → Claude Code**, use **Manual setup** to choose a different
+profile. Review the selected settings file and click **Apply**. Restart Claude
+Code or reload its plugins, then ask the assistant to connect in the intended
+chat. Automatic delivery requires compatible Claude Code mods. If safe mode
+or organization policy disables them, ask the assistant to check for
+messages. Review any permission prompts in Claude. See the included
+`guides/ClaudeCode.md` for permissions and compatibility limits.
 
 ## History and attachments
 
@@ -181,147 +124,90 @@ Agents shows complete message text, participants and attachments. Open or save
 verified files using the controls beside them. Settings lists the folders from
 which files may be sent. Each message supports up to 16 files, 100 MiB each.
 
-A successful send means the node saved the message for delivery. Receipt is
-recorded automatically when the message reaches its client chat or is returned
-through MCP. Receipt does not mean that the requested task is complete. An
-uncertain client admission is not blindly repeated.
-
-Only a confirmed online client receives a green icon in Agents. Missing remote
-client names and message statistics stay empty. Typed application metrics report the latest
-known message or exact-chat verification time, not continuous liveness or task
-completion. Check the exact chat before retrying a message whose admission is uncertain.
+Check the intended chat or the message status in **Agents** if you are waiting
+for an exchange. Look for the agent’s reply for the result of the task. If
+delivery is unclear, check the chat and its history before asking the assistant
+to resend.
 
 ## Release versions
 
-Versions use MAJOR.MINOR.PATCH. Compatible fixes use PATCH; new compatible
-capabilities require MINOR and reset PATCH to zero. While the project is below
-1.0, incompatible changes require at least a MINOR increase and explicit
-compatibility notes. Moving to 1.0 is a deliberate owner decision.
+See [releases](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases) for changes and compatibility notes.
 
 ## Upgrade from an earlier release
 
-Quit the app from its tray menu before replacing it, then start the updated app.
-Existing names, bindings, history, attachments, peers and AionUi authorization
-are preserved. The first start upgrades storage to format 5. Quit NCF Agent Interconnect and retain
-a complete stopped pre-upgrade profile backup before updating. Older releases
-cannot open format 5. Do not use an older app against the upgraded profile;
-rollback requires that backup while preserving any post-upgrade data.
-Peer protocol remains version 2. In macOS Codex queue mode, `agent_connect` may
-return `codex_recovery_pending`. The confirmation arrives in the exact
-chat in ChatGPT. In that chat the assistant repeats `agent_connect` with the same nickname and
-the one-use `contextToken`. Recovering
-an existing connection preserves its history.
-Older strict-schema binaries may reject the newer network-exclusion and OpenCode
-v2 settings. Keep the stopped pre-upgrade backup; do not open an upgraded profile
-with an older app. The packaged OpenCode v2 setup verified private-file ACLs on
-a Windows x64 test host.
+Quit NCF Agent Interconnect from its tray menu and make a complete backup of
+its stopped data folder before replacing the app. Keep this backup for a
+rollback. Before restoring it, save any data created after the upgrade
+separately. Use the pre-upgrade backup with the older version.
 
-Existing client configurations need no new Apply when installation paths stay
-the same. To enable Claude Code, use its setup dialog and Apply, then restart
-Claude Code or reload its plugins. To enable OpenCode v2, select its separate
-setup and Apply to its exact configuration target; existing v1 setup is not
-silently converted. If the app path changes, update affected
-client paths through their setup dialogs and Apply. Pending requests whose
-admission is uncertain remain fenced and are not replayed automatically.
+Existing names, history, attachments, pairings and AionUi authorization carry
+over. If the installation path changes, open the affected application’s
+setup dialog, review the selected file and click **Apply**. Restart Claude
+Code or reload its plugins after changing its setup. OpenCode v2 has its own
+setup. Use it to configure v2 while keeping your existing v1 setup.
+
+If you need to reconnect ChatGPT, open the same chat and ask the assistant to
+connect under the same name. The chat keeps its existing NCF Agent Interconnect
+history. If a ChatGPT chat stays closed after a restart, incoming messages may
+stay queued until you open that chat.
 
 ## Upgrade from 0.17.2
 
-Quit NCF Agent Interconnect from its tray menu before replacing it, then start
-the updated app. This fix changes internal Codex delivery and queue recovery;
-no new Apply or agent connection is required when installation paths stay the
-same. Existing chat bindings, history, attachments, peer settings and AionUi
-authorization are preserved. Saved requests with uncertain admission are not
-replayed automatically. Codex Desktop compatibility remains version dependent.
+Quit the app from its tray menu before replacing it. Start the updated app.
+If the installation path stays the same, the existing settings and connections
+carry over.
 
 ## Upgrade from 0.17.1
 
-Quit NCF Agent Interconnect before replacing it, then start the updated app.
-In each previously connected Cursor chat, send one ordinary message and let the
-response finish. Keep the chat open. Its exact binding and queued messages are
-preserved; another connection or inbox-read request is unnecessary. When the
-installation path is unchanged, another Apply is unnecessary. If the app path
-changes, use Cursor setup and Apply to update its paths.
-Compatible paired computers exchange current display names on connection,
-reconnection and live rename. Older peers keep their known name until they
-support the update. Node IDs, authorization and agent bindings do not change.
+Quit the app before replacing it, then start the updated app. In each
+previously connected Cursor chat, send one ordinary message and let the
+response finish. Keep the chat open. If the installation path changed, use
+Cursor setup and click **Apply** to update its paths.
 
 ## Upgrade from 0.17.0 or a fix preview
 
-Quit NCF Agent Interconnect before replacing it. Open Cursor setup and click
-Apply to update the shared MCP entry and managed Windows hooks. Restart Cursor
-to load the updated bridge and plugin. Matching settings are left unchanged;
-AionUi authorization, history, names and peer settings are preserved.
+Quit NCF Agent Interconnect before replacing it. Open Cursor setup, review the
+preview and click **Apply**. Restart Cursor after updating its setup.
+Existing AionUi authorization, agent names, history and pairings carry over.
 
 ## Upgrade from 0.16.0
 
-To enable direct Cursor delivery, use Applications & MCP → Cursor → Configure
-Cursor and Apply. This installs the managed plugin under
-`.cursor/plugins/local/ncf-agent-interconnect` in your home directory and updates
-only the selected MCP entry. Restart Cursor once, then connect the intended chat.
-Preview, Cancel and startup checks do not write client files. Matching files and
-unrelated settings are preserved; changed files receive private backups.
-
-Quit NCF Agent Interconnect before replacing it. Existing history, attachments
-and paired routes remain; storage format 3, peer protocol 2 and the MCP tool
-schema are unchanged. Restart Cursor or OpenCode when its included plugin changes.
+Quit NCF Agent Interconnect before replacing it. To enable direct Cursor
+delivery, open Cursor setup, review the selected settings file and click
+**Apply**. Restart Cursor, then ask the assistant to connect in the intended
+chat. Restart OpenCode when its included plugin changes. Existing history,
+attachments and pairings carry over.
 
 ## Upgrade from 0.15.0
 
-AionUi with Cursor Agent setup now shows the current authorization, MCP settings or live-bridge
-step with inline actions. The configuration file remains accessible. Review the
-shared Cursor profile explanation before Apply, then reconnect Cursor Agent in
-the intended AionUi chat. Saved authorization and settings do not prove a live
-bridge. The updated user documentation includes setup and everyday workflows.
-Quit the app before replacing it. Existing data and configuration are preserved;
-storage format 3, peer protocol 2 and the MCP tool schema are unchanged.
+Quit the app before replacing it. Existing data and settings carry over. In
+AionUi with Cursor Agent setup, review the selected Cursor profile before
+clicking **Apply**, then reconnect Cursor Agent in the intended AionUi chat.
 
 ## Upgrade from 0.14.0
 
-The application has a new icon, combined Applications & MCP page and compact
-chat controls. Local history uses a right-hand drawer with an animated composer;
-remote messages use a separate dialog. Drafts are retained while switching or
-closing these controls. Dark/light preferences and existing node data remain.
-Quit the app, replace it and reconnect MCP. Storage format 3 and peer protocol 2
-are unchanged.
+Quit the app, replace it and reconnect MCP in your AI applications. Existing
+data and theme preferences carry over. Open **Agents** to view local history
+or send a message.
 
 ## Upgrade from 0.11.1
 
-Agent names, bindings, history, paired routes and client connection settings remain
-compatible. Agents uses a unified table and a local history drawer. Open a local row's
-chat icon for history, older messages and verified attachments; remote rows provide
-an explicitly addressed send form. Typed application metrics report counts and known activity.
-
-Applications & MCP provides client-specific tabs and dialogs. Startup checks only read
-client files. Apply is required to create or update settings, and matching entries
-remain unchanged. The app remembers the selected configuration path; the open-file
-icon becomes available after that file exists. OpenCode setup supports v1 only.
+Existing names, history, pairings and settings carry over. To change a
+client setup, review the selected file and click **Apply**. Use the
+OpenCode v1 setup for an OpenCode v1 installation.
 
 ## Upgrade from 0.11.0
 
-Storage format 3, peer protocol 2 and the eleven-tool schema are unchanged. Quit
-the node, replace the application and start it again. Then reload OpenCode or
-restart OpenChamber once so its host loads the corrected bundled plugin. Saved
-agent names, bindings, history and peer routes are preserved.
-
-OpenCode restoration no longer waits for session APIs during plugin loading and
-retries temporary startup failures without requiring a manual chat selection.
-This does not fix cold Codex owner initialization: an exact handler must already
-exist before its desktop adapter can admit a message.
+Quit NCF Agent Interconnect, replace the app and start it again. Reload
+OpenCode or restart OpenChamber to load the updated plugin. Existing names,
+history and pairings carry over.
 
 ## Upgrade from 0.10.0
 
-Quit the old node and back up its stopped user-data directory before replacing
-the app. Storage formats 1 and 2 migrate atomically to format 3. Older binaries
-reject format 3; retain the backup if an older version must be restored. Never
-open one data directory in two app instances. Previously paired nodes and
-protocol 2 message routes remain compatible.
-
-Reconnect MCP clients to refresh the eleven-tool schema and instructions.
-
-Incoming messages use the Incoming NCF Agent Interconnect heading with From and
-Reply-To fields. Answers and task results go through NCF Agent Interconnect MCP
-to the agent named in Reply-To. The client receives this rule and a short example
-when MCP connects.
+Quit the app and back up its stopped data folder before updating. Keep the
+backup if you may need to return to an older version. Use one app instance
+per data folder. After replacing the app, reconnect MCP in your AI
+applications.
 
 ## Remove
 
