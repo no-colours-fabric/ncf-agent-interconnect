@@ -17,6 +17,7 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { test } from 'node:test';
 import { createHash } from 'node:crypto';
+import * as asar from '@electron/asar';
 import {
   launchWindowsCodexFromArgs,
   windowsCodexLaunchArguments,
@@ -25,6 +26,66 @@ import {
 
 const bridge = createRequire(import.meta.url)('../desktop/integrations/codex-windows-bridge.cjs');
 const isWindows = process.platform === 'win32';
+
+test(
+  'Electron physical ASAR checks use original-fs while module loading remains ASAR-aware',
+  {
+    skip: !isWindows,
+    timeout: 15000,
+  },
+  async (t) => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'ncf-physical-asar-')));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const input = path.join(root, 'input');
+    await mkdir(input);
+    await writeFile(
+      path.join(input, 'inside.cjs'),
+      'module.exports = "ASAR module loading preserved";',
+    );
+    const archive = path.join(root, 'app.asar');
+    await asar.createPackage(input, archive);
+    const expected = createHash('sha256')
+      .update(await readFile(archive))
+      .digest('hex');
+    const bridgeFile = fileURLToPath(
+      new URL('../desktop/integrations/codex-windows-bridge.cjs', import.meta.url),
+    );
+    const electron =
+      process.env.NCF_TEST_ELECTRON_EXECUTABLE ||
+      fileURLToPath(new URL('../node_modules/electron/dist/electron.exe', import.meta.url));
+    const worker = `
+    const assert = require('node:assert/strict');
+    const patched = require('node:fs');
+    const original = require('original-fs');
+    const bridge = require(${JSON.stringify(bridgeFile)});
+    const archive = ${JSON.stringify(archive)};
+    (async () => {
+      assert.equal(patched.lstatSync(archive).isFile(),false);
+      assert.equal(typeof original.promises.lstat,'function');
+      assert.equal(typeof original.promises.realpath,'function');
+      assert.equal((await original.promises.lstat(archive)).isFile(),true);
+      assert.equal(await bridge.canonical(archive,false),archive);
+      await assert.rejects(bridge.canonical(archive,true));
+      assert.equal(await bridge.fileHash(archive),${JSON.stringify(expected)});
+      assert.equal(require(archive + '/inside.cjs'),'ASAR module loading preserved');
+      console.log(JSON.stringify({physicalAsar:true,wholeFileSha:true,promisesApi:true,normalAsarModules:true}));
+    })().catch(error => {console.error(error.message);process.exitCode=1;});`;
+    const result = await promisify(execFile)(electron, ['-e', worker], {
+      cwd: root,
+      env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+      windowsHide: true,
+      timeout: 10000,
+      maxBuffer: 32768,
+    });
+    assert.equal(result.stderr, '');
+    assert.deepEqual(JSON.parse(result.stdout.trim()), {
+      physicalAsar: true,
+      wholeFileSha: true,
+      promisesApi: true,
+      normalAsarModules: true,
+    });
+  },
+);
 
 test(
   'Native shell shortcut creation is idempotent and does not replace a conflicting link',

@@ -1,5 +1,8 @@
-const fs = require('node:fs/promises');
-const { createReadStream } = require('node:fs');
+// Physical identity checks must see app.asar as a file in Electron. Keep normal
+// require() unchanged so the bridge and its dependencies still load inside ASAR.
+const physicalFs = process.versions.electron ? require('original-fs') : require('node:fs');
+const fs = physicalFs.promises;
+const { createReadStream } = physicalFs;
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { spawn, execFile } = require('node:child_process');
