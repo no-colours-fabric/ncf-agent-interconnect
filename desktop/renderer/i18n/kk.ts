@@ -73,6 +73,8 @@ export const kk: Messages = {
     'Қолданбаны батырма арқылы қосыңыз. Баптаулар «Қолдану» батырмасын басқаннан кейін ғана өзгереді.',
   mcpSetup_configureCursor: 'Cursor баптау',
   mcpSetup_configureOpencode: 'OpenCode баптау',
+  mcpSetup_opencodeToolPermissions:
+    'Таңдалған OpenCode профилінде NCF-тің күнделікті пәрмендеріне рұқсат беру.',
   mcpSetup_configureCodex: 'ChatGPT баптау',
   mcpSetup_cursorTitle: 'Cursor баптау',
   mcpSetup_opencodeTitle: 'OpenCode баптау',

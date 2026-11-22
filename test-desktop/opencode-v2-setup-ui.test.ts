@@ -8,7 +8,10 @@ import { McpSetupFlow } from '../desktop/renderer/mcp-setup-model.js';
 import { ApplicationDiscovery } from '../desktop/renderer/ApplicationDiscovery.js';
 import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
-import { ApplicationRows } from '../desktop/renderer/ApplicationSetup.js';
+import {
+  ApplicationRows,
+  OpenCodePermissionPreview,
+} from '../desktop/renderer/ApplicationSetup.js';
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { hasConnectedClientChat } from '../desktop/renderer/ClientSetupHelp.js';
 import type { Snapshot } from '../desktop/shared/contracts.js';
@@ -16,6 +19,35 @@ import { applicationSetupMessages } from '../desktop/renderer/i18n/application-s
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import { supportedLocales, type Locale } from '../desktop/renderer/i18n/index.js';
 import type { McpSetupInvoke, OpenCodeV2SetupTarget } from '../desktop/shared/mcp-setup.js';
+
+test('OpenCode permission preview lists only new exact permissions for the selected major', () => {
+  for (const client of ['opencode', 'opencode-v2'] as const) {
+    const field = client === 'opencode' ? 'permission' : 'permissions';
+    const names = ['agent_send', 'agent_read', 'agent_history'].map(
+      (tool) => 'ncf_agent_interconnect_' + tool,
+    );
+    const markup = renderToStaticMarkup(
+      React.createElement(OpenCodePermissionPreview, {
+        client,
+        locale: 'ru',
+        file: {
+          id: 'configuration',
+          path: '/isolated/opencode.json',
+          action: 'update',
+          changes: [
+            { scope: field + '.' + names[0], action: 'add' },
+            { scope: field + '.' + names[1], action: 'unchanged' },
+            { scope: 'other.' + names[2], action: 'add' },
+          ],
+        },
+      }),
+    );
+    assert.ok(markup.includes('Разрешить штатные команды NCF'));
+    assert.ok(markup.includes(names[0]));
+    assert.ok(!markup.includes(names[1]));
+    assert.ok(!markup.includes(names[2]));
+  }
+});
 
 const target: OpenCodeV2SetupTarget = {
   major: 2,

@@ -76,6 +76,8 @@ export const es: Messages = {
     'Conecta tu aplicación con un botón. Los ajustes solo cambian después de pulsar «Aplicar».',
   mcpSetup_configureCursor: 'Configurar Cursor',
   mcpSetup_configureOpencode: 'Configurar OpenCode',
+  mcpSetup_opencodeToolPermissions:
+    'Permitir los comandos habituales de NCF en el perfil de OpenCode seleccionado.',
   mcpSetup_configureCodex: 'Configurar ChatGPT',
   mcpSetup_cursorTitle: 'Configurar Cursor',
   mcpSetup_opencodeTitle: 'Configurar OpenCode',

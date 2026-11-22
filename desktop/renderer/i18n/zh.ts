@@ -69,6 +69,7 @@ export const zh: Messages = {
   mcpSetup_userControl: '通过按钮连接应用程序。仅在点击“应用”后才会修改设置。',
   mcpSetup_configureCursor: '配置 Cursor',
   mcpSetup_configureOpencode: '配置 OpenCode',
+  mcpSetup_opencodeToolPermissions: '在所选的 OpenCode 配置中允许执行常用 NCF 命令。',
   mcpSetup_configureCodex: '配置 ChatGPT',
   mcpSetup_cursorTitle: '配置 Cursor',
   mcpSetup_opencodeTitle: '配置 OpenCode',

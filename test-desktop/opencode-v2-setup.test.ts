@@ -7,6 +7,7 @@ import { randomUUID } from 'node:crypto';
 import { OpenCodeV2SetupService } from '../desktop/core/mcp-setup.js';
 import { McpSetupPaths } from '../desktop/core/mcp-setup-paths.js';
 import { OpenCodeV2Auth } from '../desktop/core/opencode-v2-auth.js';
+import { openCodeAllowedTools } from '../desktop/shared/mcp-setup.js';
 import {
   editMcpConfiguration,
   editOpenCodeV2Configuration,
@@ -33,7 +34,7 @@ async function fixture(
     configurationPath: path.join(root, 'opencode.jsonc'),
   };
   const source =
-    '// owner settings\n{"providers":{"corporate":{"models":["unchanged"]}},"permissions":{"deny":["keep"]},"mcp":{"servers":{"corporate":{"type":"remote","url":"https://example.invalid/mcp","disabled":true}}},"plugins":["other-plugin"]}\n';
+    '// owner settings\n{"providers":{"corporate":{"models":["unchanged"]}},"permissions":[{"action":"corporate_query","resource":"*","effect":"deny"}],"mcp":{"servers":{"corporate":{"type":"remote","url":"https://example.invalid/mcp","disabled":true}}},"plugins":["other-plugin"]}\n';
   await writeFile(target.configurationPath, source, { mode: 0o600 });
   const setup = new OpenCodeV2SetupService({
     stateDirectory: state,
@@ -51,6 +52,10 @@ test('v2 owner Apply preserves unrelated config and coherent no-op keeps credent
   const { state, target, source, setup } = await fixture(t);
   const preview = await setup.v2Preview('window', target);
   assert.equal(preview.client, 'opencode-v2');
+  assert.deepEqual(
+    preview.files[0].changes.filter(({ scope }) => scope.startsWith('permissions.')),
+    openCodeAllowedTools.map((tool) => ({ scope: 'permissions.' + tool, action: 'add' })),
+  );
   assert.equal(await readFile(target.configurationPath, 'utf8'), source);
   assert.equal(JSON.stringify(preview).includes('Bearer '), false);
   await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2')), { code: 'ENOENT' });
@@ -59,7 +64,16 @@ test('v2 owner Apply preserves unrelated config and coherent no-op keeps credent
   const updated = await readFile(target.configurationPath, 'utf8'),
     parsed = JSON.parse(updated.slice(updated.indexOf('{')));
   assert.deepEqual(parsed.providers, { corporate: { models: ['unchanged'] } });
-  assert.deepEqual(parsed.permissions, { deny: ['keep'] });
+  assert.deepEqual(parsed.permissions, [
+    { action: 'corporate_query', resource: '*', effect: 'deny' },
+    ...openCodeAllowedTools.map((action) => ({ action, resource: '*', effect: 'allow' })),
+  ]);
+  assert.equal(parsed.permissions.length, 11);
+  assert.ok(
+    !parsed.permissions.some(({ action }: { action: string }) =>
+      action.endsWith('agent_clear_history'),
+    ),
+  );
   assert.equal(parsed.mcp.servers.corporate.disabled, true);
   assert.equal(parsed.plugins[0], 'other-plugin');
   assert.ok(updated.startsWith('// owner settings'));
@@ -74,6 +88,54 @@ test('v2 owner Apply preserves unrelated config and coherent no-op keeps credent
   assert.equal(await readFile(target.configurationPath, 'utf8'), updated);
   assert.equal(await readFile(registryFile, 'utf8'), registry);
   assert.equal(JSON.stringify(status).includes('Bearer '), false);
+});
+test('v2 permission-only upgrade leaves its active target credential and registry unchanged', async (t) => {
+  const { state, target, setup } = await fixture(t);
+  const initial = await setup.v2Preview('window', target);
+  assert.equal((await setup.v2Apply('window', initial.planId, target, false)).status, 'applied');
+  const updated = await readFile(target.configurationPath, 'utf8');
+  const legacy = JSON.parse(updated.slice(updated.indexOf('{')));
+  legacy.permissions = legacy.permissions.slice(0, 2);
+  const old = JSON.stringify(legacy, null, 2) + '\n';
+  await writeFile(target.configurationPath, old);
+  const registryFile = path.join(state, 'Integrations', 'opencode-v2', 'targets.json');
+  const registry = await readFile(registryFile, 'utf8');
+  assert.equal((await setup.v2Status(target)).state, 'needs-update');
+  assert.equal(await readFile(target.configurationPath, 'utf8'), old);
+
+  const upgrade = await setup.v2Preview('window', target);
+  assert.equal(upgrade.targetId, initial.targetId);
+  assert.equal(upgrade.requiresReplacement, false);
+  assert.equal(upgrade.files[0].changes.filter(({ action }) => action === 'add').length, 9);
+  setup.v2Discard('window', upgrade.planId);
+  assert.equal(await readFile(target.configurationPath, 'utf8'), old);
+  const reviewed = await setup.v2Preview('window', target);
+  const applied = await setup.v2Apply('window', reviewed.planId, target, false);
+  assert.equal(applied.status, 'applied');
+  assert.equal(await readFile(applied.files[0].backupPath!, 'utf8'), old);
+  assert.equal(await readFile(registryFile, 'utf8'), registry);
+  assert.equal((await setup.v2Status(target)).state, 'configured');
+});
+
+test('v2 refuses effective NCF ask/deny in selected config before any write', async (t) => {
+  const { target, state, setup } = await fixture(t);
+  const action = openCodeAllowedTools[0];
+  for (const rule of [
+    { action, resource: '*', effect: 'ask' },
+    { action: 'ncf_agent_interconnect_agent_connec?', resource: '?', effect: 'deny' },
+  ]) {
+    const before = JSON.stringify({
+      permissions: [{ action, resource: '*', effect: 'allow' }, rule],
+    });
+    await writeFile(target.configurationPath, before);
+    await assert.rejects(
+      setup.v2Preview('window', target),
+      /OpenCode (ask|deny) rule.*agent_connect/,
+    );
+    assert.equal(await readFile(target.configurationPath, 'utf8'), before);
+    assert.equal((await setup.v2Status(target)).setupAvailability.state, 'unavailable');
+  }
+  await assert.rejects(lstat(path.join(state, 'Integrations', 'opencode-v2')), { code: 'ENOENT' });
 });
 test('v2 stale owner/target/config cannot stage or activate a generation', async (t) => {
   const { state, target, source, setup } = await fixture(t),

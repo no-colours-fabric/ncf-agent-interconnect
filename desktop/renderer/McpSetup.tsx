@@ -5,6 +5,7 @@ import {
   ApplicationRows,
   ApplicationSetupConfirmation,
   ClaudePermissionChanges,
+  OpenCodePermissionPreview,
   useApplicationSetup,
 } from './ApplicationSetup.js';
 import { applicationSetupClients, type ApplicationSetupFlow } from './application-setup-model.js';
@@ -690,6 +691,9 @@ function ClientSetupDialog({
                 {client === 'claude' && checked && !result && (
                   <ClaudePermissionChanges file={checked} />
                 )}
+                {checked && !result && (
+                  <OpenCodePermissionPreview client={client} file={checked} locale={locale} />
+                )}
               </Box>
             </Stack>
           );
@@ -900,6 +904,7 @@ export function OpenCodeV2SetupDialog({
             {state.preview.files.map((file) => (
               <Box key={file.id} sx={{ overflowWrap: 'anywhere' }}>
                 <Typography variant="body2">{m[file.action]}</Typography>
+                <OpenCodePermissionPreview client="opencode-v2" file={file} locale={locale} />
                 {file.backupPath && (
                   <Typography variant="body2">
                     {m.backup}: {file.backupPath}

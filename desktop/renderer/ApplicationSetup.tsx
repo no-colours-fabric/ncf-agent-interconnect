@@ -300,6 +300,37 @@ export function ClaudePermissionChanges({ file }: { file: McpSetupFilePreview })
   );
 }
 
+export function OpenCodePermissionPreview({
+  client,
+  file,
+  locale,
+}: {
+  client: ApplicationSetupClient;
+  file: McpSetupFilePreview;
+  locale: Locale;
+}) {
+  if (client !== 'opencode' && client !== 'opencode-v2') return null;
+  const prefix = (client === 'opencode' ? 'permission' : 'permissions') + '.';
+  const added = file.changes.filter(
+    ({ scope, action }) => action === 'add' && scope.startsWith(prefix),
+  );
+  if (!added.length) return null;
+  return (
+    <Box sx={{ overflowWrap: 'anywhere' }}>
+      <Typography variant="body2">{mcpSetupMessages(locale).opencodeToolPermissions}</Typography>
+      <Box component="ul" sx={{ pl: 2.5, mt: 0.5, mb: 0 }}>
+        {added.map(({ scope }) => (
+          <li key={scope}>
+            <Typography component="code" variant="body2">
+              {scope.slice(prefix.length)}
+            </Typography>
+          </li>
+        ))}
+      </Box>
+    </Box>
+  );
+}
+
 export function ApplicationSetupConfirmation({
   flow,
   locale,
@@ -341,6 +372,7 @@ export function ApplicationSetupConfirmation({
                 {m[file.action]}
               </Typography>
               {client === 'claude' && <ClaudePermissionChanges file={file} />}
+              {client && <OpenCodePermissionPreview client={client} file={file} locale={locale} />}
               {file.backupPath && (
                 <Typography variant="body2">
                   {m.backup}: {file.backupPath}
@@ -718,6 +750,11 @@ function ApplicationCompactList({
               void flow.connect(client);
             }}
             data-testid={context + '-connect-' + client}
+            title={
+              client === 'opencode' || client === 'opencode-v2'
+                ? m.opencodeToolPermissions
+                : undefined
+            }
             sx={{ gridColumn: 3, alignSelf: 'start', justifySelf: 'end' }}
           >
             {setupActionLabel(state, locale, busy)}
@@ -1062,6 +1099,11 @@ export function ApplicationRows({
                   void flow.connect(client);
                 }}
                 data-testid={'application-connect-' + client}
+                title={
+                  client === 'opencode' || client === 'opencode-v2'
+                    ? m.opencodeToolPermissions
+                    : undefined
+                }
               >
                 {action.label}
               </Button>

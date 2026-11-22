@@ -77,6 +77,7 @@ export const de: Messages = {
     'Verbinden Sie Ihre Anwendung per Schaltfläche. Einstellungen ändern sich erst nach einem Klick auf „Anwenden“.',
   mcpSetup_configureCursor: 'Cursor einrichten',
   mcpSetup_configureOpencode: 'OpenCode einrichten',
+  mcpSetup_opencodeToolPermissions: 'NCF-Standardbefehle im ausgewählten OpenCode-Profil erlauben.',
   mcpSetup_configureCodex: 'ChatGPT einrichten',
   mcpSetup_cursorTitle: 'Cursor einrichten',
   mcpSetup_opencodeTitle: 'OpenCode einrichten',

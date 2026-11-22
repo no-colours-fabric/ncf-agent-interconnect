@@ -72,6 +72,7 @@ export const ru: Messages = {
     'Подключите приложение с помощью кнопки. Настройки изменяются только после нажатия «Применить».',
   mcpSetup_configureCursor: 'Настроить Cursor',
   mcpSetup_configureOpencode: 'Настроить OpenCode',
+  mcpSetup_opencodeToolPermissions: 'Разрешить штатные команды NCF в выбранном профиле OpenCode.',
   mcpSetup_configureCodex: 'Настроить ChatGPT',
   mcpSetup_cursorTitle: 'Настроить Cursor',
   mcpSetup_opencodeTitle: 'Настроить OpenCode',

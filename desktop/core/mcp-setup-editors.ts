@@ -2,8 +2,12 @@ import { isDeepStrictEqual } from 'node:util';
 import { createHash } from 'node:crypto';
 import { applyEdits, modify, parse, parseTree, type Node, type ParseError } from 'jsonc-parser';
 import { parse as parseToml, patch as patchToml } from '@decimalturn/toml-patch';
-import type { McpSetupClient, McpSetupFilePreview } from '../shared/mcp-setup.js';
 import { claudeToolPrefix } from '../integrations/claude-code.js';
+import {
+  openCodeAllowedTools,
+  type McpSetupClient,
+  type McpSetupFilePreview,
+} from '../shared/mcp-setup.js';
 import { claudeSetupAllowRules } from './instructions.js';
 
 const serverName = 'ncf_agent_interconnect';
@@ -78,6 +82,112 @@ function matchesClaudeRestriction(rule: string, tool: string): boolean {
     offset = next + part.length;
   }
   return offset <= end;
+}
+
+type OpenCodePermission = { action: string; resource: string; effect: 'allow' | 'ask' | 'deny' };
+const isEffect = (value: unknown): value is OpenCodePermission['effect'] =>
+  value === 'allow' || value === 'ask' || value === 'deny';
+
+// Both supported majors use * and ?. Match the tool ID and the literal MCP resource "*".
+// The fixed inputs contain no spaces, so a terminal " *" is always optional.
+function matchesOpenCodePermission(input: string, pattern: string): boolean {
+  if (pattern.endsWith(' *')) pattern = pattern.slice(0, -2);
+  if (process.platform === 'win32') pattern = pattern.toLowerCase();
+  let offset = 0,
+    position = 0,
+    star = -1,
+    retry = 0;
+  while (offset < input.length) {
+    if (pattern[position] === '*') {
+      star = position++;
+      retry = offset;
+    } else if (pattern[position] === '?' || pattern[position] === input[offset]) {
+      offset++;
+      position++;
+    } else if (star >= 0) {
+      position = star + 1;
+      offset = ++retry;
+    } else return false;
+  }
+  while (pattern[position] === '*') position++;
+  return position === pattern.length;
+}
+
+function openCodePermissionChanges(
+  rules: readonly OpenCodePermission[],
+  field: 'permission' | 'permissions',
+): McpSetupEdit['changes'] {
+  return openCodeAllowedTools.map((tool) => {
+    const matches = rules.filter(
+      (rule) =>
+        matchesOpenCodePermission(tool, rule.action) &&
+        matchesOpenCodePermission('*', rule.resource),
+    );
+    const effect = matches.at(-1)?.effect;
+    if (effect === 'ask' || effect === 'deny')
+      throw new Error(
+        `Existing OpenCode ${effect} rule applies to ${tool}. Review the selected configuration before connecting.`,
+      );
+    const exact = matches.some(
+      (rule) => rule.action === tool && rule.resource === '*' && rule.effect === 'allow',
+    );
+    return { scope: field + '.' + tool, action: exact ? 'unchanged' : 'add' };
+  });
+}
+
+function editOpenCodeV1Permissions(content: string, root: Record<string, unknown>) {
+  const raw = own(root, 'permission');
+  const legacy = new Map<string, OpenCodePermission[]>();
+  for (const [action, enabled] of Object.entries(table(root, 'tools'))) {
+    if (typeof enabled !== 'boolean') throw new Error('Invalid OpenCode v1 tools setting');
+    legacy.set(action, [{ action, resource: '*', effect: enabled ? 'allow' : 'deny' }]);
+  }
+  const configured = isEffect(raw) ? { '*': raw } : table(root, 'permission');
+  const explicit = new Set<string>();
+  for (const [action, value] of Object.entries(configured)) {
+    const resources = isEffect(value) ? { '*': value } : value;
+    if (!object(resources)) throw new Error('Invalid OpenCode v1 permission setting');
+    const rules: OpenCodePermission[] = [];
+    for (const [resource, effect] of Object.entries(resources)) {
+      if (!isEffect(effect)) throw new Error('Invalid OpenCode v1 permission effect');
+      rules.push({ action, resource, effect });
+      if (resource === '*' && effect === 'allow') explicit.add(action);
+    }
+    legacy.set(action, rules);
+  }
+  // Legacy tools can restrict execution, but only an explicit permission is left unchanged.
+  const changes = openCodePermissionChanges([...legacy.values()].flat(), 'permission');
+  if (isEffect(raw)) content = applyEdits(content, modify(content, ['permission'], configured, {}));
+  for (const [index, tool] of openCodeAllowedTools.entries()) {
+    if (explicit.has(tool)) continue;
+    changes[index].action = 'add';
+    const target = object(own(configured, tool)) ? ['permission', tool, '*'] : ['permission', tool];
+    content = applyEdits(content, modify(content, target, 'allow', {}));
+  }
+  return { content, changes };
+}
+
+function openCodeV2PermissionChanges(root: Record<string, unknown>): McpSetupEdit['changes'] {
+  const rules = own(root, 'permissions');
+  if (rules === undefined) return openCodePermissionChanges([], 'permissions');
+  if (
+    !Array.isArray(rules) ||
+    !rules.every(
+      (rule) =>
+        object(rule) &&
+        typeof rule.action === 'string' &&
+        typeof rule.resource === 'string' &&
+        isEffect(rule.effect),
+    )
+  )
+    throw new Error('The OpenCode v2 permissions setting must be an array of action rules');
+  return openCodePermissionChanges(rules, 'permissions');
+}
+
+export function hasOpenCodeV2ToolPermissions(source: string): boolean {
+  return openCodeV2PermissionChanges(json(source.replace(/^\uFEFF/, ''))).every(
+    (change) => change.action === 'unchanged',
+  );
 }
 
 /**
@@ -224,7 +334,9 @@ export function editMcpConfiguration(
   const servers = table(root, parent);
   if (
     client === 'opencode' &&
-    (Object.hasOwn(servers, 'servers') || Object.hasOwn(root, 'plugins'))
+    (Object.hasOwn(servers, 'servers') ||
+      Object.hasOwn(root, 'plugins') ||
+      Object.hasOwn(root, 'permissions'))
   )
     throw new Error('OpenCode v2 configuration is not supported by this OpenCode v1 integration');
   const previous = own(servers, serverName);
@@ -319,6 +431,9 @@ export function editMcpConfiguration(
       changes.push({ scope: 'plugin', action: present ? 'unchanged' : 'add' });
       if (!present)
         content = applyEdits(content, modify(content, ['plugin', -1], required[0], options));
+      const permissions = editOpenCodeV1Permissions(content, root);
+      content = permissions.content;
+      changes.push(...permissions.changes);
     }
     const parsed = json(content);
     if (!source.trim()) content = JSON.stringify(parsed, null, 2) + eol;
@@ -330,7 +445,7 @@ export function editMcpConfiguration(
   };
 }
 
-/** Only the v2 managed server and its exact logical plugin entry are edited. */
+/** Edit the v2 managed server, logical plugin entry and exact routine tool permissions. */
 export function editOpenCodeV2Configuration(original: string, configuration: string): McpSetupEdit {
   const bom = original.startsWith('\uFEFF') ? '\uFEFF' : '';
   const source = original.slice(bom.length);
@@ -343,6 +458,8 @@ export function editOpenCodeV2Configuration(original: string, configuration: str
   }
   if (
     Object.hasOwn(root, 'plugin') ||
+    Object.hasOwn(root, 'permission') ||
+    Object.hasOwn(root, 'tools') ||
     Object.keys(table(root, 'mcp')).some((key) => !['servers', 'timeout'].includes(key))
   )
     throw new Error(
@@ -378,6 +495,12 @@ export function editOpenCodeV2Configuration(original: string, configuration: str
     content = applyEdits(content, modify(content, ['mcp', 'servers', serverName], wanted, {}));
   if (!pluginEqual)
     content = applyEdits(content, modify(content, ['plugins', index ?? -1], nextPlugin, {}));
+  const permissions = openCodeV2PermissionChanges(root);
+  for (const [index, tool] of openCodeAllowedTools.entries()) {
+    if (permissions[index].action === 'unchanged') continue;
+    const rule = { action: tool, resource: '*', effect: 'allow' };
+    content = applyEdits(content, modify(content, ['permissions', -1], rule, {}));
+  }
   json(content);
   if (!source.trim()) content = JSON.stringify(json(content), null, 2) + '\n';
   return {
@@ -391,6 +514,7 @@ export function editOpenCodeV2Configuration(original: string, configuration: str
         scope: 'plugins',
         action: pluginEqual ? 'unchanged' : index === undefined ? 'add' : 'replace',
       },
+      ...permissions,
     ],
     requiresReplacement:
       (previous !== undefined && !equal) || (index !== undefined && !pluginEqual),

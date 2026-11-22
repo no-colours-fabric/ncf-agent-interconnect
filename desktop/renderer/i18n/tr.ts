@@ -73,6 +73,7 @@ export const tr: Messages = {
     'Uygulamanızı bir düğmeyle bağlayın. Ayarlar yalnızca “Uygula” düğmesine tıkladıktan sonra değişir.',
   mcpSetup_configureCursor: 'Cursor uygulamasını yapılandır',
   mcpSetup_configureOpencode: 'OpenCode uygulamasını yapılandır',
+  mcpSetup_opencodeToolPermissions: 'Seçili OpenCode profilinde rutin NCF komutlarına izin ver.',
   mcpSetup_configureCodex: 'ChatGPT uygulamasını yapılandır',
   mcpSetup_cursorTitle: 'Cursor uygulamasını yapılandır',
   mcpSetup_opencodeTitle: 'OpenCode uygulamasını yapılandır',

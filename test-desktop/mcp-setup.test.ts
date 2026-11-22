@@ -20,6 +20,7 @@ import { editMcpConfiguration } from '../desktop/core/mcp-setup-editors.js';
 import { McpSetupService } from '../desktop/core/mcp-setup.js';
 import { createMcpSetupHandler } from '../desktop/main/mcp-setup-ipc.js';
 import type { McpSetupClient } from '../desktop/shared/mcp-setup.js';
+import { openCodeAllowedTools } from '../desktop/shared/mcp-setup.js';
 
 const owner = 'isolated-window';
 const url = 'http://127.0.0.1:42000/mcp';
@@ -117,7 +118,7 @@ test('Cursor JSONC preserves unrelated bytes, Unicode, BOM, comments and CRLF', 
   );
 });
 
-test('OpenCode v1 adds both operations without duplicating plugins or replacing others', () => {
+test('OpenCode v1 adds the server, plugin and exact tool permissions without replacing others', () => {
   const source =
     '{\n // kept\n "plugin": ["existing-plugin"],\n "mcp": {"other": {"type": "remote", "url": "https://example.invalid"}},\n "theme": "dark"\n}\n';
   const edit = editMcpConfiguration('opencode', source, instructions('opencode').configuration);
@@ -126,7 +127,13 @@ test('OpenCode v1 adds both operations without duplicating plugins or replacing 
   assert.equal(parsed.mcp.other.url, 'https://example.invalid');
   assert.equal(parsed.theme, 'dark');
   assert.ok(edit.content.includes('// kept'));
-  assert.equal(edit.changes.length, 2);
+  assert.equal(edit.changes.length, 12);
+  assert.equal(Object.keys(parsed.permission).length, 10);
+  assert.deepEqual(
+    parsed.permission,
+    Object.fromEntries(openCodeAllowedTools.map((tool) => [tool, 'allow'])),
+  );
+  assert.equal(parsed.permission.ncf_agent_interconnect_agent_clear_history, undefined);
   assert.equal(
     editMcpConfiguration('opencode', edit.content, instructions('opencode').configuration).content,
     edit.content,
@@ -136,6 +143,72 @@ test('OpenCode v1 adds both operations without duplicating plugins or replacing 
       .plugin,
     [plugin],
   );
+});
+
+test('OpenCode v1 upgrades an existing setup only on owner Apply and backs up the selected file', async (t) => {
+  const { directory, service } = await fixture(t);
+  const filename = path.join(directory, 'opencode.jsonc');
+  const other = path.join(directory, 'other.jsonc');
+  const selection = [{ id: 'configuration', path: filename }];
+  const configuration = JSON.parse(instructions('opencode').configuration);
+  configuration.permission = {
+    bash: { '*': 'ask' },
+    [openCodeAllowedTools[0]]: 'allow',
+    corporate_query: 'deny',
+  };
+  const source = '// Keep this comment\n' + JSON.stringify(configuration, null, 2) + '\n';
+  await writeFile(filename, source);
+  await writeFile(other, '{}');
+
+  const plan = await service.preview(owner, 'opencode', selection);
+  assert.equal(plan.requiresReplacement, false);
+  assert.equal(
+    plan.files[0].changes.filter(
+      ({ scope, action }) => scope.startsWith('permission.') && action === 'add',
+    ).length,
+    9,
+  );
+  assert.equal(await readFile(filename, 'utf8'), source);
+  const result = await service.apply(owner, plan.planId, false);
+  assert.equal(result.status, 'applied');
+  assert.equal(await readFile(result.files[0].backupPath!, 'utf8'), source);
+  const configured = await readFile(filename, 'utf8');
+  const updated = parseJson(configured);
+  assert.ok(configured.startsWith('// Keep this comment'));
+  assert.deepEqual(updated.permission.bash, { '*': 'ask' });
+  assert.equal(updated.permission.corporate_query, 'deny');
+  assert.ok(openCodeAllowedTools.every((tool) => updated.permission[tool] === 'allow'));
+  assert.equal(await readFile(other, 'utf8'), '{}');
+  const repeated = await service.preview(owner, 'opencode', selection);
+  assert.equal((await service.apply(owner, repeated.planId, false)).status, 'unchanged');
+  assert.equal(await readFile(filename, 'utf8'), configured);
+});
+
+test('OpenCode v1 preserves effective restrictions, legacy tools and permission rule order', () => {
+  const edit = (settings: object) =>
+    editMcpConfiguration(
+      'opencode',
+      JSON.stringify(settings),
+      instructions('opencode').configuration,
+    );
+  const tool = openCodeAllowedTools[0];
+  assert.throws(() => edit({ permission: { [tool]: 'ask' } }), /ask rule.*agent_connect/);
+  assert.throws(
+    () =>
+      edit({
+        permission: {
+          ncf_agent_interconnect_agent_connec_: 'deny',
+          'ncf_agent_interconnect_agent_connec?': 'deny',
+        },
+      }),
+    /deny rule.*agent_connect/,
+  );
+  assert.throws(() => edit({ tools: { [tool]: false } }), /deny rule.*agent_connect/);
+  assert.throws(() => edit({ permission: { [tool]: 'allow', '*': 'ask' } }), /ask rule/);
+  const noConflict = edit({ tools: { [tool]: false }, permission: { [tool]: { '*': 'allow' } } });
+  assert.deepEqual(parseJson(noConflict.content).permission[tool], { '*': 'allow' });
+  const scalar = edit({ permission: 'allow' });
+  assert.equal(parseJson(scalar.content).permission['*'], 'allow');
 });
 
 test('Codex TOML preserves multiline strings, quoted sections, dates, large integers, other settings and comments', () => {

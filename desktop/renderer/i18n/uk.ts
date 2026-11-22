@@ -73,6 +73,7 @@ export const uk: Messages = {
     'Підключіть застосунок за допомогою кнопки. Налаштування змінюються лише після натискання «Застосувати».',
   mcpSetup_configureCursor: 'Налаштувати Cursor',
   mcpSetup_configureOpencode: 'Налаштувати OpenCode',
+  mcpSetup_opencodeToolPermissions: 'Дозволити штатні команди NCF у вибраному профілі OpenCode.',
   mcpSetup_configureCodex: 'Налаштувати ChatGPT',
   mcpSetup_cursorTitle: 'Налаштувати Cursor',
   mcpSetup_opencodeTitle: 'Налаштувати OpenCode',

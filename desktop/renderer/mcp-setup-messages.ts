@@ -44,6 +44,7 @@ export const mcpSetupEnglish = {
     'Connect your application with a button. Settings change only after you click Apply.',
   configureCursor: 'Configure Cursor',
   configureOpencode: 'Configure OpenCode',
+  opencodeToolPermissions: 'Allow routine NCF commands in the selected OpenCode profile.',
   configureCodex: 'Configure ChatGPT',
   cursorTitle: 'Configure Cursor',
   opencodeTitle: 'Configure OpenCode',

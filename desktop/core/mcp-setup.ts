@@ -21,9 +21,13 @@ import type {
   OpenCodeV2SetupApplyResult,
   OpenCodeV2SetupAvailability,
 } from '../shared/mcp-setup.js';
-import { mcpSetupClients } from '../shared/mcp-setup.js';
+import { mcpSetupClients, openCodeAllowedTools } from '../shared/mcp-setup.js';
 import { codexMcpConfigurationMatches, editMcpConfiguration } from './mcp-setup-editors.js';
-import { editOpenCodeV2Configuration, openCodeV2ConfigurationHash } from './mcp-setup-editors.js';
+import {
+  editOpenCodeV2Configuration,
+  hasOpenCodeV2ToolPermissions,
+  openCodeV2ConfigurationHash,
+} from './mcp-setup-editors.js';
 import {
   OpenCodeV2Auth,
   openCodeV2TargetSchema,
@@ -928,6 +932,11 @@ export class OpenCodeV2SetupService extends McpSetupService {
       draft = await this.auth.prepare(target, settings.nodeId, nodeUrl.origin, true);
     const { provision } = draft;
     const configuration = JSON.stringify({
+      permissions: openCodeAllowedTools.map((action) => ({
+        action,
+        resource: '*',
+        effect: 'allow',
+      })),
       plugins: [
         {
           package: pathToFileURL(draft.generationDirectory).href,
@@ -959,7 +968,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
       instructions: {
         client: 'opencode-v2',
         location: target.configurationPath,
-        text: 'Apply the OpenCode v2 integration to the selected configuration, then restart OpenCode. Connect using a name you choose. Configuration and native automatic delivery are verified separately.',
+        text: 'Apply the OpenCode v2 integration and the exact permission rules for routine NCF tools to the selected configuration, then restart OpenCode. Connect using a name you choose. Configuration and native automatic delivery are verified separately.',
         configuration,
         testPrompt: 'Connect as agent <a name you choose>.',
       },
@@ -1044,14 +1053,15 @@ export class OpenCodeV2SetupService extends McpSetupService {
               { id: 'configuration', path: target.configurationPath, state: 'not-configured' },
             ],
           };
+        const state = hasOpenCodeV2ToolPermissions(source.content) ? 'configured' : 'needs-update';
         return {
           client: 'opencode-v2',
           target,
           setupAvailability,
           targetId: row.targetId,
           remembered: true,
-          state: 'configured',
-          files: [{ id: 'configuration', path: target.configurationPath, state: 'configured' }],
+          state,
+          files: [{ id: 'configuration', path: target.configurationPath, state }],
         };
       } catch {
         return {

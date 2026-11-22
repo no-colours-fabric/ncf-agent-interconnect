@@ -71,6 +71,7 @@ export const ko: Messages = {
     '버튼으로 애플리케이션을 연결하세요. 설정은 ‘적용’을 클릭한 후에만 변경됩니다.',
   mcpSetup_configureCursor: 'Cursor 설정',
   mcpSetup_configureOpencode: 'OpenCode 설정',
+  mcpSetup_opencodeToolPermissions: '선택한 OpenCode 프로필에서 일반 NCF 명령을 허용합니다.',
   mcpSetup_configureCodex: 'ChatGPT 설정',
   mcpSetup_cursorTitle: 'Cursor 설정',
   mcpSetup_opencodeTitle: 'OpenCode 설정',

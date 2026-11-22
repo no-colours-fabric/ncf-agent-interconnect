@@ -73,6 +73,8 @@ export const nl: Messages = {
     'Verbind uw toepassing met een knop. Instellingen veranderen pas nadat u op ‘Toepassen’ klikt.',
   mcpSetup_configureCursor: 'Cursor instellen',
   mcpSetup_configureOpencode: 'OpenCode instellen',
+  mcpSetup_opencodeToolPermissions:
+    'Sta gewone NCF-opdrachten toe in het geselecteerde OpenCode-profiel.',
   mcpSetup_configureCodex: 'ChatGPT instellen',
   mcpSetup_cursorTitle: 'Cursor instellen',
   mcpSetup_opencodeTitle: 'OpenCode instellen',

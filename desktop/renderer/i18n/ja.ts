@@ -72,6 +72,8 @@ export const ja: Messages = {
     'ボタンでアプリケーションを接続します。「適用」をクリックした後にのみ設定が変更されます。',
   mcpSetup_configureCursor: 'Cursorを設定',
   mcpSetup_configureOpencode: 'OpenCodeを設定',
+  mcpSetup_opencodeToolPermissions:
+    '選択した OpenCode プロファイルで NCF の通常コマンドを許可します。',
   mcpSetup_configureCodex: 'ChatGPTを設定',
   mcpSetup_cursorTitle: 'Cursorを設定',
   mcpSetup_opencodeTitle: 'OpenCodeを設定',

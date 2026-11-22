@@ -5,6 +5,20 @@ export type McpSetupClient = (typeof mcpSetupClients)[number];
 export type McpSetupApplication = McpSetupClient;
 export type McpSetupFormat = 'jsonc' | 'toml';
 
+/** Routine NCF tools; clearing history requires separate owner authorization. */
+export const openCodeAllowedTools = [
+  'agent_connect',
+  'agent_read',
+  'agent_send',
+  'agent_history',
+  'agents_list',
+  'attachment_receive',
+  'connection_events',
+  'node_peers',
+  'node_status',
+  'agent_disconnect',
+].map((tool) => 'ncf_agent_interconnect_' + tool);
+
 export interface McpSetupTarget {
   id: string;
   path: string;

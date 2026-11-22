@@ -1,6 +1,6 @@
 import type { McpInstructions } from '../shared/contracts.js';
 import { claudePlugin, claudeToolPrefix } from '../integrations/claude-code.js';
-import { claudeLaunchCommand } from '../shared/mcp-setup.js';
+import { claudeLaunchCommand, openCodeAllowedTools } from '../shared/mcp-setup.js';
 
 export const claudeSetupAllowRules = [
   'agent_connect',
@@ -88,10 +88,11 @@ export function mcpInstructions(
     return {
       client,
       location: 'Your global OpenCode configuration — opencode.json or opencode.jsonc',
-      text: 'Merge this snippet into the existing configuration, keeping other MCP servers and plugins. Restart OpenCode. The bundled plugin binds the current chat automatically, including in frontends that use this OpenCode instance. No session setup is required.',
+      text: 'Merge this snippet into the existing configuration, keeping other MCP servers, plugins and permission rules. The exact NCF permissions allow routine commands to run without approval. Restart OpenCode. The bundled plugin binds the current chat automatically, including in frontends that use this OpenCode instance. No session setup is required.',
       configuration: JSON.stringify(
         {
           plugin: [openCodePlugin],
+          permission: Object.fromEntries(openCodeAllowedTools.map((tool) => [tool, 'allow'])),
           mcp: {
             ncf_agent_interconnect: {
               type: 'remote',
