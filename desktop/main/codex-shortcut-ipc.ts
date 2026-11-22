@@ -150,6 +150,14 @@ export function createCodexShortcutHandler(
     programs: windowsProgramsDirectory,
     readLink: async (filename: string) =>
       (await import('electron')).shell.readShortcutLink(filename),
+    verifyManifest: async (
+      filename: string,
+      expected: WindowsCodexShortcutContext & Omit<WindowsCodexShortcutRequest, 'destination'>,
+    ): Promise<boolean> =>
+      (await import('./codex-shortcut-windows.js')).verifyWindowsCodexShortcutManifest(
+        filename,
+        expected,
+      ),
     desktopData: async (appData: string) =>
       (await import('./codex-shortcut-windows.js')).resolveWindowsCodexDesktopData(appData),
   },
@@ -259,7 +267,9 @@ export function createCodexShortcutHandler(
       z.object({}).strict().parse(raw);
       if (!platform) return [];
       const extension = platform === 'mac' ? 'app' : 'lnk';
-      const filenames = [codexShortcutDisplayName + '.' + extension, 'Codex with NCF.' + extension];
+      const shortcutName = codexShortcutDisplayName + '.' + extension;
+      const verifications = new Map<string, Promise<boolean>>();
+      let profile: ReturnType<typeof resolveProfile> | undefined;
       const isExisting = async (filename: string): Promise<boolean> => {
         if (platform === 'mac') return mac.isMacCodexShortcut(filename);
         try {
@@ -268,18 +278,34 @@ export function createCodexShortcutHandler(
           if (!samePath(link.target, options.appExecutable, platform)) return false;
           const match = /^--launch-codex --launcher-manifest "([^"\r\n]+)"$/.exec(link.args ?? '');
           const manifestFile = match?.[1];
-          if (!manifestFile) return false;
+          if (!manifestFile || !path.isAbsolute(manifestFile)) return false;
+          const normalized = path.normalize(manifestFile);
+          if (normalized !== manifestFile) return false;
           const relative = path.relative(
             path.join(options.userData, 'codex-launchers'),
-            manifestFile,
+            normalized,
           );
           const [key, manifest, ...rest] = relative.split(path.sep);
-          return (
-            /^[a-f0-9]{32}$/.test(key) &&
-            manifest === 'manifest.json' &&
-            !rest.length &&
-            (await lstat(manifestFile)).isFile()
-          );
+          if (!/^[a-f0-9]{32}$/.test(key) || manifest !== 'manifest.json' || rest.length)
+            return false;
+          const cacheKey = normalized.toLowerCase();
+          let verification = verifications.get(cacheKey);
+          if (!verification) {
+            profile ??= resolveProfile(platform);
+            verification = profile.then((resolved) =>
+              'reason' in resolved
+                ? false
+                : windows.verifyManifest(normalized, {
+                    profile: resolved.profile,
+                    desktopData: resolved.desktopData,
+                    userData: options.userData,
+                    appExecutable: options.appExecutable,
+                    appPath: options.appPath,
+                  }),
+            );
+            verifications.set(cacheKey, verification);
+          }
+          return await verification;
         } catch {
           return false;
         }
@@ -296,9 +322,7 @@ export function createCodexShortcutHandler(
             ] as const);
       const statuses = await Promise.all(
         folders.map(async ([location, folder]) => {
-          if (!folder) return undefined;
-          for (const filename of filenames)
-            if (await isExisting(path.join(folder, filename))) return location;
+          if (folder && (await isExisting(path.join(folder, shortcutName)))) return location;
         }),
       );
       const existing: CodexShortcutDestination[] = statuses.filter(
@@ -306,7 +330,7 @@ export function createCodexShortcutHandler(
       );
       if (platform === 'mac') {
         for (const filename of await mac.macCodexDockShortcuts(options.home)) {
-          if (filenames.includes(path.basename(filename)) && (await isExisting(filename))) {
+          if (path.basename(filename) === shortcutName && (await isExisting(filename))) {
             existing.push('dock');
             break;
           }

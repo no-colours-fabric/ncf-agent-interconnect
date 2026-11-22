@@ -89,10 +89,12 @@ export function CodexShortcut({
   const [completed, setCompleted] = useState<McpSetupApplyResult | null>(null);
   const titleId = useId();
   const applying = useRef(false);
+  const locationsActive = useRef(false);
   const locationRequest = useRef(0);
   const [busy, setBusy] = useState(false);
   const [open, setOpen] = useState(false);
   const [existing, setExisting] = useState<CodexShortcutDestination[] | null>(null);
+  const [checkingLocations, setCheckingLocations] = useState(false);
   const [locationsError, setLocationsError] = useState(false);
   const [selected, setSelected] = useState<CodexShortcutDestination[]>([]);
   const [result, setResult] = useState<Exclude<
@@ -101,22 +103,44 @@ export function CodexShortcut({
   > | null>(null);
 
   const refreshLocations = useCallback(async () => {
+    if (!locationsActive.current) return;
     const request = ++locationRequest.current;
-    setExisting(null);
+    setCheckingLocations(true);
     setLocationsError(false);
     try {
       const locations = await invoke<CodexShortcutDestination[]>('codexShortcutLocations', {});
       if (request === locationRequest.current) setExisting(locations);
     } catch {
-      if (request === locationRequest.current) setLocationsError(true);
+      if (request === locationRequest.current) {
+        setExisting(null);
+        setLocationsError(true);
+      }
+    } finally {
+      if (request === locationRequest.current) setCheckingLocations(false);
     }
   }, [invoke]);
+  const dialogOpen = !!connection || open;
   useEffect(() => {
-    if (connection && supported) void refreshLocations();
-  }, [connection, supported, refreshLocations]);
+    if (!dialogOpen || !supported) return;
+    locationsActive.current = true;
+    void refreshLocations();
+    const refreshWhenVisible = () => {
+      if (document.visibilityState === 'visible') void refreshLocations();
+    };
+    window.addEventListener('focus', refreshWhenVisible);
+    document.addEventListener('visibilitychange', refreshWhenVisible);
+    return () => {
+      locationsActive.current = false;
+      locationRequest.current++;
+      window.removeEventListener('focus', refreshWhenVisible);
+      document.removeEventListener('visibilitychange', refreshWhenVisible);
+    };
+  }, [dialogOpen, supported, refreshLocations]);
 
   const close = () => {
     if (busy) return;
+    locationsActive.current = false;
+    locationRequest.current++;
     if (connection) connection.complete(completed);
     else setOpen(false);
   };
@@ -127,7 +151,15 @@ export function CodexShortcut({
       destinations.filter(
         (destination) => selected.includes(destination) && !existing.includes(destination),
       );
-    if (applying.current || disabled || !supported || completed || !locations?.length) return;
+    if (
+      applying.current ||
+      checkingLocations ||
+      disabled ||
+      !supported ||
+      completed ||
+      !locations?.length
+    )
+      return;
     applying.current = true;
     setBusy(true);
     setResult(null);
@@ -201,21 +233,17 @@ export function CodexShortcut({
           aria-busy={busy}
           onClick={() => {
             setSelected([]);
+            setExisting(null);
+            setLocationsError(false);
+            setResult(null);
             setOpen(true);
-            void refreshLocations();
           }}
           sx={{ minHeight: 44 }}
         >
           {busy ? copy.creating : copy.action}
         </Button>
       )}
-      <Dialog
-        open={!!connection || open}
-        onClose={close}
-        aria-labelledby={titleId}
-        fullWidth
-        maxWidth="md"
-      >
+      <Dialog open={dialogOpen} onClose={close} aria-labelledby={titleId} fullWidth maxWidth="md">
         <DialogTitle id={titleId}>{connection ? copy.connectTitle : copy.save}</DialogTitle>
         <DialogContent>
           <Box
@@ -295,6 +323,13 @@ export function CodexShortcut({
               )}
               {result?.state === 'complete' &&
                 result.destinations.map(({ destination, result }) => {
+                  if (
+                    result === 'created' &&
+                    destination !== 'custom' &&
+                    existing &&
+                    !existing.includes(destination)
+                  )
+                    return null;
                   const severity =
                     result === 'created'
                       ? 'success'
@@ -342,6 +377,7 @@ export function CodexShortcut({
                 !supported ||
                 disabled ||
                 busy ||
+                checkingLocations ||
                 !existing ||
                 !selected.some((item) => !existing.includes(item))
               }

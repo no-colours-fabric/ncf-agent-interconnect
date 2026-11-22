@@ -23,16 +23,28 @@ const query = new URLSearchParams(location.search);
 const platform = query.get('platform') ?? 'mac';
 const calls = [];
 let settle;
-let existing = platform === "windows" ? ["desktop"] : [];
+let heldLocations;
+let holdNextLocations = false;
+let existing = platform === 'windows' && !query.has('fresh') ? ['desktop'] : [];
 const invoke = async (method, input) => {
   calls.push({ method, input });
   if (method === 'codexShortcutPlatform') return platform === 'linux' ? null : platform;
   if (method === 'codexShortcutRevealDock') return true;
-  if (method === 'codexShortcutLocations') return existing;
+  if (method === 'codexShortcutLocations') {
+    if (!holdNextLocations) return existing;
+    holdNextLocations = false;
+    const snapshot = existing;
+    return new Promise(resolve => { heldLocations = () => resolve(snapshot); });
+  }
   if (method === 'codexShortcutCreate') return new Promise(resolve => { settle = resolve; });
   throw new Error('Unexpected fixture operation: ' + method);
 };
-window.fixture = { calls, finish: result => {
+window.fixture = {
+  calls,
+  deleteDesktop: () => { existing = existing.filter(destination => destination !== 'desktop'); },
+  holdNextLocations: () => { holdNextLocations = true; },
+  finishLocations: () => { heldLocations(); },
+  finish: result => {
   if (result.state === 'complete') existing = [...new Set([
     ...existing, ...result.destinations.filter(entry => entry.result === 'created').map(entry => entry.destination)
   ])];
@@ -235,13 +247,75 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
     .waitFor();
   await picker.getByText('Ярлык ChatGPT создан.').waitFor();
 
+  for (const platform of ['mac', 'windows']) {
+    await page.goto('http://ncf-shortcut.test/?fresh&platform=' + platform);
+    const desktopCheckbox = picker.getByRole('checkbox', { name: 'Desktop', exact: true });
+    const otherCheckbox = picker.getByRole('checkbox', { name: 'Other location…', exact: true });
+    const createdDesktop = picker.getByTestId('chatgpt-shortcut-created-desktop');
+    const createDesktop = async () => {
+      await desktopCheckbox.check();
+      await confirm.click();
+      assert.deepEqual(
+        await page.evaluate(
+          () =>
+            window.fixture.calls.findLast(({ method }) => method === 'codexShortcutCreate').input,
+        ),
+        { locale: 'en', destinations: ['desktop'] },
+      );
+      await page.evaluate(() =>
+        window.fixture.finish({
+          state: 'complete',
+          destinations: [{ destination: 'desktop', result: 'created' }],
+        }),
+      );
+      await createdDesktop.getByText('Created', { exact: true }).waitFor();
+    };
+    await action.click();
+    await createDesktop();
+    await otherCheckbox.check();
+    await page.evaluate(() => {
+      window.fixture.deleteDesktop();
+      window.dispatchEvent(new Event('focus'));
+    });
+    await desktopCheckbox.waitFor();
+    assert.equal(await otherCheckbox.isChecked(), true);
+    assert.equal(await picker.getByText('ChatGPT shortcut created.', { exact: true }).count(), 0);
+    await otherCheckbox.uncheck();
+    await createDesktop();
+
+    await page.evaluate(() => {
+      window.fixture.holdNextLocations();
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+    await picker.getByRole('button', { name: 'Cancel', exact: true }).click();
+    await picker.waitFor({ state: 'hidden' });
+    const readCount = await page.evaluate(
+      () => window.fixture.calls.filter(({ method }) => method === 'codexShortcutLocations').length,
+    );
+    await page.evaluate(() => {
+      window.fixture.deleteDesktop();
+      window.dispatchEvent(new Event('focus'));
+    });
+    assert.equal(
+      await page.evaluate(
+        () =>
+          window.fixture.calls.filter(({ method }) => method === 'codexShortcutLocations').length,
+      ),
+      readCount,
+    );
+    await action.click();
+    await desktopCheckbox.waitFor();
+    await page.evaluate(() => window.fixture.finishLocations());
+    await createDesktop();
+  }
+
   await page.goto('http://ncf-shortcut.test/?platform=linux');
   await codex.getByTestId('mcp-settings-status').waitFor();
   await page.waitForFunction(() => window.fixture.calls.length === 1);
   assert.equal(await codex.getByTestId('codex-create-shortcut').count(), 0);
   assert.equal(await codex.getByTestId('application-manual-codex').isVisible(), true);
   process.stdout.write(
-    'ChatGPT shortcut UI: gear adjacency, keyboard, fresh and existing locations, exact Russian text, narrow layout, and Dock handoff passed.\n',
+    'ChatGPT shortcut UI: gear, keyboard, locations, Russian copy, layout, Dock, and Mac/Windows Desktop recreation after focus or reopen passed.\n',
   );
 } finally {
   await browser?.close();
