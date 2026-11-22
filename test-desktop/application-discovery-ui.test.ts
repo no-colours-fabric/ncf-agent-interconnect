@@ -136,6 +136,7 @@ test(
     global.counts={offered:0,refresh:0,apply:0};
     ipcMain.handle('interconnect:call',async(e,method,p={})=>{
       if(method==='snapshot')return snapshot;
+      if(method==='windowState')return {visible:true};
       if(method==='appVersion')return 'discovery-fixture';
       if(method==='applicationDiscovery')return discovery;
       if(method==='fixtureOfferCount')return global.counts.offered;
@@ -146,7 +147,7 @@ test(
         return core.asarManifest(files,await files.canonical(${JSON.stringify(directory)}));
       }
       if(method==='applicationDiscoveryRefresh'){global.counts.refresh++;return discovery;}
-      if(method==='applicationDiscoveryOffered'){global.counts.offered++;discovery.offers=[];return {saved:true};}
+      if(method==='applicationDiscoveryOffered'){global.counts.offered++;return {saved:true};}
       if(method==='mcpSetupStatus')return {client:p.client,remembered:false,state:'missing',files:[]};
       if(method==='loginState')return {supported:false,openAtLogin:false};
       if(method==='mcpInstructions'||method==='clientInstructions')return {client:p.client,location:'/isolated',text:'Fixture',configuration:'{}',testPrompt:'Fixture'};
@@ -172,7 +173,18 @@ test(
       );
       const errors: string[] = [];
       page.on('pageerror', (error) => errors.push(error.message));
-      await page.getByTestId('application-startup-setup').waitFor();
+      await page
+        .getByTestId('application-startup-setup')
+        .waitFor()
+        .catch(async (error) => {
+          throw new Error(
+            String(error) +
+              '\npage errors: ' +
+              errors.join(' | ') +
+              '\nbody: ' +
+              (await page.locator('body').innerText()),
+          );
+        });
       await page.waitForFunction(
         () =>
           [...document.querySelectorAll('[data-testid="application-startup-setup"] img')].length ===
@@ -197,33 +209,163 @@ test(
       await page.waitForFunction(
         async () => (await window.interconnect.invoke<number>('fixtureOfferCount')) >= 1,
       );
-      const visibleAcknowledgements = await application.evaluate(
-        () => (globalThis as unknown as { counts: { offered: number } }).counts.offered,
+      const visibleAcknowledgements = await page.evaluate(() =>
+        window.interconnect.invoke<number>('fixtureOfferCount'),
       );
       assert.ok(visibleAcknowledgements >= 1);
+      const assertCompactLayout = async (
+        context: 'startup' | 'overview',
+        locale: 'en' | 'ru',
+        width: number,
+      ) => {
+        for (const client of ['cursor', 'codex'])
+          await page
+            .getByTestId(context + '-details-' + client)
+            .locator(':scope > summary')
+            .click();
+        await page.waitForFunction(
+          (activeContext) =>
+            ['cursor', 'codex'].every((client) =>
+              document
+                .querySelector('[data-testid="' + activeContext + '-details-' + client + '"]')
+                ?.hasAttribute('open'),
+            ),
+          context,
+        );
+        const layout = await page.evaluate((activeContext) => {
+          const ids = [
+            activeContext + '-application-cursor',
+            activeContext + '-group-opencode',
+            activeContext + '-application-codex',
+            activeContext + '-application-aionui',
+            activeContext + '-application-claude',
+          ] as const;
+          return ids.map((id) => {
+            const element = document.querySelector<HTMLElement>('[data-testid="' + id + '"]');
+            if (!element) throw new Error('Missing layout fixture: ' + id);
+            const rect = element.getBoundingClientRect();
+            const visibleDescendants = [...element.querySelectorAll<HTMLElement>('*')].filter(
+              (child) => {
+                const childRect = child.getBoundingClientRect();
+                const style = getComputedStyle(child);
+                return (
+                  child.checkVisibility() &&
+                  style.display !== 'none' &&
+                  childRect.width > 0 &&
+                  childRect.height > 0
+                );
+              },
+            );
+            return {
+              id,
+              top: rect.top,
+              right: rect.right,
+              bottom: rect.bottom,
+              left: rect.left,
+              contentBottom: Math.max(
+                rect.top,
+                ...visibleDescendants.map((child) => child.getBoundingClientRect().bottom),
+              ),
+            };
+          });
+        }, context);
+        for (let index = 0; index < layout.length; index++) {
+          assert.ok(
+            layout[index]!.contentBottom <= layout[index]!.bottom + 0.5,
+            locale + ':' + width + ':overflow:' + JSON.stringify(layout[index]),
+          );
+          if (!index) continue;
+          assert.ok(
+            layout[index - 1]!.bottom <= layout[index]!.top + 0.5,
+            locale + ':' + width + ':' + JSON.stringify(layout),
+          );
+        }
+        return layout;
+      };
+      const assertStartupLayout = async (locale: 'en' | 'ru', width: number) => {
+        await application.evaluate(
+          ({ BrowserWindow }, size) => BrowserWindow.getAllWindows()[0].setSize(size, 880),
+          width,
+        );
+        await page.evaluate((nextLocale) => {
+          localStorage.setItem('interconnect.locale', nextLocale);
+        }, locale);
+        await page.reload();
+        await page.getByTestId('application-startup-setup').waitFor();
+        const layout = await assertCompactLayout('startup', locale, width);
+        await page.screenshot({
+          path: path.join(os.tmpdir(), 'startup-overlap-fixed-' + locale + '-' + width + '.png'),
+          animations: 'disabled',
+        });
+        return layout;
+      };
+      await assertStartupLayout('en', 1180);
+      await assertStartupLayout('ru', 640);
+      await page.getByTestId('startup-details-cursor').locator(':scope > summary').focus();
+      await page.keyboard.press('Enter');
+      await page.waitForFunction(
+        () =>
+          !document.querySelector('[data-testid="startup-details-cursor"]')?.hasAttribute('open'),
+      );
+      assert.equal(
+        await page.evaluate(
+          () => document.activeElement?.closest('[data-testid="startup-details-cursor"]') !== null,
+        ),
+        true,
+      );
+      await application.evaluate(({ BrowserWindow }) =>
+        BrowserWindow.getAllWindows()[0].setSize(1180, 880),
+      );
+      await page.evaluate(() => localStorage.setItem('interconnect.locale', 'en'));
+      await page.reload();
+      await page.getByTestId('application-startup-setup').waitFor();
+      const acknowledgementsBeforeDismiss = await page.evaluate(() =>
+        window.interconnect.invoke<number>('fixtureOfferCount'),
+      );
       await page.getByRole('button', { name: 'Not now', exact: true }).click();
       await page.getByTestId('application-startup-setup').waitFor({ state: 'hidden' });
+      await page.getByTestId('nav-mcp').click();
       await page.getByRole('button', { name: 'Refresh', exact: true }).click();
       assert.equal(await page.getByTestId('application-startup-setup').count(), 0);
       assert.equal(
-        await application.evaluate(
-          () => (globalThis as unknown as { counts: { offered: number } }).counts.offered,
-        ),
-        visibleAcknowledgements,
+        await page.evaluate(() => window.interconnect.invoke<number>('fixtureOfferCount')),
+        acknowledgementsBeforeDismiss,
       );
       await page.getByTestId('nav-settings').click();
       await page.getByLabel('Dark theme', { exact: true }).uncheck();
       await page.getByTestId('nav-overview').click();
+      const overviewCards = await page
+        .getByTestId('overview-applications-grid')
+        .locator(':scope > [data-testid^="overview-application-"]')
+        .evaluateAll((cards) =>
+          cards.map((card) => {
+            const rect = card.getBoundingClientRect();
+            return { top: rect.top, right: rect.right, bottom: rect.bottom, left: rect.left };
+          }),
+        );
+      for (let left = 0; left < overviewCards.length; left++)
+        for (let right = left + 1; right < overviewCards.length; right++) {
+          const a = overviewCards[left]!;
+          const b = overviewCards[right]!;
+          assert.ok(
+            a.right <= b.left + 0.5 ||
+              b.right <= a.left + 0.5 ||
+              a.bottom <= b.top + 0.5 ||
+              b.bottom <= a.top + 0.5,
+            'overview overlap:' + JSON.stringify({ a, b }),
+          );
+        }
       await page.screenshot({
         path: path.join(os.tmpdir(), 'r0007-ui-light.png'),
         animations: 'disabled',
       });
-      await page.getByTestId('overview-application-cursor').click();
+      await page.getByTestId('nav-mcp').click();
+      await page.getByTestId('application-manual-cursor').click();
       const dialog = page.getByRole('main');
       await dialog
         .getByRole('combobox', { name: 'Configuration file path', exact: true })
         .fill('/isolated/unsaved.json');
-      await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+      await dialog.getByRole('button', { name: 'Back to Applications', exact: true }).click();
       assert.equal(
         await application.evaluate(
           () => (globalThis as unknown as { counts: { apply: number } }).counts.apply,
