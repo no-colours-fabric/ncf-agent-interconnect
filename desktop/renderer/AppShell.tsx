@@ -10,7 +10,6 @@ import {
   Stack,
   TextField,
   Typography,
-  CircularProgress,
 } from '@mui/material';
 import HubOutlined from '@mui/icons-material/HubOutlined';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
@@ -21,7 +20,6 @@ import type { Snapshot } from '../shared/contracts.js';
 import { localeLabel, supportedLocales, t, type Locale } from './i18n/index.js';
 import { contentWidth, designTokens } from './theme.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
-import { lanSearchMessages } from './i18n/lan-search.js';
 
 export type Page = 'overview' | 'agents' | 'network' | 'mcp' | 'clients' | 'settings';
 export const navigation: {
@@ -126,14 +124,10 @@ export function AppShell({
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'flex-end',
-                    gap: 1,
                     width: 48,
                     flexShrink: 0,
                   }}
                 >
-                  {networkDiscovery.searching && (
-                    <CircularProgress size={14} aria-label={lanSearchMessages(locale).searching} />
-                  )}
                   {networkDiscovery.unseenCount > 0 && (
                     <Typography
                       variant="caption"

@@ -1726,7 +1726,9 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
             const sidebar = page.getByRole('complementary');
             const nav = sidebar.getByTestId('nav-network');
             const searchStatus = 'Searching · 18s left · 1 found';
-            await nav.getByRole('progressbar', { name: 'Searching your network' }).waitFor();
+            await nav.getByText('+2', { exact: true }).waitFor();
+            assert.equal(await sidebar.getByRole('progressbar').count(), 0);
+            assert.equal(await sidebar.locator('.MuiCircularProgress-root').count(), 0);
             assert.equal(await sidebar.getByText(searchStatus, { exact: true }).count(), 0);
             assert.equal(await sidebar.getByRole('button', { name: 'Stop search' }).count(), 0);
             assert.equal(
@@ -1739,10 +1741,12 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               0,
               'inactive network page cannot acknowledge',
             );
-            await nav.getByText('+2', { exact: true }).waitFor();
             await nav.click();
             const networkPage = page.getByTestId('network-page');
             await networkPage.getByText(searchStatus, { exact: true }).waitFor();
+            await networkPage
+              .getByRole('progressbar', { name: 'Search time', exact: true })
+              .waitFor();
             const stop = networkPage.getByRole('button', { name: 'Stop search', exact: true });
             assert.ok((await stop.boundingBox())!.height >= 44);
             await stop.click();
