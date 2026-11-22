@@ -56,6 +56,7 @@ const legacyHeadingIds = {
   'docs/mcp-clients.md': {
     'aionui-with-cursor-agent': 'aionui',
     'chatgpt-codex-mode': 'codex-desktop',
+    chatgpt: ['codex-desktop', 'chatgpt-codex-mode'],
   },
   'distribution/README.md': { 'aionui-with-cursor-agent': 'aionui' },
   'llms.txt': { 'aionui-with-cursor-agent-setup': 'aionui-setup' },
@@ -121,7 +122,7 @@ function renderer(source) {
           tokens[2].type === 'paragraph_close' &&
           tokens[3].type === 'heading_open' &&
           tokens[3].tag === 'h2' &&
-          tokens[4].content === 'ChatGPT (Codex mode)'
+          (tokens[4].content === 'ChatGPT' || tokens[4].content === 'ChatGPT (Codex mode)')
         ) {
           state.tokens.splice(index, 3);
         }
@@ -142,7 +143,11 @@ function renderer(source) {
     ((tokens, index, options, env, self) => self.renderToken(tokens, index, options));
   md.renderer.rules.heading_open = (tokens, index, options, env, self) => {
     const legacyId = legacyHeadingIds[source]?.[tokens[index].attrGet('id')];
-    const alias = legacyId ? `<span id="${legacyId}" aria-hidden="true"></span>` : '';
+    const alias = [legacyId]
+      .flat()
+      .filter(Boolean)
+      .map((id) => `<span id="${id}" aria-hidden="true"></span>`)
+      .join('');
     return alias + normalHeading(tokens, index, options, env, self);
   };
 
@@ -220,7 +225,7 @@ function indexPage(titles) {
   const main = sources.slice(0, 10);
   const catalog = sources.slice(10, 11);
   const examples = sources.slice(11);
-  const content = `<div class="docs-intro"><p class="docs-eyebrow">NCF Agent Interconnect</p><h1>Documentation</h1><p>“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications: ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. In one of two ChatGPT chats, agent Sam defines search requirements; in the other, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” The agents coordinate by name and share the messages and files the task requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later. The desktop Applications page connects detected clients or opens manual setup; OpenCode v2 and v1 have separate setup targets. Remote nodes can search the local IPv4 network, but results remain unverified until pairing with the other computer's code. The app listens on eligible local IPv4 addresses by default, with interface exclusions under Settings. Every page links to its original Markdown or text file and GitHub source. Documentation is currently in English.</p></div>
+  const content = `<div class="docs-intro"><p class="docs-eyebrow">NCF Agent Interconnect</p><h1>Documentation</h1><p>“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications: ChatGPT, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. In one of two ChatGPT chats, agent Sam defines search requirements; in the other, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” The agents coordinate by name and share the messages and files the task requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later. The desktop Applications page connects detected clients or opens manual setup; OpenCode v2 and v1 have separate setup targets. Remote nodes can search the local IPv4 network, but results remain unverified until pairing with the other computer's code. The app listens on eligible local IPv4 addresses by default, with interface exclusions under Settings. Every page links to its original Markdown or text file and GitHub source. Documentation is currently in English.</p></div>
     <p><a href="${base}llms.txt">Documentation map for AI tools (llms.txt)</a></p>
     <section aria-labelledby="main-guides"><h2 id="main-guides">Guides and reference</h2>${documentList(main, titles)}</section>
     <section aria-labelledby="example-guides"><h2 id="example-guides">Examples and prompts</h2><p>These fictional scenarios are prompts for explaining how agents can work together. They are not records of completed work.</p>${documentList(catalog, titles)}${documentList(examples, titles)}</section>`;
@@ -282,7 +287,7 @@ const llmsIndex = `# NCF Agent Interconnect
 
 > Official website and user documentation for NCF Agent Interconnect.
 
-Supported applications: ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. After initial application setup, start with two chats in one configured program on one computer. For example, agent Sam defines search requirements; in another chat, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” Nora uses Sam’s result and can clarify questions with him. Agents coordinate by name and exchange the messages and files the work requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later.
+Supported applications: ChatGPT, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. After initial application setup, start with two chats in one configured program on one computer. For example, agent Sam defines search requirements; in another chat, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” Nora uses Sam’s result and can clarify questions with him. Agents coordinate by name and exchange the messages and files the work requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later.
 
 Use Applications to connect a detected client or open manual setup; OpenCode v2 and v1 have separate configuration targets. By default the app listens on eligible local IPv4 addresses, with interface exclusions under Settings. Remote nodes can search for nearby computers and group reported addresses by claimed identity; discovery does not verify identity, and pairing requires the other computer's temporary code. Connect by address remains available.
 
