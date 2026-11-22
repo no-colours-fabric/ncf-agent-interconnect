@@ -27,7 +27,7 @@ The application publishes its bundled integration file on startup.
 
 <a name="codex-desktop"></a>
 
-## ChatGPT (Codex mode)
+## ChatGPT
 
 Node startup already probes saved exact socket/thread routes and retries failed
 connections. A successful later probe can release queued messages without a new

@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-Configure the AI application or profile you already use, then ask assistants in their AI chats to connect under names you choose. Each name identifies that exact chat and its work. The guides cover ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi with Cursor Agent, with different setup and delivery limits. Start with the [setup guide](setup.md), then see the [user guide](usage.md) for a shared-task example.
+Configure the AI application or profile you already use, then ask assistants in their AI chats to connect under names you choose. Each name identifies that exact chat and its work. The guides cover ChatGPT, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent, with different setup and delivery limits. Start with the [setup guide](setup.md), then see the [user guide](usage.md) for a shared-task example.
 
 Open **Applications** in NCF Agent Interconnect. For a detected application, **Connect** uses its default configuration target and applies the NCF integration when no existing NCF entry needs replacement. If it does, review the selected file and preview, then explicitly click **Apply** or **Cancel**. The resulting **Next step** explains the required client action. **Manual setup** opens the existing client-specific Configure dialog: check the full configuration file path or use **Choose file**, review the preview and click **Apply**. Its Cancel action leaves the files unchanged. The app preserves unrelated settings and leaves already matching entries unchanged. Changes to existing files create private backups beside them.
 
@@ -34,11 +34,11 @@ For v1, use **Configure OpenCode v1** and select the configuration that instance
 
 <a name="codex-desktop"></a>
 
-## ChatGPT (Codex mode)
+## ChatGPT
 
-This guide covers Codex mode in the ChatGPT desktop app. Under **Applications** in NCF Agent Interconnect, choose **ChatGPT**, open its configuration dialog and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Delivery is experimental and depends on the installed version of ChatGPT in Codex mode and the availability of the exact connected chat. If that chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
+Under **Applications** in NCF Agent Interconnect, choose **ChatGPT**, open its configuration dialog and select the intended profile's `config.toml`. Click Apply and reconnect MCP in that profile. Delivery is experimental and depends on the installed version of ChatGPT and the availability of the exact connected chat. If that chat cannot be identified, NCF Agent Interconnect reports the condition rather than selecting another chat.
 
-The new macOS delivery path for ChatGPT in Codex mode queues the full Incoming in the exact connected chat, including the sender, original text, attachment links and reply route. No `agent_read` call is required. The sender receives a receipt after Codex records the complete message in that chat. An unloaded chat must be opened to process its queue. On the ordinary queue connection, an active turn delays delivery until it finishes. A shared server that owns the connected chat can admit Incoming to the active turn. A receipt confirms delivery to the chat. Task completion is reported separately by the receiving agent.
+The new macOS delivery path for ChatGPT queues the full Incoming in the exact connected chat, including the sender, original text, attachment links and reply route. No `agent_read` call is required. The sender receives a receipt after Codex records the complete message in that chat. An unloaded chat must be opened to process its queue. On the ordinary queue connection, an active turn delays delivery until it finishes. A shared server that owns the connected chat can admit Incoming to the active turn. A receipt confirms delivery to the chat. Task completion is reported separately by the receiving agent.
 
 Compatible older Codex Desktop versions continue to deliver the full Incoming through the existing local IPC path.
 
@@ -46,9 +46,9 @@ In the tested default ChatGPT configuration on macOS, Codex does not expose the
 App Server that owns the active chat. Delivery through the queue waits for the
 active turn to finish. Tests with a shared App Server verified the active-turn
 mechanism in isolation. That behavior has not been verified for a standard
-ChatGPT launch. The newer Windows path for ChatGPT in Codex mode has not been verified natively.
+ChatGPT launch. The newer Windows path for ChatGPT has not been verified natively.
 
-For a previously connected Codex chat in ChatGPT, reuse its `connectionId`. If that value was lost, call `agent_connect` with the same agent name from that chat. A one-time confirmation goes only to the previously bound exact chat through the standard notification queue. After `codex_recovery_pending`, wait for the confirmation in that chat. The assistant repeats `agent_connect` once with the original nickname and the one-use `contextToken` from the confirmation. This recovery does not authorize a different chat or silently transfer the name. For a new chat under a free name, first configure the intended local ChatGPT profile on macOS through Apply if it is not already configured, then connect from that exact chat. Each new agent does not need another Apply. The new queue path connects a free name or restores its original chat. Moving an occupied name requires the existing supported transfer flow.
+For a previously connected chat in ChatGPT, reuse its `connectionId`. If that value was lost, call `agent_connect` with the same agent name from that chat. A one-time confirmation goes only to the previously bound exact chat through the standard notification queue. After `codex_recovery_pending`, wait for the confirmation in that chat. The assistant repeats `agent_connect` once with the original nickname and the one-use `contextToken` from the confirmation. This recovery does not authorize a different chat or silently transfer the name. For a new chat under a free name, first configure the intended local ChatGPT profile on macOS through Apply if it is not already configured, then connect from that exact chat. Each new agent does not need another Apply. The new queue path connects a free name or restores its original chat. Moving an occupied name requires the existing supported transfer flow.
 
 The release notes record the direct-delivery checks and their platform limits.
 
@@ -73,6 +73,6 @@ your choice; NCF Agent Interconnect does not add broader write permissions autom
 
 ## Other clients
 
-Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1 and v2, ChatGPT in Codex mode, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
+Other compatible MCP clients can exchange messages and read history. The desktop app's Configure and Apply flow is available for Cursor, OpenCode v1 and v2, ChatGPT, Cursor Agent in AionUi and Claude Code. Automatic delivery to an idle chat requires a client adapter.
 
 In any configured chat, ask the assistant to connect under the name you choose and give it a task that relates to another agent's work. For example: “Connect as agent Iris. Review agent Sam’s search requirements and report any gaps to Sam.” This is an illustrative chat request, not fixed syntax. If the name is occupied by another chat, moving it requires your explicit choice. [Work with agents from your chats](usage.md) explains the normal task workflow.

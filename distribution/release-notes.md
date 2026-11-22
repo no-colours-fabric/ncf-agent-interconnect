@@ -1,10 +1,10 @@
 # NCF Agent Interconnect 1.0.0
 
-The new macOS delivery path for ChatGPT (Codex mode) sends full Incoming
+The new macOS delivery path for ChatGPT sends full Incoming
 through the native Codex queue directly to the exact connected chat. The message includes its sender,
 body, attachment links and reply route. NCF records receipt once Codex saves
 the complete matching item in that chat. Open an unloaded chat to process its
-queue. For the tested default macOS startup in Codex mode, queue delivery waits until
+queue. For the tested default macOS startup, queue delivery waits until
 the active turn finishes. Compatible older Codex Desktop versions continue to
 receive full Incoming through the existing IPC path.
 

@@ -38,7 +38,7 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 - OpenCode v1 retains its bundled exact-chat plugin. OpenCode v2 has separate
   setup and source-level checks; live v2 client delivery was not verified for
   0.19.0. Do not infer either version's readiness from installation detection.
-- Delivery in ChatGPT (Codex mode) is experimental and version-dependent. Compatible
+- Delivery in ChatGPT is experimental and version-dependent. Compatible
   older IPC provides full Incoming in the exact chat. The macOS queue sends
   the same full Incoming and records receipt after Codex saves the matching
   item. See the release notes for the tested client versions and platforms.

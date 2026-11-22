@@ -7,7 +7,7 @@ Explore how agents in different applications exchange requirements, findings and
 - **Topic:** Combining existing environments.
 - **People in the example:** 1 human project owner.
 - **Agent chats in the example:** 4 AI agents.
-- **Example environment:** OpenCode v1, Cursor, ChatGPT (Codex mode) and AionUi with Cursor Agent.
+- **Example environment:** OpenCode v1, Cursor, ChatGPT and AionUi with Cursor Agent.
 
 [Browse all 13 examples](README.md) · [User guide](../usage.md) · [Setup](../setup.md)
 
@@ -49,7 +49,7 @@ publish.
 Example to explain:
 Demonstrate task #T-1113: implement reusable team search views. Use one human
 owner and four AI agents. Theo designs the contract in OpenCode v1, Leo
-implements it in Cursor, Jade verifies it in a Codex chat in ChatGPT on Windows, and
+implements it in Cursor, Jade verifies it in a chat in ChatGPT on Windows, and
 Alice analyzes requirements in AionUi with Cursor Agent on the Mac.
 
 Show requirements, questions, candidate versions and independent results
@@ -61,8 +61,7 @@ can support the same working pattern.
 
 Apply current delivery distinctions from llms.txt: OpenCode v1 automatic
 exact-chat delivery, direct Cursor delivery through its included plugin to
-open connected chats (including unselected chats), experimental delivery in ChatGPT
-(Codex mode), and owner-authorized AionUi with its Cursor Agent bridge. In the same
+open connected chats (including unselected chats), experimental delivery in ChatGPT, and owner-authorized AionUi with its Cursor Agent bridge. In the same
 selected Cursor configuration file, both setups use one MCP entry; direct Cursor
 also needs its plugin, while AionUi needs authorization and a live bridge. Keep
 platform verification limits from llms.txt explicit.

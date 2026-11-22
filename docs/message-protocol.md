@@ -95,7 +95,7 @@ creation time; `Delivered` is recorded when the receiving app constructs the
 incoming body or read result. Both are displayed with seconds in the receiving
 app's system locale and time zone, without a time-zone offset in the label.
 These display fields do not establish receipt, model acknowledgement or task
-completion. The new macOS delivery path for ChatGPT (Codex mode) queues the same
+completion. The new macOS delivery path for ChatGPT queues the same
 full Incoming in the exact chat. Receipt requires a saved Codex chat item with the original
 submission ID and the complete message text, including attachment links. An
 unloaded chat must be opened to process its queue. Compatible older Codex

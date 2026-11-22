@@ -45,7 +45,7 @@ inbox calls do not receive the same unreceived batch twice.
 
 Standard MCP provides tools and history. The OpenCode plugin uses the current
 tool session and a private loopback bridge to target the exact chat. Busy chats
-wait for push idle events. ChatGPT (Codex mode) uses an experimental,
+wait for push idle events. ChatGPT uses an experimental,
 version-dependent adapter for compatible local IPC. Each capability is reported separately; MCP alone does not
 establish idle wake-up or native rendering support.
 
