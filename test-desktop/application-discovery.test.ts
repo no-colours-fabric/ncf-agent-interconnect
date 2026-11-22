@@ -11,12 +11,34 @@ import {
   peIdentity,
   jsonObject,
   NativeDiscoveryFiles,
+  windowsCodexPackageRoot,
 } from '../desktop/core/application-discovery-platforms.js';
 import {
   discoveryCatalog,
   matchesDesktopMetadata,
 } from '../desktop/core/application-discovery-catalog.js';
 import { mcpSetupClients, type McpSetupClient } from '../desktop/shared/mcp-setup.js';
+
+test('Windows ChatGPT discovery verifies registered package identity instead of publisher display text', () => {
+  const installed = {
+    Name: 'OpenAI.Codex',
+    PackageFamilyName: 'OpenAI.Codex_2p2nqsd0c76g0',
+    PublisherId: '2p2nqsd0c76g0',
+    Publisher: 'CN=50BDFD77-8903-4850-9FFE-6E8522F64D5B',
+    InstallLocation:
+      'C:\\Program Files\\WindowsApps\\OpenAI.Codex_26.1117.4957.0_x64__2p2nqsd0c76g0',
+  };
+  assert.equal(windowsCodexPackageRoot(installed), installed.InstallLocation);
+  for (const changed of [
+    null,
+    { ...installed, Name: 'Other.Codex' },
+    { ...installed, PackageFamilyName: 'OpenAI.Codex_other' },
+    { ...installed, PublisherId: 'other' },
+    { ...installed, PackageFamilyName: undefined, Publisher: 'OpenAI' },
+    { ...installed, InstallLocation: 'relative\\app' },
+  ])
+    assert.throws(() => windowsCodexPackageRoot(changed), /unverified-identity/);
+});
 
 class FixtureFiles implements DiscoveryFiles {
   entries = new Map<string, Buffer>();

@@ -36,6 +36,20 @@ export interface DiscoveryFiles {
 
 const runFile = promisify(execFile);
 
+export function windowsCodexPackageRoot(value: unknown): string {
+  const item = value as Record<string, unknown> | null;
+  if (
+    !item ||
+    item.Name !== 'OpenAI.Codex' ||
+    item.PackageFamilyName !== 'OpenAI.Codex_2p2nqsd0c76g0' ||
+    item.PublisherId !== '2p2nqsd0c76g0' ||
+    typeof item.InstallLocation !== 'string' ||
+    !path.win32.isAbsolute(item.InstallLocation)
+  )
+    throw new DiscoveryError('unverified-identity');
+  return item.InstallLocation;
+}
+
 /** Bounded PE resource strings, corroborated by both product and publisher. */
 export async function peIdentity(
   files: DiscoveryFiles,
@@ -103,7 +117,7 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     const system = process.env.SystemRoot ?? 'C:\\Windows';
     const command = path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe');
     const script =
-      "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; @(Get-AppxPackage -Name 'OpenAI.Codex' | Select-Object Name,Publisher,InstallLocation) | ConvertTo-Json -Compress";
+      "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; @(Get-AppxPackage -Name 'OpenAI.Codex' | Select-Object Name,PackageFamilyName,PublisherId,InstallLocation) | ConvertTo-Json -Compress";
     const { stdout } = await runFile(
       command,
       ['-NoProfile', '-NonInteractive', '-Command', script],
@@ -114,16 +128,7 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     if (packages.length > 16) throw new DiscoveryError('limit-exceeded');
     const found: { root: string; executable: string }[] = [];
     for (const item of packages) {
-      if (
-        !item ||
-        item.Name !== 'OpenAI.Codex' ||
-        typeof item.Publisher !== 'string' ||
-        !/OpenAI/.test(item.Publisher) ||
-        typeof item.InstallLocation !== 'string' ||
-        !path.win32.isAbsolute(item.InstallLocation)
-      )
-        throw new DiscoveryError('unverified-identity');
-      const root = await this.canonical(item.InstallLocation);
+      const root = await this.canonical(windowsCodexPackageRoot(item));
       if (!root) throw new DiscoveryError('missing-runtime');
       const manifestFile = await this.canonical(path.win32.join(root, 'AppxManifest.xml'));
       if (!manifestFile || !manifestFile.startsWith(root + path.win32.sep))

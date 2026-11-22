@@ -85,6 +85,7 @@ export function OverviewApplications({
       .map((item) => item.client),
   );
   const visible = applications.filter(({ client }) => {
+    if (connected.some((item) => item.client === client)) return true;
     if (client !== 'opencode-v2') return detected.has(client);
     // The generic OpenCode installation probe does not establish the major version.
     return (

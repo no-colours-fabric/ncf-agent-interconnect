@@ -197,10 +197,31 @@ test('Overview lists detected apps, highlights live connections, and offers setu
   assert.ok(html.includes('Configured'));
   assert.ok(html.includes('Already set up. You can work in this app now.'));
   assert.ok(html.includes('Detected on this computer'));
-  assert.ok(html.includes('Connect — Codex'));
+  assert.ok(html.includes('Connect — ChatGPT'));
   assert.ok(html.includes('Connect — OpenCode v1'));
   assert.ok(!html.includes('overview-application-opencode-v2"'));
-  assert.ok(!html.includes('overview-application-claude"'));
+  assert.ok(html.includes('overview-application-claude" data-connected="true"'));
+});
+
+test('Overview retains a live ChatGPT card when installation discovery is unavailable or missing', () => {
+  const snapshot = {
+    adapters: [profile('codex', 'codex-desktop')],
+    agents: [agent('луна', 'codex', 2)],
+  };
+  for (const discovery of [undefined, detected('cursor')]) {
+    const html = renderToStaticMarkup(
+      React.createElement(OverviewApplications, {
+        snapshot,
+        ...setupFixture(discovery),
+      }),
+    );
+    assert.ok(html.includes('overview-application-codex" data-connected="true"'));
+    assert.ok(html.includes('Inbox: 2'));
+    assert.ok(!html.includes('Connect — ChatGPT'));
+    assert.ok(!html.includes('Connect — Codex'));
+    const card = html.slice(html.indexOf('data-testid="overview-application-codex"'));
+    assert.ok(!card.includes('Detected on this computer'));
+  }
 });
 
 test('Overview shows the saved v2 next step without treating it as a live connection', () => {
