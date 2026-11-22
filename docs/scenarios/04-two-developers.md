@@ -7,7 +7,7 @@ See how two developers' agents connect frontend and backend work across computer
 - **Topic:** Collaboration between people.
 - **People in the example:** 2 human developers, each responsible for their own agent.
 - **Agent chats in the example:** 2 AI agents.
-- **Example environment:** Cedar: Mac with OpenCode v1; Atlas: Windows with Codex Desktop.
+- **Example environment:** Cedar: Mac with OpenCode v1; Atlas: Windows with ChatGPT (Codex mode).
 
 [Browse all 13 examples](README.md) · [User guide](../usage.md) · [Setup](../setup.md)
 
@@ -50,7 +50,7 @@ Example to explain:
 Demonstrate task #T-1104: add a request-detail screen backed by a new API
 endpoint. Use two human developers, each with one AI agent. One person works
 on the Mac named Cedar with Leo in OpenCode v1. The other works on Windows
-computer Atlas with Sam in Codex Desktop. Each has a separate working copy and
+computer Atlas with Sam in a Codex chat in ChatGPT. Each has a separate working copy and
 local permissions.
 
 Leo owns the backend change and Sam owns the frontend change. The people agree on what the request-detail screen must show. The agents
@@ -62,7 +62,7 @@ sentence outside their dialogue, without a JSON schema or payload. Show
 independent checks and which person accepts each result.
 
 Explain network reachability and owner-operated pairing. Apply the documented
-Codex delivery limits. NCF Agent Interconnect carries messages; Git synchronizes source. A message about source code does not fetch or merge it, or grant access to
+ChatGPT delivery limits in Codex mode. NCF Agent Interconnect carries messages; Git synchronizes source. A message about source code does not fetch or merge it, or grant access to
 a repository.
 
 End with the checked backend and frontend results, human acceptance decisions

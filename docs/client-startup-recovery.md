@@ -25,7 +25,9 @@ clear history, execute a shell command, or restart a model. A client that alread
 loaded an older plugin must reload OpenCode once to load the updated integration.
 The application publishes its bundled integration file on startup.
 
-## Codex Desktop
+<a name="codex-desktop"></a>
+
+## ChatGPT (Codex mode)
 
 Node startup already probes saved exact socket/thread routes and retries failed
 connections. A successful later probe can release queued messages without a new

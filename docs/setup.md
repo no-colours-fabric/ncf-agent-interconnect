@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-First install NCF Agent Interconnect and configure the AI application you use. The application-specific guides cover Codex Desktop, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent; their support limits differ. Then connect assistants by name in their AI chats to work on a shared task. Each additional agent needs no separate setup. Pair another computer only if you need to work across computers on your local network.
+First install NCF Agent Interconnect and configure the AI application you use. The application-specific guides cover ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi with Cursor Agent; their support limits differ. Then connect assistants by name in their AI chats to work on a shared task. Each additional agent needs no separate setup. Pair another computer only if you need to work across computers on your local network.
 
 ## 1. Install and start NCF Agent Interconnect
 
@@ -20,13 +20,13 @@ For a detected application, select **Connect** on its startup card or row under 
 
 For another installation or profile, use **Manual setup** and the client-specific Configure dialog. Check the full configuration path, use **Choose file** if needed, review the preview and click **Apply**. Cancel does not write. Unrelated settings are preserved and an already matching NCF Agent Interconnect entry is left alone. Detection, saved configuration and a live chat connection are separate states.
 
-After Connect or Apply, restart Cursor once to load its included plugin, or restart the selected OpenCode version after setup. Reconnect MCP in Codex Desktop. Restart Claude Code or reload its plugins. For AionUi with Cursor Agent, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
+After Connect or Apply, restart Cursor once to load its included plugin, or restart the selected OpenCode version after setup. Reconnect MCP in ChatGPT in Codex mode. Restart Claude Code or reload its plugins. For AionUi with Cursor Agent, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
 
 | Application                         | What to expect after setup                                                                                                                                                                                                                |
 | ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | OpenCode with the bundled v1 plugin | Messages can reach the exact connected chat automatically; a busy chat waits for an idle event. Restart after plugin setup.                                                                                                               |
 | OpenCode v2                         | Use its separate selected configuration and bridge. Restart v2 and connect from the intended chat; a configured file or detected installation does not prove live delivery. A live v2 client check has not yet been completed.            |
-| Codex Desktop                       | Exact-chat delivery is version dependent. Reconnect MCP after setup; see the [Codex guide](mcp-clients.md#codex-desktop) for direct delivery through compatible IPC or the macOS queue.                                                   |
+| ChatGPT (Codex mode)                | Exact-chat delivery is version dependent. Reconnect MCP after setup; see the [ChatGPT guide](mcp-clients.md#codex-desktop) for direct delivery through compatible IPC or the macOS queue.                                                 |
 | Cursor                              | Apply installs the included plugin. After restarting Cursor once, connect an agent in the intended chat. Open exact chats can receive messages without being selected. See [Cursor setup](mcp-clients.md#cursor) for verification limits. |
 | AionUi with Cursor Agent            | Complete both owner authorization and bridge setup. Exact-chat delivery applies to the supported Cursor Agent setup.                                                                                                                      |
 | Claude Code with compatible mods    | Apply enables the bundled main/gate plugins and the read rule. For the tested auto-mode setup, the owner saves exact connect/send allow rules through native `/permissions`. See [Claude setup](mcp-clients.md#claude-code).              |
@@ -36,7 +36,7 @@ The [application-specific guide](mcp-clients.md) gives the choices in each Confi
 
 ## 3. Connect a chat
 
-In the configured AI application, open a normal chat. Choose a name for its assistant and ask it to connect under that name. For example, after agent Sam defines search requirements in one Codex chat, ask in a second: “Connect as agent Nora. Build search using agent Sam’s requirements.” Ask Nora to clarify open questions with Sam. This is an ordinary chat request, not required command syntax; choose your own name, task and collaborator. Once the application or profile is configured, each new chat needs no separate per-agent configuration. Use a different name for each simultaneous agent on the same computer. A substantive reply about the work is a better end-to-end check than a saved configuration indicator.
+In the configured AI application, open a normal chat. Choose a name for its assistant and ask it to connect under that name. For example, after agent Sam defines search requirements in one Codex chat in ChatGPT, ask in a second: “Connect as agent Nora. Build search using agent Sam’s requirements.” Ask Nora to clarify open questions with Sam. This is an ordinary chat request, not required command syntax; choose your own name, task and collaborator. Once the application or profile is configured, each new chat needs no separate per-agent configuration. Use a different name for each simultaneous agent on the same computer. A substantive reply about the work is a better end-to-end check than a saved configuration indicator.
 
 If the name is already connected to another chat, the new chat will ask whether to transfer it with its local MCP history or start fresh by deleting that history. Choose explicitly. See [moving an agent](usage.md#files-replies-and-history) before choosing the destructive option.
 

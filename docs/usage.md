@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](../llms.txt).
 
-“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications are Codex Desktop, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. After initial application setup, connect each new agent by name in its own chat without separate per-agent configuration.
+“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications are ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. After initial application setup, connect each new agent by name in its own chat without separate per-agent configuration.
 
 Give the agents related roles: one produces a result that another needs. They coordinate questions, messages and files directly or through an agent you ask to coordinate. You set the direction and priorities and discuss the outcome in the same AI chats. Start with several chats in one program on one computer; later, other supported programs and paired computers on a local network can join. The examples below are illustrative.
 
@@ -24,7 +24,7 @@ Dana’s findings give Alex the factual basis for the guide; Leo coordinates the
 
 In this story, you work on a Mac and keep a Windows computer for checking the application your users run. You already use several AI services, choosing models that suit your work and balancing costs.
 
-AI agent Morgan is your coordinator in an OpenCode chat. Other participants have their own chats; the Windows checks happen in Codex. A new participant could later join through AionUi with Cursor Agent or another configured application.[^workspace]
+AI agent Morgan is your coordinator in an OpenCode chat. Other participants have their own chats; the Windows checks happen in a Codex chat in ChatGPT. A new participant could later join through AionUi with Cursor Agent or another configured application.[^workspace]
 
 After [first-time setup](#2-before-your-first-exchange), give each participating chat a name. In your main chat, establish the coordination rules:
 
@@ -94,7 +94,7 @@ Use the same exchange to gather a retrospective, recover a decision or pass usef
 
 ### Let testing and fixes happen between agents
 
-In this example, AI agent Sam works in AionUi with Cursor Agent on the Mac, while Jade tests in Codex on Windows. The AI coordinator receives the completion report in OpenCode and assigns the independent check. Their exchange could read:
+In this example, AI agent Sam works in AionUi with Cursor Agent on the Mac, while Jade tests in a Codex chat in ChatGPT on Windows. The AI coordinator receives the completion report in OpenCode and assigns the independent check. Their exchange could read:
 
 > **Sam → Morgan:** Bug #B-0317 is fixed. Here is the candidate for independent testing.
 >
@@ -126,12 +126,12 @@ Set up each application or profile once. New chats then join by connecting under
 
 1. Install and start NCF Agent Interconnect on the computer you use. Closing its window keeps it running in the tray; Quit stops its connections.
 2. At startup, choose a newly detected application in **Connect your apps**, or return to **Applications** from the sidebar. **Connect** sets up its default target when no NCF entry needs replacement; replacement requires a file preview and your explicit **Apply** confirmation. Use **Manual setup** to choose another configuration file, review the preview and click **Apply**. Unrelated settings are preserved.
-3. Restart Cursor once after Connect or Apply so its included plugin loads, or restart OpenCode after adding its bundled plugin. Reconnect MCP in Codex Desktop. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
+3. Restart Cursor once after Connect or Apply so its included plugin loads, or restart OpenCode after adding its bundled plugin. Reconnect MCP in ChatGPT in Codex mode. For AionUi with Cursor Agent, complete both owner authorization and bridge setup as described in the [AionUi guide](aionui-setup.md).
 4. In two configured chats, give the assistants related tasks and name who needs the other's result. A reply about that work confirms an end-to-end exchange.
 
 Several chats on one computer can communicate immediately after this setup. For the Windows checks in our story, install NCF Agent Interconnect there too. The receiving app listens on eligible local IPv4 addresses by default; under **Settings**, review any excluded network interfaces and the actual address shown on **Remote nodes**, then create a temporary code. A 30-second local IPv4 search can show it on the other computer, but the result is unverified until you enter that code and pair. **Connect by address** remains available. The [setup guide](setup.md) walks through installation, pairing and application-specific steps.
 
-The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported Cursor Agent bridge in AionUi also deliver to their connected chats. OpenCode v2 has a separate setup and exact-chat bridge; detection and saved settings alone do not establish live delivery. Codex Desktop delivery is experimental and version dependent: compatible older IPC and the new macOS queue deliver full Incoming with attachment links directly to the exact chat. An unloaded chat must be opened to process its queue. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
+The included Cursor plugin delivers to open exact chats, including open chats that are not selected; the bundled OpenCode v1 plugin and supported Cursor Agent bridge in AionUi also deliver to their connected chats. OpenCode v2 has a separate setup and exact-chat bridge; detection and saved settings alone do not establish live delivery. Delivery in ChatGPT (Codex mode) is experimental and version dependent: compatible older IPC and the new macOS queue deliver full Incoming with attachment links directly to the exact chat. An unloaded chat must be opened to process its queue. Direct Cursor and Cursor Agent in AionUi can share the selected Cursor MCP entry; direct Cursor also needs its plugin, while AionUi needs owner authorization and a live bridge. See [application-specific setup](mcp-clients.md) for verified scope and delivery differences.
 
 ## 3. Administration when you need it
 

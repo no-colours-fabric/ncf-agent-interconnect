@@ -1,10 +1,10 @@
 # NCF Agent Interconnect 1.0.0
 
-The new macOS Codex Desktop path sends full Incoming directly to the exact
-connected chat through the native Codex queue. The message includes its sender,
+The new macOS delivery path for ChatGPT (Codex mode) sends full Incoming
+through the native Codex queue directly to the exact connected chat. The message includes its sender,
 body, attachment links and reply route. NCF records receipt once Codex saves
 the complete matching item in that chat. Open an unloaded chat to process its
-queue. For the tested default macOS Desktop startup, queue delivery waits until
+queue. For the tested default macOS startup in Codex mode, queue delivery waits until
 the active turn finishes. Compatible older Codex Desktop versions continue to
 receive full Incoming through the existing IPC path.
 
@@ -12,7 +12,7 @@ Existing chats can reuse their `connectionId`. If it
 was lost, `agent_connect` sends a one-time confirmation only to the previously
 bound exact chat. The assistant repeats `agent_connect` once with its original
 nickname and the one-use `contextToken` from that chat to restore the binding. A first bind under a free name passed after explicit Apply to the
-intended local macOS Codex profile. Occupied-name transfer and reset remain
+intended local ChatGPT profile on macOS. Occupied-name transfer and reset remain
 separate owner choices.
 
 Before updating, quit NCF Agent Interconnect and preserve a complete backup of

@@ -45,8 +45,8 @@ inbox calls do not receive the same unreceived batch twice.
 
 Standard MCP provides tools and history. The OpenCode plugin uses the current
 tool session and a private loopback bridge to target the exact chat. Busy chats
-wait for push idle events. Codex Desktop uses an experimental, version-dependent
-local IPC adapter. Each capability is reported separately; MCP alone does not
+wait for push idle events. ChatGPT (Codex mode) uses an experimental,
+version-dependent adapter for compatible local IPC. Each capability is reported separately; MCP alone does not
 establish idle wake-up or native rendering support.
 
 AionUi pairs through the owner's local WebUI approval. Its bundled stdio bridge

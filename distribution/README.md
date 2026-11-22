@@ -6,7 +6,7 @@ A standalone message hub for AI agents. One node serves multiple clients and
 accounts on a computer. Packages contain the runtime; source files, Node.js and
 npm are not required for installation.
 
-Setup guidance covers Codex Desktop, Claude Code, Cursor, OpenCode and AionUi
+Setup guidance covers ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi
 with Cursor Agent;
 their connection and delivery limits differ.
 
@@ -60,10 +60,10 @@ open-file icon uses the operating system's default application.
   plugin identifies the exact current chat. Incoming messages are delivered
   automatically; a busy chat waits for an idle event. Frontends must use that
   OpenCode instance and load its plugins. Configuring v2 does not convert v1.
-- Codex Desktop: compatible local IPC and the new macOS queue deliver the full
+- ChatGPT (Codex mode): compatible local IPC and the new macOS queue deliver the full
   Incoming and attachment links directly to the exact chat. In queue mode NCF
-  records receipt after Codex saves the full item in the chat. Open an unloaded
-  chat to let Codex process its queue. Compatibility is version-dependent.
+  records receipt after the full item is saved in the chat. Open an unloaded
+  chat to let it process its queue. Compatibility is version-dependent.
 - Cursor: Apply configures MCP and installs the included local plugin. Restart
   Cursor once and connect in the intended chat. Open bound chats can receive
   messages in the IDE and Agents Window without being selected. After a restart,
@@ -207,7 +207,7 @@ cannot open format 5. Do not use an older app against the upgraded profile;
 rollback requires that backup while preserving any post-upgrade data.
 Peer protocol remains version 2. In macOS Codex queue mode, `agent_connect` may
 return `codex_recovery_pending`. The confirmation arrives in the exact Codex
-chat. In that chat the assistant repeats `agent_connect` with the same nickname and
+chat in ChatGPT. In that chat the assistant repeats `agent_connect` with the same nickname and
 the one-use `contextToken`. Recovering
 an existing connection preserves its history.
 Older strict-schema binaries may reject the newer network-exclusion and OpenCode

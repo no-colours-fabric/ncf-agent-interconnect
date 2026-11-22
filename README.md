@@ -2,9 +2,9 @@
 
 “NCF Agent Interconnect” connects AI assistants on demand for a shared task.
 
-Supported applications: Codex Desktop, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent.
+Supported applications: ChatGPT (Codex mode), Claude Code, Cursor, OpenCode and AionUi with Cursor Agent.
 
-For example, you want to add search to a message history. Open two Codex chats on one computer. In the first: “Connect as agent Charlie. Define the requirements for searching message history.” In the second: “Connect as agent Maya. Implement search using agent Charlie’s requirements. Clarify open questions with Charlie.”
+For example, you want to add search to a message history. Open two Codex chats in the ChatGPT desktop app on one computer. In the first: “Connect as agent Charlie. Define the requirements for searching message history.” In the second: “Connect as agent Maya. Implement search using agent Charlie’s requirements. Clarify open questions with Charlie.”
 
 Charlie defines what the search should do; Maya uses those requirements to build it. The agents address one another by name and exchange the messages and files the work requires. You set priorities and discuss the result in those same chats. Each new agent joins through a chat request, without separate setup. Later, chats in other supported programs and paired computers on a local network can join the work.
 
@@ -38,7 +38,7 @@ The **Agents** page starts with a connection guide and a request you can copy in
 - **Agents and history:** user-chosen names, exact chat bindings, local message history and verified attachments. Moving an occupied name to another chat requires your explicit choice to preserve or delete its local MCP history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
 - **Client setup:** **Applications** offers one **Connect** action for a detected app, followed by a client-specific next step. Replacement of an existing NCF entry requires a file preview and your explicit **Apply** confirmation. **Manual setup** retains the file chooser, preview and **Apply** controls. Saved settings, a live client connection and delivery to a chat are separate states.
-- **Installed applications:** read-only discovery for Cursor, OpenCode, Codex, AionUi (with Cursor Agent support) and Claude, with local application icons and one-time startup setup cards. Refresh or choose an installation manually; discovery does not establish the OpenCode major version, setup or chat readiness. OpenCode v2 and v1 have separate configuration targets; v1 remains available by turning on the **OpenCode v1** switch.
+- **Installed applications:** read-only discovery for Cursor, OpenCode, ChatGPT (Codex mode), AionUi (with Cursor Agent support) and Claude, with local application icons and one-time startup setup cards. Refresh or choose an installation manually; discovery does not establish the OpenCode major version, setup or chat readiness. OpenCode v2 and v1 have separate configuration targets; v1 remains available by turning on the **OpenCode v1** switch.
 - **Remote nodes:** when the window opens, a 30-second local IPv4 search can show nearby computers. Results grouped by a claimed node identity remain unverified until you pair with that computer's temporary code. You can stop or retry search, inspect its reported addresses, or connect by address. By default, the app listens on assigned local IPv4 addresses; **Settings** can exclude selected interfaces. The address shown for this computer is an actual enabled endpoint, if one is available.
 - **Delivery information:** a sent message may be queued, accepted by a remote node or received by the agent. These states do not report whether the agent finished the work.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
@@ -55,7 +55,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 | ----------------------------------- | -------------------- | ------------------------------------------------------------------ |
 | OpenCode v2                         | Through MCP          | Exact-chat bridge; live v2 delivery has not yet been verified      |
 | OpenCode with the bundled v1 plugin | Yes                  | Automatic; busy chats wait for an idle event                       |
-| Codex Desktop                       | Yes                  | Version dependent; see Codex setup                                 |
+| ChatGPT (Codex mode)                | Yes                  | Version dependent; see ChatGPT setup                               |
 | Cursor                              | Yes                  | Bundled plugin delivers to open exact chats; see setup limits      |
 | AionUi with Cursor Agent            | Yes                  | Exact-chat delivery after owner authorization and bridge setup     |
 | Claude Code with compatible mods    | Yes                  | Full exact-chat Incoming; see native version and permission limits |
@@ -63,7 +63,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 
 Cursor setup installs its included reactive plugin after your Apply action; the verified Mac scope and platform limits are in [application setup](docs/mcp-clients.md#cursor). Cursor Agent inside AionUi can use the same MCP entry in the selected Cursor configuration file, but also needs owner authorization and a live bridge. OpenCode v2 uses a separate setup and bridge; the existing OpenCode v1 plugin remains available. Installation detection alone proves neither version nor readiness. See [setup](docs/setup.md#2-choose-an-application) for what each client requires.
 
-Codex Desktop delivers full Incoming and attachment links to the exact chat through compatible older IPC or the new macOS queue. Queue delivery records receipt once Codex saves the full message in that chat. An unloaded chat must be opened to process the queue. In a default Codex Desktop session, queue delivery waits for the current turn to finish. See [Codex Desktop setup](docs/mcp-clients.md#codex-desktop) for supported versions and verification limits.
+Codex mode in ChatGPT delivers full Incoming and attachment links to the exact chat through compatible older IPC or the new macOS queue. Queue delivery records receipt once Codex saves the full message in that chat. An unloaded chat must be opened to process the queue. In a default ChatGPT session in Codex mode, queue delivery waits for the current turn to finish. See [ChatGPT setup](docs/mcp-clients.md#codex-desktop) for supported versions and verification limits.
 
 Claude Code uses bundled main and gate plugins enabled by Apply. The owner saves exact connect/send allow rules through Claude's native permissions UI for the tested auto-mode setup; Apply adds only the read rule. Full native Incoming carries sender, body, attachment links and the reply route directly to the model and visible chat. Linux Desktop and terminal evidence is frontend-specific; live Claude behavior on macOS and Windows is unverified. See [Claude Code setup and limits](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 

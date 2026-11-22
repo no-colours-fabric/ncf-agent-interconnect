@@ -4,9 +4,9 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 ## 1.0.0
 
-- Restore full Incoming in the exact chat on recent macOS Codex Desktop versions through the native Codex queue. The text, attachment links and reply route arrive directly. NCF records receipt after Codex saves the complete item in that chat. An unloaded chat must be opened to process its queue.
+- Restore full Incoming in the exact chat on recent macOS versions of ChatGPT (Codex mode) through the native Codex queue. The text, attachment links and reply route arrive directly. NCF records receipt after Codex saves the complete item in that chat. An unloaded chat must be opened to process its queue.
 - Compatible older Codex Desktop versions continue to use the existing IPC path for full Incoming.
-- An existing Codex chat can reuse its `connectionId`. If it was lost, `agent_connect` sends a one-time confirmation only to the previously bound exact chat through the standard notification queue; the assistant repeats `agent_connect` with the original nickname and the one-use `contextToken` from that same chat to restore the binding. The intended local macOS Codex profile must be configured through Apply before its first connection; each new agent does not need a separate Apply. Existing occupied-name transfer choices remain separate.
+- An existing Codex chat in ChatGPT can reuse its `connectionId`. If it was lost, `agent_connect` sends a one-time confirmation only to the previously bound exact chat through the standard notification queue; the assistant repeats `agent_connect` with the original nickname and the one-use `contextToken` from that same chat to restore the binding. The intended local ChatGPT profile on macOS must be configured through Apply before its first connection; each new agent does not need a separate Apply. Existing occupied-name transfer choices remain separate.
 
 Before updating, quit NCF Agent Interconnect and retain a complete backup of the stopped profile. Do not open an upgraded profile with an older binary; rollback requires the pre-upgrade backup and must account for data created after the upgrade. The isolated Codex `0.171.0-alpha.13` check retained a 0.19 profile and binding, rejected wrong-chat and replay attempts, and connected a free name after explicit Apply. See the release notes for exact direct-delivery verification and platform limits.
 
