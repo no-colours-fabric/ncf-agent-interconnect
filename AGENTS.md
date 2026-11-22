@@ -21,6 +21,10 @@ requires separate confirmation.
 ## Language and structure
 
 - Write public documentation, tool instructions and source comments in English.
+- Public user documentation may describe user actions, observable results, and
+  known limitations. Keep internal application behavior and agent procedures in
+  developer or agent references. Never instruct users to perform procedures that
+  are the application's or agent's responsibility.
 - Provide professional-quality, context-appropriate translations for all new or
   changed product-controlled UI text in every supported locale (currently 15;
   see `desktop/renderer/i18n/index.ts`). Include actions, help, dialogs, empty,
