@@ -70,11 +70,6 @@ internal static class NcfUpdatePreflight {
         uint handle;
         if (RmStartSession(out handle, 0, new StringBuilder(33)) != 0) throw new InvalidOperationException();
         try {
-            if (args.Length == 2 && args[0] == "--notify-shortcut-created") {
-                if (!Path.IsPathRooted(args[1]) || !String.Equals(Path.GetExtension(args[1]), ".lnk", StringComparison.OrdinalIgnoreCase)) return 20;
-                SHChangeNotify(0x00000002, 0x00002005, Path.GetFullPath(args[1]), IntPtr.Zero);
-                return 0;
-            }
             if (RmRegisterResources(handle, (uint)files.Count, files.ToArray(), 0, IntPtr.Zero, 0, IntPtr.Zero) != 0) throw new InvalidOperationException();
             uint needed, count = 0, reasons = 0;
             int error = RmGetList(handle, out needed, ref count, null, ref reasons);
@@ -93,6 +88,11 @@ internal static class NcfUpdatePreflight {
     }
     public static int Main(string[] args) {
         try {
+            if (args.Length == 2 && args[0] == "--notify-shortcut-created") {
+                if (!Path.IsPathRooted(args[1]) || !String.Equals(Path.GetExtension(args[1]), ".lnk", StringComparison.OrdinalIgnoreCase)) return 20;
+                SHChangeNotify(0x00000002, 0x00002005, Path.GetFullPath(args[1]), IntPtr.Zero);
+                return 0;
+            }
             if (args.Length == 1 && args[0] == "--programs-directory") {
                 Console.OutputEncoding = new UTF8Encoding(false);
                 Console.Write(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
