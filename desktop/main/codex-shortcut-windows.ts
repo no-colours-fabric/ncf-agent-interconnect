@@ -76,6 +76,31 @@ $r=$w.CreateShortcut($d.destination)
 if ($r.TargetPath -ine $d.executable -or $r.Arguments -cne $d.arguments) {throw 'link-verification'}
 [Console]::Out.Write('created')`;
 
+// Fixed .lnk operation, also exercised against a disposable native shell link.
+export async function createWindowsLauncherLink(
+  destination: string,
+  appExecutable: string,
+  manifest: string,
+): Promise<'created' | 'alreadyExists'> {
+  if (
+    !path.isAbsolute(destination) ||
+    path.extname(destination).toLowerCase() !== '.lnk' ||
+    /[\0\r\n"]/.test(destination)
+  )
+    throw new Error('NCF_CODEX_LINK_PATH');
+  await bridge.canonical(path.dirname(destination), true);
+  await bridge.canonical(appExecutable, false);
+  const args = windowsCodexLaunchArguments(manifest);
+  const result = await bridge.runPowerShell(linkScript, {
+    destination,
+    executable: appExecutable,
+    arguments: `${args[0]} ${args[1]} "${args[2]}"`,
+    directory: path.dirname(appExecutable),
+  });
+  if (result !== 'created' && result !== 'alreadyExists') throw new Error('NCF_CODEX_LINK_RESULT');
+  return result;
+}
+
 // The destination is an absolute .lnk filename selected by the shared handler.
 // The explicit NCF userData argument is not the OS appData directory.
 export async function createWindowsCodexShortcut(
@@ -162,14 +187,7 @@ export async function createWindowsCodexShortcut(
       await bridge.privatePath(manifest, false, true);
       await bridge.validateManifest(manifest, { userData, appExecutable, appPath });
     }
-    const args = windowsCodexLaunchArguments(manifest);
-    const result = await bridge.runPowerShell(linkScript, {
-      destination,
-      executable: appExecutable,
-      arguments: `${args[0]} ${args[1]} "${args[2]}"`,
-      directory: path.dirname(appExecutable),
-    });
-    return result === 'created' || result === 'alreadyExists' ? result : 'failed';
+    return await createWindowsLauncherLink(destination, appExecutable, manifest);
   } catch {
     return 'failed';
   }

@@ -20,10 +20,33 @@ import { createHash } from 'node:crypto';
 import {
   launchWindowsCodexFromArgs,
   windowsCodexLaunchArguments,
+  createWindowsLauncherLink,
 } from '../desktop/main/codex-shortcut-windows.js';
 
 const bridge = createRequire(import.meta.url)('../desktop/integrations/codex-windows-bridge.cjs');
 const isWindows = process.platform === 'win32';
+
+test(
+  'Native shell shortcut creation is idempotent and does not replace a conflicting link',
+  { skip: !isWindows },
+  async (t) => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'ncf-native-link-')));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const exe = path.join(root, 'NCF fixture.exe');
+    await writeFile(exe, 'synthetic; never executed');
+    const manifest = path.join(root, 'manifest.json');
+    await writeFile(manifest, '{}');
+    const destination = path.join(root, 'Codex with NCF.lnk');
+    assert.equal(await createWindowsLauncherLink(destination, exe, manifest), 'created');
+    const first = await readFile(destination);
+    assert.equal(await createWindowsLauncherLink(destination, exe, manifest), 'alreadyExists');
+    assert.deepEqual(await readFile(destination), first);
+    await assert.rejects(
+      createWindowsLauncherLink(destination, exe, path.join(root, 'other.json')),
+    );
+    assert.deepEqual(await readFile(destination), first);
+  },
+);
 
 test('Windows launch dispatch rejects malformed launch requests before services', async () => {
   const context = { userData: '', appExecutable: '', appPath: '' };
