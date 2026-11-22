@@ -1,34 +1,17 @@
-# NCF Agent Interconnect 1.0.0-alpha.5.20261122T185253Z
+# NCF Agent Interconnect 1.0.0
 
-The new macOS delivery path for ChatGPT sends full Incoming
-through the native Codex queue directly to the exact connected chat. The message includes its sender,
-body, attachment links and reply route. NCF records receipt once Codex saves
-the complete matching item in that chat. Open an unloaded chat to process its
-queue. For the tested default macOS startup, queue delivery waits until
-the active turn finishes. Compatible older Codex Desktop versions continue to
-receive full Incoming through the existing IPC path.
+- Send full Incoming messages and attachment links to the exact connected ChatGPT chat. NCF records receipt after ChatGPT saves the matching message.
+- Create ChatGPT shortcuts for NCF on macOS and Windows. Existing compatible shortcuts work across upgrades.
+- Connect supported clients from Startup and Applications. Overview keeps connected apps visible while installation detection is incomplete.
+- After an update, NCF shows a one-time reminder to restart connected client apps.
 
-Existing chats can reuse their `connectionId`. If it
-was lost, `agent_connect` sends a one-time confirmation only to the previously
-bound exact chat. The assistant repeats `agent_connect` once with its original
-nickname and the one-use `contextToken` from that chat to restore the binding. A first bind under a free name passed after explicit Apply to the
-intended local ChatGPT profile on macOS. Occupied-name transfer and reset remain
-separate owner choices.
+## Known delivery limits
 
-Before updating, quit NCF Agent Interconnect and preserve a complete backup of
-its stopped profile, including history and attachments. Keep that backup for a
-rollback; do not open an upgraded profile with an older binary or discard data
-created after the update.
+- If a ChatGPT chat is unloaded or stays closed after a restart, incoming messages may stay queued until you open it.
+- After Cursor restarts or reloads, send an ordinary message in the same Cursor chat to restore its automatic delivery wait.
 
-## Verification scope
+## Updating
 
-- On Apple Silicon, an isolated bundled Codex `0.171.0-alpha.13` accepted the
-  full message and a readable attachment link in the exact connected chat. The
-  sender's receipt stayed pending until Codex saved the item, including across an
-  NCF restart with an unloaded chat. The shared App Server active-turn test
-  passed in isolation. The tested standard Desktop launch did not expose that
-  owner connection. The message tests used a local synthetic provider.
-- Source regression coverage exercises compatible IPC, including exact-chat
-  addressing, attachment links and the existing receipt boundary.
-- A notification, an MCP receipt and completion of the agent's task are
-  distinct states.
+Quit NCF Agent Interconnect and retain a complete backup of its stopped profile, including history and attachments. An older version requires the pre-upgrade backup. Account for data created after the update before rolling back.
+
+Installers are available for Apple Silicon and Intel Macs, Windows x64, and Linux x86_64. The macOS installers use ad-hoc signing.
