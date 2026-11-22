@@ -38,7 +38,6 @@ import {
 } from './application-setup-model.js';
 import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
 import { CodexShortcut } from './CodexShortcut.js';
-import { CursorReplyPermission } from './CursorReplyPermission.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import { StartupApplicationTile, StartupApplicationTiles } from './StartupApplicationTiles.js';
 import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
@@ -1048,7 +1047,6 @@ export function ApplicationRows({
           />
         )}
         <SetupDetails state={state} locale={locale} />
-        {client === 'cursor' && <CursorReplyPermission invoke={invoke} locale={locale} />}
         {showGuidance && (
           <NextStep
             client={client}

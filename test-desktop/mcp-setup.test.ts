@@ -241,6 +241,10 @@ test('Cursor Apply installs its managed plugin atomically while preview and canc
   const configuration = path.join(directory, '.cursor', 'mcp.json');
   const plugin = path.join(directory, '.cursor', 'plugins', 'local', 'ncf-agent-interconnect');
   await mkdir(path.dirname(configuration), { recursive: true });
+  await writeFile(
+    path.join(directory, '.cursor', 'permissions.json'),
+    '{"mcpAllowlist":["foreign:tool"],"terminalAllowlist":["git"]}\n',
+  );
   const source = '{"mcpServers":{"other":{"url":"https://example.invalid"}}}\n';
   await writeFile(configuration, source);
   await mkdir(plugin, { recursive: true });
@@ -248,7 +252,7 @@ test('Cursor Apply installs its managed plugin atomically while preview and canc
   const preview = await service.preview(owner, 'cursor', [
     { id: 'configuration', path: configuration },
   ]);
-  assert.equal(preview.files.length, 3);
+  assert.equal(preview.files.length, 4);
   assert.equal(await readFile(configuration, 'utf8'), source);
   assert.deepEqual(await readdir(plugin), ['owner-note.txt']);
   service.discard(owner, preview.planId);
@@ -273,7 +277,22 @@ test('Cursor Apply installs its managed plugin atomically while preview and canc
     parseJson(await readFile(configuration, 'utf8')).mcpServers.other.url,
     'https://example.invalid',
   );
+  assert.deepEqual(
+    parseJson(await readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'))
+      .mcpAllowlist,
+    ['foreign:tool', 'ncf_agent_interconnect:agent_send'],
+  );
   assert.equal((await service.status('cursor')).state, 'configured');
+  const repeated = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  assert.ok(repeated.files.every((file) => file.action === 'unchanged'));
+  assert.equal((await service.apply(owner, repeated.planId, false)).status, 'unchanged');
+  assert.deepEqual(
+    parseJson(await readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'))
+      .mcpAllowlist,
+    ['foreign:tool', 'ncf_agent_interconnect:agent_send'],
+  );
 });
 
 test('Cursor managed plugin failure rolls back earlier configuration and plugin writes', async (t) => {
@@ -282,6 +301,10 @@ test('Cursor managed plugin failure rolls back earlier configuration and plugin 
   const plugin = path.join(directory, '.cursor', 'plugins', 'local', 'ncf-agent-interconnect');
   const hooks = path.join(plugin, 'hooks', 'hooks.json');
   await mkdir(path.dirname(hooks), { recursive: true });
+  await writeFile(
+    path.join(directory, '.cursor', 'permissions.json'),
+    '{"mcpAllowlist":["foreign:tool"]}\n',
+  );
   await writeFile(hooks, '{"owner":"foreign"}\n');
   const preview = await service.preview(owner, 'cursor', [
     { id: 'configuration', path: configuration },
@@ -296,6 +319,49 @@ test('Cursor managed plugin failure rolls back earlier configuration and plugin 
   });
   assert.equal(await readFile(hooks, 'utf8'), '{"owner":"foreign"}\n');
   assert.equal(await readFile(hooksPreview.backupPath!, 'utf8'), 'backup collision');
+  assert.deepEqual(
+    parseJson(await readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'))
+      .mcpAllowlist,
+    ['foreign:tool'],
+  );
+});
+
+test('Cursor Connect does not create or claim IDE-owned permissions', async (t) => {
+  const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
+  const configuration = path.join(directory, '.cursor', 'mcp.json');
+  await mkdir(path.dirname(configuration), { recursive: true });
+  await assert.rejects(
+    service.preview(owner, 'cursor', [{ id: 'configuration', path: configuration }]),
+    /setup was not changed.*permissions\.json does not own/,
+  );
+  await assert.rejects(readFile(configuration, 'utf8'), { code: 'ENOENT' });
+  await assert.rejects(readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'), {
+    code: 'ENOENT',
+  });
+
+  await writeFile(
+    path.join(directory, '.cursor', 'permissions.json'),
+    '{"terminalAllowlist":["git status"]}\n',
+  );
+  await assert.rejects(
+    service.preview(owner, 'cursor', [{ id: 'configuration', path: configuration }]),
+    /IDE settings/,
+  );
+  assert.equal(
+    await readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'),
+    '{"terminalAllowlist":["git status"]}\n',
+  );
+  await writeFile(configuration, instructions('cursor').configuration);
+  const status = await service.status('cursor');
+  assert.equal(status.state, 'unavailable');
+  const permissionStatus = status.files.find((file) => file.id === 'cursor-permissions');
+  assert.equal(status.files.find((file) => file.id === 'configuration')!.state, 'configured');
+  assert.equal(path.basename(permissionStatus!.path), 'permissions.json');
+  assert.equal(permissionStatus!.state, 'unavailable');
+  assert.equal(
+    permissionStatus!.error,
+    'Automatic replies were not enabled because Cursor currently owns the MCP allowlist in IDE settings',
+  );
 });
 
 test('replacement requires confirmation, preserves the original in a private backup and retains file permissions', async (t) => {

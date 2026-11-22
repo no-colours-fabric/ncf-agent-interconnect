@@ -30,6 +30,7 @@ import {
   type OpenCodeV2PrivateFiles,
 } from './opencode-v2-auth.js';
 import { McpSetupPaths } from './mcp-setup-paths.js';
+import { editCursorPermissions } from './cursor-permissions.js';
 
 const maxBytes = 1024 * 1024;
 const lifetime = 10 * 60 * 1000;
@@ -66,6 +67,7 @@ interface PreparedFile {
   backupWritten?: boolean;
   source: Source;
   content: string;
+  changes?: McpSetupPreview['files'][number]['changes'];
 }
 interface Plan {
   owner: string;
@@ -145,6 +147,10 @@ export class McpSetupService {
     );
   }
 
+  private cursorPermissionRequired(instructions: McpInstructions): boolean {
+    return (instructions.managedFiles ?? []).some((file) => file.id === 'cursor-plugin-manifest');
+  }
+
   async defaults(client: McpSetupClient): Promise<McpSetupDefaults> {
     const remembered = await this.paths.get(client).catch(() => undefined);
     const codexHome =
@@ -212,6 +218,7 @@ export class McpSetupService {
           files: [{ id: 'configuration', path: filename, state: 'missing' }],
         };
       const instructions = await this.options.instructions(client);
+      const managedFiles = this.managedFiles(instructions);
       const edit = (this.options.transaction?.edit ?? editMcpConfiguration)(
         client,
         source.content,
@@ -223,12 +230,40 @@ export class McpSetupService {
           : edit.changes.some((change) => change.action !== 'add')
             ? 'needs-update'
             : 'not-configured';
-      for (const managed of this.managedFiles(instructions)) {
+      const files: McpSetupStatus['files'] = [{ id: 'configuration', path: filename, state }];
+      if (client === 'cursor' && this.cursorPermissionRequired(instructions)) {
+        const permissionsPath = await this.canonicalPath(
+          path.join(this.home, '.cursor', 'permissions.json'),
+        );
+        const permissions = await this.readSource(permissionsPath);
+        let permissionState: McpSetupStatus['state'] = 'unavailable';
+        let permissionError: string | undefined;
+        if (!permissions.exists) {
+          permissionError =
+            'Automatic replies are unavailable because Cursor permissions.json does not own the MCP allowlist';
+        } else {
+          try {
+            permissionState = editCursorPermissions(permissions.content).changed
+              ? 'not-configured'
+              : 'configured';
+          } catch (error) {
+            permissionError = (error as Error).message;
+          }
+        }
+        files.push({
+          id: 'cursor-permissions',
+          path: permissionsPath,
+          state: permissionState,
+          ...(permissionError ? { error: permissionError } : {}),
+        });
+        if (state === 'configured' && permissionState !== 'configured') state = permissionState;
+      }
+      for (const managed of managedFiles) {
         const installed = await this.readSource(await this.canonicalPath(managed.path));
         if (!installed.exists && state === 'configured') state = 'not-configured';
         else if (installed.exists && installed.content !== managed.content) state = 'needs-update';
       }
-      return { client, remembered, state, files: [{ id: 'configuration', path: filename, state }] };
+      return { client, remembered, state, files };
     } catch (error) {
       return {
         client,
@@ -317,6 +352,37 @@ export class McpSetupService {
     const files: PreparedFile[] = [
       { id: 'configuration', path: filename, backupPath, source, content: edit.content },
     ];
+    if (client === 'cursor' && this.cursorPermissionRequired(instructions)) {
+      const permissionsPath = await this.canonicalPath(
+        path.join(this.home, '.cursor', 'permissions.json'),
+      );
+      const permissionsSource = await this.readSource(permissionsPath);
+      if (!permissionsSource.exists)
+        throw new SetupError(
+          'Cursor setup was not changed. Automatic replies cannot be enabled safely because permissions.json does not own the MCP allowlist.',
+        );
+      let permissionEdit;
+      try {
+        permissionEdit = editCursorPermissions(permissionsSource.content);
+      } catch (error) {
+        throw new SetupError(`Cursor setup was not changed. ${(error as Error).message}.`);
+      }
+      files.push({
+        id: 'cursor-permissions',
+        path: permissionsPath,
+        backupPath: permissionEdit.changed
+          ? permissionsPath + '.ncf-backup-' + randomUUID()
+          : undefined,
+        source: permissionsSource,
+        content: permissionEdit.content,
+        changes: [
+          {
+            scope: 'mcpAllowlist',
+            action: permissionEdit.changed ? 'add' : 'unchanged',
+          },
+        ],
+      });
+    }
     for (const managed of this.managedFiles(instructions)) {
       const managedPath = await this.canonicalPath(managed.path);
       if (files.some((file) => file.path === managedPath))
@@ -352,7 +418,8 @@ export class McpSetupService {
               ? 'update'
               : 'create',
         changes:
-          file.id === 'configuration'
+          file.changes ??
+          (file.id === 'configuration'
             ? edit.changes
             : [
                 {
@@ -364,7 +431,7 @@ export class McpSetupService {
                         ? ('replace' as const)
                         : ('add' as const),
                 },
-              ],
+              ]),
       })),
     };
     if (this.plans.size >= 30)

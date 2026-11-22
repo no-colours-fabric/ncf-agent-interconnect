@@ -18,12 +18,6 @@ import type { McpSetupStatuses } from '../desktop/renderer/mcp-setup-status.js';
 import { McpSetupFlow } from '../desktop/renderer/mcp-setup-model.js';
 import { McpSetup, OpenCodeSetupDialog } from '../desktop/renderer/McpSetup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
-import {
-  copyCursorReplyPermission,
-  CursorReplyPermission,
-  cursorReplyPermissionEntry,
-} from '../desktop/renderer/CursorReplyPermission.js';
-import { cursorReplyPermissionMessages } from '../desktop/renderer/i18n/cursor-reply-permission.js';
 
 const noInvoke = (async () => {
   throw new Error('Rendering must not invoke setup');
@@ -66,75 +60,6 @@ const statuses: McpSetupStatuses = {
   refreshAll: async () => {},
 };
 
-test('Cursor reply permission is owner-visible, localized and copies only the narrow tool entry', async () => {
-  const english = cursorReplyPermissionMessages('en');
-  const invocations: { method: string; params?: unknown }[] = [];
-  const invoke = (async (method: string, params?: unknown) => {
-    invocations.push({ method, params });
-  }) as McpSetupInvoke;
-
-  for (const locale of supportedLocales) {
-    const copy = cursorReplyPermissionMessages(locale);
-    assert.deepEqual(Object.keys(copy), Object.keys(english));
-    assert.ok(
-      Object.values(copy).every((value) => value.trim()),
-      locale,
-    );
-    if (locale !== 'en')
-      for (const key of ['title', 'intro', 'instructions', 'scope', 'copy'] as const)
-        assert.notEqual(copy[key], english[key], locale + ':' + key);
-    const html = renderToStaticMarkup(
-      React.createElement(CursorReplyPermission, { invoke: noInvoke, locale }),
-    );
-    assert.match(html, /data-testid="cursor-reply-permission"/);
-    assert.ok(html.includes(cursorReplyPermissionEntry), locale);
-    assert.ok(html.includes(copy.copy), locale);
-    assert.ok(
-      copy.instructions.includes('Settings → Agents → Approvals &amp; Execution') ||
-        html.includes('Settings → Agents → Approvals &amp; Execution'),
-      locale,
-    );
-    assert.ok(copy.scope.includes('agent_send'), locale);
-    assert.ok(!html.includes('ncf_agent_interconnect:*'), locale);
-    assert.ok(!html.includes('Run Everything'), locale);
-  }
-
-  await copyCursorReplyPermission(invoke);
-  assert.deepEqual(invocations, [
-    { method: 'copy', params: { text: 'ncf_agent_interconnect:agent_send' } },
-  ]);
-
-  for (const cursorStatus of ['not-configured', 'configured'] as const) {
-    const html = renderToStaticMarkup(
-      React.createElement(ApplicationRows, {
-        discovery,
-        statuses: {
-          ...statuses,
-          statuses: {
-            ...statuses.statuses,
-            cursor: {
-              client: 'cursor',
-              remembered: cursorStatus === 'configured',
-              state: cursorStatus,
-              files: [],
-            },
-          },
-        },
-        invoke: noInvoke,
-        flow: new ApplicationSetupFlow(noInvoke),
-        locale: 'en',
-        onManualSetup: () => {},
-      }),
-    );
-    assert.equal(html.match(/data-testid="cursor-reply-permission"/g)?.length, 1, cursorStatus);
-    assert.match(
-      html,
-      /data-testid="application-row-cursor"[\s\S]*data-testid="cursor-reply-permission"[\s\S]*data-testid="application-row-opencode-v2"/,
-      cursorStatus,
-    );
-  }
-});
-
 test('all five groups retain manual setup; the default v2 target does not infer capability from discovery', () => {
   const html = renderToStaticMarkup(
     React.createElement(ApplicationRows, {
@@ -156,6 +81,7 @@ test('all five groups retain manual setup; the default v2 target does not infer 
   assert.equal(html.match(/data-testid="SettingsOutlinedIcon"/g)?.length, 5);
   assert.doesNotMatch(html, />Manual setup</);
   assert.equal(html.match(/data-testid="application-connect-/g)?.length, 2);
+  assert.doesNotMatch(html, /cursor-reply-permission|ncf_agent_interconnect:agent_send/);
   assert.ok(html.includes('OpenCode v2'));
   assert.ok(html.includes('OpenCode v1'));
   assert.ok(!html.includes('data-testid="application-connect-opencode-v2"'));
