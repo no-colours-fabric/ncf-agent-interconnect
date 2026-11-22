@@ -692,6 +692,7 @@ export class CodexQueueAdapter implements AgentAdapter {
   }
 
   async start(): Promise<void> {
+    if (process.platform !== 'win32') return this.check();
     if (this.controller.signal.aborted) return;
     if (this.checking) return this.checking;
     const checking = this.check();
@@ -708,8 +709,10 @@ export class CodexQueueAdapter implements AgentAdapter {
   }
 
   private async check(): Promise<void> {
-    await this.watchControlEndpoint();
-    if (this.controller.signal.aborted) return;
+    if (process.platform === 'win32') {
+      await this.watchControlEndpoint();
+      if (this.controller.signal.aborted) return;
+    }
     try {
       await this.run(async (call, shared) => {
         const thread = await this.verifyThread(call);
