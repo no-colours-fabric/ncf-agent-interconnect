@@ -127,7 +127,7 @@ static void fail(NSDictionary *configuration, NSString *messageKey) {
     if (@available(macOS 14, *)) [NSApp activate];
     else [NSApp activateIgnoringOtherApps:YES];
     NSAlert *alert = [[NSAlert alloc] init];
-    alert.messageText = @"Codex with NCF";
+    alert.messageText = [NSBundle.mainBundle objectForInfoDictionaryKey:@"CFBundleDisplayName"] ?: @"Codex with NCF";
     alert.informativeText = configuration[messageKey] ?: @"";
     alert.alertStyle = NSAlertStyleWarning;
     [alert runModal];

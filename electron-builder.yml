@@ -42,6 +42,10 @@ mac:
     - dmg
 win:
   icon: build/assets/icon.ico
+  fileOptions:
+    extraResources:
+      - from: desktop/assets/chatgpt-ncf.ico
+        to: icons/chatgpt-ncf.ico
   target:
     - nsis
 nsis:

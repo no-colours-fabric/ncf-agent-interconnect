@@ -14,7 +14,7 @@ import {
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { z } from 'zod';
-import type { CodexShortcutResult } from '../shared/codex-shortcut.js';
+import { codexShortcutDisplayName, type CodexShortcutResult } from '../shared/codex-shortcut.js';
 import { discoveryCatalog } from '../core/application-discovery-catalog.js';
 
 const execute = promisify(execFile);
@@ -210,7 +210,7 @@ export async function createMacCodexShortcut(
     await lstat(bridge);
     const assets = path.join(appPath, 'build/assets');
     stage = await mkdtemp(path.join(parent, '.ncf-codex-shortcut-'));
-    const bundle = path.join(stage, 'Codex with NCF.app');
+    const bundle = path.join(stage, codexShortcutDisplayName + '.app');
     const contents = path.join(bundle, 'Contents');
     const resources = path.join(contents, 'Resources');
     const macOS = path.join(contents, 'MacOS');
@@ -222,7 +222,10 @@ export async function createMacCodexShortcut(
         await readFile(path.join(assets, 'codex-mac-launcher')),
         { mode: 0o755 },
       ),
-      writeFile(path.join(resources, 'icon.icns'), await readFile(path.join(assets, 'icon.icns'))),
+      writeFile(
+        path.join(resources, 'icon.icns'),
+        await readFile(path.join(assets, 'chatgpt-shortcut.icns')),
+      ),
       writeFile(
         path.join(resources, 'ncf-codex-cli'),
         macCliWrapper(appExecutable, bridge, profile, options),
@@ -263,7 +266,8 @@ function macShortcutPlist(id: string) {
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>CFBundleIdentifier</key><string>io.github.no-colours-fabric.ncf-agent-interconnect.codex.${id}</string>
-  <key>CFBundleName</key><string>Codex with NCF</string>
+  <key>CFBundleName</key><string>${codexShortcutDisplayName}</string>
+  <key>CFBundleDisplayName</key><string>${codexShortcutDisplayName}</string>
   <key>CFBundleExecutable</key><string>CodexNCF</string>
   <key>CFBundleIconFile</key><string>icon.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>

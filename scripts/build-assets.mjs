@@ -71,6 +71,7 @@ await copyFile('desktop/assets/app-icon.ico', 'build/assets/icon.ico');
 await writeFile('build/assets/trayTemplate.png', image(22, true));
 await writeFile('build/assets/trayTemplate@2x.png', image(44, true));
 if (process.platform === 'darwin') {
+  await copyFile('desktop/assets/chatgpt-shortcut.icns', 'build/assets/chatgpt-shortcut.icns');
   execFileSync(
     '/usr/bin/xcrun',
     [

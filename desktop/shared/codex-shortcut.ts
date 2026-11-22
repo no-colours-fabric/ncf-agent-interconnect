@@ -1,3 +1,5 @@
+export const codexShortcutDisplayName = 'ChatGPT — NCF Agent Interconnect';
+
 export type CodexShortcutPlatform = 'mac' | 'windows';
 
 export type CodexShortcutResult =

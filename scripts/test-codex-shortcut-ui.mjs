@@ -80,7 +80,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   await page.goto('http://ncf-shortcut.test/');
   const codex = page.getByTestId('application-row-codex');
   const action = codex.getByRole('button', {
-    name: 'Create shortcut for Codex with NCF',
+    name: 'Create ChatGPT shortcut',
     exact: true,
   });
   await action.waitFor();
@@ -128,7 +128,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
       ],
     }),
   );
-  await codex.getByText('Codex shortcut created.', { exact: true }).waitFor();
+  await codex.getByText('ChatGPT shortcut created.', { exact: true }).waitFor();
   await codex
     .getByText('Shortcut saved. Drag it from Finder to the apps area of the Dock to finish.')
     .waitFor();
@@ -157,7 +157,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   );
 
   await page.goto('http://ncf-shortcut.test/?locale=ru&platform=windows');
-  await codex.getByRole('button', { name: 'Создать ярлык Codex с NCF', exact: true }).click();
+  await codex.getByRole('button', { name: 'Создать ярлык ChatGPT', exact: true }).click();
   assert.equal(await picker.getByRole('checkbox', { name: 'Dock', exact: true }).count(), 0);
   assert.equal(await picker.getByRole('textbox').count(), 0);
   for (const name of ['Рабочий стол', 'Список приложений в меню «Пуск»', 'Другая папка…']) {
@@ -178,7 +178,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
     }),
   );
   await codex.getByText('Ярлык с таким именем уже есть. Выберите другую папку или имя.').waitFor();
-  await codex.getByText('Ярлык Codex создан.').waitFor();
+  await codex.getByText('Ярлык ChatGPT создан.').waitFor();
   assert.deepEqual(await page.evaluate(() => window.fixture.calls.at(-1).input), {
     locale: 'ru',
     destinations: ['desktop', 'startMenu'],

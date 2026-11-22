@@ -8,6 +8,7 @@ import { z } from 'zod';
 import { codexShortcutLocales, codexShortcutMessages } from '../shared/codex-shortcut-messages.js';
 import {
   codexShortcutDestinations,
+  codexShortcutDisplayName,
   codexShortcutDestinationsFor,
   type CodexShortcutCreateResult,
   type CodexShortcutDestinationResult,
@@ -194,13 +195,13 @@ export function createCodexShortcutHandler(
     creating = true;
     try {
       const extension = platform === 'mac' ? 'app' : 'lnk';
-      const shortcutName = 'Codex with NCF.' + extension;
+      const shortcutName = codexShortcutDisplayName + '.' + extension;
       let chosenFile: string | undefined;
       if (destinations.includes('custom')) {
         const saved = await options.dialog.showSaveDialog(owner, {
           title: copy.save,
           defaultPath: path.join(options.desktop, shortcutName),
-          filters: [{ name: 'Codex with NCF', extensions: [extension] }],
+          filters: [{ name: codexShortcutDisplayName, extensions: [extension] }],
         });
         if (saved.canceled || !saved.filePath || !isCurrent()) return cancelled;
         chosenFile = saved.filePath;
@@ -293,6 +294,8 @@ export function createCodexShortcutHandler(
         destination: string,
       ): Promise<CodexShortcutDestinationResult['result']> => {
         if (!isCurrent()) return 'failed';
+        const request = { destination, ...launcher } satisfies WindowsCodexShortcutRequest;
+        if (platform === 'windows') return windows.create(request, { userData: options.userData });
         try {
           await lstat(destination);
           return 'alreadyExists';
@@ -300,8 +303,6 @@ export function createCodexShortcutHandler(
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
         if (!isCurrent()) return 'failed';
-        const request = { destination, ...launcher } satisfies WindowsCodexShortcutRequest;
-        if (platform === 'windows') return windows.create(request, { userData: options.userData });
         if (!macConfig) return 'appMissing';
         return mac.createMacCodexShortcut({ destination, ...macConfig });
       };
