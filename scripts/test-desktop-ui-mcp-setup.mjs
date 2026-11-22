@@ -316,6 +316,13 @@ try {
       'mcp__plugin_ncf-agent-interconnect_ncf__agent_connect',
       'mcp__plugin_ncf-agent-interconnect_ncf__agent_read',
       'mcp__plugin_ncf-agent-interconnect_ncf__agent_send',
+      'mcp__plugin_ncf-agent-interconnect_ncf__agent_history',
+      'mcp__plugin_ncf-agent-interconnect_ncf__agents_list',
+      'mcp__plugin_ncf-agent-interconnect_ncf__attachment_receive',
+      'mcp__plugin_ncf-agent-interconnect_ncf__connection_events',
+      'mcp__plugin_ncf-agent-interconnect_ncf__node_peers',
+      'mcp__plugin_ncf-agent-interconnect_ncf__node_status',
+      'mcp__plugin_ncf-agent-interconnect_ncf__agent_disconnect',
     ];
     if (client.id === 'claude')
       for (const rule of claudeRules) await dialog.getByText(rule, { exact: true }).waitFor();

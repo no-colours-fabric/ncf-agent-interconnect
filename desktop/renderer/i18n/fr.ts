@@ -118,7 +118,7 @@ export const fr: Messages = {
   mcpSetup_configureClaude: 'Configurer Claude Code',
   mcpSetup_claudeTitle: 'Configurer Claude Code',
   mcpSetup_claudeDescription:
-    'La configuration active les plugins NCF et autorise agent_connect, agent_read et agent_send dans le profil Claude sélectionné. Les règles de demande de confirmation et de refus existantes continuent de s’appliquer, y compris les règles gérées.',
+    'La configuration active les plugins NCF et autorise dix outils courants dans le profil Claude sélectionné. La déconnexion libère le lien avec la conversation et conserve son historique. Les règles de confirmation et de refus existantes continuent de s’appliquer, y compris les règles gérées.',
   mcpSetup_claudeNext:
     'Ouvrez ou reprenez une session Claude Code, puis connectez-vous dans la conversation.',
   mcpSetup_claudeLaunch: 'Démarrer Claude Code',

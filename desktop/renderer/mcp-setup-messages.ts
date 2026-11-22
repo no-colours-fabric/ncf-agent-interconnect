@@ -86,7 +86,7 @@ export const mcpSetupEnglish = {
   configureClaude: 'Configure Claude Code',
   claudeTitle: 'Configure Claude Code',
   claudeDescription:
-    'Setup enables the NCF plugins and allows agent_connect, agent_read, and agent_send in the selected Claude profile. Existing ask and deny rules still apply, including managed rules.',
+    'Setup enables the NCF plugins and allows ten routine tools in the selected Claude profile. Disconnect releases the chat binding and keeps its history. Existing ask and deny rules still apply, including managed rules.',
   claudeNext: 'Open or resume Claude Code, then connect in the chat.',
   claudeLaunch: 'Start Claude Code',
   copyLaunch: 'Copy launch command',

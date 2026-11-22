@@ -122,7 +122,7 @@ export const es: Messages = {
   mcpSetup_configureClaude: 'Configurar Claude Code',
   mcpSetup_claudeTitle: 'Configurar Claude Code',
   mcpSetup_claudeDescription:
-    'La configuración habilita los plugins de NCF y permite agent_connect, agent_read y agent_send en el perfil de Claude seleccionado. Las reglas de solicitud de confirmación y de denegación existentes siguen vigentes, incluidas las reglas administradas.',
+    'La configuración habilita los plugins de NCF y permite diez herramientas de uso habitual en el perfil de Claude seleccionado. Al desconectar se libera el vínculo del chat y se conserva su historial. Las reglas de confirmación y denegación existentes siguen vigentes, incluidas las reglas administradas.',
   mcpSetup_claudeNext: 'Abre o reanuda una sesión de Claude Code y conéctate en el chat.',
   mcpSetup_claudeLaunch: 'Iniciar Claude Code',
   mcpSetup_copyLaunch: 'Copiar comando de inicio',

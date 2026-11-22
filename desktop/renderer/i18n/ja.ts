@@ -116,7 +116,7 @@ export const ja: Messages = {
   mcpSetup_configureClaude: 'Claude Codeを設定',
   mcpSetup_claudeTitle: 'Claude Codeを設定',
   mcpSetup_claudeDescription:
-    '設定により、選択した Claude プロファイルで NCF プラグインが有効になり、agent_connect、agent_read、agent_send が許可されます。管理対象のルールを含め、既存の確認ルールと拒否ルールは引き続き適用されます。',
+    '設定により、選択した Claude プロファイルで NCF プラグインが有効になり、通常利用する 10 個のツールが許可されます。切断するとチャットとの紐付けが解除され、履歴は保持されます。管理対象のルールを含め、既存の確認ルールと拒否ルールは引き続き適用されます。',
   mcpSetup_claudeNext: 'Claude Code を開くかセッションを再開し、チャットで接続してください。',
   mcpSetup_claudeLaunch: 'Claude Code を起動',
   mcpSetup_copyLaunch: '起動コマンドをコピー',

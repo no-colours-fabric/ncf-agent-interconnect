@@ -115,7 +115,7 @@ export const ko: Messages = {
   mcpSetup_configureClaude: 'Claude Code 설정',
   mcpSetup_claudeTitle: 'Claude Code 설정',
   mcpSetup_claudeDescription:
-    '설정하면 선택한 Claude 프로필에서 NCF 플러그인이 활성화되고 agent_connect, agent_read, agent_send가 허용됩니다. 관리형 규칙을 포함한 기존 확인 및 거부 규칙은 계속 적용됩니다.',
+    '설정하면 선택한 Claude 프로필에서 NCF 플러그인이 활성화되고 일반 작업용 도구 10개가 허용됩니다. 연결을 해제하면 채팅 연결은 종료되고 대화 기록은 유지됩니다. 관리형 규칙을 포함한 기존 확인 및 거부 규칙은 계속 적용됩니다.',
   mcpSetup_claudeNext: 'Claude Code를 열거나 세션을 재개한 뒤 채팅에서 연결하세요.',
   mcpSetup_claudeLaunch: 'Claude Code 시작',
   mcpSetup_copyLaunch: '시작 명령 복사',

@@ -23,10 +23,23 @@ import {
 
 const owner = 'isolated-window';
 const marketplace = '/isolated/NCF Агент 漢字/Integrations/claude-code';
-const connectRule = 'mcp__plugin_ncf-agent-interconnect_ncf__agent_connect';
-const readRule = 'mcp__plugin_ncf-agent-interconnect_ncf__agent_read';
-const sendRule = 'mcp__plugin_ncf-agent-interconnect_ncf__agent_send';
-const exactRules = [connectRule, readRule, sendRule];
+const serverPrefix = 'mcp__plugin_ncf-agent-interconnect_ncf__';
+const exactRules = [
+  'agent_connect',
+  'agent_read',
+  'agent_send',
+  'agent_history',
+  'agents_list',
+  'attachment_receive',
+  'connection_events',
+  'node_peers',
+  'node_status',
+  'agent_disconnect',
+].map((name) => serverPrefix + name);
+const [connectRule, readRule, sendRule] = exactRules;
+const clearHistoryRule = serverPrefix + 'agent_clear_history';
+const rulesMissingFromReadOnly = exactRules.filter((rule) => rule !== readRule);
+const readOnlyUpgrade = [readRule, ...rulesMissingFromReadOnly];
 const instructions = (client: McpSetupClient, root = marketplace) =>
   mcpInstructions(
     'http://127.0.0.1:42000/mcp',
@@ -40,7 +53,7 @@ const instructions = (client: McpSetupClient, root = marketplace) =>
 const configuration = instructions('claude').configuration;
 const edit = (source: string) => editMcpConfiguration('claude', source, configuration);
 
-test('Claude Code settings gain the marketplace, both plugins and three exact allow rules', () => {
+test('Claude Code settings gain the marketplace, both plugins and ten exact allow rules', () => {
   const generated = JSON.parse(configuration);
   assert.deepEqual(generated, {
     extraKnownMarketplaces: {
@@ -61,16 +74,29 @@ test('Claude Code settings gain the marketplace, both plugins and three exact al
   assert.deepEqual(JSON.parse(created.content), generated);
   assert.deepEqual(
     created.changes.map((change) => change.action),
-    ['add', 'add', 'add', 'add', 'add', 'add'],
+    Array(3 + exactRules.length).fill('add'),
   );
   assert.deepEqual(
-    created.changes.slice(-3),
+    created.changes.slice(-exactRules.length),
     exactRules.map((rule) => ({
       scope: `permissions.allow ${rule}`,
       action: 'add',
     })),
   );
   assert.equal(created.requiresReplacement, false);
+});
+
+test('Claude automatic setup never allows clearing history or a wildcard', () => {
+  const generated = JSON.parse(configuration);
+  assert.ok(!generated.permissions.allow.includes(clearHistoryRule));
+  assert.ok(generated.permissions.allow.every((rule: string) => !rule.includes('*')));
+  for (const unsupported of [clearHistoryRule, serverPrefix + '*']) {
+    generated.permissions.allow = [...exactRules.slice(0, -1), unsupported];
+    assert.throws(
+      () => editMcpConfiguration('claude', '', JSON.stringify(generated)),
+      /generated Claude Code/,
+    );
+  }
 });
 
 test('Unrelated Claude Code settings, BOM, CRLF and other permissions survive; matching settings stay byte-for-byte', () => {
@@ -83,15 +109,15 @@ test('Unrelated Claude Code settings, BOM, CRLF and other permissions survive; m
   assert.ok(result.content.startsWith('\uFEFF{\r\n  "model": "fixture",\r\n'));
   const parsed = parseJson(result.content.slice(1));
   assert.equal(parsed.model, 'fixture');
-  assert.deepEqual(parsed.permissions.allow, ['Bash(npm test:*)', readRule, connectRule, sendRule]);
+  assert.deepEqual(parsed.permissions.allow, ['Bash(npm test:*)', ...readOnlyUpgrade]);
   assert.deepEqual(parsed.permissions.ask, ['mcp__plugin_other_ncf__*']);
   assert.deepEqual(parsed.permissions.deny, [
     'Read(./.env)',
     'mcp__plugin_ncf-agent-interconnect_ncf__agent_clear_history',
   ]);
   assert.deepEqual(
-    result.changes.slice(-3).map((change) => change.action),
-    ['add', 'unchanged', 'add'],
+    result.changes.slice(-exactRules.length).map((change) => change.action),
+    exactRules.map((rule) => (rule === readRule ? 'unchanged' : 'add')),
   );
   assert.equal(parsed.enabledPlugins['other@team'], true);
   assert.equal(parsed.extraKnownMarketplaces.team.source.repo, 'a/b');
@@ -117,6 +143,8 @@ test('Claude automatic setup reports exact, server-wide and wildcard ask or deny
     ['deny', prefix, connectRule],
     ['ask', `${prefix}__*`, connectRule],
     ['ask', 'mcp__*__agent_s*', sendRule],
+    ['deny', serverPrefix + 'agent_disconnect', serverPrefix + 'agent_disconnect'],
+    ['ask', serverPrefix + 'node_*', serverPrefix + 'node_peers'],
     ['deny', '*', connectRule],
   ]) {
     const settings = JSON.stringify({
@@ -128,12 +156,6 @@ test('Claude automatic setup reports exact, server-wide and wildcard ask or deny
   }
   assert.throws(() => edit('{"permissions":{"ask":"invalid"}}'), /permissions\.ask/);
   assert.throws(() => edit('{"permissions":{"deny":[1]}}'), /permissions\.deny/);
-  const widerRules = JSON.parse(configuration);
-  widerRules.permissions.allow = [connectRule, readRule, `${prefix}__*`];
-  assert.throws(
-    () => editMcpConfiguration('claude', '', JSON.stringify(widerRules)),
-    /generated Claude Code/,
-  );
 });
 
 test('A disabled plugin or another marketplace path needs replacement confirmation; invalid shapes are refused without excerpts', () => {
@@ -231,7 +253,7 @@ test('Owner Apply writes only the selected Claude settings file with a backup, t
     preview.files[0].changes
       .filter((change) => change.action === 'add')
       .map((change) => change.scope),
-    [`permissions.allow ${connectRule}`, `permissions.allow ${sendRule}`],
+    rulesMissingFromReadOnly.map((rule) => `permissions.allow ${rule}`),
   );
   assert.equal(await readFile(filename, 'utf8'), source);
   const result = await service.apply(owner, preview.planId, false);
@@ -239,7 +261,7 @@ test('Owner Apply writes only the selected Claude settings file with a backup, t
   assert.equal(await readFile(result.files[0].backupPath!, 'utf8'), source);
   const written = parseJson(await readFile(filename, 'utf8'));
   assert.equal(written.theme, 'dark');
-  assert.deepEqual(written.permissions.allow, [readRule, connectRule, sendRule]);
+  assert.deepEqual(written.permissions.allow, readOnlyUpgrade);
   assert.equal((await service.status('claude')).state, 'configured');
   assert.equal((await service.status('claude')).remembered, true);
   const after = await readFile(filename, 'utf8');
@@ -274,6 +296,34 @@ test('Claude permission conflicts leave the selected file untouched and invalida
   assert.equal((await service.status('claude')).state, 'unavailable');
   assert.equal(await readFile(filename, 'utf8'), restricted);
   assert.deepEqual(await readdir(path.dirname(filename)), ['settings.json']);
+});
+
+test('Claude setup with three rules previews and adds only the seven missing rules', async (t) => {
+  const { directory, service } = await fixture(t);
+  const filename = path.join(directory, '.claude', 'settings.json');
+  await mkdir(path.dirname(filename));
+  const previous = JSON.parse(configuration);
+  previous.permissions.allow = [sendRule, readRule, connectRule];
+  const source = JSON.stringify(previous, null, 2) + '\n';
+  await writeFile(filename, source);
+
+  assert.equal((await service.status('claude')).state, 'needs-update');
+  const preview = await service.preview(owner, 'claude', [{ id: 'configuration', path: filename }]);
+  assert.equal(preview.requiresReplacement, false);
+  assert.deepEqual(
+    preview.files[0].changes
+      .filter((change) => change.action === 'add')
+      .map((change) => change.scope),
+    exactRules.slice(3).map((rule) => `permissions.allow ${rule}`),
+  );
+  assert.equal(await readFile(filename, 'utf8'), source);
+  const result = await service.apply(owner, preview.planId, false);
+  assert.equal(result.status, 'applied');
+  assert.equal(await readFile(result.files[0].backupPath!, 'utf8'), source);
+  assert.deepEqual(JSON.parse(await readFile(filename, 'utf8')).permissions.allow, [
+    ...previous.permissions.allow,
+    ...exactRules.slice(3),
+  ]);
 });
 
 test('Desktop IPC accepts the Claude client with a JSON-only picker and one configuration target', async (t) => {
@@ -355,11 +405,7 @@ test('Claude renderer Apply and quick Connect persist the same exact rules throu
   await writeFile(filename, JSON.stringify(legacy));
   await quick.connect('claude');
   assert.equal(quick.getSnapshot().claude.phase, 'succeeded');
-  assert.deepEqual(JSON.parse(await readFile(filename, 'utf8')).permissions.allow, [
-    readRule,
-    connectRule,
-    sendRule,
-  ]);
+  assert.deepEqual(JSON.parse(await readFile(filename, 'utf8')).permissions.allow, readOnlyUpgrade);
 
   const previous = configuration.replace(marketplace, '/old/NCF/Integrations/claude-code');
   const replacement = JSON.stringify({
@@ -374,8 +420,7 @@ test('Claude renderer Apply and quick Connect persist the same exact rules throu
   const changes = renderToStaticMarkup(
     React.createElement(ClaudePermissionChanges, { file: pending.preview!.files[0] }),
   );
-  assert.ok(changes.includes(connectRule));
-  assert.ok(changes.includes(sendRule));
+  for (const rule of rulesMissingFromReadOnly) assert.ok(changes.includes(rule));
   assert.ok(!changes.includes(readRule));
   assert.equal(await readFile(filename, 'utf8'), replacement);
   quick.cancel('claude');
@@ -383,11 +428,7 @@ test('Claude renderer Apply and quick Connect persist the same exact rules throu
   await quick.connect('claude');
   await quick.confirm('claude');
   assert.equal(quick.getSnapshot().claude.phase, 'succeeded');
-  assert.deepEqual(JSON.parse(await readFile(filename, 'utf8')).permissions.allow, [
-    readRule,
-    connectRule,
-    sendRule,
-  ]);
+  assert.deepEqual(JSON.parse(await readFile(filename, 'utf8')).permissions.allow, readOnlyUpgrade);
 
   const blocked = JSON.stringify({ ...legacy, permissions: { ask: [sendRule] } });
   await writeFile(filename, blocked);

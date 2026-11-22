@@ -124,7 +124,7 @@ export const de: Messages = {
   mcpSetup_configureClaude: 'Claude Code einrichten',
   mcpSetup_claudeTitle: 'Claude Code einrichten',
   mcpSetup_claudeDescription:
-    'Die Einrichtung aktiviert die NCF-Plugins und erlaubt agent_connect, agent_read und agent_send im ausgewählten Claude-Profil. Bestehende Rückfrage- und Verweigerungsregeln gelten weiterhin, auch zentral verwaltete Regeln.',
+    'Die Einrichtung aktiviert die NCF-Plugins und erlaubt zehn NCF-Werkzeuge im ausgewählten Claude-Profil. Beim Trennen wird die Chat-Verknüpfung gelöst und der Verlauf bleibt erhalten. Bestehende Rückfrage- und Verweigerungsregeln gelten weiterhin, auch zentral verwaltete Regeln.',
   mcpSetup_claudeNext:
     'Öffnen Sie Claude Code oder setzen Sie eine Sitzung fort. Stellen Sie dann im Chat die Verbindung her.',
   mcpSetup_claudeLaunch: 'Claude Code starten',

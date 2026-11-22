@@ -2,9 +2,18 @@ import type { McpInstructions } from '../shared/contracts.js';
 import { claudePlugin, claudeToolPrefix } from '../integrations/claude-code.js';
 import { claudeLaunchCommand } from '../shared/mcp-setup.js';
 
-export const claudeSetupAllowRules = ['agent_connect', 'agent_read', 'agent_send'].map(
-  (tool) => claudeToolPrefix + tool,
-);
+export const claudeSetupAllowRules = [
+  'agent_connect',
+  'agent_read',
+  'agent_send',
+  'agent_history',
+  'agents_list',
+  'attachment_receive',
+  'connection_events',
+  'node_peers',
+  'node_status',
+  'agent_disconnect',
+].map((tool) => claudeToolPrefix + tool);
 
 export function mcpInstructions(
   url: string,
@@ -21,7 +30,7 @@ export function mcpInstructions(
     return {
       client,
       location: 'Claude Code user settings — ~/.claude/settings.json',
-      text: 'Apply enables two plugins from the marketplace published by this app: the NCF plugin (its MCP server, lifecycle and tool-call hooks, and a mod for full incoming messages in the exact chat) and the NCF gate plugin it depends on, which checks one-use delivery authority before admitting the message. Apply adds exact allow rules for agent_connect, agent_read, and agent_send in the selected Claude profile. Existing ask and deny rules still apply, including managed rules. Start or resume Claude Code normally. Direct incoming needs compatible Claude Code mods, which safe mode and some organization policies turn off; when unavailable, messages remain available through manual agent_read. A connected MCP server alone does not establish automatic delivery. Do not poll.',
+      text: 'Apply enables two plugins from the marketplace published by this app: the NCF plugin (its MCP server, lifecycle and tool-call hooks, and a mod for full incoming messages in the exact chat) and the NCF gate plugin it depends on, which checks one-use delivery authority before admitting the message. Apply adds ten exact allow rules in the selected Claude profile for connecting, exchanging messages, finding agents and nodes, checking status and connection events, accessing history and attachments, and disconnecting. Disconnect releases the current chat binding and preserves history. Deleting an agent and its history requires separate owner approval. Existing ask and deny rules still apply, including managed rules. Start or resume Claude Code normally. Direct incoming needs compatible Claude Code mods, which safe mode and some organization policies turn off; when unavailable, messages remain available through manual agent_read. A connected MCP server alone does not establish automatic delivery. Do not poll.',
       configuration: JSON.stringify(
         {
           extraKnownMarketplaces: {

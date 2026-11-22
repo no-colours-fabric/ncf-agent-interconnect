@@ -119,7 +119,7 @@ export const nl: Messages = {
   mcpSetup_configureClaude: 'Claude Code instellen',
   mcpSetup_claudeTitle: 'Claude Code instellen',
   mcpSetup_claudeDescription:
-    'De configuratie schakelt de NCF-plugins in en staat agent_connect, agent_read en agent_send toe in het geselecteerde Claude-profiel. Bestaande regels voor bevestiging en weigering blijven gelden, ook beheerde regels.',
+    'De configuratie schakelt de NCF-plugins in en staat tien gangbare tools toe in het geselecteerde Claude-profiel. Bij ontkoppelen wordt de chatkoppeling opgeheven en blijft de geschiedenis bewaard. Bestaande bevestigings- en weigeringsregels blijven gelden, ook beheerde regels.',
   mcpSetup_claudeNext: 'Open of hervat een Claude Code-sessie en maak verbinding in de chat.',
   mcpSetup_claudeLaunch: 'Claude Code starten',
   mcpSetup_copyLaunch: 'Startopdracht kopiëren',

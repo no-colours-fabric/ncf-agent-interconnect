@@ -119,7 +119,7 @@ export const uk: Messages = {
   mcpSetup_configureClaude: 'Налаштувати Claude Code',
   mcpSetup_claudeTitle: 'Налаштувати Claude Code',
   mcpSetup_claudeDescription:
-    'Налаштування вмикає плагіни NCF і дозволяє agent_connect, agent_read та agent_send у вибраному профілі Claude. Чинні правила підтвердження й заборони залишаються в силі, зокрема правила організації.',
+    'Налаштування вмикає плагіни NCF і дозволяє десять штатних команд у вибраному профілі Claude. Відключення звільняє прив’язку чату та зберігає історію. Чинні правила підтвердження й заборони залишаються в силі, зокрема правила організації.',
   mcpSetup_claudeNext: 'Відкрийте або відновіть сеанс Claude Code та підключіться в чаті.',
   mcpSetup_claudeLaunch: 'Запуск Claude Code',
   mcpSetup_copyLaunch: 'Копіювати команду запуску',

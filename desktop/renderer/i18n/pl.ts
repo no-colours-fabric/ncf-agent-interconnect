@@ -121,7 +121,7 @@ export const pl: Messages = {
   mcpSetup_configureClaude: 'Skonfiguruj Claude Code',
   mcpSetup_claudeTitle: 'Skonfiguruj Claude Code',
   mcpSetup_claudeDescription:
-    'Konfiguracja włącza wtyczki NCF i zezwala na agent_connect, agent_read i agent_send w wybranym profilu Claude. Nadal obowiązują istniejące reguły wymagające potwierdzenia lub odmawiające dostępu, także reguły zarządzane.',
+    'Konfiguracja włącza wtyczki NCF i zezwala na dziesięć standardowych narzędzi w wybranym profilu Claude. Rozłączenie zwalnia powiązanie z czatem i zachowuje jego historię. Nadal obowiązują istniejące reguły potwierdzania i odmowy, także reguły zarządzane.',
   mcpSetup_claudeNext: 'Otwórz lub wznów sesję Claude Code, a następnie połącz się w czacie.',
   mcpSetup_claudeLaunch: 'Uruchom Claude Code',
   mcpSetup_copyLaunch: 'Kopiuj polecenie uruchomienia',
