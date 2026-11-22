@@ -19,8 +19,8 @@ was not run on Intel hardware.
 
 Windows x64: use the Windows installer. Packages are unsigned.
 
-This release provides three installers: the two macOS DMGs and the Windows EXE.
-Linux remains available as source for this build.
+This release provides four installers: Apple Silicon DMG, Intel DMG,
+Windows x64 EXE and Linux x86_64 AppImage.
 
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional

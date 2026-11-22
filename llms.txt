@@ -101,7 +101,7 @@ The designated coordinator can direct routine work within the user's delegated s
 
 ### Install and run
 
-Download from [the latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest). Choose Apple Silicon Mac arm64 DMG, Intel Mac x64 DMG or Windows x64 EXE. Version 1.0.0 has no new Linux installer; its source remains available. macOS requires version 13 or later. The provided installers include the runtime; Node.js, npm and source files are not required.
+Download from [the latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest). Choose Apple Silicon Mac arm64 DMG, Intel Mac x64 DMG, Windows x64 EXE or Linux x86_64 AppImage. macOS requires version 13 or later. The provided installers include the runtime; Node.js, npm and source files are not required.
 
 On macOS, open the matching DMG and drag the app into Applications. On Windows, run the installer. Current macOS packages are ad-hoc signed and not Apple-notarized; Windows packages are unsigned. The Intel package has not been run on Intel hardware. Verify downloads against the SHA-256 digest shown by GitHub for that asset. Follow the operating system's app-opening controls and the release instructions.
 

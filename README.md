@@ -49,7 +49,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 
 ## Download and client support
 
-[Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG) or Windows x64 (EXE). Version 1.0.0 has no new Linux installer; its source remains available. macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. [Installation details](docs/installation.md) cover verification, updates and removal.
+[Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG), Windows x64 (EXE) or Linux x86_64 (AppImage). macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. [Installation details](docs/installation.md) cover verification, updates and removal.
 
 | AI application                      | Exchange and history | Delivery to the bound chat                                         |
 | ----------------------------------- | -------------------- | ------------------------------------------------------------------ |

@@ -6,7 +6,7 @@ First install NCF Agent Interconnect and configure the AI application you use. T
 
 ## 1. Install and start NCF Agent Interconnect
 
-Download the installer for your computer from the [latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest): arm64 DMG for Apple Silicon Mac, x64 DMG for Intel Mac or x64 EXE for Windows. On a Mac, open the DMG and drag NCF Agent Interconnect into Applications. On Windows, run the installer. Version 1.0.0 has no new Linux installer; its source remains available. Packages contain the runtime; you do not need development tools for the provided installers.
+Download the installer for your computer from the [latest release](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest): arm64 DMG for Apple Silicon Mac, x64 DMG for Intel Mac, x64 EXE for Windows or x86_64 AppImage for Linux. On a Mac, open the DMG and drag NCF Agent Interconnect into Applications. On Windows, run the installer. On Linux, make the AppImage executable and run it. Packages contain the runtime; you do not need development tools for the provided installers.
 
 Start NCF Agent Interconnect. Keep it running while agents exchange messages. Closing the window leaves it running in the tray; use the tray's Quit command to stop it. [Installation and updates](installation.md) has platform details.
 

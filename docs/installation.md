@@ -42,9 +42,9 @@ the [developer documentation](development.md).
 
 ## Linux
 
-Version 1.0.0 has no new Linux installer. Its source remains available; see
-[developer documentation](development.md) for source setup. A source build is
-separate from the three provided installers. Keep the node's data folder and
+Make the Linux x86_64 AppImage executable and run it, then follow the
+[setup guide](setup.md). For source setup, see the
+[developer documentation](development.md). Keep the node's data folder and
 private client profiles; do not start an empty profile to work around an upgrade.
 Follow the storage-format migration guidance below.
 
