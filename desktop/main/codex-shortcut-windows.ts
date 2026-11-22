@@ -110,6 +110,26 @@ export async function windowsCodexShortcutIcon(appPath: string): Promise<string>
   return icon;
 }
 
+export async function verifyWindowsCodexShortcutManifest(
+  manifest: string,
+  expected: WindowsCodexShortcutContext & Omit<WindowsCodexShortcutRequest, 'destination'>,
+): Promise<boolean> {
+  if (process.platform !== 'win32') return false;
+  try {
+    const { m } = await bridge.validateManifest(manifest, expected);
+    const [profile, desktopData] = await Promise.all([
+      bridge.canonical(expected.profile, true),
+      bridge.canonical(expected.desktopData, true),
+    ]);
+    return (
+      path.resolve(m.profile).toLowerCase() === profile.toLowerCase() &&
+      path.resolve(m.desktopData).toLowerCase() === desktopData.toLowerCase()
+    );
+  } catch {
+    return false;
+  }
+}
+
 const linkScript = String.raw`
 $d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
 $w=New-Object -ComObject WScript.Shell
