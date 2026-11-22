@@ -50,6 +50,44 @@ const bridge = createRequire(import.meta.url)('../integrations/codex-windows-bri
   ): Promise<{ m: Manifest; pkg: PackageInfo; directory: string }>;
 };
 
+type WindowsDesktopData =
+  { state: 'ready'; directory: string } | { state: 'appMissing' | 'profileUnavailable' };
+
+/** Resolve only the stock Desktop data for the already verified Appx package. */
+export async function resolveWindowsCodexDesktopData(appData: string): Promise<WindowsDesktopData> {
+  if (process.platform !== 'win32') return { state: 'appMissing' };
+  try {
+    const pkg = await bridge.inspectPackage();
+    await bridge.resolveVendor(pkg);
+  } catch {
+    return { state: 'appMissing' };
+  }
+  const localData = process.env.LOCALAPPDATA;
+  if (!localData || !path.isAbsolute(localData) || !path.isAbsolute(appData))
+    return { state: 'profileUnavailable' };
+  // A package-private copy makes the ordinary roaming data ambiguous.
+  // Leave a package-only layout unavailable until its exact launch path is proved.
+  const privateData = path.join(
+    localData,
+    'Packages',
+    'OpenAI.Codex_2p2nqsd0c76g0',
+    'LocalCache',
+    'Roaming',
+    'Codex',
+  );
+  try {
+    await lstat(privateData);
+    return { state: 'profileUnavailable' };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') return { state: 'profileUnavailable' };
+  }
+  try {
+    return { state: 'ready', directory: await bridge.canonical(path.join(appData, 'Codex'), true) };
+  } catch {
+    return { state: 'profileUnavailable' };
+  }
+}
+
 export function windowsCodexLaunchArguments(manifest: string): string[] {
   if (!path.isAbsolute(manifest) || /[\0\r\n"]/.test(manifest))
     throw new Error('NCF_CODEX_MANIFEST_ARGUMENT');

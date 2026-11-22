@@ -251,6 +251,21 @@ function setupIpc(): void {
       appData: app.getPath('appData'),
       home: app.getPath('home'),
       desktop: app.getPath('desktop'),
+      boundProfiles: () => {
+        const node = access.current();
+        const profiles = node.settings.value.adapters;
+        return node.store.list().flatMap(({ binding }) => {
+          if (binding?.client !== 'Codex') return [];
+          const profile = profiles.find(
+            (item) =>
+              item.id === binding.adapterId &&
+              item.kind === 'codex-desktop' &&
+              item.threadId === binding.chatId,
+          );
+          return [profile ?? {}];
+        });
+      },
+      reveal: (filename) => shell.showItemInFolder(filename),
       dialog,
     },
   });

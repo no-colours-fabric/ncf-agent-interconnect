@@ -67,6 +67,23 @@ export function CodexShortcut({
     }
   }
 
+  async function revealDock() {
+    const revealed = await invoke<boolean>('codexShortcutRevealDock', {}).catch(() => false);
+    if (revealed) return;
+    setResult((current) =>
+      current === result && current?.state === 'complete'
+        ? {
+            ...current,
+            destinations: current.destinations.map((entry) =>
+              entry.destination === 'dock' && entry.result === 'dockPending'
+                ? { ...entry, result: 'dockUnavailable' }
+                : entry,
+            ),
+          }
+        : current,
+    );
+  }
+
   return (
     <Stack spacing={1} sx={{ alignItems: 'flex-start', mt: 1 }}>
       <Button
@@ -112,11 +129,6 @@ export function CodexShortcut({
               />
             ))}
           </FormGroup>
-          {selected.length === 1 && selected[0] === 'dock' && (
-            <Typography variant="body2" color="text.secondary">
-              {copy.dockOnly}
-            </Typography>
-          )}
         </DialogContent>
         <DialogActions sx={{ '& .MuiButton-root': { minHeight: 44 } }}>
           <Button onClick={() => setOpen(false)}>{t(locale, 'btnCancel')}</Button>
@@ -144,6 +156,15 @@ export function CodexShortcut({
                 {copy[destination]}
               </Typography>
               <Typography variant="body2">{copy[result]}</Typography>
+              {result === 'dockPending' && (
+                <Button
+                  size="small"
+                  sx={{ minHeight: 44, mt: 0.5 }}
+                  onClick={() => void revealDock()}
+                >
+                  {copy.showInFinder}
+                </Button>
+              )}
             </Alert>
           );
         })}

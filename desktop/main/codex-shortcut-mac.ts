@@ -14,6 +14,7 @@ import {
 import path from 'node:path';
 import { promisify } from 'node:util';
 import type { CodexShortcutResult } from '../shared/codex-shortcut.js';
+import { discoveryCatalog } from '../core/application-discovery-catalog.js';
 
 const execute = promisify(execFile);
 const cliLocation = 'Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex';
@@ -49,8 +50,10 @@ export interface MacCodexInstall {
   cli: string;
 }
 
-export async function findMacCodex(): Promise<MacCodexInstall | undefined> {
-  for (const desktop of ['/Applications/ChatGPT.app', '/Applications/Codex.app']) {
+export async function findMacCodex(): Promise<MacCodexInstall | null | undefined> {
+  const installs: MacCodexInstall[] = [];
+  for (const { name, id } of discoveryCatalog.codex.bundles) {
+    const desktop = path.join('/Applications', name);
     const cli = path.join(desktop, cliLocation);
     try {
       if ((await realpath(desktop)) !== desktop || (await realpath(cli)) !== cli) continue;
@@ -67,7 +70,7 @@ export async function findMacCodex(): Promise<MacCodexInstall | undefined> {
         ['-c', 'Print :CFBundleIdentifier', path.join(desktop, 'Contents/Info.plist')],
         { timeout: 3000 },
       );
-      if (stdout.trim() !== 'com.openai.codex') continue;
+      if (stdout.trim() !== id) continue;
       const executable = await execute(
         '/usr/libexec/PlistBuddy',
         ['-c', 'Print :CFBundleExecutable', path.join(desktop, 'Contents/Info.plist')],
@@ -82,11 +85,13 @@ export async function findMacCodex(): Promise<MacCodexInstall | undefined> {
         executableInfo.mode & 0o111 &&
         (await realpath(desktopExecutable)) === desktopExecutable
       )
-        return { desktop, desktopExecutable, cli };
+        installs.push({ desktop, desktopExecutable, cli });
     } catch {
       // Each supported installation location is independent.
     }
   }
+  if (installs.length > 1) return null;
+  return installs[0];
 }
 
 export async function macShortcutDirectory(filename: string): Promise<string> {
@@ -107,10 +112,60 @@ interface MacShortcutOptions extends MacCodexInstall {
   launchFailed: string;
 }
 
+function launcherIdentity({
+  profile,
+  desktopData,
+  desktop,
+  cli,
+  appExecutable,
+}: MacShortcutOptions) {
+  return { profile, desktopData, desktop, cli, runtime: appExecutable };
+}
+
+/** Reuse only our signed, matching bundle in the private Dock directory. */
+export async function verifyMacCodexShortcut(options: MacShortcutOptions): Promise<boolean> {
+  try {
+    const resources = path.join(options.destination, 'Contents', 'Resources');
+    if ((await macShortcutDirectory(options.destination)) !== options.destination) return false;
+    const manifest = path.join(resources, 'launch.json');
+    const wrapper = path.join(resources, 'ncf-codex-cli');
+    for (const filename of [manifest, wrapper]) {
+      const stat = await lstat(filename);
+      if (
+        !stat.isFile() ||
+        stat.nlink !== 1 ||
+        stat.size > 32768 ||
+        (await realpath(filename)) !== filename
+      )
+        return false;
+    }
+    const config: unknown = JSON.parse(await readFile(manifest, 'utf8'));
+    if (!config || typeof config !== 'object') return false;
+    if (
+      !Object.entries(launcherIdentity(options)).every(
+        ([key, value]) => (config as Record<string, unknown>)[key] === value,
+      )
+    )
+      return false;
+    const bridge = path.join(options.appPath, 'build/integrations/codex-shortcut-bridge.js');
+    if (
+      (await readFile(wrapper, 'utf8')) !==
+      macCliWrapper(options.appExecutable, bridge, options.profile, options)
+    )
+      return false;
+    await execute('/usr/bin/codesign', ['--verify', '--strict', options.destination], {
+      timeout: 3000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function createMacCodexShortcut(
   options: MacShortcutOptions,
 ): Promise<Extract<CodexShortcutResult, 'created' | 'alreadyExists' | 'failed'>> {
-  const { destination, profile, desktopData, appExecutable, appPath, desktop, cli } = options;
+  const { destination, profile, appExecutable, appPath } = options;
   const parent = path.dirname(destination);
   const bridge = path.join(appPath, 'build/integrations/codex-shortcut-bridge.js');
   let stage: string | undefined;
@@ -142,11 +197,7 @@ export async function createMacCodexShortcut(
       writeFile(
         path.join(resources, 'launch.json'),
         JSON.stringify({
-          profile,
-          desktopData,
-          desktop,
-          cli,
-          runtime: appExecutable,
+          ...launcherIdentity(options),
           alreadyOpen: options.alreadyOpen,
           launchFailed: options.launchFailed,
         }),

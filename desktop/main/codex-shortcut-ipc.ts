@@ -1,11 +1,6 @@
-import type {
-  BrowserWindow,
-  OpenDialogOptions,
-  OpenDialogReturnValue,
-  SaveDialogOptions,
-  SaveDialogReturnValue,
-} from 'electron';
+import type { BrowserWindow, SaveDialogOptions, SaveDialogReturnValue } from 'electron';
 import { execFile } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { lstat, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
@@ -19,11 +14,11 @@ import {
   type CodexShortcutFailure,
   type CodexShortcutPlatform,
 } from '../shared/codex-shortcut.js';
-import type { McpSetupStatus } from '../shared/mcp-setup.js';
 import {
   createMacCodexShortcut,
   findMacCodex,
   macShortcutDirectory,
+  verifyMacCodexShortcut,
 } from './codex-shortcut-mac.js';
 
 import type {
@@ -78,20 +73,49 @@ interface CodexShortcutOptions {
   appData: string;
   home: string;
   codexHome?: string;
+  desktopDataOverride?: string;
   desktop: string;
   dialog: {
-    showOpenDialog: (
-      owner: BrowserWindow,
-      options: OpenDialogOptions,
-    ) => Promise<OpenDialogReturnValue>;
     showSaveDialog: (
       owner: BrowserWindow,
       options: SaveDialogOptions,
     ) => Promise<SaveDialogReturnValue>;
   };
+  reveal: (filename: string) => void;
   window: () => BrowserWindow | null;
-  status: () => Promise<McpSetupStatus>;
+  configurationPath: () => Promise<string>;
+  boundProfiles: () => readonly { socket?: string; codexQueue?: boolean }[];
   configuredFile: (filename: string) => Promise<string | null>;
+}
+
+function samePath(a: string, b: string, platform: CodexShortcutPlatform): boolean {
+  return platform === 'windows' ? a.toLowerCase() === b.toLowerCase() : a === b;
+}
+
+function matchesStandardBinding(
+  binding: ReturnType<CodexShortcutOptions['boundProfiles']>[number],
+  profile: string,
+  platform: CodexShortcutPlatform,
+): boolean {
+  if (!binding.socket) return false;
+  if (platform === 'windows' && !binding.codexQueue)
+    return binding.socket.toLowerCase() === String.raw`\\.\pipe\codex-ipc`;
+  const expected =
+    platform === 'windows'
+      ? path.join(profile, 'app-server-control', 'app-server-control.sock')
+      : path.join(profile, 'ipc', 'ipc.sock');
+  return samePath(binding.socket, expected, platform);
+}
+
+async function privateDockDirectory(directory: string, canonical: typeof macShortcutDirectory) {
+  await mkdir(directory, { mode: 0o700, recursive: true });
+  const stat = await lstat(directory);
+  if (
+    !stat.isDirectory() ||
+    (stat.mode & 0o077) !== 0 ||
+    (await canonical(directory)) !== directory
+  )
+    throw new Error('The private Dock shortcut directory is unavailable');
 }
 
 export function codexShortcutPlatform(
@@ -106,19 +130,22 @@ export function codexShortcutPlatform(
 
 export function createCodexShortcutHandler(
   options: CodexShortcutOptions,
-  mac = { findMacCodex, createMacCodexShortcut, macShortcutDirectory },
+  mac = { findMacCodex, createMacCodexShortcut, macShortcutDirectory, verifyMacCodexShortcut },
   windows = {
     create: async (request: WindowsCodexShortcutRequest, context: WindowsCodexShortcutContext) =>
       (await import('./codex-shortcut-windows.js')).createWindowsCodexShortcut(request, context),
     programs: windowsProgramsDirectory,
+    desktopData: async (appData: string) =>
+      (await import('./codex-shortcut-windows.js')).resolveWindowsCodexDesktopData(appData),
   },
 ) {
   let creating = false;
+  let dockShortcut: string | undefined;
 
   return async (
     method: string,
     raw: unknown,
-  ): Promise<CodexShortcutPlatform | CodexShortcutCreateResult | null> => {
+  ): Promise<CodexShortcutPlatform | CodexShortcutCreateResult | boolean | null> => {
     const platform = codexShortcutPlatform(
       options.platform,
       options.installed,
@@ -127,6 +154,22 @@ export function createCodexShortcutHandler(
     if (method === 'codexShortcutPlatform') {
       z.object({}).strict().parse(raw);
       return platform;
+    }
+    if (method === 'codexShortcutRevealDock') {
+      z.object({}).strict().parse(raw);
+      const owner = options.window();
+      const destination = dockShortcut;
+      if (platform !== 'mac' || !destination || !owner || owner.isDestroyed()) return false;
+      const current = await lstat(destination).catch(() => null);
+      if (
+        !current?.isDirectory() ||
+        dockShortcut !== destination ||
+        owner.isDestroyed() ||
+        options.window() !== owner
+      )
+        return false;
+      options.reveal(destination);
+      return true;
     }
     const { locale, destinations } = createInput.parse(raw);
     if (
@@ -143,62 +186,10 @@ export function createCodexShortcutHandler(
     const copy = codexShortcutMessages(locale);
     creating = true;
     try {
-      const status = await options.status();
-      const suggested = status.files[0]?.path;
-      const explicitHome = options.codexHome;
-      const explicitConfig =
-        explicitHome && path.isAbsolute(explicitHome)
-          ? path.join(explicitHome, 'config.toml')
-          : undefined;
-      let filename = suggested;
-      if (
-        status.state !== 'configured' ||
-        !suggested ||
-        (!status.remembered && suggested !== explicitConfig)
-      ) {
-        if (!isCurrent()) return cancelled;
-        const selected = await options.dialog.showOpenDialog(owner, {
-          title: copy.selectConfig,
-          defaultPath: suggested || path.join(options.home, '.codex', 'config.toml'),
-          properties: ['openFile', 'showHiddenFiles'],
-          filters: [{ name: 'TOML', extensions: ['toml'] }],
-        });
-        if (selected.canceled || !selected.filePaths[0] || !isCurrent()) return cancelled;
-        filename = selected.filePaths[0];
-      }
-      if (!filename) return failed('setupRequired');
-      const configuration = await options.configuredFile(filename).catch(() => null);
-      if (!configuration) return failed('setupRequired');
-      const profileDirectory = path.dirname(configuration);
-      const profile =
-        platform === 'mac'
-          ? await mac.macShortcutDirectory(profileDirectory).catch(() => null)
-          : profileDirectory;
-      if (!profile) return failed('profileUnavailable');
-      const install = platform === 'mac' ? await mac.findMacCodex() : undefined;
-      if (platform === 'mac' && !install) return failed('appMissing');
-      if (!isCurrent()) return cancelled;
-      const selected = await options.dialog.showOpenDialog(owner, {
-        title: copy.selectData,
-        message: profile,
-        defaultPath:
-          configuration === path.join(options.home, '.codex', 'config.toml')
-            ? path.join(options.appData, 'Codex')
-            : options.appData,
-        properties: ['openDirectory', 'showHiddenFiles'],
-      });
-      if (selected.canceled || !selected.filePaths[0] || !isCurrent()) return cancelled;
-      const desktopData =
-        platform === 'mac'
-          ? await mac.macShortcutDirectory(selected.filePaths[0]).catch(() => null)
-          : selected.filePaths[0];
-      if (!desktopData) return failed('profileUnavailable');
-      if (!isCurrent()) return cancelled;
       const extension = platform === 'mac' ? 'app' : 'lnk';
       const shortcutName = 'Codex with NCF.' + extension;
-      const dockOnly = destinations.length === 1 && destinations[0] === 'dock';
       let chosenFile: string | undefined;
-      if (dockOnly || destinations.includes('custom')) {
+      if (destinations.includes('custom')) {
         const saved = await options.dialog.showSaveDialog(owner, {
           title: copy.save,
           defaultPath: path.join(options.desktop, shortcutName),
@@ -207,9 +198,68 @@ export function createCodexShortcutHandler(
         if (saved.canceled || !saved.filePath || !isCurrent()) return cancelled;
         chosenFile = saved.filePath;
       }
-      const current = await options.configuredFile(filename).catch(() => null);
+      const selectedConfig = await options.configurationPath();
+      const configuration = await options.configuredFile(selectedConfig).catch(() => null);
+      if (!configuration) return failed('setupRequired');
+      const standardProfile = path.join(options.home, '.codex');
+      const profile = path.dirname(configuration);
+      if (
+        !samePath(profile, standardProfile, platform) ||
+        (options.codexHome && !samePath(options.codexHome, profile, platform)) ||
+        !options
+          .boundProfiles()
+          .every((binding) => matchesStandardBinding(binding, profile, platform))
+      )
+        return failed('profileUnavailable');
+
+      const install = platform === 'mac' ? await mac.findMacCodex() : undefined;
+      if (platform === 'mac' && !install)
+        return failed(install === null ? 'profileUnavailable' : 'appMissing');
+      let desktopData: string;
+      if (platform === 'mac') {
+        const standardData = path.join(options.appData, 'Codex');
+        const verified = await mac.macShortcutDirectory(standardData).catch(() => null);
+        if (
+          verified !== standardData ||
+          (await mac.macShortcutDirectory(profile).catch(() => null)) !== profile
+        )
+          return failed('profileUnavailable');
+        desktopData = verified;
+      } else {
+        const resolved = await windows.desktopData(options.appData);
+        if (resolved.state !== 'ready') return failed(resolved.state);
+        desktopData = resolved.directory;
+      }
+      if (
+        options.desktopDataOverride &&
+        !samePath(options.desktopDataOverride, desktopData, platform)
+      )
+        return failed('profileUnavailable');
+      const currentConfig = await options.configurationPath();
+      if (
+        currentConfig !== selectedConfig ||
+        (await options.configuredFile(currentConfig).catch(() => null)) !== configuration
+      )
+        return failed('setupRequired');
+      if (
+        !options
+          .boundProfiles()
+          .every((binding) => matchesStandardBinding(binding, profile, platform))
+      )
+        return failed('profileUnavailable');
       if (!isCurrent()) return cancelled;
-      if (current !== configuration) return failed('setupRequired');
+      const launcher = {
+        profile,
+        desktopData,
+        appExecutable: options.appExecutable,
+        appPath: options.appPath,
+      };
+      const macConfig = install && {
+        ...launcher,
+        ...install,
+        alreadyOpen: copy.alreadyOpen,
+        launchFailed: copy.launchFailed,
+      };
       const create = async (
         destination: string,
       ): Promise<CodexShortcutDestinationResult['result']> => {
@@ -221,25 +271,15 @@ export function createCodexShortcutHandler(
           if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
         }
         if (!isCurrent()) return 'failed';
-        const request = {
-          destination,
-          profile,
-          desktopData,
-          appExecutable: options.appExecutable,
-          appPath: options.appPath,
-        } satisfies WindowsCodexShortcutRequest;
+        const request = { destination, ...launcher } satisfies WindowsCodexShortcutRequest;
         if (platform === 'windows') return windows.create(request, { userData: options.userData });
-        if (!install) return 'appMissing';
-        return mac.createMacCodexShortcut({
-          ...request,
-          ...install,
-          alreadyOpen: copy.alreadyOpen,
-          launchFailed: copy.launchFailed,
-        });
+        if (!macConfig) return 'appMissing';
+        return mac.createMacCodexShortcut({ destination, ...macConfig });
       };
+      dockShortcut = undefined;
       const results: CodexShortcutDestinationResult[] = [];
       for (const destination of destinations) {
-        if (destination === 'dock' && !dockOnly) continue;
+        if (destination === 'dock') continue;
         let result: CodexShortcutDestinationResult['result'] = 'failed';
         try {
           let output = chosenFile;
@@ -251,16 +291,53 @@ export function createCodexShortcutHandler(
           }
           if (destination === 'startMenu')
             output = path.join(await windows.programs(), shortcutName);
-          if (output) result = await create(output);
+          if (output) {
+            result = await create(output);
+            if (platform === 'mac' && result === 'created') dockShortcut ??= output;
+          }
         } catch {
           // Each selected location reports its own outcome.
         }
-        if (destination === 'dock' && result === 'created') result = 'dockPending';
         results.push({ destination, result });
       }
-      if (!dockOnly && destinations.includes('dock')) {
-        const created = results.some(({ result }) => result === 'created');
-        results.push({ destination: 'dock', result: created ? 'dockPending' : 'dockUnavailable' });
+      if (destinations.includes('dock')) {
+        if (!dockShortcut && macConfig && isCurrent()) {
+          try {
+            if ((await mac.macShortcutDirectory(options.userData)) !== options.userData)
+              throw new Error('The application data directory is unavailable');
+            const directory = path.join(options.userData, 'codex-dock');
+            const key = createHash('sha256')
+              .update(
+                JSON.stringify([
+                  profile,
+                  desktopData,
+                  macConfig.desktop,
+                  options.appExecutable,
+                  options.appPath,
+                ]),
+              )
+              .digest('hex');
+            const target = path.join(directory, key);
+            await privateDockDirectory(directory, mac.macShortcutDirectory);
+            await privateDockDirectory(target, mac.macShortcutDirectory);
+            const destination = path.join(target, shortcutName);
+            const result = await create(destination);
+            if (
+              result === 'created' ||
+              (result === 'alreadyExists' &&
+                (await mac.verifyMacCodexShortcut({ destination, ...macConfig })))
+            )
+              dockShortcut = destination;
+          } catch {
+            // Report the Dock action separately if its backing sequence fails.
+          }
+        }
+        results.push({
+          destination: 'dock',
+          result: dockShortcut ? 'dockPending' : 'dockUnavailable',
+        });
+      } else {
+        dockShortcut = undefined;
       }
       return { state: 'complete', destinations: results };
     } catch {

@@ -6,6 +6,7 @@ import {
   type McpSetupOptions,
 } from '../core/mcp-setup.js';
 import { createCodexShortcutHandler } from './codex-shortcut-ipc.js';
+import { McpSetupPaths } from '../core/mcp-setup-paths.js';
 import { openCodeV2TargetSchema } from '../core/opencode-v2-auth.js';
 import { mcpSetupClients, mcpSetupMethods, openCodeV2SetupMethods } from '../shared/mcp-setup.js';
 
@@ -31,6 +32,8 @@ export function createMcpSetupHandler(
       appData: string;
       home: string;
       desktop: string;
+      boundProfiles: () => readonly { socket?: string; codexQueue?: boolean }[];
+      reveal: (filename: string) => void;
       dialog: Pick<Dialog, 'showSaveDialog'>;
     };
   },
@@ -41,22 +44,25 @@ export function createMcpSetupHandler(
 ) => Promise<{ handled: false } | { handled: true; result: unknown }> {
   const setup = new McpSetupService(options);
   const v2 = new OpenCodeV2SetupService(options);
+  const paths = new McpSetupPaths(options.stateDirectory);
   const codexShortcut =
     options.codexShortcut &&
     createCodexShortcutHandler({
       ...options.codexShortcut,
-      dialog: {
-        showOpenDialog: options.dialog.showOpenDialog,
-        showSaveDialog: options.codexShortcut.dialog.showSaveDialog,
-      },
       window: options.window,
-      status: () => setup.status('codex'),
-      codexHome: (options.env ?? process.env).CODEX_HOME,
+      configurationPath: async () =>
+        (await paths.get('codex')) ?? (await setup.defaults('codex')).files[0].path,
+      codexHome: (options.env ?? process.env).CODEX_HOME?.trim(),
+      desktopDataOverride: (options.env ?? process.env).CODEX_ELECTRON_USER_DATA_PATH?.trim(),
       configuredFile: (filename) => setup.configuredCodexFile(filename),
     });
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {
-    if (method === 'codexShortcutPlatform' || method === 'codexShortcutCreate') {
+    if (
+      method === 'codexShortcutPlatform' ||
+      method === 'codexShortcutCreate' ||
+      method === 'codexShortcutRevealDock'
+    ) {
       if (!owner) throw new Error('The desktop interface session is missing');
       return { handled: true, result: codexShortcut ? await codexShortcut(method, raw) : null };
     }

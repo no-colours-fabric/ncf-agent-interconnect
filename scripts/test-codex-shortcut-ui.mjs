@@ -26,13 +26,14 @@ let settle;
 const invoke = async (method, input) => {
   calls.push({ method, input });
   if (method === 'codexShortcutPlatform') return platform === 'linux' ? null : platform;
+  if (method === 'codexShortcutRevealDock') return true;
   if (method === 'codexShortcutCreate') return new Promise(resolve => { settle = resolve; });
   throw new Error('Unexpected fixture operation: ' + method);
 };
 window.fixture = { calls, finish: result => settle(result) };
 const discovery = { busy: false, failed: false, offers: [], refresh: async () => {} };
 const statuses = {
-  statuses: { codex: { client: 'codex', remembered: true, state: 'configured', files: [] } },
+  statuses: { codex: { client: 'codex', remembered: false, state: 'configured', files: [] } },
   errors: {}, refreshAll: async () => {}
 };
 createRoot(document.getElementById('root')).render(<ApplicationRows
@@ -104,7 +105,8 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
 
   await action.click();
   await picker.getByRole('checkbox', { name: 'Dock', exact: true }).check();
-  await picker.getByText('Choose where to save the shortcut first.').waitFor();
+  assert.equal(await picker.getByRole('textbox').count(), 0);
+  assert.equal(await picker.getByText('Choose where to save the shortcut first.').count(), 0);
   await confirm.click();
   assert.equal(await codex.getByRole('button', { name: 'Creating shortcut…' }).isDisabled(), true);
   await page.evaluate(() => window.fixture.finish({ state: 'cancelled' }));
@@ -130,6 +132,11 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   await codex
     .getByText('Shortcut saved. Drag it from Finder to the apps area of the Dock to finish.')
     .waitFor();
+  await codex.getByRole('button', { name: 'Show in Finder', exact: true }).click();
+  assert.deepEqual(await page.evaluate(() => window.fixture.calls.at(-1)), {
+    method: 'codexShortcutRevealDock',
+    input: {},
+  });
   assert.equal(
     await codex
       .getByText('A shortcut with this name already exists. Choose another location or name.')
@@ -152,6 +159,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   await page.goto('http://ncf-shortcut.test/?locale=ru&platform=windows');
   await codex.getByRole('button', { name: 'Создать ярлык Codex с NCF', exact: true }).click();
   assert.equal(await picker.getByRole('checkbox', { name: 'Dock', exact: true }).count(), 0);
+  assert.equal(await picker.getByRole('textbox').count(), 0);
   for (const name of ['Рабочий стол', 'Список приложений в меню «Пуск»', 'Другая папка…']) {
     assert.equal(await picker.getByRole('checkbox', { name, exact: true }).isChecked(), false);
   }
