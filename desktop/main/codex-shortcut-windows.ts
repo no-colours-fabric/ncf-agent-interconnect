@@ -1,5 +1,6 @@
 import { constants } from 'node:fs';
-import { copyFile, lstat, mkdir, writeFile } from 'node:fs/promises';
+import { copyFile, lstat, mkdir, rename, writeFile } from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
@@ -13,7 +14,7 @@ export type WindowsCodexShortcutRequest = {
 };
 export type WindowsCodexShortcutContext = { userData: string };
 export type WindowsCodexShortcutResult =
-  'created' | 'alreadyExists' | 'appMissing' | 'profileUnavailable' | 'failed';
+  'created' | 'alreadyExists' | 'appMissing' | 'profileUnavailable' | 'closeToUpdate' | 'failed';
 type Manifest = Omit<WindowsCodexShortcutRequest, 'destination'> & {
   version: 1;
   userData: string;
@@ -28,6 +29,11 @@ type Manifest = Omit<WindowsCodexShortcutRequest, 'destination'> & {
 };
 type Assets = { bridge: string; shim: string; helper: string; stop: string };
 type PackageInfo = { version: string; root: string; alias: string; running: number };
+type LauncherExpected = WindowsCodexShortcutContext & {
+  appExecutable: string;
+  appPath: string;
+};
+type ValidatedLauncher = { m: Manifest; pkg: PackageInfo; directory: string };
 const bridge = createRequire(import.meta.url)('../integrations/codex-windows-bridge.cjs') as {
   canonical(file: string, directory: boolean): Promise<string>;
   fileHash(file: string): Promise<string>;
@@ -41,14 +47,116 @@ const bridge = createRequire(import.meta.url)('../integrations/codex-windows-bri
     bundleKey: string;
   }>;
   runPowerShell(script: string, data: unknown): Promise<string>;
+  readOwnedManifest(
+    file: string,
+    expected: LauncherExpected,
+  ): Promise<{
+    m: Manifest;
+    a: Assets;
+    directory: string;
+  }>;
   validateManifest(
     file: string,
     expected: WindowsCodexShortcutContext & {
       appExecutable: string;
       appPath: string;
     },
-  ): Promise<{ m: Manifest; pkg: PackageInfo; directory: string }>;
+  ): Promise<ValidatedLauncher>;
 };
+
+const sameWindowsPath = (a: string, b: string) =>
+  path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
+
+/** Replace only private, proven launcher state; never accept old hashes for launch. */
+export async function refreshWindowsCodexLauncher(
+  manifest: string,
+  expected: LauncherExpected,
+  selection?: { profile: string; desktopData: string },
+  checkpoint?: (phase: 'stageReady' | 'oldMoved' | 'newPublished') => Promise<void>,
+): Promise<ValidatedLauncher> {
+  const checkSelection = (m: Manifest) => {
+    if (
+      selection &&
+      (!sameWindowsPath(selection.profile, m.profile) ||
+        !sameWindowsPath(selection.desktopData, m.desktopData))
+    )
+      throw new Error('NCF_CODEX_MANIFEST_SCOPE');
+  };
+  try {
+    const valid = await bridge.validateManifest(manifest, expected);
+    checkSelection(valid.m);
+    return valid;
+  } catch (error) {
+    if (
+      ![
+        'NCF_CODEX_ASSET_IDENTITY',
+        'NCF_CODEX_VERSION_CHANGED',
+        'NCF_CODEX_VENDOR_CHANGED',
+      ].includes((error as Error).message)
+    )
+      throw error;
+  }
+  // Ownership, private ACL, schema, scope, no-reparse and the old local shim
+  // must still be valid. An asset mismatch alone is not permission to overwrite.
+  const old = await bridge.readOwnedManifest(manifest, expected);
+  checkSelection(old.m);
+  const pkg = await bridge.inspectPackage();
+  if (pkg.running !== 0) throw new Error('NCF_CODEX_DESKTOP_RUNNING');
+  const vendor = await bridge.resolveVendor(pkg);
+  const value: Manifest = {
+    ...old.m,
+    appExecutableHash: await bridge.fileHash(expected.appExecutable),
+    asarHash: await bridge.fileHash(expected.appPath),
+    shimHash: await bridge.fileHash(old.a.shim),
+    helperHash: await bridge.fileHash(old.a.helper),
+    stopHash: await bridge.fileHash(old.a.stop),
+    packageVersion: pkg.version,
+    bundleKey: vendor.bundleKey,
+    originalCliHash: vendor.originalCliHash,
+  };
+  const beforeHash = await bridge.fileHash(manifest);
+  const stage = old.directory + '.stage-' + randomUUID();
+  const backup = old.directory + '.backup-' + randomUUID();
+  let movedOld = false;
+  let published = false;
+  await mkdir(stage);
+  await bridge.privatePath(stage, true, true);
+  try {
+    const stagedShim = path.join(stage, 'codex-stdio-shim.exe');
+    const stagedManifest = path.join(stage, 'manifest.json');
+    await copyFile(old.a.shim, stagedShim, constants.COPYFILE_EXCL);
+    await bridge.privatePath(stagedShim, false, true);
+    await writeFile(stagedManifest, JSON.stringify(value), { flag: 'wx', mode: 0o600 });
+    await bridge.privatePath(stagedManifest, false, true);
+    if ((await bridge.fileHash(stagedShim)) !== value.shimHash)
+      throw new Error('NCF_CODEX_ASSET_IDENTITY');
+    await checkpoint?.('stageReady');
+    await bridge.readOwnedManifest(manifest, expected);
+    if ((await bridge.fileHash(manifest)) !== beforeHash)
+      throw new Error('NCF_CODEX_MANIFEST_CHANGED');
+    const current = await bridge.inspectPackage();
+    if (current.running !== 0) throw new Error('NCF_CODEX_DESKTOP_RUNNING');
+    if (current.version !== pkg.version || current.root !== pkg.root || current.alias !== pkg.alias)
+      throw new Error('NCF_CODEX_PACKAGE_CHANGED');
+    // Renaming fails if a running shim pins this directory. Do not force it.
+    await rename(old.directory, backup);
+    movedOld = true;
+    await checkpoint?.('oldMoved');
+    await rename(stage, old.directory);
+    published = true;
+    await checkpoint?.('newPublished');
+    const valid = await bridge.validateManifest(manifest, expected);
+    checkSelection(valid.m);
+    if (valid.pkg.running !== 0) throw new Error('NCF_CODEX_DESKTOP_RUNNING');
+    return valid;
+  } catch (error) {
+    // Keep all private backups/staged files. Never delete profiles, links or
+    // files needed by another process, including when rollback itself fails.
+    if (published) await rename(old.directory, stage);
+    if (movedOld) await rename(backup, old.directory);
+    throw error;
+  }
+}
 
 type WindowsDesktopData =
   { state: 'ready'; directory: string } | { state: 'appMissing' | 'profileUnavailable' };
@@ -151,6 +259,39 @@ $r=$w.CreateShortcut($d.destination)
 if ($r.TargetPath -ine $d.executable -or $r.Arguments -cne $d.arguments -or $r.IconLocation -ine $d.iconLocation -or $r.Description -cne 'Open ChatGPT with NCF Agent Interconnect') {throw 'link-verification'}
 [Console]::Out.Write('created')`;
 
+async function inspectOwnedLauncherLink(
+  destination: string,
+  executable: string,
+  manifest: string,
+  icon: string,
+): Promise<'missing' | 'current' | 'legacy'> {
+  try {
+    await lstat(destination);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return 'missing';
+    throw error;
+  }
+  await bridge.canonical(destination, false);
+  const result = await bridge.runPowerShell(
+    String.raw`
+$d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
+$l=(New-Object -ComObject WScript.Shell).CreateShortcut($d.destination)
+if ($l.TargetPath -ine $d.executable -or $l.Arguments -cne $d.arguments -or $l.WorkingDirectory -ine $d.directory) {throw 'link-conflict'}
+if ($l.Description -ceq 'Open ChatGPT with NCF Agent Interconnect' -and $l.IconLocation -ieq $d.icon) {[Console]::Out.Write('current');exit}
+if ($l.Description -ceq 'Open Codex with NCF Agent Interconnect' -and ($l.IconLocation -ceq ',0' -or $l.IconLocation -ieq ($d.executable+',0'))) {[Console]::Out.Write('legacy');exit}
+throw 'link-conflict'`,
+    {
+      destination,
+      executable,
+      arguments: `--launch-codex --launcher-manifest "${manifest}"`,
+      directory: path.dirname(executable),
+      icon: icon + ',0',
+    },
+  );
+  if (result !== 'current' && result !== 'legacy') throw new Error('NCF_CODEX_LINK_RESULT');
+  return result;
+}
+
 // Fixed .lnk operation, also exercised against a disposable native shell link.
 export async function createWindowsLauncherLink(
   destination: string,
@@ -224,6 +365,9 @@ export async function createWindowsCodexShortcut(
     const destination = path.join(parent, path.basename(request.destination));
     const root = path.join(userData, 'codex-launchers');
     const directory = path.join(root, bridge.keyFor(profile, desktopData));
+    const manifest = path.join(directory, 'manifest.json');
+    const existingLink = await inspectOwnedLauncherLink(destination, appExecutable, manifest, icon);
+    const linkHash = existingLink === 'missing' ? undefined : await bridge.fileHash(destination);
     for (const folder of [root, directory]) {
       try {
         await mkdir(folder);
@@ -233,7 +377,6 @@ export async function createWindowsCodexShortcut(
         await bridge.privatePath(folder, true);
       }
     }
-    const manifest = path.join(directory, 'manifest.json');
     let exists = false;
     try {
       await lstat(manifest);
@@ -242,7 +385,11 @@ export async function createWindowsCodexShortcut(
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
     if (exists) {
-      const { m } = await bridge.validateManifest(manifest, { userData, appExecutable, appPath });
+      const { m } = await refreshWindowsCodexLauncher(
+        manifest,
+        { userData, appExecutable, appPath },
+        { profile, desktopData },
+      );
       if (m.profile !== profile || m.desktopData !== desktopData) return 'failed';
     } else {
       const value = {
@@ -268,8 +415,14 @@ export async function createWindowsCodexShortcut(
       await bridge.privatePath(manifest, false, true);
       await bridge.validateManifest(manifest, { userData, appExecutable, appPath });
     }
+    if (existingLink !== 'missing') {
+      await inspectOwnedLauncherLink(destination, appExecutable, manifest, icon);
+      if ((await bridge.fileHash(destination)) !== linkHash) return 'failed';
+      return 'alreadyExists';
+    }
     return await createWindowsLauncherLink(destination, appExecutable, manifest, icon);
-  } catch {
+  } catch (error) {
+    if ((error as Error).message === 'NCF_CODEX_DESKTOP_RUNNING') return 'closeToUpdate';
     return 'failed';
   }
 }
@@ -291,7 +444,7 @@ export async function launchWindowsCodexFromArgs(
     return 'failed';
   try {
     windowsCodexLaunchArguments(args[2]);
-    const { m, pkg, directory } = await bridge.validateManifest(args[2], context);
+    const { m, pkg, directory } = await refreshWindowsCodexLauncher(args[2], context);
     if (pkg.running !== 0) {
       const after = await bridge.inspectPackage(true);
       if (

@@ -264,7 +264,7 @@ function parseManifest(text) {
   return m;
 }
 
-async function validateManifest(filename, expected) {
+async function readOwnedManifest(filename, expected) {
   await canonical(filename, false);
   const m = parseManifest(await fs.readFile(filename, 'utf8'));
   const userData = await canonical(expected?.userData || m.userData, true);
@@ -297,6 +297,14 @@ async function validateManifest(filename, expected) {
     a.stop,
     filename,
   ]);
+  const localShim = path.join(directory, 'codex-stdio-shim.exe');
+  await privatePath(localShim, false);
+  if ((await fileHash(localShim)) !== m.shimHash) throw Error('NCF_CODEX_ASSET_IDENTITY');
+  return { m, a, directory };
+}
+
+async function validateManifest(filename, expected, runtime = { inspectPackage, resolveVendor }) {
+  const { m, a, directory } = await readOwnedManifest(filename, expected);
   for (const [file, hash] of [
     [m.appExecutable, m.appExecutableHash],
     [m.appPath, m.asarHash],
@@ -308,9 +316,9 @@ async function validateManifest(filename, expected) {
     await canonical(file, false);
     if ((await fileHash(file)) !== hash) throw Error('NCF_CODEX_ASSET_IDENTITY');
   }
-  const pkg = await inspectPackage();
+  const pkg = await runtime.inspectPackage();
   if (pkg.version !== m.packageVersion) throw Error('NCF_CODEX_VERSION_CHANGED');
-  const vendor = await resolveVendor(pkg);
+  const vendor = await runtime.resolveVendor(pkg);
   if (vendor.bundleKey !== m.bundleKey || vendor.originalCliHash !== m.originalCliHash)
     throw Error('NCF_CODEX_VENDOR_CHANGED');
   return { m, a, pkg, vendor, directory };
@@ -514,6 +522,7 @@ module.exports = {
   inspectPackage,
   resolveVendor,
   parseManifest,
+  readOwnedManifest,
   validateManifest,
   selectServerArgs,
   ownerServerArgs,
