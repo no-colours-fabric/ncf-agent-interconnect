@@ -37,11 +37,12 @@
     "codex": {
       "file": "codex.png",
       "owner": "OpenAI",
-      "source": "Official ChatGPT desktop 26.1027.51404, bundle com.openai.codex, Contents/Resources/electron.icns",
+      "source": "Official ChatGPT desktop 26.1117.41037, bundle com.openai.codex, Contents/Resources/icon-chatgpt.png",
       "reference": "https://learn.chatgpt.com/docs/app",
       "license": "Proprietary OpenAI application icon; OpenAI trademarks retained",
-      "transformations": "ICNS to PNG using macOS sips, downsampled to 128 px; no design changes",
-      "sha256": "3724f6ef090109e5dc6f14c103ff5fbec43fa78953aa049ef2af122ad9b482e1"
+      "transformations": "PNG downsampled from 2048 px to 320 px using macOS sips; no design changes",
+      "retrieved": "2026-11-22",
+      "sha256": "6330743bdee1e7f019ef9148f85ed1a9c0b4580e7d33c6c4e94ba3a89a627cca"
     }
   }
 }
