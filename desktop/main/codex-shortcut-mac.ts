@@ -13,6 +13,7 @@ import {
 } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { z } from 'zod';
 import type { CodexShortcutResult } from '../shared/codex-shortcut.js';
 import { discoveryCatalog } from '../core/application-discovery-catalog.js';
 
@@ -92,6 +93,39 @@ export async function findMacCodex(): Promise<MacCodexInstall | null | undefined
   }
   if (installs.length > 1) return null;
   return installs[0];
+}
+
+const desktopWitnessSchema = z.discriminatedUnion('state', [
+  z.object({ state: z.literal('notRunning') }).strict(),
+  z.object({ state: z.literal('unavailable') }).strict(),
+  z
+    .object({
+      state: z.literal('running'),
+      profile: z.string().max(4096).refine(path.isAbsolute),
+      desktopData: z.string().max(4096).refine(path.isAbsolute),
+      process: z.string().regex(/^\d+:\d+:\d+$/),
+    })
+    .strict(),
+]);
+export type MacCodexDesktopWitness = z.infer<typeof desktopWitnessSchema>;
+
+/** Use the bundled helper; ordinary execFile also supports the packaged ASAR asset. */
+export async function inspectMacCodexDesktop(
+  appPath: string,
+  desktopExecutable: string,
+  stockProfile: string,
+  stockData: string,
+): Promise<MacCodexDesktopWitness> {
+  try {
+    const { stdout } = await execute(
+      path.join(appPath, 'build/assets/codex-mac-launcher'),
+      ['--inspect-desktop', desktopExecutable, stockProfile, stockData],
+      { timeout: 3000, maxBuffer: 16384 },
+    );
+    return desktopWitnessSchema.parse(JSON.parse(stdout));
+  } catch {
+    return { state: 'unavailable' };
+  }
 }
 
 export async function macShortcutDirectory(filename: string): Promise<string> {

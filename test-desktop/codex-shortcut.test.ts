@@ -16,6 +16,7 @@ import {
 import {
   createMacCodexShortcut,
   verifyMacCodexShortcut,
+  type MacCodexDesktopWitness,
 } from '../desktop/main/codex-shortcut-mac.js';
 import {
   hasCodexShortcutLaunchFlags,
@@ -99,6 +100,7 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
   let cancelSave = false;
   let macInstall: 'found' | 'missing' | 'ambiguous' = 'found';
   let reuseDock = true;
+  let macWitnesses: MacCodexDesktopWitness[] = [];
   let boundProfiles: readonly { socket?: string; codexQueue?: boolean }[] = [];
   const options: Parameters<typeof createCodexShortcutHandler>[0] = {
     platform: 'darwin',
@@ -123,7 +125,7 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
       },
     },
   };
-  const handle = createCodexShortcutHandler(options, {
+  const mac: NonNullable<Parameters<typeof createCodexShortcutHandler>[1]> = {
     findMacCodex: async () =>
       macInstall === 'found'
         ? {
@@ -134,6 +136,7 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
         : macInstall === 'ambiguous'
           ? null
           : undefined,
+    inspectMacCodexDesktop: async () => macWitnesses.shift() ?? { state: 'notRunning' },
     macShortcutDirectory: realpath,
     verifyMacCodexShortcut: async ({ destination, profile, desktopData: data }) =>
       reuseDock &&
@@ -148,7 +151,8 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
       await mkdir(request.destination, { mode: 0o700 });
       return 'created';
     },
-  });
+  };
+  const handle = createCodexShortcutHandler(options, mac);
 
   await writeFile(defaultConfig, matching);
   await writeFile(otherConfig, matching);
@@ -348,6 +352,67 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
       assert.deepEqual(dialogs, []);
       boundProfiles = [];
       await assert.rejects(stat(pathsFile), { code: 'ENOENT' });
+    },
+  );
+
+  await t.test(
+    'the exact running Mac Work pair wins with stock configuration and mixed bindings',
+    async () => {
+      const workProfile = path.join(root, '.codex-work');
+      const workData = path.join(root, 'AppData', 'Codex-work');
+      const workDesktop = path.join(root, 'Work desktop');
+      await Promise.all([workProfile, workData, workDesktop].map((directory) => mkdir(directory)));
+      const workConfig = path.join(workProfile, 'config.toml');
+      await writeFile(workConfig, matching);
+      const work = {
+        state: 'running',
+        profile: workProfile,
+        desktopData: workData,
+        process: '42:17:3',
+      } as const;
+      // The binding count and initial default both favor the other profile.
+      const stock = { socket: path.join(defaultProfile, 'ipc', 'ipc.sock') };
+      boundProfiles = [stock, stock, { socket: path.join(workProfile, 'ipc', 'ipc.sock') }];
+      assert.equal((await service.status('codex')).remembered, false);
+      const create = createCodexShortcutHandler({ ...options, desktop: workDesktop }, mac);
+      const count = createRequests.length;
+      macWitnesses = [work, { ...work, process: '42:18:9' }];
+      assert.deepEqual(
+        await create('codexShortcutCreate', input('desktop')),
+        failure('profileUnavailable'),
+      );
+      macWitnesses = [work, { state: 'notRunning' }];
+      assert.deepEqual(
+        await create('codexShortcutCreate', input('desktop')),
+        failure('profileUnavailable'),
+      );
+      macWitnesses = [{ state: 'unavailable' }];
+      assert.deepEqual(
+        await create('codexShortcutCreate', input('desktop')),
+        failure('profileUnavailable'),
+      );
+      await writeFile(workConfig, '# Work is not configured for this node\n');
+      macWitnesses = [work];
+      assert.deepEqual(
+        await create('codexShortcutCreate', input('desktop')),
+        failure('setupRequired'),
+      );
+      assert.equal(createRequests.length, count);
+      await assert.rejects(stat(path.join(workDesktop, 'Codex with NCF.app')), { code: 'ENOENT' });
+      await writeFile(workConfig, matching);
+      macWitnesses = [work, work];
+      assert.deepEqual(
+        await create('codexShortcutCreate', input('desktop')),
+        complete({ destination: 'desktop', result: 'created' }),
+      );
+      assert.equal(createRequests.length, count + 1);
+      assert.equal(createRequests[count].profile, workProfile);
+      assert.equal(createRequests[count].desktopData, workData);
+      assert.equal(await readFile(workConfig, 'utf8'), matching);
+      assert.equal(await readFile(defaultConfig, 'utf8'), matching);
+      assert.deepEqual(dialogs, []);
+      await assert.rejects(stat(pathsFile), { code: 'ENOENT' });
+      boundProfiles = [];
     },
   );
 
