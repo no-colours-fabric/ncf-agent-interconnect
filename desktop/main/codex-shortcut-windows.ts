@@ -67,6 +67,27 @@ const bridge = createRequire(import.meta.url)('../integrations/codex-windows-bri
 const sameWindowsPath = (a: string, b: string) =>
   path.resolve(a).toLowerCase() === path.resolve(b).toLowerCase();
 
+async function recordLauncherFailure(userData: string, phase: string, error: unknown) {
+  try {
+    const directory = await bridge.canonical(path.join(userData, 'codex-launchers'), true);
+    await bridge.privatePath(directory, true);
+    const failure = error as { message?: string; code?: string };
+    const code = /^NCF_CODEX_[A-Z_]+$/.test(failure?.message ?? '')
+      ? failure.message
+      : /^[A-Z_]+$/.test(failure?.code ?? '')
+        ? failure.code
+        : 'NCF_CODEX_LAUNCHER_FAILED';
+    const file = path.join(directory, 'failure-' + randomUUID() + '.json');
+    await writeFile(file, JSON.stringify({ utc: new Date().toISOString(), phase, code }), {
+      flag: 'wx',
+      mode: 0o600,
+    });
+    await bridge.privatePath(file, false, true);
+  } catch {
+    // Diagnostics must neither replace the original result nor export paths.
+  }
+}
+
 /** Replace only private, proven launcher state; never accept old hashes for launch. */
 export async function refreshWindowsCodexLauncher(
   manifest: string,
@@ -329,6 +350,7 @@ export async function createWindowsCodexShortcut(
   context: WindowsCodexShortcutContext,
 ): Promise<WindowsCodexShortcutResult> {
   if (process.platform !== 'win32') return 'appMissing';
+  let phase = 'profile';
   let profile: string;
   let desktopData: string;
   try {
@@ -338,17 +360,21 @@ export async function createWindowsCodexShortcut(
       Buffer.byteLength(path.join(profile, 'app-server-control', 'app-server-control.sock')) >= 108
     )
       return 'profileUnavailable';
-  } catch {
+  } catch (error) {
+    await recordLauncherFailure(context.userData, phase, error);
     return 'profileUnavailable';
   }
+  phase = 'package';
   let pkg: PackageInfo;
   let vendor: Awaited<ReturnType<typeof bridge.resolveVendor>>;
   try {
     pkg = await bridge.inspectPackage();
     vendor = await bridge.resolveVendor(pkg);
-  } catch {
+  } catch (error) {
+    await recordLauncherFailure(context.userData, phase, error);
     return 'appMissing';
   }
+  phase = 'state';
   try {
     const userData = await bridge.canonical(context.userData, true);
     const appExecutable = await bridge.canonical(request.appExecutable, false);
@@ -390,7 +416,8 @@ export async function createWindowsCodexShortcut(
         { userData, appExecutable, appPath },
         { profile, desktopData },
       );
-      if (m.profile !== profile || m.desktopData !== desktopData) return 'failed';
+      if (!sameWindowsPath(m.profile, profile) || !sameWindowsPath(m.desktopData, desktopData))
+        return 'failed';
     } else {
       const value = {
         version: 1,
@@ -409,12 +436,22 @@ export async function createWindowsCodexShortcut(
         originalCliHash: vendor.originalCliHash,
       };
       const shim = path.join(directory, 'codex-stdio-shim.exe');
-      await copyFile(a.shim, shim, constants.COPYFILE_EXCL);
-      await bridge.privatePath(shim, false, true);
+      try {
+        await copyFile(a.shim, shim, constants.COPYFILE_EXCL);
+        await bridge.privatePath(shim, false, true);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        // Resume an interrupted first creation only when the existing private
+        // shim is byte-identical to the current verified package.
+        await bridge.privatePath(shim, false);
+        if ((await bridge.fileHash(shim)) !== value.shimHash)
+          throw new Error('NCF_CODEX_ORPHAN_STATE');
+      }
       await writeFile(manifest, JSON.stringify(value), { flag: 'wx', mode: 0o600 });
       await bridge.privatePath(manifest, false, true);
       await bridge.validateManifest(manifest, { userData, appExecutable, appPath });
     }
+    phase = 'link';
     if (existingLink !== 'missing') {
       await inspectOwnedLauncherLink(destination, appExecutable, manifest, icon);
       if ((await bridge.fileHash(destination)) !== linkHash) return 'failed';
@@ -422,6 +459,7 @@ export async function createWindowsCodexShortcut(
     }
     return await createWindowsLauncherLink(destination, appExecutable, manifest, icon);
   } catch (error) {
+    await recordLauncherFailure(context.userData, phase, error);
     if ((error as Error).message === 'NCF_CODEX_DESKTOP_RUNNING') return 'closeToUpdate';
     return 'failed';
   }
@@ -442,6 +480,7 @@ export async function launchWindowsCodexFromArgs(
     args[1] !== '--launcher-manifest'
   )
     return 'failed';
+  let phase = 'launch-state';
   try {
     windowsCodexLaunchArguments(args[2]);
     const { m, pkg, directory } = await refreshWindowsCodexLauncher(args[2], context);
@@ -455,6 +494,7 @@ export async function launchWindowsCodexFromArgs(
       )
         return 'failed';
     }
+    phase = 'activation';
     const environment = {
       ...process.env,
       CODEX_HOME: m.profile,
@@ -477,7 +517,8 @@ export async function launchWindowsCodexFromArgs(
     child.unref();
     // A spawn is not Desktop/tool/delivery acceptance; those are separate checks.
     return 'launched';
-  } catch {
+  } catch (error) {
+    await recordLauncherFailure(context.userData, phase, error);
     return 'failed';
   }
 }

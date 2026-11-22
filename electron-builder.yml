@@ -49,6 +49,7 @@ win:
   target:
     - nsis
 nsis:
+  include: desktop/installer/windows-update.nsh
   oneClick: false
   perMachine: false
   allowToChangeInstallationDirectory: true

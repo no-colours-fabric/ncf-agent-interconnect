@@ -101,7 +101,12 @@ if (process.platform === 'win32') {
     'v4.0.30319',
     'csc.exe',
   );
-  for (const helper of ['codex-win-socket', 'codex-stdio-shim', 'codex-console-stop']) {
+  for (const helper of [
+    'codex-win-socket',
+    'codex-stdio-shim',
+    'codex-console-stop',
+    'ncf-update-preflight',
+  ]) {
     execFileSync(
       csc,
       [
@@ -112,6 +117,7 @@ if (process.platform === 'win32') {
           ? '/platform:anycpu'
           : '/platform:x64',
         ...(helper === 'codex-stdio-shim' ? ['/reference:System.Web.Extensions.dll'] : []),
+        ...(helper === 'ncf-update-preflight' ? ['/reference:System.Management.dll'] : []),
         '/out:' + path.resolve('build', 'assets', helper + '.exe'),
         path.resolve('desktop', 'integrations', helper + '.cs'),
       ],
