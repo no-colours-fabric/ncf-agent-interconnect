@@ -1,6 +1,8 @@
 appId: io.github.no-colours-fabric.ncf-agent-interconnect
 productName: NCF Agent Interconnect
 publish: null
+afterPack: scripts/write-launcher-identity.mjs
+afterSign: scripts/write-launcher-identity.mjs
 asar:
   unpack:
     - build/assets/codex-win-socket.exe
@@ -49,6 +51,8 @@ win:
     extraResources:
       - from: desktop/assets/chatgpt-ncf.ico
         to: icons/chatgpt-ncf.ico
+      - from: build/assets/ncf-update-preflight.exe
+        to: tools/ncf-update-preflight.exe
   target:
     - nsis
 nsis:

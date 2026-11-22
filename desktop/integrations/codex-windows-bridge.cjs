@@ -51,7 +51,7 @@ const powershell = () =>
     'powershell.exe',
   );
 
-async function runPowerShell(script, data, timeout = 15000) {
+async function runPowerShell(script, data, timeout = 5000, signal) {
   const { stdout } = await promisify(execFile)(
     powershell(),
     [
@@ -68,6 +68,7 @@ async function runPowerShell(script, data, timeout = 15000) {
     {
       windowsHide: true,
       timeout,
+      signal,
       maxBuffer: 32768,
       env: { ...process.env, NCF_LAUNCH_DATA: JSON.stringify(data) },
     },
@@ -102,19 +103,21 @@ async function canonical(filename, directory) {
   return full;
 }
 
-async function fileHash(filename) {
+async function fileHash(filename, signal) {
   const digest = createHash('sha256');
-  for await (const chunk of createReadStream(filename)) digest.update(chunk);
+  for await (const chunk of createReadStream(filename, { signal })) digest.update(chunk);
   return digest.digest('hex');
 }
 
-async function verifyNoReparseChain(paths) {
+async function verifyNoReparseChain(paths, privateEntries = [], signal) {
   await runPowerShell(
     String.raw`
 $d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
+$seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
 foreach ($p in $d.paths) {
   $cursor=[IO.Path]::GetFullPath($p)
   while ($cursor) {
+    if (!$seen.Add($cursor)) {break}
     $item=Get-Item -LiteralPath $cursor -Force
     if (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {throw 'reparse'}
     $parent=[IO.Directory]::GetParent($cursor)
@@ -122,8 +125,24 @@ foreach ($p in $d.paths) {
     $cursor=$parent.FullName
   }
 }
+$sid=[Security.Principal.WindowsIdentity]::GetCurrent().User
+if (([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {throw 'elevated'}
+foreach ($entry in $d.privateEntries) {
+  $i=Get-Item -LiteralPath $entry.path -Force
+  $sections=[Security.AccessControl.AccessControlSections]::Owner -bor [Security.AccessControl.AccessControlSections]::Access
+  $acl=$i.GetAccessControl($sections)
+  if ($acl.GetOwner([Security.Principal.SecurityIdentifier]).Value -ne $sid.Value) {throw 'owner'}
+  $rules=@($acl.GetAccessRules($true,$true,[Security.Principal.SecurityIdentifier]))
+  if (!$acl.AreAccessRulesProtected -or $rules.Count -ne 1) {throw 'rules'}
+  $r=$rules[0]
+  if ($r.IdentityReference.Value -ne $sid.Value -or $r.IsInherited -or $r.AccessControlType -ne 'Allow' -or $r.FileSystemRights -ne 'FullControl' -or $r.PropagationFlags -ne 'None') {throw 'rights'}
+  if ($entry.directory -and $r.InheritanceFlags -ne 'ContainerInherit, ObjectInherit') {throw 'flags'}
+  if (!$entry.directory -and $r.InheritanceFlags -ne 'None') {throw 'flags'}
+}
 [Console]::Out.Write('OK')`,
-    { paths },
+    { paths, privateEntries },
+    5000,
+    signal,
   );
 }
 
@@ -158,7 +177,7 @@ if (!$d.directory -and $r.InheritanceFlags -ne 'None') {throw 'flags'}
   );
 }
 
-async function inspectPackage(waitForExit = false) {
+async function inspectPackage(waitForExit = false, signal) {
   const result = JSON.parse(
     await runPowerShell(
       String.raw`
@@ -185,7 +204,8 @@ if ($d.waitForExit -and $running.Count -gt 0) {
 }
 [pscustomobject]@{version=[string]$p.Version;root=$p.InstallLocation;alias=$alias;running=$running.Count}|ConvertTo-Json -Compress`,
       { waitForExit },
-      waitForExit ? 30000 : 15000,
+      waitForExit ? 30000 : 5000,
+      signal,
     ),
   );
   if (
@@ -200,13 +220,13 @@ if ($d.waitForExit -and $running.Count -gt 0) {
   return result;
 }
 
-async function resolveVendor(packageInfo) {
+async function resolveVendor(packageInfo, signal) {
   const source = path.join(packageInfo.root, 'app', 'resources');
   const digest = createHash('sha256');
   const components = [];
   for (const name of vendorNames) {
     const file = await canonical(path.join(source, name), false);
-    const hash = await fileHash(file);
+    const hash = await fileHash(file, signal);
     const size = (await fs.stat(file)).size;
     components.push({ name, hash, size });
     digest.update(name).update('\0').update(hash).update('\0');
@@ -223,7 +243,7 @@ async function resolveVendor(packageInfo) {
   ]);
   for (const part of components) {
     const file = await canonical(path.join(cache, part.name), false);
-    if ((await fs.stat(file)).size !== part.size || (await fileHash(file)) !== part.hash)
+    if ((await fs.stat(file)).size !== part.size || (await fileHash(file, signal)) !== part.hash)
       throw Error('NCF_CODEX_CACHE_IDENTITY');
   }
   return {
@@ -264,17 +284,17 @@ function parseManifest(text) {
   return m;
 }
 
-async function readOwnedManifest(filename, expected) {
+async function readOwnedManifest(filename, expected, signal) {
+  signal?.throwIfAborted();
   await canonical(filename, false);
-  const m = parseManifest(await fs.readFile(filename, 'utf8'));
+  const m = parseManifest(await fs.readFile(filename, { encoding: 'utf8', signal }));
   const userData = await canonical(expected?.userData || m.userData, true);
   const root = path.join(userData, 'codex-launchers');
   const directory = path.join(root, keyFor(m.profile, m.desktopData));
   if (!same(filename, path.join(directory, 'manifest.json')) || !same(m.userData, userData))
     throw Error('NCF_CODEX_MANIFEST_SCOPE');
-  await privatePath(root, true);
-  await privatePath(directory, true);
-  await privatePath(filename, false);
+  await canonical(root, true);
+  await canonical(directory, true);
   for (const name of ['profile', 'desktopData']) await canonical(m[name], true);
   if (
     Buffer.byteLength(path.join(m.profile, 'app-server-control', 'app-server-control.sock')) >= 108
@@ -286,25 +306,79 @@ async function readOwnedManifest(filename, expected) {
   )
     throw Error('NCF_CODEX_NCF_IDENTITY');
   const a = assets(m.appPath);
-  await verifyNoReparseChain([
-    m.userData,
-    m.profile,
-    m.desktopData,
-    m.appExecutable,
-    m.appPath,
-    a.shim,
-    a.helper,
-    a.stop,
-    filename,
-  ]);
   const localShim = path.join(directory, 'codex-stdio-shim.exe');
-  await privatePath(localShim, false);
-  if ((await fileHash(localShim)) !== m.shimHash) throw Error('NCF_CODEX_ASSET_IDENTITY');
+  await canonical(localShim, false);
+  await verifyNoReparseChain(
+    [
+      m.userData,
+      m.profile,
+      m.desktopData,
+      m.appExecutable,
+      m.appPath,
+      a.shim,
+      a.helper,
+      a.stop,
+      filename,
+      root,
+      directory,
+      localShim,
+    ],
+    [
+      { path: root, directory: true },
+      { path: directory, directory: true },
+      { path: filename, directory: false },
+      { path: localShim, directory: false },
+    ],
+    signal,
+  );
+  if ((await fileHash(localShim, signal)) !== m.shimHash) throw Error('NCF_CODEX_ASSET_IDENTITY');
   return { m, a, directory };
 }
 
-async function validateManifest(filename, expected, runtime = { inspectPackage, resolveVendor }) {
-  const { m, a, directory } = await readOwnedManifest(filename, expected);
+// A read-only UI cache token, never a substitute for the launch/create guard.
+async function statusFingerprint(paths) {
+  const entries = new Map();
+  for (const filename of paths) {
+    let cursor = path.resolve(filename);
+    for (;;) {
+      if (!entries.has(cursor)) entries.set(cursor, false);
+      const parent = path.dirname(cursor);
+      if (parent === cursor) break;
+      cursor = parent;
+    }
+    entries.set(path.resolve(filename), true);
+  }
+  const digest = createHash('sha256');
+  for (const [filename, leaf] of entries) {
+    try {
+      const s = await fs.lstat(filename, { bigint: true });
+      digest.update(
+        [
+          filename.toLowerCase(),
+          s.dev,
+          s.ino,
+          s.nlink,
+          s.mode,
+          leaf ? s.size : '',
+          leaf ? s.mtimeNs : '',
+          leaf ? s.ctimeNs : '',
+        ].join('|'),
+      );
+    } catch (error) {
+      if (error.code !== 'ENOENT') throw error;
+      digest.update(filename.toLowerCase() + '|missing');
+    }
+  }
+  return digest.digest('hex');
+}
+
+async function validateManifest(
+  filename,
+  expected,
+  runtime = { inspectPackage, resolveVendor },
+  signal,
+) {
+  const { m, a, directory } = await readOwnedManifest(filename, expected, signal);
   for (const [file, hash] of [
     [m.appExecutable, m.appExecutableHash],
     [m.appPath, m.asarHash],
@@ -314,11 +388,11 @@ async function validateManifest(filename, expected, runtime = { inspectPackage, 
     [path.join(directory, 'codex-stdio-shim.exe'), m.shimHash],
   ]) {
     await canonical(file, false);
-    if ((await fileHash(file)) !== hash) throw Error('NCF_CODEX_ASSET_IDENTITY');
+    if ((await fileHash(file, signal)) !== hash) throw Error('NCF_CODEX_ASSET_IDENTITY');
   }
-  const pkg = await runtime.inspectPackage();
+  const pkg = await runtime.inspectPackage(false, signal);
   if (pkg.version !== m.packageVersion) throw Error('NCF_CODEX_VERSION_CHANGED');
-  const vendor = await runtime.resolveVendor(pkg);
+  const vendor = await runtime.resolveVendor(pkg, signal);
   if (vendor.bundleKey !== m.bundleKey || vendor.originalCliHash !== m.originalCliHash)
     throw Error('NCF_CODEX_VENDOR_CHANGED');
   return { m, a, pkg, vendor, directory };
@@ -513,6 +587,7 @@ async function runBridge(filename, args) {
 }
 
 module.exports = {
+  fileSize: async (filename) => (await fs.stat(filename)).size,
   canonical,
   fileHash,
   keyFor,
@@ -524,6 +599,7 @@ module.exports = {
   parseManifest,
   readOwnedManifest,
   validateManifest,
+  statusFingerprint,
   selectServerArgs,
   ownerServerArgs,
   sendFragmented,

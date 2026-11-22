@@ -86,6 +86,11 @@ internal static class NcfUpdatePreflight {
     }
     public static int Main(string[] args) {
         try {
+            if (args.Length == 1 && args[0] == "--programs-directory") {
+                Console.OutputEncoding = new UTF8Encoding(false);
+                Console.Write(Environment.GetFolderPath(Environment.SpecialFolder.Programs));
+                return 0;
+            }
             if (args.Length != 1 || !Path.IsPathRooted(args[0])) throw new InvalidOperationException();
             string root = Path.GetFullPath(args[0]);
             owner = WindowsIdentity.GetCurrent().User.Value;

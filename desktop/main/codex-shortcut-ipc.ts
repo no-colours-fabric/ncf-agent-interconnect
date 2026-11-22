@@ -46,23 +46,14 @@ const failed = (reason: CodexShortcutFailure = 'failed'): CodexShortcutCreateRes
   reason,
 });
 
-async function windowsProgramsDirectory(): Promise<string> {
-  const executable = path.win32.join(
-    process.env.SystemRoot ?? 'C:\\Windows',
-    'System32/WindowsPowerShell/v1.0/powershell.exe',
-  );
-  const { stdout } = await execute(
-    executable,
-    [
-      '-NoLogo',
-      '-NoProfile',
-      '-NonInteractive',
-      '-Command',
-      '[Console]::OutputEncoding=[Text.UTF8Encoding]::new($false);' +
-        '[Console]::Write([Environment]::GetFolderPath([Environment+SpecialFolder]::Programs))',
-    ],
-    { windowsHide: true, timeout: 5000, maxBuffer: 8192 },
-  );
+async function windowsProgramsDirectory(appPath: string): Promise<string> {
+  const helper = path.join(path.dirname(appPath), 'tools', 'ncf-update-preflight.exe');
+  const { stdout } = await execute(helper, ['--programs-directory'], {
+    windowsHide: true,
+    timeout: 2000,
+    maxBuffer: 8192,
+    encoding: 'utf8',
+  });
   if (!path.win32.isAbsolute(stdout) || /[\0\r\n]/.test(stdout))
     throw new Error('The current-user Programs folder is unavailable');
   return stdout;
@@ -147,7 +138,7 @@ export function createCodexShortcutHandler(
   windows = {
     create: async (request: WindowsCodexShortcutRequest, context: WindowsCodexShortcutContext) =>
       (await import('./codex-shortcut-windows.js')).createWindowsCodexShortcut(request, context),
-    programs: windowsProgramsDirectory,
+    programs: () => windowsProgramsDirectory(options.appPath),
     readLink: async (filename: string) =>
       (await import('electron')).shell.readShortcutLink(filename),
     verifyManifest: async (
@@ -159,11 +150,20 @@ export function createCodexShortcutHandler(
         expected,
       ),
     desktopData: async (appData: string) =>
-      (await import('./codex-shortcut-windows.js')).resolveWindowsCodexDesktopData(appData),
+      // The native create/manifest guard verifies the vendor. Resolving a stock
+      // path for display must not hash the complete installed runtime again.
+      (await import('./codex-shortcut-windows.js')).resolveWindowsCodexDesktopData(appData, false),
   },
 ) {
   let creating = false;
   let dockShortcut: string | undefined;
+  let programsDirectory: Promise<string> | undefined;
+  const programs = () =>
+    (programsDirectory ??= windows.programs().catch((error) => {
+      programsDirectory = undefined;
+      throw error;
+    }));
+  if (options.platform === 'win32' && options.installed) void programs().catch(() => undefined);
 
   async function resolveProfile(platform: CodexShortcutPlatform) {
     const standardProfile = path.join(options.home, '.codex');
@@ -268,44 +268,10 @@ export function createCodexShortcutHandler(
       if (!platform) return [];
       const extension = platform === 'mac' ? 'app' : 'lnk';
       const shortcutName = codexShortcutDisplayName + '.' + extension;
-      const verifications = new Map<string, Promise<boolean>>();
-      let profile: ReturnType<typeof resolveProfile> | undefined;
       const isExisting = async (filename: string): Promise<boolean> => {
         if (platform === 'mac') return mac.isMacCodexShortcut(filename);
         try {
-          if (!(await lstat(filename)).isFile()) return false;
-          const link = await windows.readLink(filename);
-          if (!samePath(link.target, options.appExecutable, platform)) return false;
-          const match = /^--launch-codex --launcher-manifest "([^"\r\n]+)"$/.exec(link.args ?? '');
-          const manifestFile = match?.[1];
-          if (!manifestFile || !path.isAbsolute(manifestFile)) return false;
-          const normalized = path.normalize(manifestFile);
-          if (normalized !== manifestFile) return false;
-          const relative = path.relative(
-            path.join(options.userData, 'codex-launchers'),
-            normalized,
-          );
-          const [key, manifest, ...rest] = relative.split(path.sep);
-          if (!/^[a-f0-9]{32}$/.test(key) || manifest !== 'manifest.json' || rest.length)
-            return false;
-          const cacheKey = normalized.toLowerCase();
-          let verification = verifications.get(cacheKey);
-          if (!verification) {
-            profile ??= resolveProfile(platform);
-            verification = profile.then((resolved) =>
-              'reason' in resolved
-                ? false
-                : windows.verifyManifest(normalized, {
-                    profile: resolved.profile,
-                    desktopData: resolved.desktopData,
-                    userData: options.userData,
-                    appExecutable: options.appExecutable,
-                    appPath: options.appPath,
-                  }),
-            );
-            verifications.set(cacheKey, verification);
-          }
-          return await verification;
+          return (await lstat(filename)).isFile();
         } catch {
           return false;
         }
@@ -318,7 +284,7 @@ export function createCodexShortcutHandler(
             ] as const)
           : ([
               ['desktop', options.desktop],
-              ['startMenu', await windows.programs().catch(() => undefined)],
+              ['startMenu', await programs().catch(() => undefined)],
             ] as const);
       const statuses = await Promise.all(
         folders.map(async ([location, folder]) => {
@@ -382,6 +348,35 @@ export function createCodexShortcutHandler(
           return cancelled;
         chosenFile = path.join(folder.filePaths[0], shortcutName);
       }
+      if (platform === 'windows') {
+        const profile = path.dirname(preparedConfiguration ?? (await options.configurationPath()));
+        const desktopData = options.desktopDataOverride ?? path.join(options.appData, 'Codex');
+        const results: CodexShortcutDestinationResult[] = [];
+        for (const destination of destinations) {
+          let output = chosenFile;
+          let result: CodexShortcutDestinationResult['result'] = 'failed';
+          try {
+            if (destination === 'desktop') output = path.join(options.desktop, shortcutName);
+            if (destination === 'startMenu') output = path.join(await programs(), shortcutName);
+            if (output && isCurrent()) {
+              result = await windows.create(
+                {
+                  destination: output,
+                  profile,
+                  desktopData,
+                  appExecutable: options.appExecutable,
+                  appPath: options.appPath,
+                },
+                { userData: options.userData },
+              );
+            }
+          } catch {
+            // Each requested location reports its own write result.
+          }
+          results.push({ destination, result });
+        }
+        return { state: 'complete', destinations: results };
+      }
       const resolution = await resolveProfile(platform);
       if ('reason' in resolution) return failed(resolution.reason);
       const { profile, selectedConfig, desktopData, install, current } = resolution;
@@ -414,8 +409,7 @@ export function createCodexShortcutHandler(
         destination: string,
       ): Promise<CodexShortcutDestinationResult['result']> => {
         if (!isCurrent()) return 'failed';
-        const request = { destination, ...launcher } satisfies WindowsCodexShortcutRequest;
-        if (platform === 'windows') return windows.create(request, { userData: options.userData });
+
         try {
           await lstat(destination);
           return 'alreadyExists';
@@ -439,8 +433,7 @@ export function createCodexShortcutHandler(
             if (isCurrent()) await mkdir(applications, { recursive: true, mode: 0o700 });
             output = path.join(applications, shortcutName);
           }
-          if (destination === 'startMenu')
-            output = path.join(await windows.programs(), shortcutName);
+          if (destination === 'startMenu') output = path.join(await programs(), shortcutName);
           if (output) {
             result = await create(output);
             if (platform === 'mac' && result === 'created') dockShortcut ??= output;
