@@ -222,10 +222,26 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   assert.equal(await picker.getByRole('textbox').count(), 0);
   for (const name of ['Список приложений в меню «Пуск»', 'Другая папка…'])
     assert.equal(await picker.getByRole('checkbox', { name, exact: true }).isChecked(), false);
+  const startMenu = picker.getByRole('checkbox', {
+    name: 'Список приложений в меню «Пуск»',
+    exact: true,
+  });
+  const createRussian = picker.getByRole('button', { name: 'Создать', exact: true });
+  await startMenu.check();
+  await createRussian.click();
+  await page.evaluate(() =>
+    window.fixture.finish({
+      state: 'complete',
+      destinations: [{ destination: 'startMenu', result: 'closeToUpdate' }],
+    }),
+  );
   await picker
-    .getByRole('checkbox', { name: 'Список приложений в меню «Пуск»', exact: true })
-    .check();
-  await picker.getByRole('button', { name: 'Создать', exact: true }).click();
+    .getByRole('alert')
+    .getByText('Закройте ChatGPT и повторите попытку, чтобы обновить ярлык.')
+    .waitFor();
+  assert.equal(await picker.getByTestId('chatgpt-shortcut-created-startMenu').count(), 0);
+  assert.equal(await startMenu.isChecked(), true);
+  await createRussian.click();
   assert.deepEqual(
     await page.evaluate(
       () => window.fixture.calls.findLast((entry) => entry.method === 'codexShortcutCreate').input,

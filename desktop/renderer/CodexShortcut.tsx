@@ -193,7 +193,13 @@ export function CodexShortcut({
       }
       if (outcome.state !== 'cancelled') {
         setResult(outcome);
-        setSelected([]);
+        setSelected(
+          outcome.state === 'complete'
+            ? outcome.destinations
+                .filter(({ result }) => result === 'closeToUpdate')
+                .map(({ destination }) => destination)
+            : [],
+        );
         await refreshLocations();
       }
     } catch (error) {

@@ -11,6 +11,7 @@ export type CodexShortcutResult =
   | 'appMissing'
   | 'profileUnavailable'
   | 'alreadyExists'
+  | 'closeToUpdate'
   | 'failed';
 
 export const codexShortcutDestinations = [

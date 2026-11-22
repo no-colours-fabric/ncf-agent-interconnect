@@ -509,6 +509,24 @@ const connectDialog: Record<Locale, readonly [string, string]> = {
   ],
 };
 
+const closeToUpdate: Record<Locale, string> = {
+  en: 'Close ChatGPT and try again to update the shortcut.',
+  ru: 'Закройте ChatGPT и повторите попытку, чтобы обновить ярлык.',
+  'zh-CN': '请关闭 ChatGPT，然后重试以更新快捷方式。',
+  fr: 'Fermez ChatGPT, puis réessayez pour mettre à jour le raccourci.',
+  de: 'Schließen Sie ChatGPT und versuchen Sie erneut, die Verknüpfung zu aktualisieren.',
+  it: 'Chiudi ChatGPT e riprova per aggiornare il collegamento.',
+  es: 'Cierra ChatGPT y vuelve a intentarlo para actualizar el acceso directo.',
+  kk: 'Таңбашаны жаңарту үшін ChatGPT қолданбасын жауып, әрекетті қайталаңыз.',
+  ja: 'ショートカットを更新するには、ChatGPT を終了してからやり直してください。',
+  'pt-BR': 'Feche o ChatGPT e tente novamente para atualizar o atalho.',
+  ko: '바로가기를 업데이트하려면 ChatGPT를 종료한 후 다시 시도하세요.',
+  tr: 'Kısayolu güncellemek için ChatGPT’yi kapatıp tekrar deneyin.',
+  pl: 'Zamknij ChatGPT i spróbuj ponownie, aby zaktualizować skrót.',
+  nl: 'Sluit ChatGPT en probeer opnieuw om de snelkoppeling bij te werken.',
+  uk: 'Закрийте ChatGPT і повторіть спробу, щоб оновити ярлик.',
+};
+
 export function codexShortcutMessages(locale: Locale) {
   const [connectTitle, chooseForConnection] = connectDialog[locale];
   const [save, helpBefore, helpWhen, locationCreated, checkingLocations, locationsFailed] =
@@ -551,6 +569,7 @@ export function codexShortcutMessages(locale: Locale) {
     checkingLocations,
     locationsFailed,
     alreadyOpen,
+    closeToUpdate: closeToUpdate[locale],
     launchFailed,
     desktop,
     applications,
