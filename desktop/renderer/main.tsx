@@ -1,4 +1,5 @@
 import { ChatGptConnectDialog, type ChatGptConnectRequest } from './CodexShortcut.js';
+import { InstallationRestartNotice } from './InstallationRestartNotice.js';
 import { OverviewApplications } from './OverviewApplications.js';
 import { OverviewConnections } from './OverviewConnections.js';
 import { NetworkInterfacesSettings } from './NetworkInterfacesSettings.js';
@@ -92,6 +93,8 @@ function App({
   const [networkSaveError, setNetworkSaveError] = useState<string | null>(null);
   const [appVersion, setAppVersion] = useState('');
   const [windowVisible, setWindowVisible] = useState(false);
+  const [installationRestartPending, setInstallationRestartPending] = useState(false);
+  const installationRestartDismissed = useRef(false);
   const [nicknameDialog, setNicknameDialog] = useState(false),
     [nickname, setNickname] = useState('');
   const [address, setAddress] = useState(''),
@@ -199,11 +202,14 @@ function App({
     try {
       const [value, state] = await Promise.all([
         call<Snapshot>('snapshot'),
-        call<{ visible: boolean }>('windowState', {}),
+        call<{ visible: boolean; installationRestartPending?: boolean }>('windowState', {}),
       ]);
       if (request === snapshotRequest.current) {
         setSnapshot(value);
         setWindowVisible(state.visible === true);
+        setInstallationRestartPending(
+          state.installationRestartPending === true && !installationRestartDismissed.current,
+        );
       }
     } catch (e) {
       if (request !== snapshotRequest.current) return;
@@ -390,6 +396,7 @@ function App({
           windowVisible={windowVisible}
           obscured={
             nicknameDialog ||
+            installationRestartPending ||
             !!chatGptConnect ||
             applicationStartup.open ||
             Object.values(applicationSetupStates).some((state) => state.phase === 'confirmation')
@@ -771,7 +778,9 @@ function App({
       <ApplicationSetup
         discovery={discovery}
         flow={applicationSetup}
-        startup={applicationStartup}
+        startup={
+          installationRestartPending ? { ...applicationStartup, open: false } : applicationStartup
+        }
         statuses={setupStatuses}
         invoke={call}
         locale={locale}
@@ -780,6 +789,15 @@ function App({
       {chatGptConnect && (
         <ChatGptConnectDialog invoke={call} locale={locale} request={chatGptConnect} />
       )}
+      <InstallationRestartNotice
+        open={windowVisible && installationRestartPending}
+        locale={locale}
+        onClose={() => {
+          installationRestartDismissed.current = true;
+          setInstallationRestartPending(false);
+          void call('acknowledgeInstallationRestart').catch(() => {});
+        }}
+      />
       <Dialog
         open={nicknameDialog}
         onClose={() => setNicknameDialog(false)}

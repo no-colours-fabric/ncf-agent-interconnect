@@ -10,6 +10,7 @@ import {
   clipboard,
 } from 'electron';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
 import path from 'node:path';
 import { mkdir, copyFile, appendFile } from 'node:fs/promises';
 import { z } from 'zod';
@@ -20,6 +21,7 @@ import { createMcpSetupHandler } from './mcp-setup-ipc.js';
 import { createApplicationDiscoveryHandler } from './application-discovery-ipc.js';
 import { UiServiceAccess } from './ui-service-access.js';
 import { hasCodexShortcutLaunchFlags } from '../shared/codex-shortcut.js';
+import { pendingInstallationRestartNotice } from './installation-restart-notice.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(1);
@@ -34,6 +36,7 @@ let window: BrowserWindow | null = null,
   service: NodeService | null = null,
   quitting = false;
 let opening: Promise<void> | null = null;
+let acknowledgeInstallationRestart: (() => Promise<void>) | null = null;
 const startup = new StartupLifecycle(showWindow);
 const lanSearchLifecycle = new LanSearchLifecycle(async (isCurrent) => {
   const active = service,
@@ -95,6 +98,20 @@ else {
       if (quitting) return;
       const data = app.getPath('userData');
       await mkdir(data, { recursive: true, mode: 0o700 });
+      if (app.isPackaged) {
+        acknowledgeInstallationRestart = await Promise.resolve()
+          .then(() => {
+            const originalFs = createRequire(import.meta.url)(
+              'original-fs',
+            ) as typeof import('node:fs');
+            return pendingInstallationRestartNotice(
+              data,
+              app.getAppPath(),
+              originalFs.promises.stat,
+            );
+          })
+          .catch(() => null);
+      }
       if (quitting) return;
       const image = nativeImage
         .createFromPath(
@@ -285,7 +302,17 @@ function setupIpc(): void {
     if (method === 'windowState') {
       access.current();
       z.object({}).strict().parse(raw);
-      return { visible: isWindowVisible() };
+      return {
+        visible: isWindowVisible(),
+        installationRestartPending: acknowledgeInstallationRestart !== null,
+      };
+    }
+    if (method === 'acknowledgeInstallationRestart') {
+      z.object({}).strict().parse(raw);
+      const acknowledge = acknowledgeInstallationRestart;
+      acknowledgeInstallationRestart = null;
+      await acknowledge?.().catch(() => {});
+      return { acknowledged: true };
     }
     const discoveryResult = await applicationDiscovery(method, raw, String(event.sender.id));
     if (discoveryResult.handled) return discoveryResult.result;
