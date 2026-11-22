@@ -130,11 +130,16 @@ function App({
   const setupStatuses = useMcpSetupStatuses(call);
   const discovery = useApplicationDiscovery(call);
   const applicationSetup = useApplicationSetup(call, () => setupStatuses.refreshAll(true));
-  const applicationStartup = useApplicationSetupStartup(discovery);
   const applicationSetupStates = useSyncExternalStore(
     applicationSetup.subscribe,
     applicationSetup.getSnapshot,
     applicationSetup.getSnapshot,
+  );
+  const applicationStartup = useApplicationSetupStartup(
+    discovery,
+    applicationSetupStates,
+    setupStatuses,
+    snapshot ?? undefined,
   );
   const openManualSetup = (application: McpSetupApplication) => {
     setClient(application);
@@ -728,7 +733,6 @@ function App({
         statuses={setupStatuses}
         invoke={call}
         locale={locale}
-        snapshot={snapshot}
         onManualSetup={openManualSetup}
       />
       <Dialog
