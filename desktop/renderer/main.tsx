@@ -94,7 +94,7 @@ function App({
   const [appVersion, setAppVersion] = useState('');
   const [windowVisible, setWindowVisible] = useState(false);
   const [installationRestartPending, setInstallationRestartPending] = useState(false);
-  const installationRestartDismissed = useRef(false);
+  const installationRestartDismissal = useRef<'idle' | 'recording' | 'dismissed'>('idle');
   const [nicknameDialog, setNicknameDialog] = useState(false),
     [nickname, setNickname] = useState('');
   const [address, setAddress] = useState(''),
@@ -208,7 +208,8 @@ function App({
         setSnapshot(value);
         setWindowVisible(state.visible === true);
         setInstallationRestartPending(
-          state.installationRestartPending === true && !installationRestartDismissed.current,
+          state.installationRestartPending === true &&
+            installationRestartDismissal.current !== 'dismissed',
         );
       }
     } catch (e) {
@@ -793,9 +794,14 @@ function App({
         open={windowVisible && installationRestartPending}
         locale={locale}
         onClose={() => {
-          installationRestartDismissed.current = true;
-          setInstallationRestartPending(false);
-          void call('acknowledgeInstallationRestart').catch(() => {});
+          if (installationRestartDismissal.current !== 'idle') return;
+          installationRestartDismissal.current = 'recording';
+          void call('acknowledgeInstallationRestart')
+            .catch(() => {})
+            .finally(() => {
+              installationRestartDismissal.current = 'dismissed';
+              setInstallationRestartPending(false);
+            });
         }}
       />
       <Dialog

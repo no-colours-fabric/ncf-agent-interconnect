@@ -37,6 +37,7 @@ let window: BrowserWindow | null = null,
   quitting = false;
 let opening: Promise<void> | null = null;
 let acknowledgeInstallationRestart: (() => Promise<void>) | null = null;
+let installationRestartRecording: Promise<void> | undefined;
 const startup = new StartupLifecycle(showWindow);
 const lanSearchLifecycle = new LanSearchLifecycle(async (isCurrent) => {
   const active = service,
@@ -87,6 +88,7 @@ else {
         () => service?.close(),
         () => {},
       )
+      .then(() => installationRestartRecording)
       .finally(() => {
         tray?.destroy();
         app.quit();
@@ -310,8 +312,11 @@ function setupIpc(): void {
     if (method === 'acknowledgeInstallationRestart') {
       z.object({}).strict().parse(raw);
       const acknowledge = acknowledgeInstallationRestart;
-      acknowledgeInstallationRestart = null;
-      await acknowledge?.().catch(() => {});
+      if (acknowledge) {
+        installationRestartRecording ??= acknowledge().catch(() => {});
+        await installationRestartRecording;
+        acknowledgeInstallationRestart = null;
+      }
       return { acknowledged: true };
     }
     const discoveryResult = await applicationDiscovery(method, raw, String(event.sender.id));
