@@ -1,10 +1,21 @@
 import { constants } from 'node:fs';
-import { copyFile, lstat, mkdir, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import {
+  copyFile,
+  lstat,
+  mkdir,
+  mkdtemp,
+  readFile,
+  rename,
+  rmdir,
+  unlink,
+  writeFile,
+} from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import { createRequire } from 'node:module';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
-import { homedir } from 'node:os';
+import { execFile, spawn } from 'node:child_process';
+import { homedir, tmpdir } from 'node:os';
+import { promisify } from 'node:util';
 import { McpSetupPaths } from '../core/mcp-setup-paths.js';
 
 export type WindowsCodexShortcutRequest = {
@@ -399,6 +410,7 @@ export async function createWindowsCodexShortcut(
 ): Promise<WindowsCodexShortcutResult> {
   if (process.platform !== 'win32') return 'appMissing';
   let temporary: string | undefined;
+  let temporaryDirectory: string | undefined;
   try {
     if (
       !path.isAbsolute(request.destination) ||
@@ -417,10 +429,8 @@ export async function createWindowsCodexShortcut(
       'manifest.json',
     );
     const { shell } = await import('electron');
-    temporary = path.join(
-      path.dirname(request.destination),
-      '.chatgpt-ncf-' + randomUUID() + '.lnk',
-    );
+    temporaryDirectory = await mkdtemp(path.join(tmpdir(), 'ncf-shortcut-'));
+    temporary = path.join(temporaryDirectory, 'shortcut.lnk');
     if (
       !shell.writeShortcutLink(temporary, 'create', {
         target: request.appExecutable,
@@ -438,11 +448,17 @@ export async function createWindowsCodexShortcut(
       if ((error as NodeJS.ErrnoException).code === 'EEXIST') return 'alreadyExists';
       throw error;
     }
+    await promisify(execFile)(
+      path.join(path.dirname(request.appPath), 'tools', 'ncf-update-preflight.exe'),
+      ['--notify-shortcut-created', request.destination],
+      { windowsHide: true, timeout: 2000, maxBuffer: 8192 },
+    ).catch(() => undefined);
     return 'created';
   } catch {
     return 'failed';
   } finally {
     if (temporary) await unlink(temporary).catch(() => undefined);
+    if (temporaryDirectory) await rmdir(temporaryDirectory).catch(() => undefined);
   }
 }
 

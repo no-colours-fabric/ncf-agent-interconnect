@@ -7,8 +7,10 @@ using System.Runtime.InteropServices;
 using System.Security.Principal;
 using System.Text;
 
-// Installer-only, read-only inventory. Never stop processes or change permissions.
+// Installer inventory and lightweight shell helpers. Never stop processes or change permissions.
 internal static class NcfUpdatePreflight {
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    static extern void SHChangeNotify(uint eventId, uint flags, string item1, IntPtr item2);
     [StructLayout(LayoutKind.Sequential)] struct UniqueProcess {
         public uint pid;
         public System.Runtime.InteropServices.ComTypes.FILETIME started;
@@ -68,6 +70,11 @@ internal static class NcfUpdatePreflight {
         uint handle;
         if (RmStartSession(out handle, 0, new StringBuilder(33)) != 0) throw new InvalidOperationException();
         try {
+            if (args.Length == 2 && args[0] == "--notify-shortcut-created") {
+                if (!Path.IsPathRooted(args[1]) || !String.Equals(Path.GetExtension(args[1]), ".lnk", StringComparison.OrdinalIgnoreCase)) return 20;
+                SHChangeNotify(0x00000002, 0x00002005, Path.GetFullPath(args[1]), IntPtr.Zero);
+                return 0;
+            }
             if (RmRegisterResources(handle, (uint)files.Count, files.ToArray(), 0, IntPtr.Zero, 0, IntPtr.Zero) != 0) throw new InvalidOperationException();
             uint needed, count = 0, reasons = 0;
             int error = RmGetList(handle, out needed, ref count, null, ref reasons);
