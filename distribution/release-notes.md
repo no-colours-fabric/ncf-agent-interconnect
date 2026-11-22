@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 1.0.0-alpha.1.20261122T162518Z
+# NCF Agent Interconnect 1.0.0-alpha.2.20261122T165228Z
 
 The new macOS delivery path for ChatGPT sends full Incoming
 through the native Codex queue directly to the exact connected chat. The message includes its sender,

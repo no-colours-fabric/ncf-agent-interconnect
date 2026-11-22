@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 1.0.0-alpha.1.20261122T162518Z
+# NCF Agent Interconnect 1.0.0-alpha.2.20261122T165228Z
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
