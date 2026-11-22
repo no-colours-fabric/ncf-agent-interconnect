@@ -4,6 +4,7 @@ import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import {
   ApplicationRows,
   ApplicationSetupConfirmation,
+  ClaudePermissionChanges,
   useApplicationSetup,
 } from './ApplicationSetup.js';
 import { applicationSetupClients, type ApplicationSetupFlow } from './application-setup-model.js';
@@ -686,6 +687,9 @@ function ClientSetupDialog({
               )}
               <Box sx={inline ? undefined : { minHeight: '3em' }}>
                 {checked && !result && <Typography variant="body2">{m[checked.action]}</Typography>}
+                {client === 'claude' && checked && !result && (
+                  <ClaudePermissionChanges file={checked} />
+                )}
               </Box>
             </Stack>
           );

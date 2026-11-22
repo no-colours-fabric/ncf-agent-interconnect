@@ -312,6 +312,13 @@ try {
 
     phase = client.id + ': apply through renderer and IPC';
     dialog = await openSetup(client, client.selectedFile);
+    const claudeRules = [
+      'mcp__plugin_ncf-agent-interconnect_ncf__agent_connect',
+      'mcp__plugin_ncf-agent-interconnect_ncf__agent_read',
+      'mcp__plugin_ncf-agent-interconnect_ncf__agent_send',
+    ];
+    if (client.id === 'claude')
+      for (const rule of claudeRules) await dialog.getByText(rule, { exact: true }).waitFor();
     await dialog.getByTestId('mcp-apply').click();
     await dialog.getByText('Setup applied.', { exact: true }).waitFor();
     await assertNoConfigurationUi();
@@ -327,9 +334,7 @@ try {
         ),
       );
       assert.equal(config.enabledPlugins['ncf-agent-interconnect@ncf-agent-interconnect'], true);
-      assert.deepEqual(config.permissions.allow, [
-        'mcp__plugin_ncf-agent-interconnect_ncf__agent_read',
-      ]);
+      assert.deepEqual(config.permissions.allow, claudeRules);
       assert.ok(!text.includes(settings.localToken));
       assert.equal(config.fixture, 'keep-claude');
     }

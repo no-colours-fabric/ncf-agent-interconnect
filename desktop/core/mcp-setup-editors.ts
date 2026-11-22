@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { applyEdits, modify, parse, parseTree, type Node, type ParseError } from 'jsonc-parser';
 import { parse as parseToml, patch as patchToml } from '@decimalturn/toml-patch';
 import type { McpSetupClient, McpSetupFilePreview } from '../shared/mcp-setup.js';
+import { claudeToolPrefix } from '../integrations/claude-code.js';
+import { claudeSetupAllowRules } from './instructions.js';
 
 const serverName = 'ncf_agent_interconnect';
 const object = (value: unknown): value is Record<string, unknown> =>
@@ -48,9 +50,39 @@ export interface McpSetupEdit {
   requiresReplacement: boolean;
 }
 
+function claudePermissionRules(
+  permissions: Record<string, unknown>,
+  decision: 'allow' | 'ask' | 'deny',
+): string[] {
+  const rules = own(permissions, decision);
+  if (rules === undefined) return [];
+  if (!Array.isArray(rules) || rules.some((rule) => typeof rule !== 'string'))
+    throw new Error(`The permissions.${decision} setting must be an array of strings`);
+  return rules;
+}
+
+function matchesClaudeRestriction(rule: string, tool: string): boolean {
+  const pattern = rule.trim();
+  if (pattern === claudeToolPrefix.slice(0, -2)) return true;
+  // Claude Code settings support bare MCP rule names and tool-name star patterns.
+  if (pattern.includes('(')) return false;
+  if (!pattern.includes('*')) return pattern === tool;
+  const [prefix, ...parts] = pattern.split('*');
+  const suffix = parts.pop()!;
+  if (!tool.startsWith(prefix) || !tool.endsWith(suffix)) return false;
+  let offset = prefix.length;
+  const end = tool.length - suffix.length;
+  for (const part of parts) {
+    const next = tool.indexOf(part, offset);
+    if (next < 0 || next + part.length > end) return false;
+    offset = next + part.length;
+  }
+  return offset <= end;
+}
+
 /**
  * Claude Code user settings: the local NCF marketplace, its enabled plugins (the
- * NCF plugin and the gate it depends on) and one exact allow rule. Other
+ * NCF plugin and the gate it depends on) and the exact NCF allow rules. Other
  * settings, comments and formatting are preserved; MCP servers are never added
  * outside the plugin.
  */
@@ -90,20 +122,25 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
     !wantedPlugins.length ||
     wantedPlugins.some(([, enabled]) => enabled !== true) ||
     !Array.isArray(rules) ||
-    rules.length !== 1
+    rules.length !== claudeSetupAllowRules.length ||
+    !claudeSetupAllowRules.every((rule) => rules.includes(rule))
   )
     throw new Error('The generated Claude Code settings are invalid');
-  const rule = rules[0] as string;
   const markets = table(root, 'extraKnownMarketplaces');
   const plugins = table(root, 'enabledPlugins');
   const permissions = table(root, 'permissions');
-  const allow = own(permissions, 'allow') ?? [];
-  if (!Array.isArray(allow) || allow.some((value) => typeof value !== 'string'))
-    throw new Error('The permissions.allow setting must be an array of strings');
+  const allow = claudePermissionRules(permissions, 'allow');
+  for (const decision of ['deny', 'ask'] as const) {
+    const restrictions = claudePermissionRules(permissions, decision);
+    const blocked = claudeSetupAllowRules.find((tool) =>
+      restrictions.some((rule) => matchesClaudeRestriction(rule, tool)),
+    );
+    if (blocked) throw new Error(`Claude Code permissions.${decision} → ${blocked}`);
+  }
   const previous = own(markets, marketplace);
   const marketEqual = containsSettings(previous, entry);
   const pluginStates = wantedPlugins.map(([plugin]) => [plugin, own(plugins, plugin)] as const);
-  const ruleExists = allow.includes(rule);
+  const missing = claudeSetupAllowRules.filter((rule) => !allow.includes(rule));
   const changes: McpSetupEdit['changes'] = [
     {
       scope: 'extraKnownMarketplaces.' + marketplace,
@@ -114,7 +151,10 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
       action: (state === true ? 'unchanged' : state === undefined ? 'add' : 'replace') as
         'unchanged' | 'add' | 'replace',
     })),
-    { scope: 'permissions.allow', action: ruleExists ? 'unchanged' : 'add' },
+    ...claudeSetupAllowRules.map((rule) => ({
+      scope: `permissions.allow ${rule}`,
+      action: (missing.includes(rule) ? 'add' : 'unchanged') as 'add' | 'unchanged',
+    })),
   ];
   let content = source.trim() ? source : '{}';
   const eol = source.includes('\r\n') ? '\r\n' : '\n';
@@ -127,7 +167,7 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
   for (const [plugin, state] of pluginStates)
     if (state !== true)
       content = applyEdits(content, modify(content, ['enabledPlugins', plugin], true, options));
-  if (!ruleExists)
+  for (const rule of missing)
     content = applyEdits(content, modify(content, ['permissions', 'allow', -1], rule, options));
   const parsed = json(content);
   if (!source.trim()) content = JSON.stringify(parsed, null, 2) + eol;

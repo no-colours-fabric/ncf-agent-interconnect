@@ -119,7 +119,7 @@ export const tr: Messages = {
   mcpSetup_configureClaude: "Claude Code'u yapılandır",
   mcpSetup_claudeTitle: "Claude Code'u yapılandır",
   mcpSetup_claudeDescription:
-    "Etkileşimli Claude Code'u NCF Agent Interconnect'e bağlayın. Uygula, seçilen kullanıcı ayarları dosyasında bu uygulamanın yayımladığı iki eklentiyi etkinleştirir: MCP sunucusu, bu uygulamanın çalıştırdığı sabit yaşam döngüsü ve araç çağrısı kancaları ve bekleyen iletileri doğru sohbette duyuran bir mod içeren NCF eklentisi; ve bağlı olduğu, bir duyurunun yalnızca güncel olduğu sürece tur başlatmasına izin veren denetim eklentisi. Ayrıca agent_read'e sormadan izin verir. Diğer izin kararları size aittir.",
+    'Kurulum, seçili Claude profilinde NCF eklentilerini etkinleştirir ve agent_connect, agent_read ve agent_send araçlarına izin verir. Yönetilen kurallar dahil mevcut onay isteme ve reddetme kuralları geçerliliğini korur.',
   mcpSetup_claudeNext: 'Claude Code’u açın veya bir oturuma dönün, ardından sohbette bağlanın.',
   mcpSetup_claudeLaunch: "Claude Code'u başlat",
   mcpSetup_copyLaunch: 'Başlatma komutunu kopyala',

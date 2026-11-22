@@ -27,7 +27,12 @@ import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import type { AionUiApplicationState } from '../shared/aionui.js';
 import type { Snapshot } from '../shared/contracts.js';
 import { applicationNames } from '../shared/application-discovery.js';
-import { mcpSetupClients, type McpSetupClient, type McpSetupInvoke } from '../shared/mcp-setup.js';
+import {
+  mcpSetupClients,
+  type McpSetupClient,
+  type McpSetupFilePreview,
+  type McpSetupInvoke,
+} from '../shared/mcp-setup.js';
 import {
   ApplicationSetupFlow,
   applicationSetupClients,
@@ -278,6 +283,23 @@ export function NextStep({
   );
 }
 
+export function ClaudePermissionChanges({ file }: { file: McpSetupFilePreview }) {
+  const prefix = 'permissions.allow ';
+  const added = file.changes.filter(
+    (change) => change.action === 'add' && change.scope.startsWith(prefix),
+  );
+  if (!added.length) return null;
+  return (
+    <Box component="ul" sx={{ my: 0.5, pl: 3, overflowWrap: 'anywhere' }}>
+      {added.map(({ scope }) => (
+        <Typography component="li" variant="body2" key={scope}>
+          <code>{scope.slice(prefix.length)}</code>
+        </Typography>
+      ))}
+    </Box>
+  );
+}
+
 export function ApplicationSetupConfirmation({
   flow,
   locale,
@@ -318,6 +340,7 @@ export function ApplicationSetupConfirmation({
               <Typography variant="body2" color="text.secondary">
                 {m[file.action]}
               </Typography>
+              {client === 'claude' && <ClaudePermissionChanges file={file} />}
               {file.backupPath && (
                 <Typography variant="body2">
                   {m.backup}: {file.backupPath}
@@ -633,6 +656,11 @@ function ApplicationCompactList({
               >
                 {briefStatus}
               </Typography>
+              {client === 'claude' && connect && (
+                <Typography variant="caption" color="text.secondary">
+                  {m.claudeDescription}
+                </Typography>
+              )}
             </Box>
           </Box>
           <Stack spacing={1} sx={{ pt: 1, pb: 1, pl: 3, minWidth: 0 }}>
@@ -727,6 +755,11 @@ function ApplicationCompactList({
             sx={{ gridColumn: '2 / -1', minWidth: 0 }}
           >
             {pending ? copy.uncertain : copy.failed}
+            {client === 'claude' && state.error?.startsWith('Claude Code permissions.') && (
+              <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                {state.error}
+              </Typography>
+            )}
           </Alert>
         )}
       </Box>
@@ -977,6 +1010,11 @@ export function ApplicationRows({
                   ? copy.automaticAvailable
                   : copy.automaticUnavailable}
             </Typography>
+            {client === 'claude' && action && (
+              <Typography variant="caption" color="text.secondary">
+                {m.claudeDescription}
+              </Typography>
+            )}
           </Box>
           {!showStatus && (
             <Stack
@@ -1039,6 +1077,11 @@ export function ApplicationRows({
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
           <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
             {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
+            {client === 'claude' && state.error?.startsWith('Claude Code permissions.') && (
+              <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
+                {state.error}
+              </Typography>
+            )}
           </Alert>
         )}
         {client === 'codex' &&
