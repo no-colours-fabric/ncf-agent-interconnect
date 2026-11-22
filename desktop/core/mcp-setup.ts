@@ -21,7 +21,7 @@ import type {
   OpenCodeV2SetupAvailability,
 } from '../shared/mcp-setup.js';
 import { mcpSetupClients } from '../shared/mcp-setup.js';
-import { editMcpConfiguration } from './mcp-setup-editors.js';
+import { codexMcpConfigurationMatches, editMcpConfiguration } from './mcp-setup-editors.js';
 import { editOpenCodeV2Configuration, openCodeV2ConfigurationHash } from './mcp-setup-editors.js';
 import {
   OpenCodeV2Auth,
@@ -251,6 +251,19 @@ export class McpSetupService {
 
   async statusAll(): Promise<McpSetupStatus[]> {
     return Promise.all(mcpSetupClients.map((client) => this.status(client)));
+  }
+
+  /** Check the selected Codex file against this node without preparing or applying a change. */
+  async configuredCodexFile(filename: string): Promise<string | null> {
+    const resolved = this.resolvePath(filename);
+    if (path.basename(resolved) !== 'config.toml') return null;
+    const canonical = await this.canonicalPath(resolved);
+    const source = await this.readSource(canonical);
+    if (!source.exists) return null;
+    const instructions = await this.options.instructions('codex');
+    return codexMcpConfigurationMatches(source.content, instructions.configuration)
+      ? canonical
+      : null;
   }
 
   async openablePath(client: McpSetupClient): Promise<string> {

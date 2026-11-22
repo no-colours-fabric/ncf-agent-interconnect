@@ -1,4 +1,10 @@
-import type { BrowserWindow, Dialog } from 'electron';
+import type {
+  BrowserWindow,
+  OpenDialogOptions,
+  OpenDialogReturnValue,
+  SaveDialogOptions,
+  SaveDialogReturnValue,
+} from 'electron';
 import path from 'node:path';
 import { z } from 'zod';
 import { codexShortcutLocales, codexShortcutMessages } from '../shared/codex-shortcut-messages.js';
@@ -17,10 +23,21 @@ interface CodexShortcutOptions {
   appPath: string;
   appData: string;
   home: string;
+  codexHome?: string;
   desktop: string;
-  dialog: Pick<Dialog, 'showOpenDialog' | 'showSaveDialog'>;
+  dialog: {
+    showOpenDialog: (
+      owner: BrowserWindow,
+      options: OpenDialogOptions,
+    ) => Promise<OpenDialogReturnValue>;
+    showSaveDialog: (
+      owner: BrowserWindow,
+      options: SaveDialogOptions,
+    ) => Promise<SaveDialogReturnValue>;
+  };
   window: () => BrowserWindow | null;
   status: () => Promise<McpSetupStatus>;
+  configuredFile: (filename: string) => Promise<string | null>;
 }
 
 export function codexShortcutPlatform(
@@ -30,7 +47,10 @@ export function codexShortcutPlatform(
   return installed && platform === 'darwin' ? 'mac' : null;
 }
 
-export function createCodexShortcutHandler(options: CodexShortcutOptions) {
+export function createCodexShortcutHandler(
+  options: CodexShortcutOptions,
+  mac = { findMacCodex, createMacCodexShortcut, macShortcutDirectory },
+) {
   let creating = false;
 
   return async (
@@ -54,13 +74,34 @@ export function createCodexShortcutHandler(options: CodexShortcutOptions) {
     creating = true;
     try {
       const status = await options.status();
-      const configuration = status.files[0]?.path;
-      if (status.state !== 'configured' || !status.remembered || !configuration)
-        return 'setupRequired';
-      if (path.basename(configuration) !== 'config.toml') return 'profileUnavailable';
-      const profile = await macShortcutDirectory(path.dirname(configuration)).catch(() => null);
+      const suggested = status.files[0]?.path;
+      const explicitHome = options.codexHome;
+      const explicitConfig =
+        explicitHome && path.isAbsolute(explicitHome)
+          ? path.join(explicitHome, 'config.toml')
+          : undefined;
+      let filename = suggested;
+      if (
+        status.state !== 'configured' ||
+        !suggested ||
+        (!status.remembered && suggested !== explicitConfig)
+      ) {
+        if (!isCurrent()) return 'cancelled';
+        const selected = await options.dialog.showOpenDialog(owner, {
+          title: copy.selectConfig,
+          defaultPath: suggested || path.join(options.home, '.codex', 'config.toml'),
+          properties: ['openFile', 'showHiddenFiles'],
+          filters: [{ name: 'TOML', extensions: ['toml'] }],
+        });
+        if (selected.canceled || !selected.filePaths[0] || !isCurrent()) return 'cancelled';
+        filename = selected.filePaths[0];
+      }
+      if (!filename) return 'setupRequired';
+      const configuration = await options.configuredFile(filename).catch(() => null);
+      if (!configuration) return 'setupRequired';
+      const profile = await mac.macShortcutDirectory(path.dirname(configuration)).catch(() => null);
       if (!profile) return 'profileUnavailable';
-      const install = await findMacCodex();
+      const install = await mac.findMacCodex();
       if (!install) return 'appMissing';
       if (!isCurrent()) return 'cancelled';
       const selected = await options.dialog.showOpenDialog(owner, {
@@ -73,7 +114,7 @@ export function createCodexShortcutHandler(options: CodexShortcutOptions) {
         properties: ['openDirectory', 'showHiddenFiles'],
       });
       if (selected.canceled || !selected.filePaths[0] || !isCurrent()) return 'cancelled';
-      const desktopData = await macShortcutDirectory(selected.filePaths[0]).catch(() => null);
+      const desktopData = await mac.macShortcutDirectory(selected.filePaths[0]).catch(() => null);
       if (!desktopData) return 'profileUnavailable';
       if (!isCurrent()) return 'cancelled';
       const saved = await options.dialog.showSaveDialog(owner, {
@@ -82,15 +123,10 @@ export function createCodexShortcutHandler(options: CodexShortcutOptions) {
         filters: [{ name: 'Codex with NCF', extensions: ['app'] }],
       });
       if (saved.canceled || !saved.filePath || !isCurrent()) return 'cancelled';
-      const current = await options.status();
+      const current = await options.configuredFile(filename).catch(() => null);
       if (!isCurrent()) return 'cancelled';
-      if (
-        !current.remembered ||
-        current.state !== 'configured' ||
-        current.files[0]?.path !== configuration
-      )
-        return 'setupRequired';
-      return await createMacCodexShortcut({
+      if (current !== configuration) return 'setupRequired';
+      return await mac.createMacCodexShortcut({
         ...install,
         destination: saved.filePath,
         profile,

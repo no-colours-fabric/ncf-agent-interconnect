@@ -49,6 +49,8 @@ export function createMcpSetupHandler(
       },
       window: options.window,
       status: () => setup.status('codex'),
+      codexHome: (options.env ?? process.env).CODEX_HOME,
+      configuredFile: (filename) => setup.configuredCodexFile(filename),
     });
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {

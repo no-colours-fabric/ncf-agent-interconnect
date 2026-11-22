@@ -30,6 +30,7 @@ const en = [
   'Save Codex shortcut',
   'Close this Codex profile before opening the shortcut.',
   'Codex could not open. Check that the selected profile and both apps are still available.',
+  'Select Codex configuration',
 ] as const;
 
 type Translation<T> = { readonly [K in keyof T]: string };
@@ -48,6 +49,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Сохранение ярлыка Codex',
     'Закройте этот профиль Codex перед запуском через ярлык.',
     'Не удалось открыть Codex. Проверьте, что профиль и оба приложения доступны.',
+    'Выберите файл настроек Codex',
   ],
   'zh-CN': [
     '创建搭配 NCF 的 Codex 快捷方式',
@@ -62,6 +64,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     '保存 Codex 快捷方式',
     '请先关闭此 Codex 配置档案，再打开快捷方式。',
     '无法打开 Codex。请检查所选配置档案和两个应用是否仍可用。',
+    '选择 Codex 配置文件',
   ],
   fr: [
     'Créer un raccourci pour Codex avec NCF',
@@ -76,6 +79,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Enregistrer le raccourci Codex',
     'Fermez ce profil Codex avant d’ouvrir le raccourci.',
     'Impossible d’ouvrir Codex. Vérifiez que le profil sélectionné et les deux applications sont disponibles.',
+    'Sélectionner le fichier de configuration de Codex',
   ],
   de: [
     'Verknüpfung für Codex mit NCF erstellen',
@@ -90,6 +94,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Codex-Verknüpfung speichern',
     'Schließen Sie dieses Codex-Profil, bevor Sie die Verknüpfung öffnen.',
     'Codex konnte nicht geöffnet werden. Prüfen Sie, ob das Profil und beide Apps verfügbar sind.',
+    'Codex-Konfigurationsdatei auswählen',
   ],
   it: [
     'Crea collegamento a Codex con NCF',
@@ -104,6 +109,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Salva il collegamento a Codex',
     'Chiudi questo profilo Codex prima di aprire il collegamento.',
     'Impossibile aprire Codex. Verifica che il profilo scelto ed entrambe le app siano ancora disponibili.',
+    'Seleziona il file di configurazione di Codex',
   ],
   es: [
     'Crear acceso directo a Codex con NCF',
@@ -118,6 +124,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Guardar acceso directo a Codex',
     'Cierra este perfil de Codex antes de abrir el acceso directo.',
     'No se pudo abrir Codex. Comprueba que el perfil seleccionado y ambas aplicaciones siguen disponibles.',
+    'Seleccionar el archivo de configuración de Codex',
   ],
   kk: [
     'NCF-пен бірге Codex таңбашасын жасау',
@@ -132,6 +139,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Codex таңбашасын сақтау',
     'Таңбашаны ашпас бұрын осы Codex профилін жабыңыз.',
     'Codex ашылмады. Таңдалған профиль мен екі қолданбаның қолжетімді екенін тексеріңіз.',
+    'Codex конфигурация файлын таңдаңыз',
   ],
   ja: [
     'NCF と連携する Codex のショートカットを作成',
@@ -146,6 +154,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Codex のショートカットを保存',
     'ショートカットを開く前に、この Codex プロファイルを閉じてください。',
     'Codex を開けませんでした。選択したプロファイルと両方のアプリが利用できるか確認してください。',
+    'Codex の設定ファイルを選択',
   ],
   'pt-BR': [
     'Criar atalho do Codex com NCF',
@@ -160,6 +169,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Salvar atalho do Codex',
     'Feche este perfil do Codex antes de abrir o atalho.',
     'Não foi possível abrir o Codex. Verifique se o perfil selecionado e os dois aplicativos continuam disponíveis.',
+    'Selecionar o arquivo de configuração do Codex',
   ],
   ko: [
     'NCF와 연동하는 Codex 바로가기 만들기',
@@ -174,6 +184,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Codex 바로가기 저장',
     '바로가기를 열기 전에 이 Codex 프로필을 닫으세요.',
     'Codex를 열 수 없습니다. 선택한 프로필과 두 앱을 계속 사용할 수 있는지 확인하세요.',
+    'Codex 구성 파일 선택',
   ],
   tr: [
     'NCF ile Codex kısayolu oluştur',
@@ -188,6 +199,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Codex kısayolunu kaydet',
     'Kısayolu açmadan önce bu Codex profilini kapatın.',
     'Codex açılamadı. Seçilen profilin ve iki uygulamanın hâlâ kullanılabilir olduğunu kontrol edin.',
+    'Codex yapılandırma dosyasını seçin',
   ],
   pl: [
     'Utwórz skrót do Codex z NCF',
@@ -202,6 +214,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Zapisz skrót do Codex',
     'Zamknij ten profil Codex przed otwarciem skrótu.',
     'Nie udało się otworzyć Codex. Sprawdź, czy wybrany profil i obie aplikacje są nadal dostępne.',
+    'Wybierz plik konfiguracji Codex',
   ],
   nl: [
     'Snelkoppeling voor Codex met NCF maken',
@@ -216,6 +229,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Codex-snelkoppeling opslaan',
     'Sluit dit Codex-profiel voordat je de snelkoppeling opent.',
     'Codex kon niet worden geopend. Controleer of het gekozen profiel en beide apps nog beschikbaar zijn.',
+    'Selecteer het Codex-configuratiebestand',
   ],
   uk: [
     'Створити ярлик Codex із NCF',
@@ -230,6 +244,7 @@ const translations: Record<Locale, Translation<typeof en>> = {
     'Зберегти ярлик Codex',
     'Закрийте цей профіль Codex, перш ніж відкривати ярлик.',
     'Не вдалося відкрити Codex. Перевірте, чи вибраний профіль і обидві програми доступні.',
+    'Виберіть файл налаштувань Codex',
   ],
 };
 
@@ -247,6 +262,7 @@ export function codexShortcutMessages(locale: Locale) {
     save,
     alreadyOpen,
     launchFailed,
+    selectConfig,
   ] = translations[locale];
   return {
     action,
@@ -261,5 +277,6 @@ export function codexShortcutMessages(locale: Locale) {
     save,
     alreadyOpen,
     launchFailed,
+    selectConfig,
   };
 }

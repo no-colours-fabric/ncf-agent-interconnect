@@ -5,7 +5,13 @@ import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { promisify } from 'node:util';
-import { codexShortcutPlatform } from '../desktop/main/codex-shortcut-ipc.js';
+import type { BrowserWindow, OpenDialogOptions } from 'electron';
+import { McpSetupService } from '../desktop/core/mcp-setup.js';
+import { mcpInstructions } from '../desktop/core/instructions.js';
+import {
+  codexShortcutPlatform,
+  createCodexShortcutHandler,
+} from '../desktop/main/codex-shortcut-ipc.js';
 import { createMacCodexShortcut } from '../desktop/main/codex-shortcut-mac.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 import {
@@ -27,6 +33,111 @@ test('shortcut supports installed desktop platforms and provides independent loc
         assert.notEqual(value, codexShortcutMessages('en')[key as keyof typeof copy]);
     }
   }
+});
+
+test('shortcut verifies an exact unremembered Codex config without Apply or profile writes', async (t) => {
+  const root = await realpath(await mkdtemp(path.join(os.tmpdir(), 'ncf-codex-profile-')));
+  t.after(() => rm(root, { recursive: true, force: true }));
+  const defaultProfile = path.join(root, '.codex');
+  const selectedProfile = path.join(root, 'Other Codex profile');
+  const desktopData = path.join(root, 'Codex desktop');
+  const stateDirectory = path.join(root, 'ncf-state');
+  await Promise.all(
+    [defaultProfile, selectedProfile, desktopData].map((directory) =>
+      mkdir(directory, { mode: 0o700 }),
+    ),
+  );
+  const defaultConfig = path.join(defaultProfile, 'config.toml');
+  const selectedConfig = path.join(selectedProfile, 'config.toml');
+  const nodeUrl = 'http://127.0.0.1:44000/mcp';
+  const instructions = mcpInstructions(nodeUrl, 'isolated-test-token', 'codex', '', '{}');
+  const matching = '# Preserve this comment\n' + instructions.configuration;
+  const service = new McpSetupService({
+    stateDirectory,
+    home: root,
+    env: {},
+    instructions: () => instructions,
+  });
+  const owner = { isDestroyed: () => false } as BrowserWindow;
+  const selectedDestination = path.join(root, 'Codex with NCF.app');
+  const calls: string[] = [];
+  const createRequests: Array<Parameters<typeof createMacCodexShortcut>[0]> = [];
+  const handle = createCodexShortcutHandler(
+    {
+      platform: 'darwin',
+      installed: true,
+      appExecutable: path.join(root, 'NCF'),
+      appPath: root,
+      appData: root,
+      home: root,
+      desktop: root,
+      window: () => owner,
+      status: () => service.status('codex'),
+      configuredFile: (filename) => service.configuredCodexFile(filename),
+      dialog: {
+        showOpenDialog: async (_window: BrowserWindow, options: OpenDialogOptions) => {
+          const file = options.properties?.includes('openFile');
+          calls.push(file ? 'config' : 'data');
+          if (file) assert.equal(options.defaultPath, defaultConfig);
+          else assert.equal(options.message, selectedProfile);
+          return { canceled: false, filePaths: [file ? selectedConfig : desktopData] };
+        },
+        showSaveDialog: async () => {
+          calls.push('save');
+          return { canceled: false, filePath: selectedDestination };
+        },
+      },
+    },
+    {
+      findMacCodex: async () => ({
+        desktop: path.join(root, 'Codex.app'),
+        desktopExecutable: path.join(root, 'Codex.app/Contents/MacOS/Codex'),
+        cli: path.join(root, 'codex'),
+      }),
+      macShortcutDirectory: realpath,
+      createMacCodexShortcut: async (options) => {
+        createRequests.push(options);
+        return 'created';
+      },
+    },
+  );
+
+  await writeFile(defaultConfig, matching);
+  await t.test(
+    'configured without a saved path can use the explicitly selected profile',
+    async () => {
+      await writeFile(selectedConfig, matching);
+      const status = await service.status('codex');
+      assert.equal(status.state, 'configured');
+      assert.equal(status.remembered, false);
+      assert.equal(await handle('codexShortcutCreate', { locale: 'en' }), 'created');
+      assert.deepEqual(calls.splice(0), ['config', 'data', 'save']);
+      assert.equal(createRequests.length, 1);
+      assert.equal(createRequests[0].profile, selectedProfile);
+      assert.equal(createRequests[0].desktopData, desktopData);
+      assert.equal((await service.status('codex')).remembered, false);
+      assert.equal(await readFile(selectedConfig, 'utf8'), matching);
+      await assert.rejects(stat(stateDirectory), { code: 'ENOENT' });
+    },
+  );
+
+  await t.test(
+    'a mismatched or disabled selected config does not use the matching default',
+    async () => {
+      const wrongNode = matching.replace(nodeUrl, 'http://127.0.0.1:44001/mcp');
+
+      const wrongToken = matching.replace('isolated-test-token', 'different-fixture-token');
+      for (const invalid of [wrongNode, wrongToken, matching + 'enabled = false\n']) {
+        await writeFile(selectedConfig, invalid);
+        assert.equal(await handle('codexShortcutCreate', { locale: 'en' }), 'setupRequired');
+        assert.deepEqual(calls.splice(0), ['config']);
+        assert.equal(createRequests.length, 1);
+        assert.equal(await readFile(selectedConfig, 'utf8'), invalid);
+        assert.equal(await readFile(defaultConfig, 'utf8'), matching);
+        await assert.rejects(stat(stateDirectory), { code: 'ENOENT' });
+      }
+    },
+  );
 });
 
 test(

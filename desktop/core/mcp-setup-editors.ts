@@ -141,6 +141,23 @@ function editClaudeSettings(original: string, configuration: string): McpSetupEd
   };
 }
 
+export function codexMcpConfigurationMatches(source: string, configuration: string): boolean {
+  const readServer = (content: string) =>
+    own(table(parseToml(content.replace(/^\uFEFF/, '')), 'mcp_servers'), serverName);
+  try {
+    const installed = readServer(source);
+    const intended = readServer(configuration);
+    return (
+      object(installed) &&
+      installed.enabled !== false &&
+      object(intended) &&
+      containsSettings(installed, intended)
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function editMcpConfiguration(
   client: McpSetupClient,
   original: string,
