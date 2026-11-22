@@ -21,6 +21,140 @@ import {
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
 
 test(
+  'Windows control recovery preserves the exact chat and never writes input',
+  {
+    skip: process.platform !== 'win32',
+  },
+  async (t) => {
+    async function fixture(t: TestContext, wrongThread = false) {
+      const directory = await mkdtemp(path.join(tmpdir(), 'ncf-control-recovery-'));
+      const home = await realpath(directory);
+      const control = path.join(home, 'app-server-control');
+      await mkdir(control);
+      const threadId = randomUUID();
+      const profile: AdapterProfile = {
+        id: randomUUID(),
+        kind: 'codex-desktop',
+        label: 'Codex',
+        codexQueue: true,
+        socket: codexQueueLocator(home),
+        threadId,
+      };
+      let available = false;
+      let connections = 0;
+      let ready!: () => void;
+      let checked!: () => void;
+      const readiness = new Promise<void>((resolve) => {
+        ready = resolve;
+      });
+      const rechecked = new Promise<void>((resolve) => {
+        checked = resolve;
+      });
+      const methods: string[] = [];
+      const adapter = new CodexQueueAdapter(
+        profile,
+        () => {
+          if (connections > 1) checked();
+          if (adapter.status().state === 'ready') ready();
+        },
+        undefined,
+        async () => path.join(home, 'synthetic-transcript.jsonl'),
+        async (actual, signal, operation) => {
+          assert.equal(actual, profile);
+          assert.equal(signal.aborted, false);
+          connections++;
+          if (!available) throw new Error('Synthetic owner is not ready yet');
+          return operation(async (method, params) => {
+            methods.push(method);
+            assert.equal((params as { threadId: string }).threadId, threadId);
+            if (method === 'thread/read')
+              return {
+                thread: {
+                  id: wrongThread ? randomUUID() : threadId,
+                  ephemeral: false,
+                  path: path.join(home, 'synthetic-transcript.jsonl'),
+                  status: { type: 'active' },
+                },
+              };
+            assert.ok(method === 'thread/queue/list' || method === 'thread/items/list');
+            return { data: [] };
+          });
+        },
+      );
+      t.after(async () => {
+        await adapter.stop();
+        await rm(directory, { recursive: true, force: true });
+      });
+      return {
+        adapter,
+        profile,
+        control,
+        readiness,
+        rechecked,
+        methods,
+        available: () => {
+          available = true;
+        },
+        connections: () => connections,
+      };
+    }
+    const within = (promise: Promise<void>) =>
+      Promise.race([
+        promise,
+        delay(2500).then(() => {
+          throw new Error('Recovery did not complete');
+        }),
+      ]);
+    await t.test('a startup failure recovers without reconnecting the binding', async (t) => {
+      const f = await fixture(t);
+      await f.adapter.start();
+      assert.equal(f.adapter.status().state, 'error');
+      f.available();
+      await within(f.readiness);
+      assert.equal(f.adapter.profile, f.profile);
+      assert.equal(f.adapter.status().capabilities.receiveActive, true);
+      assert.deepEqual(f.methods, ['thread/read', 'thread/queue/list', 'thread/items/list']);
+    });
+    await t.test(
+      'an endpoint change revalidates the exact owner instead of trusting readiness',
+      async (t) => {
+        const f = await fixture(t, true);
+        await f.adapter.start();
+        f.available();
+        await writeFile(path.join(f.control, 'app-server-control.sock'), 'synthetic endpoint');
+        await within(f.rechecked);
+        assert.equal(f.adapter.status().state, 'error');
+        assert.deepEqual(f.methods, ['thread/read']);
+      },
+    );
+    await t.test('stop cancels queued reconnects and endpoint observation', async (t) => {
+      const f = await fixture(t);
+      await f.adapter.start();
+      await f.adapter.stop();
+      const before = f.connections();
+      f.available();
+      await writeFile(path.join(f.control, 'app-server-control.sock'), 'synthetic endpoint');
+      await delay(400);
+      assert.equal(f.connections(), before);
+      assert.deepEqual(f.methods, []);
+    });
+    await t.test('reconnects are bounded and a later endpoint event can recover', async (t) => {
+      const f = await fixture(t);
+      await f.adapter.start();
+      await delay(4700);
+      assert.equal(f.connections(), 4);
+      await delay(400);
+      assert.equal(f.connections(), 4);
+      f.available();
+      await writeFile(path.join(f.control, 'app-server-control.sock'), 'synthetic endpoint');
+      await within(f.readiness);
+      assert.equal(f.adapter.status().state, 'ready');
+      assert.equal(f.adapter.profile, f.profile);
+    });
+  },
+);
+
+test(
   'Windows queue discovery binds only a canonical local profile and never stats its socket',
   {
     skip: process.platform !== 'win32',

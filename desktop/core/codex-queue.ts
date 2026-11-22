@@ -436,6 +436,12 @@ export class CodexQueueAdapter implements AgentAdapter {
   private projectionTimer?: ReturnType<typeof setTimeout>;
   private projecting = false;
   private projectionChanged = false;
+  private checking?: Promise<void>;
+  private recoveryTimer?: ReturnType<typeof setTimeout>;
+  private recoveryAttempt = 0;
+  private recoveryChanged = false;
+  private homeWatcher?: FSWatcher;
+  private controlWatcher?: FSWatcher;
 
   constructor(
     readonly profile: AdapterProfile,
@@ -686,6 +692,24 @@ export class CodexQueueAdapter implements AgentAdapter {
   }
 
   async start(): Promise<void> {
+    if (this.controller.signal.aborted) return;
+    if (this.checking) return this.checking;
+    const checking = this.check();
+    this.checking = checking;
+    try {
+      await checking;
+    } finally {
+      this.checking = undefined;
+      if (this.recoveryChanged) {
+        this.recoveryChanged = false;
+        this.scheduleRecovery(100);
+      }
+    }
+  }
+
+  private async check(): Promise<void> {
+    await this.watchControlEndpoint();
+    if (this.controller.signal.aborted) return;
     try {
       await this.run(async (call, shared) => {
         const thread = await this.verifyThread(call);
@@ -698,12 +722,81 @@ export class CodexQueueAdapter implements AgentAdapter {
       if (this.controller.signal.aborted) return;
       this.state = 'ready';
       this.error = null;
+      clearTimeout(this.recoveryTimer);
+      this.recoveryTimer = undefined;
+      this.recoveryAttempt = 0;
     } catch {
       if (this.controller.signal.aborted) return;
       this.state = 'error';
       this.error = 'The saved Codex chat, its input queue or its transcript is unavailable';
+      this.scheduleRecovery();
     }
     this.changed();
+  }
+
+  private scheduleRecovery(delay?: number): void {
+    if (process.platform !== 'win32' || this.controller.signal.aborted) return;
+    if (delay === undefined) {
+      // A short, bounded reconnect burst covers startup readiness races. After
+      // that, only a change to this profile's control endpoint can trigger it.
+      const backoff = [250, 1000, 3000];
+      if (this.recoveryAttempt >= backoff.length || this.recoveryTimer) return;
+      delay = backoff[this.recoveryAttempt++];
+    }
+    clearTimeout(this.recoveryTimer);
+    this.recoveryTimer = setTimeout(() => {
+      this.recoveryTimer = undefined;
+      if (this.checking) this.recoveryChanged = true;
+      else void this.start();
+    }, delay);
+    this.recoveryTimer.unref?.();
+  }
+
+  private async watchControlEndpoint(): Promise<void> {
+    if (process.platform !== 'win32' || this.controller.signal.aborted) return;
+    try {
+      const home = await codexQueueHome(this.profile.socket);
+      if (this.controller.signal.aborted) return;
+      const changed = () => {
+        this.recoveryAttempt = 0;
+        this.scheduleRecovery(100);
+      };
+      if (!this.homeWatcher) {
+        const watcher = watch(home, { persistent: false }, (_event, filename) => {
+          if (filename !== null && filename.toString() !== controlDirectory) return;
+          this.controlWatcher?.close();
+          this.controlWatcher = undefined;
+          changed();
+        });
+        this.homeWatcher = watcher;
+        watcher.once('error', () => {
+          watcher.close();
+          if (this.homeWatcher === watcher) this.homeWatcher = undefined;
+        });
+      }
+      const directory = path.join(home, controlDirectory);
+      const info = await lstat(directory);
+      const canonical = await realpath(directory);
+      if (
+        this.controller.signal.aborted ||
+        this.controlWatcher ||
+        !info.isDirectory() ||
+        info.isSymbolicLink() ||
+        path.relative(canonical, directory)
+      )
+        return;
+      const watcher = watch(directory, { persistent: false }, (_event, filename) => {
+        if (filename === null || filename.toString() === controlSocket) changed();
+      });
+      this.controlWatcher = watcher;
+      watcher.once('error', () => {
+        watcher.close();
+        if (this.controlWatcher === watcher) this.controlWatcher = undefined;
+      });
+    } catch {
+      // Do not stat the Windows AF_UNIX socket. The native helper remains the
+      // authority for endpoint ownership, peer identity and protocol readiness.
+    }
   }
 
   observeDelivery(attempt: DeliveryAttempt, isCurrent: () => boolean, admit: () => void): void {
@@ -893,10 +986,15 @@ export class CodexQueueAdapter implements AgentAdapter {
 
   async stop(): Promise<void> {
     this.controller.abort();
+    clearTimeout(this.recoveryTimer);
+    this.homeWatcher?.close();
+    this.controlWatcher?.close();
+    this.homeWatcher = undefined;
+    this.controlWatcher = undefined;
     clearTimeout(this.projectionTimer);
     this.watcher?.close();
     this.watcher = undefined;
     this.projections.clear();
-    await Promise.allSettled([...this.jobs]);
+    await Promise.allSettled([...this.jobs, ...(this.checking ? [this.checking] : [])]);
   }
 }
