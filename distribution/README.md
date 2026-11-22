@@ -62,8 +62,9 @@ open-file icon uses the operating system's default application.
   OpenCode instance and load its plugins. Configuring v2 does not convert v1.
 - ChatGPT: compatible local IPC and the new macOS queue deliver the full
   Incoming and attachment links directly to the exact chat. In queue mode NCF
-  records receipt after the full item is saved in the chat. Open an unloaded
-  chat to let it process its queue. Compatibility is version-dependent.
+  records receipt after the full item is saved in the chat. If a ChatGPT chat
+  is unloaded or stays closed after a restart, incoming messages may stay queued
+  until you open it. Compatibility is version-dependent.
 - Cursor: Apply configures MCP and installs the included local plugin. Restart
   Cursor once and connect in the intended chat. Open bound chats can receive
   messages in the IDE and Agents Window without being selected. After a restart,
