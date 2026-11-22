@@ -313,10 +313,14 @@ function setupIpc(): void {
         }),
       );
       if (result.canceled) return null;
-      const active = access.current();
-      return active.userCall('exportRoots', {
-        roots: [...new Set([...active.settings.value.exportRoots, ...result.filePaths])],
-      });
+      return access.current().userCall('exportRoots', { add: result.filePaths });
+    }
+    if (method === 'removeExportFolder') {
+      const { folder } = z
+        .object({ folder: z.string().min(1) })
+        .strict()
+        .parse(raw);
+      return access.current().userCall('exportRoots', { remove: folder });
     }
     if (method === 'openAttachment' || method === 'saveAttachment') {
       const { messageId, fileId } = z

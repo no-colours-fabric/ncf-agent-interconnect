@@ -345,6 +345,7 @@ export const fr: Messages = {
   settingsExportRootsHelp:
     'Les agents ne peuvent s’envoyer des fichiers que depuis les dossiers indiqués. L’envoi de fichiers depuis d’autres dossiers est bloqué.',
   btnAddFolder: 'Ajouter un dossier',
+  btnRemoveExportFolder: 'Retirer « {path} » des dossiers d’export autorisés',
   settingsDiagnostics: 'Diagnostics',
   settingsNodeId: 'Nœud : {id}',
   settingsMcp: 'MCP : {url}',

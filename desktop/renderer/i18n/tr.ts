@@ -339,6 +339,7 @@ export const tr: Messages = {
   settingsExportRootsHelp:
     'Aracılar birbirlerine yalnızca listelenen klasörlerdeki dosyaları gönderebilir. Diğer klasörlerden dosya gönderimi engellenir.',
   btnAddFolder: 'Klasör ekle',
+  btnRemoveExportFolder: '“{path}” klasörünü izin verilen dışa aktarma klasörlerinden kaldır',
   settingsDiagnostics: 'Tanılama',
   settingsNodeId: 'Düğüm: {id}',
   settingsMcp: 'MCP: {url}',

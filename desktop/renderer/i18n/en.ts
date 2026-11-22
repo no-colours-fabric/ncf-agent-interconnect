@@ -329,6 +329,7 @@ export const en: Messages = {
   settingsExportRootsHelp:
     'Agents can send files to each other only from the folders listed here. Files from other folders are blocked.',
   btnAddFolder: 'Add folder',
+  btnRemoveExportFolder: 'Remove {path} from permitted export folders',
   settingsDiagnostics: 'Diagnostics',
   settingsNodeId: 'Node: {id}',
   settingsMcp: 'MCP: {url}',

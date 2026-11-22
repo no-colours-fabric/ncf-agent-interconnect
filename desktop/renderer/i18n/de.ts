@@ -349,6 +349,7 @@ export const de: Messages = {
   settingsExportRootsHelp:
     'Agenten können einander nur Dateien aus den hier aufgeführten Ordnern senden. Der Versand aus anderen Ordnern wird blockiert.',
   btnAddFolder: 'Ordner hinzufügen',
+  btnRemoveExportFolder: '„{path}“ aus den erlaubten Exportordnern entfernen',
   settingsDiagnostics: 'Diagnose',
   settingsNodeId: 'Knoten: {id}',
   settingsMcp: 'MCP: {url}',

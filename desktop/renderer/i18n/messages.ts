@@ -219,6 +219,7 @@ export interface Messages extends McpSetupTranslations {
   settingsExportRoots: string;
   settingsExportRootsHelp: string;
   btnAddFolder: string;
+  btnRemoveExportFolder: string;
   settingsDiagnostics: string;
   settingsNodeId: string;
   settingsMcp: string;

@@ -8,7 +8,7 @@ import { randomUUID } from 'node:crypto';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import { NodeService } from '../desktop/core/service.js';
-import { normalizePeerAddress } from '../desktop/core/settings.js';
+import { normalizePeerAddress, SettingsFile } from '../desktop/core/settings.js';
 import type { ConnectResult } from '../desktop/core/agent-store.js';
 import type { McpInstructions } from '../desktop/shared/contracts.js';
 import { agentMessageText } from '../desktop/core/adapters.js';
@@ -40,6 +40,30 @@ async function mcp(t: test.TestContext, service: NodeService): Promise<Client> {
   t.after(() => client.close());
   return client;
 }
+
+test('export folder edits preserve concurrent additions and can revoke the last permission', async (t) => {
+  const service = await node(t);
+  const [original] = service.snapshot().exportRoots;
+  const extra = path.join(service.directory, 'Project files');
+  const filename = path.join(original, 'keep.txt');
+  await writeFile(filename, 'Keep this file');
+  await service.files.snapshot(filename);
+
+  await Promise.all([
+    service.userCall('exportRoots', { remove: original }),
+    service.userCall('exportRoots', { add: [extra] }),
+  ]);
+  assert.deepEqual(service.snapshot().exportRoots, [extra]);
+  await service.userCall('exportRoots', { remove: extra });
+  assert.deepEqual(service.snapshot().exportRoots, []);
+  await assert.rejects(service.files.snapshot(filename), /outside the permitted export folders/);
+  assert.equal(await readFile(filename, 'utf8'), 'Keep this file');
+  assert.deepEqual((await new SettingsFile(service.directory).load()).exportRoots, []);
+
+  await service.userCall('exportRoots', { add: [original] });
+  assert.deepEqual(service.snapshot().exportRoots, [original]);
+  await service.files.snapshot(filename);
+});
 
 test('explicit peer address + one code connects two fresh nodes; isolated nicknames and verified files survive transfer', async (t) => {
   const a = await node(t),

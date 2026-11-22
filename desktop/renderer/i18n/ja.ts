@@ -334,6 +334,7 @@ export const ja: Messages = {
   settingsExportRootsHelp:
     'エージェント同士で送信できるのは、一覧にあるフォルダー内のファイルだけです。それ以外のフォルダーからの送信はブロックされます。',
   btnAddFolder: 'フォルダーを追加',
+  btnRemoveExportFolder: '許可されたエクスポートフォルダーから「{path}」を除外',
   settingsDiagnostics: '診断',
   settingsNodeId: 'ノード: {id}',
   settingsMcp: 'MCP: {url}',

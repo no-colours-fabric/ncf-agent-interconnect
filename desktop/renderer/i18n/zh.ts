@@ -312,6 +312,7 @@ export const zh: Messages = {
   settingsExportRoots: '允许的导出文件夹',
   settingsExportRootsHelp: '代理只能相互发送这些文件夹中的文件。来自其他文件夹的文件会被阻止发送。',
   btnAddFolder: '添加文件夹',
+  btnRemoveExportFolder: '从允许的导出文件夹中移除“{path}”',
   settingsDiagnostics: '诊断',
   settingsNodeId: '节点：{id}',
   settingsMcp: 'MCP：{url}',

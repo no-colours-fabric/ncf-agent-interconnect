@@ -340,6 +340,7 @@ export const kk: Messages = {
   settingsExportRootsHelp:
     'Агенттер бір-біріне файлдарды тек тізімдегі қалталардан жібере алады. Басқа қалталардан файл жіберу бұғатталады.',
   btnAddFolder: 'Қалта қосу',
+  btnRemoveExportFolder: '«{path}» қалтасын рұқсат етілген экспорт қалталарынан алып тастау',
   settingsDiagnostics: 'Диагностика',
   settingsNodeId: 'Торап: {id}',
   settingsMcp: 'MCP: {url}',

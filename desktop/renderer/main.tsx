@@ -49,6 +49,7 @@ import {
   Switch,
   CircularProgress,
   Link,
+  IconButton,
   Table,
   TableBody,
   TableCell,
@@ -56,6 +57,7 @@ import {
   TableRow,
 } from '@mui/material';
 import AddOutlined from '@mui/icons-material/AddOutlined';
+import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import LightModeOutlined from '@mui/icons-material/LightModeOutlined';
 import DarkModeOutlined from '@mui/icons-material/DarkModeOutlined';
 import { nicknameKey, type Snapshot } from '../shared/contracts.js';
@@ -655,6 +657,7 @@ function App({
                     type="button"
                     variant="body2"
                     underline="always"
+                    disabled={busy}
                     onClick={() => run(() => call('pickExportFolder'))}
                     sx={{ p: 0, minHeight: 0, flexShrink: 0, whiteSpace: 'nowrap' }}
                   >
@@ -681,6 +684,18 @@ function App({
                       {snapshot.exportRoots.map((root) => (
                         <TableRow key={root}>
                           <TableCell sx={{ overflowWrap: 'anywhere' }}>{root}</TableCell>
+                          <TableCell align="right" sx={{ width: 56, px: 1, py: 0 }}>
+                            <IconButton
+                              aria-label={t(locale, 'btnRemoveExportFolder', { path: root })}
+                              size="small"
+                              disabled={busy}
+                              onClick={() =>
+                                void run(() => call('removeExportFolder', { folder: root }))
+                              }
+                            >
+                              <CloseOutlined fontSize="small" />
+                            </IconButton>
+                          </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

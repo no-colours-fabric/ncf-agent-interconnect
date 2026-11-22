@@ -341,6 +341,7 @@ export const pl: Messages = {
   settingsExportRootsHelp:
     'Agenci mogą przesyłać sobie pliki wyłącznie z wymienionych folderów. Wysyłanie plików z innych folderów jest blokowane.',
   btnAddFolder: 'Dodaj folder',
+  btnRemoveExportFolder: 'Usuń „{path}” z dozwolonych folderów eksportu',
   settingsDiagnostics: 'Diagnostyka',
   settingsNodeId: 'Węzeł: {id}',
   settingsMcp: 'MCP: {url}',

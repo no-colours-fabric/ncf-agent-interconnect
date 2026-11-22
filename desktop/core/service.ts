@@ -3352,12 +3352,31 @@ export class NodeService extends EventEmitter {
       return this.sendFrom(args.nickname, args);
     }
     if (method === 'exportRoots') {
-      const { roots } = z.object({ roots: z.array(z.string().min(1)).min(1).max(32) }).parse(raw);
-      for (const root of roots) await mkdir(root, { recursive: true, mode: 0o700 });
-      this.settings.value.exportRoots = roots;
-      this.files.exportRoots = roots;
-      await this.settings.save();
-      this.emit('change');
+      const folder = z.string().min(1);
+      const folders = z.array(folder).max(32);
+      const edit = z
+        .union([
+          z.object({ roots: folders }).strict(),
+          z.object({ add: folders }).strict(),
+          z.object({ remove: folder }).strict(),
+        ])
+        .parse(raw);
+      await this.transition(async () => {
+        const previous = this.settings.value.exportRoots;
+        let roots: string[];
+        if ('remove' in edit) {
+          roots = previous.filter((root) => root !== edit.remove);
+          if (roots.length === previous.length) return;
+        } else {
+          const selected = 'add' in edit ? edit.add : edit.roots;
+          roots =
+            'add' in edit ? folders.parse([...new Set([...previous, ...selected])]) : selected;
+          for (const root of selected) await mkdir(root, { recursive: true, mode: 0o700 });
+        }
+        await this.settings.saveExportRoots(roots);
+        this.files.exportRoots = this.settings.value.exportRoots;
+        this.emit('change');
+      });
       return { saved: true };
     }
     throw new Error('Unknown interface operation');

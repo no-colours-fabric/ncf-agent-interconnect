@@ -104,7 +104,7 @@ export const settingsSchema = z
     peerPort: z.number().int().min(0).max(65535),
     listenHost: z.string().min(1).max(255),
     networkExclusions: networkExclusionsSchema.default([]),
-    exportRoots: z.array(z.string()).min(1),
+    exportRoots: z.array(z.string()),
     peers: z.array(peerSchema),
     adapters: z.array(adapterSchema).min(1),
   })
@@ -196,6 +196,15 @@ export class SettingsFile {
     const operation = this.saving.then(async () => {
       settingsSchema.parse(this.value);
       await atomicJson(this.filename, this.value);
+    });
+    this.saving = operation.catch(() => {});
+    await operation;
+  }
+  async saveExportRoots(exportRoots: string[]): Promise<void> {
+    const operation = this.saving.then(async () => {
+      const candidate = settingsSchema.parse({ ...this.value, exportRoots });
+      await atomicJson(this.filename, candidate);
+      this.value.exportRoots = candidate.exportRoots;
     });
     this.saving = operation.catch(() => {});
     await operation;

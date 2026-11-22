@@ -432,6 +432,28 @@ try {
     before,
     'private client settings must be unchanged without Apply',
   );
+  const closeChat = page.getByRole('button', { name: 'Close chat', exact: true });
+  await closeChat.click();
+  await closeChat.waitFor({ state: 'hidden' });
+  await page.getByTestId('nav-settings').click();
+  const exportFolders = page.getByRole('table', { name: 'Permitted export folders' });
+  const [exportRoot] = settings.exportRoots;
+  const keep = path.join(exportRoot, 'keep-after-export-removal.txt');
+  await writeFile(keep, 'The file is kept');
+  const removeExportFolder = exportFolders.getByRole('button', {
+    name: 'Remove ' + exportRoot + ' from permitted export folders',
+    exact: true,
+  });
+  await removeExportFolder.press('Enter');
+  await removeExportFolder.waitFor({ state: 'detached' });
+  assert.deepEqual(
+    await page.evaluate(async () => {
+      const value = await window.interconnect.invoke('snapshot');
+      return value.exportRoots;
+    }),
+    [],
+  );
+  assert.equal(await readFile(keep, 'utf8'), 'The file is kept');
   console.log(
     JSON.stringify({
       aionUiReadOnlySetup: true,
@@ -450,6 +472,7 @@ try {
       pagination,
       literalAttachmentNamePreserved: true,
       isolatedClientConfigsUnchangedWithoutApply: true,
+      removedLastExportFolderWithKeyboard: true,
       screenshots: ['release/preview-overview.png', 'release/preview-agents.png'],
     }),
   );

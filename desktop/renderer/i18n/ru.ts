@@ -337,6 +337,7 @@ export const ru: Messages = {
   settingsExportRootsHelp:
     'Агенты могут пересылать друг другу файлы только из указанных папок. Пересылка файлов из других папок блокируется.',
   btnAddFolder: 'Добавить папку',
+  btnRemoveExportFolder: 'Убрать «{path}» из разрешённых папок экспорта',
   settingsDiagnostics: 'Диагностика',
   settingsNodeId: 'Узел: {id}',
   settingsMcp: 'MCP: {url}',

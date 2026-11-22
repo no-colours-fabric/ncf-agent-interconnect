@@ -339,6 +339,7 @@ export const ptBR: Messages = {
   settingsExportRootsHelp:
     'Os agentes só podem enviar arquivos uns aos outros a partir das pastas listadas. O envio de arquivos de outras pastas é bloqueado.',
   btnAddFolder: 'Adicionar pasta',
+  btnRemoveExportFolder: 'Remover “{path}” das pastas de exportação permitidas',
   settingsDiagnostics: 'Diagnóstico',
   settingsNodeId: 'Nó: {id}',
   settingsMcp: 'MCP: {url}',

@@ -339,6 +339,7 @@ export const uk: Messages = {
   settingsExportRootsHelp:
     'Агенти можуть надсилати файли одне одному лише з указаних папок. Надсилання файлів з інших папок блокується.',
   btnAddFolder: 'Додати папку',
+  btnRemoveExportFolder: 'Вилучити «{path}» зі списку дозволених папок експорту',
   settingsDiagnostics: 'Діагностика',
   settingsNodeId: 'Вузол: {id}',
   settingsMcp: 'MCP: {url}',

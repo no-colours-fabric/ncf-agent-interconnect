@@ -345,6 +345,7 @@ export const es: Messages = {
   settingsExportRootsHelp:
     'Los agentes solo pueden enviarse archivos desde las carpetas de esta lista. Se bloquea el envío de archivos desde otras carpetas.',
   btnAddFolder: 'Añadir carpeta',
+  btnRemoveExportFolder: 'Quitar «{path}» de las carpetas de exportación permitidas',
   settingsDiagnostics: 'Diagnóstico',
   settingsNodeId: 'Nodo: {id}',
   settingsMcp: 'MCP: {url}',

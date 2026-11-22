@@ -329,6 +329,7 @@ export const ko: Messages = {
   settingsExportRootsHelp:
     '에이전트는 목록에 있는 폴더의 파일만 서로 보낼 수 있습니다. 다른 폴더의 파일 전송은 차단됩니다.',
   btnAddFolder: '폴더 추가',
+  btnRemoveExportFolder: "허용된 내보내기 폴더에서 '{path}' 제외",
   settingsDiagnostics: '진단',
   settingsNodeId: '노드: {id}',
   settingsMcp: 'MCP: {url}',

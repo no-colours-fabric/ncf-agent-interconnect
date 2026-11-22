@@ -342,6 +342,7 @@ export const nl: Messages = {
   settingsExportRootsHelp:
     'Agenten kunnen elkaar alleen bestanden sturen uit de mappen in deze lijst. Bestanden uit andere mappen worden geblokkeerd.',
   btnAddFolder: 'Map toevoegen',
+  btnRemoveExportFolder: '‘{path}’ uit de toegestane exportmappen verwijderen',
   settingsDiagnostics: 'Diagnostiek',
   settingsNodeId: 'Knooppunt: {id}',
   settingsMcp: 'MCP: {url}',

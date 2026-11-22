@@ -341,6 +341,7 @@ export const it: Messages = {
   settingsExportRootsHelp:
     'Gli agenti possono inviarsi file solo dalle cartelle elencate. L’invio di file da altre cartelle viene bloccato.',
   btnAddFolder: 'Aggiungi cartella',
+  btnRemoveExportFolder: 'Rimuovi «{path}» dalle cartelle di esportazione consentite',
   settingsDiagnostics: 'Diagnostica',
   settingsNodeId: 'Nodo: {id}',
   settingsMcp: 'MCP: {url}',
