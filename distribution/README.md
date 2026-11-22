@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 1.0.0
+# NCF Agent Interconnect 1.0.0-alpha.1.20261122T162518Z
 
 LLM-optimized documentation: [llms.txt](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/llms.txt).
 
@@ -20,7 +20,7 @@ was not run on Intel hardware.
 Windows x64: use the Windows installer. Packages are unsigned.
 
 This release provides three installers: the two macOS DMGs and the Windows EXE.
-Linux source remains available, but 1.0.0 does not include a new Linux installer.
+Linux remains available as source for this build.
 
 Before replacing an installed app, choose Quit in its tray menu. Closing its
 window only hides the window; the node keeps running. Start at login is optional
