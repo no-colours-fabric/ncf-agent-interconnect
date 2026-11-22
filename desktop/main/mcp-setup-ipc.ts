@@ -5,6 +5,7 @@ import {
   OpenCodeV2SetupService,
   type McpSetupOptions,
 } from '../core/mcp-setup.js';
+import { createCodexShortcutHandler } from './codex-shortcut-ipc.js';
 import { openCodeV2TargetSchema } from '../core/opencode-v2-auth.js';
 import { mcpSetupClients, mcpSetupMethods, openCodeV2SetupMethods } from '../shared/mcp-setup.js';
 
@@ -20,6 +21,16 @@ export function createMcpSetupHandler(
     dialog: Pick<Dialog, 'showOpenDialog'>;
     window: () => BrowserWindow | null;
     openPath: (filename: string) => Promise<string>;
+    codexShortcut?: {
+      platform: NodeJS.Platform;
+      installed: boolean;
+      appExecutable: string;
+      appPath: string;
+      appData: string;
+      home: string;
+      desktop: string;
+      dialog: Pick<Dialog, 'showSaveDialog'>;
+    };
   },
 ): (
   method: string,
@@ -28,8 +39,23 @@ export function createMcpSetupHandler(
 ) => Promise<{ handled: false } | { handled: true; result: unknown }> {
   const setup = new McpSetupService(options);
   const v2 = new OpenCodeV2SetupService(options);
+  const codexShortcut =
+    options.codexShortcut &&
+    createCodexShortcutHandler({
+      ...options.codexShortcut,
+      dialog: {
+        showOpenDialog: options.dialog.showOpenDialog,
+        showSaveDialog: options.codexShortcut.dialog.showSaveDialog,
+      },
+      window: options.window,
+      status: () => setup.status('codex'),
+    });
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {
+    if (method === 'codexShortcutPlatform' || method === 'codexShortcutCreate') {
+      if (!owner) throw new Error('The desktop interface session is missing');
+      return { handled: true, result: codexShortcut ? await codexShortcut(method, raw) : null };
+    }
     if ((openCodeV2SetupMethods as readonly string[]).includes(method)) {
       if (!owner) throw new Error('The desktop interface session is missing');
       let result: unknown;

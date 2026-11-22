@@ -220,6 +220,16 @@ function setupIpc(): void {
     window: () => window,
     stateDirectory: app.getPath('userData'),
     openPath: (filename) => shell.openPath(filename),
+    codexShortcut: {
+      platform: process.platform,
+      installed: app.isPackaged,
+      appExecutable: process.execPath,
+      appPath: app.getAppPath(),
+      appData: app.getPath('appData'),
+      home: app.getPath('home'),
+      desktop: app.getPath('desktop'),
+      dialog,
+    },
   });
   const applicationDiscovery = createApplicationDiscoveryHandler({
     dialog,

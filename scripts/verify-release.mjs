@@ -35,6 +35,16 @@ const executable = fileURLToPath(
   ),
 );
 const entries = asar.listPackage(archive).map((entry) => entry.replaceAll('\\', '/'));
+if (process.platform === 'darwin') {
+  assert.ok(entries.includes('/build/integrations/codex-shortcut-bridge.js'));
+  const launcher = asar.extractFile(archive, 'build/assets/codex-mac-launcher');
+  assert.equal(
+    launcher.readUInt32BE(0),
+    0xcafebabe,
+    'Mac shortcut launcher contains a fat Mach-O binary',
+  );
+  assert.equal(launcher.readUInt32BE(4), 2, 'Mac shortcut launcher contains both architectures');
+}
 if (process.platform === 'win32') {
   const helper = fileURLToPath(
     new URL('resources/app.asar.unpacked/build/assets/codex-win-socket.exe', base),

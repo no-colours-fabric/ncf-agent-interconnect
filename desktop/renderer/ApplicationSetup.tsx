@@ -26,6 +26,7 @@ import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import type { AionUiApplicationState } from '../shared/aionui.js';
+import type { CodexShortcutPlatform } from '../shared/codex-shortcut.js';
 import type { Snapshot } from '../shared/contracts.js';
 import { applicationNames } from '../shared/application-discovery.js';
 import { mcpSetupClients, type McpSetupClient, type McpSetupInvoke } from '../shared/mcp-setup.js';
@@ -37,6 +38,7 @@ import {
   type ApplicationSetupStates,
 } from './application-setup-model.js';
 import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
+import { CodexShortcut } from './CodexShortcut.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
 import { ClientApplicationMetrics } from './application-connections.js';
@@ -858,6 +860,23 @@ export function ApplicationRows({
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
   const [showV1, setShowV1] = useState(false);
+  const [codexShortcutPlatform, setCodexShortcutPlatform] = useState<CodexShortcutPlatform | null>(
+    null,
+  );
+  useEffect(() => {
+    let current = true;
+    void invoke<CodexShortcutPlatform | null>('codexShortcutPlatform', {}).then(
+      (platform) => {
+        if (current) setCodexShortcutPlatform(platform);
+      },
+      () => {
+        if (current) setCodexShortcutPlatform(null);
+      },
+    );
+    return () => {
+      current = false;
+    };
+  }, [invoke]);
   const aionUiConfigured = setupView('aionui', states, statuses, discovery).configured;
   const [aionUiPaired, setAionUiPaired] = useState(false);
   useEffect(() => {
@@ -1023,6 +1042,9 @@ export function ApplicationRows({
           <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
             {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
           </Alert>
+        )}
+        {client === 'codex' && codexShortcutPlatform && (
+          <CodexShortcut invoke={invoke} locale={locale} disabled={anyBusy} />
         )}
         <SetupDetails state={state} locale={locale} />
         {showGuidance && (

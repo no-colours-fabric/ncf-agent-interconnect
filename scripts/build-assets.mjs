@@ -70,6 +70,28 @@ await copyFile('desktop/assets/app-icon.icns', 'build/assets/icon.icns');
 await copyFile('desktop/assets/app-icon.ico', 'build/assets/icon.ico');
 await writeFile('build/assets/trayTemplate.png', image(22, true));
 await writeFile('build/assets/trayTemplate@2x.png', image(44, true));
+if (process.platform === 'darwin') {
+  execFileSync(
+    '/usr/bin/xcrun',
+    [
+      '--sdk',
+      'macosx',
+      'clang',
+      '-fobjc-arc',
+      '-framework',
+      'AppKit',
+      '-arch',
+      'arm64',
+      '-arch',
+      'x86_64',
+      '-mmacosx-version-min=12.0',
+      '-o',
+      'build/assets/codex-mac-launcher',
+      'desktop/integrations/codex-shortcut-mac.m',
+    ],
+    { stdio: 'inherit' },
+  );
+}
 if (process.platform === 'win32') {
   const csc = path.join(
     process.env.SystemRoot ?? 'C:\\Windows',
