@@ -155,17 +155,23 @@ export class McpSetupService {
 
   private async cursorPermission(): Promise<{
     status: CursorPermissionSetup;
+    result: CursorPermissionSetup;
     file?: PreparedFile;
   }> {
     const requested = path.join(this.home, '.cursor', 'permissions.json');
     try {
       const filename = await this.canonicalPath(requested);
       const source = await this.readSource(filename);
-      if (!source.exists) return { status: { state: 'unconfirmed', reason: 'missing' } };
+      if (!source.exists)
+        return {
+          status: { state: 'unconfirmed', reason: 'missing' },
+          result: { state: 'unconfirmed', reason: 'missing' },
+        };
       try {
         const edit = editCursorPermissions(source.content);
         return {
-          status: { state: 'configured' },
+          status: { state: edit.changed ? 'pending' : 'configured' },
+          result: { state: 'configured' },
           file: {
             id: 'cursor-permissions',
             path: filename,
@@ -181,10 +187,17 @@ export class McpSetupService {
             state: 'unconfirmed',
             reason: error instanceof CursorPermissionsUnavailable ? error.reason : 'unsupported',
           },
+          result: {
+            state: 'unconfirmed',
+            reason: error instanceof CursorPermissionsUnavailable ? error.reason : 'unsupported',
+          },
         };
       }
     } catch {
-      return { status: { state: 'unconfirmed', reason: 'unsupported' } };
+      return {
+        status: { state: 'unconfirmed', reason: 'unsupported' },
+        result: { state: 'unconfirmed', reason: 'unsupported' },
+      };
     }
   }
 
@@ -272,6 +285,8 @@ export class McpSetupService {
         client === 'cursor' && this.cursorPermissionRequired(instructions)
           ? await this.cursorPermission()
           : undefined;
+      if (state === 'configured' && cursorPermission?.status.state === 'pending')
+        state = 'not-configured';
       for (const managed of managedFiles) {
         const installed = await this.readSource(await this.canonicalPath(managed.path));
         if (!installed.exists && state === 'configured') state = 'not-configured';
@@ -432,7 +447,7 @@ export class McpSetupService {
       preview,
       files,
       applying: false,
-      cursorPermission: cursorPermission?.status,
+      cursorPermission: cursorPermission?.result,
     });
     return preview;
   }

@@ -91,7 +91,7 @@ test('all five groups retain manual setup; the default v2 target does not infer 
   assert.equal(html.match(/<img /g)?.length, 5);
 });
 
-test('configured Cursor shows a short localized unconfirmed automatic-delivery outcome', () => {
+test('configured Cursor has no persistent permission instruction or warning', () => {
   for (const locale of supportedLocales) {
     const html = renderToStaticMarkup(
       React.createElement(ApplicationRows, {
@@ -111,6 +111,56 @@ test('configured Cursor shows a short localized unconfirmed automatic-delivery o
         },
         invoke: noInvoke,
         flow: new ApplicationSetupFlow(noInvoke),
+        locale,
+        onManualSetup: () => {},
+      }),
+    );
+    assert.doesNotMatch(
+      html,
+      /cursor-permission-unconfirmed|ncf_agent_interconnect:agent_send|Run Everything/,
+    );
+  }
+});
+
+test('current Cursor Connect reports unconfirmed automatic delivery in the standard status', async () => {
+  const invoke = (async (method: string) => {
+    if (method === 'mcpSetupDefaults')
+      return {
+        client: 'cursor',
+        files: [{ id: 'configuration', path: '/isolated/.cursor/mcp.json' }],
+      };
+    if (method === 'mcpSetupPreview')
+      return {
+        client: 'cursor',
+        planId: '00000000-0000-4000-8000-000000000001',
+        expiresAt: '2030-01-01T00:00:00.000Z',
+        requiresReplacement: false,
+        files: [
+          {
+            id: 'configuration',
+            path: '/isolated/.cursor/mcp.json',
+            action: 'create',
+            changes: [{ scope: 'mcpServers.ncf_agent_interconnect', action: 'add' }],
+          },
+        ],
+      };
+    if (method === 'mcpSetupApply')
+      return {
+        status: 'applied',
+        files: [{ path: '/isolated/.cursor/mcp.json', status: 'created' }],
+        cursorPermission: { state: 'unconfirmed', reason: 'missing' },
+      };
+    throw new Error('Unexpected method ' + method);
+  }) as McpSetupInvoke;
+  const flow = new ApplicationSetupFlow(invoke);
+  await flow.connect('cursor');
+  for (const locale of supportedLocales) {
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicationRows, {
+        discovery,
+        statuses,
+        invoke: noInvoke,
+        flow,
         locale,
         onManualSetup: () => {},
       }),

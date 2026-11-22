@@ -920,9 +920,18 @@ export function ApplicationRows({
     const action = applicationSetupAction(view, locale, busy, anyBusy);
     const pending = hasPendingSetupResult(state);
     const needsRetry = state.phase === 'failed' || pending;
+    const cursorPermissionUnconfirmed =
+      client === 'cursor' &&
+      state.phase === 'succeeded' &&
+      state.result?.cursorPermission?.state === 'unconfirmed';
     const working = hasConnectedClientChat(client, snapshot);
     const showStatus =
-      configured && !busy && !checking && !needsRetry && (client !== 'aionui' || aionUiPaired);
+      configured &&
+      !busy &&
+      !checking &&
+      !needsRetry &&
+      !cursorPermissionUnconfirmed &&
+      (client !== 'aionui' || aionUiPaired);
     const showGuidance = !busy && !checking && !needsRetry && (configured || working);
     const setupStatus = busy
       ? copy.connecting
@@ -931,7 +940,9 @@ export function ApplicationRows({
         : pending
           ? m.statusUnknown
           : configured
-            ? m.configured
+            ? cursorPermissionUnconfirmed
+              ? `${m.configured}. ${t(locale, 'clientsUnavailableImpact')}`
+              : m.configured
             : unavailable || state.phase === 'failed'
               ? m.unavailable
               : configurationState === 'needs-update'
@@ -939,10 +950,6 @@ export function ApplicationRows({
                 : hasStatus
                   ? m['not-configured']
                   : m.statusUnknown;
-    const cursorPermission =
-      client === 'cursor'
-        ? (state.result?.cursorPermission ?? statuses.statuses.cursor?.cursorPermission)
-        : undefined;
     return (
       <Box
         key={client}
@@ -1000,6 +1007,9 @@ export function ApplicationRows({
               <Typography
                 variant="body2"
                 color={configured && !pending ? 'success.main' : 'text.secondary'}
+                data-testid={
+                  cursorPermissionUnconfirmed ? 'cursor-permission-unconfirmed' : undefined
+                }
               >
                 {setupStatus}
               </Typography>
@@ -1051,11 +1061,6 @@ export function ApplicationRows({
           />
         )}
         <SetupDetails state={state} locale={locale} />
-        {configured && !needsRetry && cursorPermission?.state === 'unconfirmed' && (
-          <Alert severity="warning" data-testid="cursor-permission-unconfirmed" sx={{ mt: 2 }}>
-            {m.configured}. {t(locale, 'clientsUnavailableImpact')}
-          </Alert>
-        )}
         {showGuidance && (
           <NextStep
             client={client}

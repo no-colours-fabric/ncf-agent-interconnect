@@ -407,6 +407,43 @@ test('Cursor file-owned permission keeps the selected preview source fence', asy
   assert.equal(await readFile(permissions, 'utf8'), '{"mcpAllowlist":["owner:changed"]}\n');
 });
 
+test('previously configured Cursor offers Connect when a file-owned rule is pending', async (t) => {
+  const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
+  const configuration = path.join(directory, '.cursor', 'mcp.json');
+  const permissions = path.join(directory, '.cursor', 'permissions.json');
+  await mkdir(path.dirname(configuration), { recursive: true });
+  const initial = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  assert.equal((await service.apply(owner, initial.planId, false)).status, 'applied');
+  await writeFile(permissions, '{"mcpAllowlist":["foreign:tool"]}\n');
+
+  const pending = await service.status('cursor');
+  assert.equal(pending.state, 'not-configured');
+  assert.deepEqual(pending.cursorPermission, { state: 'pending' });
+  const preview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  assert.equal(preview.requiresReplacement, false);
+  assert.deepEqual(
+    preview.files.map((file) => [file.id, file.action]),
+    [
+      ['configuration', 'unchanged'],
+      ['cursor-permissions', 'update'],
+      ['cursor-plugin-manifest', 'unchanged'],
+      ['cursor-plugin-hooks', 'unchanged'],
+    ],
+  );
+  const result = await service.apply(owner, preview.planId, false);
+  assert.equal(result.status, 'applied');
+  assert.deepEqual(result.cursorPermission, { state: 'configured' });
+  assert.deepEqual(parseJson(await readFile(permissions, 'utf8')).mcpAllowlist, [
+    'foreign:tool',
+    'ncf_agent_interconnect:agent_send',
+  ]);
+  assert.equal((await service.status('cursor')).state, 'configured');
+});
+
 test('replacement requires confirmation, preserves the original in a private backup and retains file permissions', async (t) => {
   const { directory, service } = await fixture(t);
   const filename = path.join(directory, 'config.toml');

@@ -43,6 +43,7 @@ export interface McpSetupApplyResult {
 }
 export type CursorPermissionSetup =
   | { state: 'configured' }
+  | { state: 'pending' }
   | { state: 'unconfirmed'; reason: 'missing' | 'ide-owned' | 'unsupported' };
 export type McpSetupFileStatus =
   'configured' | 'not-configured' | 'needs-update' | 'missing' | 'unavailable';
