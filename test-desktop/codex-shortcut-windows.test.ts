@@ -22,10 +22,31 @@ import {
   launchWindowsCodexFromArgs,
   windowsCodexLaunchArguments,
   createWindowsLauncherLink,
+  windowsCodexShortcutIcon,
 } from '../desktop/main/codex-shortcut-windows.js';
 
 const bridge = createRequire(import.meta.url)('../desktop/integrations/codex-windows-bridge.cjs');
 const isWindows = process.platform === 'win32';
+const approvedIcon = fileURLToPath(new URL('../desktop/assets/chatgpt-ncf.ico', import.meta.url));
+
+test(
+  'Windows shortcut icon resolves only the approved physical installed resource',
+  { skip: !isWindows },
+  async (t) => {
+    const root = await realpath(await mkdtemp(path.join(tmpdir(), 'ncf-icon-resource-')));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    const archive = path.join(root, 'app.asar');
+    await writeFile(archive, 'synthetic archive');
+    await assert.rejects(windowsCodexShortcutIcon(archive));
+    const icons = path.join(root, 'icons');
+    await mkdir(icons);
+    const icon = path.join(icons, 'chatgpt-ncf.ico');
+    await copyFile(approvedIcon, icon);
+    assert.equal(await windowsCodexShortcutIcon(archive), icon);
+    await writeFile(icon, 'different icon');
+    await assert.rejects(windowsCodexShortcutIcon(archive), /NCF_CHATGPT_ICON_IDENTITY/);
+  },
+);
 
 test(
   'Electron physical ASAR checks use original-fs while module loading remains ASAR-aware',
@@ -98,14 +119,42 @@ test(
     const manifest = path.join(root, 'manifest.json');
     await writeFile(manifest, '{}');
     const destination = path.join(root, 'Codex with NCF.lnk');
-    assert.equal(await createWindowsLauncherLink(destination, exe, manifest), 'created');
+    assert.equal(
+      await createWindowsLauncherLink(destination, exe, manifest, approvedIcon),
+      'created',
+    );
+    const readback = JSON.parse(
+      await bridge.runPowerShell(
+        String.raw`
+      $d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
+      $w=New-Object -ComObject WScript.Shell
+      $l=$w.CreateShortcut($d.path)
+      [pscustomobject]@{icon=$l.IconLocation;description=$l.Description}|ConvertTo-Json -Compress`,
+        { path: destination },
+      ),
+    );
+    assert.equal(readback.icon, approvedIcon + ',0');
+    assert.equal(readback.description, 'Open ChatGPT with NCF Agent Interconnect');
     const first = await readFile(destination);
-    assert.equal(await createWindowsLauncherLink(destination, exe, manifest), 'alreadyExists');
-    assert.deepEqual(await readFile(destination), first);
-    await assert.rejects(
-      createWindowsLauncherLink(destination, exe, path.join(root, 'other.json')),
+    assert.equal(
+      await createWindowsLauncherLink(destination, exe, manifest, approvedIcon),
+      'alreadyExists',
     );
     assert.deepEqual(await readFile(destination), first);
+    await assert.rejects(
+      createWindowsLauncherLink(destination, exe, path.join(root, 'other.json'), approvedIcon),
+    );
+    assert.deepEqual(await readFile(destination), first);
+    await bridge.runPowerShell(
+      String.raw`
+      $d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
+      $w=New-Object -ComObject WScript.Shell
+      $l=$w.CreateShortcut($d.path);$l.IconLocation=$d.wrongIcon;$l.Save()`,
+      { path: destination, wrongIcon: exe + ',0' },
+    );
+    const conflicting = await readFile(destination);
+    await assert.rejects(createWindowsLauncherLink(destination, exe, manifest, approvedIcon));
+    assert.deepEqual(await readFile(destination), conflicting);
   },
 );
 

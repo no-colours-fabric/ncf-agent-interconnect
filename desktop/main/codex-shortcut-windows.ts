@@ -94,6 +94,22 @@ export function windowsCodexLaunchArguments(manifest: string): string[] {
   return ['--launch-codex', '--launcher-manifest', manifest];
 }
 
+const approvedChatGptIconSha256 =
+  '27beacd32fb50d66564f52537e92d3921dcc57d9cab869c082367f1c4f47bda5';
+
+export async function windowsCodexShortcutIcon(appPath: string): Promise<string> {
+  const archive = await bridge.canonical(appPath, false);
+  if (path.basename(archive).toLowerCase() !== 'app.asar')
+    throw new Error('NCF_CODEX_PACKAGED_ONLY');
+  const icon = await bridge.canonical(
+    path.join(path.dirname(archive), 'icons', 'chatgpt-ncf.ico'),
+    false,
+  );
+  if ((await bridge.fileHash(icon)) !== approvedChatGptIconSha256)
+    throw new Error('NCF_CHATGPT_ICON_IDENTITY');
+  return icon;
+}
+
 const linkScript = String.raw`
 $d=$env:NCF_LAUNCH_DATA|ConvertFrom-Json
 $w=New-Object -ComObject WScript.Shell
@@ -101,17 +117,18 @@ if (Test-Path -LiteralPath $d.destination) {
   $i=Get-Item -LiteralPath $d.destination -Force
   if (($i.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {throw 'link-reparse'}
   $l=$w.CreateShortcut($d.destination)
-  if ($l.TargetPath -ine $d.executable -or $l.Arguments -cne $d.arguments) {throw 'link-conflict'}
+  if ($l.TargetPath -ine $d.executable -or $l.Arguments -cne $d.arguments -or $l.IconLocation -ine $d.iconLocation -or $l.Description -cne 'Open ChatGPT with NCF Agent Interconnect') {throw 'link-conflict'}
   [Console]::Out.Write('alreadyExists');exit
 }
 # Reserve the destination exclusively before COM writes this own shortcut.
 $f=[IO.File]::Open($d.destination,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None);$f.Close()
 $l=$w.CreateShortcut($d.destination)
 $l.TargetPath=$d.executable;$l.Arguments=$d.arguments;$l.WorkingDirectory=$d.directory
-$l.Description='Open Codex with NCF Agent Interconnect'
+$l.Description='Open ChatGPT with NCF Agent Interconnect'
+$l.IconLocation=$d.iconLocation
 $l.Save()
 $r=$w.CreateShortcut($d.destination)
-if ($r.TargetPath -ine $d.executable -or $r.Arguments -cne $d.arguments) {throw 'link-verification'}
+if ($r.TargetPath -ine $d.executable -or $r.Arguments -cne $d.arguments -or $r.IconLocation -ine $d.iconLocation -or $r.Description -cne 'Open ChatGPT with NCF Agent Interconnect') {throw 'link-verification'}
 [Console]::Out.Write('created')`;
 
 // Fixed .lnk operation, also exercised against a disposable native shell link.
@@ -119,6 +136,7 @@ export async function createWindowsLauncherLink(
   destination: string,
   appExecutable: string,
   manifest: string,
+  icon: string,
 ): Promise<'created' | 'alreadyExists'> {
   if (
     !path.isAbsolute(destination) ||
@@ -128,12 +146,16 @@ export async function createWindowsLauncherLink(
     throw new Error('NCF_CODEX_LINK_PATH');
   await bridge.canonical(path.dirname(destination), true);
   await bridge.canonical(appExecutable, false);
+  await bridge.canonical(icon, false);
+  if ((await bridge.fileHash(icon)) !== approvedChatGptIconSha256)
+    throw new Error('NCF_CHATGPT_ICON_IDENTITY');
   const args = windowsCodexLaunchArguments(manifest);
   const result = await bridge.runPowerShell(linkScript, {
     destination,
     executable: appExecutable,
     arguments: `${args[0]} ${args[1]} "${args[2]}"`,
     directory: path.dirname(appExecutable),
+    iconLocation: `${icon},0`,
   });
   if (result !== 'created' && result !== 'alreadyExists') throw new Error('NCF_CODEX_LINK_RESULT');
   return result;
@@ -171,6 +193,7 @@ export async function createWindowsCodexShortcut(
     const appExecutable = await bridge.canonical(request.appExecutable, false);
     const appPath = await bridge.canonical(request.appPath, false);
     const a = bridge.assets(appPath);
+    const icon = await windowsCodexShortcutIcon(appPath);
     if (
       !path.isAbsolute(request.destination) ||
       path.extname(request.destination).toLowerCase() !== '.lnk' ||
@@ -225,7 +248,7 @@ export async function createWindowsCodexShortcut(
       await bridge.privatePath(manifest, false, true);
       await bridge.validateManifest(manifest, { userData, appExecutable, appPath });
     }
-    return await createWindowsLauncherLink(destination, appExecutable, manifest);
+    return await createWindowsLauncherLink(destination, appExecutable, manifest, icon);
   } catch {
     return 'failed';
   }
