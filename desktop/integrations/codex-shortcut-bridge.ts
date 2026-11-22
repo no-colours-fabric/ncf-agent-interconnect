@@ -5,6 +5,7 @@ import { createConnection } from 'node:net';
 import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
+import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline';
 import { setTimeout as delay } from 'node:timers/promises';
 import WebSocket from 'ws';
@@ -12,7 +13,8 @@ const bundledCodex = process.env.NCF_CODEX_SHORTCUT_CLI ?? '';
 const selectedProfile = process.env.NCF_CODEX_SHORTCUT_PROFILE ?? '';
 const ownerMarker = process.env.NCF_CODEX_SHORTCUT_OWNER_MARKER ?? '';
 const desktopExecutable = process.env.NCF_CODEX_SHORTCUT_DESKTOP ?? '';
-const native = process.env.NCF_CODEX_SHORTCUT_NATIVE ?? '';
+// Old shortcuts keep their native copy; ownership matching must use this release.
+const native = fileURLToPath(new URL('../assets/codex-mac-launcher', import.meta.url));
 const codexControlDirectory = 'app-server-control';
 const ncfCodexControlSocket = 'app-server-control.sock';
 

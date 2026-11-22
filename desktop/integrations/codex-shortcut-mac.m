@@ -20,7 +20,58 @@ static BOOL verifiedDesktop(pid_t pid, const char *expected, struct proc_bsdinfo
     return pid > 1 && proc_pidpath(pid, executable, sizeof executable) > 0 &&
         strcmp(executable, expected) == 0 &&
         proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, info, sizeof *info) == sizeof *info &&
-        info->pbi_uid == getuid() && info->pbi_ruid == getuid();
+        info->pbi_pid == pid && info->pbi_uid == getuid() && info->pbi_ruid == getuid() &&
+        kill(pid, 0) == 0;
+}
+
+static BOOL sameProcessIdentity(const struct proc_bsdinfo *before, const struct proc_bsdinfo *after) {
+    return before->pbi_pid == after->pbi_pid && before->pbi_ppid == after->pbi_ppid &&
+        before->pbi_uid == after->pbi_uid && before->pbi_ruid == after->pbi_ruid &&
+        before->pbi_start_tvsec == after->pbi_start_tvsec &&
+        before->pbi_start_tvusec == after->pbi_start_tvusec;
+}
+
+static NSString *canonicalAperitif(NSString *desktop) {
+    char canonical[PATH_MAX];
+    if (![desktop isAbsolutePath] || !realpath(desktop.fileSystemRepresentation, canonical) ||
+        strcmp(canonical, desktop.fileSystemRepresentation) != 0) return nil;
+    NSString *macOS = desktop.stringByDeletingLastPathComponent;
+    NSString *contents = macOS.stringByDeletingLastPathComponent;
+    if (![macOS.lastPathComponent isEqualToString:@"MacOS"] ||
+        ![contents.lastPathComponent isEqualToString:@"Contents"]) return nil;
+    NSString *framework = [contents stringByAppendingPathComponent:@"Frameworks/Codex Framework.framework"];
+    NSString *suffix = @"/Helpers/Codex (Aperitif).app/Contents/MacOS/Codex (Aperitif)";
+    NSString *candidate = [framework stringByAppendingFormat:@"/Versions/Current%@", suffix];
+    if (!realpath(candidate.fileSystemRepresentation, canonical)) return nil;
+    NSString *resolved = [[NSFileManager defaultManager] stringWithFileSystemRepresentation:canonical length:strlen(canonical)];
+    NSString *prefix = [framework stringByAppendingString:@"/Versions/"];
+    if (![resolved hasPrefix:prefix] || ![resolved hasSuffix:suffix] ||
+        resolved.length <= prefix.length + suffix.length) return nil;
+    NSString *version = [resolved substringWithRange:NSMakeRange(prefix.length,
+        resolved.length - prefix.length - suffix.length)];
+    if (!version.length || [version containsString:@"/"] ||
+        [version isEqualToString:@"."] || [version isEqualToString:@".."]) return nil;
+    struct stat info;
+    if (lstat(canonical, &info) != 0 || !S_ISREG(info.st_mode) || !(info.st_mode & 0111) ||
+        (info.st_mode & 0022) != 0 || (info.st_uid != 0 && info.st_uid != getuid())) return nil;
+    return resolved;
+}
+
+static BOOL matchDesktopParent(pid_t pid, NSString *desktop) {
+    struct proc_bsdinfo before, after;
+    if (verifiedDesktop(pid, desktop.fileSystemRepresentation, &before))
+        return verifiedDesktop(pid, desktop.fileSystemRepresentation, &after) &&
+            sameProcessIdentity(&before, &after);
+    NSString *helper = canonicalAperitif(desktop);
+    if (!helper || !verifiedDesktop(pid, helper.fileSystemRepresentation, &before)) return NO;
+    pid_t main = before.pbi_ppid;
+    struct proc_bsdinfo mainBefore, mainAfter;
+    // Exactly one vendor helper hop is allowed, never an ancestor search.
+    return main > 1 && verifiedDesktop(main, desktop.fileSystemRepresentation, &mainBefore) &&
+        verifiedDesktop(pid, helper.fileSystemRepresentation, &after) &&
+        sameProcessIdentity(&before, &after) && after.pbi_ppid == main &&
+        verifiedDesktop(main, desktop.fileSystemRepresentation, &mainAfter) &&
+        sameProcessIdentity(&mainBefore, &mainAfter);
 }
 
 // Copy only selected launch values. The kernel argument buffer never leaves this process.
@@ -152,11 +203,11 @@ int main(int argc, const char *argv[]) {
     if (argc == 4 && strcmp(argv[1], "--match-desktop-process") == 0) {
         char *end = NULL;
         long pid = strtol(argv[2], &end, 10);
-        char executable[PROC_PIDPATHINFO_MAXSIZE];
-        if (!end || *end || pid < 2 || pid > INT_MAX ||
-            proc_pidpath((int)pid, executable, sizeof executable) <= 0)
-            return 1;
-        return strcmp(executable, argv[3]) == 0 ? 0 : 1;
+        if (!end || *end || pid < 2 || pid > INT_MAX) return 1;
+        @autoreleasepool {
+            NSString *desktop = [NSString stringWithUTF8String:argv[3]];
+            return desktop && matchDesktopParent((pid_t)pid, desktop) ? 0 : 1;
+        }
     }
     @autoreleasepool {
         [NSApplication sharedApplication];
