@@ -570,8 +570,9 @@ function ApplicationCompactList({
           borderTop: border ? '1px solid' : 0,
           borderColor: 'divider',
           display: 'grid',
-          gridTemplateColumns: 'subgrid',
+          gridTemplateColumns: 'max-content minmax(0, 1fr) max-content',
           gridColumn: '1 / -1',
+          columnGap: 1.5,
           rowGap: 1,
         }}
       >
@@ -733,9 +734,6 @@ function ApplicationCompactList({
       sx={{
         minWidth: 0,
         overflow: 'hidden',
-        display: 'grid',
-        gridTemplateColumns: 'max-content minmax(0, 1fr) max-content',
-        columnGap: 1.5,
         backgroundImage: 'none',
         boxShadow: 'none',
         '& .MuiButton-root': {
@@ -754,14 +752,11 @@ function ApplicationCompactList({
             sx={{
               borderTop: index ? '1px solid' : 0,
               borderColor: 'divider',
-              display: 'grid',
-              gridTemplateColumns: 'subgrid',
-              gridColumn: '1 / -1',
             }}
           >
             {row('opencode-v2', false)}
             {showV1 && row('opencode', true)}
-            <Box sx={{ gridColumn: '1 / -1' }}>
+            <Box>
               <OpenCodeV1Toggle
                 expanded={showV1}
                 onChange={setShowV1}
