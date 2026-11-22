@@ -859,9 +859,13 @@ test(
         assert.equal(this.profile.socket, f.profile.socket);
         assert.equal(isCurrent(), true);
         challenges.push(token);
-        return 'uncertain';
+        return {
+          state: 'uncertain',
+          witness: { messageId: randomUUID(), payloadHash: 'fixture' },
+        };
       },
     );
+    t.mock.method(CodexQueueAdapter.prototype, 'observeConfirmation', async () => 'unknown');
     const connect = (
       id: string,
       proof: { connectionId?: string; contextToken?: string; codexRecoveryToken?: string } = {},
@@ -880,9 +884,11 @@ test(
     );
     const pending = await connect(threadId);
     assert.equal(pending.isError, undefined);
-    assert.equal(status(pending), 'codex_recovery_pending');
-    assert.equal(status(await connect(threadId)), 'codex_recovery_pending');
+    assert.equal(status(pending), 'codex_recovery_uncertain');
+    assert.equal(status(await connect(threadId)), 'codex_recovery_uncertain');
     assert.equal(challenges.length, 1);
+    const expiresAt = (pending.structuredContent as { expiresAt: string }).expiresAt;
+    assert.ok(Date.parse(expiresAt) > Date.now());
     const token = challenges[0]!;
     assert.match(token, /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/);
     assert.ok(!JSON.stringify(pending).includes(token));
@@ -999,6 +1005,12 @@ test('Disconnected Codex can confirm the same exact chat under the old or a free
       const before = await service.userCall('chatHistory', { nickname: 'Идея7' });
       assert.match(JSON.stringify(before), new RegExp(sent.id));
       const challenges: string[] = [];
+      let offerState: 'queued' | 'dispatched' = 'dispatched';
+      const observe = t.mock.method(
+        CodexQueueAdapter.prototype,
+        'observeConfirmation',
+        async () => 'missing',
+      );
       t.mock.method(
         CodexQueueAdapter.prototype,
         'challenge',
@@ -1007,7 +1019,10 @@ test('Disconnected Codex can confirm the same exact chat under the old or a free
           assert.equal(this.profile.socket, expectedSocket);
           assert.equal(current(), true);
           challenges.push(token);
-          return 'sent';
+          return {
+            state: offerState,
+            witness: { messageId: randomUUID(), payloadHash: 'fixture' },
+          };
         },
       );
       t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {});
@@ -1051,11 +1066,31 @@ test('Disconnected Codex can confirm the same exact chat under the old or a free
         service.settings.value.adapters.pop();
       }
       assert.equal(challenges.length, 0);
+      if (nickname === 'Мика') {
+        offerState = 'queued';
+        const queued = await connect(nickname);
+        assert.equal(status(queued), 'codex_recovery_queued');
+        assert.equal(status(await connect(nickname)), 'codex_recovery_unavailable');
+        assert.equal(status(await connect(nickname)), 'codex_recovery_unavailable');
+        assert.equal(observe.mock.callCount(), 1);
+        assert.equal(challenges.length, 1);
+        assert.equal((await connect(nickname, challenges[0]!)).isError, true);
+        const expiresAt = (queued.structuredContent as { expiresAt: string }).expiresAt;
+        const clock = t.mock.method(Date, 'now', () => Date.parse(expiresAt) + 1);
+        try {
+          assert.equal(status(await connect(nickname)), 'codex_recovery_expired');
+          assert.equal(challenges.length, 1);
+        } finally {
+          clock.mock.restore();
+        }
+        offerState = 'dispatched';
+      }
+      const previousChallenges = challenges.length;
       const pending = await connect(nickname);
       assert.equal(pending.isError, undefined, JSON.stringify(pending));
       assert.equal(status(pending), 'codex_recovery_pending');
-      assert.equal(challenges.length, 1);
-      const stale = challenges[0]!;
+      assert.equal(challenges.length, previousChallenges + 1);
+      const stale = challenges[previousChallenges]!;
       assert.equal((await connect(nickname, stale, randomUUID())).isError, true);
       assert.equal((await connect('Another name', stale)).isError, true);
       // An intervening owner can claim and release this exact chat. The earlier
@@ -1071,8 +1106,8 @@ test('Disconnected Codex can confirm the same exact chat under the old or a free
       assert.equal((await disconnect(intervening.binding.connectionId)).isError, undefined);
       assert.equal((await connect(nickname, stale)).isError, true);
       assert.equal(status(await connect(nickname)), 'codex_recovery_pending');
-      assert.equal(challenges.length, 2);
-      const token = challenges[1]!;
+      assert.equal(challenges.length, previousChallenges + 2);
+      const token = challenges[previousChallenges + 1]!;
       const result = await connect(nickname, token);
       assert.equal(result.isError, undefined, JSON.stringify(result));
       const recovered = result.structuredContent as unknown as typeof first;

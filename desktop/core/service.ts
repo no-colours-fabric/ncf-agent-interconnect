@@ -43,7 +43,12 @@ import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints, CodexDesktopUnavailable } from './codex-adapter.js';
-import { CodexQueueAdapter, codexQueueHome, codexQueueLocator } from './codex-queue.js';
+import {
+  CodexQueueAdapter,
+  codexQueueHome,
+  codexQueueLocator,
+  type CodexConfirmationOffer,
+} from './codex-queue.js';
 import { AionUiSessions } from './aionui-sessions.js';
 import { ClaudeSessions, helperCallSchema, type ClaudeProofLease } from './claude-sessions.js';
 import {
@@ -110,12 +115,29 @@ interface CodexRecoveryChallenge {
   target: CodexRecoveryTarget;
   digest: string;
   expires: number;
-  state: 'pending' | 'failed' | 'used';
+  state: 'pending' | 'retired' | 'used';
+  offer?: Extract<CodexConfirmationOffer, { witness: unknown }>;
+  observation?: Promise<CodexRecoveryResult>;
 }
 
-type AutomaticConnectResult =
-  | (ConnectResult & { delivery?: { automatic: boolean; description: string } })
-  | { status: 'codex_recovery_pending'; description: string };
+const codexRecoveryDescriptions = {
+  codex_recovery_pending:
+    'The confirmation was dispatched to this Codex chat. Complete it only if it arrives here before expiry.',
+  codex_recovery_queued:
+    'The confirmation is queued in this Codex chat. Codex has not confirmed delivery. It expires at the stated time.',
+  codex_recovery_uncertain:
+    'Codex could not confirm delivery. No duplicate was sent. This attempt expires at the stated time.',
+  codex_recovery_unavailable:
+    'This confirmation is unavailable. No additional confirmation was sent.',
+  codex_recovery_expired: 'The Codex confirmation expired. No additional confirmation was sent.',
+};
+type CodexRecoveryResult = {
+  status: keyof typeof codexRecoveryDescriptions;
+  description: string;
+  expiresAt?: string;
+};
+type ConnectedResult = ConnectResult & { delivery?: { automatic: boolean; description: string } };
+type AutomaticConnectResult = ConnectedResult | CodexRecoveryResult;
 
 interface AutomaticConnectInput {
   nickname: string;
@@ -998,7 +1020,7 @@ export class NodeService extends EventEmitter {
   async connectAutomatic(
     args: AutomaticConnectInput & { contextToken: string },
     host: McpHost,
-  ): Promise<Exclude<AutomaticConnectResult, { status: 'codex_recovery_pending' }>>;
+  ): Promise<ConnectedResult>;
   async connectAutomatic(
     args: AutomaticConnectInput,
     host: McpHost,
@@ -1655,21 +1677,30 @@ export class NodeService extends EventEmitter {
     this.assertCodexRecoveryTarget(target);
 
     const now = Date.now();
-    for (const [id, challenge] of this.codexRecovery)
-      if (challenge.expires <= now) this.codexRecovery.delete(id);
     const current = this.codexRecovery.get(threadId);
+    for (const [id, challenge] of this.codexRecovery)
+      if (id !== threadId && challenge.expires <= now) this.codexRecovery.delete(id);
     if (current) {
+      if (current.expires <= now) {
+        this.codexRecovery.delete(threadId);
+        return this.codexRecoveryStatus('codex_recovery_expired');
+      }
       this.assertCodexRecoveryTarget(current.target);
       if (
         current.target.key !== key ||
         current.target.socket !== socket ||
         current.target.binding?.connectionId !== binding?.connectionId ||
-        current.state !== 'pending'
+        current.state === 'used'
       )
         throw new Error(
-          'A Codex confirmation was already requested for this chat. Wait five minutes before retrying.',
+          'A different Codex confirmation was already requested for this chat. Wait for it to expire.',
         );
-      return this.codexRecoveryPending();
+      if (current.state === 'retired')
+        return this.codexRecoveryStatus('codex_recovery_unavailable');
+      current.observation ??= this.observeCodexRecovery(current).finally(() => {
+        current.observation = undefined;
+      });
+      return current.observation;
     }
     if (this.codexRecovery.size >= codexRecoveryLimit)
       throw new Error(
@@ -1684,11 +1715,7 @@ export class NodeService extends EventEmitter {
       state: 'pending',
     };
     this.codexRecovery.set(threadId, challenge);
-    const adapter = new CodexQueueAdapter(
-      { id: profile?.id ?? randomUUID(), kind: 'codex-desktop', label: 'Codex', threadId, socket },
-      () => {},
-    );
-    this.codexRecoveryAdapters.add(adapter);
+    const adapter = this.codexRecoveryAdapter(target);
     try {
       if (!binding && profile && !profile.codexQueue) {
         await adapter.start();
@@ -1704,13 +1731,23 @@ export class NodeService extends EventEmitter {
           challenge.expires > Date.now()
         );
       });
-      if (outcome === 'failed')
-        throw new Error('The Codex confirmation could not be queued for this chat.');
       if (this.codexRecovery.get(threadId) !== challenge)
         throw new Error('The Codex connection lifecycle changed');
-      return this.codexRecoveryPending();
+      if (challenge.expires <= Date.now()) {
+        this.codexRecovery.delete(threadId);
+        return this.codexRecoveryStatus('codex_recovery_expired');
+      }
+      if (outcome.state === 'failed')
+        throw new Error('The Codex confirmation could not be submitted to this chat.');
+      if (outcome.state === 'blocked') {
+        challenge.state = 'retired';
+        return this.codexRecoveryStatus('codex_recovery_unavailable');
+      }
+      if ('witness' in outcome) challenge.offer = outcome;
+      return this.codexRecoveryOffered(challenge);
     } catch (error) {
-      challenge.state = 'failed';
+      if (this.codexRecovery.get(threadId) === challenge && challenge.state === 'pending')
+        this.codexRecovery.delete(threadId);
       throw error;
     } finally {
       await adapter.stop();
@@ -1718,19 +1755,83 @@ export class NodeService extends EventEmitter {
     }
   }
 
-  private codexRecoveryPending(): AutomaticConnectResult {
+  private codexRecoveryAdapter(target: CodexRecoveryTarget): CodexQueueAdapter {
+    const adapter = new CodexQueueAdapter(
+      {
+        id: target.profile?.id ?? randomUUID(),
+        kind: 'codex-desktop',
+        label: 'Codex',
+        threadId: target.threadId,
+        socket: target.socket,
+      },
+      () => {},
+    );
+    this.codexRecoveryAdapters.add(adapter);
+    return adapter;
+  }
+
+  private codexRecoveryStatus(
+    status: CodexRecoveryResult['status'],
+    expires?: number,
+  ): CodexRecoveryResult {
     return {
-      status: 'codex_recovery_pending',
-      description:
-        'Wait for the NCF Agent Interconnect confirmation in this Codex chat. Complete it there only. The code expires after five minutes.',
+      status,
+      description: codexRecoveryDescriptions[status],
+      ...(expires === undefined ? {} : { expiresAt: new Date(expires).toISOString() }),
     };
+  }
+
+  private codexRecoveryOffered(challenge: CodexRecoveryChallenge): CodexRecoveryResult {
+    const state = challenge.offer?.state;
+    if (state === 'dispatched')
+      return this.codexRecoveryStatus('codex_recovery_pending', challenge.expires);
+    if (state === 'queued')
+      return this.codexRecoveryStatus('codex_recovery_queued', challenge.expires);
+    return this.codexRecoveryStatus('codex_recovery_uncertain', challenge.expires);
+  }
+
+  private async observeCodexRecovery(
+    challenge: CodexRecoveryChallenge,
+  ): Promise<CodexRecoveryResult> {
+    const { offer, target, expires } = challenge;
+    if (!offer || offer.state === 'dispatched') return this.codexRecoveryOffered(challenge);
+    const adapter = this.codexRecoveryAdapter(target);
+    try {
+      const observed = await adapter.observeConfirmation(offer.witness);
+      if (this.codexRecovery.get(target.threadId) !== challenge || challenge.state === 'used')
+        throw new Error('The Codex confirmation is no longer current');
+      this.assertCodexRecoveryTarget(target);
+      if (expires <= Date.now()) {
+        this.codexRecovery.delete(target.threadId);
+        return this.codexRecoveryStatus('codex_recovery_expired');
+      }
+      if (challenge.state === 'retired')
+        return this.codexRecoveryStatus('codex_recovery_unavailable');
+      if (challenge.offer !== offer) return this.codexRecoveryOffered(challenge);
+      if (observed === 'admitted') {
+        challenge.offer = { state: 'dispatched', witness: offer.witness };
+        return this.codexRecoveryOffered(challenge);
+      }
+      if (observed === 'queued') {
+        challenge.offer = { state: 'queued', witness: offer.witness };
+        return this.codexRecoveryOffered(challenge);
+      }
+      if (observed === 'missing' && offer.state === 'queued') {
+        challenge.state = 'retired';
+        return this.codexRecoveryStatus('codex_recovery_unavailable');
+      }
+      return this.codexRecoveryStatus('codex_recovery_uncertain', expires);
+    } finally {
+      await adapter.stop();
+      this.codexRecoveryAdapters.delete(adapter);
+    }
   }
 
   private async confirmCodexRecovery(
     nickname: string,
     threadId: string,
     token: string,
-  ): Promise<AutomaticConnectResult> {
+  ): Promise<ConnectedResult> {
     const challenge = this.codexRecovery.get(threadId);
     if (
       !challenge ||

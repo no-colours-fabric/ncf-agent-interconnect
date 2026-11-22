@@ -478,3 +478,196 @@ test('matches the exact chat in legacy and suffixed Codex rollout names', () => 
   );
   assert.equal(codexTranscriptMatchesThread(prefix + thread + '_unexpected.jsonl', thread), false);
 });
+
+test('Codex confirmation uses exact owner input and never replaces an uncertain submission', async (t) => {
+  for (const scenario of ['active', 'stopped', 'idle', 'standard', 'uncertain'] as const) {
+    await t.test(scenario, async (t) => {
+      const threadId = randomUUID();
+      const turnId = randomUUID();
+      const submissionId = randomUUID();
+      const methods: string[] = [];
+      let payload: Record<string, unknown> | undefined;
+      let reads = 0;
+      const session: NonNullable<ConstructorParameters<typeof CodexQueueAdapter>[2]> = async (
+        _profile,
+        _signal,
+        operation,
+      ) =>
+        operation(async (method, raw) => {
+          const params = raw as Record<string, unknown>;
+          assert.equal(params.threadId, threadId);
+          methods.push(method);
+          if (method === 'thread/read') {
+            reads++;
+            return {
+              thread: {
+                id: threadId,
+                ephemeral: false,
+                status: {
+                  type:
+                    scenario === 'standard'
+                      ? 'notLoaded'
+                      : scenario === 'stopped' || scenario === 'idle'
+                        ? 'idle'
+                        : 'active',
+                },
+                path: '/fixture/transcript',
+              },
+            };
+          }
+          if (method === 'thread/queue/list') return { data: [], nextCursor: null };
+          if (method === 'thread/turns/list')
+            return {
+              data: [
+                {
+                  id: turnId,
+                  status:
+                    scenario === 'stopped'
+                      ? 'interrupted'
+                      : scenario === 'idle'
+                        ? 'completed'
+                        : 'inProgress',
+                },
+              ],
+            };
+          if (method === 'turn/steer') {
+            payload = params;
+            assert.equal(params.expectedTurnId, turnId);
+            if (scenario === 'uncertain') throw new Error('Connection closed after write');
+            return { turnId };
+          }
+          if (method === 'thread/queue/add') {
+            payload = params;
+            return {
+              queuedSubmission: {
+                id: submissionId,
+                clientUserMessageId: params.clientUserMessageId,
+              },
+            };
+          }
+          assert.equal(method, 'thread/queue/start');
+          assert.equal(params.queuedSubmissionId, submissionId);
+          return { turn: { id: turnId, status: 'inProgress' } };
+        });
+      const adapter = new CodexQueueAdapter(
+        { id: randomUUID(), kind: 'codex-desktop', label: 'Codex', threadId },
+        () => {},
+        session,
+        async () => '/fixture/transcript',
+        scenario === 'standard'
+          ? async () => {
+              throw new Error('No shared owner');
+            }
+          : session,
+      );
+      t.after(() => adapter.stop());
+      // The independent transport is not a live owner. Windows has no stdio fallback.
+      if (scenario === 'standard' && process.platform === 'win32') {
+        const result = await adapter.challenge(randomUUID(), () => true);
+        assert.equal(result.state, 'failed');
+        assert.deepEqual(methods, []);
+        return;
+      }
+      const token = randomUUID();
+      const result = await adapter.challenge(token, () => true);
+      assert.equal(
+        result.state,
+        scenario === 'standard' || scenario === 'idle'
+          ? 'queued'
+          : scenario === 'uncertain'
+            ? 'uncertain'
+            : 'dispatched',
+      );
+      assert.ok(reads > 0);
+      assert.match(JSON.stringify(payload), new RegExp(token));
+      assert.ok(!JSON.stringify(result).includes(token));
+      const writes = methods.filter((method) =>
+        ['turn/steer', 'thread/queue/add', 'thread/queue/start'].includes(method),
+      );
+      assert.deepEqual(
+        writes,
+        scenario === 'stopped'
+          ? ['thread/queue/add', 'thread/queue/start']
+          : scenario === 'standard' || scenario === 'idle'
+            ? ['thread/queue/add']
+            : ['turn/steer'],
+      );
+    });
+  }
+});
+
+test('Codex confirmation recognizes only its exact queued or persisted input', async (t) => {
+  const threadId = randomUUID();
+  const queueId = randomUUID();
+  let state = 'notLoaded';
+  let queue: { input: unknown; clientUserMessageId: unknown } | undefined;
+  let items: object[] = [];
+  let submissions = 0;
+  let nextPage = false;
+  const session: NonNullable<ConstructorParameters<typeof CodexQueueAdapter>[2]> = async (
+    _profile,
+    _signal,
+    operation,
+  ) =>
+    operation(async (method, raw) => {
+      const params = raw as Record<string, unknown>;
+      assert.equal(params.threadId, threadId);
+      if (method === 'thread/read')
+        return {
+          thread: {
+            id: threadId,
+            ephemeral: false,
+            path: '/fixture/transcript',
+            status: { type: state },
+          },
+        };
+      if (method === 'thread/queue/list') {
+        if (nextPage && !params.cursor) return { data: [], nextCursor: '24' };
+        if (nextPage) assert.equal(params.cursor, '24');
+        return { data: queue ? [queue] : [], nextCursor: null };
+      }
+      if (method === 'thread/items/list') return { data: items, nextCursor: null };
+      assert.equal(method, 'thread/queue/add');
+      submissions++;
+      queue = { input: params.input, clientUserMessageId: params.clientUserMessageId };
+      return { queuedSubmission: { id: queueId, clientUserMessageId: queue.clientUserMessageId } };
+    });
+  const adapter = new CodexQueueAdapter(
+    { id: randomUUID(), kind: 'codex-desktop', label: 'Codex', threadId },
+    () => {},
+    session,
+    async () => '/fixture/transcript',
+    session,
+  );
+  t.after(() => adapter.stop());
+
+  const offer = await adapter.challenge(randomUUID(), () => true);
+  assert.equal(offer.state, 'queued');
+  if (!('witness' in offer) || !queue) throw new Error('Missing fixture confirmation');
+  const original = queue;
+  nextPage = true;
+  assert.equal((await adapter.challenge(randomUUID(), () => true)).state, 'blocked');
+  assert.equal(submissions, 1);
+  assert.equal(await adapter.observeConfirmation(offer.witness), 'queued');
+
+  queue = undefined;
+  state = 'active';
+  assert.equal(await adapter.observeConfirmation(offer.witness), 'unknown');
+  state = 'idle';
+  const item = {
+    id: randomUUID(),
+    type: 'userMessage',
+    clientId: offer.witness.messageId,
+    completedAtMs: 100,
+    content: original.input,
+  };
+  items = [
+    { item: { ...item, clientId: randomUUID() } },
+    { item: { ...item, content: [{ type: 'text', text: 'Unrelated content' }] } },
+    { item: { ...item, completedAtMs: null } },
+  ];
+  assert.equal(await adapter.observeConfirmation(offer.witness), 'missing');
+  items.push({ item });
+  assert.equal(await adapter.observeConfirmation(offer.witness), 'admitted');
+  assert.equal(submissions, 1);
+});

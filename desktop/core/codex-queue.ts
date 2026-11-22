@@ -29,6 +29,56 @@ const projectionPageLimit = 32;
 const controlDirectory = 'app-server-control';
 const controlSocket = 'app-server-control.sock';
 
+const confirmationText =
+  'NCF Agent Interconnect connection confirmation. If you requested an NCF connection from this chat, call agent_connect with the nickname you requested and the contextToken below. Keep the code internal. If you did not request a connection, ignore this message.\n\ncontextToken: ';
+const confirmationTokenFormat = new RegExp('^' + rolloutId + '$', 'i');
+const confirmationQueueLimit = 24;
+const confirmationPageLimit = 2;
+
+interface CodexConfirmationWitness {
+  messageId: string;
+  payloadHash: string;
+}
+
+export type CodexConfirmationOffer =
+  | { state: 'failed' | 'blocked' }
+  | { state: 'dispatched' | 'queued' | 'uncertain'; witness: CodexConfirmationWitness };
+
+type ConfirmationObservation = 'queued' | 'admitted' | 'missing' | 'unknown';
+
+function singleText(input: unknown): string | undefined {
+  if (
+    Array.isArray(input) &&
+    input.length === 1 &&
+    input[0]?.type === 'text' &&
+    typeof input[0]?.text === 'string'
+  )
+    return input[0].text;
+}
+
+function completedUserMessage(item: unknown): { clientId: string; text: string } | undefined {
+  if (!item || typeof item !== 'object') return;
+  const { id, type, clientId, completedAtMs, content } = item as Record<string, unknown>;
+  const text = singleText(content);
+  if (
+    typeof id === 'string' &&
+    id &&
+    type === 'userMessage' &&
+    typeof clientId === 'string' &&
+    typeof completedAtMs === 'number' &&
+    Number.isFinite(completedAtMs) &&
+    text !== undefined
+  )
+    return { clientId, text };
+}
+
+function matchesPayload(text: string, hash: string): boolean {
+  // Desktop may append one line feed when steering a queued message.
+  return (
+    contentHash(text) === hash || (text.endsWith('\n') && contentHash(text.slice(0, -1)) === hash)
+  );
+}
+
 type Projection = {
   payloadHash: string;
   isCurrent: () => boolean;
@@ -477,27 +527,150 @@ export class CodexQueueAdapter implements AgentAdapter {
     return { id: turn.id, status: turn.status };
   }
 
-  async challenge(
-    token: string,
-    isCurrent: () => boolean,
-  ): Promise<'sent' | 'uncertain' | 'failed'> {
-    let submitting = false;
-    try {
-      await this.run(async (call) => {
-        const { id: threadId } = await this.verifyThread(call);
-        this.controller.signal.throwIfAborted();
-        if (!isCurrent()) throw new Error('The Codex connection request changed');
-        submitting = true;
-        await this.enqueue(
-          call,
-          threadId,
-          'NCF Agent Interconnect connection confirmation. If you requested an NCF connection from this chat, call agent_connect with the nickname you requested and the contextToken below. Keep the code internal. If you did not request a connection, ignore this message.\n\ncontextToken: ' +
-            token,
-        );
+  private async scanConfirmationQueue(
+    call: QueueCall,
+    threadId: string,
+    matches: (entry: Record<string, unknown>) => boolean,
+  ): Promise<'found' | 'missing' | 'unknown'> {
+    let cursor: string | undefined;
+    for (let page = 0; page < confirmationPageLimit; page++) {
+      const { data, nextCursor } = await call('thread/queue/list', {
+        threadId,
+        limit: confirmationQueueLimit,
+        ...(cursor === undefined ? {} : { cursor }),
       });
-      return 'sent';
+      if (!Array.isArray(data)) return 'unknown';
+      if (data.some((entry) => entry && typeof entry === 'object' && matches(entry)))
+        return 'found';
+      if (nextCursor === null || nextCursor === undefined) return 'missing';
+      if (typeof nextCursor !== 'string' || !nextCursor || nextCursor === cursor) return 'unknown';
+      cursor = nextCursor;
+    }
+    return 'unknown';
+  }
+
+  async challenge(token: string, isCurrent: () => boolean): Promise<CodexConfirmationOffer> {
+    const text = confirmationText + token;
+    const witness = { messageId: randomUUID(), payloadHash: contentHash(text) };
+    let submitting = false;
+    const current = () => !this.controller.signal.aborted && isCurrent();
+    try {
+      return await this.run(async (call, shared) => {
+        let thread = await this.verifyThread(call);
+        const threadId = thread.id;
+        await this.resolveTranscript(this.profile, threadId, thread.path);
+        // A previous confirmation can outlive NCF in the persistent Codex queue.
+        const existing = await this.scanConfirmationQueue(call, threadId, (item) => {
+          const input = singleText(item.input);
+          return (
+            input !== undefined &&
+            input.startsWith(confirmationText) &&
+            confirmationTokenFormat.test(input.slice(confirmationText.length))
+          );
+        });
+        if (existing === 'found') return { state: 'blocked' };
+        if (existing === 'unknown' || !current()) return { state: 'failed' };
+        if (shared && thread.state === 'active') {
+          const turn = await this.latestTurn(call, threadId);
+          if (!current()) return { state: 'failed' };
+          if (turn?.status === 'inProgress') {
+            submitting = true;
+            try {
+              const result = await call('turn/steer', {
+                threadId,
+                expectedTurnId: turn.id,
+                clientUserMessageId: witness.messageId,
+                input: [{ type: 'text', text, text_elements: [] }],
+              });
+              if (result.turnId !== turn.id)
+                throw new Error('Codex did not confirm the active turn');
+              return { state: 'dispatched', witness };
+            } catch (error) {
+              if (!(error instanceof CodexRpcRejection) || !error.expiredTurn(turn.id)) throw error;
+              // Only an explicit precondition refusal allows a different submission path.
+              submitting = false;
+              thread = await this.verifyThread(call);
+            }
+          } else {
+            thread = await this.verifyThread(call);
+          }
+        }
+        const interrupted =
+          shared && thread.state === 'idle' ? await this.latestTurn(call, threadId) : undefined;
+        if (!current()) return { state: 'failed' };
+        submitting = true;
+        const queueId = await this.enqueue(call, threadId, text, witness.messageId);
+        if (interrupted?.status === 'interrupted') {
+          const afterQueue = await this.verifyThread(call);
+          const latest =
+            afterQueue.state === 'idle' ? await this.latestTurn(call, threadId) : undefined;
+          if (latest?.id === interrupted.id && latest.status === 'interrupted' && current()) {
+            try {
+              const response = await call('thread/queue/start', {
+                threadId,
+                queuedSubmissionId: queueId,
+              });
+              const turn = response.turn as { id?: unknown; status?: unknown } | undefined;
+              if (typeof turn?.id !== 'string' || !turn.id || turn.status !== 'inProgress')
+                throw new Error('Codex did not confirm the start of the queued input');
+              return { state: 'dispatched', witness };
+            } catch (error) {
+              if (
+                !(error instanceof CodexRpcRejection) ||
+                error.code !== -32600 ||
+                (error.reason !== 'thread already has an active or pending turn' &&
+                  error.reason !== `queued submission not found: ${queueId}`)
+              )
+                throw error;
+            }
+          }
+        }
+        return { state: 'queued', witness };
+      });
     } catch {
-      return submitting ? 'uncertain' : 'failed';
+      return submitting ? { state: 'uncertain', witness } : { state: 'failed' };
+    }
+  }
+
+  async observeConfirmation(witness: CodexConfirmationWitness): Promise<ConfirmationObservation> {
+    try {
+      return await this.run(async (call) => {
+        const thread = await this.verifyThread(call);
+        await this.resolveTranscript(this.profile, thread.id, thread.path);
+        const queue = await this.scanConfirmationQueue(call, thread.id, (item) => {
+          const text = singleText(item.input);
+          return (
+            item.clientUserMessageId === witness.messageId &&
+            text !== undefined &&
+            contentHash(text) === witness.payloadHash
+          );
+        });
+        if (queue === 'found') return 'queued';
+        if (queue === 'unknown') return 'unknown';
+        let cursor: string | undefined;
+        for (let page = 0; page < confirmationPageLimit; page++) {
+          const { data, nextCursor } = await this.projectionPage(call, thread.id, cursor);
+          const seen = (data as { item?: unknown }[]).some((entry) => {
+            const message = completedUserMessage(entry?.item);
+            return (
+              message?.clientId === witness.messageId &&
+              matchesPayload(message.text, witness.payloadHash)
+            );
+          });
+          if (seen) return 'admitted';
+          if (nextCursor === undefined || nextCursor === null) {
+            // An active turn may have removed the item before it becomes visible in history.
+            const after = await this.verifyThread(call);
+            return thread.state === 'idle' && after.state === 'idle' ? 'missing' : 'unknown';
+          }
+          if (typeof nextCursor !== 'string' || !nextCursor || nextCursor === cursor)
+            return 'unknown';
+          cursor = nextCursor;
+        }
+        return 'unknown';
+      });
+    } catch {
+      return 'unknown';
     }
   }
 
@@ -619,31 +792,12 @@ export class CodexQueueAdapter implements AgentAdapter {
   }
 
   private project(item: unknown): void {
-    if (!item || typeof item !== 'object') return;
-    const { id, type, clientId, completedAtMs, content } = item as Record<string, unknown>;
-    if (
-      typeof id !== 'string' ||
-      !id ||
-      type !== 'userMessage' ||
-      typeof clientId !== 'string' ||
-      typeof completedAtMs !== 'number' ||
-      !Number.isFinite(completedAtMs) ||
-      !Array.isArray(content) ||
-      content.length !== 1 ||
-      content[0]?.type !== 'text' ||
-      typeof content[0]?.text !== 'string'
-    )
-      return;
-    const projection = this.projections.get(clientId);
-    if (!projection) return;
-    const text = content[0].text;
-    // Desktop can append one line feed when its composer steers a queued message.
-    const matches =
-      contentHash(text) === projection.payloadHash ||
-      (text.endsWith('\n') && contentHash(text.slice(0, -1)) === projection.payloadHash);
-    if (!matches) return;
+    const message = completedUserMessage(item);
+    if (!message) return;
+    const projection = this.projections.get(message.clientId);
+    if (!projection || !matchesPayload(message.text, projection.payloadHash)) return;
     if (projection.isCurrent()) projection.admit();
-    this.projections.delete(clientId);
+    this.projections.delete(message.clientId);
   }
 
   async deliver(input: EventInput): Promise<Admission> {
