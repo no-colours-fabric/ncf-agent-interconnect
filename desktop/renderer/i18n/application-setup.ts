@@ -20,7 +20,7 @@ const en = {
     'You can continue working in your connected chats. You can also configure more apps here.',
   continue: 'Continue to NCF Agent Interconnect',
   returnHelp: 'You can return to Applications from the sidebar at any time.',
-  later: 'Not now',
+  continueWithoutSetup: 'Continue',
   yourApps: 'Your apps',
   detectionHelp: 'Detection only enables automatic setup. Manual setup is always available.',
   detected: 'Detected on this computer',
@@ -83,7 +83,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Можно продолжать работу в подключённых чатах. При желании настройте здесь другие приложения.',
     continue: 'Перейти в NCF Agent Interconnect',
     returnHelp: 'К настройке всегда можно вернуться через «Приложения» в боковой панели.',
-    later: 'Не сейчас',
+    continueWithoutSetup: 'Продолжить',
     yourApps: 'Ваши приложения',
     detectionHelp:
       'Обнаружение позволяет предложить автоматическую настройку. Ручная настройка доступна всегда.',
@@ -138,7 +138,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     readyHelp: '你可以在已连接的聊天中继续工作，也可以在此配置更多应用。',
     continue: '进入 NCF Agent Interconnect',
     returnHelp: '你随时可以通过侧边栏返回“应用”。',
-    later: '暂不设置',
+    continueWithoutSetup: '继续',
     yourApps: '你的应用',
     detectionHelp: '检测结果仅用于提供自动配置。你始终可以手动配置。',
     detected: '已在此计算机上检测到',
@@ -193,7 +193,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Vous pouvez poursuivre votre travail dans les conversations connectées ou configurer d’autres applications ici.',
     continue: 'Accéder à NCF Agent Interconnect',
     returnHelp: 'Vous pouvez revenir à Applications à tout moment depuis la barre latérale.',
-    later: 'Pas maintenant',
+    continueWithoutSetup: 'Continuer',
     yourApps: 'Vos applications',
     detectionHelp:
       'La détection permet uniquement la configuration automatique. La configuration manuelle reste toujours disponible.',
@@ -255,7 +255,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Sie können in Ihren verbundenen Chats weiterarbeiten oder hier weitere Anwendungen einrichten.',
     continue: 'Weiter zu NCF Agent Interconnect',
     returnHelp: 'Sie können jederzeit über die Seitenleiste zu Anwendungen zurückkehren.',
-    later: 'Nicht jetzt',
+    continueWithoutSetup: 'Weiter',
     yourApps: 'Ihre Anwendungen',
     detectionHelp:
       'Die Erkennung ermöglicht nur die automatische Einrichtung. Die manuelle Einrichtung ist jederzeit verfügbar.',
@@ -316,7 +316,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     readyHelp: 'Puoi continuare a lavorare nelle chat collegate oppure configurare altre app qui.',
     continue: 'Vai a NCF Agent Interconnect',
     returnHelp: 'Puoi tornare ad Applicazioni in qualsiasi momento dalla barra laterale.',
-    later: 'Non ora',
+    continueWithoutSetup: 'Continua',
     yourApps: 'Le tue app',
     detectionHelp:
       'Il rilevamento serve solo alla configurazione automatica. La configurazione manuale è sempre disponibile.',
@@ -376,7 +376,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Puedes seguir trabajando en los chats conectados o configurar más aplicaciones aquí.',
     continue: 'Ir a NCF Agent Interconnect',
     returnHelp: 'Puedes volver a Aplicaciones en cualquier momento desde la barra lateral.',
-    later: 'Ahora no',
+    continueWithoutSetup: 'Continuar',
     yourApps: 'Tus aplicaciones',
     detectionHelp:
       'La detección solo permite la configuración automática. La configuración manual siempre está disponible.',
@@ -436,7 +436,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Қосылған чаттарда жұмысты жалғастыруға немесе осында басқа қолданбаларды баптауға болады.',
     continue: 'NCF Agent Interconnect қолданбасына өту',
     returnHelp: 'Бүйірлік панельдегі «Қолданбалар» бөліміне кез келген уақытта оралуға болады.',
-    later: 'Қазір емес',
+    continueWithoutSetup: 'Жалғастыру',
     yourApps: 'Қолданбаларыңыз',
     detectionHelp:
       'Анықтау тек автоматты баптауға мүмкіндік береді. Қолмен баптау әрдайым қолжетімді.',
@@ -494,7 +494,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     readyHelp: '接続済みのチャットで作業を続けられます。ここで他のアプリを設定することもできます。',
     continue: 'NCF Agent Interconnect に進む',
     returnHelp: 'サイドバーからいつでもアプリケーションに戻れます。',
-    later: '後で',
+    continueWithoutSetup: '続ける',
     yourApps: 'お使いのアプリ',
     detectionHelp: '検出結果は自動設定の可否にのみ使用します。手動設定はいつでも利用できます。',
     detected: 'このコンピューターで検出済み',
@@ -554,7 +554,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Você pode continuar trabalhando nas conversas conectadas ou configurar mais aplicativos aqui.',
     continue: 'Ir para o NCF Agent Interconnect',
     returnHelp: 'Você pode voltar a Aplicativos pela barra lateral a qualquer momento.',
-    later: 'Agora não',
+    continueWithoutSetup: 'Continuar',
     yourApps: 'Seus aplicativos',
     detectionHelp:
       'A detecção permite apenas a configuração automática. A configuração manual está sempre disponível.',
@@ -612,7 +612,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     readyHelp: '연결된 채팅에서 작업을 계속하거나 여기에서 다른 앱을 설정할 수 있습니다.',
     continue: 'NCF Agent Interconnect로 이동',
     returnHelp: '언제든지 사이드바에서 앱 화면으로 돌아갈 수 있습니다.',
-    later: '나중에',
+    continueWithoutSetup: '계속',
     yourApps: '내 앱',
     detectionHelp:
       '앱 감지는 자동 설정 가능 여부에만 사용됩니다. 수동 설정은 항상 사용할 수 있습니다.',
@@ -670,7 +670,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Bağlı sohbetlerinizde çalışmaya devam edebilir veya burada başka uygulamalar yapılandırabilirsiniz.',
     continue: 'NCF Agent Interconnect’e geç',
     returnHelp: 'Kenar çubuğundan istediğiniz zaman Uygulamalar’a dönebilirsiniz.',
-    later: 'Şimdi değil',
+    continueWithoutSetup: 'Devam et',
     yourApps: 'Uygulamalarınız',
     detectionHelp:
       'Algılama yalnızca otomatik kurulumu mümkün kılar. Elle kurulum her zaman kullanılabilir.',
@@ -728,7 +728,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
       'Możesz kontynuować pracę w połączonych czatach lub skonfigurować tutaj kolejne aplikacje.',
     continue: 'Przejdź do NCF Agent Interconnect',
     returnHelp: 'W każdej chwili możesz wrócić do Aplikacji z paska bocznego.',
-    later: 'Nie teraz',
+    continueWithoutSetup: 'Kontynuuj',
     yourApps: 'Twoje aplikacje',
     detectionHelp:
       'Wykrywanie umożliwia tylko automatyczną konfigurację. Konfiguracja ręczna jest zawsze dostępna.',
@@ -786,7 +786,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     readyHelp: 'Je kunt verder werken in je verbonden chats of hier meer apps instellen.',
     continue: 'Ga naar NCF Agent Interconnect',
     returnHelp: 'Je kunt op elk moment via de zijbalk terugkeren naar Apps.',
-    later: 'Niet nu',
+    continueWithoutSetup: 'Doorgaan',
     yourApps: 'Je apps',
     detectionHelp:
       'Detectie maakt alleen automatische configuratie mogelijk. Handmatig instellen blijft altijd beschikbaar.',
@@ -845,7 +845,7 @@ const translations: Record<Locale, ApplicationSetupMessages> = {
     readyHelp: 'Можна продовжувати роботу в підключених чатах або налаштувати тут інші застосунки.',
     continue: 'Перейти до NCF Agent Interconnect',
     returnHelp: 'До налаштування завжди можна повернутися через «Застосунки» на бічній панелі.',
-    later: 'Не зараз',
+    continueWithoutSetup: 'Продовжити',
     yourApps: 'Ваші застосунки',
     detectionHelp:
       'Виявлення дає змогу запропонувати автоматичне налаштування. Ручне налаштування доступне завжди.',

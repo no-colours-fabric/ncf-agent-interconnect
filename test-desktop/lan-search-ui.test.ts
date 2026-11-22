@@ -2121,7 +2121,7 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
             assert.equal((await calls(page, 'ackLanSearch')).length, 0);
             await page
               .getByRole('dialog')
-              .getByRole('button', { name: 'Not now', exact: true })
+              .getByRole('button', { name: 'Continue', exact: true })
               .click();
             await until(
               async () => (await calls(page, 'ackLanSearch')).length > 0,

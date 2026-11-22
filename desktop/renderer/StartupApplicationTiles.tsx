@@ -72,7 +72,7 @@ export function StartupApplicationTile({
         flex: '0 0 calc((100% - var(--startup-card-gaps)) / var(--startup-card-columns))',
         boxSizing: 'border-box',
         minWidth: 0,
-        minHeight: 216,
+        minHeight: 360,
         p: 2,
         overflowWrap: 'anywhere',
         backgroundImage: 'none',

@@ -290,16 +290,25 @@ test(
             columns: Number(getComputedStyle(element).getPropertyValue('--startup-card-columns')),
             cards: [...element.children].map((child) => {
               const card = child.getBoundingClientRect();
-              return { left: card.left, right: card.right, top: card.top, bottom: card.bottom };
+              return {
+                left: card.left,
+                right: card.right,
+                top: card.top,
+                bottom: card.bottom,
+                minHeight: getComputedStyle(child).minHeight,
+              };
             }),
           };
         });
         assert.equal(layout.columns, columns, JSON.stringify(layout));
-        for (const card of layout.cards)
+        for (const card of layout.cards) {
+          assert.equal(card.minHeight, '360px');
+          assert.ok(card.bottom - card.top >= 360, JSON.stringify(layout));
           assert.ok(
             Math.abs(card.right - card.left - (layout.width - 16 * (columns - 1)) / columns) < 1,
             JSON.stringify(layout),
           );
+        }
         for (const top of new Set(layout.cards.map((card) => card.top))) {
           const row = layout.cards.filter((card) => card.top === top);
           const midpoint = (row[0]!.left + row.at(-1)!.right) / 2;
@@ -329,6 +338,7 @@ test(
         await startup.getByRole('heading', { name: 'Подключите свои приложения' }).count(),
         1,
       );
+      assert.equal(await page.getByRole('button', { name: 'Продолжить', exact: true }).count(), 1);
       await page.screenshot({
         path: path.join(os.tmpdir(), 'ncf-startup-cards-ru-narrow.png'),
         animations: 'disabled',
@@ -379,7 +389,7 @@ test(
       await fixture({ offers: ['codex'] }, 'en', 1180);
       await assertStartupLayout(['codex'], 6);
       await waitForSeen(['codex']);
-      await page.getByRole('button', { name: 'Not now', exact: true }).click();
+      await page.getByRole('button', { name: 'Continue', exact: true }).click();
       await startup.waitFor({ state: 'hidden' });
       const acknowledgementsBeforeDismiss = await page.evaluate(() =>
         window.interconnect.invoke<number>('fixtureOfferCount'),

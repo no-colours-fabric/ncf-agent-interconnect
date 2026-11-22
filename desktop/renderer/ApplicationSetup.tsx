@@ -1455,7 +1455,7 @@ export function ApplicationSetup({
               disabled={operationBusy}
               sx={{ flexShrink: 0 }}
             >
-              {completed.length ? copy.continue : copy.later}
+              {completed.length ? copy.continue : copy.continueWithoutSetup}
             </Button>
           </Stack>
         </Box>
