@@ -195,10 +195,11 @@ export class McpSetupFlow {
         }
         this.discard(check.preview);
       }
-      const result = await this.invoke<McpSetupApplyResult>('mcpSetupApply', {
-        planId: preview.planId,
-        confirmReplace: preview.requiresReplacement && confirmReplace,
-      });
+      const result = await this.invoke<McpSetupApplyResult | null>(
+        this.client === 'codex' ? 'mcpSetupApplyChatGpt' : 'mcpSetupApply',
+        { planId: preview.planId, confirmReplace: preview.requiresReplacement && confirmReplace },
+      );
+      if (!result) return;
       if (revision === this.revision) {
         this.set({ result, reviewRequired: result.status === 'failed' });
         await this.refreshStatus();

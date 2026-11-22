@@ -157,11 +157,88 @@ export function createCodexShortcutHandler(
   let creating = false;
   let dockShortcut: string | undefined;
 
+  async function resolveProfile(platform: CodexShortcutPlatform) {
+    const standardProfile = path.join(options.home, '.codex');
+    const standardData = path.join(options.appData, 'Codex');
+    const install = platform === 'mac' ? await mac.findMacCodex() : undefined;
+    if (platform === 'mac' && !install)
+      return { reason: install === null ? 'profileUnavailable' : 'appMissing' } as const;
+    const inspect = install
+      ? () =>
+          mac.inspectMacCodexDesktop(
+            options.appPath,
+            install.desktopExecutable,
+            standardProfile,
+            standardData,
+          )
+      : undefined;
+    const witness = await inspect?.();
+    if (witness?.state === 'unavailable') return { reason: 'profileUnavailable' } as const;
+    const running = witness?.state === 'running' ? witness : undefined;
+    const selectedConfig = running
+      ? path.join(running.profile, 'config.toml')
+      : await options.configurationPath();
+    const profile = path.dirname(selectedConfig);
+    if (path.basename(selectedConfig) !== 'config.toml')
+      return { reason: 'profileUnavailable' } as const;
+    const matchesSaved = () =>
+      options
+        .boundProfiles()
+        .every((binding) => matchesStandardBinding(binding, profile, platform));
+    if (!samePath(profile, running?.profile ?? standardProfile, platform))
+      return { reason: 'profileUnavailable' } as const;
+    if (
+      !running &&
+      ((options.codexHome && !samePath(options.codexHome, profile, platform)) || !matchesSaved())
+    )
+      return { reason: 'profileUnavailable' } as const;
+
+    let desktopData: string;
+    if (platform === 'mac') {
+      const requestedData = running?.desktopData ?? standardData;
+      const verified = await mac.macShortcutDirectory(requestedData).catch(() => null);
+      if (
+        verified !== requestedData ||
+        (await mac.macShortcutDirectory(profile).catch(() => null)) !== profile
+      )
+        return { reason: 'profileUnavailable' } as const;
+      desktopData = verified;
+    } else {
+      const resolved = await windows.desktopData(options.appData);
+      if (resolved.state !== 'ready') return { reason: resolved.state } as const;
+      desktopData = resolved.directory;
+    }
+    if (
+      !running &&
+      options.desktopDataOverride &&
+      !samePath(options.desktopDataOverride, desktopData, platform)
+    )
+      return { reason: 'profileUnavailable' } as const;
+    const current = async () => {
+      const latest = await inspect?.();
+      return running
+        ? latest?.state === 'running' &&
+            latest.process === running.process &&
+            latest.profile === profile &&
+            latest.desktopData === desktopData
+        : latest?.state === witness?.state &&
+            matchesSaved() &&
+            (await options.configurationPath()) === selectedConfig;
+    };
+    return { profile, selectedConfig, desktopData, install, current };
+  }
+
   return async (
     method: string,
     raw: unknown,
+    preparedConfiguration?: string,
   ): Promise<
-    CodexShortcutPlatform | CodexShortcutCreateResult | CodexShortcutDestination[] | boolean | null
+    | CodexShortcutPlatform
+    | CodexShortcutCreateResult
+    | CodexShortcutDestination[]
+    | { configuration: string }
+    | boolean
+    | null
   > => {
     const platform = codexShortcutPlatform(
       options.platform,
@@ -171,6 +248,12 @@ export function createCodexShortcutHandler(
     if (method === 'codexShortcutPlatform') {
       z.object({}).strict().parse(raw);
       return platform;
+    }
+    if (method === 'codexShortcutConfiguration') {
+      z.object({}).strict().parse(raw);
+      if (!platform) return null;
+      const resolved = await resolveProfile(platform);
+      return 'reason' in resolved ? null : { configuration: resolved.selectedConfig };
     }
     if (method === 'codexShortcutLocations') {
       z.object({}).strict().parse(raw);
@@ -275,75 +358,19 @@ export function createCodexShortcutHandler(
           return cancelled;
         chosenFile = path.join(folder.filePaths[0], shortcutName);
       }
-      const standardProfile = path.join(options.home, '.codex');
-      const standardData = path.join(options.appData, 'Codex');
-      const install = platform === 'mac' ? await mac.findMacCodex() : undefined;
-      if (platform === 'mac' && !install)
-        return failed(install === null ? 'profileUnavailable' : 'appMissing');
-      const inspect = install
-        ? () =>
-            mac.inspectMacCodexDesktop(
-              options.appPath,
-              install.desktopExecutable,
-              standardProfile,
-              standardData,
-            )
-        : undefined;
-      const witness = await inspect?.();
-      if (witness?.state === 'unavailable') return failed('profileUnavailable');
-      const running = witness?.state === 'running' ? witness : undefined;
-      const selectedConfig = running
-        ? path.join(running.profile, 'config.toml')
-        : await options.configurationPath();
-      const configuration = await options.configuredFile(selectedConfig).catch(() => null);
-      if (!configuration) return failed('setupRequired');
-      const profile = path.dirname(configuration);
-      const matchesSaved = () =>
-        options
-          .boundProfiles()
-          .every((binding) => matchesStandardBinding(binding, profile, platform));
-      if (!samePath(profile, running?.profile ?? standardProfile, platform))
-        return failed('profileUnavailable');
+      const resolution = await resolveProfile(platform);
+      if ('reason' in resolution) return failed(resolution.reason);
+      const { profile, selectedConfig, desktopData, install, current } = resolution;
       if (
-        !running &&
-        ((options.codexHome && !samePath(options.codexHome, profile, platform)) || !matchesSaved())
+        preparedConfiguration !== undefined
+          ? !samePath(preparedConfiguration, selectedConfig, platform)
+          : (await options.configuredFile(selectedConfig).catch(() => null)) !== selectedConfig
       )
-        return failed('profileUnavailable');
-
-      let desktopData: string;
-      if (platform === 'mac') {
-        const requestedData = running?.desktopData ?? standardData;
-        const verified = await mac.macShortcutDirectory(requestedData).catch(() => null);
-        if (
-          verified !== requestedData ||
-          (await mac.macShortcutDirectory(profile).catch(() => null)) !== profile
-        )
-          return failed('profileUnavailable');
-        desktopData = verified;
-      } else {
-        const resolved = await windows.desktopData(options.appData);
-        if (resolved.state !== 'ready') return failed(resolved.state);
-        desktopData = resolved.directory;
-      }
+        return failed('setupRequired');
+      if (!(await current())) return failed('profileUnavailable');
       if (
-        !running &&
-        options.desktopDataOverride &&
-        !samePath(options.desktopDataOverride, desktopData, platform)
-      )
-        return failed('profileUnavailable');
-      const current = await inspect?.();
-      if (
-        (running &&
-          (current?.state !== 'running' ||
-            current.process !== running.process ||
-            current.profile !== profile ||
-            current.desktopData !== desktopData)) ||
-        (!running && (current?.state !== witness?.state || !matchesSaved()))
-      )
-        return failed('profileUnavailable');
-      if (
-        (!running && (await options.configurationPath()) !== selectedConfig) ||
-        (await options.configuredFile(selectedConfig).catch(() => null)) !== configuration
+        preparedConfiguration === undefined &&
+        (await options.configuredFile(selectedConfig).catch(() => null)) !== selectedConfig
       )
         return failed('setupRequired');
       if (!isCurrent()) return cancelled;

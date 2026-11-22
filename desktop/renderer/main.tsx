@@ -1,3 +1,4 @@
+import { ChatGptConnectDialog, type ChatGptConnectRequest } from './CodexShortcut.js';
 import { OverviewApplications } from './OverviewApplications.js';
 import { OverviewConnections } from './OverviewConnections.js';
 import { NetworkInterfacesSettings } from './NetworkInterfacesSettings.js';
@@ -109,11 +110,36 @@ function App({
   }, [locale]);
   const [pairLedger] = useState(() => new PairAttemptLedger());
   const overviewNetworkActions = useRef<NetworkOverviewActions | null>(null);
+  const chatGptRequest = useRef<ChatGptConnectRequest | null>(null);
+  const [chatGptConnect, setChatGptConnect] = useState<ChatGptConnectRequest | null>(null);
   const invocationContext = useRef({ snapshot, locale });
   invocationContext.current = { snapshot, locale };
   const call = useCallback(
     async <T,>(method: string, params: unknown = {}): Promise<T> => {
       const invoke = () => window.interconnect.invoke<T>(method, params);
+      if (method === 'mcpSetupApplyChatGpt') {
+        if (chatGptRequest.current) return null as T;
+        const details = params as Pick<ChatGptConnectRequest, 'planId' | 'confirmReplace'>;
+        return new Promise<T>((resolve, reject) => {
+          const request: ChatGptConnectRequest = {
+            ...details,
+            complete: (result) => {
+              if (chatGptRequest.current !== request) return;
+              chatGptRequest.current = null;
+              setChatGptConnect(null);
+              resolve(result as T);
+            },
+            fail: (error) => {
+              if (chatGptRequest.current !== request) return;
+              chatGptRequest.current = null;
+              setChatGptConnect(null);
+              reject(error);
+            },
+          };
+          chatGptRequest.current = request;
+          setChatGptConnect(request);
+        });
+      }
       if (method === 'connectPeer') {
         const context = invocationContext.current;
         return pairLedger.run(
@@ -362,6 +388,7 @@ function App({
           windowVisible={windowVisible}
           obscured={
             nicknameDialog ||
+            !!chatGptConnect ||
             applicationStartup.open ||
             Object.values(applicationSetupStates).some((state) => state.phase === 'confirmation')
           }
@@ -735,6 +762,9 @@ function App({
         locale={locale}
         onManualSetup={openManualSetup}
       />
+      {chatGptConnect && (
+        <ChatGptConnectDialog invoke={call} locale={locale} request={chatGptConnect} />
+      )}
       <Dialog
         open={nicknameDialog}
         onClose={() => setNicknameDialog(false)}

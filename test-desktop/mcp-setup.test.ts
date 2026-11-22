@@ -1,6 +1,16 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, mkdir, readFile, readdir, rm, stat, symlink, writeFile } from 'node:fs/promises';
+import {
+  mkdtemp,
+  mkdir,
+  readFile,
+  readdir,
+  realpath,
+  rm,
+  stat,
+  symlink,
+  writeFile,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { parse as parseJson } from 'jsonc-parser';
@@ -442,6 +452,41 @@ test('previously configured Cursor offers Connect when a file-owned rule is pend
     'ncf_agent_interconnect:agent_send',
   ]);
   assert.equal((await service.status('cursor')).state, 'configured');
+});
+
+test('ChatGPT configuration is written only after an accepted shortcut on the exact plan', async (t) => {
+  const { directory, service } = await fixture(t, { requireCodexShortcut: true });
+  const filename = path.join(directory, 'config.toml');
+  const shortcut = path.join(directory, 'ChatGPT — NCF Agent Interconnect.app');
+  const original = '# preserve existing ChatGPT settings\n';
+  await writeFile(filename, original);
+  const plan = await service.preview(owner, 'codex', [{ id: 'configuration', path: filename }]);
+  await assert.rejects(service.apply(owner, plan.planId, false), /through shortcut setup/);
+  const prepareShortcut = async (target: string) => {
+    assert.equal(target, await realpath(filename));
+    assert.equal(await readFile(target, 'utf8'), original);
+    await mkdir(shortcut);
+    return true;
+  };
+  await assert.rejects(
+    service.apply('other-window', plan.planId, false, prepareShortcut),
+    /another window/,
+  );
+  const cancelled = await service.apply(owner, plan.planId, false, async () => false);
+  assert.equal(cancelled, null);
+  assert.equal(await readFile(filename, 'utf8'), original);
+  await assert.rejects(stat(shortcut), { code: 'ENOENT' });
+  const result = await service.apply(owner, plan.planId, false, prepareShortcut);
+  assert.equal(result?.status, 'applied');
+  assert.ok(
+    (parseToml(await readFile(filename, 'utf8')).mcp_servers as Record<string, unknown>)
+      .ncf_agent_interconnect,
+  );
+  assert.ok((await stat(shortcut)).isDirectory());
+  assert.deepEqual(
+    await service.apply(owner, plan.planId, false, async () => assert.fail('Shortcut replay')),
+    result,
+  );
 });
 
 test('replacement requires confirmation, preserves the original in a private backup and retains file permissions', async (t) => {

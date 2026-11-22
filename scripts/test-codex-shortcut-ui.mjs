@@ -94,7 +94,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
     'Settings are present',
   );
   assert.equal(
-    await action.evaluate((element) => element.previousElementSibling?.getAttribute('data-testid')),
+    await action.evaluate((element) => element.nextElementSibling?.getAttribute('data-testid')),
     'application-manual-codex',
   );
   assert.deepEqual(await page.evaluate(() => window.fixture.calls), [
@@ -144,7 +144,12 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
     }),
   );
   const created = picker.getByTestId('chatgpt-shortcut-created-applications');
-  await created.getByText('Created', { exact: true }).waitFor();
+  await created
+    .locator('.MuiChip-sizeSmall.MuiChip-colorSuccess')
+    .getByText('Created', {
+      exact: true,
+    })
+    .waitFor();
   assert.equal(await created.locator('img').count(), 1);
   assert.equal(
     await picker.getByRole('checkbox', { name: 'Applications (this user)', exact: true }).count(),

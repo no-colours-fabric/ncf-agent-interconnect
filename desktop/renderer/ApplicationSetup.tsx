@@ -1020,7 +1020,7 @@ export function ApplicationRows({
             spacing={1.5}
             useFlexGap
             sx={{
-              flexWrap: 'wrap',
+              flexWrap: client === 'codex' ? 'nowrap' : 'wrap',
               gridColumn: { xs: '2', md: '3', lg: '4' },
               gridRow: { md: showStatus ? '1' : '1 / 3', lg: '1' },
               maxWidth: 360,
@@ -1039,29 +1039,20 @@ export function ApplicationRows({
                 {action.label}
               </Button>
             )}
-            {client === 'codex' && codexShortcutPlatform ? (
-              <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                <ManualSetupButton
-                  label={copy.manual}
-                  disabled={anyBusy}
-                  onClick={() => manual(client)}
-                  testId={'application-manual-' + client}
-                />
-                <CodexShortcut
-                  invoke={invoke}
-                  locale={locale}
-                  platform={codexShortcutPlatform}
-                  disabled={anyBusy}
-                />
-              </Stack>
-            ) : (
-              <ManualSetupButton
-                label={copy.manual}
+            {client === 'codex' && codexShortcutPlatform && configured && !action && (
+              <CodexShortcut
+                invoke={invoke}
+                locale={locale}
+                platform={codexShortcutPlatform}
                 disabled={anyBusy}
-                onClick={() => manual(client)}
-                testId={'application-manual-' + client}
               />
             )}
+            <ManualSetupButton
+              label={copy.manual}
+              disabled={anyBusy}
+              onClick={() => manual(client)}
+              testId={'application-manual-' + client}
+            />
           </Stack>
         </Box>
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (

@@ -156,6 +156,32 @@ export class ApplicationSetupFlow {
     });
     let preview: McpSetupPreview | undefined;
     try {
+      if (client === 'codex') {
+        const prepared = await this.invoke<McpSetupPreview | null>('codexShortcutPrepare', {});
+        if (this.disposed) {
+          this.discard(prepared ?? undefined);
+          return;
+        }
+        if (!prepared) {
+          await this.invoke('mcpSetupApplyChatGpt', { confirmReplace: false });
+          this.set(client, { phase: 'idle' });
+          return;
+        }
+        preview = prepared;
+        const file = preview.files.find(({ id }) => id === 'configuration');
+        if (preview.client !== client || !preview.planId || !file)
+          throw new Error('The setup preview does not match the selected application');
+        const needsConfirmation = preview.requiresReplacement || reviewRequired;
+        this.set(client, {
+          ...this.states[client],
+          target: { id: 'configuration', path: file.path },
+          phase: needsConfirmation ? 'confirmation' : 'preparing',
+          preview,
+          renewed: reviewRequired,
+        });
+        if (!needsConfirmation) await this.apply(client, false);
+        return;
+      }
       const defaults = await this.invoke<McpSetupDefaults>('mcpSetupDefaults', { client });
       if (this.disposed) return;
       if (
@@ -305,10 +331,15 @@ export class ApplicationSetupFlow {
     if (!preview || this.disposed) return;
     this.set(client, { ...previous, phase: 'applying', error: undefined });
     try {
-      const result = await this.invoke<McpSetupApplyResult>('mcpSetupApply', {
-        planId: preview.planId,
-        confirmReplace,
-      });
+      const result = await this.invoke<McpSetupApplyResult | null>(
+        client === 'codex' ? 'mcpSetupApplyChatGpt' : 'mcpSetupApply',
+        { planId: preview.planId, confirmReplace },
+      );
+      if (!result) {
+        this.discard(preview);
+        this.set(client, { phase: 'idle' });
+        return;
+      }
       this.set(client, {
         ...previous,
         phase: result.status === 'failed' ? 'failed' : 'succeeded',

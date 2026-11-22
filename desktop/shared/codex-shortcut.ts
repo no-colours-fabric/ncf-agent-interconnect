@@ -1,3 +1,5 @@
+import type { McpSetupApplyResult } from './mcp-setup.js';
+
 export const codexShortcutDisplayName = 'ChatGPT — NCF Agent Interconnect';
 
 export type CodexShortcutPlatform = 'mac' | 'windows';
@@ -39,6 +41,11 @@ export type CodexShortcutCreateResult =
   | { state: 'cancelled' }
   | { state: 'failed'; reason: CodexShortcutFailure }
   | { state: 'complete'; destinations: CodexShortcutDestinationResult[] };
+
+export interface CodexShortcutConnectionResult {
+  shortcut: CodexShortcutCreateResult;
+  setup: McpSetupApplyResult | null;
+}
 
 export function hasCodexShortcutLaunchFlags(args: readonly string[]): boolean {
   return args.some(

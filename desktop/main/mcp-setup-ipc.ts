@@ -6,6 +6,11 @@ import {
   type McpSetupOptions,
 } from '../core/mcp-setup.js';
 import { createCodexShortcutHandler } from './codex-shortcut-ipc.js';
+import {
+  codexShortcutDestinations,
+  type CodexShortcutConnectionResult,
+} from '../shared/codex-shortcut.js';
+import { codexShortcutLocales } from '../shared/codex-shortcut-messages.js';
 import { McpSetupPaths } from '../core/mcp-setup-paths.js';
 import { openCodeV2TargetSchema } from '../core/opencode-v2-auth.js';
 import { mcpSetupClients, mcpSetupMethods, openCodeV2SetupMethods } from '../shared/mcp-setup.js';
@@ -42,7 +47,7 @@ export function createMcpSetupHandler(
   raw: unknown,
   owner: string,
 ) => Promise<{ handled: false } | { handled: true; result: unknown }> {
-  const setup = new McpSetupService(options);
+  const setup = new McpSetupService({ ...options, requireCodexShortcut: !!options.codexShortcut });
   const v2 = new OpenCodeV2SetupService(options);
   const paths = new McpSetupPaths(options.stateDirectory);
   const codexShortcut =
@@ -58,6 +63,59 @@ export function createMcpSetupHandler(
     });
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {
+    if (method === 'codexShortcutPrepare') {
+      z.object({}).strict().parse(raw);
+      const exact = await codexShortcut?.('codexShortcutConfiguration', {});
+      if (!exact || typeof exact !== 'object' || !('configuration' in exact))
+        return { handled: true, result: null };
+      return {
+        handled: true,
+        result: await setup.preview(owner, 'codex', [
+          { id: 'configuration', path: exact.configuration },
+        ]),
+      };
+    }
+    if (method === 'codexShortcutConnect') {
+      const { planId, confirmReplace, locale, destinations } = planSchema
+        .extend({
+          confirmReplace: z.boolean(),
+          locale: z.enum(codexShortcutLocales),
+          destinations: z.array(z.enum(codexShortcutDestinations)).min(1).max(4),
+        })
+        .strict()
+        .refine(({ destinations }) => new Set(destinations).size === destinations.length)
+        .parse(raw);
+      let shortcut: CodexShortcutConnectionResult['shortcut'] = {
+        state: 'failed',
+        reason: 'failed',
+      };
+      const window = options.window();
+      if (!codexShortcut || !window || window.isDestroyed())
+        return {
+          handled: true,
+          result: { shortcut, setup: null } satisfies CodexShortcutConnectionResult,
+        };
+      const result = await setup.apply(owner, planId, confirmReplace, async (configuration) => {
+        const created = await codexShortcut(
+          'codexShortcutCreate',
+          { locale, destinations },
+          configuration,
+        );
+        if (created && typeof created === 'object' && 'state' in created) shortcut = created;
+        return (
+          options.window() === window &&
+          !window.isDestroyed() &&
+          shortcut.state === 'complete' &&
+          shortcut.destinations.some(
+            ({ result }) => result === 'created' || result === 'dockPending',
+          )
+        );
+      });
+      return {
+        handled: true,
+        result: { shortcut, setup: result } satisfies CodexShortcutConnectionResult,
+      };
+    }
     if (
       method === 'codexShortcutPlatform' ||
       method === 'codexShortcutCreate' ||
@@ -152,7 +210,7 @@ export function createMcpSetupHandler(
           {
             cursor: 'Cursor',
             opencode: 'OpenCode v1',
-            codex: 'Codex',
+            codex: 'ChatGPT',
             aionui: 'Cursor Agent in AionUi',
             claude: 'Claude Code',
           }[client] +

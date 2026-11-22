@@ -88,6 +88,8 @@ export interface McpSetupOptions {
   env?: NodeJS.ProcessEnv;
   now?: () => number;
   stateDirectory: string;
+  /** The Desktop ChatGPT path creates a valid launcher before it can apply its plan. */
+  requireCodexShortcut?: boolean;
   /** Trusted backend-only extension; never accepted from IPC parameters. */
   transaction?: {
     major: 2;
@@ -457,17 +459,30 @@ export class McpSetupService {
     if (plan?.owner === owner && !plan.applying) this.plans.delete(planId);
   }
 
+  async apply(owner: string, planId: string, confirmReplace: boolean): Promise<McpSetupApplyResult>;
   async apply(
     owner: string,
     planId: string,
     confirmReplace: boolean,
-  ): Promise<McpSetupApplyResult> {
+    beforeCodexWrite: (configuration: string) => Promise<boolean>,
+  ): Promise<McpSetupApplyResult | null>;
+  async apply(
+    owner: string,
+    planId: string,
+    confirmReplace: boolean,
+    beforeCodexWrite?: (configuration: string) => Promise<boolean>,
+  ): Promise<McpSetupApplyResult | null> {
     this.prune();
     const plan = this.plans.get(planId);
     if (!plan || plan.owner !== owner)
       throw new SetupError(
         'This setup preview expired or belongs to another window; prepare a new preview',
       );
+    if (
+      (beforeCodexWrite && plan.client !== 'codex') ||
+      (this.options.requireCodexShortcut && plan.client === 'codex' && !beforeCodexWrite)
+    )
+      throw new SetupError('ChatGPT must be connected through shortcut setup');
     if (plan.result) return plan.result;
     if (this.writing || plan.applying)
       throw new SetupError('A configuration update is already in progress');
@@ -486,6 +501,16 @@ export class McpSetupService {
       if (this.instructionHash(instructions) !== plan.configurationHash)
         throw new SetupError('The NCF connection settings changed; prepare a new preview');
       for (const file of plan.files) await this.assertCurrent(file);
+      if (beforeCodexWrite) {
+        if (!(await beforeCodexWrite(plan.files[0].path))) return null;
+        if (
+          plan.expires <= this.now() ||
+          this.instructionHash(await this.options.instructions(plan.client)) !==
+            plan.configurationHash
+        )
+          throw new SetupError('The setup preview changed; prepare a new preview');
+        for (const file of plan.files) await this.assertCurrent(file);
+      }
       await this.options.transaction?.stage();
       for (const file of plan.files) {
         if (file.content === file.source.content) {

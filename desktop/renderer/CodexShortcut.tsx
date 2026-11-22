@@ -1,9 +1,10 @@
-import { useId, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
   Checkbox,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,27 +18,75 @@ import InstallDesktopOutlined from '@mui/icons-material/InstallDesktopOutlined';
 import { codexShortcutMessages } from '../shared/codex-shortcut-messages.js';
 import {
   codexShortcutDestinationsFor,
+  type CodexShortcutConnectionResult,
   type CodexShortcutCreateResult,
   type CodexShortcutDestination,
   type CodexShortcutPlatform,
 } from '../shared/codex-shortcut.js';
-import type { McpSetupInvoke } from '../shared/mcp-setup.js';
+import type { McpSetupApplyResult, McpSetupInvoke } from '../shared/mcp-setup.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import { t, type Locale } from './i18n/index.js';
+import { mcpSetupMessages } from './i18n/mcp-setup.js';
+
+export interface ChatGptConnectRequest {
+  planId?: string;
+  confirmReplace: boolean;
+  complete: (result: McpSetupApplyResult | null) => void;
+  fail: (error: unknown) => void;
+}
+
+export function ChatGptConnectDialog({
+  invoke,
+  locale,
+  request,
+}: {
+  invoke: McpSetupInvoke;
+  locale: Locale;
+  request: ChatGptConnectRequest;
+}) {
+  const [platform, setPlatform] = useState<CodexShortcutPlatform | null | undefined>(undefined);
+  useEffect(() => {
+    let live = true;
+    void invoke<CodexShortcutPlatform | null>('codexShortcutPlatform', {}).then(
+      (value) => {
+        if (live) setPlatform(value);
+      },
+      () => {
+        if (live) setPlatform(null);
+      },
+    );
+    return () => {
+      live = false;
+    };
+  }, [invoke]);
+  return (
+    <CodexShortcut
+      invoke={invoke}
+      locale={locale}
+      platform={platform}
+      disabled={false}
+      connection={request}
+    />
+  );
+}
 
 export function CodexShortcut({
   invoke,
   locale,
   platform,
   disabled,
+  connection,
 }: {
   invoke: McpSetupInvoke;
   locale: Locale;
-  platform: CodexShortcutPlatform;
+  platform: CodexShortcutPlatform | null | undefined;
   disabled: boolean;
+  connection?: ChatGptConnectRequest;
 }) {
   const copy = codexShortcutMessages(locale);
-  const destinations = codexShortcutDestinationsFor(platform);
+  const destinations = platform ? codexShortcutDestinationsFor(platform) : [];
+  const supported = !!platform && (!connection || !!connection.planId);
+  const [completed, setCompleted] = useState<McpSetupApplyResult | null>(null);
   const titleId = useId();
   const applying = useRef(false);
   const locationRequest = useRef(0);
@@ -51,7 +100,7 @@ export function CodexShortcut({
     { state: 'cancelled' }
   > | null>(null);
 
-  async function refreshLocations() {
+  const refreshLocations = useCallback(async () => {
     const request = ++locationRequest.current;
     setExisting(null);
     setLocationsError(false);
@@ -61,7 +110,16 @@ export function CodexShortcut({
     } catch {
       if (request === locationRequest.current) setLocationsError(true);
     }
-  }
+  }, [invoke]);
+  useEffect(() => {
+    if (connection && supported) void refreshLocations();
+  }, [connection, supported, refreshLocations]);
+
+  const close = () => {
+    if (busy) return;
+    if (connection) connection.complete(completed);
+    else setOpen(false);
+  };
 
   async function create() {
     const locations =
@@ -69,22 +127,46 @@ export function CodexShortcut({
       destinations.filter(
         (destination) => selected.includes(destination) && !existing.includes(destination),
       );
-    if (applying.current || disabled || !locations?.length) return;
+    if (applying.current || disabled || !supported || completed || !locations?.length) return;
     applying.current = true;
     setBusy(true);
     setResult(null);
     try {
-      const outcome = await invoke<CodexShortcutCreateResult>('codexShortcutCreate', {
-        locale,
-        destinations: locations,
-      });
+      let outcome: CodexShortcutCreateResult;
+      if (connection) {
+        const reply = await invoke<CodexShortcutConnectionResult>('codexShortcutConnect', {
+          planId: connection.planId,
+          confirmReplace: connection.confirmReplace,
+          locale,
+          destinations: locations,
+        });
+        outcome = reply.shortcut;
+        if (reply.setup) {
+          if (
+            reply.setup.status !== 'failed' &&
+            outcome.state === 'complete' &&
+            outcome.destinations.some(({ result }) => result === 'dockPending')
+          )
+            setCompleted(reply.setup);
+          else {
+            connection.complete(reply.setup);
+            return;
+          }
+        }
+      } else {
+        outcome = await invoke<CodexShortcutCreateResult>('codexShortcutCreate', {
+          locale,
+          destinations: locations,
+        });
+      }
       if (outcome.state !== 'cancelled') {
         setResult(outcome);
         setSelected([]);
         await refreshLocations();
       }
-    } catch {
-      setResult({ state: 'failed', reason: 'failed' });
+    } catch (error) {
+      if (connection) connection.fail(error);
+      else setResult({ state: 'failed', reason: 'failed' });
     } finally {
       applying.current = false;
       setBusy(false);
@@ -110,31 +192,31 @@ export function CodexShortcut({
 
   return (
     <>
-      <Button
-        variant="outlined"
-        startIcon={<InstallDesktopOutlined />}
-        data-testid="codex-create-shortcut"
-        disabled={disabled || busy}
-        aria-busy={busy}
-        onClick={() => {
-          setSelected([]);
-          setOpen(true);
-          void refreshLocations();
-        }}
-        sx={{ minHeight: 44 }}
-      >
-        {busy ? copy.creating : copy.action}
-      </Button>
+      {!connection && (
+        <Button
+          variant="outlined"
+          startIcon={<InstallDesktopOutlined />}
+          data-testid="codex-create-shortcut"
+          disabled={disabled || busy}
+          aria-busy={busy}
+          onClick={() => {
+            setSelected([]);
+            setOpen(true);
+            void refreshLocations();
+          }}
+          sx={{ minHeight: 44 }}
+        >
+          {busy ? copy.creating : copy.action}
+        </Button>
+      )}
       <Dialog
-        open={open}
-        onClose={() => {
-          if (!busy) setOpen(false);
-        }}
+        open={!!connection || open}
+        onClose={close}
         aria-labelledby={titleId}
         fullWidth
         maxWidth="md"
       >
-        <DialogTitle id={titleId}>{copy.save}</DialogTitle>
+        <DialogTitle id={titleId}>{connection ? copy.connectTitle : copy.save}</DialogTitle>
         <DialogContent>
           <Box
             sx={{
@@ -159,7 +241,9 @@ export function CodexShortcut({
               }}
               data-testid="chatgpt-shortcut-locations"
             >
-              {existing === null ? (
+              {platform !== undefined && !supported ? (
+                <Alert severity="warning">{copy.profileUnavailable}</Alert>
+              ) : existing === null ? (
                 <Typography role={locationsError ? 'alert' : 'status'} variant="body2">
                   {locationsError ? copy.locationsFailed : copy.checkingLocations}
                 </Typography>
@@ -176,9 +260,12 @@ export function CodexShortcut({
                       >
                         <ClientLogo client="codex" size={24} />
                         <Typography variant="body2">{copy[destination]}</Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {copy.locationCreated}
-                        </Typography>
+                        <Chip
+                          size="small"
+                          color="success"
+                          variant="outlined"
+                          label={copy.locationCreated}
+                        />
                       </Stack>
                     ) : (
                       <FormControlLabel
@@ -187,7 +274,7 @@ export function CodexShortcut({
                         sx={{ minHeight: 44, ml: 0 }}
                         control={
                           <Checkbox
-                            disabled={busy}
+                            disabled={busy || !!completed}
                             checked={selected.includes(destination)}
                             onChange={(_, checked) =>
                               setSelected((previous) =>
@@ -238,20 +325,31 @@ export function CodexShortcut({
                 })}
             </Stack>
           </Box>
+          {connection && !completed && (
+            <Alert severity="info" sx={{ mt: 2.5 }}>
+              {copy.chooseForConnection}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions sx={{ '& .MuiButton-root': { minHeight: 44 } }}>
-          <Button disabled={busy} onClick={() => setOpen(false)}>
-            {t(locale, 'btnCancel')}
+          <Button disabled={busy} onClick={close}>
+            {completed ? mcpSetupMessages(locale).close : t(locale, 'btnCancel')}
           </Button>
-          <Button
-            variant="contained"
-            disabled={
-              disabled || busy || !existing || !selected.some((item) => !existing.includes(item))
-            }
-            onClick={() => void create()}
-          >
-            {copy.create}
-          </Button>
+          {!completed && (
+            <Button
+              variant="contained"
+              disabled={
+                !supported ||
+                disabled ||
+                busy ||
+                !existing ||
+                !selected.some((item) => !existing.includes(item))
+              }
+              onClick={() => void create()}
+            >
+              {connection ? t(locale, 'btnConnect') : copy.create}
+            </Button>
+          )}
         </DialogActions>
       </Dialog>
     </>

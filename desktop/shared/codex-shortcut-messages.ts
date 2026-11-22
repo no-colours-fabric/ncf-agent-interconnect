@@ -446,7 +446,71 @@ const shortcutDialog: Record<Locale, readonly [string, string, string, string, s
   ],
 };
 
+const connectDialog: Record<Locale, readonly [string, string]> = {
+  en: [
+    'Connect ChatGPT',
+    'Choose at least one shortcut location. NCF Agent Interconnect features in ChatGPT require a shortcut.',
+  ],
+  ru: [
+    'Подключить ChatGPT',
+    'Выберите хотя бы одно место для ярлыка. Без ярлыка функции «NCF Agent Interconnect» в ChatGPT будут недоступны.',
+  ],
+  'zh-CN': [
+    '连接 ChatGPT',
+    '请至少选择一个快捷方式位置。在 ChatGPT 中使用 NCF Agent Interconnect 功能需要快捷方式。',
+  ],
+  fr: [
+    'Connecter ChatGPT',
+    'Choisissez au moins un emplacement de raccourci. Un raccourci est nécessaire pour utiliser les fonctionnalités de NCF Agent Interconnect dans ChatGPT.',
+  ],
+  de: [
+    'ChatGPT verbinden',
+    'Wählen Sie mindestens einen Speicherort für die Verknüpfung. Für die Funktionen von NCF Agent Interconnect in ChatGPT ist eine Verknüpfung erforderlich.',
+  ],
+  it: [
+    'Collega ChatGPT',
+    'Scegli almeno una posizione per il collegamento. Per usare le funzioni di NCF Agent Interconnect in ChatGPT è necessario un collegamento.',
+  ],
+  es: [
+    'Conectar ChatGPT',
+    'Elige al menos una ubicación para el acceso directo. Las funciones de NCF Agent Interconnect en ChatGPT requieren un acceso directo.',
+  ],
+  kk: [
+    'ChatGPT қосу',
+    'Таңбаша үшін кемінде бір орын таңдаңыз. ChatGPT ішінде NCF Agent Interconnect мүмкіндіктерін пайдалану үшін таңбаша қажет.',
+  ],
+  ja: [
+    'ChatGPT を接続',
+    'ショートカットの保存先を少なくとも 1 つ選んでください。ChatGPT で NCF Agent Interconnect の機能を使うにはショートカットが必要です。',
+  ],
+  'pt-BR': [
+    'Conectar o ChatGPT',
+    'Escolha pelo menos um local para o atalho. Os recursos do NCF Agent Interconnect no ChatGPT precisam de um atalho.',
+  ],
+  ko: [
+    'ChatGPT 연결',
+    '바로가기를 만들 위치를 하나 이상 선택하세요. ChatGPT에서 NCF Agent Interconnect 기능을 사용하려면 바로가기가 필요합니다.',
+  ],
+  tr: [
+    'ChatGPT’yi bağla',
+    'Kısayol için en az bir konum seçin. ChatGPT’de NCF Agent Interconnect özelliklerini kullanmak için kısayol gerekir.',
+  ],
+  pl: [
+    'Połącz ChatGPT',
+    'Wybierz co najmniej jedno miejsce na skrót. Do korzystania z funkcji NCF Agent Interconnect w ChatGPT potrzebny jest skrót.',
+  ],
+  nl: [
+    'ChatGPT verbinden',
+    'Kies minstens één locatie voor de snelkoppeling. Voor de functies van NCF Agent Interconnect in ChatGPT is een snelkoppeling nodig.',
+  ],
+  uk: [
+    'Підключити ChatGPT',
+    'Виберіть принаймні одне місце для ярлика. Для функцій «NCF Agent Interconnect» у ChatGPT потрібен ярлик.',
+  ],
+};
+
 export function codexShortcutMessages(locale: Locale) {
+  const [connectTitle, chooseForConnection] = connectDialog[locale];
   const [save, helpBefore, helpWhen, locationCreated, checkingLocations, locationsFailed] =
     shortcutDialog[locale];
   const [
@@ -471,6 +535,8 @@ export function codexShortcutMessages(locale: Locale) {
   ] = translations[locale];
   return {
     action: save,
+    connectTitle,
+    chooseForConnection,
     creating,
     created,
     setupRequired,
