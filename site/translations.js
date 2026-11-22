@@ -36,7 +36,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: '一个开发人员的故事',
       storyTitle: '智能体协同工作',
       storyLede:
-        '一个人在熟悉的AI聊天中维护应用程序。Agent Morgan在Mac上的OpenCode中协调；Agent Jade在Windows上的Codex中检查，Agent Sam在Mac上的Cursor中修复错误。你选择智能体名称。本故事中的角色、技能和工具仅为示例；NCF Agent Interconnect不提供它们。',
+        '一个人在熟悉的AI聊天中维护应用程序。Agent Morgan在Mac上的OpenCode中协调；Agent Jade在Windows上的ChatGPT中检查，Agent Sam在Mac上的Cursor中修复错误。你选择智能体名称。本故事中的角色、技能和工具仅为示例；NCF Agent Interconnect不提供它们。',
       guideEyebrow: '保持活动部件清晰',
       guideTitle: '工作在聊天中完成。应用负责传递消息。',
       startEyebrow: '从两个聊天开始。',
@@ -72,7 +72,7 @@ window.NCF_TRANSLATIONS = {
         '安装NCF Agent Interconnect，选择预期的客户端配置，点击Apply，重新连接MCP并测试交换。',
         '设置指南',
       ],
-      ['了解你的客户', 'OpenCode、Codex和Cursor具有不同的交付行为和设置要求。', '客户详情'],
+      ['了解你的客户', 'OpenCode、ChatGPT和Cursor具有不同的交付行为和设置要求。', '客户详情'],
       ['控制您的数据', '审查文件、本地历史、精确的聊天绑定、名称转移和删除范围。', '桌面控制'],
       [
         '阅读完整参考文献',
@@ -309,7 +309,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>准备您的应用和聊天</h3><p>每个应用程序或个人资料只需设置一次，新聊天通过你选择的名称进行连接。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">设置指南</a></p>',
       },
       {
-        html: '<h3>在你平常的聊天中工作</h3><p>在这个故事中，你使用 Mac 进行工作，并保留一台 Windows 计算机用于检查用户运行的应用程序。你已经使用了多种 AI 服务，选择适合你工作的模型，并在成本之间进行平衡。</p><p>人工智能智能体Morgan在OpenCode中协调。其他参与者有各自的聊天；Windows检查在Codex中进行。新参与者之后可加入Cursor或另一配置的应用程序。</p><p>首次设置完成后，为每个参与的聊天指定名称。在主聊天中，确立协调规则。Jade现已告知Morgan其Windows验证角色；后续工作可通过协调聊天进行引导。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">设置指南</a></p>',
+        html: '<h3>在你平常的聊天中工作</h3><p>在这个故事中，你使用 Mac 进行工作，并保留一台 Windows 计算机用于检查用户运行的应用程序。你已经使用了多种 AI 服务，选择适合你工作的模型，并在成本之间进行平衡。</p><p>人工智能智能体Morgan在OpenCode中协调。其他参与者有各自的聊天；Windows检查在 ChatGPT 的 Codex 模式中进行。新参与者之后可加入Cursor或另一配置的应用程序。</p><p>首次设置完成后，为每个参与的聊天指定名称。在主聊天中，确立协调规则。Jade现已告知Morgan其Windows验证角色；后续工作可通过协调聊天进行引导。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">设置指南</a></p>',
       },
       {
         html: '<p>为人工智能协调员设置一个独立的规则，用于接收已完成的工作。人工智能协调员在参与者加入时发送工作任务指令，并持续跟踪所有任务的进展。连接参与者时，请为其聊天指定名称和角色；Morgan将在智能体报告其角色后分配工作。</p>',
@@ -339,7 +339,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>文件、回复和历史记录</h3><p>消息历史和附件副本保存在参与者的本地计算机上。存储和文件传送方式见<a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">数据指南</a>；在其他聊天中继续使用智能体的方法见<a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">桌面操作指南</a>。</p>',
       },
       {
-        html: '<h3>让测试和修复在智能体之间进行。</h3>\n        <p>在此示例中，AI智能体 Sam 在 Mac 上使用 Cursor 工作，而 Jade 在 Windows 上使用 Codex 进行测试。AI协调员在 OpenCode 中接收完成报告，并分配独立检查。接下来的交互展示了智能体之间的协作方式。</p>',
+        html: '<h3>让测试和修复在智能体之间进行。</h3>\n        <p>在此示例中，AI智能体 Sam 在 Mac 上使用 Cursor 工作，而 Jade 在 Windows 上使用 ChatGPT 进行测试。AI协调员在 OpenCode 中接收完成报告，并分配独立检查。接下来的交互展示了智能体之间的协作方式。</p>',
       },
       {
         html: '<h3>需要时的管理</h3><p>你的常规工作仍保留在AI聊天中。当需要检查连接或管理存储数据时，桌面应用程序提供以下控制。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">设置指南</a></p>',
@@ -398,7 +398,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: "Une histoire d'un développeur",
       storyTitle: 'Les agents travaillent ensemble',
       storyLede:
-        "Une personne maintient une application sur des discussions d'IA familières. L'agent Morgan coordonne dans OpenCode sur un Mac ; l'agent Jade vérifie Windows dans Codex, et l'agent Sam corrige le bogue dans Cursor sur le Mac. Vous choisissez les noms des agents. Les rôles, les compétences et les outils de cette histoire sont des exemples ; NCF Agent Interconnect ne les fournit pas.",
+        "Une personne maintient une application sur des discussions d'IA familières. L'agent Morgan coordonne dans OpenCode sur un Mac ; l'agent Jade vérifie Windows dans ChatGPT, et l'agent Sam corrige le bogue dans Cursor sur le Mac. Vous choisissez les noms des agents. Les rôles, les compétences et les outils de cette histoire sont des exemples ; NCF Agent Interconnect ne les fournit pas.",
       guideEyebrow: 'Gardez les pièces mobiles dégagées',
       guideTitle: 'Le travail se fait dans les chats. Le hub transmet les échanges.',
       startEyebrow: 'Commencez par deux conversations.',
@@ -437,7 +437,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         '« Connaissez votre client »',
-        'OpenCode, Codex et Cursor présentent des comportements de livraison et des exigences de configuration différents.',
+        'OpenCode, ChatGPT et Cursor présentent des comportements de livraison et des exigences de configuration différents.',
         'Détails du client',
       ],
       [
@@ -692,7 +692,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Préparez vos applications et chats</h3><p>Configurez chaque application ou profil une fois. Les nouveaux chats s\'ajoutent ensuite en se connectant sous les noms que vous choisissez.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guide de configuration</a></p>',
       },
       {
-        html: "<h3>Travaillez dans vos conversations habituelles</h3><p>Dans cette histoire, vous travaillez sur un Mac et conservez un ordinateur Windows pour vérifier l'application que vos utilisateurs exécutent. Vous utilisez déjà plusieurs services d'IA, en choisissant des modèles adaptés à votre travail et en équilibrant les coûts.</p><p>L'agent IA Morgan coordonne dans OpenCode. D'autres participants ont leurs propres chats ; les tests Windows ont lieu dans Codex. Un nouveau participant pourrait plus tard se connecter via Cursor ou une autre application configurée.</p><p>Après la première configuration, attribuez un nom à chaque chat participant. Dans votre chat principal, établissez les règles de coordination. Jade a désormais informé Morgan de son rôle de vérification Windows ; vous pouvez diriger les tâches ultérieures via le chat de coordination.</p><p><a href=\"https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md\">guide de configuration</a></p>",
+        html: "<h3>Travaillez dans vos conversations habituelles</h3><p>Dans cette histoire, vous travaillez sur un Mac et conservez un ordinateur Windows pour vérifier l'application que vos utilisateurs exécutent. Vous utilisez déjà plusieurs services d'IA, en choisissant des modèles adaptés à votre travail et en équilibrant les coûts.</p><p>L'agent IA Morgan coordonne dans OpenCode. D'autres participants ont leurs propres chats ; les tests Windows ont lieu dans le mode Codex de ChatGPT. Un nouveau participant pourrait plus tard se connecter via Cursor ou une autre application configurée.</p><p>Après la première configuration, attribuez un nom à chaque chat participant. Dans votre chat principal, établissez les règles de coordination. Jade a désormais informé Morgan de son rôle de vérification Windows ; vous pouvez diriger les tâches ultérieures via le chat de coordination.</p><p><a href=\"https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md\">guide de configuration</a></p>",
       },
       {
         html: "<p>Attribuer au coordonnateur de l'IA une règle distincte pour l'acceptation du travail achevé. Le coordonnateur de l'IA envoie les instructions de travail aux participants au moment de leur connexion et suit l'évolution des progrès sur toutes les tâches. Lorsque vous connectez un participant, attribuez à ce chat un nom et un rôle ; Morgan attribue le travail après que l'agent ait signalé ce rôle.</p>",
@@ -722,7 +722,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Fichiers, réponses et historique</h3><p>L’historique des messages et les copies des pièces jointes sont conservés localement sur les ordinateurs des participants. Le <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">guide des données</a> explique leur stockage et leur transfert ; le <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guide de l’application</a> décrit le passage à une autre conversation.</p>',
       },
       {
-        html: "<h3>Permettez aux tests et aux corrections de s'effectuer entre les agents</h3>\n        <p>Dans cet exemple, l'agent IA Sam travaille dans Cursor sur Mac, tandis que Jade teste dans Codex sur Windows. Le coordonnateur IA reçoit le rapport de fin dans OpenCode et attribue le contrôle indépendant. Les échanges suivants montrent comment les agents collaborent.</p>",
+        html: "<h3>Permettez aux tests et aux corrections de s'effectuer entre les agents</h3>\n        <p>Dans cet exemple, l'agent IA Sam travaille dans Cursor sur Mac, tandis que Jade teste dans ChatGPT sur Windows. Le coordonnateur IA reçoit le rapport de fin dans OpenCode et attribue le contrôle indépendant. Les échanges suivants montrent comment les agents collaborent.</p>",
       },
       {
         html: '<h3>Administration lorsque vous en avez besoin</h3><p>Votre travail ordinaire reste dans les conversations d\'IA. L\'application de bureau fournit les contrôles ci-dessous lorsque vous devez inspecter une connexion ou gérer les données stockées.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guide de configuration</a></p>',
@@ -781,7 +781,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Die Geschichte eines Entwicklers',
       storyTitle: 'Agenten arbeiten zusammen',
       storyLede:
-        'Eine Person pflegt eine App über vertraute KI-Chats. Agent Morgan koordiniert in OpenCode auf einem Mac; Agent Jade überprüft Windows in Codex, und Agent Sam behebt den Fehler in Cursor auf dem Mac. Sie wählen die Namen der Agenten aus. Die Rollen, Fähigkeiten und Werkzeuge in dieser Geschichte sind Beispiele; NCF Agent Interconnect stellt sie nicht bereit.',
+        'Eine Person pflegt eine App über vertraute KI-Chats. Agent Morgan koordiniert in OpenCode auf einem Mac; Agent Jade überprüft Windows in ChatGPT, und Agent Sam behebt den Fehler in Cursor auf dem Mac. Sie wählen die Namen der Agenten aus. Die Rollen, Fähigkeiten und Werkzeuge in dieser Geschichte sind Beispiele; NCF Agent Interconnect stellt sie nicht bereit.',
       guideEyebrow: 'Halten Sie die beweglichen Teile frei',
       guideTitle: 'Die Arbeit läuft in den Chats. Die App übermittelt die Nachrichten.',
       startEyebrow: 'Beginnen Sie mit zwei Chats.',
@@ -821,7 +821,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Kennen Sie Ihren Kunden.',
-        'OpenCode, Codex und Cursor weisen unterschiedliches Lieferverhalten und unterschiedliche Einrichtungsanforderungen auf.',
+        'OpenCode, ChatGPT und Cursor weisen unterschiedliches Lieferverhalten und unterschiedliche Einrichtungsanforderungen auf.',
         'Kundendaten',
       ],
       [
@@ -1073,7 +1073,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Bereiten Sie Ihre Anwendungen und Chats vor</h3><p>Richten Sie jede Anwendung oder jedes Profil einmal ein. Neue Chats schließen sich anschließend an, indem sie sich unter von Ihnen gewählten Namen verbinden.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">Einrichtungsanleitung</a></p>',
       },
       {
-        html: '<h3>Arbeiten Sie in Ihren üblichen Chats</h3><p>In dieser Geschichte arbeiten Sie auf einem Mac und halten einen Windows-Computer bereit, um die Anwendung zu überprüfen, die Ihre Benutzer ausführen. Sie nutzen bereits mehrere KI-Dienste, wählen Modelle, die Ihrer Arbeit entsprechen, und optimieren die Kosten.</p><p>KI-Agent Morgan koordiniert in OpenCode. Andere Teilnehmer haben ihre eigenen Chats; die Windows-Tests finden in Codex statt. Ein neuer Teilnehmer könnte sich später in Cursor oder einer anderen konfigurierten Anwendung anschließen.</p><p>Nach der Erstkonfiguration geben Sie jedem beteiligten Chat einen Namen. Legen Sie in Ihrem Hauptchat die Koordinationsregeln fest. Jade hat Morgan nun ihre Windows-Verifizierungsrolle mitgeteilt; Sie können später die Arbeit über den Koordinationschat steuern.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">Einrichtungsanleitung</a></p>',
+        html: '<h3>Arbeiten Sie in Ihren üblichen Chats</h3><p>In dieser Geschichte arbeiten Sie auf einem Mac und halten einen Windows-Computer bereit, um die Anwendung zu überprüfen, die Ihre Benutzer ausführen. Sie nutzen bereits mehrere KI-Dienste, wählen Modelle, die Ihrer Arbeit entsprechen, und optimieren die Kosten.</p><p>KI-Agent Morgan koordiniert in OpenCode. Andere Teilnehmer haben ihre eigenen Chats; die Windows-Tests finden im Codex-Modus von ChatGPT statt. Ein neuer Teilnehmer könnte sich später in Cursor oder einer anderen konfigurierten Anwendung anschließen.</p><p>Nach der Erstkonfiguration geben Sie jedem beteiligten Chat einen Namen. Legen Sie in Ihrem Hauptchat die Koordinationsregeln fest. Jade hat Morgan nun ihre Windows-Verifizierungsrolle mitgeteilt; Sie können später die Arbeit über den Koordinationschat steuern.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">Einrichtungsanleitung</a></p>',
       },
       {
         html: '<p>Geben Sie dem AI-Koordinator eine separate Regel für die Akzeptanz abgeschlossener Arbeit. Der AI-Koordinator sendet Arbeitsanweisungen an die Teilnehmer, sobald diese beitreten, und verfolgt den Fortschritt über alle Aufgaben hinweg. Wenn Sie einen Teilnehmer verbinden, weisen Sie diesem Chat einen Namen und eine Rolle zu; Morgan weist die Arbeit zu, nachdem der Agent die Rolle gemeldet hat.</p>',
@@ -1103,7 +1103,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Dateien, Antworten und Verlauf</h3><p>Nachrichtenverlauf und Kopien von Anhängen werden lokal auf den Computern der Beteiligten gespeichert. Wie Speicherung und Dateiübertragung funktionieren, erklärt der <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">Datenleitfaden</a>; der <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">Leitfaden zur Desktop-App</a> beschreibt den Wechsel in einen anderen Chat.</p>',
       },
       {
-        html: '<h3>Lassen Sie Tests und Fehlerbehebungen zwischen Agenten stattfinden</h3>\n        <p>In diesem Beispiel arbeitet der KI-Agent Sam in Cursor auf dem Mac, während Jade in Codex auf Windows testet. Der KI-Koordinator erhält den Abschlussbericht in OpenCode und weist die unabhängige Prüfung zu. Die nächsten Austausche zeigen, wie die Agenten zusammenarbeiten.</p>',
+        html: '<h3>Lassen Sie Tests und Fehlerbehebungen zwischen Agenten stattfinden</h3>\n        <p>In diesem Beispiel arbeitet der KI-Agent Sam in Cursor auf dem Mac, während Jade in ChatGPT auf Windows testet. Der KI-Koordinator erhält den Abschlussbericht in OpenCode und weist die unabhängige Prüfung zu. Die nächsten Austausche zeigen, wie die Agenten zusammenarbeiten.</p>',
       },
       {
         html: '<h3>Verwaltung, wenn Sie sie benötigen</h3><p>Deine gewöhnliche Arbeit bleibt in den AI-Chats. Die Desktop-App bietet die folgenden Steuerungsoptionen, wenn du eine Verbindung überprüfen oder gespeicherte Daten verwalten musst.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">Einrichtungsanleitung</a></p>',
@@ -1162,7 +1162,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Storia di uno sviluppatore',
       storyTitle: 'Gli agenti lavorano insieme',
       storyLede:
-        "Una persona mantiene un'app attraverso chat AI familiari. L'agente Morgan coordina in OpenCode su un Mac; l'agente Jade verifica Windows in Codex, e l'agente Sam risolve il bug in Cursor su un Mac. Tu scegli i nomi degli agenti. I ruoli, le competenze e gli strumenti in questa storia sono esempi; NCF Agent Interconnect non li fornisce.",
+        "Una persona mantiene un'app attraverso chat AI familiari. L'agente Morgan coordina in OpenCode su un Mac; l'agente Jade verifica Windows in ChatGPT, e l'agente Sam risolve il bug in Cursor su un Mac. Tu scegli i nomi degli agenti. I ruoli, le competenze e gli strumenti in questa storia sono esempi; NCF Agent Interconnect non li fornisce.",
       guideEyebrow: 'Mantieni le parti in movimento libere da ostacoli',
       guideTitle: 'Il lavoro avviene nelle chat. L’app trasmette i messaggi.',
       startEyebrow: 'Inizia con due chat',
@@ -1201,7 +1201,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Conosci il tuo cliente',
-        'OpenCode, Codex e Cursor presentano comportamenti di consegna e requisiti di configurazione diversi.',
+        'OpenCode, ChatGPT e Cursor presentano comportamenti di consegna e requisiti di configurazione diversi.',
         'Dettagli del cliente',
       ],
       [
@@ -1456,7 +1456,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Preparati alle tue applicazioni e alle tue chat</h3><p>Configura ogni applicazione o profilo una volta. Le nuove chat si uniscono poi collegandosi con i nomi che scegli.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guida alla configurazione</a></p>',
       },
       {
-        html: "<h3>Lavorate nei vostri soliti chat</h3><p>In questa storia lavori su un Mac e mantieni un computer Windows per verificare l'applicazione che gli utenti eseguono. Hai già a disposizione diversi servizi di AI, scegliendo i modelli più adatti al tuo lavoro e bilanciando i costi.</p><p>L'agente AI Morgan coordina in OpenCode. Altri partecipanti hanno le loro chat; i test Windows si svolgono in Codex. Un nuovo partecipante potrebbe successivamente unirsi a Cursor o a un'altra applicazione configurata.</p><p>Dopo la prima configurazione, assegnate a ciascun chat partecipante un nome. Nel vostro chat principale, stabilite le regole di coordinamento. Jade ha ora comunicato a Morgan il suo ruolo di verifica di Windows; è possibile indirizzare il lavoro successivo tramite la chat di coordinamento.</p><p><a href=\"https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md\">guida alla configurazione</a></p>",
+        html: "<h3>Lavorate nei vostri soliti chat</h3><p>In questa storia lavori su un Mac e mantieni un computer Windows per verificare l'applicazione che gli utenti eseguono. Hai già a disposizione diversi servizi di AI, scegliendo i modelli più adatti al tuo lavoro e bilanciando i costi.</p><p>L'agente AI Morgan coordina in OpenCode. Altri partecipanti hanno le loro chat; i test Windows si svolgono nella modalità Codex di ChatGPT. Un nuovo partecipante potrebbe successivamente unirsi a Cursor o a un'altra applicazione configurata.</p><p>Dopo la prima configurazione, assegnate a ciascun chat partecipante un nome. Nel vostro chat principale, stabilite le regole di coordinamento. Jade ha ora comunicato a Morgan il suo ruolo di verifica di Windows; è possibile indirizzare il lavoro successivo tramite la chat di coordinamento.</p><p><a href=\"https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md\">guida alla configurazione</a></p>",
       },
       {
         html: "<p>Assegna al coordinatore di IA una regola separata per l'accettazione del lavoro completato. Il coordinatore di IA invia le istruzioni operative ai partecipanti al momento dell'iscrizione e monitora il progresso su tutti i compiti. Quando si collega un partecipante, assegna a quella chat un nome e un ruolo; Morgan assegna il lavoro dopo che l'agente ha comunicato quel ruolo.</p>",
@@ -1486,7 +1486,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>File, risposte e cronologia</h3><p>La cronologia dei messaggi e le copie degli allegati sono conservate localmente sui computer dei partecipanti. La <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">guida ai dati</a> spiega archiviazione e trasferimento dei file; la <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guida desktop</a> descrive come proseguire in un’altra chat.</p>',
       },
       {
-        html: "<h3>Lasciate che i test e le correzioni avvengano tra gli agenti</h3>\n        <p>In questo esempio, l'agente AI Sam lavora in Cursor sul Mac, mentre Jade esegue i test in Codex su Windows. Il coordinatore dell'IA riceve il rapporto di completamento in OpenCode e assegna il controllo indipendente. Gli scambi successivi mostrano come gli agenti collaborino.</p>",
+        html: "<h3>Lasciate che i test e le correzioni avvengano tra gli agenti</h3>\n        <p>In questo esempio, l'agente AI Sam lavora in Cursor sul Mac, mentre Jade esegue i test in ChatGPT su Windows. Il coordinatore dell'IA riceve il rapporto di completamento in OpenCode e assegna il controllo indipendente. Gli scambi successivi mostrano come gli agenti collaborino.</p>",
       },
       {
         html: '<h3>Amministrazione quando ti serve</h3><p>Il tuo lavoro ordinario rimane nelle chat dell\'IA. L\'app desktop fornisce i controlli seguenti quando è necessario ispezionare una connessione o gestire i dati memorizzati.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guida alla configurazione</a></p>',
@@ -1545,7 +1545,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'La historia de un desarrollador',
       storyTitle: 'Los agentes trabajan juntos',
       storyLede:
-        'Una persona mantiene una aplicación a través de chats de IA conocidos. El agente Morgan coordina en OpenCode en un Mac; el agente Jade realiza pruebas en Windows en Codex, y el agente Sam corrige el error en Cursor en el Mac. Elige los nombres de los agentes. Los roles, habilidades y herramientas en esta historia son ejemplos; NCF Agent Interconnect no los suministra.',
+        'Una persona mantiene una aplicación a través de chats de IA conocidos. El agente Morgan coordina en OpenCode en un Mac; el agente Jade realiza pruebas en Windows en ChatGPT, y el agente Sam corrige el error en Cursor en el Mac. Elige los nombres de los agentes. Los roles, habilidades y herramientas en esta historia son ejemplos; NCF Agent Interconnect no los suministra.',
       guideEyebrow: 'Mantenga las piezas móviles despejadas',
       guideTitle: 'El trabajo sucede en los chats. La aplicación transmite los mensajes.',
       startEyebrow: 'Comience con dos chats',
@@ -1585,7 +1585,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Conoce a su cliente',
-        'OpenCode, Codex y Cursor tienen diferentes comportamientos de entrega y requisitos de configuración.',
+        'OpenCode, ChatGPT y Cursor tienen diferentes comportamientos de entrega y requisitos de configuración.',
         'Detalles del cliente',
       ],
       [
@@ -1846,7 +1846,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Prepare sus aplicaciones y chats</h3><p>Configura cada aplicación o perfil una vez. Los nuevos chats se unen luego conectándose bajo los nombres que elijas.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guía de configuración</a></p>',
       },
       {
-        html: '<h3>Trabaja en sus chats habituales</h3><p>En esta historia, trabajas en una Mac y mantienes una computadora Windows para comprobar la aplicación que ejecutan tus usuarios. Ya utilizas varios servicios de IA, eligiendo modelos que se adapten a tu trabajo y equilibrando los costos.</p><p>El agente de IA Morgan coordina en OpenCode. Otros participantes tienen sus propios chats; las pruebas Windows ocurren en Codex. Un nuevo participante podría unirse más tarde a Cursor o a otra aplicación configurada.</p><p>Después de la primera configuración, asigne un nombre a cada chat participante. En su chat principal, establezca las reglas de coordinación. Jade ya ha informado a Morgan su rol de verificación en Windows; puede dirigir el trabajo posterior a través del chat de coordinación.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guía de configuración</a></p>',
+        html: '<h3>Trabaja en sus chats habituales</h3><p>En esta historia, trabajas en una Mac y mantienes una computadora Windows para comprobar la aplicación que ejecutan tus usuarios. Ya utilizas varios servicios de IA, eligiendo modelos que se adapten a tu trabajo y equilibrando los costos.</p><p>El agente de IA Morgan coordina en OpenCode. Otros participantes tienen sus propios chats; las pruebas Windows ocurren en el modo Codex de ChatGPT. Un nuevo participante podría unirse más tarde a Cursor o a otra aplicación configurada.</p><p>Después de la primera configuración, asigne un nombre a cada chat participante. En su chat principal, establezca las reglas de coordinación. Jade ya ha informado a Morgan su rol de verificación en Windows; puede dirigir el trabajo posterior a través del chat de coordinación.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guía de configuración</a></p>',
       },
       {
         html: '<p>Asignar al coordinador de IA una regla independiente para aceptar el trabajo completado. El coordinador de IA envía instrucciones de trabajo a los participantes conforme se incorporan y supervisa el avance en todas las tareas. Cuando conecte a un participante, asigne a ese chat un nombre y un rol; Morgan asigna el trabajo tras recibir el informe del agente sobre dicho rol.</p>',
@@ -1876,7 +1876,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Archivos, respuestas e historial</h3><p>El historial de mensajes y las copias de los archivos adjuntos se guardan localmente en los equipos de los participantes. La <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">guía de datos</a> explica cómo se almacenan y transfieren los archivos; la <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guía de escritorio</a> describe cómo continuar en otro chat.</p>',
       },
       {
-        html: '<h3>Permite que las pruebas y correcciones tengan lugar entre los agentes</h3>\n        <p>En este ejemplo, el agente de IA Sam trabaja en Cursor en el Mac, mientras que Jade realiza pruebas en Codex en Windows. El coordinador de IA recibe el informe de finalización en OpenCode y asigna la comprobación independiente. Los siguientes intercambios muestran cómo los agentes colaboran.</p>',
+        html: '<h3>Permite que las pruebas y correcciones tengan lugar entre los agentes</h3>\n        <p>En este ejemplo, el agente de IA Sam trabaja en Cursor en el Mac, mientras que Jade realiza pruebas en ChatGPT en Windows. El coordinador de IA recibe el informe de finalización en OpenCode y asigna la comprobación independiente. Los siguientes intercambios muestran cómo los agentes colaboran.</p>',
       },
       {
         html: '<h3>Administración cuando la necesite</h3><p>Tu trabajo habitual permanece en las conversaciones de IA. La aplicación de escritorio proporciona los controles siguientes cuando necesitas inspeccionar una conexión o gestionar datos almacenados.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guía de configuración</a></p>',
@@ -1935,7 +1935,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Бір әзірлеушінің тарихы',
       storyTitle: 'Агенттер бірлесіп жұмыс істейді',
       storyLede:
-        'Сіз қолданбаны әдеттегі ИИ чаттарында дамытасыз. Агент Morgan OpenCode-те Mac-те жұмысты үйлестіреді. Агент Jade Codex-те Windows-те қолданбаны тексереді. Агент Sam Cursor-де Mac-те қатені түзейді. Агенттердің аттарын сіз таңдайсыз; олардың рөлдері, дағдылары мен құралдары бұл жерде мысал ретінде келтірілген. NCF Agent Interconnect олардың барлығын ұсынбайды.',
+        'Сіз қолданбаны әдеттегі ИИ чаттарында дамытасыз. Агент Morgan OpenCode-те Mac-те жұмысты үйлестіреді. Агент Jade ChatGPT-те Windows-те қолданбаны тексереді. Агент Sam Cursor-де Mac-те қатені түзейді. Агенттердің аттарын сіз таңдайсыз; олардың рөлдері, дағдылары мен құралдары бұл жерде мысал ретінде келтірілген. NCF Agent Interconnect олардың барлығын ұсынбайды.',
       guideEyebrow: 'Алудың маңыздылығы',
       guideTitle: 'Агенттер чаттарда жұмыс істейді. Қолданба хабарламаларды жеткізеді.',
       startEyebrow: 'Екі сөйлесуден бастаңыз',
@@ -1976,7 +1976,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Клиенттің ерекшеліктерін ескеріңіз',
-        'OpenCode, Codex және Cursor хабарламаларды жеткізу әдісі мен баптау талаптары бойынша ерекшеленеді.',
+        'OpenCode, ChatGPT және Cursor хабарламаларды жеткізу әдісі мен баптау талаптары бойынша ерекшеленеді.',
         'Клиенттердің ерекшеліктері',
       ],
       [
@@ -2228,7 +2228,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Қолданбалар мен әңгімелерді дайындау</h3><p>Әр қосымшаны немесе профилін бір рет баптау жеткілікті. Содан кейін жаңа чаттар таңдаған атыңызбен қосыла алады.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">баптау нұсқаулығы</a></p>',
       },
       {
-        html: '<h3>AI агенттері барлық жаңа хабарларда жұмыс істейді; NCF Agent Interconnect хабарлар мен файлдарды тасымалдайды.</h3><p>Бұл жағдайда сіз Mac үстінде жұмыс істейсіз, ал өзіңіздің пайдаланушыларыңызға арналған қолданбаны Windows жүйесінде орналасқан жеке компьютерде тексересіз. Сіз әлі бірнеше ИИ-қызметтерін пайдаланып жатырсыз: тапсырмаларға сәйкес модельдерді таңдап алып, шығындарды бақылап отырсыз.</p><p>OpenCode чатында жұмысты координирлейтін агент Morgan. Басқа қатысушылардың өзінің чаттары бар; Windows-тағы тексерулер Codex-те өтеді. Кейінірек Cursor немесе басқа конфигурацияланған қосымшада жаңа агентті қосуға болады.</p><p>Бастапқы баптаудан кейін әрбір жұмысқа қатысатын чатқа атау беріңіз. Негізгі чатта үйлестіру ережелерін орнатыңыз. Jade Morgan-ге Windows-тағы тексерулерге жауапты болатынын хабарлады; одан әрі тапсырмаларды координатор чатына қоюға болады.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">баптау нұсқаулығы</a></p>',
+        html: '<h3>AI агенттері барлық жаңа хабарларда жұмыс істейді; NCF Agent Interconnect хабарлар мен файлдарды тасымалдайды.</h3><p>Бұл жағдайда сіз Mac үстінде жұмыс істейсіз, ал өзіңіздің пайдаланушыларыңызға арналған қолданбаны Windows жүйесінде орналасқан жеке компьютерде тексересіз. Сіз әлі бірнеше ИИ-қызметтерін пайдаланып жатырсыз: тапсырмаларға сәйкес модельдерді таңдап алып, шығындарды бақылап отырсыз.</p><p>OpenCode чатында жұмысты координирлейтін агент Morgan. Басқа қатысушылардың өзінің чаттары бар; Windows-тағы тексерулер ChatGPT-тегі Codex режимінде өтеді. Кейінірек Cursor немесе басқа конфигурацияланған қосымшада жаңа агентті қосуға болады.</p><p>Бастапқы баптаудан кейін әрбір жұмысқа қатысатын чатқа атау беріңіз. Негізгі чатта үйлестіру ережелерін орнатыңыз. Jade Morgan-ге Windows-тағы тексерулерге жауапты болатынын хабарлады; одан әрі тапсырмаларды координатор чатына қоюға болады.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">баптау нұсқаулығы</a></p>',
       },
       {
         html: '<p>Жұмыс аяқталған тапсырмаларды қабылдау ережесін координаторға жеке орнатыңыз. Жаңа қатысушылар қосылған сайын Morgan оларға жұмыс нұсқауларын береді және барлық жұмыс бағыттарын қадағалайды. Әңгімеге қосылғанда чаттың атын анықтаңыз және агенттің рөлін көрсетіңіз; тапсырмалар Morgan агенттің өзінің рөлін хабарлағаннан кейін бөлінеді.</p>',
@@ -2258,7 +2258,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Файлдар, жауаптар және тарих</h3><p>Хабарлар тарихы мен тіркемелердің көшірмелері қатысушылардың компьютерлерінде жергілікті сақталады. Сақтау мен файл жіберу тәртібі <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">деректер нұсқаулығында</a>, ал басқа чатта жалғастыру жолы <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">үстел қолданбасының нұсқаулығында</a> берілген.</p>',
       },
       {
-        html: '<h3>NCF Agent Interconnect агенттер өздері тексерулер мен түзетулерді келіседі.</h3>\n        <p>Бұл мысалда Sam Mac-те Cursor-де жұмыс істейді, ал Jade Windows-те Codex-те қосымшаны тестілейді. Morgan OpenCode-ден дайын түзету туралы есеп алады және тәуелсіз тестілеуді тағайындайды. Кейін — агенттердің хат-хабарлары.</p>',
+        html: '<h3>NCF Agent Interconnect агенттер өздері тексерулер мен түзетулерді келіседі.</h3>\n        <p>Бұл мысалда Sam Mac-те Cursor-де жұмыс істейді, ал Jade Windows-те ChatGPT-те қосымшаны тестілейді. Morgan OpenCode-ден дайын түзету туралы есеп алады және тәуелсіз тестілеуді тағайындайды. Кейін — агенттердің хат-хабарлары.</p>',
       },
       {
         html: '<h3>Үстелдік қосымша қажет болған кезде</h3><p>Әдеттегі жұмыста сіз ИИ-мен сөйлесуде қаласыз. Қосылымды тексеру немесе сақталған деректерді басқару үшін NCF Agent Interconnect үстелдің терезесін ашыңыз.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">баптау нұсқаулығы</a></p>',
@@ -2317,7 +2317,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: '1人の開発者の物語',
       storyTitle: 'エージェントが協力して作業する',
       storyLede:
-        '1人の人物が、なじみ深いAIチャット間でアプリを維持しています。エージェント Morgan は Mac の OpenCode で調整を担当し、エージェント Jade は Windows の Codex でチェックを実行し、エージェント Sam は Mac の Cursor でバグを修正します。エージェントの名前はあなたが選択できます。この物語に登場する役割、スキル、ツールはすべて例示であり、NCF Agent Interconnect はそれらを提供していません。',
+        '1人の人物が、なじみ深いAIチャット間でアプリを維持しています。エージェント Morgan は Mac の OpenCode で調整を担当し、エージェント Jade は Windows の ChatGPT でチェックを実行し、エージェント Sam は Mac の Cursor でバグを修正します。エージェントの名前はあなたが選択できます。この物語に登場する役割、スキル、ツールはすべて例示であり、NCF Agent Interconnect はそれらを提供していません。',
       guideEyebrow: '「動く部分は常にクリアにしておく」',
       guideTitle: '作業はチャットで進み、アプリがメッセージを届けます。',
       startEyebrow: '2つのチャットから開始します',
@@ -2356,7 +2356,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'クライアントを理解する',
-        'OpenCode、CodexおよびCursorは、異なるShip動作および設定要件を有しています。',
+        'OpenCode、ChatGPTおよびCursorは、異なるShip動作および設定要件を有しています。',
         'クライアント詳細',
       ],
       [
@@ -2605,7 +2605,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>アプリケーションおよびチャットの準備を進めてください</h3><p>各アプリケーションまたはプロフィールを一度設定します。以降、新しいチャットは、あなたが選択した名前で接続することで参加します。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">設定ガイド</a></p>',
       },
       {
-        html: '<h3>通常のチャットで作業を行う</h3><p>この物語では、Macで作業し、ユーザーが実行するアプリケーションを確認するためにWindowsコンピュータを用意しています。すでに複数のAIサービスを活用しており、作業に適したモデルを選定し、コストを最適化しています。</p><p>AIエージェント Morgan は OpenCode で調整を行っています。他の参加者はそれぞれ独自のチャットを使用しており、Windows のチェックは Codex で実行されます。新しい参加者は後ほど Cursor または他の設定済みアプリケーションに参加できるようになります。</p><p>最初の設定後、参加する各チャットに名前を付けてください。メインチャットでは調整ルールを確立してください。JadeはすでにMorganにWindows検証の役割を伝えており、以降の作業は調整チャットを通じて指示できます。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">設定ガイド</a></p>',
+        html: '<h3>通常のチャットで作業を行う</h3><p>この物語では、Macで作業し、ユーザーが実行するアプリケーションを確認するためにWindowsコンピュータを用意しています。すでに複数のAIサービスを活用しており、作業に適したモデルを選定し、コストを最適化しています。</p><p>AIエージェント Morgan は OpenCode で調整を行っています。他の参加者はそれぞれ独自のチャットを使用しており、Windows のチェックは ChatGPT の Codex モードで実行されます。新しい参加者は後ほど Cursor または他の設定済みアプリケーションに参加できるようになります。</p><p>最初の設定後、参加する各チャットに名前を付けてください。メインチャットでは調整ルールを確立してください。JadeはすでにMorganにWindows検証の役割を伝えており、以降の作業は調整チャットを通じて指示できます。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">設定ガイド</a></p>',
       },
       {
         html: '<p>AIコーディネーターに完了した作業を受け入れるための別々のルールを設定します。AIコーディネーターは参加者がチャットに参加するタイミングで作業指示を送信し、すべてのタスクにおける進捗を追跡します。参加者を接続する際には、そのチャットに名前と役割を割り当てます。Morganはエージェントが役割を報告した後に、作業を割り当てます。</p>',
@@ -2635,7 +2635,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>ファイル、返信、履歴</h3><p>メッセージ履歴と添付ファイルのコピーは、参加者のコンピューターにローカル保存されます。保存とファイル転送は<a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">データガイド</a>、別のチャットへの引き継ぎは<a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">デスクトップ操作ガイド</a>で説明しています。</p>',
       },
       {
-        html: '<h3>エージェント間でテストと修正を進める</h3>\n        <p>この例では、AIエージェント Sam が Mac の Cursor で作業し、Jade が Windows の Codex でテストを実行する。AIコーディネーターは OpenCode で完成報告を受け取り、独立チェックを割り当てる。次のやり取りで、エージェントがどのように連携して作業を進めるかが示される。</p>',
+        html: '<h3>エージェント間でテストと修正を進める</h3>\n        <p>この例では、AIエージェント Sam が Mac の Cursor で作業し、Jade が Windows の ChatGPT でテストを実行する。AIコーディネーターは OpenCode で完成報告を受け取り、独立チェックを割り当てる。次のやり取りで、エージェントがどのように連携して作業を進めるかが示される。</p>',
       },
       {
         html: '<h3>必要なときに管理する</h3><p>通常の作業はAIチャットに留まります。接続を確認する必要がある場合や保存されたデータを管理する必要がある場合は、デスクトップアプリで以下のコントロールが利用可能です。</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">設定ガイド</a></p>',
@@ -2694,7 +2694,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'A história de um desenvolvedor',
       storyTitle: 'Os agentes trabalham juntos',
       storyLede:
-        'Uma pessoa mantém um aplicativo através de chats de IA familiares. O agente Morgan coordena no OpenCode no Mac; o agente Jade verifica o Windows no Codex, e o agente Sam corrige o erro no Cursor no Mac. Você escolhe os nomes dos agentes. Os papéis, as habilidades e as ferramentas nesta história são exemplos; a NCF Agent Interconnect não os fornece.',
+        'Uma pessoa mantém um aplicativo através de chats de IA familiares. O agente Morgan coordena no OpenCode no Mac; o agente Jade verifica o Windows no ChatGPT, e o agente Sam corrige o erro no Cursor no Mac. Você escolhe os nomes dos agentes. Os papéis, as habilidades e as ferramentas nesta história são exemplos; a NCF Agent Interconnect não os fornece.',
       guideEyebrow: 'Mantenha as partes móveis claras',
       guideTitle: 'O trabalho acontece nos chats. O aplicativo encaminha as mensagens.',
       startEyebrow: 'Comece com duas conversas',
@@ -2732,7 +2732,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Conheça o seu cliente',
-        'OpenCode, Codex e Cursor possuem diferentes comportamentos de entrega e requisitos de configuração.',
+        'OpenCode, ChatGPT e Cursor possuem diferentes comportamentos de entrega e requisitos de configuração.',
         'Detalhes do cliente',
       ],
       [
@@ -2984,7 +2984,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Prepare suas aplicações e chats</h3><p>Configure cada aplicação ou perfil uma vez. Novos chats então se conectam sob nomes escolhidos por você.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guia de configuração</a></p>',
       },
       {
-        html: '<h3>Trabalhe nos seus chats habituais</h3><p>Nesta história, você trabalha em um Mac e mantém um computador Windows para verificar a aplicação que seus usuários executam. Você já usa vários serviços de IA, escolhendo modelos que se adaptam ao seu trabalho e equilibrando os custos.</p><p>O agente de IA Morgan coordena em OpenCode. Outros participantes têm seus próprios chats; as verificações Windows acontecem em Codex. Um novo participante poderia mais tarde se juntar ao Cursor ou a outra aplicação configurada.</p><p>Após a primeira configuração, atribua um nome a cada bate-papo participante. No seu chat principal, estabeleça as regras de coordenação. Jade já informou a Morgan sua função de verificação no Windows; você pode direcionar o trabalho posterior por meio do chat de coordenação.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guia de configuração</a></p>',
+        html: '<h3>Trabalhe nos seus chats habituais</h3><p>Nesta história, você trabalha em um Mac e mantém um computador Windows para verificar a aplicação que seus usuários executam. Você já usa vários serviços de IA, escolhendo modelos que se adaptam ao seu trabalho e equilibrando os custos.</p><p>O agente de IA Morgan coordena em OpenCode. Outros participantes têm seus próprios chats; as verificações Windows acontecem no modo Codex do ChatGPT. Um novo participante poderia mais tarde se juntar ao Cursor ou a outra aplicação configurada.</p><p>Após a primeira configuração, atribua um nome a cada bate-papo participante. No seu chat principal, estabeleça as regras de coordenação. Jade já informou a Morgan sua função de verificação no Windows; você pode direcionar o trabalho posterior por meio do chat de coordenação.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">guia de configuração</a></p>',
       },
       {
         html: '<p>Dê ao coordenador de IA uma regra separada para aceitar o trabalho concluído. O coordenador de IA envia instruções de trabalho aos participantes à medida que se juntam e acompanha o progresso em todas as tarefas. Quando você conectar um participante, dê a esse chat um nome e um papel; Morgan atribui o trabalho depois que o agente relata esse papel.</p>',
@@ -3014,7 +3014,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Arquivos, respostas e histórico</h3><p>O histórico de mensagens e as cópias dos anexos ficam armazenados localmente nos computadores dos participantes. O <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">guia de dados</a> explica o armazenamento e a transferência de arquivos; o <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guia do aplicativo</a> descreve como continuar em outro chat.</p>',
       },
       {
-        html: '<h3>Permitam que os testes e correções ocorram entre os agentes</h3>\n        <p>Neste exemplo, o agente de IA Sam trabalha no Cursor no Mac, enquanto Jade testa no Codex no Windows. O coordenador da IA recebe o relatório de conclusão em OpenCode e atribui a verificação independente. As próximas trocas mostram como os agentes trabalham juntos.</p>',
+        html: '<h3>Permitam que os testes e correções ocorram entre os agentes</h3>\n        <p>Neste exemplo, o agente de IA Sam trabalha no Cursor no Mac, enquanto Jade testa no ChatGPT no Windows. O coordenador da IA recebe o relatório de conclusão em OpenCode e atribui a verificação independente. As próximas trocas mostram como os agentes trabalham juntos.</p>',
       },
       {
         html: '<h3>Administração quando for necessário</h3><p>Seu trabalho comum permanece nas conversas da IA. O aplicativo de desktop fornece os controles abaixo quando você precisar inspecionar uma conexão ou gerenciar dados armazenados.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">guia de configuração</a></p>',
@@ -3073,7 +3073,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: '한 개발자의 이야기',
       storyTitle: '에이전트가 함께 일합니다',
       storyLede:
-        '한 사람이 익숙한 AI 채팅을 통해 앱을 유지 관리합니다. 에이전트 Morgan은 Mac에서 OpenCode에서 조정을 담당하고, 에이전트 Jade는 Windows에서 Codex에서 검증을 수행하며, 에이전트 Sam은 Mac에서 Cursor에서 버그를 수정합니다. 에이전트 이름은 사용자가 지정합니다. 이 이야기에 등장하는 역할, 기술 및 도구는 예시이며, NCF Agent Interconnect는 이를 제공하지 않습니다.',
+        '한 사람이 익숙한 AI 채팅을 통해 앱을 유지 관리합니다. 에이전트 Morgan은 Mac에서 OpenCode에서 조정을 담당하고, 에이전트 Jade는 Windows에서 ChatGPT에서 검증을 수행하며, 에이전트 Sam은 Mac에서 Cursor에서 버그를 수정합니다. 에이전트 이름은 사용자가 지정합니다. 이 이야기에 등장하는 역할, 기술 및 도구는 예시이며, NCF Agent Interconnect는 이를 제공하지 않습니다.',
       guideEyebrow: '이동하는 부품을 명확하게 유지하십시오.',
       guideTitle: '작업은 채팅에서 진행되고, 앱이 메시지를 전달합니다.',
       startEyebrow: '두 채팅으로 시작하세요',
@@ -3112,7 +3112,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         '클라이언트를 알아야 한다',
-        'OpenCode, Codex 및 Cursor는 서로 다른 배달 동작과 설정 요구 사항을 가지고 있습니다.',
+        'OpenCode, ChatGPT 및 Cursor는 서로 다른 배달 동작과 설정 요구 사항을 가지고 있습니다.',
         '클라이언트 세부 사항',
       ],
       [
@@ -3358,7 +3358,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>애플리케이션과 채팅을 준비하세요</h3><p>각 애플리케이션 또는 프로필을 한 번만 설정하세요. 새로운 채팅은 당신이 선택한 이름으로 연결하여 가입합니다.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">설정 안내서</a></p>',
       },
       {
-        html: '<h3>기존 채팅에서 작업하세요</h3><p>이 스토리에서는 Mac에서 작업하며 사용자가 실행하는 응용 프로그램을 확인하기 위해 Windows 컴퓨터를 유지합니다. 이미 여러 AI 서비스를 사용하고 있으며, 업무에 적합한 모델을 선택하고 비용을 균형 있게 조정하고 있습니다.</p><p>인공지능 에이전트 Morgan는 OpenCode에서 조율을 담당합니다. 다른 참가자들은 각자 자신의 채팅을 사용하며, Windows checks는 Codex에서 수행됩니다. 새로운 참가자는 나중에 Cursor 또는 다른 구성된 애플리케이션에서 참여할 수 있습니다.</p><p>첫 번째 설정 후, 참여하는 각 채팅에 이름을 지정하세요. 메인 채팅에서 조정 규칙을 설정하세요. Jade는 이제 Morgan에게 자신의 Windows 검증 역할을 전달했으며, 이후 작업은 조정 채팅을 통해 지시할 수 있습니다.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">설정 안내서</a></p>',
+        html: '<h3>기존 채팅에서 작업하세요</h3><p>이 스토리에서는 Mac에서 작업하며 사용자가 실행하는 응용 프로그램을 확인하기 위해 Windows 컴퓨터를 유지합니다. 이미 여러 AI 서비스를 사용하고 있으며, 업무에 적합한 모델을 선택하고 비용을 균형 있게 조정하고 있습니다.</p><p>인공지능 에이전트 Morgan는 OpenCode에서 조율을 담당합니다. 다른 참가자들은 각자 자신의 채팅을 사용하며, Windows checks는 ChatGPT의 Codex 모드에서 수행됩니다. 새로운 참가자는 나중에 Cursor 또는 다른 구성된 애플리케이션에서 참여할 수 있습니다.</p><p>첫 번째 설정 후, 참여하는 각 채팅에 이름을 지정하세요. 메인 채팅에서 조정 규칙을 설정하세요. Jade는 이제 Morgan에게 자신의 Windows 검증 역할을 전달했으며, 이후 작업은 조정 채팅을 통해 지시할 수 있습니다.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">설정 안내서</a></p>',
       },
       {
         html: '<p>인공지능 조정자에게 완료된 작업을 수락하기 위한 별도의 규칙을 설정하십시오. 인공지능 조정자는 참가자가 참여할 때마다 작업 지침을 전달하고 모든 작업의 진행 상황을 추적합니다. 참가자를 연결할 때 해당 채팅에 이름과 역할을 지정하십시오. Morgan은 에이전트가 해당 역할을 보고한 후에 작업을 할당합니다.</p>',
@@ -3388,7 +3388,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>파일, 응답, 기록</h3><p>메시지 기록과 첨부파일 사본은 참여자의 컴퓨터에 로컬로 저장됩니다. 저장 및 파일 전송은 <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">데이터 안내서</a>, 다른 채팅으로 이어서 작업하는 방법은 <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">데스크톱 안내서</a>에 설명되어 있습니다.</p>',
       },
       {
-        html: '<h3>에이전트끼리 테스트하고 수정하기</h3>\n        <p>이 예시에서 AI 에이전트 Sam은 Mac의 Cursor에서 작업하고, Jade는 Windows의 Codex에서 테스트를 수행합니다. AI 조정자는 OpenCode에서 완료 보고서를 수신하고 독립 검사를 할당합니다. 다음 교환 내용은 에이전트들이 어떻게 협력하는지 보여줍니다.</p>',
+        html: '<h3>에이전트끼리 테스트하고 수정하기</h3>\n        <p>이 예시에서 AI 에이전트 Sam은 Mac의 Cursor에서 작업하고, Jade는 Windows의 ChatGPT에서 테스트를 수행합니다. AI 조정자는 OpenCode에서 완료 보고서를 수신하고 독립 검사를 할당합니다. 다음 교환 내용은 에이전트들이 어떻게 협력하는지 보여줍니다.</p>',
       },
       {
         html: '<h3>필요할 때 관리하기</h3><p>당신의 일반적인 작업은 AI 채팅에 유지됩니다. 연결을 점검하거나 저장된 데이터를 관리해야 할 때 데스크톱 앱이 아래의 컨트롤을 제공합니다.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">설정 안내서</a></p>',
@@ -3447,7 +3447,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Bir geliştiricinin hikayesi',
       storyTitle: 'Ajanlar birlikte çalışır',
       storyLede:
-        "Bir kişi tanıdık AI sohbetlerinde bir uygulama sürdürüyor. Ajan Morgan, OpenCode'da bir Mac’te koordinasyon sağlar; Ajan Jade, Codex'te Windows üzerinde kontrolü yapar ve Ajan Sam, Cursor'da Mac üzerinde hatayı düzeltir. Sen ajan isimlerini seç. Bu hikayedeki roller, beceriler ve araçlar örneklerdir; NCF Agent Interconnect bunları sağlamaz.",
+        "Bir kişi tanıdık AI sohbetlerinde bir uygulama sürdürüyor. Ajan Morgan, OpenCode'da bir Mac’te koordinasyon sağlar; Ajan Jade, ChatGPT'te Windows üzerinde kontrolü yapar ve Ajan Sam, Cursor'da Mac üzerinde hatayı düzeltir. Sen ajan isimlerini seç. Bu hikayedeki roller, beceriler ve araçlar örneklerdir; NCF Agent Interconnect bunları sağlamaz.",
       guideEyebrow: 'Hareketli parçaları açık tut',
       guideTitle: 'İş sohbetlerde yürür. Uygulama mesajları iletir.',
       startEyebrow: 'İki sohbetle başla.',
@@ -3485,7 +3485,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Müşterinizi tanıyın',
-        'OpenCode, Codex ve Cursor farklı teslimat davranışları ve kurulum gereksinimlerine sahiptir.',
+        'OpenCode, ChatGPT ve Cursor farklı teslimat davranışları ve kurulum gereksinimlerine sahiptir.',
         'Müşteri detayları',
       ],
       [
@@ -3740,7 +3740,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Uygulamalarınızı ve sohbetlerinizi hazırlayın</h3><p>Her uygulama veya profili bir kez ayarlayın. Yeni sohbetler daha sonra istediğiniz isimlerle bağlantı kurarak katılır.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">kurulum rehberi</a></p>',
       },
       {
-        html: "<h3>İşinizi normal sohbetlerinizde yapın</h3><p>Bu hikayede, bir Mac üzerinde çalışıyorsunuz ve kullanıcılarınızın çalıştığı uygulamayı kontrol etmek için bir Windows bilgisayarınız var. İşinize uygun modelleri seçerek ve maliyetleri dengeleyerek çok sayıda AI hizmetini kullanıyorsunuz.</p><p>AI ajanı Morgan koordinasyonunu OpenCode'da yapar. Diğer katılımcıların kendi sohbetleri vardır; Windows testleri Codex'de yapılır. Yeni bir katılımcı daha sonra Cursor veya başka bir yapılandırılmış uygulamaya katılabilir.</p><p>İlk kez ayarladıktan sonra, katılan her sohbete bir isim verin. Ana sohbette koordinasyon kurallarını belirleyin. Jade şimdi Morgan'e Windows doğrulama rolünü bildirdi; sonraki işlerinizi koordinasyon sohbeti üzerinden yönlendirebilirsiniz.</p><p><a href=\"https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md\">kurulum rehberi</a></p>",
+        html: '<h3>İşinizi normal sohbetlerinizde yapın</h3><p>Bu hikayede, bir Mac üzerinde çalışıyorsunuz ve kullanıcılarınızın çalıştığı uygulamayı kontrol etmek için bir Windows bilgisayarınız var. İşinize uygun modelleri seçerek ve maliyetleri dengeleyerek çok sayıda AI hizmetini kullanıyorsunuz.</p><p>AI ajanı Morgan koordinasyonunu OpenCode\'da yapar. Diğer katılımcıların kendi sohbetleri vardır; Windows testleri ChatGPT’nin Codex modunda yapılır. Yeni bir katılımcı daha sonra Cursor veya başka bir yapılandırılmış uygulamaya katılabilir.</p><p>İlk kez ayarladıktan sonra, katılan her sohbete bir isim verin. Ana sohbette koordinasyon kurallarını belirleyin. Jade şimdi Morgan\'e Windows doğrulama rolünü bildirdi; sonraki işlerinizi koordinasyon sohbeti üzerinden yönlendirebilirsiniz.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">kurulum rehberi</a></p>',
       },
       {
         html: '<p>Yapay zeka koordinatörüne tamamlanmış çalışmayı kabul etmek için ayrı bir kural verin. AI koordinatörü katılımcılara katıldıklarında çalışma talimatlarını gönderir ve tüm görevlerde ilerlemeyi takip eder. Bir katılımcı ile bağlantı kurduğunuzda, o sohbete bir isim ve rol verin; Morgan, ajanın bu rolü bildirmesinden sonra işi belirler.</p>',
@@ -3770,7 +3770,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Dosyalar, yanıtlar ve geçmiş</h3><p>Mesaj geçmişi ve eklerin kopyaları katılımcıların bilgisayarlarında yerel olarak saklanır. Saklama ve dosya aktarımı <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">veri rehberinde</a>, başka bir sohbette devam etme ise <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">masaüstü rehberinde</a> anlatılır.</p>',
       },
       {
-        html: "<h3>Ajanlar arasında test ve düzeltmeler yapılsın.</h3>\n        <p>Bu örnekte, AI ajanı Sam Cursor'de Mac üzerinde çalışırken Jade Codex'de Windows üzerinde testler yapar. AI koordinatörü OpenCode'da tamamlama raporunu alır ve bağımsız kontrolü atar. Sonraki mesajlar, ajanların birlikte nasıl çalıştığını gösterir.</p>",
+        html: "<h3>Ajanlar arasında test ve düzeltmeler yapılsın.</h3>\n        <p>Bu örnekte, AI ajanı Sam Cursor'de Mac üzerinde çalışırken Jade ChatGPT'de Windows üzerinde testler yapar. AI koordinatörü OpenCode'da tamamlama raporunu alır ve bağımsız kontrolü atar. Sonraki mesajlar, ajanların birlikte nasıl çalıştığını gösterir.</p>",
       },
       {
         html: '<h3>Gerektiğinde yönetin</h3><p>Günlük işleriniz AI sohbetlerinde kalır. Masaüstü uygulaması, bir bağlantıya göz atmanız veya saklanan verileri yönetmeniz gerekiyorsa aşağıdaki kontrolleri sağlar.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">kurulum rehberi</a></p>',
@@ -3829,7 +3829,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Historia jednego dewelopera',
       storyTitle: 'Agenci pracują razem',
       storyLede:
-        'Jedna osoba utrzymuje aplikację w znanych rozmowach AI. Agent Morgan koordynuje w OpenCode na Mac; Agent Jade przeprowadza testy w Codex na Windows, a Agent Sam naprawia błąd w Cursor na Mac. Wybierz nazwy agentów. Role, umiejętności i narzędzia w tej historii są przykładami; NCF Agent Interconnect ich nie dostarcza.',
+        'Jedna osoba utrzymuje aplikację w znanych rozmowach AI. Agent Morgan koordynuje w OpenCode na Mac; Agent Jade przeprowadza testy w ChatGPT na Windows, a Agent Sam naprawia błąd w Cursor na Mac. Wybierz nazwy agentów. Role, umiejętności i narzędzia w tej historii są przykładami; NCF Agent Interconnect ich nie dostarcza.',
       guideEyebrow: 'Zachowaj jasność w działających elementach',
       guideTitle: 'Praca odbywa się na czatach. Aplikacja przekazuje wiadomości.',
       startEyebrow: 'Rozpocznij od dwóch czatów',
@@ -3868,7 +3868,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Poznaj swojego klienta.',
-        'OpenCode, Codex i Cursor mają różne zachowania w zakresie dostarczania oraz wymagania dotyczące konfiguracji.',
+        'OpenCode, ChatGPT i Cursor mają różne zachowania w zakresie dostarczania oraz wymagania dotyczące konfiguracji.',
         'Szczegóły klienta',
       ],
       [
@@ -4120,7 +4120,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Przygotuj aplikacje i czaty</h3><p>Skonfiguruj każdą aplikację lub profil raz. Nowe rozmowy dołączają później, łącząc się pod wybranymi nazwami.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">przewodnik konfiguracji</a></p>',
       },
       {
-        html: '<h3>Pracuj w swoich zwykłych czatach</h3><p>W tej historii pracujesz na Macu i utrzymujesz komputer z systemem Windows do sprawdzania aplikacji uruchamianych przez użytkowników. Już korzystasz z kilku usług AI, wybierając modele odpowiednie dla swojej pracy i balansując koszty.</p><p>Agent sztucznej inteligencji Morgan koordynuje w OpenCode. Inni uczestnicy mają swoje własne czaty; testy Windows odbywają się w Codex. Nowy uczestnik może później dołączyć do Cursor lub do innej skonfigurowanej aplikacji.</p><p>Po pierwszym uruchomieniu przypisz każdej uczestniczącej rozmowie nazwę. W głównej rozmowie ustal zasady koordynacji. Jade poinformowała już Morgan o jej roli weryfikacyjnej w systemie Windows; późniejszą pracę możesz kierować przez rozmowę koordynacyjną.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">przewodnik konfiguracji</a></p>',
+        html: '<h3>Pracuj w swoich zwykłych czatach</h3><p>W tej historii pracujesz na Macu i utrzymujesz komputer z systemem Windows do sprawdzania aplikacji uruchamianych przez użytkowników. Już korzystasz z kilku usług AI, wybierając modele odpowiednie dla swojej pracy i balansując koszty.</p><p>Agent sztucznej inteligencji Morgan koordynuje w OpenCode. Inni uczestnicy mają swoje własne czaty; testy Windows odbywają się w trybie Codex w ChatGPT. Nowy uczestnik może później dołączyć do Cursor lub do innej skonfigurowanej aplikacji.</p><p>Po pierwszym uruchomieniu przypisz każdej uczestniczącej rozmowie nazwę. W głównej rozmowie ustal zasady koordynacji. Jade poinformowała już Morgan o jej roli weryfikacyjnej w systemie Windows; późniejszą pracę możesz kierować przez rozmowę koordynacyjną.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">przewodnik konfiguracji</a></p>',
       },
       {
         html: '<p>Daj koordynatorom sztucznej inteligencji osobną zasadę przyjęcia ukończonej pracy. Koordynator sztucznej inteligencji wysyła instrukcje robocze uczestnikom w chwili ich dołączenia i śledzi postęp we wszystkich zadaniach. Gdy łączysz uczestnika, nadaj temu czatowi nazwę i rolę; Morgan przydziela zadanie po tym, jak agent zgłosi tę rolę.</p>',
@@ -4150,7 +4150,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Pliki, odpowiedzi i historia</h3><p>Historia wiadomości i kopie załączników są przechowywane lokalnie na komputerach uczestników. O przechowywaniu i przesyłaniu plików przeczytasz w <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">przewodniku po danych</a>, a o kontynuowaniu pracy w innym czacie — w <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">przewodniku po aplikacji</a>.</p>',
       },
       {
-        html: '<h3>Testowanie i poprawki między agentami</h3>\n        <p>W tym przykładzie agent sztucznej inteligencji Sam działa w Cursor na Mac, podczas gdy Jade testuje w Codex na Windows. Koordynator sztucznej inteligencji otrzymuje sprawozdanie z ukończenia w OpenCode i przypisuje niezależną sprawdzian. Następne wymiany pokazują, jak agenci współpracują.</p>',
+        html: '<h3>Testowanie i poprawki między agentami</h3>\n        <p>W tym przykładzie agent sztucznej inteligencji Sam działa w Cursor na Mac, podczas gdy Jade testuje w ChatGPT na Windows. Koordynator sztucznej inteligencji otrzymuje sprawozdanie z ukończenia w OpenCode i przypisuje niezależną sprawdzian. Następne wymiany pokazują, jak agenci współpracują.</p>',
       },
       {
         html: '<h3>Zarządzanie, gdy jest potrzebne</h3><p>Twoja zwykła praca pozostaje w czatach AI. Aplikacja stacjonarna zapewnia poniższe kontrolki, gdy potrzebujesz sprawdzić połączenie lub zarządzać przechowywanymi danymi.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">przewodnik konfiguracji</a></p>',
@@ -4209,7 +4209,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Het verhaal van één ontwikkelaar',
       storyTitle: 'Agenten werken samen',
       storyLede:
-        'Eén persoon onderhoudt een app over bekende AI-chats. Agent Morgan coördineert in OpenCode op een Mac; Agent Jade controleert Windows in Codex, en Agent Sam herstelt de fout in Cursor op de Mac. U kiest de agentennamen. De rollen, vaardigheden en hulpmiddelen in dit verhaal zijn voorbeelden; NCF Agent Interconnect levert ze niet.',
+        'Eén persoon onderhoudt een app over bekende AI-chats. Agent Morgan coördineert in OpenCode op een Mac; Agent Jade controleert Windows in ChatGPT, en Agent Sam herstelt de fout in Cursor op de Mac. U kiest de agentennamen. De rollen, vaardigheden en hulpmiddelen in dit verhaal zijn voorbeelden; NCF Agent Interconnect levert ze niet.',
       guideEyebrow: 'Houd de bewegende delen vrij.',
       guideTitle: 'Het werk gebeurt in de chats. De app geeft berichten door.',
       startEyebrow: 'Begin met twee chats',
@@ -4247,7 +4247,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Ken je cliënt',
-        'OpenCode, Codex en Cursor hebben verschillende leveringsgedrag en installatievereisten.',
+        'OpenCode, ChatGPT en Cursor hebben verschillende leveringsgedrag en installatievereisten.',
         'Klantgegevens',
       ],
       [
@@ -4502,7 +4502,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Bereid je apps en chats voor</h3><p>Stel elke applicatie of profiel één keer in. Nieuwe chats sluiten zich vervolgens aan door verbinding te maken onder de namen die u zelf kiest.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">installatiehandleiding</a></p>',
       },
       {
-        html: '<h3>Werk in je gebruikelijke chats</h3><p>In dit verhaal werk je op een Mac en houd je een Windows-computer aan om de applicatie te testen die je gebruikers uitvoeren. Je gebruikt al verschillende AI-diensten, waarbij je modellen kiest die bij je werk passen en de kosten in evenwicht houdt.</p><p>AI-agent Morgan coördineert in OpenCode. Andere deelnemers hebben hun eigen chats; de Windows checks vinden plaats in Codex. Een nieuwe deelnemer kan zich later aansluiten bij Cursor of een andere geconfigureerde toepassing.</p><p>Na de eerste instelling, geef elke deelnemende chat een naam. Stel in je hoofdchat de coördinatierules vast. Jade heeft Morgan nu haar Windows-verificatierol doorgegeven; je kunt latere werkzaamheden via de coördinatiechat leiden.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">installatiehandleiding</a></p>',
+        html: '<h3>Werk in je gebruikelijke chats</h3><p>In dit verhaal werk je op een Mac en houd je een Windows-computer aan om de applicatie te testen die je gebruikers uitvoeren. Je gebruikt al verschillende AI-diensten, waarbij je modellen kiest die bij je werk passen en de kosten in evenwicht houdt.</p><p>AI-agent Morgan coördineert in OpenCode. Andere deelnemers hebben hun eigen chats; de Windows checks vinden plaats in de Codex-modus van ChatGPT. Een nieuwe deelnemer kan zich later aansluiten bij Cursor of een andere geconfigureerde toepassing.</p><p>Na de eerste instelling, geef elke deelnemende chat een naam. Stel in je hoofdchat de coördinatierules vast. Jade heeft Morgan nu haar Windows-verificatierol doorgegeven; je kunt latere werkzaamheden via de coördinatiechat leiden.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">installatiehandleiding</a></p>',
       },
       {
         html: '<p>Geef de AI-coördinator een aparte regel voor het accepteren van voltooid werk. De AI-coördinator stuurt werkinstructies naar de deelnemers zodra zij zich aansluiten en volgt de voortgang over alle taken. Wanneer je een deelnemer verbindt, geef die chat een naam en rol; Morgan deelt het werk uit nadat de agent die rol heeft gemeld.</p>',
@@ -4532,7 +4532,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Bestanden, antwoorden en geschiedenis</h3><p>Berichtgeschiedenis en kopieën van bijlagen worden lokaal bewaard op de computers van de deelnemers. De <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">gegevenshandleiding</a> beschrijft opslag en bestandsoverdracht; de <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">desktophandleiding</a> legt uit hoe je in een andere chat verdergaat.</p>',
       },
       {
-        html: '<h3>Laat testen en correcties plaatsvinden tussen agenten</h3>\n        <p>In dit voorbeeld werkt AI-agent Sam in Cursor op de Mac, terwijl Jade test in Codex op Windows. De AI-coördinator ontvangt het voltooiingsverslag in OpenCode en wijst de onafhankelijke check toe. De volgende uitwisselingen tonen hoe de agenten samenwerken.</p>',
+        html: '<h3>Laat testen en correcties plaatsvinden tussen agenten</h3>\n        <p>In dit voorbeeld werkt AI-agent Sam in Cursor op de Mac, terwijl Jade test in ChatGPT op Windows. De AI-coördinator ontvangt het voltooiingsverslag in OpenCode en wijst de onafhankelijke check toe. De volgende uitwisselingen tonen hoe de agenten samenwerken.</p>',
       },
       {
         html: '<h3>Beheer wanneer je dat nodig hebt</h3><p>Je dagelijkse werk blijft in de AI-chats. De desktopapp biedt de onderstaande controles wanneer u een verbinding moet inspecteren of opgeslagen gegevens moet beheren.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">installatiehandleiding</a></p>',
@@ -4591,7 +4591,7 @@ window.NCF_TRANSLATIONS = {
       storyEyebrow: 'Історія одного розробника',
       storyTitle: 'Агенти працюють разом',
       storyLede:
-        'Одна людина підтримує додаток через знайомі чати з штучним інтелектом. Агент Morgan координує в OpenCode на Mac; агент Jade перевіряє Windows у Codex, а агент Sam виправляє помилку в Cursor на Mac. Ви обираєте імена агентів. Ролі, навички та інструменти в цій історії є прикладами; NCF Agent Interconnect не надає їх.',
+        'Одна людина підтримує додаток через знайомі чати з штучним інтелектом. Агент Morgan координує в OpenCode на Mac; агент Jade перевіряє Windows у ChatGPT, а агент Sam виправляє помилку в Cursor на Mac. Ви обираєте імена агентів. Ролі, навички та інструменти в цій історії є прикладами; NCF Agent Interconnect не надає їх.',
       guideEyebrow: 'Зберігайте рухомі частини чистими',
       guideTitle: 'Робота відбувається в чатах. Застосунок передає повідомлення.',
       startEyebrow: 'Почніть з двох чатів',
@@ -4630,7 +4630,7 @@ window.NCF_TRANSLATIONS = {
       ],
       [
         'Знай свого клієнта.',
-        'OpenCode, Codex і Cursor мають різну поведінку доставки та вимоги до налаштування.',
+        'OpenCode, ChatGPT і Cursor мають різну поведінку доставки та вимоги до налаштування.',
         'Деталі клієнта',
       ],
       [
@@ -4879,7 +4879,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Підготуйте свої додатки та чати</h3><p>Налаштуйте кожну програму або профіль один раз. Нові чати потім приєднуються, з’єднуючись під обраними іменами.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">посібник з налаштування</a></p>',
       },
       {
-        html: '<h3>Працюйте у своїх звичайних чатах</h3><p>У цій історії ви працюєте на Mac і зберігаєте комп\'ютер з Windows для перевірки додатка, який використовують ваші користувачі. Ви вже використовуєте кілька AI-сервісів, вибираючи моделі, які підходять для вашої роботи, і збалансовуєте витрати.</p><p>Агент AI Morgan координує в OpenCode. Інші учасники мають свої власні чати; перевірки Windows відбуваються в Codex. Новий учасник може пізніше приєднатися до Cursor або іншого сконфігурованого додатку.</p><p>Після першого налаштування надайте кожному брату чату ім\'я. У головному чаті встановіть правила координації. Jade вже повідомила Morgan свою ролі перевірки Windows; подальшу роботу можна керувати через координаційний чат.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">посібник з налаштування</a></p>',
+        html: '<h3>Працюйте у своїх звичайних чатах</h3><p>У цій історії ви працюєте на Mac і зберігаєте комп\'ютер з Windows для перевірки додатка, який використовують ваші користувачі. Ви вже використовуєте кілька AI-сервісів, вибираючи моделі, які підходять для вашої роботи, і збалансовуєте витрати.</p><p>Агент AI Morgan координує в OpenCode. Інші учасники мають свої власні чати; перевірки Windows відбуваються у режимі Codex у ChatGPT. Новий учасник може пізніше приєднатися до Cursor або іншого сконфігурованого додатку.</p><p>Після першого налаштування надайте кожному брату чату ім\'я. У головному чаті встановіть правила координації. Jade вже повідомила Morgan свою ролі перевірки Windows; подальшу роботу можна керувати через координаційний чат.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md">посібник з налаштування</a></p>',
       },
       {
         html: "<p>Дайте координатору штучного інтелекту окреме правило для прийняття завершеної роботи. Координатор штучного інтелекту надсилає робочі інструкції учасникам під час їх підключення та слідкує за прогресом у всіх завданнях. Коли ви підключаєте учасника, надайте цьому чату ім'я та роль; Morgan призначає роботу після того, як агент підтвердить цю роль.</p>",
@@ -4909,7 +4909,7 @@ window.NCF_TRANSLATIONS = {
         html: '<h3>Файли, відповіді та історія</h3><p>Історія повідомлень і копії вкладень зберігаються локально на комп’ютерах учасників. Зберігання й передавання файлів описано в <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/privacy.md">посібнику з даних</a>, а продовження роботи в іншому чаті — у <a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">посібнику з програми</a>.</p>',
       },
       {
-        html: '<h3>Нехай агенти самі перевіряють і виправляють</h3>\n        <p>У цьому прикладі агент AI Sam працює в Cursor на Mac, тоді як Jade тестує в Codex на Windows. Координатор штучного інтелекту отримує звіт про завершення в OpenCode і призначає незалежну перевірку. Наступні обміни показують, як агенти працюють разом.</p>',
+        html: '<h3>Нехай агенти самі перевіряють і виправляють</h3>\n        <p>У цьому прикладі агент AI Sam працює в Cursor на Mac, тоді як Jade тестує в ChatGPT на Windows. Координатор штучного інтелекту отримує звіт про завершення в OpenCode і призначає незалежну перевірку. Наступні обміни показують, як агенти працюють разом.</p>',
       },
       {
         html: '<h3>Керування за потреби</h3><p>Ваша звичайна робота залишається в чатах з штучним інтелектом. Настільний додаток надає нижче зазначені інструменти керування, коли потрібно перевірити підключення або керувати збереженими даними.</p><p><a href="https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/desktop-controls.md">посібник з налаштування</a></p>',

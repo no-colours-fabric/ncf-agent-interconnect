@@ -35,7 +35,7 @@ const COPY = {
     storyEyebrow: 'One developer’s story',
     storyTitle: 'Agents work together',
     storyLede:
-      'One person maintains an app across familiar AI chats. Agent Morgan coordinates in OpenCode on a Mac; Agent Jade checks Windows in Codex, and Agent Sam fixes the bug in Cursor on the Mac. You choose agent names. The roles, skills and tools in this story are examples; NCF Agent Interconnect does not supply them.',
+      'One person maintains an app across familiar AI chats. Agent Morgan coordinates in OpenCode on a Mac; Agent Jade checks Windows in ChatGPT, and Agent Sam fixes the bug in Cursor on the Mac. You choose agent names. The roles, skills and tools in this story are examples; NCF Agent Interconnect does not supply them.',
     guideEyebrow: 'Keep the moving parts clear',
     guideTitle: 'The chat does the work. The hub carries the exchange.',
     startEyebrow: 'Start with two chats',
@@ -101,7 +101,7 @@ const COPY = {
     storyEyebrow: 'История одного разработчика',
     storyTitle: 'Агенты работают сообща',
     storyLede:
-      'Вы развиваете приложение в привычных чатах с ИИ. Агент Morgan координирует работу в OpenCode на Mac. Агент Jade проверяет приложение в Codex на Windows. Агент Sam исправляет ошибку в Cursor на Mac. Имена агентов выбираете вы; их роли, навыки и инструменты здесь приведены для примера. NCF Agent Interconnect их не предоставляет.',
+      'Вы развиваете приложение в привычных чатах с ИИ. Агент Morgan координирует работу в OpenCode на Mac. Агент Jade проверяет приложение в ChatGPT на Windows. Агент Sam исправляет ошибку в Cursor на Mac. Имена агентов выбираете вы; их роли, навыки и инструменты здесь приведены для примера. NCF Agent Interconnect их не предоставляет.',
     guideEyebrow: 'Что важно различать',
     guideTitle: 'Агенты работают в чатах. NCF Agent Interconnect доставляет их сообщения.',
     startEyebrow: 'Начните с двух чатов',
@@ -183,7 +183,7 @@ const { scenes: SCENES, notes: NOTES } = window.NCF_STORY || { scenes: [], notes
 // agent's role when that chat was connected, not a task assigned later.
 const CHAT_PROFILES = {
   morgan: { client: 'OpenCode', title: 'coordination' },
-  jade: { client: 'Codex', title: 'windows' },
+  jade: { client: 'ChatGPT', title: 'windows' },
   leo: { client: 'OpenCode', title: 'development' },
   alice: { client: 'OpenCode', title: 'requests' },
   sam: { client: 'Cursor', title: 'development' },
@@ -314,12 +314,12 @@ const GUIDE = [
   {
     en: [
       'Know your client',
-      'OpenCode, Codex and Cursor have different delivery behavior and setup requirements.',
+      'OpenCode, ChatGPT and Cursor have different delivery behavior and setup requirements.',
       'Client details',
     ],
     ru: [
       'Учитывайте особенности клиента',
-      'OpenCode, Codex и Cursor различаются способом доставки сообщений и требованиями к настройке.',
+      'OpenCode, ChatGPT и Cursor различаются способом доставки сообщений и требованиями к настройке.',
       'Особенности клиентов',
     ],
     url: 'https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md',
