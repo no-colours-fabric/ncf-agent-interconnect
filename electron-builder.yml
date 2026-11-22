@@ -4,6 +4,8 @@ publish: null
 asar:
   unpack:
     - build/assets/codex-win-socket.exe
+    - build/assets/codex-stdio-shim.exe
+    - build/assets/codex-console-stop.exe
 electronDist: node_modules/electron/dist
 directories:
   output: release

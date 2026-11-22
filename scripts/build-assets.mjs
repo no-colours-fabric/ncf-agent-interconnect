@@ -100,17 +100,27 @@ if (process.platform === 'win32') {
     'v4.0.30319',
     'csc.exe',
   );
-  execFileSync(
-    csc,
-    [
-      '/nologo',
-      '/optimize+',
-      '/target:exe',
-      process.arch === 'x64' ? '/platform:x64' : '/platform:anycpu',
-      '/out:' + path.resolve('build', 'assets', 'codex-win-socket.exe'),
-      path.resolve('desktop', 'integrations', 'codex-win-socket.cs'),
-    ],
-    { stdio: 'inherit', windowsHide: true },
+  for (const helper of ['codex-win-socket', 'codex-stdio-shim', 'codex-console-stop']) {
+    execFileSync(
+      csc,
+      [
+        '/nologo',
+        '/optimize+',
+        '/target:exe',
+        helper === 'codex-win-socket' && process.arch !== 'x64'
+          ? '/platform:anycpu'
+          : '/platform:x64',
+        ...(helper === 'codex-stdio-shim' ? ['/reference:System.Web.Extensions.dll'] : []),
+        '/out:' + path.resolve('build', 'assets', helper + '.exe'),
+        path.resolve('desktop', 'integrations', helper + '.cs'),
+      ],
+      { stdio: 'inherit', windowsHide: true },
+    );
+  }
+  await mkdir('build/integrations', { recursive: true });
+  await copyFile(
+    'desktop/integrations/codex-windows-bridge.cjs',
+    'build/integrations/codex-windows-bridge.cjs',
   );
 }
 await mkdir('release', { recursive: true });

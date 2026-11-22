@@ -1045,7 +1045,12 @@ export function ApplicationRows({
           </Alert>
         )}
         {client === 'codex' && codexShortcutPlatform && (
-          <CodexShortcut invoke={invoke} locale={locale} disabled={anyBusy} />
+          <CodexShortcut
+            invoke={invoke}
+            locale={locale}
+            platform={codexShortcutPlatform}
+            disabled={anyBusy}
+          />
         )}
         <SetupDetails state={state} locale={locale} />
         {client === 'cursor' && <CursorReplyPermission invoke={invoke} locale={locale} />}

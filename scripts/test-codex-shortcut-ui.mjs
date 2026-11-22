@@ -20,12 +20,12 @@ import { createRoot } from 'react-dom/client';
 import { ApplicationRows } from ${JSON.stringify(path.join(root, 'desktop/renderer/ApplicationSetup.tsx'))};
 import { ApplicationSetupFlow } from ${JSON.stringify(path.join(root, 'desktop/renderer/application-setup-model.ts'))};
 const query = new URLSearchParams(location.search);
-const supported = query.get('platform') !== 'linux';
+const platform = query.get('platform') ?? 'mac';
 const calls = [];
 let settle;
 const invoke = async (method, input) => {
   calls.push({ method, input });
-  if (method === 'codexShortcutPlatform') return supported ? 'mac' : null;
+  if (method === 'codexShortcutPlatform') return platform === 'linux' ? null : platform;
   if (method === 'codexShortcutCreate') return new Promise(resolve => { settle = resolve; });
   throw new Error('Unexpected fixture operation: ' + method);
 };
@@ -91,27 +91,90 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   assert.deepEqual(await page.evaluate(() => window.fixture.calls), [
     { method: 'codexShortcutPlatform', input: {} },
   ]);
+  const picker = page.getByRole('dialog');
+  const confirm = picker.getByRole('button', { name: 'Create', exact: true });
   await action.click();
+  await picker.waitFor();
+  for (const name of ['Desktop', 'Applications (this user)', 'Dock', 'Other location…']) {
+    assert.equal(await picker.getByRole('checkbox', { name, exact: true }).isChecked(), false);
+  }
+  assert.equal(await confirm.isDisabled(), true);
+  await picker.getByRole('button', { name: 'Cancel', exact: true }).click();
+  assert.equal(await page.evaluate(() => window.fixture.calls.length), 1);
+
+  await action.click();
+  await picker.getByRole('checkbox', { name: 'Dock', exact: true }).check();
+  await picker.getByText('Choose where to save the shortcut first.').waitFor();
+  await confirm.click();
   assert.equal(await codex.getByRole('button', { name: 'Creating shortcut…' }).isDisabled(), true);
-  await page.evaluate(() => window.fixture.finish('cancelled'));
+  await page.evaluate(() => window.fixture.finish({ state: 'cancelled' }));
   await action.waitFor();
   assert.equal(await codex.getByRole('alert').count(), 0);
+
   await action.click();
-  await page.evaluate(() => window.fixture.finish('created'));
+  for (const name of ['Desktop', 'Applications (this user)', 'Dock']) {
+    await picker.getByRole('checkbox', { name, exact: true }).check();
+  }
+  await confirm.click();
+  await page.evaluate(() =>
+    window.fixture.finish({
+      state: 'complete',
+      destinations: [
+        { destination: 'desktop', result: 'alreadyExists' },
+        { destination: 'applications', result: 'created' },
+        { destination: 'dock', result: 'dockPending' },
+      ],
+    }),
+  );
   await codex.getByText('Codex shortcut created.', { exact: true }).waitFor();
+  await codex
+    .getByText('Shortcut saved. Drag it from Finder to the apps area of the Dock to finish.')
+    .waitFor();
+  assert.equal(
+    await codex
+      .getByText('A shortcut with this name already exists. Choose another location or name.')
+      .isVisible(),
+    true,
+  );
   assert.equal(await action.isEnabled(), true);
   assert.deepEqual(
     await page.evaluate(() =>
-      window.fixture.calls.filter((entry) => entry.method === 'codexShortcutCreate'),
+      window.fixture.calls
+        .filter((entry) => entry.method === 'codexShortcutCreate')
+        .map(({ input }) => input),
     ),
-    Array(2).fill({ method: 'codexShortcutCreate', input: { locale: 'en' } }),
+    [
+      { locale: 'en', destinations: ['dock'] },
+      { locale: 'en', destinations: ['desktop', 'applications', 'dock'] },
+    ],
   );
 
-  await page.goto('http://ncf-shortcut.test/?locale=ru');
-  const localized = codex.getByRole('button', { name: 'Создать ярлык Codex с NCF', exact: true });
-  await localized.click();
-  await page.evaluate(() => window.fixture.finish('alreadyExists'));
+  await page.goto('http://ncf-shortcut.test/?locale=ru&platform=windows');
+  await codex.getByRole('button', { name: 'Создать ярлык Codex с NCF', exact: true }).click();
+  assert.equal(await picker.getByRole('checkbox', { name: 'Dock', exact: true }).count(), 0);
+  for (const name of ['Рабочий стол', 'Список приложений в меню «Пуск»', 'Другая папка…']) {
+    assert.equal(await picker.getByRole('checkbox', { name, exact: true }).isChecked(), false);
+  }
+  await picker.getByRole('checkbox', { name: 'Рабочий стол', exact: true }).check();
+  await picker
+    .getByRole('checkbox', { name: 'Список приложений в меню «Пуск»', exact: true })
+    .check();
+  await picker.getByRole('button', { name: 'Создать', exact: true }).click();
+  await page.evaluate(() =>
+    window.fixture.finish({
+      state: 'complete',
+      destinations: [
+        { destination: 'desktop', result: 'alreadyExists' },
+        { destination: 'startMenu', result: 'created' },
+      ],
+    }),
+  );
   await codex.getByText('Ярлык с таким именем уже есть. Выберите другую папку или имя.').waitFor();
+  await codex.getByText('Ярлык Codex создан.').waitFor();
+  assert.deepEqual(await page.evaluate(() => window.fixture.calls.at(-1).input), {
+    locale: 'ru',
+    destinations: ['desktop', 'startMenu'],
+  });
 
   await page.goto('http://ncf-shortcut.test/?platform=linux');
   await codex.getByTestId('mcp-settings-status').waitFor();
@@ -119,7 +182,7 @@ createRoot(document.getElementById('root')).render(<ApplicationRows
   assert.equal(await codex.getByTestId('codex-create-shortcut').count(), 0);
   assert.equal(await codex.getByTestId('application-manual-codex').isVisible(), true);
   process.stdout.write(
-    'Codex shortcut UI: configured row, cancel, success, localized collision and unsupported platform passed.\n',
+    'Codex shortcut UI: explicit Mac and Windows choices, cancellation, individual outcomes, Dock instruction and unsupported platform passed.\n',
   );
 } finally {
   await browser?.close();

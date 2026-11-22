@@ -13,6 +13,11 @@ import {
   createCodexShortcutHandler,
 } from '../desktop/main/codex-shortcut-ipc.js';
 import { createMacCodexShortcut } from '../desktop/main/codex-shortcut-mac.js';
+import {
+  hasCodexShortcutLaunchFlags,
+  type CodexShortcutDestination,
+  type CodexShortcutDestinationResult,
+} from '../desktop/shared/codex-shortcut.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 import {
   codexShortcutLocales,
@@ -24,15 +29,32 @@ test('shortcut supports installed desktop platforms and provides independent loc
   assert.equal(codexShortcutPlatform('darwin', false), null);
   assert.equal(codexShortcutPlatform('darwin', true), 'mac');
   assert.equal(codexShortcutPlatform('linux', true), null);
+  assert.equal(codexShortcutPlatform('win32', true), 'windows');
+  assert.equal(codexShortcutPlatform('win32', true, true), null);
+  assert.equal(codexShortcutPlatform('win32', false), null);
+  assert.equal(codexShortcutPlatform('darwin', true, true), 'mac');
   assert.deepEqual(codexShortcutLocales, supportedLocales);
   for (const locale of supportedLocales) {
     const copy = codexShortcutMessages(locale);
     for (const [key, value] of Object.entries(copy)) {
       assert.ok(value.trim(), locale + '.' + key);
-      if (locale !== 'en')
+      if (locale !== 'en' && key !== 'dock')
         assert.notEqual(value, codexShortcutMessages('en')[key as keyof typeof copy]);
     }
   }
+});
+
+test('shortcut launch flags route malformed Windows entries away from ordinary startup', () => {
+  assert.equal(hasCodexShortcutLaunchFlags(['--background']), false);
+  assert.equal(hasCodexShortcutLaunchFlags(['--data-dir', 'isolated']), false);
+  for (const args of [
+    ['--launch-codex', '--launcher-manifest', 'C:\\fixture\\manifest.json'],
+    ['--launch-codex'],
+    ['--launch-codex=true'],
+    ['--launcher-manifest'],
+    ['--launcher-manifest=malformed'],
+  ])
+    assert.equal(hasCodexShortcutLaunchFlags(args), true, args.join(' '));
 });
 
 test('shortcut verifies an exact unremembered Codex config without Apply or profile writes', async (t) => {
@@ -59,48 +81,55 @@ test('shortcut verifies an exact unremembered Codex config without Apply or prof
     instructions: () => instructions,
   });
   const owner = { isDestroyed: () => false } as BrowserWindow;
-  const selectedDestination = path.join(root, 'Codex with NCF.app');
+  const selectedDestination = path.join(root, 'Custom shortcut.app');
+  let cancelSave = false;
+  const input = (...destinations: CodexShortcutDestination[]) => ({ locale: 'en', destinations });
+  const complete = (...destinations: CodexShortcutDestinationResult[]) => ({
+    state: 'complete',
+    destinations,
+  });
   const calls: string[] = [];
   const createRequests: Array<Parameters<typeof createMacCodexShortcut>[0]> = [];
-  const handle = createCodexShortcutHandler(
-    {
-      platform: 'darwin',
-      installed: true,
-      appExecutable: path.join(root, 'NCF'),
-      appPath: root,
-      appData: root,
-      home: root,
-      desktop: root,
-      window: () => owner,
-      status: () => service.status('codex'),
-      configuredFile: (filename) => service.configuredCodexFile(filename),
-      dialog: {
-        showOpenDialog: async (_window: BrowserWindow, options: OpenDialogOptions) => {
-          const file = options.properties?.includes('openFile');
-          calls.push(file ? 'config' : 'data');
-          if (file) assert.equal(options.defaultPath, defaultConfig);
-          else assert.equal(options.message, selectedProfile);
-          return { canceled: false, filePaths: [file ? selectedConfig : desktopData] };
-        },
-        showSaveDialog: async () => {
-          calls.push('save');
-          return { canceled: false, filePath: selectedDestination };
-        },
+  const options: Parameters<typeof createCodexShortcutHandler>[0] = {
+    platform: 'darwin',
+    installed: true,
+    appExecutable: path.join(root, 'NCF'),
+    appPath: root,
+    appData: root,
+    userData: stateDirectory,
+    home: root,
+    desktop: root,
+    window: () => owner,
+    status: () => service.status('codex'),
+    configuredFile: (filename) => service.configuredCodexFile(filename),
+    dialog: {
+      showOpenDialog: async (_window: BrowserWindow, options: OpenDialogOptions) => {
+        const file = options.properties?.includes('openFile');
+        calls.push(file ? 'config' : 'data');
+        if (file) assert.equal(options.defaultPath, defaultConfig);
+        else assert.equal(options.message, selectedProfile);
+        return { canceled: false, filePaths: [file ? selectedConfig : desktopData] };
+      },
+      showSaveDialog: async () => {
+        calls.push('save');
+        return cancelSave
+          ? { canceled: true, filePath: '' }
+          : { canceled: false, filePath: selectedDestination };
       },
     },
-    {
-      findMacCodex: async () => ({
-        desktop: path.join(root, 'Codex.app'),
-        desktopExecutable: path.join(root, 'Codex.app/Contents/MacOS/Codex'),
-        cli: path.join(root, 'codex'),
-      }),
-      macShortcutDirectory: realpath,
-      createMacCodexShortcut: async (options) => {
-        createRequests.push(options);
-        return 'created';
-      },
+  };
+  const handle = createCodexShortcutHandler(options, {
+    findMacCodex: async () => ({
+      desktop: path.join(root, 'Codex.app'),
+      desktopExecutable: path.join(root, 'Codex.app/Contents/MacOS/Codex'),
+      cli: path.join(root, 'codex'),
+    }),
+    macShortcutDirectory: realpath,
+    createMacCodexShortcut: async (options) => {
+      createRequests.push(options);
+      return 'created';
     },
-  );
+  });
 
   await writeFile(defaultConfig, matching);
   await t.test(
@@ -110,7 +139,10 @@ test('shortcut verifies an exact unremembered Codex config without Apply or prof
       const status = await service.status('codex');
       assert.equal(status.state, 'configured');
       assert.equal(status.remembered, false);
-      assert.equal(await handle('codexShortcutCreate', { locale: 'en' }), 'created');
+      assert.deepEqual(
+        await handle('codexShortcutCreate', input('custom')),
+        complete({ destination: 'custom', result: 'created' }),
+      );
       assert.deepEqual(calls.splice(0), ['config', 'data', 'save']);
       assert.equal(createRequests.length, 1);
       assert.equal(createRequests[0].profile, selectedProfile);
@@ -129,13 +161,124 @@ test('shortcut verifies an exact unremembered Codex config without Apply or prof
       const wrongToken = matching.replace('isolated-test-token', 'different-fixture-token');
       for (const invalid of [wrongNode, wrongToken, matching + 'enabled = false\n']) {
         await writeFile(selectedConfig, invalid);
-        assert.equal(await handle('codexShortcutCreate', { locale: 'en' }), 'setupRequired');
+        assert.deepEqual(await handle('codexShortcutCreate', input('custom')), {
+          state: 'failed',
+          reason: 'setupRequired',
+        });
         assert.deepEqual(calls.splice(0), ['config']);
         assert.equal(createRequests.length, 1);
         assert.equal(await readFile(selectedConfig, 'utf8'), invalid);
         assert.equal(await readFile(defaultConfig, 'utf8'), matching);
         await assert.rejects(stat(stateDirectory), { code: 'ENOENT' });
       }
+    },
+  );
+
+  await t.test('cancelling a custom destination cancels every selected write', async () => {
+    await writeFile(selectedConfig, matching);
+    cancelSave = true;
+    const count = createRequests.length;
+    assert.deepEqual(
+      await handle('codexShortcutCreate', input('desktop', 'applications', 'custom')),
+      { state: 'cancelled' },
+    );
+    assert.deepEqual(calls.splice(0), ['config', 'data', 'save']);
+    assert.equal(createRequests.length, count);
+    await assert.rejects(stat(path.join(root, 'Applications')), { code: 'ENOENT' });
+    cancelSave = false;
+  });
+
+  await t.test(
+    'Mac destinations report collisions and a remaining manual Dock step separately',
+    async () => {
+      const alreadyPresent = path.join(root, 'Codex with NCF.app');
+      await writeFile(alreadyPresent, 'Existing shortcut stays');
+      const count = createRequests.length;
+      assert.deepEqual(
+        await handle('codexShortcutCreate', input('desktop', 'applications', 'dock')),
+        complete(
+          { destination: 'desktop', result: 'alreadyExists' },
+          { destination: 'applications', result: 'created' },
+          { destination: 'dock', result: 'dockPending' },
+        ),
+      );
+      assert.deepEqual(calls.splice(0), ['config', 'data']);
+      assert.equal(createRequests.length, count + 1);
+      assert.equal(
+        createRequests[count].destination,
+        path.join(root, 'Applications', 'Codex with NCF.app'),
+      );
+      assert.equal(createRequests[count].profile, selectedProfile);
+      assert.equal(await readFile(alreadyPresent, 'utf8'), 'Existing shortcut stays');
+
+      assert.deepEqual(
+        await handle('codexShortcutCreate', input('dock')),
+        complete({ destination: 'dock', result: 'dockPending' }),
+      );
+      assert.deepEqual(calls.splice(0), ['config', 'data', 'save']);
+      assert.equal(createRequests.length, count + 2);
+      assert.equal(createRequests[count + 1].destination, selectedDestination);
+    },
+  );
+
+  await t.test(
+    'Windows uses Desktop and the resolved user Programs folder with one profile',
+    async () => {
+      const desktop = path.join(root, 'Codex with NCF.lnk');
+      const programs = path.join(root, 'Redirected Programs');
+      await mkdir(programs);
+      let resolveCalls = 0;
+      const createCalls: string[] = [];
+      const create = createCodexShortcutHandler(
+        {
+          ...options,
+          platform: 'win32',
+          dialog: {
+            ...options.dialog,
+            showSaveDialog: async () =>
+              assert.fail('Explicit destinations must not prompt for a save path'),
+          },
+        },
+        undefined,
+        {
+          create: async (request, context) => {
+            createCalls.push(request.destination);
+            assert.deepEqual(request, {
+              destination:
+                createCalls.length === 1 ? desktop : path.join(programs, 'Codex with NCF.lnk'),
+              profile: selectedProfile,
+              desktopData,
+              appExecutable: options.appExecutable,
+              appPath: root,
+            });
+            assert.deepEqual(context, { userData: stateDirectory });
+            assert.notEqual(context.userData, options.appData);
+            return 'created';
+          },
+          programs: async () => {
+            resolveCalls++;
+            return programs;
+          },
+        },
+      );
+      assert.deepEqual(
+        await create('codexShortcutCreate', input('desktop', 'startMenu')),
+        complete(
+          { destination: 'desktop', result: 'created' },
+          { destination: 'startMenu', result: 'created' },
+        ),
+      );
+      assert.deepEqual(calls.splice(0), ['config', 'data']);
+      assert.equal(createCalls.length, 2);
+      assert.equal(resolveCalls, 1);
+      assert.deepEqual(await create('codexShortcutCreate', input('dock')), {
+        state: 'failed',
+        reason: 'failed',
+      });
+      await assert.rejects(create('codexShortcutCreate', input('desktop', 'desktop')));
+      assert.deepEqual(calls, []);
+      assert.equal(await readFile(selectedConfig, 'utf8'), matching);
+      await assert.rejects(stat(stateDirectory), { code: 'ENOENT' });
     },
   );
 });

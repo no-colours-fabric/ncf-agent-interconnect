@@ -19,11 +19,15 @@ import { LanSearchLifecycle } from './lan-search-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
 import { createApplicationDiscoveryHandler } from './application-discovery-ipc.js';
 import { UiServiceAccess } from './ui-service-access.js';
+import { hasCodexShortcutLaunchFlags } from '../shared/codex-shortcut.js';
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
-const dataArg = process.argv.indexOf('--data-dir');
-if (dataArg >= 0 && process.argv[dataArg + 1])
-  app.setPath('userData', path.resolve(process.argv[dataArg + 1]));
+const args = process.argv.slice(1);
+const windowsShortcutLaunch = process.platform === 'win32' && hasCodexShortcutLaunchFlags(args);
+const dataArg = args.indexOf('--data-dir');
+const alternateUserData = dataArg >= 0 ? args[dataArg + 1] : undefined;
+if (!windowsShortcutLaunch && alternateUserData)
+  app.setPath('userData', path.resolve(alternateUserData));
 app.setName('NCF Agent Interconnect');
 let window: BrowserWindow | null = null,
   tray: Tray | null = null,
@@ -47,8 +51,24 @@ const lanSearchLifecycle = new LanSearchLifecycle(async (isCurrent) => {
     return;
   await active.userCall('startLanSearch', {});
 });
-const single = app.requestSingleInstanceLock();
-if (!single) app.quit();
+if (windowsShortcutLaunch) {
+  // Shortcut arguments never start the hub or redirect to an alternate userData.
+  if (!app.isPackaged) app.exit(1);
+  else {
+    void app
+      .whenReady()
+      .then(async () => {
+        const { launchWindowsCodexFromArgs } = await import('./codex-shortcut-windows.js');
+        const outcome = await launchWindowsCodexFromArgs(args, {
+          userData: app.getPath('userData'),
+          appExecutable: process.execPath,
+          appPath: app.getAppPath(),
+        });
+        app.exit(outcome === 'launched' ? 0 : 1);
+      })
+      .catch(() => app.exit(1));
+  }
+} else if (!app.requestSingleInstanceLock()) app.quit();
 else {
   app.on('second-instance', () => show());
   app.on('activate', () => show());
@@ -210,6 +230,7 @@ function showWindow(tab?: string): void {
   void window.loadFile(path.join(directory, '../renderer/index.html'), { hash: tab ?? '' });
 }
 function setupIpc(): void {
+  const userData = app.getPath('userData');
   const access = new UiServiceAccess(
     () => service,
     () => quitting,
@@ -218,11 +239,13 @@ function setupIpc(): void {
     instructions: (client) => access.current().clientInstructions(client),
     dialog,
     window: () => window,
-    stateDirectory: app.getPath('userData'),
+    stateDirectory: userData,
     openPath: (filename) => shell.openPath(filename),
     codexShortcut: {
       platform: process.platform,
       installed: app.isPackaged,
+      alternateUserData: !!alternateUserData,
+      userData,
       appExecutable: process.execPath,
       appPath: app.getAppPath(),
       appData: app.getPath('appData'),
@@ -234,7 +257,7 @@ function setupIpc(): void {
   const applicationDiscovery = createApplicationDiscoveryHandler({
     dialog,
     window: () => window,
-    stateDirectory: app.getPath('userData'),
+    stateDirectory: userData,
   });
   ipcMain.handle('interconnect:call', async (event, method: unknown, raw: unknown) => {
     if (

@@ -46,6 +46,21 @@ if (process.platform === 'darwin') {
   assert.equal(launcher.readUInt32BE(4), 2, 'Mac shortcut launcher contains both architectures');
 }
 if (process.platform === 'win32') {
+  const bridge = 'build/integrations/codex-windows-bridge.cjs';
+  assert.ok(entries.includes('/' + bridge), 'Windows Codex bridge is packaged');
+  assert.notEqual(asar.statFile(archive, bridge).unpacked, true, 'Bridge runs from its own ASAR');
+  assert.ok(entries.includes('/node_modules/ws/package.json'), 'Bridge can load bundled ws');
+  for (const filename of ['codex-stdio-shim.exe', 'codex-console-stop.exe']) {
+    const filenameInPackage = 'build/assets/' + filename;
+    assert.equal(asar.statFile(archive, filenameInPackage).unpacked, true);
+    const binary = await readFile(
+      fileURLToPath(new URL('resources/app.asar.unpacked/' + filenameInPackage, base)),
+    );
+    assert.equal(binary.subarray(0, 2).toString('ascii'), 'MZ');
+    const peHeader = binary.readUInt32LE(0x3c);
+    assert.equal(binary.toString('ascii', peHeader, peHeader + 4), 'PE\0\0');
+    assert.equal(binary.readUInt16LE(peHeader + 4), 0x8664, 'Windows shortcut helpers are x64');
+  }
   const helper = fileURLToPath(
     new URL('resources/app.asar.unpacked/build/assets/codex-win-socket.exe', base),
   );

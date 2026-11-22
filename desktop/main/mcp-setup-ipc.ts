@@ -24,6 +24,8 @@ export function createMcpSetupHandler(
     codexShortcut?: {
       platform: NodeJS.Platform;
       installed: boolean;
+      alternateUserData: boolean;
+      userData: string;
       appExecutable: string;
       appPath: string;
       appData: string;
