@@ -39,7 +39,11 @@ export interface McpSetupApplyResult {
   }[];
   error?: string;
   warning?: string;
+  cursorPermission?: CursorPermissionSetup;
 }
+export type CursorPermissionSetup =
+  | { state: 'configured' }
+  | { state: 'unconfirmed'; reason: 'missing' | 'ide-owned' | 'unsupported' };
 export type McpSetupFileStatus =
   'configured' | 'not-configured' | 'needs-update' | 'missing' | 'unavailable';
 export interface McpSetupStatus {
@@ -47,6 +51,7 @@ export interface McpSetupStatus {
   remembered: boolean;
   state: McpSetupFileStatus;
   files: (McpSetupTarget & { state: McpSetupFileStatus; error?: string })[];
+  cursorPermission?: CursorPermissionSetup;
 }
 export type McpSetupInvoke = <T = unknown>(method: string, params?: unknown) => Promise<T>;
 

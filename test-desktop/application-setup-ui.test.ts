@@ -11,7 +11,7 @@ import {
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { discoveryMessages } from '../desktop/renderer/i18n/application-discovery.js';
-import { supportedLocales } from '../desktop/renderer/i18n/index.js';
+import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
 import type { ApplicationDiscoveryModel } from '../desktop/renderer/useApplicationDiscovery.js';
 import { mcpSetupClients, type McpSetupInvoke } from '../desktop/shared/mcp-setup.js';
 import type { McpSetupStatuses } from '../desktop/renderer/mcp-setup-status.js';
@@ -89,6 +89,44 @@ test('all five groups retain manual setup; the default v2 target does not infer 
   assert.ok(html.includes('Automatic setup unavailable'));
   assert.ok(!html.includes(discoveryMessages('en').stateError));
   assert.equal(html.match(/<img /g)?.length, 5);
+});
+
+test('configured Cursor shows a short localized unconfirmed automatic-delivery outcome', () => {
+  for (const locale of supportedLocales) {
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicationRows, {
+        discovery,
+        statuses: {
+          ...statuses,
+          statuses: {
+            ...statuses.statuses,
+            cursor: {
+              client: 'cursor',
+              remembered: true,
+              state: 'configured',
+              files: [],
+              cursorPermission: { state: 'unconfirmed', reason: 'ide-owned' },
+            },
+          },
+        },
+        invoke: noInvoke,
+        flow: new ApplicationSetupFlow(noInvoke),
+        locale,
+        onManualSetup: () => {},
+      }),
+    );
+    assert.match(html, /data-testid="cursor-permission-unconfirmed"/);
+    assert.ok(html.includes(mcpSetupMessages(locale).configured), locale);
+    assert.ok(
+      html.includes(
+        renderToStaticMarkup(
+          React.createElement(React.Fragment, null, t(locale, 'clientsUnavailableImpact')),
+        ),
+      ),
+      locale,
+    );
+    assert.doesNotMatch(html, /ncf_agent_interconnect:agent_send|Run Everything/);
+  }
 });
 
 test('only configured Applications rows show app-specific status metrics', () => {

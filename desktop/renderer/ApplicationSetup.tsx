@@ -939,6 +939,10 @@ export function ApplicationRows({
                 : hasStatus
                   ? m['not-configured']
                   : m.statusUnknown;
+    const cursorPermission =
+      client === 'cursor'
+        ? (state.result?.cursorPermission ?? statuses.statuses.cursor?.cursorPermission)
+        : undefined;
     return (
       <Box
         key={client}
@@ -1047,6 +1051,11 @@ export function ApplicationRows({
           />
         )}
         <SetupDetails state={state} locale={locale} />
+        {configured && !needsRetry && cursorPermission?.state === 'unconfirmed' && (
+          <Alert severity="warning" data-testid="cursor-permission-unconfirmed" sx={{ mt: 2 }}>
+            {m.configured}. {t(locale, 'clientsUnavailableImpact')}
+          </Alert>
+        )}
         {showGuidance && (
           <NextStep
             client={client}

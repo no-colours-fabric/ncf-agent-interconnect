@@ -264,6 +264,7 @@ test('Cursor Apply installs its managed plugin atomically while preview and canc
     false,
   );
   assert.equal(applied.status, 'applied');
+  assert.deepEqual(applied.cursorPermission, { state: 'configured' });
   assert.equal(
     JSON.parse(await readFile(path.join(plugin, '.cursor-plugin', 'plugin.json'), 'utf8')).name,
     'ncf-agent-interconnect',
@@ -326,42 +327,84 @@ test('Cursor managed plugin failure rolls back earlier configuration and plugin 
   );
 });
 
-test('Cursor Connect does not create or claim IDE-owned permissions', async (t) => {
+test('Cursor Connect preserves its legacy setup when permission ownership is unconfirmed', async (t) => {
   const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
   const configuration = path.join(directory, '.cursor', 'mcp.json');
   await mkdir(path.dirname(configuration), { recursive: true });
-  await assert.rejects(
-    service.preview(owner, 'cursor', [{ id: 'configuration', path: configuration }]),
-    /setup was not changed.*permissions\.json does not own/,
+  const missingPreview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  assert.equal(
+    missingPreview.files.some((file) => file.id === 'cursor-permissions'),
+    false,
   );
-  await assert.rejects(readFile(configuration, 'utf8'), { code: 'ENOENT' });
+  const missingResult = await service.apply(owner, missingPreview.planId, false);
+  assert.equal(missingResult.status, 'applied');
+  assert.deepEqual(missingResult.cursorPermission, { state: 'unconfirmed', reason: 'missing' });
+  assert.ok(parseJson(await readFile(configuration, 'utf8')).mcpServers.ncf_agent_interconnect);
   await assert.rejects(readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'), {
     code: 'ENOENT',
   });
 
+  await rm(configuration);
   await writeFile(
     path.join(directory, '.cursor', 'permissions.json'),
     '{"terminalAllowlist":["git status"]}\n',
   );
-  await assert.rejects(
-    service.preview(owner, 'cursor', [{ id: 'configuration', path: configuration }]),
-    /IDE settings/,
+  const idePreview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  assert.equal(
+    idePreview.files.some((file) => file.id === 'cursor-permissions'),
+    false,
   );
+  const ideResult = await service.apply(owner, idePreview.planId, false);
+  assert.equal(ideResult.status, 'applied');
+  assert.deepEqual(ideResult.cursorPermission, { state: 'unconfirmed', reason: 'ide-owned' });
   assert.equal(
     await readFile(path.join(directory, '.cursor', 'permissions.json'), 'utf8'),
     '{"terminalAllowlist":["git status"]}\n',
   );
-  await writeFile(configuration, instructions('cursor').configuration);
   const status = await service.status('cursor');
-  assert.equal(status.state, 'unavailable');
-  const permissionStatus = status.files.find((file) => file.id === 'cursor-permissions');
-  assert.equal(status.files.find((file) => file.id === 'configuration')!.state, 'configured');
-  assert.equal(path.basename(permissionStatus!.path), 'permissions.json');
-  assert.equal(permissionStatus!.state, 'unavailable');
+  assert.equal(status.state, 'configured');
+  assert.deepEqual(status.cursorPermission, { state: 'unconfirmed', reason: 'ide-owned' });
+});
+
+test('Cursor unsupported permission bytes do not block MCP setup or overwrite the file', async (t) => {
+  const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
+  const configuration = path.join(directory, '.cursor', 'mcp.json');
+  const permissions = path.join(directory, '.cursor', 'permissions.json');
+  await mkdir(path.dirname(configuration), { recursive: true });
+  await writeFile(permissions, '{broken owner bytes');
+  const preview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
   assert.equal(
-    permissionStatus!.error,
-    'Automatic replies were not enabled because Cursor currently owns the MCP allowlist in IDE settings',
+    preview.files.some((file) => file.id === 'cursor-permissions'),
+    false,
   );
+  const result = await service.apply(owner, preview.planId, false);
+  assert.equal(result.status, 'applied');
+  assert.deepEqual(result.cursorPermission, { state: 'unconfirmed', reason: 'unsupported' });
+  assert.equal(await readFile(permissions, 'utf8'), '{broken owner bytes');
+  assert.ok(parseJson(await readFile(configuration, 'utf8')).mcpServers.ncf_agent_interconnect);
+});
+
+test('Cursor file-owned permission keeps the selected preview source fence', async (t) => {
+  const { directory, service } = await fixture(t, { instructions: instructionsWithCursorPlugin });
+  const configuration = path.join(directory, '.cursor', 'mcp.json');
+  const permissions = path.join(directory, '.cursor', 'permissions.json');
+  await mkdir(path.dirname(configuration), { recursive: true });
+  await writeFile(permissions, '{"mcpAllowlist":["foreign:tool"]}\n');
+  const preview = await service.preview(owner, 'cursor', [
+    { id: 'configuration', path: configuration },
+  ]);
+  await writeFile(permissions, '{"mcpAllowlist":["owner:changed"]}\n');
+  const result = await service.apply(owner, preview.planId, false);
+  assert.equal(result.status, 'failed');
+  assert.match(result.error!, /changed after preview/);
+  await assert.rejects(readFile(configuration, 'utf8'), { code: 'ENOENT' });
+  assert.equal(await readFile(permissions, 'utf8'), '{"mcpAllowlist":["owner:changed"]}\n');
 });
 
 test('replacement requires confirmation, preserves the original in a private backup and retains file permissions', async (t) => {

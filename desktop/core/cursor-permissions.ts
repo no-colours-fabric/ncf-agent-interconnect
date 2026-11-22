@@ -7,6 +7,15 @@ export interface CursorPermissionsEdit {
   changed: boolean;
 }
 
+export class CursorPermissionsUnavailable extends Error {
+  constructor(
+    readonly reason: 'ide-owned' | 'unsupported',
+    message: string,
+  ) {
+    super(message);
+  }
+}
+
 const object = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === 'object' && !Array.isArray(value);
 
@@ -15,7 +24,11 @@ function assertUniqueKeys(node: Node): void {
     const keys = new Set<string>();
     for (const property of node.children ?? []) {
       const key = property.children?.[0]?.value as string;
-      if (keys.has(key)) throw new Error('Cursor permissions contain duplicate object keys');
+      if (keys.has(key))
+        throw new CursorPermissionsUnavailable(
+          'unsupported',
+          'Cursor permissions contain duplicate object keys',
+        );
       keys.add(key);
     }
   }
@@ -33,15 +46,22 @@ export function editCursorPermissions(original: string): CursorPermissionsEdit {
   const root: unknown = parse(source, errors, { allowTrailingComma: true });
   const tree = parseTree(source, [], { allowTrailingComma: true });
   if (errors.length || !tree || !object(root))
-    throw new Error('Cursor permissions.json is not a valid JSON/JSONC object');
+    throw new CursorPermissionsUnavailable(
+      'unsupported',
+      'Cursor permissions.json is not a valid JSON/JSONC object',
+    );
   assertUniqueKeys(tree);
   if (!Object.hasOwn(root, 'mcpAllowlist'))
-    throw new Error(
+    throw new CursorPermissionsUnavailable(
+      'ide-owned',
       'Automatic replies were not enabled because Cursor currently owns the MCP allowlist in IDE settings',
     );
   const allowlist = root.mcpAllowlist;
   if (!Array.isArray(allowlist) || allowlist.some((entry) => typeof entry !== 'string'))
-    throw new Error('Cursor permissions.json has an invalid mcpAllowlist');
+    throw new CursorPermissionsUnavailable(
+      'unsupported',
+      'Cursor permissions.json has an invalid mcpAllowlist',
+    );
   if (
     allowlist.some(
       (entry) => entry.toLocaleLowerCase('en-US') === cursorAgentSendPermission.toLowerCase(),
