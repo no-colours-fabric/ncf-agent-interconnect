@@ -1,3 +1,4 @@
+import { canNavigateToQueuedChat } from './codex-chat-wake.js';
 import { execFile } from 'node:child_process';
 import { createInterface } from 'node:readline';
 import { randomUUID } from 'node:crypto';
@@ -138,7 +139,7 @@ export function watchMacChatLaunches(appPath: string, launched: () => void): () 
   ]);
   const lines = createInterface({ input: helper.stdout! });
   lines.on('line', (event) => {
-    if (event === 'ready' || event === 'launch') launched();
+    if (event === 'launch') launched();
   });
   helper.on('error', () => lines.close());
   return () => {
@@ -165,11 +166,12 @@ export async function runningMacCodexConfiguration(appPath: string, home: string
 }
 
 export function macChatWake(appPath: string, home: string, appData: string): WakeCodexChat {
-  return async (profile, current) => {
+  return async (profile, current, reason) => {
     const threadId = profile.threadId;
     if (!threadId || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(threadId)) return;
     if (!current()) return;
     const target = await codexQueueHome(profile.socket);
+    if (!(await canNavigateToQueuedChat(target, reason))) return;
     const running = await runningMacCodex(appPath, home, appData);
     if (!running || running.profile !== target || !current())
       throw new Error('The bound ChatGPT profile is not running');

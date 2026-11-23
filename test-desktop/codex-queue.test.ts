@@ -1,3 +1,4 @@
+import { canNavigateToQueuedChat } from '../desktop/main/codex-chat-wake.js';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { link, mkdir, mkdtemp, realpath, rm, writeFile } from 'node:fs/promises';
@@ -500,6 +501,19 @@ test('wakes a verified queued submission on desktop launch without resending or 
   await delay(250);
   assert.equal(receipts, 1);
   assert.equal(wakeCount, 2);
+});
+
+test('a warm queue wake preserves other loaded desktop chats, independently of the sender', async (t) => {
+  const home = await mkdtemp(path.join(tmpdir(), 'ncf-stock-focus-'));
+  t.after(() => rm(home, { recursive: true, force: true }));
+  assert.equal(await canNavigateToQueuedChat(home, 'delivery'), false);
+  const locks = path.join(home, 'thread-writer-locks');
+  await mkdir(locks);
+  await writeFile(path.join(locks, '.coordination.lock'), '');
+  assert.equal(await canNavigateToQueuedChat(home, 'delivery'), true);
+  await writeFile(path.join(locks, randomUUID() + '.lock'), '');
+  assert.equal(await canNavigateToQueuedChat(home, 'delivery'), false);
+  assert.equal(await canNavigateToQueuedChat(home, 'launch'), true);
 });
 
 test('a fresh exact queue echo wakes the desktop immediately and is not a receipt', async (t) => {

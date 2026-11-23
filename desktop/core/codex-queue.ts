@@ -83,7 +83,7 @@ function matchesPayload(text: string, hash: string): boolean {
 }
 
 type Projection = {
-  wakePending: boolean;
+  wakePending: false | 'delivery' | 'launch';
   payloadHash: string;
   isCurrent: () => boolean;
   admit: () => void;
@@ -96,7 +96,11 @@ type QueueSession = <T>(
   operation: (call: QueueCall) => Promise<T>,
 ) => Promise<T>;
 
-export type WakeCodexChat = (profile: AdapterProfile, isCurrent: () => boolean) => Promise<void>;
+export type WakeCodexChat = (
+  profile: AdapterProfile,
+  isCurrent: () => boolean,
+  reason: 'delivery' | 'launch',
+) => Promise<void>;
 
 type QueueOperation<T> = (call: QueueCall, shared: boolean) => Promise<T>;
 
@@ -725,7 +729,7 @@ export class CodexQueueAdapter implements AgentAdapter {
           }
         }
         if ((!shared || thread.state === 'notLoaded') && current())
-          await this.wakeChat?.(this.profile, current).catch(() => {});
+          await this.wakeChat?.(this.profile, current, 'delivery').catch(() => {});
         return { state: 'queued', witness };
       });
     } catch {
@@ -751,7 +755,7 @@ export class CodexQueueAdapter implements AgentAdapter {
         });
         if (queue === 'found') {
           const current = () => !this.controller.signal.aborted && !!wakeIfCurrent?.();
-          if (current()) await this.wakeChat?.(this.profile, current).catch(() => {});
+          if (current()) await this.wakeChat?.(this.profile, current, 'launch').catch(() => {});
           return 'queued';
         }
         if (queue === 'unknown') return 'unknown';
@@ -923,7 +927,7 @@ export class CodexQueueAdapter implements AgentAdapter {
       payloadHash,
       isCurrent,
       admit,
-      wakePending: this.lastWokenMessage !== host.messageId,
+      wakePending: this.lastWokenMessage !== host.messageId && 'delivery',
     });
     this.ensureWatcher();
     // The item may have been persisted before observation was registered.
@@ -933,7 +937,7 @@ export class CodexQueueAdapter implements AgentAdapter {
   desktopLaunched(): void {
     this.launchGeneration++;
     this.lastWokenMessage = undefined;
-    for (const projection of this.projections.values()) projection.wakePending = true;
+    for (const projection of this.projections.values()) projection.wakePending = 'launch';
     this.scheduleProjection(0);
   }
 
@@ -1028,7 +1032,7 @@ export class CodexQueueAdapter implements AgentAdapter {
         const current = () => !this.controller.signal.aborted && item.isCurrent();
         if (!current()) continue;
         const generation = this.launchGeneration;
-        await this.wakeChat?.(this.profile, current);
+        await this.wakeChat?.(this.profile, current, item.wakePending || 'delivery');
         if (generation === this.launchGeneration) {
           for (const [, projection] of pending) projection.wakePending = false;
         }
@@ -1117,7 +1121,7 @@ export class CodexQueueAdapter implements AgentAdapter {
           const current = () => !this.controller.signal.aborted && (input.isCurrent?.() ?? true);
           if (current()) {
             try {
-              await this.wakeChat(this.profile, current);
+              await this.wakeChat(this.profile, current, 'delivery');
               if (generation === this.launchGeneration) this.lastWokenMessage = messageId;
             } catch {
               // Restart recovery checks the durable queue if the desktop could not open the chat.

@@ -65,6 +65,15 @@ and dots. See the [message target specification](https://github.com/openai/mcp-e
 [hook lifecycle](https://learn.chatgpt.com/docs/hooks) and
 [MCP Events](https://developers.openai.com/plugins/build/mcp-events).
 
+### Preserving the selected desktop chat
+
+A native thread link can change the selected ChatGPT tab even with a background
+OS launch. The adapter checks the bound profile's writer directory before using
+such a link for a newly arrived message. If any chat has a writer marker, the
+adapter leaves navigation to ChatGPT. An unreadable directory also suppresses
+the link. A previously unloaded recipient may wait until the desktop resumes it.
+The macOS watcher treats a real application launch separately from its own startup.
+
 ### Connection confirmation during a busy turn
 
 A real stock macOS chat received an ordinary confirmation after a busy turn. The

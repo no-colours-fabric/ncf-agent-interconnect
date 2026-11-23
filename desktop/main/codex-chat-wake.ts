@@ -4,9 +4,23 @@ import { lstat, readdir, readlink, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { NativeDiscoveryFiles } from '../core/application-discovery-platforms.js';
-import type { WakeCodexChat } from '../core/codex-queue.js';
+import { codexQueueHome, type WakeCodexChat } from '../core/codex-queue.js';
 
 const execute = promisify(execFile);
+
+// Stock ChatGPT keeps a writer marker for each loaded chat. A deep link selects
+// a visible tab even when the operating system opens it in the background.
+// Use markers only to suppress navigation. They never authorize delivery or receipt.
+export async function canNavigateToQueuedChat(home: string, reason: 'delivery' | 'launch') {
+  if (reason === 'launch') return true;
+  try {
+    const locks = await readdir(path.join(home, 'thread-writer-locks'));
+    return !locks.some((name) => /^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}\.lock$/i.test(name));
+  } catch {
+    // Without an inspectable writer directory the visible chat is unknown.
+    return false;
+  }
+}
 
 async function runningLinuxDesktop(): Promise<string | undefined> {
   const desktop = '/usr/lib/chatgpt/ChatGPT';
@@ -51,10 +65,11 @@ async function runningWindowsDesktop(): Promise<string | undefined> {
 
 /** Open only the exact UUID after the bound profile's native queue confirms it.
  * Neither the message nor a connection credential crosses the desktop link. */
-export const wakeStockChat: WakeCodexChat = async (profile, current) => {
+export const wakeStockChat: WakeCodexChat = async (profile, current, reason) => {
   const id = profile.threadId;
   if (!id || !/^[a-f\d]{8}(?:-[a-f\d]{4}){3}-[a-f\d]{12}$/i.test(id) || !current())
     throw new Error('The bound chat is unavailable');
+  if (!(await canNavigateToQueuedChat(await codexQueueHome(profile.socket), reason))) return;
   const desktop =
     process.platform === 'win32'
       ? await runningWindowsDesktop()
