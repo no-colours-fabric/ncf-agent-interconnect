@@ -30,9 +30,9 @@ For v1, use **Configure OpenCode v1** and select the file that OpenCode loads, s
 
 ## ChatGPT
 
-Under **Applications**, choose **ChatGPT**. To set up a different profile, open its configuration dialog, select that profile’s `config.toml`, review the preview and click **Apply**. Reconnect MCP in ChatGPT and ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
+Under **Applications**, choose **ChatGPT**. If NCF Agent Interconnect has no saved ChatGPT profile on macOS, it can use the running app’s profile when that profile already contains this node’s MCP settings. To select a profile explicitly, choose **Manual setup**, select its `config.toml` and click **Apply**. A matching file keeps its original contents. Reconnect MCP in ChatGPT if you changed its settings, then ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
 
-If a ChatGPT chat stays closed after a restart, incoming messages may stay queued until you open that chat. In the tested default setup on macOS, messages wait until the current turn finishes. Delivery depends on the installed version and chat availability. Compatible older Codex Desktop versions also support direct delivery. The newer Windows delivery path has not been verified natively. See [verification](verification.md) for the test scope.
+Open ChatGPT normally. In a connected chat waiting for a reply, the full incoming message can appear as a tool result during other work. On macOS, an incoming message can also open the connected chat in the running ChatGPT profile. A busy chat can receive the message after its current response. Delivery depends on the installed version and chat availability. Compatible older Codex Desktop versions also support direct delivery. The Linux runtime was tested under emulation. Opening the exact chat in the Windows and Linux desktop interfaces still needs native verification. See [verification](verification.md) for the test scope.
 
 ## AionUi with Cursor Agent
 

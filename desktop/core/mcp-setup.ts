@@ -88,8 +88,7 @@ export interface McpSetupOptions {
   env?: NodeJS.ProcessEnv;
   now?: () => number;
   stateDirectory: string;
-  /** The Desktop ChatGPT path creates a valid launcher before it can apply its plan. */
-  requireCodexShortcut?: boolean;
+  runningCodexConfiguration?: () => Promise<string | undefined>;
   /** Trusted backend-only extension; never accepted from IPC parameters. */
   transaction?: {
     major: 2;
@@ -205,6 +204,15 @@ export class McpSetupService {
 
   async defaults(client: McpSetupClient): Promise<McpSetupDefaults> {
     const remembered = await this.paths.get(client).catch(() => undefined);
+    const { defaults } = await this.resolveDefaults(client, remembered);
+    return defaults;
+  }
+
+  private async resolveDefaults(client: McpSetupClient, remembered?: string) {
+    const running =
+      client === 'codex' && !remembered
+        ? await this.options.runningCodexConfiguration?.()
+        : undefined;
     const codexHome =
       this.env.CODEX_HOME && path.isAbsolute(this.env.CODEX_HOME)
         ? this.env.CODEX_HOME
@@ -232,7 +240,11 @@ export class McpSetupService {
                 ),
               ];
     const paths = [
-      ...new Set([...(remembered ? [remembered] : []), ...candidates.filter(path.isAbsolute)]),
+      ...new Set([
+        ...(remembered ? [remembered] : []),
+        ...(running ? [running] : []),
+        ...candidates.filter(path.isAbsolute),
+      ]),
     ];
     const existing: string[] = [];
     for (const file of paths) {
@@ -242,25 +254,33 @@ export class McpSetupService {
         if (errno(error) !== 'ENOENT') continue;
       }
     }
-    return {
+    const defaults: McpSetupDefaults = {
       client,
       files: [
         {
           id: 'configuration',
-          path: remembered ?? existing[0] ?? paths[0],
+          path: remembered ?? running ?? existing[0] ?? paths[0],
           alternatives: paths,
           format: client === 'codex' ? 'toml' : 'jsonc',
         },
       ],
     };
+    const availableForDelivery =
+      client !== 'codex' ||
+      !!(remembered ?? running) ||
+      (process.platform === 'win32' &&
+        defaults.files[0].path === path.join(this.home, '.codex', 'config.toml'));
+    return { defaults, availableForDelivery };
   }
 
   async status(client: McpSetupClient): Promise<McpSetupStatus> {
     let filename = '';
     let remembered = false;
     try {
-      remembered = !!(await this.paths.get(client));
-      filename = (await this.defaults(client)).files[0].path;
+      const saved = await this.paths.get(client);
+      remembered = !!saved;
+      const { defaults, availableForDelivery } = await this.resolveDefaults(client, saved);
+      filename = defaults.files[0].path;
       const source = await this.readSource(await this.canonicalPath(filename));
       if (!source.exists)
         return {
@@ -283,6 +303,7 @@ export class McpSetupService {
             ? 'needs-update'
             : 'not-configured';
       const files: McpSetupStatus['files'] = [{ id: 'configuration', path: filename, state }];
+      if (state === 'configured' && !availableForDelivery) state = 'not-configured';
       const cursorPermission =
         client === 'cursor' && this.cursorPermissionRequired(instructions)
           ? await this.cursorPermission()
@@ -459,30 +480,17 @@ export class McpSetupService {
     if (plan?.owner === owner && !plan.applying) this.plans.delete(planId);
   }
 
-  async apply(owner: string, planId: string, confirmReplace: boolean): Promise<McpSetupApplyResult>;
   async apply(
     owner: string,
     planId: string,
     confirmReplace: boolean,
-    beforeCodexWrite: (configuration: string) => Promise<boolean>,
-  ): Promise<McpSetupApplyResult | null>;
-  async apply(
-    owner: string,
-    planId: string,
-    confirmReplace: boolean,
-    beforeCodexWrite?: (configuration: string) => Promise<boolean>,
-  ): Promise<McpSetupApplyResult | null> {
+  ): Promise<McpSetupApplyResult> {
     this.prune();
     const plan = this.plans.get(planId);
     if (!plan || plan.owner !== owner)
       throw new SetupError(
         'This setup preview expired or belongs to another window; prepare a new preview',
       );
-    if (
-      (beforeCodexWrite && plan.client !== 'codex') ||
-      (this.options.requireCodexShortcut && plan.client === 'codex' && !beforeCodexWrite)
-    )
-      throw new SetupError('ChatGPT must be connected through shortcut setup');
     if (plan.result) return plan.result;
     if (this.writing || plan.applying)
       throw new SetupError('A configuration update is already in progress');
@@ -501,16 +509,6 @@ export class McpSetupService {
       if (this.instructionHash(instructions) !== plan.configurationHash)
         throw new SetupError('The NCF connection settings changed; prepare a new preview');
       for (const file of plan.files) await this.assertCurrent(file);
-      if (beforeCodexWrite) {
-        if (!(await beforeCodexWrite(plan.files[0].path))) return null;
-        if (
-          plan.expires <= this.now() ||
-          this.instructionHash(await this.options.instructions(plan.client)) !==
-            plan.configurationHash
-        )
-          throw new SetupError('The setup preview changed; prepare a new preview');
-        for (const file of plan.files) await this.assertCurrent(file);
-      }
       await this.options.transaction?.stage();
       for (const file of plan.files) {
         if (file.content === file.source.content) {
@@ -535,6 +533,8 @@ export class McpSetupService {
       try {
         await this.paths.remember(plan.client, plan.files[0].path);
       } catch {
+        if (plan.client === 'codex')
+          throw new SetupError('The selected ChatGPT configuration file path could not be saved');
         result.warning = 'Settings are applied, but the configuration file path could not be saved';
       }
       await this.options.transaction?.commit();

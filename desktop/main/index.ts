@@ -15,6 +15,12 @@ import path from 'node:path';
 import { mkdir, copyFile, appendFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { NodeService } from '../core/service.js';
+import { wakeStockChat } from './codex-chat-wake.js';
+import {
+  macChatWake,
+  runningMacCodexConfiguration,
+  watchMacChatLaunches,
+} from './codex-shortcut-mac.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
 import { LanSearchLifecycle } from './lan-search-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
@@ -31,6 +37,11 @@ const alternateUserData = dataArg >= 0 ? args[dataArg + 1] : undefined;
 if (!windowsShortcutLaunch && alternateUserData)
   app.setPath('userData', path.resolve(alternateUserData));
 app.setName('NCF Agent Interconnect');
+const runningCodexConfiguration =
+  process.platform === 'darwin' && !alternateUserData
+    ? () =>
+        runningMacCodexConfiguration(app.getAppPath(), app.getPath('home'), app.getPath('appData'))
+    : undefined;
 let window: BrowserWindow | null = null,
   tray: Tray | null = null,
   service: NodeService | null = null,
@@ -127,12 +138,26 @@ else {
       tray = new Tray(image);
       tray.setToolTip('NCF Agent Interconnect — messaging node');
       service = new NodeService(data, {
+        runningCodexConfiguration,
+        wakeCodexChat: alternateUserData
+          ? undefined
+          : process.platform === 'darwin'
+            ? macChatWake(app.getAppPath(), app.getPath('home'), app.getPath('appData'))
+            : ['win32', 'linux'].includes(process.platform)
+              ? wakeStockChat
+              : undefined,
         lanDiscovery: process.env.NCF_DISABLE_LAN_DISCOVERY === '1' ? undefined : {},
       });
       service.on('change', () => {
         updateTray();
         window?.webContents.send('interconnect:change');
       });
+      if (process.platform === 'darwin' && !alternateUserData) {
+        const stopWatching = watchMacChatLaunches(app.getAppPath(), () =>
+          service?.desktopChatGptLaunched(),
+        );
+        app.once('before-quit', stopWatching);
+      }
       await startup.start(
         () => (opening = service!.open()),
         () => {
@@ -255,6 +280,7 @@ function setupIpc(): void {
     () => quitting,
   );
   const mcpSetup = createMcpSetupHandler({
+    runningCodexConfiguration,
     instructions: (client) => access.current().clientInstructions(client),
     dialog,
     window: () => window,

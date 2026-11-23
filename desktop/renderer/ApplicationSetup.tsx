@@ -25,7 +25,6 @@ import ContentCopyOutlined from '@mui/icons-material/ContentCopyOutlined';
 import RefreshOutlined from '@mui/icons-material/RefreshOutlined';
 import SettingsOutlined from '@mui/icons-material/SettingsOutlined';
 import type { AionUiApplicationState } from '../shared/aionui.js';
-import type { CodexShortcutPlatform } from '../shared/codex-shortcut.js';
 import type { Snapshot } from '../shared/contracts.js';
 import { applicationNames } from '../shared/application-discovery.js';
 import { mcpSetupClients, type McpSetupClient, type McpSetupInvoke } from '../shared/mcp-setup.js';
@@ -37,7 +36,6 @@ import {
   type ApplicationSetupStates,
 } from './application-setup-model.js';
 import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
-import { CodexShortcut } from './CodexShortcut.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import { StartupApplicationTile, StartupApplicationTiles } from './StartupApplicationTiles.js';
 import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
@@ -855,23 +853,6 @@ export function ApplicationRows({
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
   const [showV1, setShowV1] = useState(false);
-  const [codexShortcutPlatform, setCodexShortcutPlatform] = useState<CodexShortcutPlatform | null>(
-    null,
-  );
-  useEffect(() => {
-    let current = true;
-    void invoke<CodexShortcutPlatform | null>('codexShortcutPlatform', {}).then(
-      (platform) => {
-        if (current) setCodexShortcutPlatform(platform);
-      },
-      () => {
-        if (current) setCodexShortcutPlatform(null);
-      },
-    );
-    return () => {
-      current = false;
-    };
-  }, [invoke]);
   const aionUiConfigured = setupView('aionui', states, statuses, discovery).configured;
   const [aionUiPaired, setAionUiPaired] = useState(false);
   useEffect(() => {
@@ -1020,7 +1001,7 @@ export function ApplicationRows({
             spacing={1.5}
             useFlexGap
             sx={{
-              flexWrap: client === 'codex' ? 'nowrap' : 'wrap',
+              flexWrap: 'wrap',
               gridColumn: { xs: '2', md: '3', lg: '4' },
               gridRow: { md: showStatus ? '1' : '1 / 3', lg: '1' },
               maxWidth: 360,
@@ -1038,14 +1019,6 @@ export function ApplicationRows({
               >
                 {action.label}
               </Button>
-            )}
-            {client === 'codex' && codexShortcutPlatform && configured && !action && (
-              <CodexShortcut
-                invoke={invoke}
-                locale={locale}
-                platform={codexShortcutPlatform}
-                disabled={anyBusy}
-              />
             )}
             <ManualSetupButton
               label={copy.manual}

@@ -1,4 +1,5 @@
 import { execFile } from 'node:child_process';
+import { createInterface } from 'node:readline';
 import { randomUUID } from 'node:crypto';
 import {
   lstat,
@@ -16,6 +17,8 @@ import { promisify } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { codexShortcutDisplayName, type CodexShortcutResult } from '../shared/codex-shortcut.js';
+import type { WakeCodexChat } from '../core/codex-queue.js';
+import { codexQueueHome } from '../core/codex-queue.js';
 import { discoveryCatalog } from '../core/application-discovery-catalog.js';
 
 const execute = promisify(execFile);
@@ -127,6 +130,59 @@ export async function inspectMacCodexDesktop(
   } catch {
     return { state: 'unavailable' };
   }
+}
+
+export function watchMacChatLaunches(appPath: string, launched: () => void): () => void {
+  const helper = execFile(path.join(appPath, 'build/assets/codex-mac-launcher'), [
+    '--watch-desktop-launches',
+  ]);
+  const lines = createInterface({ input: helper.stdout! });
+  lines.on('line', (event) => {
+    if (event === 'ready' || event === 'launch') launched();
+  });
+  helper.on('error', () => lines.close());
+  return () => {
+    lines.close();
+    helper.stdin?.end();
+  };
+}
+
+async function runningMacCodex(appPath: string, home: string, appData: string) {
+  const install = await findMacCodex();
+  if (!install) return;
+  const owner = await inspectMacCodexDesktop(
+    appPath,
+    install.desktopExecutable,
+    path.join(home, '.codex'),
+    path.join(appData, 'Codex'),
+  );
+  if (owner.state === 'running') return { install, profile: owner.profile };
+}
+
+export async function runningMacCodexConfiguration(appPath: string, home: string, appData: string) {
+  const running = await runningMacCodex(appPath, home, appData);
+  return running && path.join(running.profile, 'config.toml');
+}
+
+export function macChatWake(appPath: string, home: string, appData: string): WakeCodexChat {
+  return async (profile, current) => {
+    const threadId = profile.threadId;
+    if (!threadId || !/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(threadId)) return;
+    if (!current()) return;
+    const target = await codexQueueHome(profile.socket);
+    const running = await runningMacCodex(appPath, home, appData);
+    if (!running || running.profile !== target || !current())
+      throw new Error('The bound ChatGPT profile is not running');
+    // Launch Services receives only the verified thread UUID. The message and
+    // its receipt stay in the bound profile, even if the app exits during open.
+    await execute(
+      '/usr/bin/open',
+      ['-g', '-a', running.install.desktop, 'codex://threads/' + threadId],
+      {
+        timeout: 3000,
+      },
+    );
+  };
 }
 
 export async function macShortcutDirectory(filename: string): Promise<string> {

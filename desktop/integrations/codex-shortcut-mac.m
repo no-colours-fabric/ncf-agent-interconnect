@@ -131,8 +131,17 @@ static NSDictionary *desktopLaunchPair(pid_t pid, NSString *executable, NSString
         }
         cursor = zero + 1;
     }
-    // Stock Codex sets Electron userData from its own override or the stock location.
-    // A command-line flag alone cannot prove that the application used another location.
+    // ChatGPT may select its Electron profile by flag without setting the data
+    // environment variable. Chromium's live singleton lock must name this PID.
+    if (!envData && flagData && ownerDirectory(flagData)) {
+        NSString *lock = [flagData stringByAppendingPathComponent:@"SingletonLock"];
+        NSString *target = [NSFileManager.defaultManager destinationOfSymbolicLinkAtPath:lock error:NULL];
+        char hostname[256] = {0};
+        if (gethostname(hostname, sizeof hostname - 1) == 0) {
+            NSString *expected = [NSString stringWithFormat:@"%s-%d", hostname, pid];
+            if ([target isEqualToString:expected]) envData = flagData;
+        }
+    }
     NSString *profile = envHome ?: stockProfile;
     NSString *data = envData ?: stockData;
     if ((!envData && ![profile isEqualToString:stockProfile]) ||
@@ -197,7 +206,30 @@ static NSString *createOwnerMarker(void) {
     return path;
 }
 
+// Observe public workspace launch notifications; never launch ChatGPT or a model.
+static int watchDesktopLaunches(void) {
+    @autoreleasepool {
+        [NSWorkspace.sharedWorkspace.notificationCenter addObserverForName:NSWorkspaceDidLaunchApplicationNotification
+            object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *notification) {
+                NSRunningApplication *application = notification.userInfo[NSWorkspaceApplicationKey];
+                if ([application.bundleIdentifier isEqualToString:@"com.openai.codex"]) {
+                    puts("launch");
+                    fflush(stdout);
+                }
+            }];
+        NSFileHandle.fileHandleWithStandardInput.readabilityHandler = ^(NSFileHandle *input) {
+            if (!input.availableData.length) exit(0);
+        };
+        // Reconcile once after subscription to cover a launch during setup.
+        puts("ready");
+        fflush(stdout);
+        [NSRunLoop.currentRunLoop run];
+    }
+    return 0;
+}
+
 int main(int argc, const char *argv[]) {
+    if (argc == 2 && strcmp(argv[1], "--watch-desktop-launches") == 0) return watchDesktopLaunches();
     if (argc == 5 && strcmp(argv[1], "--inspect-desktop") == 0)
         return inspectDesktop(argv[2], argv[3], argv[4]);
     if (argc == 4 && strcmp(argv[1], "--match-desktop-process") == 0) {

@@ -25,6 +25,50 @@ async function fixture(t: test.TestContext) {
 const page = (value: unknown) =>
   value as { messages: Message[]; nextCursor: number; hasMore: boolean };
 
+test('an armed MCP read wakes for its own inbox and keeps the normal receipt and cursor', async (t) => {
+  const f = await fixture(t);
+  const recipient = f.recipient.binding.connectionId;
+  let armed!: () => void;
+  const registered = new Promise<void>((resolve) => {
+    armed = resolve;
+  });
+  const read = f.service.readOnArrival.bind(f.service);
+  f.service.readOnArrival = (...args) => {
+    const result = read(...args);
+    armed();
+    return result;
+  };
+  const waiting = mcpRead(f.service, recipient, 0, 1, true, 10_000);
+  await registered;
+  await assert.rejects(mcpRead(f.service, recipient, 0, 1, true, 100), /already waiting/);
+  const send = (recipientNickname: string, text: string) =>
+    f.service.send({
+      connectionId: f.sender.binding.connectionId,
+      recipientNode: f.service.settings.value.nodeId,
+      recipientNickname,
+      text,
+    });
+  await send('Автор', 'Other mailbox');
+  const text = 'Проверка 東京\n'.repeat(600);
+  const sent = await send('Получатель', text);
+  const result = page(await waiting);
+  assert.deepEqual(
+    result.messages.map((row) => [row.envelope.id, row.envelope.text]),
+    [[sent.id, text]],
+  );
+  assert.equal(f.service.store.get(sent.id, 'out')?.state, 'processed');
+  assert.deepEqual(
+    page(await mcpRead(f.service, recipient, result.nextCursor, 1, true, 20)).messages,
+    [],
+  );
+  const next = await send('Получатель', 'Already ready');
+  assert.equal(
+    page(await mcpRead(f.service, recipient, result.nextCursor, 1, true, 200)).messages[0].envelope
+      .id,
+    next.id,
+  );
+});
+
 test("MCP receipt is automatic for exactly the returned page; history persists and outgoing history cannot receive another agent's messages", async (t) => {
   const f = await fixture(t),
     ids: string[] = [];

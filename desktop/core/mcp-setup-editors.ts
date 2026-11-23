@@ -199,9 +199,62 @@ export function editMcpConfiguration(
   ];
   let content = source.trim() ? source : '{}';
   if (toml) {
-    if (!equal) {
+    const updates: Record<string, unknown> = Object.create(null);
+    if (!equal) updates[serverName] = next;
+    const inbox = 'ncf_agent_interconnect_inbox';
+    const inboxNext = own(table(desired, parent), inbox);
+    // A separately named server must not expose reads omitted or restricted by the
+    // owner's current setup. Existing independent entries retain their own policy.
+    const oldInbox = own(servers, inbox);
+    const customPolicy =
+      object(previous) &&
+      (previous.enabled === false ||
+        Object.keys(previous).some(
+          (key) =>
+            ![
+              'url',
+              'http_headers',
+              'enabled',
+              'tool_timeout_sec',
+              'startup_timeout_sec',
+              'required',
+            ].includes(key),
+        ));
+    if (inboxNext !== undefined && (oldInbox !== undefined || !customPolicy)) {
+      if (!object(inboxNext)) throw new Error('The generated inbox configuration is invalid');
+      const installed = oldInbox;
+      const matches = containsSettings(installed, inboxNext);
+      changes.push({
+        scope: parent + '.' + inbox,
+        action: matches ? 'unchanged' : installed === undefined ? 'add' : 'replace',
+      });
+      if (!matches) {
+        const updatedInbox = Object.assign(Object.create(null), inboxNext);
+        // Keep the owner's independent approval settings when a node URL or credential changes.
+        if (object(installed)) {
+          for (const key of [
+            'enabled',
+            'disabled_tools',
+            'default_tools_approval_mode',
+            'omit_tools_from',
+            'tool_timeout_sec',
+          ]) {
+            if (Object.hasOwn(installed, key)) updatedInbox[key] = installed[key];
+          }
+          const policy = object(installed.tools) && installed.tools.agent_read;
+          if (object(policy) && Object.hasOwn(policy, 'approval_mode'))
+            updatedInbox.tools = Object.assign(Object.create(null), {
+              agent_read: Object.assign(Object.create(null), updatedInbox.tools.agent_read, {
+                approval_mode: policy.approval_mode,
+              }),
+            });
+        }
+        updates[inbox] = updatedInbox;
+      }
+    }
+    if (Object.keys(updates).length) {
       const updated = Object.assign(Object.create(null), root, {
-        [parent]: Object.assign(Object.create(null), servers, { [serverName]: next }),
+        [parent]: Object.assign(Object.create(null), servers, updates),
       });
       try {
         content = patchToml(source, updated);
@@ -233,7 +286,7 @@ export function editMcpConfiguration(
   return {
     content: bom + content,
     changes,
-    requiresReplacement: previous !== undefined && !equal,
+    requiresReplacement: changes.some((change) => change.action === 'replace'),
   };
 }
 

@@ -5,6 +5,7 @@ import {
   type McpSetupDefaults,
   type McpSetupInvoke,
   type McpSetupPreview,
+  type McpSetupStatus,
   type McpSetupTarget,
 } from '../shared/mcp-setup.js';
 import { OpenCodeV2SetupFlow, type OpenCodeV2SetupState } from './opencode-v2-setup-model.js';
@@ -61,21 +62,34 @@ export async function inspectSetupRetry(
       requiresReplacement: value.requiresReplacement,
       files: value.files.map(({ id, path, action, changes }) => ({ id, path, action, changes })),
     });
-  const sameTarget =
-    preview.files.find((file) => file.id === 'configuration')!.path ===
-    original.files.find((file) => file.id === 'configuration')?.path;
+  const target = preview.files.find((file) => file.id === 'configuration')!.path;
+  const sameTarget = target === original.files.find((file) => file.id === 'configuration')?.path;
+  if (
+    sameTarget &&
+    !preview.requiresReplacement &&
+    preview.files.every((file) => file.action === 'unchanged')
+  ) {
+    if (client === 'codex') {
+      const status = await invoke<McpSetupStatus>('mcpSetupStatus', { client }).catch((error) => {
+        void invoke('mcpSetupDiscard', { planId: preview.planId }).catch(() => {});
+        throw error;
+      });
+      if (
+        !status.remembered ||
+        !status.files.some((file) => file.id === 'configuration' && file.path === target)
+      )
+        return { preview, disposition: 'renewed' };
+    }
+    return { preview, disposition: 'configured' };
+  }
   return {
     preview,
     disposition:
       sameTarget &&
-      !preview.requiresReplacement &&
-      preview.files.every((file) => file.action === 'unchanged')
-        ? 'configured'
-        : sameTarget &&
-            projection(preview) === projection(original) &&
-            Date.parse(original.expiresAt) > Date.now()
-          ? 'same'
-          : 'renewed',
+      projection(preview) === projection(original) &&
+      Date.parse(original.expiresAt) > Date.now()
+        ? 'same'
+        : 'renewed',
   };
 }
 
@@ -157,16 +171,12 @@ export class ApplicationSetupFlow {
     let preview: McpSetupPreview | undefined;
     try {
       if (client === 'codex') {
-        const prepared = await this.invoke<McpSetupPreview | null>('codexShortcutPrepare', {});
+        const prepared = await this.invoke<McpSetupPreview | null>('codexSetupPrepare', {});
         if (this.disposed) {
           this.discard(prepared ?? undefined);
           return;
         }
-        if (!prepared) {
-          await this.invoke('mcpSetupApplyChatGpt', { confirmReplace: false });
-          this.set(client, { phase: 'idle' });
-          return;
-        }
+        if (!prepared) throw new Error('The selected configuration target is unavailable');
         preview = prepared;
         const file = preview.files.find(({ id }) => id === 'configuration');
         if (preview.client !== client || !preview.planId || !file)
@@ -331,15 +341,10 @@ export class ApplicationSetupFlow {
     if (!preview || this.disposed) return;
     this.set(client, { ...previous, phase: 'applying', error: undefined });
     try {
-      const result = await this.invoke<McpSetupApplyResult | null>(
-        client === 'codex' ? 'mcpSetupApplyChatGpt' : 'mcpSetupApply',
-        { planId: preview.planId, confirmReplace },
-      );
-      if (!result) {
-        this.discard(preview);
-        this.set(client, { phase: 'idle' });
-        return;
-      }
+      const result = await this.invoke<McpSetupApplyResult>('mcpSetupApply', {
+        planId: preview.planId,
+        confirmReplace,
+      });
       this.set(client, {
         ...previous,
         phase: result.status === 'failed' ? 'failed' : 'succeeded',

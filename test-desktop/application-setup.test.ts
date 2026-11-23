@@ -91,24 +91,15 @@ test('uncertain Apply rechecks the selected target before retrying the original 
   assert.equal(flow.getSnapshot().cursor.uncertain?.error, 'Isolated lost reply');
 });
 
-test('cancelling the ChatGPT shortcut dialog discards its exact setup plan', async () => {
+test('unresolved ChatGPT profile keeps manual configuration available without applying', async () => {
   const calls: string[] = [];
   const flow = new ApplicationSetupFlow((async (method: string) => {
     calls.push(method);
-    if (method === 'codexShortcutPrepare')
-      return {
-        client: 'codex',
-        planId: 'isolated-chatgpt',
-        requiresReplacement: false,
-        files: [{ id: 'configuration', path: '/isolated/config.toml' }],
-      };
-    if (method === 'mcpSetupApplyChatGpt') return null;
-    if (method === 'mcpSetupDiscard') return {};
-    throw new Error('Unexpected method ' + method);
+    return null;
   }) as McpSetupInvoke);
   await flow.connect('codex');
-  assert.deepEqual(calls, ['codexShortcutPrepare', 'mcpSetupApplyChatGpt', 'mcpSetupDiscard']);
-  assert.equal(flow.getSnapshot().codex.phase, 'idle');
+  assert.deepEqual(calls, ['codexSetupPrepare']);
+  assert.equal(flow.getSnapshot().codex.phase, 'failed');
 });
 
 test('shared Cursor/AionUi configuration cannot be submitted concurrently', async () => {
@@ -286,14 +277,14 @@ test('an unchanged result is successful; a failed status refresh cannot cause an
   let writes = 0;
   const flow = new ApplicationSetupFlow(
     (async (method: string) => {
-      if (method === 'codexShortcutPrepare')
+      if (method === 'codexSetupPrepare')
         return {
           client: 'codex',
           planId: 'unchanged',
           requiresReplacement: false,
           files: [{ id: 'configuration', path: '/isolated/config.toml' }],
         };
-      if (method === 'mcpSetupApplyChatGpt') {
+      if (method === 'mcpSetupApply') {
         writes++;
         return { status: 'unchanged', files: [] };
       }
@@ -359,10 +350,10 @@ test('one Connect uses the existing guarded writer and preserves other clients a
       planId: string;
       confirmReplace: boolean;
     };
-    if (method === 'codexShortcutPrepare')
+    if (method === 'codexSetupPrepare')
       return service.preview('isolated-owner', 'codex', [{ id: 'configuration', path: target }]);
-    if (method === 'mcpSetupApplyChatGpt')
-      return service.apply('isolated-owner', input.planId, input.confirmReplace, async () => true);
+    if (method === 'mcpSetupApply')
+      return service.apply('isolated-owner', input.planId, input.confirmReplace);
     if (method === 'mcpSetupDiscard') {
       service.discard('isolated-owner', input.planId);
       return {};

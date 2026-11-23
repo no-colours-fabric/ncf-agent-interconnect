@@ -48,14 +48,29 @@ export function mcpInstructions(
       testPrompt,
     };
   }
-  if (client === 'codex')
+  if (client === 'codex') {
+    const endpoint = [
+      'url = ' + JSON.stringify(url),
+      'http_headers = { Authorization = ' + JSON.stringify('Bearer ' + token) + ' }',
+    ];
     return {
       client,
       location: 'MCP settings for the selected ChatGPT profile — config.toml',
       text: 'Add this section and reconnect MCP. Configure each profile once. The current chat and its ChatGPT instance are detected automatically. You choose the agent name.',
-      configuration: `[mcp_servers.ncf_agent_interconnect]\nurl = ${JSON.stringify(url)}\nhttp_headers = { Authorization = ${JSON.stringify('Bearer ' + token)} }\n`,
+      configuration: [
+        '[mcp_servers.ncf_agent_interconnect]',
+        ...endpoint,
+        '',
+        '[mcp_servers.ncf_agent_interconnect_inbox]',
+        ...endpoint,
+        'enabled_tools = ["agent_read"]',
+        'supports_parallel_tool_calls = true',
+        'tools.agent_read.output_token_limit = 65536',
+        '',
+      ].join('\n'),
       testPrompt,
     };
+  }
   if (client === 'opencode')
     return {
       client,

@@ -6,11 +6,6 @@ import {
   type McpSetupOptions,
 } from '../core/mcp-setup.js';
 import { createCodexShortcutHandler } from './codex-shortcut-ipc.js';
-import {
-  codexShortcutDestinations,
-  type CodexShortcutConnectionResult,
-} from '../shared/codex-shortcut.js';
-import { codexShortcutLocales } from '../shared/codex-shortcut-messages.js';
 import { McpSetupPaths } from '../core/mcp-setup-paths.js';
 import { openCodeV2TargetSchema } from '../core/opencode-v2-auth.js';
 import { mcpSetupClients, mcpSetupMethods, openCodeV2SetupMethods } from '../shared/mcp-setup.js';
@@ -47,11 +42,11 @@ export function createMcpSetupHandler(
   raw: unknown,
   owner: string,
 ) => Promise<{ handled: false } | { handled: true; result: unknown }> {
-  const setup = new McpSetupService({ ...options, requireCodexShortcut: !!options.codexShortcut });
+  const setup = new McpSetupService(options);
   const v2 = new OpenCodeV2SetupService(options);
   const paths = new McpSetupPaths(options.stateDirectory);
   const codexShortcut =
-    options.codexShortcut &&
+    options.codexShortcut?.platform === 'darwin' &&
     createCodexShortcutHandler({
       ...options.codexShortcut,
       window: options.window,
@@ -63,9 +58,16 @@ export function createMcpSetupHandler(
     });
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {
-    if (method === 'codexShortcutPrepare') {
+    if (method === 'codexSetupPrepare') {
+      if (!owner) throw new Error('The desktop interface session is missing');
       z.object({}).strict().parse(raw);
-      const exact = await codexShortcut?.('codexShortcutConfiguration', {});
+      const platform = options.codexShortcut?.platform ?? process.platform;
+      const remembered = await paths.get('codex');
+      const exact = remembered
+        ? { configuration: remembered }
+        : platform === 'linux' || platform === 'win32'
+          ? { configuration: (await setup.defaults('codex')).files[0].path }
+          : codexShortcut && (await codexShortcut('codexShortcutConfiguration', {}));
       if (!exact || typeof exact !== 'object' || !('configuration' in exact))
         return { handled: true, result: null };
       return {
@@ -74,56 +76,6 @@ export function createMcpSetupHandler(
           { id: 'configuration', path: exact.configuration },
         ]),
       };
-    }
-    if (method === 'codexShortcutConnect') {
-      const { planId, confirmReplace, locale, destinations } = planSchema
-        .extend({
-          confirmReplace: z.boolean(),
-          locale: z.enum(codexShortcutLocales),
-          destinations: z.array(z.enum(codexShortcutDestinations)).min(1).max(4),
-        })
-        .strict()
-        .refine(({ destinations }) => new Set(destinations).size === destinations.length)
-        .parse(raw);
-      let shortcut: CodexShortcutConnectionResult['shortcut'] = {
-        state: 'failed',
-        reason: 'failed',
-      };
-      const window = options.window();
-      if (!codexShortcut || !window || window.isDestroyed())
-        return {
-          handled: true,
-          result: { shortcut, setup: null } satisfies CodexShortcutConnectionResult,
-        };
-      const result = await setup.apply(owner, planId, confirmReplace, async (configuration) => {
-        const created = await codexShortcut(
-          'codexShortcutCreate',
-          { locale, destinations },
-          configuration,
-        );
-        if (created && typeof created === 'object' && 'state' in created) shortcut = created;
-        return (
-          options.window() === window &&
-          !window.isDestroyed() &&
-          shortcut.state === 'complete' &&
-          shortcut.destinations.some(
-            ({ result }) => result === 'created' || result === 'dockPending',
-          )
-        );
-      });
-      return {
-        handled: true,
-        result: { shortcut, setup: result } satisfies CodexShortcutConnectionResult,
-      };
-    }
-    if (
-      method === 'codexShortcutPlatform' ||
-      method === 'codexShortcutCreate' ||
-      method === 'codexShortcutLocations' ||
-      method === 'codexShortcutRevealDock'
-    ) {
-      if (!owner) throw new Error('The desktop interface session is missing');
-      return { handled: true, result: codexShortcut ? await codexShortcut(method, raw) : null };
     }
     if ((openCodeV2SetupMethods as readonly string[]).includes(method)) {
       if (!owner) throw new Error('The desktop interface session is missing');

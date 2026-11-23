@@ -48,7 +48,11 @@ if (process.platform === 'darwin') {
 if (process.platform === 'win32') {
   const bridge = 'build/integrations/codex-windows-bridge.cjs';
   assert.ok(entries.includes('/' + bridge), 'Windows Codex bridge is packaged');
-  assert.notEqual(asar.statFile(archive, path.normalize(bridge)).unpacked, true, 'Bridge runs from its own ASAR');
+  assert.notEqual(
+    asar.statFile(archive, path.normalize(bridge)).unpacked,
+    true,
+    'Bridge runs from its own ASAR',
+  );
   assert.ok(entries.includes('/node_modules/ws/package.json'), 'Bridge can load bundled ws');
   for (const filename of ['codex-stdio-shim.exe', 'codex-console-stop.exe']) {
     const filenameInPackage = 'build/assets/' + filename;

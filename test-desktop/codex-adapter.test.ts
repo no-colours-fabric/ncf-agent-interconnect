@@ -791,7 +791,10 @@ test(
   async (t) => {
     const f = await fixture(t);
     const directory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-queue-node-'));
-    const service = new NodeService(directory, { codexSockets: () => [f.profile.socket!] });
+    const service = new NodeService(directory, {
+      codexSockets: () => [f.profile.socket!],
+      wakeCodexChat: async () => {},
+    });
     await service.open();
     const client = new Client({ name: 'Codex', version: 'test' });
     await client.connect(
@@ -865,7 +868,21 @@ test(
         };
       },
     );
-    t.mock.method(CodexQueueAdapter.prototype, 'observeConfirmation', async () => 'unknown');
+    let observation: 'queued' | 'unknown' | { admittedAt: number } = 'unknown';
+    let launchCheck: (() => boolean) | undefined;
+    const observed = t.mock.method(
+      CodexQueueAdapter.prototype,
+      'observeConfirmation',
+      async function (this: CodexQueueAdapter, _witness: unknown, current?: () => boolean) {
+        assert.equal(this.profile.threadId, threadId);
+        if (current) {
+          assert.ok(current());
+          launchCheck = current;
+        }
+        return observation;
+      },
+    );
+
     const connect = (
       id: string,
       proof: { connectionId?: string; contextToken?: string; codexRecoveryToken?: string } = {},
@@ -886,6 +903,10 @@ test(
     assert.equal(pending.isError, undefined);
     assert.equal(status(pending), 'codex_recovery_uncertain');
     assert.equal(status(await connect(threadId)), 'codex_recovery_uncertain');
+    service.desktopChatGptLaunched();
+    service.desktopChatGptLaunched();
+    assert.equal(observed.mock.callCount(), 2, 'one read-only observation and one launch wake');
+    assert.equal(launchCheck?.(), true);
     assert.equal(challenges.length, 1);
     const expiresAt = (pending.structuredContent as { expiresAt: string }).expiresAt;
     assert.ok(Date.parse(expiresAt) > Date.now());
@@ -900,10 +921,20 @@ test(
       true,
     );
     assert.equal(start.mock.callCount(), 0);
+    // A real busy stock chat may admit the ordinary confirmation well after issuance.
+    const late = Date.now() + 15 * 60_000;
+    const clock = t.mock.method(Date, 'now', () => late);
+    observation = 'queued';
+    assert.equal((await connect(threadId, { contextToken: token })).isError, true);
+    observation = { admittedAt: late + 1000 };
+    assert.equal((await connect(threadId, { contextToken: token })).isError, true);
+    observation = { admittedAt: late - 1000 };
     const result = await connect(threadId, { contextToken: token });
+    clock.mock.restore();
     assert.equal(result.isError, undefined);
     const recovered =
       result.structuredContent as unknown as import('../desktop/core/agent-store.js').ConnectResult;
+    assert.equal(launchCheck?.(), false, 'the original wake loses authority after confirmation');
     if (recovered.status !== 'connected')
       throw new Error('The saved Codex binding was not recovered');
     assert.deepEqual(recovered.binding, binding);
@@ -1082,6 +1113,17 @@ test('Disconnected Codex can confirm the same exact chat under the old or a free
           assert.equal(challenges.length, 1);
         } finally {
           clock.mock.restore();
+        }
+        const second = await connect(nickname);
+        assert.equal(status(second), 'codex_recovery_queued');
+        const late = Date.now() + 12 * 60_000;
+        const afterAdmission = t.mock.method(Date, 'now', () => late);
+        observe.mock.mockImplementation(async () => ({ admittedAt: late - 6 * 60_000 }));
+        try {
+          assert.equal((await connect(nickname, challenges.at(-1)!)).isError, true);
+          assert.equal(status(await connect(nickname)), 'codex_recovery_expired');
+        } finally {
+          afterAdmission.mock.restore();
         }
         offerState = 'dispatched';
       }

@@ -9,6 +9,7 @@ export async function mcpRead(
   after = 0,
   limit = 50,
   unread = false,
+  waitMs?: number,
 ): Promise<unknown> {
   const client = new Client({ name: 'MCP read fixture', version: '1' });
   try {
@@ -19,7 +20,7 @@ export async function mcpRead(
     );
     const result = await client.callTool({
       name: unread ? 'agent_read' : 'agent_history',
-      arguments: { connectionId, after, limit },
+      arguments: { connectionId, after, limit, ...(waitMs === undefined ? {} : { waitMs }) },
     });
     if (result.isError) {
       const first = Array.isArray(result.content)

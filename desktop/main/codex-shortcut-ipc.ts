@@ -259,8 +259,9 @@ export function createCodexShortcutHandler(
     }
     if (method === 'codexShortcutConfiguration') {
       z.object({}).strict().parse(raw);
-      if (!platform) return null;
-      const resolved = await resolveProfile(platform);
+      const setupPlatform = options.platform === 'darwin' ? 'mac' : platform;
+      if (!setupPlatform) return null;
+      const resolved = await resolveProfile(setupPlatform);
       return 'reason' in resolved ? null : { configuration: resolved.selectedConfig };
     }
     if (method === 'codexShortcutLocations') {

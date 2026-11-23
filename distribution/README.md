@@ -53,8 +53,8 @@ their own chats to connect under names you choose.
   plugin from that OpenCode installation. A busy chat can receive messages when
   it becomes idle.
 - **ChatGPT:** reconnect MCP after setup and ask the assistant to connect in the
-  intended chat. If a ChatGPT chat stays closed after a restart, incoming
-  messages may stay queued until you open that chat. Compatibility depends on
+  intended chat. Open ChatGPT normally. On macOS, an incoming message can open
+  the connected chat. A busy chat may wait until its current response finishes. Compatibility depends on
   the installed version.
 - **Cursor:** restart Cursor once after setup, then connect in the intended
   chat and keep it open. Open connected chats can receive messages even when
@@ -148,8 +148,7 @@ setup. Use it to configure v2 while keeping your existing v1 setup.
 
 If you need to reconnect ChatGPT, open the same chat and ask the assistant to
 connect under the same name. The chat keeps its existing NCF Agent Interconnect
-history. If a ChatGPT chat stays closed after a restart, incoming messages may
-stay queued until you open that chat.
+history. On macOS, a message can open the connected chat in the running ChatGPT profile.
 
 ## Upgrade from 0.17.2
 

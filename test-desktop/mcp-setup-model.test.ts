@@ -242,6 +242,36 @@ test('manual recovery verifies existing settings without replaying the uncertain
   assert.equal(applies, 1);
 });
 
+test('manual ChatGPT Apply skips shortcuts and verifies that the selected profile was saved after a lost reply', async () => {
+  let previews = 0;
+  const calls: string[] = [];
+  const flow = new McpSetupFlow('codex', (async (method: string) => {
+    calls.push(method);
+    if (method === 'mcpSetupDefaults') return { ...defaults, client: 'codex' };
+    if (method === 'mcpSetupPreview')
+      return {
+        ...plan('p-' + ++previews),
+        client: 'codex',
+        files: [{ ...plan('x').files[0], action: 'unchanged' }],
+      };
+    if (method === 'mcpSetupStatus') return { remembered: false, files: [] };
+    if (method === 'mcpSetupApply') {
+      if (previews === 1) throw new Error('Reply unavailable');
+      return { status: 'unchanged', files: [] };
+    }
+    if (method !== 'mcpSetupDiscard') throw new Error('Unexpected ' + method);
+  }) as McpSetupInvoke);
+  await flow.begin();
+  await flow.apply();
+  await flow.apply();
+  assert.equal(flow.getSnapshot().reviewRequired, true);
+  assert.equal(flow.getSnapshot().verified, false);
+  assert.equal(calls.filter((call) => call === 'mcpSetupApply').length, 1);
+  await flow.apply(true);
+  assert.equal(flow.getSnapshot().result?.status, 'unchanged');
+  assert.ok(!calls.some((call) => /shortcut|ApplyChatGpt/i.test(call)));
+});
+
 test('manual recovery of a changed target needs a fresh confirmation and preserves the original outcome', async () => {
   let previews = 0;
   const applies: unknown[] = [];

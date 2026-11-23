@@ -244,7 +244,11 @@ test(
   },
 );
 
-async function fixture(t: TestContext, shared = false) {
+async function fixture(
+  t: TestContext,
+  shared = false,
+  wake?: ConstructorParameters<typeof CodexQueueAdapter>[5],
+) {
   const directory = await mkdtemp(path.join(tmpdir(), 'ncf-codex-projection-'));
   const transcript = path.join(directory, 'rollout.jsonl');
   await writeFile(transcript, '');
@@ -310,6 +314,7 @@ async function fixture(t: TestContext, shared = false) {
   let projection: object[] = [];
   let validThread = true;
   let matchingAck = true;
+  let echo = false;
   let expiredTurn = false;
   const session: NonNullable<ConstructorParameters<typeof CodexQueueAdapter>[2]> = async (
     _profile,
@@ -327,7 +332,7 @@ async function fixture(t: TestContext, shared = false) {
             status: { type: threadState },
           },
         };
-      if (method === 'thread/queue/list') return { data: [] };
+      if (method === 'thread/queue/list') return { data: queued };
       if (method === 'thread/items/list') return { data: projection };
       if (method === 'thread/turns/list') return { data: [latestTurn] };
       assert.equal(attempt.meta.phase, 'issued');
@@ -347,6 +352,7 @@ async function fixture(t: TestContext, shared = false) {
         queuedSubmission: {
           id: queuedId,
           clientUserMessageId: matchingAck ? attempt.id : randomUUID(),
+          ...(echo ? { input: (params as { input: unknown }).input } : {}),
         },
       };
     });
@@ -360,6 +366,7 @@ async function fixture(t: TestContext, shared = false) {
     },
     // Both loaded and unloaded chats use the synthetic server on every platform.
     session,
+    wake,
   );
   t.after(async () => {
     await adapter.stop();
@@ -390,6 +397,9 @@ async function fixture(t: TestContext, shared = false) {
     activeTurn,
     body,
     setProjection,
+    echoInput: () => {
+      echo = true;
+    },
     changeThread: () => {
       validThread = false;
     },
@@ -449,6 +459,76 @@ test('queues the full Codex Incoming and admits only the persisted exact client 
   );
   assert.equal((await adapter.deliver({ ...input, isCurrent: () => false })).state, 'revoked');
   assert.equal(queued.length, 1);
+});
+
+test('wakes a verified queued submission on desktop launch without resending or recording receipt', async (t) => {
+  let target: string | undefined;
+  let wakeCount = 0;
+  const { adapter, attempt, input, queued, body, setProjection } = await fixture(
+    t,
+    false,
+    async (profile, current) => {
+      assert.ok(current());
+      target = profile.threadId;
+      wakeCount++;
+    },
+  );
+  await adapter.start();
+  assert.deepEqual(await adapter.deliver(input), { state: 'queued' });
+  const row = queued[0] as { clientUserMessageId: string };
+  row.clientUserMessageId = randomUUID();
+  let receipts = 0;
+  adapter.observeDelivery(
+    attempt,
+    () => true,
+    () => receipts++,
+  );
+  await delay(250);
+  assert.equal(wakeCount, 0);
+  row.clientUserMessageId = attempt.id;
+  adapter.desktopLaunched();
+  await delay(250);
+  assert.equal(target, input.binding.chatId);
+  assert.equal(wakeCount, 1);
+  assert.equal(receipts, 0);
+  adapter.desktopLaunched();
+  await delay(250);
+  assert.equal(wakeCount, 2);
+  assert.equal(queued.length, 1);
+  queued.splice(0);
+  await setProjection(attempt.id, body);
+  await delay(250);
+  assert.equal(receipts, 1);
+  assert.equal(wakeCount, 2);
+});
+
+test('a fresh exact queue echo wakes the desktop immediately and is not a receipt', async (t) => {
+  let wakes = 0;
+  const f = await fixture(t, false, async (profile, current) => {
+    assert.equal(profile.threadId, f.input.binding.chatId);
+    assert.ok(current());
+    wakes++;
+  });
+  f.echoInput();
+  await f.adapter.start();
+  assert.equal((await f.adapter.deliver(f.input)).state, 'queued');
+  assert.equal(wakes, 1);
+  let receipts = 0;
+  f.adapter.observeDelivery(
+    f.attempt,
+    () => true,
+    () => receipts++,
+  );
+  await delay(200);
+  assert.equal(wakes, 1);
+  assert.equal(receipts, 0);
+  f.adapter.desktopLaunched();
+  await delay(200);
+  assert.equal(wakes, 2);
+  assert.equal(f.queued.length, 1);
+  await f.setProjection(f.attempt.id, f.body);
+  await delay(250);
+  assert.equal(receipts, 1);
 });
 
 test('commits a queued Codex message manually steered with one trailing line feed', async (t) => {
@@ -695,13 +775,6 @@ test('Codex confirmation uses exact owner input and never replaces an uncertain 
           : session,
       );
       t.after(() => adapter.stop());
-      // The independent transport is not a live owner. Windows has no stdio fallback.
-      if (scenario === 'standard' && process.platform === 'win32') {
-        const result = await adapter.challenge(randomUUID(), () => true);
-        assert.equal(result.state, 'failed');
-        assert.deepEqual(methods, []);
-        return;
-      }
       const token = randomUUID();
       const result = await adapter.challenge(token, () => true);
       assert.equal(
@@ -766,12 +839,17 @@ test('Codex confirmation recognizes only its exact queued or persisted input', a
       queue = { input: params.input, clientUserMessageId: params.clientUserMessageId };
       return { queuedSubmission: { id: queueId, clientUserMessageId: queue.clientUserMessageId } };
     });
+  const wake = t.mock.fn(async (profile: AdapterProfile, current: () => boolean) => {
+    assert.equal(profile.threadId, threadId);
+    assert.ok(current());
+  });
   const adapter = new CodexQueueAdapter(
     { id: randomUUID(), kind: 'codex-desktop', label: 'Codex', threadId },
     () => {},
     session,
     async () => '/fixture/transcript',
     session,
+    wake,
   );
   t.after(() => adapter.stop());
 
@@ -784,6 +862,13 @@ test('Codex confirmation recognizes only its exact queued or persisted input', a
   assert.equal(submissions, 1);
   assert.equal(await adapter.observeConfirmation(offer.witness), 'queued');
 
+  const initialWakes = wake.mock.callCount();
+  await adapter.observeConfirmation(offer.witness, () => false);
+  await adapter.observeConfirmation({ ...offer.witness, messageId: randomUUID() }, () => true);
+  await adapter.observeConfirmation({ ...offer.witness, payloadHash: 'different' }, () => true);
+  assert.equal(wake.mock.callCount(), initialWakes);
+  assert.equal(await adapter.observeConfirmation(offer.witness, () => true), 'queued');
+  assert.equal(wake.mock.callCount(), initialWakes + 1);
   queue = undefined;
   state = 'active';
   assert.equal(await adapter.observeConfirmation(offer.witness), 'unknown');
@@ -802,6 +887,9 @@ test('Codex confirmation recognizes only its exact queued or persisted input', a
   ];
   assert.equal(await adapter.observeConfirmation(offer.witness), 'missing');
   items.push({ item });
-  assert.equal(await adapter.observeConfirmation(offer.witness), 'admitted');
+  assert.deepEqual(await adapter.observeConfirmation(offer.witness, () => true), {
+    admittedAt: 100,
+  });
+  assert.equal(wake.mock.callCount(), initialWakes + 1);
   assert.equal(submissions, 1);
 });

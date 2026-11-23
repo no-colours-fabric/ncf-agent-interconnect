@@ -64,7 +64,7 @@ Your names, history, attachments, pairings and AionUi authorization carry over. 
 
 ## Removal
 
-Remove `ncf_agent_interconnect` from the client MCP configuration and remove its
+Remove `ncf_agent_interconnect` from the client MCP configuration. In ChatGPT also remove `ncf_agent_interconnect_inbox` if present. Remove the
 OpenCode plugin entry if present. For direct Cursor, remove only the managed
 `.cursor/plugins/local/ncf-agent-interconnect` directory under your home and
 restart Cursor to unload its hooks; preserve other plugins. For Claude Code,

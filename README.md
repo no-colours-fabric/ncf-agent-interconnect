@@ -63,7 +63,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 
 After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. For other setup steps, see [application setup](docs/mcp-clients.md#cursor), [OpenCode setup](docs/setup.md#2-choose-an-application) and [AionUi with Cursor Agent setup](docs/aionui-setup.md).
 
-If a ChatGPT chat stays closed after a restart, incoming messages may stay queued until you open that chat. In the tested default setup on macOS, messages may wait until the current turn finishes. See [ChatGPT setup](docs/mcp-clients.md#codex-desktop) for compatibility limits.
+Launch ChatGPT normally after setup. In the macOS desktop check, an incoming message opened the connected chat in the running profile. A busy chat can receive the message after its current response. See [ChatGPT setup](docs/mcp-clients.md#codex-desktop) for compatibility limits.
 
 For Claude Code setup, permissions and compatibility limits, see the [Claude Code guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md). Live delivery on macOS and Windows has not been verified.
 

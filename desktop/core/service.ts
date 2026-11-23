@@ -45,6 +45,7 @@ import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints, CodexDesktopUnavailable } from './codex-adapter.js';
 import {
   CodexQueueAdapter,
+  type WakeCodexChat,
   codexQueueHome,
   codexQueueLocator,
   type CodexConfirmationOffer,
@@ -69,7 +70,7 @@ import {
   type MessagePresentationFile,
 } from './message-presentation.js';
 import { OpenCodeV2Auth } from './opencode-v2-auth.js';
-import { editMcpConfiguration, openCodeV2ConfigurationHash } from './mcp-setup-editors.js';
+import { codexMcpConfigurationMatches, openCodeV2ConfigurationHash } from './mcp-setup-editors.js';
 import { McpSetupPaths } from './mcp-setup-paths.js';
 import {
   OpenCodeV2Bridges,
@@ -94,6 +95,7 @@ interface ClaudeDispatchSnapshot {
 
 const messagePresentationLimit = 384 * 1024;
 const codexRecoveryLifetime = 5 * 60_000;
+const codexRecoveryQueueLifetime = 24 * 60 * 60_000;
 const codexRecoveryLimit = 16;
 
 interface McpHost {
@@ -114,17 +116,20 @@ interface CodexRecoveryTarget {
 interface CodexRecoveryChallenge {
   target: CodexRecoveryTarget;
   digest: string;
+  issuedAt: number;
   expires: number;
   state: 'pending' | 'retired' | 'used';
   offer?: Extract<CodexConfirmationOffer, { witness: unknown }>;
   observation?: Promise<CodexRecoveryResult>;
+  launchWake?: Promise<void>;
+  launchObserved?: boolean;
 }
 
 const codexRecoveryDescriptions = {
   codex_recovery_pending:
     'The confirmation was dispatched to this Codex chat. Complete it only if it arrives here before expiry.',
   codex_recovery_queued:
-    'The confirmation is queued in this Codex chat. Codex has not confirmed delivery. It expires at the stated time.',
+    'The confirmation is queued in this Codex chat. Complete it within five minutes of delivery to this chat and before the stated outer deadline.',
   codex_recovery_uncertain:
     'Codex could not confirm delivery. No duplicate was sent. This attempt expires at the stated time.',
   codex_recovery_unavailable:
@@ -193,6 +198,10 @@ export class NodeService extends EventEmitter {
   deliveryIncarnation = randomUUID();
   private readonly nativeTransports = new WeakMap<AgentAdapter, string>();
   private dispatching = new Set<string>();
+  private readonly pendingReads = new Map<
+    string,
+    { after: number; taking: boolean; wake: () => void }
+  >();
   private adapterRedrain = new Set<string>();
   private claudeDispatchSnapshots = new Map<string, ClaudeDispatchSnapshot>();
   private jobs = new Set<Promise<void>>();
@@ -243,6 +252,7 @@ export class NodeService extends EventEmitter {
   private closing: Promise<void> | null = null;
   private adapterSetup: Promise<void> = Promise.resolve();
   private readonly codexRecovery = new Map<string, CodexRecoveryChallenge>();
+  private readonly codexMigrationHead = new WeakMap<AgentAdapter, string>();
   private readonly codexRecoveryAdapters = new Set<CodexQueueAdapter>();
   private readonly restoredCodexProjections = new WeakMap<CodexQueueAdapter, string>();
   private acceptingIntegrations = false;
@@ -254,6 +264,8 @@ export class NodeService extends EventEmitter {
     readonly directory: string,
     private readonly integrationOptions: {
       codexSockets?: () => string[];
+      runningCodexConfiguration?: () => Promise<string | undefined>;
+      wakeCodexChat?: WakeCodexChat;
       clientLeaseMs?: number;
       lanDiscovery?: Omit<LanSearchOptions, 'local' | 'changed' | 'pairedNodeIds'>;
       presentationNow?: () => number;
@@ -297,7 +309,12 @@ export class NodeService extends EventEmitter {
         void save.finally(() => this.jobs.delete(save));
       },
     );
-    this.adapters = new AdapterRegistry(this.aionui, this.claude, this.opencodeV2);
+    this.adapters = new AdapterRegistry(
+      this.aionui,
+      this.claude,
+      this.opencodeV2,
+      integrationOptions.wakeCodexChat,
+    );
     this.wakeClaims = new WakeClaims({
       claude: this.claude,
       profiles: () => this.settings.value.adapters,
@@ -1086,7 +1103,7 @@ export class NodeService extends EventEmitter {
       } catch (error) {
         if (
           !(error instanceof CodexDesktopUnavailable) ||
-          (process.platform !== 'darwin' && process.platform !== 'win32') ||
+          !['darwin', 'win32', 'linux'].includes(process.platform) ||
           input.transferId ||
           input.confirmTransfer ||
           input.resetHistory
@@ -1532,6 +1549,7 @@ export class NodeService extends EventEmitter {
       const selected = await new McpSetupPaths(this.directory).get('codex');
       const filename =
         selected ??
+        (await this.integrationOptions.runningCodexConfiguration?.()) ??
         (process.platform === 'win32' ? path.join(homedir(), '.codex', 'config.toml') : undefined);
       if (!filename || path.basename(filename) !== 'config.toml') throw new Error();
       const socket = codexQueueLocator(path.dirname(filename));
@@ -1548,12 +1566,8 @@ export class NodeService extends EventEmitter {
       )
         throw new Error();
       const configuration = this.clientInstructions('codex').configuration;
-      const current = editMcpConfiguration(
-        'codex',
-        await readFile(filename, 'utf8'),
-        configuration,
-      );
-      if (!current.changes.every(({ action }) => action === 'unchanged')) throw new Error();
+      if (!codexMcpConfigurationMatches(await readFile(filename, 'utf8'), configuration))
+        throw new Error();
       return socket;
     } catch {
       throw new Error(
@@ -1697,20 +1711,18 @@ export class NodeService extends EventEmitter {
         );
       if (current.state === 'retired')
         return this.codexRecoveryStatus('codex_recovery_unavailable');
-      current.observation ??= this.observeCodexRecovery(current).finally(() => {
-        current.observation = undefined;
-      });
-      return current.observation;
+      return this.checkCodexRecovery(current);
     }
     if (this.codexRecovery.size >= codexRecoveryLimit)
       throw new Error(
-        'Too many Codex confirmations are pending. Wait five minutes before retrying.',
+        'Too many Codex confirmations are pending. Wait for an existing attempt to finish or expire.',
       );
 
     const token = randomUUID();
     const challenge: CodexRecoveryChallenge = {
       target,
       digest: contentHash(token),
+      issuedAt: now,
       expires: now + codexRecoveryLifetime,
       state: 'pending',
     };
@@ -1744,6 +1756,9 @@ export class NodeService extends EventEmitter {
         return this.codexRecoveryStatus('codex_recovery_unavailable');
       }
       if ('witness' in outcome) challenge.offer = outcome;
+      if (outcome.state === 'queued' || outcome.state === 'uncertain')
+        challenge.expires = now + codexRecoveryQueueLifetime;
+      if (challenge.launchObserved) this.wakeCodexConfirmation(challenge);
       return this.codexRecoveryOffered(challenge);
     } catch (error) {
       if (this.codexRecovery.get(threadId) === challenge && challenge.state === 'pending')
@@ -1756,7 +1771,7 @@ export class NodeService extends EventEmitter {
   }
 
   private codexRecoveryAdapter(target: CodexRecoveryTarget): CodexQueueAdapter {
-    const adapter = new CodexQueueAdapter(
+    const adapter = CodexQueueAdapter.forDesktop(
       {
         id: target.profile?.id ?? randomUUID(),
         kind: 'codex-desktop',
@@ -1765,6 +1780,7 @@ export class NodeService extends EventEmitter {
         socket: target.socket,
       },
       () => {},
+      this.integrationOptions.wakeCodexChat,
     );
     this.codexRecoveryAdapters.add(adapter);
     return adapter;
@@ -1790,6 +1806,12 @@ export class NodeService extends EventEmitter {
     return this.codexRecoveryStatus('codex_recovery_uncertain', challenge.expires);
   }
 
+  private checkCodexRecovery(challenge: CodexRecoveryChallenge): Promise<CodexRecoveryResult> {
+    return (challenge.observation ??= this.observeCodexRecovery(challenge).finally(() => {
+      challenge.observation = undefined;
+    }));
+  }
+
   private async observeCodexRecovery(
     challenge: CodexRecoveryChallenge,
   ): Promise<CodexRecoveryResult> {
@@ -1808,7 +1830,14 @@ export class NodeService extends EventEmitter {
       if (challenge.state === 'retired')
         return this.codexRecoveryStatus('codex_recovery_unavailable');
       if (challenge.offer !== offer) return this.codexRecoveryOffered(challenge);
-      if (observed === 'admitted') {
+      if (typeof observed === 'object') {
+        if (observed.admittedAt < challenge.issuedAt || observed.admittedAt > Date.now())
+          return this.codexRecoveryStatus('codex_recovery_uncertain', challenge.expires);
+        challenge.expires = Math.min(expires, observed.admittedAt + codexRecoveryLifetime);
+        if (challenge.expires <= Date.now()) {
+          challenge.state = 'retired';
+          return this.codexRecoveryStatus('codex_recovery_expired');
+        }
         challenge.offer = { state: 'dispatched', witness: offer.witness };
         return this.codexRecoveryOffered(challenge);
       }
@@ -1817,6 +1846,7 @@ export class NodeService extends EventEmitter {
         return this.codexRecoveryOffered(challenge);
       }
       if (observed === 'missing' && offer.state === 'queued') {
+        challenge.expires = Math.min(expires, Date.now() + codexRecoveryLifetime);
         challenge.state = 'retired';
         return this.codexRecoveryStatus('codex_recovery_unavailable');
       }
@@ -1841,9 +1871,27 @@ export class NodeService extends EventEmitter {
       !secretMatches(contentHash(token), challenge.digest)
     )
       throw new Error('The Codex confirmation is invalid or expired');
+    // After the original proof window, only a recent ordinary item from the exact
+    // transcript can authorize redemption. Merely finding the token in the queue
+    // or retrying agent_connect cannot restart the clock.
+    if (
+      Date.now() >= challenge.issuedAt + codexRecoveryLifetime &&
+      challenge.offer?.state !== 'dispatched'
+    ) {
+      const result = await this.checkCodexRecovery(challenge);
+      if (result.status !== 'codex_recovery_pending')
+        throw new Error('The Codex confirmation is invalid or expired');
+    }
+    if (
+      this.codexRecovery.get(threadId) !== challenge ||
+      challenge.state !== 'pending' ||
+      challenge.expires <= Date.now()
+    )
+      throw new Error('The Codex confirmation is invalid or expired');
     const target = challenge.target;
     const profile = this.assertCodexRecoveryTarget(target);
     // Consume synchronously before any adapter or profile changes.
+    challenge.expires = Math.min(challenge.expires, Date.now() + codexRecoveryLifetime);
     challenge.state = 'used';
     if (target.binding && profile)
       return this.reconnectCodexQueue(
@@ -1943,6 +1991,64 @@ export class NodeService extends EventEmitter {
       envelope,
       withheld: 'Message delivery is in progress or uncertain; content is not repeated',
     };
+  }
+  async readOnArrival<T>(
+    connectionId: string,
+    after: number,
+    waitMs: number,
+    handoff: ResponseInvocation | undefined,
+    receive: () => Promise<T>,
+  ): Promise<T> {
+    if (!handoff) throw new Error('The MCP response handoff is unavailable');
+    handoff.assertCurrent();
+    const owner = this.store.assertOwner(connectionId);
+    const incarnation = this.store.sourceStamp(owner.key).incarnation;
+    if (this.pendingReads.has(connectionId))
+      throw new Error('A read is already waiting on this connection');
+    let wake!: () => void;
+    const arrival = new Promise<void>((resolve) => {
+      wake = resolve;
+    });
+    const waiter = { after, taking: false, wake };
+    this.pendingReads.set(connectionId, waiter);
+    const signal = handoff.controller.signal;
+    signal.addEventListener('abort', waiter.wake, { once: true });
+    const timer = setTimeout(waiter.wake, waitMs);
+    const release = () => {
+      handoff.response.off('finish', release);
+      handoff.response.off('close', release);
+      signal.removeEventListener('abort', release);
+      if (this.pendingReads.get(connectionId) !== waiter) return;
+      this.pendingReads.delete(connectionId);
+      if (waiter.taking) this.drainAdapters();
+    };
+    try {
+      if (!this.store.history(owner.key, after, 1, true).messages.length) await arrival;
+      handoff.assertCurrent();
+      const active = this.store.assertOwner(connectionId);
+      if (
+        active.key !== owner.key ||
+        active.binding.generation !== owner.binding.generation ||
+        active.binding.adapterId !== owner.binding.adapterId ||
+        active.binding.chatId !== owner.binding.chatId ||
+        this.store.sourceStamp(owner.key).incarnation !== incarnation
+      )
+        throw new Error('The mailbox changed during the wait');
+      waiter.taking = true;
+      const page = await receive();
+      handoff.assertCurrent();
+      // The inbox reservation still belongs to the HTTP response until it finishes or closes.
+      handoff.response.once('finish', release);
+      handoff.response.once('close', release);
+      signal.addEventListener('abort', release, { once: true });
+      return page;
+    } catch (error) {
+      release();
+      throw error;
+    } finally {
+      clearTimeout(timer);
+      signal.removeEventListener('abort', waiter.wake);
+    }
   }
   async read(
     connectionId: string,
@@ -2649,6 +2755,11 @@ export class NodeService extends EventEmitter {
       this.claudeDispatchSnapshots.delete(key);
       const binding = this.store.list().find((identity) => identity.key === key)?.binding;
       if (binding) {
+        const waiter = this.pendingReads.get(binding.connectionId);
+        if (waiter && incoming.sequence > waiter.after) {
+          waiter.taking = true;
+          waiter.wake();
+        }
         const adapter = this.adapters.get(binding.adapterId);
         if (adapter instanceof ClaudeCodeAdapter) adapter.messageReady(binding.connectionId);
       }
@@ -2786,6 +2897,53 @@ export class NodeService extends EventEmitter {
     );
   }
 
+  private wakeCodexConfirmation(challenge: CodexRecoveryChallenge): void {
+    if (
+      !this.integrationOptions.wakeCodexChat ||
+      challenge.state !== 'pending' ||
+      challenge.expires <= Date.now()
+    )
+      return;
+    // A desktop launch can race the queue acknowledgement. Recheck that same row once
+    // its witness is available, without submitting the challenge again.
+    challenge.launchObserved = true;
+    const offer = challenge.offer;
+    if (!offer || offer.state === 'dispatched' || challenge.launchWake) return;
+    const { target } = challenge;
+    const current = () => {
+      if (
+        !this.integrationsReady ||
+        this.codexRecovery.get(target.threadId) !== challenge ||
+        challenge.state !== 'pending' ||
+        challenge.expires <= Date.now()
+      )
+        return false;
+      this.assertCodexRecoveryTarget(target);
+      return true;
+    };
+    const adapter = this.codexRecoveryAdapter(target);
+    challenge.launchWake = adapter
+      .observeConfirmation(offer.witness, current)
+      .then(() => {})
+      .finally(async () => {
+        await adapter.stop();
+        this.codexRecoveryAdapters.delete(adapter);
+        challenge.launchWake = undefined;
+      });
+  }
+
+  desktopChatGptLaunched(): void {
+    if (!this.integrationsReady) return;
+    for (const challenge of this.codexRecovery.values()) this.wakeCodexConfirmation(challenge);
+    for (const profile of this.settings.value.adapters) {
+      if (profile.kind !== 'codex-desktop') continue;
+      const adapter = this.adapters.get(profile.id);
+      this.codexMigrationHead.delete(adapter);
+      if (adapter instanceof CodexQueueAdapter) adapter.desktopLaunched();
+    }
+    this.drainAdapters();
+  }
+
   private drainAdapters(adapterWake = false): void {
     if (!this.running) return;
     for (const event of this.store.pendingSystemEvents()) {
@@ -2838,12 +2996,46 @@ export class NodeService extends EventEmitter {
       const binding = identity.binding,
         dispatchKey = identity.key + ':' + identity.binding.connectionId,
         adapter = this.adapters.get(binding.adapterId);
+      if (this.pendingReads.get(binding.connectionId)?.taking) continue;
       if (this.dispatching.has(dispatchKey)) {
         if (adapterWake) this.adapterRedrain.add(dispatchKey);
         continue;
       }
       const status = adapter.status();
-      if (!status.capabilities.wakeIdle) continue;
+      if (!status.capabilities.wakeIdle) {
+        // An old Desktop binding may still point at the retired IPC endpoint.
+        // Probe the same saved chat on demand, with all transfer/receipt guards.
+        if (
+          this.integrationOptions.wakeCodexChat &&
+          this.integrationsReady &&
+          identity.unread &&
+          binding.client === 'Codex' &&
+          !(adapter instanceof CodexQueueAdapter) &&
+          status.state === 'error'
+        ) {
+          const profile = this.settings.value.adapters.find(
+            (item) => item.id === binding.adapterId,
+          );
+          const head = this.store.history(identity.key, 0, 1, true, true).messages[0]?.envelope.id;
+          if (
+            profile?.kind === 'codex-desktop' &&
+            profile.threadId === binding.chatId &&
+            head &&
+            this.codexMigrationHead.get(adapter) !== head
+          ) {
+            this.codexMigrationHead.set(adapter, head);
+            const job = this.codexQueueCanRecover(profile)
+              .then(async (available) => {
+                if (available)
+                  await this.reconnectCodexQueue(identity.nickname, binding.connectionId, profile);
+              })
+              .catch(() => {});
+            this.jobs.add(job);
+            void job.finally(() => this.jobs.delete(job));
+          }
+        }
+        continue;
+      }
       if (
         adapter instanceof CodexQueueAdapter &&
         this.restoredCodexProjections.get(adapter) !== binding.connectionId

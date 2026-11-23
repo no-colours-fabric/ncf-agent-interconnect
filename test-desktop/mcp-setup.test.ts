@@ -153,6 +153,41 @@ test('Codex TOML preserves multiline strings, quoted sections, dates, large inte
   );
 });
 
+test('adding the parallel inbox preserves the configured server and requires review for a conflicting inbox', () => {
+  const config = instructions('codex').configuration;
+  const original =
+    config.split('[mcp_servers.ncf_agent_interconnect_inbox]')[0] + 'tool_timeout_sec = 90\n';
+  const restricted = original + 'disabled_tools = ["agent_read"]\n';
+  assert.equal(editMcpConfiguration('codex', restricted, config).content, restricted);
+  const edit = editMcpConfiguration('codex', original, config);
+  assert.deepEqual(
+    edit.changes.map((change) => change.action),
+    ['unchanged', 'add'],
+  );
+  assert.equal(edit.requiresReplacement, false);
+  const servers = parseToml(edit.content).mcp_servers;
+  assert.equal(servers.ncf_agent_interconnect.tool_timeout_sec, 90);
+  assert.deepEqual(servers.ncf_agent_interconnect_inbox.enabled_tools, ['agent_read']);
+  assert.equal(servers.ncf_agent_interconnect_inbox.supports_parallel_tool_calls, true);
+  assert.equal(servers.ncf_agent_interconnect_inbox.tools.agent_read.approval_mode, undefined);
+  const guarded = config + 'tools.agent_read.approval_mode = "prompt"\nenabled = false\n';
+  const rotated = editMcpConfiguration('codex', guarded, config.replaceAll(url, url + '/updated'));
+  assert.equal(rotated.requiresReplacement, true);
+  const updated = parseToml(rotated.content).mcp_servers.ncf_agent_interconnect_inbox;
+  assert.equal(updated.enabled, false);
+  assert.equal(updated.tools.agent_read.approval_mode, 'prompt');
+  const conflict = editMcpConfiguration(
+    'codex',
+    edit.content.replace(/enabled_tools\s*=\s*\[[^\]]+\]/, 'enabled_tools = ["other"]'),
+    config,
+  );
+  assert.equal(conflict.requiresReplacement, true);
+  assert.deepEqual(
+    conflict.changes.map((change) => change.action),
+    ['unchanged', 'replace'],
+  );
+});
+
 test('Codex replaces only the named server, including nested or inline header layouts', () => {
   for (const source of [
     '# model comment\nmodel="fixture"\n[mcp_servers."ncf_agent_interconnect"]\ncommand="old"\nargs=["--old"]\n[mcp_servers.ncf_agent_interconnect.http_headers]\nAuthorization="old-token"\n[mcp_servers.other]\nurl="https://other.invalid"\n',
@@ -454,40 +489,53 @@ test('previously configured Cursor offers Connect when a file-owned rule is pend
   assert.equal((await service.status('cursor')).state, 'configured');
 });
 
-test('ChatGPT configuration is written only after an accepted shortcut on the exact plan', async (t) => {
-  const { directory, service } = await fixture(t, { requireCodexShortcut: true });
-  const filename = path.join(directory, 'config.toml');
-  const shortcut = path.join(directory, 'ChatGPT — NCF Agent Interconnect.app');
-  const original = '# preserve existing ChatGPT settings\n';
-  await writeFile(filename, original);
-  const plan = await service.preview(owner, 'codex', [{ id: 'configuration', path: filename }]);
-  await assert.rejects(service.apply(owner, plan.planId, false), /through shortcut setup/);
-  const prepareShortcut = async (target: string) => {
-    assert.equal(target, await realpath(filename));
-    assert.equal(await readFile(target, 'utf8'), original);
-    await mkdir(shortcut);
-    return true;
-  };
-  await assert.rejects(
-    service.apply('other-window', plan.planId, false, prepareShortcut),
-    /another window/,
+for (const platform of ['darwin', 'win32', 'linux'] as const)
+  test(
+    platform + ' applies an explicitly reviewed ChatGPT plan without creating a launcher',
+    async (t) => {
+      const { directory } = await fixture(t);
+      const handle = createMcpSetupHandler({
+        instructions,
+        home: directory,
+        stateDirectory: path.join(directory, '.app-state'),
+        env: {},
+        openPath: async () => '',
+        window: () => null,
+        dialog: {} as never,
+        codexShortcut: {
+          platform,
+          installed: false,
+          alternateUserData: true,
+          userData: directory,
+          appExecutable: directory,
+          appPath: directory,
+          appData: directory,
+          home: directory,
+          desktop: directory,
+          dialog: {} as never,
+          boundProfiles: () => [],
+          reveal: () => {},
+        },
+      });
+      const target = path.join(directory, 'config.toml');
+      const plan = await handle(
+        'mcpSetupPreview',
+        { client: 'codex', files: [{ id: 'configuration', path: target }] },
+        owner,
+      );
+      assert.ok(plan.handled);
+      const { planId } = plan.result as { planId: string };
+      await assert.rejects(
+        handle('mcpSetupApply', { planId, confirmReplace: false }, 'another-window'),
+      );
+      await assert.rejects(stat(target), { code: 'ENOENT' });
+      const applied = await handle('mcpSetupApply', { planId, confirmReplace: false }, owner);
+      assert.ok(applied.handled);
+      assert.equal((applied.result as { status: string }).status, 'applied');
+      assert.match(await readFile(target, 'utf8'), /ncf_agent_interconnect/);
+      assert.ok(!(await readdir(directory)).some((name) => name.endsWith('.app')));
+    },
   );
-  const cancelled = await service.apply(owner, plan.planId, false, async () => false);
-  assert.equal(cancelled, null);
-  assert.equal(await readFile(filename, 'utf8'), original);
-  await assert.rejects(stat(shortcut), { code: 'ENOENT' });
-  const result = await service.apply(owner, plan.planId, false, prepareShortcut);
-  assert.equal(result?.status, 'applied');
-  assert.ok(
-    (parseToml(await readFile(filename, 'utf8')).mcp_servers as Record<string, unknown>)
-      .ncf_agent_interconnect,
-  );
-  assert.ok((await stat(shortcut)).isDirectory());
-  assert.deepEqual(
-    await service.apply(owner, plan.planId, false, async () => assert.fail('Shortcut replay')),
-    result,
-  );
-});
 
 test('replacement requires confirmation, preserves the original in a private backup and retains file permissions', async (t) => {
   const { directory, service } = await fixture(t);
@@ -694,7 +742,10 @@ test('required settings with custom client options are left byte-for-byte unchan
     );
     let source: string;
     if (client === 'codex')
-      source = instructions(client).configuration + 'enabled_tools = ["agent_send"] # custom\n';
+      source = instructions(client).configuration.replace(
+        '[mcp_servers.ncf_agent_interconnect]\n',
+        '[mcp_servers.ncf_agent_interconnect]\nenabled_tools = ["agent_send"] # custom\n',
+      );
     else {
       const config = JSON.parse(instructions(client).configuration);
       config[client === 'cursor' ? 'mcpServers' : 'mcp'].ncf_agent_interconnect.custom = 'keep';
@@ -713,6 +764,43 @@ test('required settings with custom client options are left byte-for-byte unchan
     assert.equal((await stat(filename)).mtimeMs, before.mtimeMs);
     assert.equal((await service.status(client)).state, 'configured');
   }
+});
+
+test('ChatGPT distinguishes matching file contents from a usable profile and only saves an explicit selection', async (t) => {
+  let running: string | undefined;
+  const { directory, service } = await fixture(t, {
+    runningCodexConfiguration: async () => running,
+  });
+  const home = await realpath(directory);
+  const custom = path.join(home, 'Work', 'config.toml');
+  const stock = path.join(home, '.codex', 'config.toml');
+  const selected = path.join(directory, '.app-state', 'mcp-setup-paths.json');
+  const source = '# preserve settings\n' + instructions('codex').configuration;
+  for (const filename of [stock, custom]) {
+    await mkdir(path.dirname(filename));
+    await writeFile(filename, source, { mode: 0o600 });
+  }
+  const before = await stat(custom);
+  if (process.platform !== 'win32') {
+    const status = await service.status('codex');
+    assert.equal(status.files[0].state, 'configured');
+    assert.equal(status.state, 'not-configured');
+  }
+  running = custom;
+  const live = await service.status('codex');
+  assert.equal(live.state, 'configured');
+  assert.equal(live.remembered, false);
+  assert.equal(live.files[0].path, custom);
+  const preview = await service.preview(owner, 'codex', [{ id: 'configuration', path: custom }]);
+  assert.equal(preview.files[0].action, 'unchanged');
+  await assert.rejects(stat(selected), { code: 'ENOENT' });
+  assert.equal((await service.apply(owner, preview.planId, false)).status, 'unchanged');
+  running = stock;
+  const saved = await service.status('codex');
+  assert.equal(saved.remembered, true);
+  assert.equal(saved.files[0].path, custom);
+  assert.equal(await readFile(custom, 'utf8'), source);
+  assert.equal((await stat(custom)).mtimeMs, before.mtimeMs);
 });
 
 test('only the successful selected path is persisted and rechecked after restart without writing', async (t) => {

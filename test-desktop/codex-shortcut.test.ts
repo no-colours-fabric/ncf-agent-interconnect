@@ -179,7 +179,7 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
     'configured without a saved setup path uses the known ordinary profile',
     async () => {
       const status = await service.status('codex');
-      assert.equal(status.state, 'configured');
+      assert.equal(status.files[0].state, 'configured');
       assert.equal(status.remembered, false);
       boundProfiles = [{ socket: path.join(defaultProfile, 'ipc', 'ipc.sock'), codexQueue: true }];
       assert.deepEqual(
@@ -205,7 +205,14 @@ test('shortcut resolves the ordinary configured Codex profile automatically and 
     async () => {
       const wrongNode = matching.replace(nodeUrl, 'http://127.0.0.1:44001/mcp');
       const wrongToken = matching.replace('isolated-test-token', 'different-fixture-token');
-      for (const invalid of [wrongNode, wrongToken, matching + 'enabled = false\n']) {
+      for (const invalid of [
+        wrongNode,
+        wrongToken,
+        matching.replace(
+          '[mcp_servers.ncf_agent_interconnect]\n',
+          '[mcp_servers.ncf_agent_interconnect]\nenabled = false\n',
+        ),
+      ]) {
         await writeFile(defaultConfig, invalid);
         assert.deepEqual(
           await handle('codexShortcutCreate', input('desktop')),

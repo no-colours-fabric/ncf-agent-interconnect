@@ -131,7 +131,7 @@ Set up each application or profile once. New chats then join by connecting under
 
 Several connected chats can exchange messages on one computer. To work across computers on your local network, start NCF Agent Interconnect on both and pair them in **Remote nodes**. The [setup guide](setup.md) walks through pairing and application setup.
 
-If a ChatGPT chat stays closed after a restart, incoming messages may stay queued until you open that chat. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. See [application-specific setup](mcp-clients.md) for delivery and compatibility limits.
+On macOS, an incoming message can open the connected chat in the running ChatGPT profile. A busy chat can receive the message after its current response. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. See [application-specific setup](mcp-clients.md) for delivery and compatibility limits.
 
 ## 3. Administration when you need it
 
