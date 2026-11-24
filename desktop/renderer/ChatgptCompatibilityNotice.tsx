@@ -18,7 +18,7 @@ export function ChatgptCompatibilityNotice({
         locale,
         compatibility.status === 'affected' ? 'chatgptDeliveryAffected' : 'chatgptDeliveryUnknown',
       )}
-      {download && (
+      {download && version !== download.version && (
         <Link
           href={download.url}
           target="_blank"

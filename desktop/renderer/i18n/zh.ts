@@ -2,9 +2,8 @@ import type { Messages } from './messages.js';
 
 export const zh: Messages = {
   chatgptDownloadAutomatic: '下载已验证自动收信功能的版本 {version}',
-  chatgptDeliveryAffected: '在此版本的 ChatGPT 中，收到的消息会在当前回复结束后显示。',
-  chatgptDeliveryUnknown:
-    '尚未验证此 ChatGPT 能否在回复过程中接收消息。消息可能会在回复结束后显示。',
+  chatgptDeliveryAffected: '收到的消息会在当前回复结束后显示。',
+  chatgptDeliveryUnknown: '收到的消息可能会在当前回复结束后显示。',
   chatgptDownloadVerified: '下载已验证的版本 {version}',
   mcpSetup_statusTitle: '状态',
   mcpSetup_statusMcpConfig: 'MCP 设置',

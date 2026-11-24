@@ -2,10 +2,8 @@ import type { Messages } from './messages.js';
 
 export const ru: Messages = {
   chatgptDownloadAutomatic: 'Скачать версию {version} с проверенной автоматической доставкой',
-  chatgptDeliveryAffected:
-    'В этой версии ChatGPT входящие сообщения появляются после завершения текущего ответа.',
-  chatgptDeliveryUnknown:
-    'Для этой установки ChatGPT доставка во время ответа не подтверждена. Сообщение может появиться после завершения ответа.',
+  chatgptDeliveryAffected: 'Входящие сообщения появятся после текущего ответа.',
+  chatgptDeliveryUnknown: 'Входящие сообщения могут появиться после текущего ответа.',
   chatgptDownloadVerified: 'Скачать проверенную версию {version}',
   mcpSetup_statusTitle: 'Статус',
   mcpSetup_statusMcpConfig: 'Настройки MCP',

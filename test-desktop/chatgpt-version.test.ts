@@ -87,6 +87,26 @@ test('only a tested platform, architecture and exact build can establish current
   assert.equal(isChatgptReleaseUrl(official.replace('https:', 'http:'), 'darwin'), false);
 });
 
+test('Windows offers its official download only for a different or unknown app version', () => {
+  const windowsUrl =
+    'https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix';
+  for (const [version, showLink] of [
+    [good.version, false],
+    ['26.1117.41037', true],
+    [undefined, true],
+  ] as const) {
+    const compatibility = chatgptCompatibility('win32', { architecture: 'x64', version });
+    assert.equal(compatibility.status, 'unknown');
+    const html = renderToStaticMarkup(
+      createElement(ChatgptCompatibilityNotice, { compatibility, locale: 'ru' }),
+    );
+    assert.ok(html.includes(t('ru', 'chatgptDeliveryUnknown')));
+    assert.equal(html.includes('href='), showLink);
+    assert.equal(html.includes(windowsUrl), showLink);
+    if (version) assert.ok(html.includes('ChatGPT ' + version));
+  }
+});
+
 test('each locale distinguishes observed queueing from unverified delivery and renders the platform-specific link', () => {
   for (const locale of supportedLocales) {
     const render = (compatibility: ReturnType<typeof chatgptCompatibility>) =>
@@ -94,10 +114,13 @@ test('each locale distinguishes observed queueing from unverified delivery and r
     assert.equal(render(chatgptCompatibility('darwin', good)), '');
     const delayed = render(chatgptCompatibility('darwin', affected));
     const unknown = render(chatgptCompatibility('linux', good));
-    const win = render(chatgptCompatibility('win32', { ...good, architecture: 'x64' }));
+    const win = render(chatgptCompatibility('win32', { ...affected, architecture: 'x64' }));
     assert.ok(win.includes(t(locale, 'chatgptDeliveryUnknown')));
     assert.ok(win.includes(t(locale, 'chatgptDownloadAutomatic', { version: good.version })));
     assert.ok(win.includes('/26.1111.9664.0/ChatGPT-x64.msix'));
+    const equal = render(chatgptCompatibility('win32', { ...good, architecture: 'x64' }));
+    assert.ok(equal.includes(t(locale, 'chatgptDeliveryUnknown')));
+    assert.ok(!equal.includes('href='));
     assert.ok(delayed.includes(t(locale, 'chatgptDeliveryAffected')));
     assert.ok(delayed.includes(t(locale, 'chatgptDownloadVerified', { version: good.version })));
     assert.ok(delayed.includes(official));

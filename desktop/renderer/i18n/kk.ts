@@ -3,10 +3,8 @@ import type { Messages } from './messages.js';
 export const kk: Messages = {
   chatgptDownloadAutomatic:
     'Хабарларды автоматты жеткізуі тексерілген {version} нұсқасын жүктеп алу',
-  chatgptDeliveryAffected:
-    'ChatGPT қолданбасының бұл нұсқасында кіріс хабарлар ағымдағы жауап аяқталғаннан кейін көрсетіледі.',
-  chatgptDeliveryUnknown:
-    'Орнатылған ChatGPT қолданбасында жауап беру кезінде хабарлардың жеткізілуі тексерілмеген. Хабар жауап аяқталғаннан кейін көрінуі мүмкін.',
+  chatgptDeliveryAffected: 'Кіріс хабарлар ағымдағы жауап аяқталған соң көрсетіледі.',
+  chatgptDeliveryUnknown: 'Кіріс хабарлар ағымдағы жауап аяқталған соң көрсетілуі мүмкін.',
   chatgptDownloadVerified: 'Тексерілген {version} нұсқасын жүктеп алу',
   mcpSetup_statusTitle: 'Күйі',
   mcpSetup_statusMcpConfig: 'MCP баптаулары',

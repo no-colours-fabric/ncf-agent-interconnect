@@ -4,9 +4,9 @@ export const pl: Messages = {
   chatgptDownloadAutomatic:
     'Pobierz wersję {version} ze sprawdzonym automatycznym dostarczaniem wiadomości',
   chatgptDeliveryAffected:
-    'W tej wersji ChatGPT wiadomości przychodzące pojawiają się po zakończeniu bieżącej odpowiedzi.',
+    'Wiadomości przychodzące pojawiają się po zakończeniu bieżącej odpowiedzi.',
   chatgptDeliveryUnknown:
-    'Dostarczanie wiadomości w trakcie odpowiedzi nie zostało sprawdzone w tej instalacji ChatGPT. Wiadomości mogą pojawić się po zakończeniu odpowiedzi.',
+    'Wiadomości przychodzące mogą pojawić się po zakończeniu bieżącej odpowiedzi.',
   chatgptDownloadVerified: 'Pobierz sprawdzoną wersję {version}',
   mcpSetup_statusTitle: 'Stan',
   mcpSetup_statusMcpConfig: 'Ustawienia MCP',

@@ -3,10 +3,9 @@ import type { Messages } from './messages.js';
 export const de: Messages = {
   chatgptDownloadAutomatic:
     'Version {version} mit geprüfter automatischer Zustellung herunterladen',
-  chatgptDeliveryAffected:
-    'In dieser ChatGPT-Version erscheinen eingehende Nachrichten erst nach Abschluss der laufenden Antwort.',
+  chatgptDeliveryAffected: 'Eingehende Nachrichten erscheinen nach der laufenden Antwort.',
   chatgptDeliveryUnknown:
-    'Für diese ChatGPT-Installation wurde die Zustellung während einer laufenden Antwort noch nicht bestätigt. Nachrichten können nach Abschluss der Antwort erscheinen.',
+    'Eingehende Nachrichten können erst nach der laufenden Antwort erscheinen.',
   chatgptDownloadVerified: 'Geprüfte Version {version} herunterladen',
   mcpSetup_statusTitle: 'Status',
   mcpSetup_statusMcpConfig: 'MCP-Einstellungen',

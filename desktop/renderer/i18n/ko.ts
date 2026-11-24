@@ -2,9 +2,8 @@ import type { Messages } from './messages.js';
 
 export const ko: Messages = {
   chatgptDownloadAutomatic: '자동 수신이 확인된 버전 {version} 다운로드',
-  chatgptDeliveryAffected: '이 ChatGPT 버전에서는 현재 응답이 끝난 후에 수신 메시지가 표시됩니다.',
-  chatgptDeliveryUnknown:
-    '설치된 ChatGPT에서 응답 도중 메시지가 전달되는지는 확인되지 않았습니다. 응답이 끝난 후에 메시지가 표시될 수 있습니다.',
+  chatgptDeliveryAffected: '받은 메시지는 현재 응답이 끝나면 표시됩니다.',
+  chatgptDeliveryUnknown: '받은 메시지는 현재 응답이 끝난 뒤에 표시될 수 있습니다.',
   chatgptDownloadVerified: '검증된 버전 {version} 다운로드',
   mcpSetup_statusTitle: '상태',
   mcpSetup_statusMcpConfig: 'MCP 설정',

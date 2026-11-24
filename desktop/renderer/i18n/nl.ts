@@ -2,10 +2,8 @@ import type { Messages } from './messages.js';
 
 export const nl: Messages = {
   chatgptDownloadAutomatic: 'Versie {version} met geteste automatische bezorging downloaden',
-  chatgptDeliveryAffected:
-    'In deze versie van ChatGPT verschijnen inkomende berichten zodra het huidige antwoord is afgerond.',
-  chatgptDeliveryUnknown:
-    'Voor deze installatie van ChatGPT is niet bevestigd of berichten tijdens een antwoord aankomen. Ze kunnen na afloop van het antwoord verschijnen.',
+  chatgptDeliveryAffected: 'Inkomende berichten verschijnen na het huidige antwoord.',
+  chatgptDeliveryUnknown: 'Inkomende berichten verschijnen mogelijk pas na het huidige antwoord.',
   chatgptDownloadVerified: 'Geteste versie {version} downloaden',
   mcpSetup_statusTitle: 'Status',
   mcpSetup_statusMcpConfig: 'MCP-instellingen',
