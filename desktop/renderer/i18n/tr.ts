@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  chatgptDownloadAutomatic: 'Otomatik ileti teslimi doğrulanmış {version} sürümünü indir',
+  chatgptDeliveryAffected:
+    'ChatGPT’nin bu sürümünde gelen iletiler, devam eden yanıt tamamlandığında görünür.',
+  chatgptDeliveryUnknown:
+    'Bu ChatGPT kurulumunda yanıt sırasında ileti teslimi doğrulanmadı. İletiler yanıt tamamlandıktan sonra görünebilir.',
+  chatgptDownloadVerified: 'Doğrulanmış {version} sürümünü indir',
   mcpSetup_statusTitle: 'Durum',
   mcpSetup_statusMcpConfig: 'MCP ayarları',
   mcpSetup_statusOpencodeConfig: 'MCP ve eklenti ayarları',

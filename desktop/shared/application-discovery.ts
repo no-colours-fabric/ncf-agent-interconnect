@@ -1,4 +1,5 @@
 import type { McpSetupClient } from './mcp-setup.js';
+import type { ChatgptCompatibility } from './chatgpt-compatibility.js';
 
 export type DiscoveryPlatform = 'darwin' | 'win32' | 'linux';
 export type InstallationStatus = 'detected' | 'not-found-in-known-locations' | 'unknown';
@@ -31,6 +32,7 @@ export interface ApplicationInstallation {
 }
 
 export interface ApplicationDiscoverySnapshot {
+  chatgptCompatibility?: ChatgptCompatibility;
   checkedAt: string;
   platform: DiscoveryPlatform | 'unsupported';
   applications: ApplicationInstallation[];

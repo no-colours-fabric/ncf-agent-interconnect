@@ -1,4 +1,5 @@
 import React from 'react';
+import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
 import { Alert, Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
 import InboxOutlined from '@mui/icons-material/InboxOutlined';
@@ -188,6 +189,12 @@ export function OverviewApplications({
                     ? copy.applicationReadyHelp
                     : applicationNextStep(client, locale, setupCopy)}
                 </Typography>
+              )}
+              {client === 'codex' && (
+                <ChatgptCompatibilityNotice
+                  compatibility={discovery.snapshot?.chatgptCompatibility}
+                  locale={locale}
+                />
               )}
               {!active && (pending || failed) && (
                 <Alert severity={pending ? 'warning' : 'error'}>

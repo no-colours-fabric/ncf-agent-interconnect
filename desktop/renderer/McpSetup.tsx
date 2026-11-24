@@ -1,4 +1,5 @@
 import { ClientLogo } from './ApplicationDiscovery.js';
+import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import {
   ApplicationRows,
@@ -1104,6 +1105,12 @@ export function McpSetup({
             {copy.back}
           </Button>
           <Stack spacing={0}>
+            {selectedClient === 'codex' && (
+              <ChatgptCompatibilityNotice
+                compatibility={discovery?.snapshot?.chatgptCompatibility}
+                locale={locale}
+              />
+            )}
             {showOpenCodeV2 ? (
               <OpenCodeV2SetupDialog
                 flow={autoFlow.openCodeV2}

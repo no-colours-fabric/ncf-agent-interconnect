@@ -1,0 +1,75 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import {
+  chatgptCompatibility,
+  isChatgptReleaseUrl,
+} from '../desktop/shared/chatgpt-compatibility.js';
+import { ChatgptCompatibilityNotice } from '../desktop/renderer/ChatgptCompatibilityNotice.js';
+import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
+import { sameWindowsDesktop } from '../desktop/main/chatgpt-version.js';
+
+const good = { version: '26.1111.71704', build: '29030', architecture: 'arm64' };
+const affected = { version: '26.1117.41037', build: '29803', architecture: 'arm64' };
+const official =
+  'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip';
+
+test('Windows requires the registered package identity and exact manifest executable of the process', () => {
+  const pkg = {
+    executable: 'C:\\WindowsApps\\OpenAI.Codex_fixture\\app\\ChatGPT.exe',
+    packageFullName: 'OpenAI.Codex_fixture',
+  };
+  const proc = { path: pkg.executable.toUpperCase(), packageFullName: pkg.packageFullName };
+  assert.ok(sameWindowsDesktop(proc, pkg));
+  assert.ok(!sameWindowsDesktop({ ...proc, packageFullName: undefined }, pkg));
+  assert.ok(!sameWindowsDesktop({ ...proc, packageFullName: 'Other' }, pkg));
+  assert.ok(!sameWindowsDesktop({ ...proc, path: 'C:\\Other\\ChatGPT.exe' }, pkg));
+  assert.ok(!sameWindowsDesktop(proc, { executable: pkg.executable }));
+});
+
+test('only a tested platform, architecture and exact build can establish current-turn delivery', () => {
+  assert.equal(chatgptCompatibility('darwin', good).status, 'verified');
+  assert.equal(chatgptCompatibility('darwin', affected).status, 'affected');
+  for (const sample of [
+    { ...affected, version: '26.1117.31558' },
+    { ...good, build: '1' },
+    { ...affected, build: undefined },
+    {},
+  ])
+    assert.equal(chatgptCompatibility('darwin', sample).status, 'unknown');
+  for (const platform of ['linux', 'win32'] as const) {
+    assert.deepEqual(chatgptCompatibility(platform, good), {
+      version: good.version,
+      status: 'unknown',
+    });
+    assert.equal(isChatgptReleaseUrl(official, platform), false);
+  }
+  assert.equal(
+    chatgptCompatibility('darwin', { ...good, architecture: 'x64' }).download,
+    undefined,
+  );
+  assert.equal(isChatgptReleaseUrl(official, 'darwin'), true);
+  assert.equal(isChatgptReleaseUrl(official + '?other', 'darwin'), false);
+  assert.equal(isChatgptReleaseUrl(official.replace('https:', 'http:'), 'darwin'), false);
+});
+
+test('each locale distinguishes observed queueing from unverified delivery and renders the platform-specific link', () => {
+  for (const locale of supportedLocales) {
+    const render = (compatibility: ReturnType<typeof chatgptCompatibility>) =>
+      renderToStaticMarkup(createElement(ChatgptCompatibilityNotice, { compatibility, locale }));
+    assert.equal(render(chatgptCompatibility('darwin', good)), '');
+    const delayed = render(chatgptCompatibility('darwin', affected));
+    const unknown = render(chatgptCompatibility('linux', good));
+    const win = render(chatgptCompatibility('win32', { ...good, architecture: 'x64' }));
+    assert.ok(win.includes(t(locale, 'chatgptDeliveryUnknown')));
+    assert.ok(win.includes(t(locale, 'chatgptDownloadAutomatic', { version: good.version })));
+    assert.ok(win.includes('/26.1111.9664.0/ChatGPT-x64.msix'));
+    assert.ok(delayed.includes(t(locale, 'chatgptDeliveryAffected')));
+    assert.ok(delayed.includes(t(locale, 'chatgptDownloadVerified', { version: good.version })));
+    assert.ok(delayed.includes(official));
+    assert.ok(unknown.includes(t(locale, 'chatgptDeliveryUnknown')));
+    assert.ok(!unknown.includes('href='));
+    assert.notEqual(t(locale, 'chatgptDeliveryUnknown'), t(locale, 'chatgptDeliveryAffected'));
+  }
+});

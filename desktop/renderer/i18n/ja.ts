@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  chatgptDownloadAutomatic: '自動受信を確認済みのバージョン {version} をダウンロード',
+  chatgptDeliveryAffected:
+    'このバージョンの ChatGPT では、受信メッセージは現在の応答が完了した後に表示されます。',
+  chatgptDeliveryUnknown:
+    'この ChatGPT で応答中にメッセージが届くかどうかは未確認です。応答の完了後に表示される場合があります。',
+  chatgptDownloadVerified: '動作確認済みのバージョン {version} をダウンロード',
   mcpSetup_statusTitle: 'ステータス',
   mcpSetup_statusMcpConfig: 'MCP 設定',
   mcpSetup_statusOpencodeConfig: 'MCP とプラグインの設定',

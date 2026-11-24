@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const uk: Messages = {
+  chatgptDownloadAutomatic: 'Завантажити версію {version} із перевіреною автоматичною доставкою',
+  chatgptDeliveryAffected:
+    'У цій версії ChatGPT вхідні повідомлення з’являються після завершення поточної відповіді.',
+  chatgptDeliveryUnknown:
+    'Для цієї інсталяції ChatGPT доставку повідомлень під час відповіді не перевірено. Повідомлення може з’явитися після завершення відповіді.',
+  chatgptDownloadVerified: 'Завантажити перевірену версію {version}',
   mcpSetup_statusTitle: 'Статус',
   mcpSetup_statusMcpConfig: 'Налаштування MCP',
   mcpSetup_statusOpencodeConfig: 'Налаштування MCP і плагіна',

@@ -5,11 +5,13 @@ import {
   applicationDiscoveryMethods,
   applicationNames,
   type ApplicationDiscoverySnapshot,
+  type InstallationInstance,
 } from '../shared/application-discovery.js';
 import { mcpSetupClients } from '../shared/mcp-setup.js';
 import { ApplicationDiscoveryState } from '../core/application-discovery-state.js';
 import { NativeDiscoveryFiles } from '../core/application-discovery-platforms.js';
 import { createRequire } from 'node:module';
+import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
 
 /** Raw archives need original-fs; never disable ASAR support for the application globally. */
 export function createNativeDiscoveryFiles(
@@ -27,6 +29,7 @@ export function createApplicationDiscoveryHandler(
     dialog: Pick<Dialog, 'showOpenDialog'>;
     window: () => BrowserWindow | null;
     stateDirectory: string;
+    chatgptCompatibility?: (installations: InstallationInstance[]) => Promise<ChatgptCompatibility>;
   },
 ) {
   const discovery = new ApplicationDiscovery({
@@ -42,6 +45,9 @@ export function createApplicationDiscoveryHandler(
     const requested = ++generation;
     const scan = discovery.scan().then(async (result): Promise<ApplicationDiscoverySnapshot> => ({
       ...result,
+      chatgptCompatibility: await options.chatgptCompatibility?.(
+        result.applications.find((a) => a.client === 'codex')?.instances ?? [],
+      ),
       offers: await state.offers(result.applications),
       stateError: state.error,
     }));

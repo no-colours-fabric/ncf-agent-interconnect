@@ -37,6 +37,7 @@ import {
 } from './application-setup-model.js';
 import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
+import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
 import { StartupApplicationTile, StartupApplicationTiles } from './StartupApplicationTiles.js';
 import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
 import { ClientApplicationMetrics } from './application-connections.js';
@@ -713,6 +714,13 @@ function ApplicationCompactList({
             sx={{ gridColumn: 3, alignSelf: 'start', justifySelf: 'end' }}
           />
         )}
+        {client === 'codex' &&
+          (detected || configured || discovery.snapshot?.chatgptCompatibility?.version) && (
+            <ChatgptCompatibilityNotice
+              compatibility={discovery.snapshot?.chatgptCompatibility}
+              locale={locale}
+            />
+          )}
         {(state.phase === 'failed' || pending) && (
           <Alert
             severity={pending ? 'warning' : 'error'}
@@ -1033,6 +1041,16 @@ export function ApplicationRows({
             {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
           </Alert>
         )}
+        {client === 'codex' &&
+          (detected ||
+            configured ||
+            working ||
+            discovery.snapshot?.chatgptCompatibility?.version) && (
+            <ChatgptCompatibilityNotice
+              compatibility={discovery.snapshot?.chatgptCompatibility}
+              locale={locale}
+            />
+          )}
         <SetupDetails state={state} locale={locale} />
         {showGuidance && (
           <NextStep
@@ -1381,6 +1399,12 @@ export function ApplicationSetup({
                       void flow.connect(client);
                     }}
                   >
+                    {client === 'codex' && (
+                      <ChatgptCompatibilityNotice
+                        compatibility={discovery.snapshot?.chatgptCompatibility}
+                        locale={locale}
+                      />
+                    )}
                     {client === 'claude' && action && (
                       <Typography variant="caption" color="text.secondary">
                         {m.claudeDescription}

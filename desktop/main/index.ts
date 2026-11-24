@@ -24,7 +24,12 @@ import {
 import { StartupLifecycle } from './startup-lifecycle.js';
 import { LanSearchLifecycle } from './lan-search-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
-import { createApplicationDiscoveryHandler } from './application-discovery-ipc.js';
+import {
+  createApplicationDiscoveryHandler,
+  createNativeDiscoveryFiles,
+} from './application-discovery-ipc.js';
+import { detectChatgptCompatibility } from './chatgpt-version.js';
+import { isChatgptReleaseUrl } from '../shared/chatgpt-compatibility.js';
 import { UiServiceAccess } from './ui-service-access.js';
 import { hasCodexShortcutLaunchFlags } from '../shared/codex-shortcut.js';
 import { pendingInstallationRestartNotice } from './installation-restart-notice.js';
@@ -255,7 +260,10 @@ function showWindow(tab?: string): void {
   owner.on('hide', visibilityChanged);
   owner.on('minimize', visibilityChanged);
   owner.on('restore', visibilityChanged);
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  window.webContents.setWindowOpenHandler(({ url }) => {
+    if (isChatgptReleaseUrl(url, process.platform)) void shell.openExternal(url).catch(() => {});
+    return { action: 'deny' };
+  });
   window.webContents.on('will-navigate', (event) => event.preventDefault());
   window.on('close', (event) => {
     if (!quitting) {
@@ -314,7 +322,11 @@ function setupIpc(): void {
       dialog,
     },
   });
+  const discoveryFiles = createNativeDiscoveryFiles();
   const applicationDiscovery = createApplicationDiscoveryHandler({
+    files: discoveryFiles,
+    chatgptCompatibility: (installs) =>
+      detectChatgptCompatibility(discoveryFiles, process.platform, installs),
     dialog,
     window: () => window,
     stateDirectory: userData,

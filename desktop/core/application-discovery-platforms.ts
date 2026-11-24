@@ -20,6 +20,13 @@ export const errorReason = (error: unknown): DiscoveryReason => {
   return 'source-unavailable';
 };
 
+interface WindowsDesktopInstallation {
+  root: string;
+  executable: string;
+  architecture?: string;
+  packageFullName?: string;
+}
+
 export interface DiscoveryFiles {
   canonical(filename: string): Promise<string | undefined>;
   bytes(filename: string, size: number, offset?: number): Promise<Buffer>;
@@ -29,7 +36,7 @@ export interface DiscoveryFiles {
     name: string,
     runtime?: string,
   ): Promise<{ name: string; publisher: string } | undefined>;
-  windowsCodex?(): Promise<{ root: string; executable: string }[]>;
+  windowsCodex?(): Promise<WindowsDesktopInstallation[]>;
   installationEntries?(directory: string): Promise<string[]>;
   linkedClaudeRuntime?(launcher: string, versions: string): Promise<boolean>;
 }
@@ -113,11 +120,11 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     }
     return false;
   }
-  async windowsCodex(): Promise<{ root: string; executable: string }[]> {
+  async windowsCodex(): Promise<WindowsDesktopInstallation[]> {
     const system = process.env.SystemRoot ?? 'C:\\Windows';
     const command = path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe');
     const script =
-      "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; @(Get-AppxPackage -Name 'OpenAI.Codex' | Select-Object Name,PackageFamilyName,PublisherId,InstallLocation) | ConvertTo-Json -Compress";
+      "[Console]::OutputEncoding=[System.Text.UTF8Encoding]::new($false); $ErrorActionPreference='Stop'; @(Get-AppxPackage -Name 'OpenAI.Codex' | Select-Object Name,PackageFamilyName,PackageFullName,PublisherId,InstallLocation,@{Name='Architecture';Expression={$_.Architecture.ToString()}}) | ConvertTo-Json -Compress";
     const { stdout } = await runFile(
       command,
       ['-NoProfile', '-NonInteractive', '-Command', script],
@@ -126,7 +133,7 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
     const raw: unknown = stdout.trim() ? JSON.parse(stdout) : [];
     const packages = Array.isArray(raw) ? raw : [raw];
     if (packages.length > 16) throw new DiscoveryError('limit-exceeded');
-    const found: { root: string; executable: string }[] = [];
+    const found: WindowsDesktopInstallation[] = [];
     for (const item of packages) {
       const root = await this.canonical(windowsCodexPackageRoot(item));
       if (!root) throw new DiscoveryError('missing-runtime');
@@ -145,7 +152,12 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
         !(await this.executable(runtime))
       )
         throw new DiscoveryError('missing-runtime');
-      found.push({ root, executable: runtime });
+      found.push({
+        root,
+        executable: runtime,
+        architecture: String(item.Architecture).toLowerCase(),
+        packageFullName: item.PackageFullName,
+      });
     }
     return found;
   }

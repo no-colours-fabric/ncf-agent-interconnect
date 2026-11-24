@@ -1,6 +1,12 @@
 import type { Messages } from './messages.js';
 
 export const fr: Messages = {
+  chatgptDownloadAutomatic: 'Télécharger la version {version} (réception automatique vérifiée)',
+  chatgptDeliveryAffected:
+    'Dans cette version de ChatGPT, les messages entrants s’affichent à la fin de la réponse en cours.',
+  chatgptDeliveryUnknown:
+    'La réception de messages pendant une réponse n’a pas été vérifiée pour cette installation de ChatGPT. Les messages peuvent s’afficher après la fin de la réponse.',
+  chatgptDownloadVerified: 'Télécharger la version vérifiée {version}',
   mcpSetup_statusTitle: 'Statut',
   mcpSetup_statusMcpConfig: 'Paramètres MCP',
   mcpSetup_statusOpencodeConfig: 'Paramètres MCP et du plugin',
