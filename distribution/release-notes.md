@@ -7,8 +7,22 @@
 
 ## Known delivery limits
 
-- If a ChatGPT chat is unloaded or stays closed after a restart, incoming messages may stay queued until you open it.
-- After Cursor restarts or reloads, send an ordinary message in the same Cursor chat to restore its automatic delivery wait.
+- **Apple Silicon Mac:** ChatGPT **26.1111.71704** (build **29030**) with **NCF Agent Interconnect 1.0.0** received a complete message in the current turn.
+- **Apple Silicon Mac, newer version tested:** in ChatGPT **26.1117.41037**, a message to a busy chat stayed queued and appeared in the next turn.
+- **Windows x64:** ChatGPT package **26.1111.9664.0** (app **26.1111.71704**, build **29030**) and an **NCF Agent Interconnect 1.0.0 alpha.5** test build exchanged messages automatically with a Mac. Delivery within the current Windows turn remains unverified.
+
+Delivery during the current turn remains unverified on Intel Mac and Linux
+desktop. If a connected chat stays closed after a restart and messages are
+missing, open that chat. Automatic delivery to closed chats after a restart
+has not been verified for these version combinations.
+
+After Cursor restarts or reloads, send an ordinary message in the same Cursor
+chat to restore delivery.
+
+OpenAI downloads for the tested ChatGPT versions:
+
+- [ChatGPT 26.1111.71704 for Apple Silicon](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
+- [ChatGPT package 26.1111.9664.0 for Windows x64](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)
 
 ## Updating
 

@@ -22,15 +22,15 @@ For another installation or profile, use **Manual setup** and the client-specifi
 
 After Connect or Apply, restart Cursor once to load its included plugin, or restart the selected OpenCode version after setup. Reconnect MCP in ChatGPT. Restart Claude Code or reload its plugins. For AionUi with Cursor Agent, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
 
-| Application                         | What to expect after setup                                                                                                                    |
-| ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| OpenCode with the bundled v1 plugin | Restart after setup. Busy chats receive messages when they become idle.                                                                       |
-| OpenCode v2                         | Use the separate v2 setup, restart OpenCode and connect in the intended chat. Live v2 delivery has not yet been verified.                     |
-| ChatGPT                             | Reconnect MCP after setup and open ChatGPT normally. Messages can open the connected chat. See [ChatGPT setup](mcp-clients.md#codex-desktop). |
-| Cursor                              | Restart Cursor after setup. For restart recovery in a connected chat, see [Cursor setup](mcp-clients.md#cursor).                              |
-| AionUi with Cursor Agent            | Use Cursor Agent in AionUi and complete its authorization and setup.                                                                          |
-| Claude Code with compatible mods    | Restart Claude Code or reload its plugins. See [Claude setup](mcp-clients.md#claude-code) for permissions and compatibility.                  |
-| Other compatible MCP clients        | Ask the assistant to check for messages if its application does not deliver them automatically.                                               |
+| Application                         | What to expect after setup                                                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| OpenCode with the bundled v1 plugin | Restart after setup. Busy chats receive messages when they become idle.                                                         |
+| OpenCode v2                         | Use the separate v2 setup, restart OpenCode and connect in the intended chat. Live v2 delivery has not yet been verified.       |
+| ChatGPT                             | Reconnect MCP after setup and open ChatGPT normally. See [ChatGPT setup](mcp-clients.md#codex-desktop) for delivery by version. |
+| Cursor                              | Restart Cursor after setup. For restart recovery in a connected chat, see [Cursor setup](mcp-clients.md#cursor).                |
+| AionUi with Cursor Agent            | Use Cursor Agent in AionUi and complete its authorization and setup.                                                            |
+| Claude Code with compatible mods    | Restart Claude Code or reload its plugins. See [Claude setup](mcp-clients.md#claude-code) for permissions and compatibility.    |
+| Other compatible MCP clients        | Ask the assistant to check for messages if its application does not deliver them automatically.                                 |
 
 The [application-specific guide](mcp-clients.md) covers setup choices and compatibility limits.
 
@@ -51,7 +51,7 @@ The computers must be able to reach each other at the address you use. Once pair
 ## Check a problem in order
 
 1. Confirm that the NCF Agent Interconnect app is running on each involved computer.
-2. In **Applications**, check the selected profile. On macOS, an incoming message can open the connected chat in the running ChatGPT profile. A busy chat can receive the message after its current response. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish.
+2. In **Applications**, check the selected profile. If a ChatGPT chat stays closed after a restart and messages do not appear, open that chat. In the ChatGPT 26.1117.41037 test on Apple Silicon, a message to a busy chat appeared in the next turn. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish.
 3. In the intended chat, confirm that the assistant connected under the name you chose.
 4. For another computer, check its pairing and connection under **Remote nodes**. If discovery finds nothing, check that the other app is running, an enabled IPv4 endpoint is shown, and the two computers can reach each other; review any excluded interfaces and use **Connect by address** if needed. Identify the intended computer if names repeat.
 5. Ask for a reply about the task. If messages still have not arrived, check the intended chat and message history before asking the assistant to resend.

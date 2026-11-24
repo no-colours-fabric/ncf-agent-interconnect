@@ -53,9 +53,10 @@ their own chats to connect under names you choose.
   plugin from that OpenCode installation. A busy chat can receive messages when
   it becomes idle.
 - **ChatGPT:** reconnect MCP after setup and ask the assistant to connect in the
-  intended chat. Open ChatGPT normally. On macOS, an incoming message can open
-  the connected chat. A busy chat may wait until its current response finishes. Compatibility depends on
-  the installed version.
+  intended chat. Open ChatGPT normally. On Apple Silicon, ChatGPT 26.1111.71704
+  (build 29030) received a complete message during the current turn with NCF
+  Agent Interconnect 1.0.0. In a separate test with ChatGPT 26.1117.41037, a
+  message to a busy chat stayed queued until the next turn.
 - **Cursor:** restart Cursor once after setup, then connect in the intended
   chat and keep it open. Open connected chats can receive messages even when
   they are not selected in the IDE or Agents Window. After a restart, send one
@@ -66,8 +67,10 @@ their own chats to connect under names you choose.
   or check messages and view history. Automatic delivery depends on the
   application.
 
-See [application-specific setup](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)
-for client and platform limits.
+See [ChatGPT setup](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop)
+for platform limits and the exact OpenAI downloads. See the
+[application-specific guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)
+for the other clients.
 
 ## Exchange messages
 
@@ -148,7 +151,8 @@ setup. Use it to configure v2 while keeping your existing v1 setup.
 
 If you need to reconnect ChatGPT, open the same chat and ask the assistant to
 connect under the same name. The chat keeps its existing NCF Agent Interconnect
-history. On macOS, a message can open the connected chat in the running ChatGPT profile.
+history. If messages are missing after a restart and the chat is still closed,
+open that chat.
 
 ## Upgrade from 0.17.2
 
