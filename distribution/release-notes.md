@@ -1,7 +1,7 @@
 # NCF Agent Interconnect 1.0.0
 
 - Receive full messages and attachment links in the connected ChatGPT chat.
-- Create ChatGPT shortcuts for NCF on macOS and Windows. Existing compatible shortcuts work across upgrades.
+- Connect ChatGPT from Applications and open it normally. Setup no longer requires creating a dedicated shortcut.
 - Connect supported clients from Startup and Applications. Overview keeps connected apps visible while installation detection is incomplete.
 - After an update, NCF shows a one-time reminder to restart connected client apps.
 

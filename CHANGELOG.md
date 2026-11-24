@@ -4,11 +4,11 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 ## 1.0.0
 
-- Restore full Incoming in the exact chat on recent macOS versions of ChatGPT through the native Codex queue. The text, attachment links and reply route arrive directly. NCF records receipt after Codex saves the complete item in that chat. An unloaded chat must be opened to process its queue.
-- Compatible older Codex Desktop versions continue to use the existing IPC path for full Incoming.
-- An existing chat in ChatGPT can reuse its `connectionId`. If it was lost, `agent_connect` sends a one-time confirmation only to the previously bound exact chat through the standard notification queue; the assistant repeats `agent_connect` with the original nickname and the one-use `contextToken` from that same chat to restore the binding. The intended local ChatGPT profile on macOS must be configured through Apply before its first connection; each new agent does not need a separate Apply. Existing occupied-name transfer choices remain separate.
+- Open ChatGPT normally after setup in Applications. Connecting no longer requires creating a dedicated shortcut.
+- Receive messages during the current turn on the tested Apple Silicon build of ChatGPT 26.1111.71704. In the newer build 26.1117.41037, a test message stayed queued until the next turn. See [ChatGPT compatibility](docs/mcp-clients.md#codex-desktop) for the tested versions, platform limits and official download links.
+- Restore an existing ChatGPT connection from the same chat under the previous agent name. Setup and delivery remain tied to the selected profile and chat.
 
-Before updating, quit NCF Agent Interconnect and retain a complete backup of the stopped profile. Do not open an upgraded profile with an older binary; rollback requires the pre-upgrade backup and must account for data created after the upgrade. The isolated Codex `0.171.0-alpha.13` check retained a 0.19 profile and binding, rejected wrong-chat and replay attempts, and connected a free name after explicit Apply. See the release notes for exact direct-delivery verification and platform limits.
+Before updating NCF Agent Interconnect, quit it and retain a complete backup of its profile. To roll back NCF Agent Interconnect, restore the pre-upgrade backup and account for data created after the upgrade.
 
 ## 0.19.0 — 2026-11-18
 
