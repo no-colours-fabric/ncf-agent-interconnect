@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID, randomBytes } from 'node:crypto';
@@ -10,6 +10,8 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 import { PingRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { AgentPresence } from '../desktop/core/presence.js';
 import { NodeService } from '../desktop/core/service.js';
+import { withDeadline } from './pairing-harness.js';
+import { pairingNode } from './pairing-node-fixture.js';
 import type { ConnectResult } from '../desktop/core/agent-store.js';
 import type {
   DirectoryAgent,
@@ -409,6 +411,73 @@ test('closing a superseded socket cannot erase a replacement connection director
   await new Promise((resolve) => setTimeout(resolve, 50));
   assert.equal(advertised(receiver, sender.settings.value.nodeId).state, 'ready');
   assert.equal(catalog(receiver).agents[0].nickname, 'Replacement agent');
+});
+
+test('a directory received while saving the peer name survives the connected event', async (t) => {
+  const receiver = await pairingNode(t);
+  const sender = await pairingNode(t);
+  const senderId = sender.settings.value.nodeId;
+  const secret = randomBytes(32).toString('hex');
+  for (const [local, remote] of [
+    [receiver, sender],
+    [sender, receiver],
+  ]) {
+    const certificate = await readFile(path.join(remote.directory, 'node-cert.pem'), 'utf8');
+    await local.settings.savePeers(() => [
+      {
+        id: remote.settings.value.nodeId,
+        label: local === receiver ? 'Previous name' : remote.settings.value.nodeLabel,
+        address: local === receiver ? remote.snapshot().peerUrl : '',
+        certificate,
+        secret,
+      },
+    ]);
+  }
+  await connect((await client(t, sender)).mcp, 'Directory fixture agent');
+
+  const savePeers = receiver.settings.savePeers.bind(receiver.settings);
+  let releaseSave!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseSave = resolve;
+  });
+  receiver.settings.savePeers = async (...args) => {
+    await gate;
+    return savePeers(...args);
+  };
+  const atConnected = new Promise<ReturnType<typeof advertised>>((resolve) => {
+    receiver.network.once('connected', (id) => resolve(advertised(receiver, id)));
+  });
+  receiver.network.reconnectPeer(senderId);
+  try {
+    await until(() => catalog(receiver).agents.some((agent) => agent.nodeId === senderId));
+    const first = advertised(receiver, senderId);
+    assert.equal(first.state, 'ready');
+    assert.equal(first.nodeLabel, 'Previous name');
+    releaseSave();
+    const current = await withDeadline(atConnected, 6000, 'Peer connection');
+    assert.equal(current.state, 'ready');
+    assert.equal(current.nodeLabel, sender.settings.value.nodeLabel);
+    assert.equal(current.epoch, first.epoch);
+    assert.equal(current.revision, first.revision);
+    assert.deepEqual(current.agents, first.agents);
+    assert.equal(current.agents[0].nickname, 'Directory fixture agent');
+  } finally {
+    releaseSave();
+  }
+
+  const onIdentity = receiver.network.onIdentity;
+  const nextHandshake = new Promise<ReturnType<typeof advertised>>((resolve) => {
+    receiver.network.onIdentity = (id, label, isCurrent) => {
+      resolve(advertised(receiver, id));
+      return onIdentity(id, label, isCurrent);
+    };
+  });
+  receiver.network.reconnectPeer(senderId);
+  const next = await withDeadline(nextHandshake, 6000, 'Replacement connection');
+  assert.equal(next.state, 'syncing');
+  assert.equal(next.epoch, null);
+  assert.deepEqual(next.agents, []);
+  await until(() => advertised(receiver, senderId).state === 'ready');
 });
 
 test('committed immutable peer rotation revokes active and connecting sockets and reconnects with current credentials', async (t) => {

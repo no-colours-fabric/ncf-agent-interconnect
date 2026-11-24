@@ -572,8 +572,8 @@ export class NodeService extends EventEmitter {
       this.emit('change');
     });
     this.network.on('problem', (e) => this.problem(String(e)));
+    this.network.on('authenticated', (id: string) => this.presence.begin(id));
     this.network.on('connected', (id: string) => {
-      this.presence.begin(id);
       if (this.network.states().find((state) => state.id === id)?.directorySupported)
         void this.network.directory(id, this.presence.snapshot()).catch(() => {});
       void this.flush(id);

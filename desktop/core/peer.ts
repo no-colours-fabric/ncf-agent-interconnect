@@ -614,6 +614,9 @@ export class PeerNetwork extends EventEmitter {
           link.identitySupported = remoteLabel !== undefined;
           link.connecting = false;
           link.error = null;
+          if (!isCurrent()) return;
+          // The next frame can arrive while the peer name is being saved.
+          this.emit('authenticated', peer.id);
           if (remoteLabel !== undefined) await this.onIdentity(peer.id, remoteLabel, isCurrent);
           if (!isCurrent()) return;
           if (link.identitySupported)
