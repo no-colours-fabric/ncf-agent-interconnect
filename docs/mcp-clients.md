@@ -36,6 +36,8 @@ Open ChatGPT normally after setup.
 
 NCF Agent Interconnect 1.0.0 supports stable real-time messaging with ChatGPT app versions up to and including **26.1111.71704**. Real-time delivery may vary on newer ChatGPT releases. Changes in ChatGPT can leave incoming messages queued until the current reply ends or the next turn begins. If you rely on real-time messaging, stay on a compatible ChatGPT version for now or install the recommended build from OpenAI.
 
+See [the comment on OpenAI Codex issue #51625](https://github.com/openai/codex/issues/51625#issuecomment-7135067258) for the observed delivery delays and the request for a supported way to send messages during an active turn.
+
 During setup, NCF Agent Interconnect may warn that messages can arrive after the current response ends.
 
 - [Apple Silicon Mac — ChatGPT 26.1111.71704](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
