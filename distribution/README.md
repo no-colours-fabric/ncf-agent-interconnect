@@ -67,6 +67,11 @@ their own chats to connect under names you choose.
   or check messages and view history. Automatic delivery depends on the
   application.
 
+If delivery during the current turn matters on Apple Silicon, stay on the
+tested ChatGPT version 26.1111.71704. During ChatGPT setup, NCF Agent
+Interconnect shows a warning if delivery during the current turn is unverified
+for the installed version.
+
 See [ChatGPT setup](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop)
 for platform limits and the exact OpenAI downloads. See the
 [application-specific guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)
