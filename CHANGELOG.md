@@ -2,7 +2,7 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
-## 1.0.0
+## 1.0.0 — 2026-11-24
 
 - Connected apps stay visible in Overview while installation detection is incomplete.
 - After an update, a one-time reminder prompts you to restart connected apps.
