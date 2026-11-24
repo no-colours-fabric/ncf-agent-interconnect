@@ -39,9 +39,8 @@ Open ChatGPT normally after setup. Message timing depends on the installed versi
 - **Windows x64:** ChatGPT package **26.1111.9664.0** (app **26.1111.71704**, build **29030**) and an **NCF Agent Interconnect 1.0.0 alpha.5** test build exchanged messages automatically with a Mac. Delivery within the current Windows turn remains unverified.
 
 If delivery during the current turn matters on Apple Silicon, stay on the
-tested ChatGPT version 26.1111.71704. During ChatGPT setup, NCF Agent
-Interconnect shows a warning if delivery during the current turn is unverified
-for the installed version.
+tested ChatGPT version 26.1111.71704. During setup, NCF Agent Interconnect
+may warn that messages can arrive after the current response ends.
 
 Delivery during the current turn remains unverified on Intel Mac and Linux
 desktop. If a connected chat stays closed after a restart and messages are
