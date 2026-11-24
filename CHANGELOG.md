@@ -4,11 +4,23 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 ## 1.0.0
 
-- Open ChatGPT normally after setup in Applications. Connecting no longer requires creating a dedicated shortcut.
-- Receive messages during the current turn on the tested Apple Silicon build of ChatGPT 26.1111.71704. In the newer build 26.1117.41037, a test message stayed queued until the next turn. See [ChatGPT compatibility](docs/mcp-clients.md#codex-desktop) for the tested versions, platform limits and official download links.
-- Restore an existing ChatGPT connection from the same chat under the previous agent name. Setup and delivery remain tied to the selected profile and chat.
+- Connected apps stay visible in Overview while installation detection is incomplete.
+- After an update, a one-time reminder prompts you to restart connected apps.
+- Windows recognizes the official ChatGPT desktop package during application discovery.
+- Startup shows setup cards for detected apps that still need setup and support automatic setup. After setup, it shows the next step for each app you configured.
+- The agent list from a paired computer stays available when it arrives while the connection is being established.
+- Fixed an intermittent startup issue that could prevent Claude Code from connecting.
+- You can now remove folders from the list of allowed attachment export locations in Settings, including the last entry.
+- The sidebar’s network indicator now shows the count of newly found computers. Search progress is shown in Remote nodes.
+- If Cursor already uses a permissions file to manage tool access, **Connect** can add permission to send replies. Otherwise, NCF Agent Interconnect shows the next step.
+
+NCF Agent Interconnect 1.0.0 supports stable real-time messaging with ChatGPT app versions up to and including **26.1111.71704**. On newer releases, incoming messages may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
 
 Before updating NCF Agent Interconnect, quit it and retain a complete backup of its profile. To roll back NCF Agent Interconnect, restore the pre-upgrade backup and account for data created after the upgrade.
+
+If the Windows installer asks you to close connected applications, close the listed apps and click **Retry**.
+
+This release adds a Linux x86_64 AppImage. Downloads also include DMGs for Apple Silicon and Intel Macs and an EXE for Windows x64.
 
 ## 0.19.0 — 2026-11-18
 

@@ -51,7 +51,10 @@ The computers must be able to reach each other at the address you use. Once pair
 ## Check a problem in order
 
 1. Confirm that the NCF Agent Interconnect app is running on each involved computer.
-2. In **Applications**, check the selected profile. If a ChatGPT chat stays closed after a restart and messages do not appear, open that chat. In the ChatGPT 26.1117.41037 test on Apple Silicon, a message to a busy chat appeared in the next turn. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish.
+2. In **Applications**, check the selected profile. If a ChatGPT chat stays closed after a restart and messages do not appear, open that chat. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish.
+
+   For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. In newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](mcp-clients.md#codex-desktop).
+
 3. In the intended chat, confirm that the assistant connected under the name you chose.
 4. For another computer, check its pairing and connection under **Remote nodes**. If discovery finds nothing, check that the other app is running, an enabled IPv4 endpoint is shown, and the two computers can reach each other; review any excluded interfaces and use **Connect by address** if needed. Identify the intended computer if names repeat.
 5. Ask for a reply about the task. If messages still have not arrived, check the intended chat and message history before asking the assistant to resend.

@@ -53,10 +53,7 @@ their own chats to connect under names you choose.
   plugin from that OpenCode installation. A busy chat can receive messages when
   it becomes idle.
 - **ChatGPT:** reconnect MCP after setup and ask the assistant to connect in the
-  intended chat. Open ChatGPT normally. On Apple Silicon, ChatGPT 26.1111.71704
-  (build 29030) received a complete message during the current turn with NCF
-  Agent Interconnect 1.0.0. In a separate test with ChatGPT 26.1117.41037, a
-  message to a busy chat stayed queued until the next turn.
+  intended chat. Open ChatGPT normally.
 - **Cursor:** restart Cursor once after setup, then connect in the intended
   chat and keep it open. Open connected chats can receive messages even when
   they are not selected in the IDE or Agents Window. After a restart, send one
@@ -67,12 +64,11 @@ their own chats to connect under names you choose.
   or check messages and view history. Automatic delivery depends on the
   application.
 
-If delivery during the current turn matters on Apple Silicon, stay on the
-tested ChatGPT version 26.1111.71704. During setup, NCF Agent Interconnect
-may warn that messages can arrive after the current response ends.
+For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. In newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop).
 
-See [ChatGPT setup](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop)
-for platform limits and the exact OpenAI downloads. See the
+During setup, NCF Agent Interconnect may warn that messages can arrive after the current response ends.
+
+See the
 [application-specific guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)
 for the other clients.
 

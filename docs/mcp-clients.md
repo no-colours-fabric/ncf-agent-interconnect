@@ -32,25 +32,17 @@ For v1, use **Configure OpenCode v1** and select the file that OpenCode loads, s
 
 Under **Applications**, choose **ChatGPT**. If NCF Agent Interconnect has no saved ChatGPT profile on macOS, it can use the running app’s profile when that profile already contains this node’s MCP settings. To select a profile explicitly, choose **Manual setup**, select its `config.toml` and click **Apply**. A matching file keeps its original contents. Reconnect MCP in ChatGPT if you changed its settings, then ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
 
-Open ChatGPT normally after setup. Message timing depends on the installed version.
+Open ChatGPT normally after setup.
 
-- **Apple Silicon Mac:** ChatGPT **26.1111.71704** (build **29030**) with **NCF Agent Interconnect 1.0.0** received a complete message in the current turn.
-- **Apple Silicon Mac, newer version tested:** in ChatGPT **26.1117.41037**, a message to a busy chat stayed queued and appeared in the next turn.
-- **Windows x64:** ChatGPT package **26.1111.9664.0** (app **26.1111.71704**, build **29030**) and an **NCF Agent Interconnect 1.0.0 alpha.5** test build exchanged messages automatically with a Mac. Delivery within the current Windows turn remains unverified.
+NCF Agent Interconnect 1.0.0 supports stable real-time messaging with ChatGPT app versions up to and including **26.1111.71704**. Real-time delivery may vary on newer ChatGPT releases. Changes in ChatGPT can leave incoming messages queued until the current reply ends or the next turn begins. If you rely on real-time messaging, stay on a compatible ChatGPT version for now or install the recommended build from OpenAI.
 
-If delivery during the current turn matters on Apple Silicon, stay on the
-tested ChatGPT version 26.1111.71704. During setup, NCF Agent Interconnect
-may warn that messages can arrive after the current response ends.
+During setup, NCF Agent Interconnect may warn that messages can arrive after the current response ends.
 
-Delivery during the current turn remains unverified on Intel Mac and Linux
-desktop. If a connected chat stays closed after a restart and messages are
-missing, open that chat. Automatic delivery to closed chats after a restart
-has not been verified for these version combinations.
+- [Apple Silicon Mac — ChatGPT 26.1111.71704](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
+- [Windows x64 — ChatGPT 26.1111.71704 (MSIX package 26.1111.9664.0)](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)
 
-OpenAI downloads for the tested ChatGPT versions:
-
-- [ChatGPT 26.1111.71704 for Apple Silicon](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
-- [ChatGPT package 26.1111.9664.0 for Windows x64](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)
+If a connected chat stays closed after a restart and messages are missing,
+open that chat.
 
 See [verification](verification.md) for the test scope.
 

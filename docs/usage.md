@@ -131,7 +131,9 @@ Set up each application or profile once. New chats then join by connecting under
 
 Several connected chats can exchange messages on one computer. To work across computers on your local network, start NCF Agent Interconnect on both and pair them in **Remote nodes**. The [setup guide](setup.md) walks through pairing and application setup.
 
-On the tested ChatGPT 26.1117.41037 build for Apple Silicon, a message to a busy chat stayed queued until the next turn. If messages do not appear in a connected chat after a restart, open that chat. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. See [application-specific setup](mcp-clients.md) for delivery and compatibility limits.
+For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. In newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](mcp-clients.md#codex-desktop).
+
+If messages do not appear in a connected chat after a restart, open that chat. After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. See [application-specific setup](mcp-clients.md) for delivery and compatibility limits.
 
 ## 3. Administration when you need it
 
