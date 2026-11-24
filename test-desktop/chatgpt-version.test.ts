@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import os from 'node:os';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -8,12 +9,44 @@ import {
 } from '../desktop/shared/chatgpt-compatibility.js';
 import { ChatgptCompatibilityNotice } from '../desktop/renderer/ChatgptCompatibilityNotice.js';
 import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
-import { sameWindowsDesktop } from '../desktop/main/chatgpt-version.js';
+import { detectChatgptCompatibility, sameWindowsDesktop } from '../desktop/main/chatgpt-version.js';
+import { NativeDiscoveryFiles } from '../desktop/core/application-discovery-platforms.js';
 
 const good = { version: '26.1111.71704', build: '29030', architecture: 'arm64' };
 const affected = { version: '26.1117.41037', build: '29803', architecture: 'arm64' };
 const official =
   'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip';
+
+test('Windows without version metadata keeps the warning and offers the download only on an x64 runtime', async (context) => {
+  const missing = Object.assign(new NativeDiscoveryFiles('win32'), { windowsCodex: undefined });
+  const unreadable = Object.assign(new NativeDiscoveryFiles('win32'), {
+    windowsCodex() {
+      throw new Error('Package query unavailable');
+    },
+  });
+  const arch = context.mock.method(os, 'arch', () => 'x64');
+  for (const files of [missing, unreadable]) {
+    const result = await detectChatgptCompatibility(files, 'win32');
+    assert.equal(result.status, 'unknown');
+    assert.equal(result.version, undefined);
+    assert.equal(result.download?.coverage, 'automatic');
+    assert.equal(
+      result.download?.url,
+      'https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix',
+    );
+    const html = renderToStaticMarkup(
+      createElement(ChatgptCompatibilityNotice, { compatibility: result, locale: 'ru' }),
+    );
+    assert.ok(html.includes(t('ru', 'chatgptDeliveryUnknown')));
+    assert.ok(html.includes(result.download!.url));
+  }
+  for (const architecture of ['arm64', 'ia32'] as const) {
+    arch.mock.mockImplementation(() => architecture);
+    const result = await detectChatgptCompatibility(missing, 'win32');
+    assert.equal(result.status, 'unknown');
+    assert.equal(result.download, undefined);
+  }
+});
 
 test('Windows requires the registered package identity and exact manifest executable of the process', () => {
   const pkg = {

@@ -1,5 +1,6 @@
 import { execFile } from 'node:child_process';
 import { opendir, readlink, stat } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { promisify } from 'node:util';
 import { matchesDesktopMetadata } from '../core/application-discovery-catalog.js';
@@ -60,19 +61,18 @@ async function runningWindowsVersions(files: DiscoveryFiles): Promise<ChatgptRun
   ]);
   const running: unknown = JSON.parse(stdout);
   if (!Array.isArray(running) || running.length > 128) return [{}];
-  if (!running.length && packages.length === 1) {
-    const pkg = packages[0];
-    return [await archiveVersion(files, path.win32.dirname(pkg.executable), pkg.architecture)];
-  }
-  const results: ChatgptRuntime[] = [];
-  for (const item of packages) {
-    if (running.some((p) => sameWindowsDesktop(p, item))) {
-      results.push(
-        await archiveVersion(files, path.win32.dirname(item.executable), item.architecture),
+  const selected =
+    !running.length && packages.length === 1
+      ? packages
+      : packages.filter((item) => running.some((p) => sameWindowsDesktop(p, item)));
+  return Promise.all(
+    selected.map(async (pkg) => {
+      const version = await archiveVersion(files, path.win32.dirname(pkg.executable)).catch(
+        () => ({}),
       );
-    }
-  }
-  return results;
+      return { ...version, architecture: pkg.architecture };
+    }),
+  );
 }
 
 export function sameWindowsDesktop(
@@ -89,17 +89,12 @@ export function sameWindowsDesktop(
   );
 }
 
-async function archiveVersion(
-  files: DiscoveryFiles,
-  root: string,
-  architecture?: string,
-): Promise<ChatgptRuntime> {
+async function archiveVersion(files: DiscoveryFiles, root: string): Promise<ChatgptRuntime> {
   const metadata = await asarManifest(files, root);
   if (!metadata || !matchesDesktopMetadata('codex', metadata)) return {};
   return {
     version: typeof metadata.version === 'string' ? metadata.version : undefined,
     build: typeof metadata.codexBuildNumber === 'string' ? metadata.codexBuildNumber : undefined,
-    architecture,
   };
 }
 
@@ -149,8 +144,15 @@ export async function detectChatgptCompatibility(
         v.build === first.build &&
         v.architecture === first.architecture,
     );
-  return chatgptCompatibility(
-    platform,
-    unambiguous ? first : { architecture: platform === 'darwin' ? process.arch : undefined },
-  );
+  const runtime = unambiguous
+    ? first
+    : { architecture: platform === 'darwin' ? process.arch : undefined };
+  if (
+    platform === 'win32' &&
+    !runtime.architecture &&
+    os.arch() === 'x64' &&
+    versions.every((v) => !v.architecture || v.architecture === 'x64')
+  )
+    return chatgptCompatibility(platform, { ...runtime, architecture: 'x64' });
+  return chatgptCompatibility(platform, runtime);
 }

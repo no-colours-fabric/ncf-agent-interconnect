@@ -155,7 +155,8 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
       found.push({
         root,
         executable: runtime,
-        architecture: String(item.Architecture).toLowerCase(),
+        architecture:
+          typeof item.Architecture === 'string' ? item.Architecture.toLowerCase() : undefined,
         packageFullName: item.PackageFullName,
       });
     }
