@@ -126,7 +126,7 @@
   font-weight: 600;
 }
 .concept-section-5 .concept-block:last-child > p:last-child {
-  font-family: var(--font-comic);
+  font-family: var(--font-body);
   font-size: clamp(1.65rem, 2.5vw, 2.35rem);
   line-height: 1.25;
   margin-top: 25px;
@@ -1101,13 +1101,14 @@
   height: 56px;
 }
 .concept-interconnect-brand strong {
-  font-family: var(--font-comic);
+  font-family: var(--font-heading);
+  font-weight: 500;
   font-size: clamp(1.3rem, 2vw, 1.8rem);
   line-height: 1.2;
 }
 .concept-interconnect-inner p {
   margin: 0;
-  font-family: var(--font-comic);
+  font-family: var(--font-body);
   font-size: clamp(1.5rem, 2.3vw, 2.1rem);
   line-height: 1.2;
   color: #e3eff8;
@@ -1221,7 +1222,7 @@
   letter-spacing: -0.035em;
 }
 .concept-overview-subtitle {
-  font-family: var(--font-comic);
+  font-family: var(--font-body);
   margin: -12px 0 28px;
   color: #e3eff8;
   font-size: var(--site-copy-size);
@@ -1299,7 +1300,7 @@
   letter-spacing: -0.035em;
 }
 .concept-walkthrough-heading p {
-  font-family: var(--font-comic);
+  font-family: var(--font-body);
   margin: 0;
   color: #405771;
   font-size: var(--site-copy-size);
@@ -1316,7 +1317,7 @@
 
 /* Quoted messages use a shared voice distinct from explanatory copy. */
 .concept-message-example {
-  font-family: var(--font-comic);
+  font-family: var(--font-body);
   color: #f1d6ad;
 }
 
@@ -1324,27 +1325,16 @@
 .concept-quick-nav {
   background: #294861;
   color: #fff;
-  padding: 32px 0;
+  padding: 10px 0;
 }
 .concept-quick-nav-inner {
-  display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 12px 24px;
   max-width: var(--concept-width);
   margin-inline: auto;
   padding-inline: 44px;
 }
-.concept-quick-nav h2 {
-  margin: 0;
-  color: #fff;
-  font-size: clamp(2.05rem, 3.1vw, 3rem);
-  line-height: 1.1;
-  letter-spacing: -0.035em;
-}
 .concept-quick-nav p {
   margin: 0;
-  font-family: var(--font-comic);
+  font-family: var(--font-body);
   font-size: var(--site-copy-size);
   line-height: var(--site-copy-leading);
 }
@@ -1368,9 +1358,6 @@
 @media (max-width: 800px) {
   .concept-quick-nav-inner {
     padding-inline: 24px;
-  }
-  .concept-quick-nav h2 {
-    font-size: 2.2rem;
   }
 }
 

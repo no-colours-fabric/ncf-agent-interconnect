@@ -1,7 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=Balsamiq+Sans:wght@400;700&family=Rubik:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@500;600&family=Rubik:wght@400;500;600;700&display=swap');
 
 :root {
   color-scheme: light;
+  --font-heading: 'Manrope', system-ui, sans-serif;
   font-family: Rubik, system-ui, sans-serif;
   color: #1e2c3d;
   background: #f8fbff;
@@ -96,12 +97,10 @@ h2,
 h3,
 h4 {
   color: #1d2a3a;
+  font-family: var(--font-heading);
+  font-weight: 500;
   line-height: 1.2;
   scroll-margin-top: 24px;
-}
-h1,
-h2 {
-  font-family: 'Balsamiq Sans', Rubik, system-ui, sans-serif;
 }
 h1 {
   font-size: clamp(2.2rem, 5vw, 3.7rem);

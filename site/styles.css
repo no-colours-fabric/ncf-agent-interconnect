@@ -6,19 +6,19 @@
   --muted: #52647a;
   --sage: #7393b1;
   --sage-dark: #3c607f;
-  --font-comic: 'Balsamiq Sans', 'Trebuchet MS', sans-serif;
+  --font-heading: 'Balsamiq Sans', 'Trebuchet MS', sans-serif;
   --font-body: 'Rubik', system-ui, sans-serif;
 }
 html:lang(zh-CN) {
-  --font-comic: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  --font-heading: 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-body: 'PingFang SC', 'Microsoft YaHei', sans-serif;
 }
 html:lang(ja) {
-  --font-comic: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+  --font-heading: 'Hiragino Sans', 'Yu Gothic', sans-serif;
   --font-body: 'Hiragino Sans', 'Yu Gothic', sans-serif;
 }
 html:lang(ko) {
-  --font-comic: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+  --font-heading: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
   --font-body: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
 }
 html:lang(ja) .hero h1 {
@@ -36,6 +36,14 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font-body);
+}
+.concept-page,
+.gallery-page {
+  --font-heading: 'Manrope', var(--font-body);
+}
+.concept-page :is(h1, h2, h3, h4, .brand, .footer-brand strong),
+.gallery-page :is(h1, h2, h3, h4, .brand, .footer-brand strong) {
+  font-weight: 500;
 }
 body.language-panel-open {
   overflow: hidden;
@@ -61,7 +69,7 @@ p {
 h1,
 h2,
 h3 {
-  font-family: var(--font-comic);
+  font-family: var(--font-heading);
 }
 .site-shell {
   overflow: clip;
@@ -90,7 +98,7 @@ h3 {
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  font: 700 clamp(1.05rem, 1.7vw, 1.35rem) var(--font-comic);
+  font: 700 clamp(1.05rem, 1.7vw, 1.35rem) var(--font-heading);
   text-decoration: none;
   white-space: nowrap;
 }
@@ -421,7 +429,7 @@ h3 {
   display: inline-block;
   margin-bottom: 7px;
   color: #6b8094;
-  font: 700 1.02rem var(--font-comic);
+  font: 700 1.02rem var(--font-heading);
 }
 .scene-heading h2 {
   max-width: 37ch;
@@ -622,7 +630,7 @@ h3 {
 .skill-name::before {
   content: '✧';
   margin-right: 0.28em;
-  font-family: var(--font-comic);
+  font-family: var(--font-heading);
 }
 .chat-progress {
   display: grid;
@@ -673,7 +681,7 @@ h3 {
   max-width: 18ch;
   margin: 0;
   color: var(--sage-dark);
-  font: 700 clamp(1.9rem, 2.8vw, 3.2rem)/1.16 var(--font-comic);
+  font: 700 clamp(1.9rem, 2.8vw, 3.2rem)/1.16 var(--font-heading);
 }
 .system-note {
   display: grid;
@@ -699,7 +707,7 @@ h3 {
   font-family: 'Rubik', var(--font-body);
 }
 .note-body h3 {
-  font-family: var(--font-comic);
+  font-family: var(--font-heading);
 }
 .note-body > :first-child {
   margin-top: 0;
@@ -856,7 +864,7 @@ h3 {
   gap: 12px;
 }
 .footer-brand strong {
-  font: 700 1.25rem var(--font-comic);
+  font: 700 1.25rem var(--font-heading);
 }
 .footer-brand span {
   color: #dce9f5;
@@ -1316,7 +1324,7 @@ h3 {
 }
 .review-home-method-number {
   color: #6d8eaa;
-  font: 700 1.05rem var(--font-comic);
+  font: 700 1.05rem var(--font-heading);
 }
 .review-home-methods h3 {
   max-width: 24ch;
