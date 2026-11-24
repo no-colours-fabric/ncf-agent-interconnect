@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const en: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'We couldn’t determine the ChatGPT version. In versions newer than {version}, incoming messages may take longer to appear in the chat.',
   chatgptDownloadAutomatic: 'Download version {version} (automatic delivery verified)',
   chatgptDeliveryAffected: 'Incoming messages appear after the current reply.',
   chatgptDeliveryUnknown: 'Incoming messages may appear after the current reply.',

@@ -7,6 +7,7 @@ type McpSetupTranslations = {
 export interface Messages extends McpSetupTranslations {
   chatgptDeliveryAffected: string;
   chatgptDeliveryUnknown: string;
+  chatgptDeliveryVersionUnknown: string;
   chatgptDownloadVerified: string;
   chatgptDownloadAutomatic: string;
   clientsManualConnections: string;

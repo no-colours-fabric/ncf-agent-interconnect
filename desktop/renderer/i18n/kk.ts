@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const kk: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'ChatGPT нұсқасын анықтау мүмкін болмады. {version} нұсқасынан кейін шыққан нұсқаларда кіріс хабарлар чатта кешігіп көрінуі мүмкін.',
   chatgptDownloadAutomatic:
     'Хабарларды автоматты жеткізуі тексерілген {version} нұсқасын жүктеп алу',
   chatgptDeliveryAffected: 'Кіріс хабарлар ағымдағы жауап аяқталған соң көрсетіледі.',

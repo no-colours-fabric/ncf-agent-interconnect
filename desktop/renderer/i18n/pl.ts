@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const pl: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'Nie udało się ustalić wersji ChatGPT. W wersjach nowszych niż {version} wiadomości mogą pojawiać się na czacie z opóźnieniem.',
   chatgptDownloadAutomatic:
     'Pobierz wersję {version} ze sprawdzonym automatycznym dostarczaniem wiadomości',
   chatgptDeliveryAffected:

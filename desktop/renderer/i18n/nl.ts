@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const nl: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'De ChatGPT-versie kon niet worden vastgesteld. In versies nieuwer dan {version} kunnen inkomende berichten later in de chat verschijnen.',
   chatgptDownloadAutomatic: 'Versie {version} met geteste automatische bezorging downloaden',
   chatgptDeliveryAffected: 'Inkomende berichten verschijnen na het huidige antwoord.',
   chatgptDeliveryUnknown: 'Inkomende berichten verschijnen mogelijk pas na het huidige antwoord.',

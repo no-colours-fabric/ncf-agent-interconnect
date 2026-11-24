@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const tr: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'ChatGPT sürümü belirlenemedi. {version} sürümünden daha yeni sürümlerde gelen iletiler sohbette gecikmeli görünebilir.',
   chatgptDownloadAutomatic: 'Otomatik ileti teslimi doğrulanmış {version} sürümünü indir',
   chatgptDeliveryAffected: 'Gelen iletiler, devam eden yanıt tamamlandığında görünür.',
   chatgptDeliveryUnknown: 'Gelen iletiler, devam eden yanıt tamamlandığında görünebilir.',

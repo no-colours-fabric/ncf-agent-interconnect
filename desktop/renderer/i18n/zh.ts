@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const zh: Messages = {
+  chatgptDeliveryVersionUnknown:
+    '无法确定 ChatGPT 的版本。在高于 {version} 的版本中，收到的消息可能会稍晚出现在聊天中。',
   chatgptDownloadAutomatic: '下载已验证自动收信功能的版本 {version}',
   chatgptDeliveryAffected: '收到的消息会在当前回复结束后显示。',
   chatgptDeliveryUnknown: '收到的消息可能会在当前回复结束后显示。',

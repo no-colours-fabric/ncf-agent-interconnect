@@ -2,6 +2,10 @@ import { Alert, Link } from '@mui/material';
 import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
 import { t, type Locale } from './i18n/index.js';
 
+// This cutoff controls the notice independently of measured delivery capabilities.
+const delayNoticeCutoff = '26.1111.71704';
+const versionOrder = new Intl.Collator('en', { numeric: true });
+
 export function ChatgptCompatibilityNotice({
   compatibility,
   locale,
@@ -11,13 +15,18 @@ export function ChatgptCompatibilityNotice({
 }) {
   if (!compatibility || compatibility.status === 'verified') return null;
   const { version, download } = compatibility;
+  if (version && versionOrder.compare(version, delayNoticeCutoff) <= 0) return null;
   return (
     <Alert severity="warning" sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
       {version && <strong>ChatGPT {version}. </strong>}
-      {t(
-        locale,
-        compatibility.status === 'affected' ? 'chatgptDeliveryAffected' : 'chatgptDeliveryUnknown',
-      )}
+      {version
+        ? t(
+            locale,
+            compatibility.status === 'affected'
+              ? 'chatgptDeliveryAffected'
+              : 'chatgptDeliveryUnknown',
+          )
+        : t(locale, 'chatgptDeliveryVersionUnknown', { version: delayNoticeCutoff })}
       {download && version !== download.version && (
         <Link
           href={download.url}

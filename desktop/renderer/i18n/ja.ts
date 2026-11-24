@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const ja: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'ChatGPT のバージョンを確認できませんでした。{version} より新しいバージョンでは、受信メッセージがチャットに表示されるまでに時間がかかる場合があります。',
   chatgptDownloadAutomatic: '自動受信を確認済みのバージョン {version} をダウンロード',
   chatgptDeliveryAffected: '受信メッセージは現在の応答が終わると表示されます。',
   chatgptDeliveryUnknown: '受信メッセージは現在の応答が終わってから表示される場合があります。',

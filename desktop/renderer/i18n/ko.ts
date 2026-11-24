@@ -1,6 +1,8 @@
 import type { Messages } from './messages.js';
 
 export const ko: Messages = {
+  chatgptDeliveryVersionUnknown:
+    'ChatGPT 버전을 확인할 수 없습니다. {version}보다 최신 버전에서는 받은 메시지가 채팅에 늦게 표시될 수 있습니다.',
   chatgptDownloadAutomatic: '자동 수신이 확인된 버전 {version} 다운로드',
   chatgptDeliveryAffected: '받은 메시지는 현재 응답이 끝나면 표시됩니다.',
   chatgptDeliveryUnknown: '받은 메시지는 현재 응답이 끝난 뒤에 표시될 수 있습니다.',
