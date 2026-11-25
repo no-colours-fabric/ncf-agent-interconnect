@@ -175,8 +175,9 @@ a native platform verification. Report verification limits accurately.
 - Use Git branches for release preparation and retained source history. Create
   separate worktrees only for active parallel work, isolated tasks, or agent
   coordination. Place them beside the primary repository under
-  `../<project>.worktrees/`. Remove each worktree promptly when its work finishes.
-  Store retained artifacts and evidence outside worktrees.
+  `../<project>.worktrees/`, where `<project>` is the primary repository folder
+  name. Remove each worktree promptly when its work finishes. Store retained
+  artifacts and evidence outside worktrees.
 - Keep release branches under preparation synchronized with GitHub. Push updates
   to the corresponding branch and verify that its remote tip matches the local
   commit.
