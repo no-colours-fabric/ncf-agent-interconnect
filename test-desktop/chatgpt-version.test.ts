@@ -14,6 +14,8 @@ import { NativeDiscoveryFiles } from '../desktop/core/application-discovery-plat
 
 const good = { version: '26.1111.71704', build: '29030', architecture: 'arm64' };
 const affected = { version: '26.1117.41037', build: '29803', architecture: 'arm64' };
+const textOnly = (markup: string) =>
+  markup.replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, '');
 const official =
   'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip';
 
@@ -37,7 +39,9 @@ test('Windows without version metadata keeps the warning and offers the download
     const html = renderToStaticMarkup(
       createElement(ChatgptCompatibilityNotice, { compatibility: result, locale: 'ru' }),
     );
-    assert.ok(html.includes(t('ru', 'chatgptDeliveryVersionUnknown', { version: good.version })));
+    assert.ok(
+      textOnly(html).includes(t('ru', 'chatgptDeliveryVersionUnknown', { version: good.version })),
+    );
     assert.ok(html.includes(result.download!.url));
   }
   for (const architecture of ['arm64', 'ia32'] as const) {
@@ -115,10 +119,14 @@ test('the notice uses a numeric app-version cutoff and names it when the version
     }
     assert.ok(html.includes(windowsUrl));
     if (compatibility.version) {
-      assert.ok(html.includes('ChatGPT ' + compatibility.version));
+      assert.ok(textOnly(html).includes('ChatGPT ' + compatibility.version));
       assert.ok(html.includes(t('ru', 'chatgptDeliveryUnknown')));
     } else {
-      assert.ok(html.includes(t('ru', 'chatgptDeliveryVersionUnknown', { version: good.version })));
+      assert.ok(
+        textOnly(html).includes(
+          t('ru', 'chatgptDeliveryVersionUnknown', { version: good.version }),
+        ),
+      );
     }
   }
 });
@@ -132,18 +140,34 @@ test('each locale distinguishes observed queueing from unverified delivery and r
     const unknown = render(chatgptCompatibility('linux', {}));
     const win = render(chatgptCompatibility('win32', { ...affected, architecture: 'x64' }));
     assert.ok(win.includes(t(locale, 'chatgptDeliveryUnknown')));
-    assert.ok(win.includes(t(locale, 'chatgptDownloadAutomatic', { version: good.version })));
+    assert.ok(
+      textOnly(win).includes(t(locale, 'chatgptDownloadAutomatic', { version: good.version })),
+    );
     assert.ok(win.includes('/26.1111.9664.0/ChatGPT-x64.msix'));
     const equal = render(chatgptCompatibility('win32', { ...good, architecture: 'x64' }));
     assert.equal(equal, '');
     assert.ok(delayed.includes(t(locale, 'chatgptDeliveryAffected')));
-    assert.ok(delayed.includes(t(locale, 'chatgptDownloadVerified', { version: good.version })));
+    assert.ok(
+      textOnly(delayed).includes(t(locale, 'chatgptDownloadVerified', { version: good.version })),
+    );
     assert.ok(delayed.includes(official));
     assert.ok(
-      unknown.includes(t(locale, 'chatgptDeliveryVersionUnknown', { version: good.version })),
+      textOnly(unknown).includes(
+        t(locale, 'chatgptDeliveryVersionUnknown', { version: good.version }),
+      ),
     );
     assert.ok(unknown.includes(good.version));
     assert.ok(!unknown.includes('href='));
     assert.notEqual(t(locale, 'chatgptDeliveryUnknown'), t(locale, 'chatgptDeliveryAffected'));
   }
+});
+
+test('the installed and offered ChatGPT versions stay together in warning and link text', () => {
+  const compatibility = chatgptCompatibility('darwin', { ...affected, version: '26.1120.50957' });
+  const html = renderToStaticMarkup(
+    createElement(ChatgptCompatibilityNotice, { compatibility, locale: 'en' }),
+  );
+  assert.match(html, /white-space:nowrap/);
+  assert.match(html, /<strong>ChatGPT [\s\S]*?<span[^>]*>26\.1120\.50957<\/span>/);
+  assert.match(html, /<a[^>]*href=[^>]*>[\s\S]*?<span[^>]*>26\.1111\.71704<\/span><\/a>/);
 });

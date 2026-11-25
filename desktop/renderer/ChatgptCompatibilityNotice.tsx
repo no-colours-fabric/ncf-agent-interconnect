@@ -1,4 +1,4 @@
-import { Alert, Link } from '@mui/material';
+import { Alert, Box, Link } from '@mui/material';
 import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
 import { t, type Locale } from './i18n/index.js';
 
@@ -16,6 +16,25 @@ export function showsChatgptCompatibilityNotice(
   );
 }
 
+function VersionNumber({ version }: { version: string }) {
+  return (
+    <Box component="span" sx={{ whiteSpace: 'nowrap' }}>
+      {version}
+    </Box>
+  );
+}
+
+function VersionedText({ text, version }: { text: string; version: string }) {
+  const [before, after] = text.split('{version}');
+  return (
+    <>
+      {before}
+      <VersionNumber version={version} />
+      {after}
+    </>
+  );
+}
+
 export function ChatgptCompatibilityNotice({
   compatibility,
   locale,
@@ -26,16 +45,33 @@ export function ChatgptCompatibilityNotice({
   if (!showsChatgptCompatibilityNotice(compatibility)) return null;
   const { version, download } = compatibility;
   return (
-    <Alert severity="warning" sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
-      {version && <strong>ChatGPT {version}. </strong>}
-      {version
-        ? t(
+    <Alert
+      severity="warning"
+      sx={{
+        gridColumn: '1 / -1',
+        minWidth: 0,
+        flexWrap: 'wrap',
+        '& .MuiAlert-message': { flex: '1 1 105px', minWidth: 0, overflowWrap: 'anywhere' },
+      }}
+    >
+      {version ? (
+        <>
+          <strong>
+            ChatGPT <VersionNumber version={version} />.{' '}
+          </strong>
+          {t(
             locale,
             compatibility.status === 'affected'
               ? 'chatgptDeliveryAffected'
               : 'chatgptDeliveryUnknown',
-          )
-        : t(locale, 'chatgptDeliveryVersionUnknown', { version: delayNoticeCutoff })}
+          )}
+        </>
+      ) : (
+        <VersionedText
+          text={t(locale, 'chatgptDeliveryVersionUnknown')}
+          version={delayNoticeCutoff}
+        />
+      )}
       {download && version !== download.version && (
         <Link
           href={download.url}
@@ -43,13 +79,15 @@ export function ChatgptCompatibilityNotice({
           rel="noopener noreferrer"
           sx={{ display: 'block', width: 'fit-content' }}
         >
-          {t(
-            locale,
-            download.coverage === 'active-turn'
-              ? 'chatgptDownloadVerified'
-              : 'chatgptDownloadAutomatic',
-            { version: download.version },
-          )}
+          <VersionedText
+            text={t(
+              locale,
+              download.coverage === 'active-turn'
+                ? 'chatgptDownloadVerified'
+                : 'chatgptDownloadAutomatic',
+            )}
+            version={download.version}
+          />
         </Link>
       )}
     </Alert>
