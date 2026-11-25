@@ -25,7 +25,22 @@ import {
   type Peer,
 } from '../shared/contracts.js';
 import { localAddresses, normalizePeerAddress, type SettingsFile } from './settings.js';
-import { PairingClient, PairingError, PairingHost, type PairedIdentity } from './pairing.js';
+import {
+  certificateDer,
+  PairingClient,
+  PairingError,
+  PairingHost,
+  type PairedIdentity,
+} from './pairing.js';
+import {
+  approvalChallenge,
+  approvalIdentityKey,
+  approvalPath,
+  approvalStatus,
+  PairApprovalHost,
+  signApprovalRequest,
+} from './pairing-approval.js';
+import type { OutgoingPairApproval } from '../shared/pairing-approval.js';
 
 const messageFrame = z.object({ type: z.literal('message'), envelope: envelopeSchema }).strict();
 const directoryFeature = 'agent-directory-v1';
@@ -118,8 +133,22 @@ export function peerRemovalToken(peer: Peer): string {
     .digest('hex');
 }
 
+interface OutgoingApproval {
+  endpoint: URL;
+  controller: AbortController;
+  deadline?: NodeJS.Timeout;
+  remote?: {
+    id: string;
+    token: string;
+    identity: Omit<PairedIdentity, 'secret'>;
+  };
+  checking?: Promise<OutgoingPairApproval>;
+  committing?: boolean;
+}
+
 export class PeerNetwork extends EventEmitter {
   private readonly removingPeers = new Set<string>();
+  private readonly outgoingApprovals = new Map<string, OutgoingApproval>();
   private servers = new Map<string, https.Server>();
   private probes = new Map<import('node:http').ClientRequest, string>();
   private candidates = new Map<string, Map<string, number>>();
@@ -196,11 +225,21 @@ export class PeerNetwork extends EventEmitter {
   >();
   private certificate = '';
   private key = '';
-  private readonly pairingHost = new PairingHost(() => ({
-    nodeId: this.settings.value.nodeId,
-    label: this.settings.value.nodeLabel,
-    certificate: this.certificate,
-  }));
+  private ownIdentity() {
+    return {
+      nodeId: this.settings.value.nodeId,
+      label: this.settings.value.nodeLabel,
+      certificate: this.certificate,
+    };
+  }
+  private readonly pairingHost = new PairingHost(() => this.ownIdentity());
+  readonly approvalHost = new PairApprovalHost({
+    identity: () => this.ownIdentity(),
+    isSuppressed: (key) => this.settings.value.pairApprovalSuppressions?.includes(key) ?? false,
+    suppress: (key) => this.settings.suppressPairApproval(key),
+    checkIdentity: (identity) => this.checkApprovalIdentity(identity),
+    changed: () => this.emit('change'),
+  });
   private heartbeat?: NodeJS.Timeout;
   private stopped = true;
   private pairingGeneration = 0;
@@ -748,6 +787,9 @@ export class PeerNetwork extends EventEmitter {
       });
       this.pairingLeases.delete(peerId);
       this.pairingHost.forgetPeer(peerId);
+      this.approvalHost.forgetPeer(peerId);
+      for (const [id, entry] of this.outgoingApprovals)
+        if (entry.remote?.identity.nodeId === peerId) this.finishApproval(id, entry);
       this.candidates.delete(peerId);
       for (const [request, id] of this.probes)
         if (id === peerId) request.destroy(new Error('The paired node was removed'));
@@ -844,6 +886,7 @@ export class PeerNetwork extends EventEmitter {
     address?: string,
     beforeWrite?: () => void,
     commitGuard?: () => void,
+    byCode = false,
   ): Promise<Peer> {
     let saved!: Peer;
     await this.settings.savePeers(
@@ -862,6 +905,7 @@ export class PeerNetwork extends EventEmitter {
       },
       beforeWrite,
       commitGuard,
+      byCode ? approvalIdentityKey(identity) : undefined,
     );
     return saved;
   }
@@ -888,7 +932,8 @@ export class PeerNetwork extends EventEmitter {
       res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(value));
     };
-    if (req.method !== 'POST' || req.url !== '/pair' || req.headers.origin) {
+    const approval = req.url === approvalPath;
+    if (req.method !== 'POST' || (!approval && req.url !== '/pair') || req.headers.origin) {
       json(404, { error: 'Not found' });
       return;
     }
@@ -912,6 +957,29 @@ export class PeerNetwork extends EventEmitter {
       } catch {
         input = null;
       }
+      if (approval) {
+        const available = this.requestGuards.get(req)!;
+        const response = await this.approvalHost.handle(
+          input,
+          req.socket.remoteAddress ?? '',
+          available,
+          async (identity, guard) => {
+            const lease = this.holdPeer(identity.nodeId);
+            const commitGuard = () => {
+              lease.check();
+              guard();
+            };
+            try {
+              await this.savePeer(identity, undefined, commitGuard, commitGuard);
+              this.peerCommitted(identity.nodeId);
+            } finally {
+              lease.release();
+            }
+          },
+        );
+        json(200, response);
+        return;
+      }
       let saved: Peer | undefined;
       const response = await this.pairingHost.handle(input, async (identity, beforeWrite) => {
         const lease = this.holdPeer(identity.nodeId);
@@ -930,12 +998,16 @@ export class PeerNetwork extends EventEmitter {
               beforeWrite();
             },
             commitGuard,
+            true,
           );
         } finally {
           lease.release();
         }
       });
-      if (saved) this.peerCommitted(saved.id);
+      if (saved) {
+        this.approvalHost.forgetPeer(saved.id);
+        this.peerCommitted(saved.id);
+      }
       json(200, response);
     } catch (error) {
       json(error instanceof PairingError ? error.status : 400, {
@@ -947,6 +1019,7 @@ export class PeerNetwork extends EventEmitter {
     endpoint: URL,
     input: unknown,
     certificate?: string,
+    signal?: AbortSignal,
   ): Promise<{ body: unknown; certificate: string }> {
     return new Promise((resolve, reject) => {
       const req = https.request(
@@ -957,6 +1030,7 @@ export class PeerNetwork extends EventEmitter {
           agent: false,
           method: 'POST',
           headers: { 'content-type': 'application/json' },
+          signal,
           timeout: 8000,
         },
         (res) => {
@@ -975,7 +1049,12 @@ export class PeerNetwork extends EventEmitter {
           });
           res.on('end', () => {
             try {
-              const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+              let body: unknown;
+              try {
+                body = JSON.parse(Buffer.concat(chunks).toString());
+              } catch {
+                if (res.statusCode === 200) throw new Error('Invalid node response');
+              }
               if (res.statusCode !== 200) {
                 const error = z.object({ error: z.string().max(240) }).safeParse(body);
                 throw new PairingError(
@@ -992,6 +1071,12 @@ export class PeerNetwork extends EventEmitter {
           res.on('error', reject);
         },
       );
+      const deadline = setTimeout(
+        () => req.destroy(new Error('The node is unavailable at this address')),
+        8000,
+      );
+      deadline.unref();
+      req.once('close', () => clearTimeout(deadline));
       req.on('error', reject);
       req.on('timeout', () => req.destroy(new Error('The node is unavailable at this address')));
       req.end(JSON.stringify(input));
@@ -1048,7 +1133,7 @@ export class PeerNetwork extends EventEmitter {
         beforeWrite();
       };
       try {
-        peer = await this.savePeer(identity, normalized, commitGuard, commitGuard);
+        peer = await this.savePeer(identity, normalized, commitGuard, commitGuard, true);
       } catch {
         throw new Error(
           'The remote node authorized this connection, but this computer could not save it. Create a new access code to reconnect.',
@@ -1058,14 +1143,197 @@ export class PeerNetwork extends EventEmitter {
         throw new Error(
           'Pairing confirmation is uncertain because this node stopped during saving. Create a new access code to reconnect.',
         );
+      this.approvalHost.forgetPeer(peer.id);
       this.peerCommitted(peer.id);
       return peer;
     } finally {
       lease.release();
     }
   }
+  private checkApprovalIdentity(identity: Omit<PairedIdentity, 'secret'>): void {
+    const saved = this.settings.value.peers.find((peer) => peer.id === identity.nodeId);
+    if (
+      this.removingPeers.has(identity.nodeId) ||
+      (saved && certificateDer(saved.certificate) !== certificateDer(identity.certificate))
+    )
+      throw new PairingError('The node does not match the verified connection', 409);
+  }
+
+  async requestApproval(
+    id: string,
+    address: string,
+    expectedNodeId?: string,
+  ): Promise<OutgoingPairApproval> {
+    if (this.stopped || this.outgoingApprovals.has(id) || this.outgoingApprovals.size >= 8)
+      throw new PairingError('A connection request could not be started', 409);
+    const endpoint = new URL(normalizePeerAddress(address));
+    endpoint.protocol = 'https:';
+    endpoint.pathname = approvalPath;
+    const entry: OutgoingApproval = { endpoint, controller: new AbortController() };
+    this.outgoingApprovals.set(id, entry);
+    entry.deadline = setTimeout(() => this.cancelApproval(id), 120_000);
+    entry.deadline.unref();
+    try {
+      let response;
+      try {
+        response = await this.pairRequest(
+          endpoint,
+          { phase: 'prepare' },
+          undefined,
+          entry.controller.signal,
+        );
+      } catch (error) {
+        if (error instanceof PairingError && error.status === 404) {
+          this.finishApproval(id, entry);
+          return { state: 'unsupported' };
+        }
+        throw error;
+      }
+      this.checkOutgoingApproval(id, entry);
+      const challenge = approvalChallenge.parse(response.body);
+      const identity = challenge.identity;
+      if (
+        identity.nodeId === this.settings.value.nodeId ||
+        (expectedNodeId && identity.nodeId !== expectedNodeId.toLowerCase()) ||
+        certificateDer(identity.certificate) !== certificateDer(response.certificate)
+      )
+        throw new PairingError('The remote node does not match the requested identity', 409);
+      this.checkApprovalIdentity(identity);
+      const request = signApprovalRequest(challenge, this.ownIdentity(), this.key);
+      entry.remote = { id: request.id, token: request.token, identity };
+      const value = await this.pairRequest(
+        endpoint,
+        request,
+        identity.certificate,
+        entry.controller.signal,
+      );
+      this.checkOutgoingApproval(id, entry);
+      const status = approvalStatus.parse(value.body);
+      if (status.state === 'waiting' || status.state === 'shown') return { state: status.state };
+      if (status.state === 'suppressed' || status.state === 'dismissed') {
+        this.finishApproval(id, entry);
+        return { state: status.state };
+      }
+      throw new PairingError('Unexpected connection approval state', 409);
+    } catch (error) {
+      this.cancelApproval(id);
+      throw error;
+    }
+  }
+
+  private checkOutgoingApproval(id: string, entry: OutgoingApproval): void {
+    if (this.stopped || this.outgoingApprovals.get(id) !== entry || entry.controller.signal.aborted)
+      throw new PairingError('The connection request was canceled', 409);
+  }
+
+  private finishApproval(id: string, entry: OutgoingApproval): void {
+    if (this.outgoingApprovals.get(id) !== entry) return;
+    this.outgoingApprovals.delete(id);
+    clearTimeout(entry.deadline);
+    entry.controller.abort();
+  }
+
+  cancelApproval(id: string): boolean {
+    const entry = this.outgoingApprovals.get(id);
+    if (!entry) return true;
+    if (entry.committing) return false;
+    this.finishApproval(id, entry);
+    const remote = entry.remote;
+    if (remote)
+      void this.pairRequest(
+        entry.endpoint,
+        { phase: 'cancel', id: remote.id, token: remote.token },
+        remote.identity.certificate,
+      ).catch(() => {});
+    return true;
+  }
+
+  async approvalProgress(id: string): Promise<OutgoingPairApproval> {
+    const entry = this.outgoingApprovals.get(id);
+    if (!entry?.remote) return { state: 'dismissed' };
+    entry.checking ??= this.completeApproval(id, entry, entry.remote).finally(() => {
+      entry.checking = undefined;
+    });
+    return entry.checking;
+  }
+
+  private async completeApproval(
+    id: string,
+    entry: OutgoingApproval,
+    remote: NonNullable<OutgoingApproval['remote']>,
+  ): Promise<OutgoingPairApproval> {
+    const certificate = remote.identity.certificate;
+    const auth = { id: remote.id, token: remote.token };
+    try {
+      const response = await this.pairRequest(
+        entry.endpoint,
+        { phase: 'status', ...auth },
+        certificate,
+        entry.controller.signal,
+      );
+      this.checkOutgoingApproval(id, entry);
+      const status = approvalStatus.parse(response.body);
+      if (status.state === 'waiting' || status.state === 'shown') return { state: status.state };
+      if (status.state === 'dismissed' || status.state === 'suppressed') {
+        this.finishApproval(id, entry);
+        return { state: status.state };
+      }
+      if (status.state !== 'approved')
+        throw new PairingError('Unexpected connection approval state', 409);
+      this.checkApprovalIdentity(remote.identity);
+      const lease = this.holdPeer(remote.identity.nodeId);
+      entry.committing = true;
+      const guard = () => {
+        lease.check();
+        this.checkOutgoingApproval(id, entry);
+        this.checkApprovalIdentity(remote.identity);
+      };
+      try {
+        const request = { phase: 'commit', ...auth };
+        let receipt;
+        try {
+          receipt = await this.pairRequest(
+            entry.endpoint,
+            request,
+            certificate,
+            entry.controller.signal,
+          );
+        } catch (error) {
+          guard();
+          if (error instanceof PairingError) throw error;
+          receipt = await this.pairRequest(
+            entry.endpoint,
+            request,
+            certificate,
+            entry.controller.signal,
+          );
+        }
+        guard();
+        if (approvalStatus.parse(receipt.body).state !== 'paired')
+          throw new PairingError('The remote node did not confirm this connection', 409);
+        const peer = await this.savePeer(
+          { ...remote.identity, secret: status.secret },
+          normalizePeerAddress(entry.endpoint.origin),
+          guard,
+          guard,
+        );
+        this.peerCommitted(peer.id);
+        return { state: 'paired', id: peer.id, label: peer.label };
+      } finally {
+        lease.release();
+        this.finishApproval(id, entry);
+      }
+    } catch (error) {
+      this.cancelApproval(id);
+      if (error instanceof PairingError && error.status === 410) return { state: 'dismissed' };
+      throw error;
+    }
+  }
+
   async close(): Promise<void> {
     this.stopped = true;
+    for (const [id, entry] of this.outgoingApprovals) this.finishApproval(id, entry);
+    this.approvalHost.reset();
     this.pairingGeneration++;
     this.pairingLeases.clear();
     this.candidates.clear();

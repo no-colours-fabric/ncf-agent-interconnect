@@ -3528,6 +3528,23 @@ export class NodeService extends EventEmitter {
       if (!this.running) throw new Error('Start the node first');
       return this.network.accessCode();
     }
+    if (method === 'requestPeerApproval') {
+      const { id, address, expectedNodeId } = z
+        .object({
+          id: z.uuid(),
+          address: z.string().min(1).max(1000),
+          expectedNodeId: z.uuid().optional(),
+        })
+        .strict()
+        .parse(raw);
+      if (!this.running) throw new Error('Start the node first');
+      return this.network.requestApproval(id, address, expectedNodeId);
+    }
+    if (method === 'peerApprovalProgress' || method === 'cancelPeerApproval') {
+      const { id } = z.object({ id: z.uuid() }).strict().parse(raw);
+      if (method === 'cancelPeerApproval') return { canceled: this.network.cancelApproval(id) };
+      return this.network.approvalProgress(id);
+    }
     if (method === 'removePeer') {
       const { nodeId, token } = z
         .object({ nodeId: z.uuid(), token: z.string().regex(/^[a-f0-9]{64}$/) })

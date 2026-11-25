@@ -23,6 +23,7 @@ import {
   watchMacChatLaunches,
 } from './codex-shortcut-mac.js';
 import { StartupLifecycle } from './startup-lifecycle.js';
+import { PairingApprovalWindow } from './pairing-approval-window.js';
 import { LanSearchLifecycle } from './lan-search-lifecycle.js';
 import { createMcpSetupHandler } from './mcp-setup-ipc.js';
 import {
@@ -53,6 +54,7 @@ let window: BrowserWindow | null = null,
   service: NodeService | null = null,
   quitting = false;
 let opening: Promise<void> | null = null;
+let pairingApprovalWindow: PairingApprovalWindow | undefined;
 let acknowledgeInstallationRestart: (() => Promise<void>) | null = null;
 let installationRestartRecording: Promise<void> | undefined;
 const startup = new StartupLifecycle(showWindow);
@@ -100,6 +102,7 @@ else {
     quitting = true;
     startup.stop();
     lanSearchLifecycle.close();
+    pairingApprovalWindow?.close();
     void Promise.resolve(opening)
       .then(
         () => service?.close(),
@@ -156,6 +159,7 @@ else {
         lanDiscovery: process.env.NCF_DISABLE_LAN_DISCOVERY === '1' ? undefined : {},
       });
       service.on('change', () => {
+        pairingApprovalWindow?.sync();
         updateTray();
         window?.webContents.send('interconnect:change');
       });
@@ -284,6 +288,16 @@ function showWindow(tab?: string): void {
   void window.loadFile(path.join(directory, '../renderer/index.html'), { hash: tab ?? '' });
 }
 function setupIpc(): void {
+  pairingApprovalWindow = new PairingApprovalWindow({
+    preload: path.join(directory, 'preload.cjs'),
+    renderer: path.join(directory, '../renderer/index.html'),
+    next: () => (!quitting && service?.running ? service.network.approvalHost.next() : undefined),
+    displayed: (id) => !!service?.running && service.network.approvalHost.displayed(id),
+    decide: async (id, decision) => {
+      if (service?.running) await service.network.approvalHost.decide(id, decision);
+    },
+  });
+  pairingApprovalWindow.sync();
   const userData = app.getPath('userData');
   const access = new UiServiceAccess(
     () => service,
@@ -438,6 +452,9 @@ function setupIpc(): void {
         'accessCode',
         'connectPeer',
         'removePeer',
+        'requestPeerApproval',
+        'peerApprovalProgress',
+        'cancelPeerApproval',
         'registerAgent',
         'renameAgent',
         'clearAgents',

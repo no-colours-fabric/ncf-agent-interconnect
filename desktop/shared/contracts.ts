@@ -1,3 +1,4 @@
+import type { PairApprovalDecision } from './pairing-approval.js';
 import type { NetworkInterfaceExclusion, NetworkInterfaceStatus } from './network-interfaces.js';
 import { z } from 'zod';
 import type { LanDiscoverySnapshot } from './lan-discovery.js';
@@ -203,6 +204,7 @@ export interface Settings {
   peerPort: number;
   listenHost: string;
   networkExclusions?: NetworkInterfaceExclusion[];
+  pairApprovalSuppressions?: string[];
   exportRoots: string[];
   peers: Peer[];
   adapters: AdapterProfile[];
@@ -250,6 +252,7 @@ export interface McpInstructions {
 }
 export interface DesktopBridge {
   invoke<T = unknown>(method: string, params?: unknown): Promise<T>;
+  pairingApproval<T = unknown>(method: 'view' | 'ready' | PairApprovalDecision): Promise<T>;
   onChange(callback: () => void): () => void;
   onNavigate(callback: (tab: string) => void): () => void;
 }

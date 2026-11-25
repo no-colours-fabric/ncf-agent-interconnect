@@ -1,3 +1,7 @@
+import {
+  pairingApprovalMessages,
+  remoteNodeRemovalMessages,
+} from '../desktop/renderer/i18n/remote-nodes.js';
 import { computeNetworkInterfacePolicy } from '../desktop/core/network-interfaces.js';
 import { networkInterfaceMessages } from '../desktop/renderer/i18n/network-interfaces.js';
 import { OwnConnectionCard } from '../desktop/renderer/OwnConnectionCard.js';
@@ -510,6 +514,8 @@ const invoke=(method,input)=>{
  if(method==='ackLanSearch')return Promise.resolve({acknowledged:true});
  if(method==='startLanSearch')return Promise.resolve({started:true});
  if(method==='stopLanSearch')return Promise.resolve({stopped:true});
+ if(method==='requestPeerApproval')return Promise.resolve({state:'unsupported'});
+ if(method==='cancelPeerApproval')return Promise.resolve({canceled:true});
  return new Promise((resolve,reject)=>pending.push({method,resolve,reject}));
 };
 function App({patch}){
@@ -1394,6 +1400,7 @@ root.render(<App key={generation} patch={{}}/>);
 );
 
 interface WiringHarness {
+  approval(state: string): void;
   calls: Call[];
   failPair(error: string | null): void;
   failNetworkSave(error: string | null): void;
@@ -1494,14 +1501,14 @@ window.IntersectionObserver=class {
  unobserve(target){this.targets.delete(target);this.native.unobserve(target);}
  disconnect(){this.native.disconnect();}
 };
-let value=${JSON.stringify(initial)},visible=true,held=false,pairError=null,saveError=null,openAtLogin=false;
+let value=${JSON.stringify(initial)},visible=true,held=false,pairError=null,saveError=null,openAtLogin=false,approvalState='unsupported';
 const clients=['cursor','opencode','codex','aionui','claude'];
 const discovery={checkedAt:'2026-11-17T00:00:00.000Z',platform:'darwin',stateError:false,offers:${JSON.stringify(offers)},applications:clients.map(client=>({client,status:'detected',instances:[],coverage:[]}))};
 const clone=value=>structuredClone(value);
 const changed=()=>listeners.forEach(listener=>listener());
 const read=(method,data)=>held?new Promise(resolve=>reads.push({method,data:clone(data),resolve})):Promise.resolve(clone(data));
-window.wiring={calls,failPair(error){pairError=error;},failNetworkSave(error){saveError=error;},change(patch){if(patch.snapshot)value=clone(patch.snapshot);if('visible' in patch)visible=patch.visible;changed();},navigate(page){navigation.forEach(listener=>listener(page));},holdReads(){held=true;reads.length=0;},readCount:()=>reads.length,releasePair(index){for(const request of reads.slice(index*2,index*2+2))request.resolve(request.data);},resumeReads(){held=false;},manualIntersections(manual){manualIntersections=manual;},observerFor(key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);return intersections.findLastIndex(observer=>observer.targets.has(row));},replay(index,key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(row)intersections[index].callback([{target:row,isIntersecting:true,intersectionRatio:1}]);}};
-window.interconnect={onChange(callback){listeners.add(callback);return()=>listeners.delete(callback);},onNavigate(callback){navigation.add(callback);return()=>navigation.delete(callback);},async invoke(method,input={}){
+window.wiring={calls,approval(state){approvalState=state;},failPair(error){pairError=error;},failNetworkSave(error){saveError=error;},change(patch){if(patch.snapshot)value=clone(patch.snapshot);if('visible' in patch)visible=patch.visible;changed();},navigate(page){navigation.forEach(listener=>listener(page));},holdReads(){held=true;reads.length=0;},readCount:()=>reads.length,releasePair(index){for(const request of reads.slice(index*2,index*2+2))request.resolve(request.data);},resumeReads(){held=false;},manualIntersections(manual){manualIntersections=manual;},observerFor(key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);return intersections.findLastIndex(observer=>observer.targets.has(row));},replay(index,key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(row)intersections[index].callback([{target:row,isIntersecting:true,intersectionRatio:1}]);}};
+window.interconnect={async pairingApproval(method){calls.push({method:'approvalWindow',input:{method}});if(method==='view')return {id:'exact-session',nodeId:'837baaa7-20d9-43a7-8755-b25072f4984f',label:'Incoming fixture node',address:'192.0.2.31',fingerprint:'D5:A2'};},onChange(callback){listeners.add(callback);return()=>listeners.delete(callback);},onNavigate(callback){navigation.add(callback);return()=>navigation.delete(callback);},async invoke(method,input={}){
  calls.push({method,input:clone(input)});
  if(method==='snapshot')return read(method,value);
  if(method==='windowState')return read(method,{visible});
@@ -1520,6 +1527,9 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
  if(method==='saveNode'){if(saveError)throw new Error(saveError);value.nodeLabel=input.nodeLabel;value.networkInterfaces.exclusions=input.networkExclusions.map(exclusion=>({exclusion,matchingNames:[exclusion.name],absent:false,ambiguous:false}));changed();return {saved:true};}
  if(method==='copy')return {copied:true};
  if(method==='accessCode')return {code:'ABCD2345',expiresAt:new Date(Date.now()+600000).toISOString()};
+ if(method==='requestPeerApproval'||method==='peerApprovalProgress')return {state:approvalState};
+ if(method==='removePeer'){value.peers=value.peers.filter(peer=>peer.id!==input.nodeId);changed();return {removed:true};}
+ if(method==='cancelPeerApproval')return {canceled:true};
  if(method==='connectPeer'){if(pairError)throw new Error(pairError);return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};}
  if(method==='stopLanSearch'){value.lanSearch.phase='stopped';changed();return {stopped:true};}
  if(method==='startLanSearch'){value.lanSearch={...value.lanSearch,phase:'searching',runId:value.lanSearch.runId+1,foundCount:0,elapsedMs:0,nodes:value.lanSearch.nodes.map(node=>({...node,observedInRun:false}))};changed();return {started:true};}
@@ -1546,7 +1556,8 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
           await route.fulfill({ status: 200, body, contentType });
         });
         await page.goto(`${origin}/#${hash}`);
-        await page.getByTestId('nav-network').waitFor();
+        if (hash === 'pair-approval') await page.getByText('Incoming fixture node').waitFor();
+        else await page.getByTestId('nav-network').waitFor();
         return page;
       };
       const calls = (page: Page, method: string) =>
@@ -1871,6 +1882,124 @@ window.interconnect={onChange(callback){listeners.add(callback);return()=>listen
               ),
             );
             await capture(page, 'combined-network-dark-1024');
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'remote nodes: exact remove confirmation and code/approval UI share the selected address',
+        {
+          skip:
+            !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'remote-nodes',
+        },
+        async () => {
+          const page = await open();
+          const r = remoteNodeRemovalMessages('en');
+          const m = pairingApprovalMessages('en');
+          const approval = (state: string) =>
+            page.evaluate(
+              (phase) => (window as unknown as { wiring: WiringHarness }).wiring.approval(phase),
+              state,
+            );
+          try {
+            const state = snapshot();
+            state.peers = [
+              {
+                id: 'authenticated-fixture-peer',
+                label: 'Authenticated fixture',
+                address: 'wss://192.0.2.90:7336/peer',
+                removalToken: 'b'.repeat(64),
+                connected: true,
+                error: null,
+              },
+            ];
+            await change(page, { snapshot: state });
+            const remove = page.getByRole('button', {
+              name: r.remove + ' — Authenticated fixture',
+              exact: true,
+            });
+            await remove.click();
+            let dialog = page.getByRole('dialog');
+            await dialog.getByText('Authenticated fixture', { exact: true }).waitFor();
+            assert.equal((await calls(page, 'removePeer')).length, 0);
+            await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+            await remove.click();
+            await dialog.getByRole('button', { name: r.remove, exact: true }).click();
+            await remove.waitFor({ state: 'detached' });
+            assert.deepEqual(
+              (await calls(page, 'removePeer')).map(({ input }) => input),
+              [
+                {
+                  nodeId: 'authenticated-fixture-peer',
+                  token: 'b'.repeat(64),
+                },
+              ],
+            );
+
+            await approval('waiting');
+            await page.getByRole('button', { name: `Connect ${first.label}`, exact: true }).click();
+            dialog = page.getByRole('dialog');
+            await dialog.getByText(m.waiting, { exact: true }).waitFor();
+            const request = (await calls(page, 'requestPeerApproval')).at(-1)!.input;
+            assert.equal(request.address, first.address);
+            assert.equal(request.expectedNodeId, first.nodeId);
+            await approval('shown');
+            await dialog.getByText(m.shown, { exact: true }).waitFor();
+            const code = dialog.getByRole('textbox', { name: 'Connection code', exact: true });
+            await code.fill('ABCD2345');
+            await approval('dismissed');
+            await dialog.getByText(m.dismissed, { exact: true }).waitFor();
+            assert.equal(await code.inputValue(), 'ABCD2345');
+            await approval('unsupported');
+            await dialog.getByRole('button', { name: m.request, exact: true }).click();
+            await dialog.getByText(m.unsupported, { exact: true }).waitFor();
+            const retry = (await calls(page, 'requestPeerApproval')).at(-1)!.input;
+            assert.equal(retry.address, request.address);
+            assert.notEqual(retry.id, request.id);
+            await dialog.getByRole('button', { name: 'Connect', exact: true }).click();
+            await dialog.waitFor({ state: 'hidden' });
+            assert.deepEqual((await calls(page, 'connectPeer')).at(-1)!.input, {
+              address: first.address,
+              code: 'ABCD2345',
+              expectedNodeId: first.nodeId,
+            });
+            assert.deepEqual(errors, []);
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'approval popup uses the restricted bridge after the exact requester is rendered',
+        {
+          skip:
+            !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'remote-nodes',
+        },
+        async () => {
+          const page = await open([], 'pair-approval');
+          const m = pairingApprovalMessages('en');
+          try {
+            await page.getByRole('heading', { name: m.title }).waitFor();
+            assert.equal(await page.getByTestId('nav-network').count(), 0);
+            await until(
+              async () =>
+                (await calls(page, 'approvalWindow')).some(({ input }) => input.method === 'ready'),
+              'Popup acknowledges after rendering',
+            );
+            assert.deepEqual(
+              (await calls(page, 'approvalWindow')).map(({ input }) => input.method),
+              ['view', 'ready'],
+            );
+            assert.equal(await page.getByText('192.0.2.31', { exact: false }).count(), 1);
+            await page.getByRole('button', { name: m.suppress, exact: true }).click();
+            assert.deepEqual(
+              (await calls(page, 'approvalWindow')).map(({ input }) => input.method),
+              ['view', 'ready', 'suppress'],
+            );
+            assert.deepEqual(errors, []);
           } finally {
             await page.close();
           }
