@@ -16,6 +16,8 @@ export interface InstallationInstance {
   path: string;
   form: 'desktop' | 'cli';
   evidence: 'bundle' | 'product-metadata' | 'package-metadata' | 'native-install-layout';
+  /** OpenCode major from verified installation metadata, when available. */
+  openCodeMajor?: 1 | 2;
 }
 
 export interface DiscoveryCoverage {

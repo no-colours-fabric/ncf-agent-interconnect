@@ -35,7 +35,7 @@ export interface DiscoveryFiles {
   packageIdentity(
     name: string,
     runtime?: string,
-  ): Promise<{ name: string; publisher: string } | undefined>;
+  ): Promise<{ name: string; publisher: string; version?: string } | undefined>;
   windowsCodex?(): Promise<WindowsDesktopInstallation[]>;
   installationEntries?(directory: string): Promise<string[]>;
   linkedClaudeRuntime?(launcher: string, versions: string): Promise<boolean>;
@@ -61,7 +61,7 @@ export function windowsCodexPackageRoot(value: unknown): string {
 export async function peIdentity(
   files: DiscoveryFiles,
   filename: string,
-): Promise<{ product: string; publisher: string } | undefined> {
+): Promise<{ product: string; publisher: string; version?: string } | undefined> {
   const head = await files.bytes(filename, 64);
   if (head.length !== 64 || head.toString('ascii', 0, 2) !== 'MZ') return undefined;
   const offset = head.readUInt32LE(60);
@@ -85,8 +85,10 @@ export async function peIdentity(
     const text = data.toString('utf16le');
     const field = (key: string) => text.match(new RegExp(key + '\\0+([^\\0]{1,160})'))?.[1]?.trim();
     const product = field('ProductName'),
-      publisher = field('CompanyName');
-    if (product && publisher) return { product, publisher };
+      publisher = field('CompanyName'),
+      version = field('ProductVersion');
+    if (product && publisher)
+      return version ? { product, publisher, version } : { product, publisher };
   }
   return undefined;
 }
@@ -316,13 +318,16 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
   async packageIdentity(
     name: string,
     runtime?: string,
-  ): Promise<{ name: string; publisher: string } | undefined> {
+  ): Promise<{ name: string; publisher: string; version?: string } | undefined> {
     // Fixed package IDs and argv: no shell, package scripts, installation, or client execution.
     if (!['opencode', 'aionui', 'chatgpt', 'codex', 'claude-code'].includes(name))
       throw new DiscoveryError('invalid-metadata');
     for (const [command, args] of [
-      ['/usr/bin/dpkg-query', ['-W', '-f=${Status}\n${Package}\n${Maintainer}', name]],
-      ['/usr/bin/rpm', ['-q', '--qf', 'install ok installed\n%{NAME}\n%{VENDOR}', name]],
+      ['/usr/bin/dpkg-query', ['-W', '-f=${Status}\n${Package}\n${Maintainer}\n${Version}', name]],
+      [
+        '/usr/bin/rpm',
+        ['-q', '--qf', 'install ok installed\n%{NAME}\n%{VENDOR}\n%{VERSION}', name],
+      ],
     ] as const) {
       try {
         const { stdout } = await runFile(command, [...args], {
@@ -330,7 +335,7 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
           timeout: 1500,
           maxBuffer: 8192,
         });
-        const [status, installed, publisher] = stdout.trim().split('\n');
+        const [status, installed, publisher, version] = stdout.trim().split('\n');
         if (status === 'install ok installed' && installed === name && publisher) {
           if (!runtime || !path.posix.isAbsolute(runtime) || /[\r\n\0*?\[\]]/.test(runtime))
             throw new DiscoveryError('unverified-identity');
@@ -354,7 +359,7 @@ export class NativeDiscoveryFiles implements DiscoveryFiles {
                       (line.startsWith(name + ':') && line.endsWith(': ' + runtime)),
                   )
               : ownership.stdout.trim() === name;
-          if (owns) return { name, publisher };
+          if (owns) return { name, publisher, version: version?.replace(/^\d+:/, '') };
         }
       } catch (error) {
         if (errorReason(error) === 'access-denied') throw error;

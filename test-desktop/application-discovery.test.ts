@@ -257,6 +257,14 @@ test('Claude and OpenCode native/npm runtimes preserve installation versus compa
     bin: { opencode: 'bin/opencode.cjs' },
   });
   files.add('/usr/lib/node_modules/@opencode/cli/bin/opencode.cjs', '#!/usr/bin/env node');
+  files.add('/usr/lib/node_modules/opencode-ai/package.json', {
+    name: 'opencode-ai',
+    version: '1.4.10',
+    bin: { opencode: 'bin/opencode' },
+  });
+  files.add('/usr/lib/node_modules/opencode-ai/bin/opencode', '#!/usr/bin/env node');
+  files.add('/fixture/.opencode/bin/opencode');
+  files.binaries.add('/fixture/.opencode/bin/opencode');
   const scan = await new ApplicationDiscovery({
     platform: 'linux',
     home: '/fixture',
@@ -267,6 +275,66 @@ test('Claude and OpenCode native/npm runtimes preserve installation versus compa
   const opencode = scan.applications.find((a) => a.client === 'opencode')!;
   assert.equal(opencode.status, 'detected');
   assert.equal('ready' in opencode || 'apiMajor' in opencode, false);
+  assert.deepEqual(
+    new Map(opencode.instances.map(({ path, openCodeMajor }) => [path, openCodeMajor])),
+    new Map([
+      ['/usr/lib/node_modules/opencode-ai', 1],
+      ['/usr/lib/node_modules/@opencode/cli', 2],
+      ['/fixture/.opencode/bin/opencode', undefined],
+    ]),
+  );
+});
+
+test('OpenCode desktop versions require verified metadata on each platform', async () => {
+  for (const platform of ['darwin', 'win32', 'linux'] as const) {
+    const f = fixtures(platform);
+    const root = f.roots.get('opencode')!;
+    const file =
+      platform === 'darwin'
+        ? f.paths.join(root, 'Contents/Info.plist')
+        : f.paths.join(root, 'resources/app/package.json');
+    const identity =
+      platform === 'darwin'
+        ? { CFBundleIdentifier: 'ai.opencode.desktop', CFBundleExecutable: 'Fixture' }
+        : { name: '@opencode/desktop' };
+    const versionField = platform === 'darwin' ? 'CFBundleShortVersionString' : 'version';
+    for (const [version, major] of [
+      ['1.4.10', 1],
+      ['2.3.0', 2],
+      ['1-preview', undefined],
+      [undefined, undefined],
+    ] as const) {
+      f.files.add(file, { ...identity, [versionField]: version });
+      const detected = (await f.detector().scan()).applications.find(
+        ({ client }) => client === 'opencode',
+      )!;
+      assert.equal(detected.status, 'detected', platform);
+      assert.equal(detected.instances[0].openCodeMajor, major, platform);
+    }
+    f.files.add(file, { [versionField]: '1.4.10' });
+    const rejected = (await f.detector().scan()).applications.find(
+      ({ client }) => client === 'opencode',
+    )!;
+    assert.deepEqual(rejected.instances, [], platform);
+  }
+});
+
+test('OpenCode Homebrew reads the version from the canonical installation without running it', async () => {
+  const files = new FixtureFiles();
+  const binary = '/opt/homebrew/Cellar/opencode/1.4.10_1/bin/opencode';
+  files.add(binary);
+  files.binaries.add(binary);
+  files.links.set('/opt/homebrew/bin/opencode', binary);
+  const result = await new ApplicationDiscovery({
+    platform: 'darwin',
+    home: '/home/user',
+    env: {},
+    files,
+  }).scan();
+  const opencode = result.applications.find(({ client }) => client === 'opencode')!;
+  assert.deepEqual(opencode.instances, [
+    { path: binary, form: 'cli', evidence: 'native-install-layout', openCodeMajor: 1 },
+  ]);
 });
 
 test('desktop entry parser handles quoting/field codes without treating names or shell commands as identity', () => {
@@ -300,9 +368,8 @@ test('ASAR and PE readers reject forged offsets and metadata links', async () =>
   await assert.rejects(peIdentity(files, '/app/app.exe'), /invalid-metadata/);
 });
 
-test('PE identity trims padded vendor resource strings observed in the official Windows installer', async () => {
-  const files = new FixtureFiles();
-  const resource = Buffer.from('ProductName\0Cursor    \0CompanyName\0Anysphere    \0', 'utf16le');
+function executableWithPeResources(value: string): Buffer {
+  const resource = Buffer.from(value, 'utf16le');
   const executable = Buffer.alloc(256 + resource.length);
   executable.write('MZ');
   executable.writeUInt32LE(64, 60);
@@ -312,11 +379,85 @@ test('PE identity trims padded vendor resource strings observed in the official 
   executable.writeUInt32LE(resource.length, 104);
   executable.writeUInt32LE(256, 108);
   resource.copy(executable, 256);
-  files.add('/fixture/Cursor.exe', executable);
+  return executable;
+}
+
+test('PE identity trims padded vendor resource strings observed in the official Windows installer', async () => {
+  const files = new FixtureFiles();
+  files.add(
+    '/fixture/Cursor.exe',
+    executableWithPeResources('ProductName\0Cursor    \0CompanyName\0Anysphere    \0'),
+  );
   assert.deepEqual(await peIdentity(files, '/fixture/Cursor.exe'), {
     product: 'Cursor',
     publisher: 'Anysphere',
   });
+});
+
+test('OpenCode Windows PE version is accepted only with its verified product and publisher', async () => {
+  const files = new FixtureFiles(path.win32);
+  const home = 'C:\\Users\\Fixture';
+  const local = path.win32.join(home, 'AppData', 'Local');
+  const root = path.win32.join(local, 'Programs', 'OpenCode');
+  const binary = path.win32.join(root, 'OpenCode.exe');
+  const discovery = new ApplicationDiscovery({
+    platform: 'win32',
+    env: { LOCALAPPDATA: local, ProgramFiles: 'C:\\Program Files' },
+    home,
+    files,
+  });
+  files.binaries.add(binary);
+  for (const [publisher, major] of [
+    ['Anomaly', 1],
+    ['Unrelated publisher', undefined],
+  ] as const) {
+    files.add(
+      binary,
+      executableWithPeResources(
+        'ProductName\x00OpenCode\0CompanyName\0' + publisher + '\0ProductVersion\0' + '1.4.10.0\0',
+      ),
+    );
+    const result = (await discovery.scan()).applications.find(
+      ({ client }) => client === 'opencode',
+    )!;
+    assert.deepEqual(
+      result.instances.map((entry) => entry.openCodeMajor),
+      major ? [major] : [],
+    );
+  }
+});
+
+test('OpenCode Linux package version requires the identified publisher and owned runtime', async () => {
+  const files = new FixtureFiles();
+  const binary = '/opt/OpenCode/ai.opencode';
+  files.add(binary);
+  files.binaries.add(binary);
+  let publisher = 'Anomaly';
+  const probes: [string, string | undefined][] = [];
+  const discovery = new ApplicationDiscovery({
+    platform: 'linux',
+    env: {},
+    home: '/home/fixture',
+    files: {
+      canonical: files.canonical.bind(files),
+      bytes: files.bytes.bind(files),
+      executable: files.executable.bind(files),
+      plist: files.plist.bind(files),
+      packageIdentity: async (name, runtime) => {
+        probes.push([name, runtime]);
+        return runtime === binary ? { name, publisher, version: '1.4.10-1' } : undefined;
+      },
+    },
+  });
+  const app = async () =>
+    (await discovery.scan()).applications.find(({ client }) => client === 'opencode')!;
+  assert.deepEqual(
+    (await app()).instances.map((entry) => entry.openCodeMajor),
+    [1],
+  );
+  assert.deepEqual(probes, [['opencode', binary]]);
+  publisher = 'Unrelated publisher';
+  assert.deepEqual((await app()).instances, []);
 });
 
 test('official Cursor DEB metadata confirms the Linux identity and desktop locator', async () => {
