@@ -9,6 +9,8 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 
 ## Agents and message history
 
+- In **Agents**, click **Name**, **Application**, **Node**, **Last message**, or **Messages** to sort by that column. Click the same header again to reverse the order.
+- The **Application** column shows the name and icon for known apps used by local and remote agents. If a paired computer doesn’t report the app, the column shows **Unknown application**.
 - In **Agents**, choose **Rename agent** to change a local agent’s name and keep its connected chat and history.
 - When moving an existing agent name to another ChatGPT chat, the move can still proceed if the first check fails and the new chat receives and confirms the connection request. The existing connection and history stay in place until you approve the move.
 - The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
