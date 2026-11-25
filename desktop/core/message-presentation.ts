@@ -3,10 +3,9 @@ export interface MessageDisplayContext {
   timeZone: string;
 }
 
-export interface MessagePresentationFile {
-  name: string;
-  localPath: string;
-}
+export type MessagePresentationFile = { name: string } & (
+  { localPath: string; status?: never } | { status: 'unavailable'; localPath?: never }
+);
 
 export interface AgentMessagePresentationInput extends MessageDisplayContext {
   fromNickname: string;
@@ -100,6 +99,7 @@ export function formatAgentMessagePresentation(input: AgentMessagePresentationIn
         .map((file) => {
           const name = boundedText(file.name, 'attachment name', 255);
           if (/[\\/\x00-\x1f]/.test(name)) throw new Error('Invalid attachment name');
+          if (file.status === 'unavailable') return `- ${markdownName(name)} (unavailable)`;
           const path = boundedText(file.localPath, 'attachment path', 16384)
             .replaceAll('\\', '/')
             .replace(/[<>\r\n]/g, (character) => encodeURIComponent(character));

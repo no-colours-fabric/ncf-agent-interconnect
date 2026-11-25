@@ -2048,6 +2048,18 @@ export class NodeService extends EventEmitter {
       signal.removeEventListener('abort', waiter.wake);
     }
   }
+  private async prepareReadAttachment(
+    messageId: string,
+    file: Attachment,
+    unread: boolean,
+  ): Promise<Attachment & MessagePresentationFile> {
+    try {
+      return { ...file, localPath: await this.files.materialize(messageId, file) };
+    } catch (error) {
+      if (unread) throw error;
+      return { ...file, status: 'unavailable' };
+    }
+  }
   async read(
     connectionId: string,
     after = 0,
@@ -2109,10 +2121,9 @@ export class NodeService extends EventEmitter {
             .map(async (row) => ({
               ...row,
               files: await allFileResults(
-                row.envelope.attachments.map(async (file) => ({
-                  ...file,
-                  localPath: await this.files.materialize(row.envelope.id, file),
-                })),
+                row.envelope.attachments.map((file) =>
+                  this.prepareReadAttachment(row.envelope.id, file, unread),
+                ),
               ),
             })),
         );
@@ -2271,10 +2282,9 @@ export class NodeService extends EventEmitter {
             .map(async (row) => ({
               ...row,
               files: await allFileResults(
-                row.envelope.attachments.map(async (file) => ({
-                  ...file,
-                  localPath: await this.files.materialize(row.envelope.id, file),
-                })),
+                row.envelope.attachments.map((file) =>
+                  this.prepareReadAttachment(row.envelope.id, file, unread),
+                ),
               ),
             })),
         );

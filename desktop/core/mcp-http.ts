@@ -331,7 +331,7 @@ export function createAgentMcp(
   };
   register(
     'agent_read',
-    'Receive new messages and verified attachments. When awaiting a reply, set waitMs once to receive the next arrival during this call. An empty result means the wait expired. Do not poll. Returned messages are marked received automatically. Paginate with nextCursor and hasMore.',
+    'Receive new messages and verified attachments. When awaiting a reply, set waitMs once to receive the next arrival during this call. An empty result means the wait expired. Do not poll. Returned messages are marked received automatically. Paginate with nextCursor and hasMore. Unavailable attachments keep their original metadata, have status unavailable, and omit localPath.',
     {
       ...read,
       limit: read.limit.removeDefault().optional(),
@@ -365,7 +365,7 @@ export function createAgentMcp(
   );
   register(
     'agent_history',
-    'Get persistent incoming and outgoing history. Incoming messages returned here are also marked received by the agent. Paginate with nextCursor and hasMore.',
+    'Get persistent incoming and outgoing history. Incoming messages returned here are also marked received by the agent. Paginate with nextCursor and hasMore. Unavailable attachments keep their original metadata, have status unavailable, and omit localPath.',
     read,
     false,
     async (args, extra) => {

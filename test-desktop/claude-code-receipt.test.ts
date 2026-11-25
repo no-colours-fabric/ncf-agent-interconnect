@@ -2,7 +2,7 @@ import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { PassThrough, Writable } from 'node:stream';
 import { ClaudeStdioTransport, claudeCallMetaKey } from '../desktop/integrations/claude-code.js';
@@ -104,6 +104,78 @@ test('A Claude read records no receipt until the helper reports the complete fra
   );
   assert.ok(owner.messages.some((message) => message.envelope.text === 'Текст 漢字 ✓'));
 });
+
+for (const transport of ['ordinary', 'Claude'] as const) {
+  test(`${transport} MCP history keeps mixed attachments and the following page`, async (t) => {
+    const f = await claudeFixture(t);
+    const nickname = 'History recipient';
+    const claude = transport === 'Claude' ? await bound(f, nickname) : undefined;
+    const ordinary = claude ? undefined : f.service.connect({ nickname, client: 'MCP' });
+    assert.ok(!ordinary || ordinary.status === 'connected');
+    const connectionId =
+      claude?.connectionId ??
+      (ordinary?.status === 'connected' ? ordinary.binding.connectionId : undefined);
+    assert.ok(connectionId);
+    const root = f.service.settings.value.exportRoots[0];
+    const missing = path.join(root, 'Исходное имя 漢字.txt');
+    const available = path.join(root, 'available.txt');
+    await writeFile(missing, 'This blob will be removed');
+    await writeFile(available, 'Verified contents');
+    const send = sender(f);
+    const first = await send(nickname, 'Mixed attachments', [missing, available]);
+    const second = await send(nickname, 'No files');
+    const third = await send(nickname, 'Next page');
+    const saved = f.service.store.get(first.id, 'in')!;
+    const [missingFile, availableFile] = saved.envelope.attachments;
+    await unlink(f.service.files.blob(missingFile.id));
+
+    type HistoryPage = Omit<Page, 'messages'> & {
+      messages: (Page['messages'][number] & {
+        files: { id: string; name: string; status?: string; localPath?: string }[];
+        presentation: string;
+      })[];
+    };
+    const history = async (after: number) => {
+      if (!claude) return (await mcpRead(f.service, connectionId, after, 2)) as HistoryPage;
+      const result = await call(f, claude.helper, claude.session, 'agent_history', {
+        connectionId,
+        after,
+        limit: 2,
+      });
+      assert.equal(result.isError ?? false, false, JSON.stringify(result.content));
+      const receipt = await report(f, claude.helper, deliveryOf(result), 'commit');
+      assert.deepEqual(receipt.body, { state: 'committed' });
+      return result.structuredContent as unknown as HistoryPage;
+    };
+    const page = await history(0);
+    assert.deepEqual(
+      page.messages.map((row) => row.envelope.id),
+      [first.id, second.id],
+    );
+    assert.deepEqual(
+      page.messages.map((row) => row.envelope.text),
+      ['Mixed attachments', 'No files'],
+    );
+    const [unavailable, present] = page.messages[0].files;
+    assert.deepEqual(unavailable, { ...missingFile, status: 'unavailable' });
+    assert.equal(present.id, availableFile.id);
+    assert.equal(present.name, availableFile.name);
+    assert.ok(present.localPath);
+    assert.equal(await readFile(present.localPath, 'utf8'), 'Verified contents');
+    assert.ok(page.messages[0].presentation.includes('Исходное имя 漢字.txt (unavailable)'));
+    assert.deepEqual(page.messages[1].files, []);
+    assert.equal(page.hasMore, true);
+    assert.equal(page.nextCursor, f.service.store.get(second.id, 'in')!.sequence);
+    const next = await history(page.nextCursor);
+    assert.deepEqual(
+      next.messages.map((row) => row.envelope.id),
+      [third.id],
+    );
+    assert.equal(next.messages[0].envelope.text, 'Next page');
+    assert.equal(next.nextCursor, f.service.store.get(third.id, 'in')!.sequence);
+    assert.equal(next.hasMore, false);
+  });
+}
 
 test('Only the issuing helper can report; a cancel before any write releases the IDs', async (t) => {
   const f = await claudeFixture(t);
