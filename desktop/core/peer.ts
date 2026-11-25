@@ -1,3 +1,9 @@
+import {
+  attachmentLimitSchema,
+  exceedsAttachmentLimit,
+  legacyAttachmentLimitMiB,
+  type AttachmentLimit,
+} from '../shared/attachment-limit.js';
 import https from 'node:https';
 import tls from 'node:tls';
 import { readFile, writeFile } from 'node:fs/promises';
@@ -60,6 +66,16 @@ const messageFrame = z
         temporaryFileIds.every((id) => envelope.attachments.some((file) => file.id === id))),
   );
 const temporaryFilesHeader = 'x-ncf-temporary-attachments';
+const attachmentLimitHeader = 'x-ncf-attachment-limit-mib';
+const formatAttachmentLimit = (limit: AttachmentLimit): string =>
+  limit === null ? 'unlimited' : String(limit);
+function headerAttachmentLimit(raw: string | string[] | undefined): AttachmentLimit | undefined {
+  if (raw === 'unlimited') return null;
+  if (typeof raw !== 'string' || !/^[1-9]\d{0,9}$/.test(raw)) return undefined;
+  const limit = attachmentLimitSchema.safeParse(Number(raw));
+  return limit.success ? limit.data : undefined;
+}
+export class PeerAttachmentLimitError extends Error {}
 const directoryFeature = 'agent-directory-v1';
 const directoryApplicationHeader = 'x-ncf-directory-application';
 const directoryApplicationVersion = '1';
@@ -67,6 +83,7 @@ const nodeLabelHeader = 'x-ncf-node-label';
 const nodeLabelSchema = z.string().min(1).max(120);
 const frameSchema = z.discriminatedUnion('type', [
   messageFrame,
+  z.object({ type: z.literal('attachment/limit'), limitMiB: attachmentLimitSchema }).strict(),
   z.object({ type: z.literal('directory'), snapshot: directorySnapshotSchema }).strict(),
   z.object({ type: z.literal('identity'), label: nodeLabelSchema }).strict(),
   z.object({ type: z.literal('hello'), protocol: z.literal(2), nodeId: z.uuid() }).strict(),
@@ -107,6 +124,7 @@ interface Link {
   directoryApplicationSupported: boolean;
   identitySupported: boolean;
   temporaryFilesSupported: boolean;
+  attachmentLimitMiB: AttachmentLimit | undefined;
   generation: number;
   addressIndex: number;
   activeAddress: string | null;
@@ -329,6 +347,10 @@ export class PeerNetwork extends EventEmitter {
           headers.push(directoryApplicationHeader + ': ' + directoryApplicationVersion);
       }
       if (req.headers[temporaryFilesHeader] === '1') headers.push(temporaryFilesHeader + ': 1');
+      if (headerAttachmentLimit(req.headers[attachmentLimitHeader]) !== undefined)
+        headers.push(
+          attachmentLimitHeader + ': ' + formatAttachmentLimit(this.settings.attachmentLimitMiB),
+        );
       headers.push('X-NCF-Node-Label: ' + encodedNodeLabel(this.settings.value.nodeLabel));
     });
     const inventory = this.inventory();
@@ -409,6 +431,7 @@ export class PeerNetwork extends EventEmitter {
           undefined,
           req.headers[directoryApplicationHeader] === directoryApplicationVersion,
           req.headers[temporaryFilesHeader] === '1',
+          headerAttachmentLimit(req.headers[attachmentLimitHeader]),
         ),
       );
     });
@@ -456,6 +479,7 @@ export class PeerNetwork extends EventEmitter {
         directoryApplicationSupported: false,
         identitySupported: false,
         temporaryFilesSupported: false,
+        attachmentLimitMiB: undefined,
         generation: 0,
         addressIndex: 0,
         activeAddress: null,
@@ -612,6 +636,7 @@ export class PeerNetwork extends EventEmitter {
           'x-ncf-features': directoryFeature,
           [directoryApplicationHeader]: directoryApplicationVersion,
           [temporaryFilesHeader]: '1',
+          [attachmentLimitHeader]: formatAttachmentLimit(this.settings.attachmentLimitMiB),
           [nodeLabelHeader]: encodedNodeLabel(this.settings.value.nodeLabel),
         },
         handshakeTimeout: 6000,
@@ -636,6 +661,7 @@ export class PeerNetwork extends EventEmitter {
     address?: string,
     directoryApplicationSupported = false,
     temporaryFilesSupported = false,
+    attachmentLimitMiB?: AttachmentLimit,
   ): void {
     this.socketPeers.set(ws, peer.id);
     this.sockets.add(ws);
@@ -647,6 +673,7 @@ export class PeerNetwork extends EventEmitter {
           response.headers[directoryApplicationHeader] === directoryApplicationVersion;
         remoteLabel = decodedNodeLabel(response.headers[nodeLabelHeader]);
         temporaryFilesSupported = response.headers[temporaryFilesHeader] === '1';
+        attachmentLimitMiB = headerAttachmentLimit(response.headers[attachmentLimitHeader]);
       });
     const link = this.link(peer.id),
       generation = link.generation,
@@ -697,6 +724,7 @@ export class PeerNetwork extends EventEmitter {
           link.directoryApplicationSupported = directorySupported && directoryApplicationSupported;
           link.identitySupported = remoteLabel !== undefined;
           link.temporaryFilesSupported = temporaryFilesSupported;
+          link.attachmentLimitMiB = attachmentLimitMiB;
           link.connecting = false;
           link.error = null;
           if (!isCurrent()) return;
@@ -716,6 +744,23 @@ export class PeerNetwork extends EventEmitter {
         }
         if (link.socket !== ws) return;
         if (frame.type === 'hello') throw new Error('Repeated handshake');
+        if (frame.type === 'attachment/limit') {
+          if (attachmentLimitMiB === undefined)
+            throw new Error('Attachment limits were not negotiated');
+          if (link.attachmentLimitMiB !== frame.limitMiB) {
+            link.attachmentLimitMiB = frame.limitMiB;
+            this.emit('attachmentLimit', peer.id);
+          }
+          return;
+        }
+        if (
+          frame.type === 'message' &&
+          attachmentLimitMiB === undefined &&
+          frame.envelope.attachments.some(({ size }) =>
+            exceedsAttachmentLimit(size, legacyAttachmentLimitMiB),
+          )
+        )
+          throw new Error('Large attachments were not negotiated');
         if (frame.type === 'message' && frame.temporaryFileIds && !temporaryFilesSupported)
           throw new Error('Temporary attachments were not negotiated');
         if (frame.type === 'directory' && !directorySupported)
@@ -763,6 +808,7 @@ export class PeerNetwork extends EventEmitter {
         link.directoryApplicationSupported = false;
         link.identitySupported = false;
         link.temporaryFilesSupported = false;
+        link.attachmentLimitMiB = undefined;
         for (const [id, r] of this.requests)
           if (r.peerId === peer.id) {
             clearTimeout(r.timer);
@@ -803,6 +849,7 @@ export class PeerNetwork extends EventEmitter {
     link.directoryApplicationSupported = false;
     link.identitySupported = false;
     link.temporaryFilesSupported = false;
+    link.attachmentLimitMiB = undefined;
     link.error = null;
     for (const socket of this.sockets)
       if (this.socketPeers.get(socket) === peerId) socket.terminate();
@@ -845,13 +892,36 @@ export class PeerNetwork extends EventEmitter {
     }
   }
   message(envelope: Envelope, temporaryFileIds: string[] = []): Promise<void> {
+    const link = this.link(envelope.toNode);
+    if (
+      link.socket &&
+      envelope.attachments.some(({ size }) =>
+        exceedsAttachmentLimit(
+          size,
+          link.attachmentLimitMiB === undefined
+            ? legacyAttachmentLimitMiB
+            : link.attachmentLimitMiB,
+        ),
+      )
+    )
+      return Promise.reject(
+        new PeerAttachmentLimitError('The attachment exceeds the remote node’s size limit'),
+      );
     return this.send(envelope.toNode, {
       type: 'message',
       envelope,
-      ...(temporaryFileIds.length && this.link(envelope.toNode).temporaryFilesSupported
-        ? { temporaryFileIds }
-        : {}),
+      ...(temporaryFileIds.length && link.temporaryFilesSupported ? { temporaryFileIds } : {}),
     });
+  }
+  async advertiseAttachmentLimit(peerId?: string): Promise<void> {
+    const frame: Frame = { type: 'attachment/limit', limitMiB: this.settings.attachmentLimitMiB };
+    await Promise.allSettled(
+      [...this.links].flatMap(([id, link]) =>
+        (!peerId || peerId === id) && link.socket && link.attachmentLimitMiB !== undefined
+          ? [this.send(id, frame)]
+          : [],
+      ),
+    );
   }
   directory(peerId: string, snapshot: DirectorySnapshot): Promise<void> {
     const link = this.link(peerId);
@@ -1411,6 +1481,7 @@ export class PeerNetwork extends EventEmitter {
       link.directoryApplicationSupported = false;
       link.identitySupported = false;
       link.temporaryFilesSupported = false;
+      link.attachmentLimitMiB = undefined;
       link.socket = null;
       link.activeAddress = null;
     }

@@ -34,7 +34,14 @@ import {
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
 import { AttachmentProvenance, type ManagedAttachmentFile } from './attachment-provenance.js';
-import { peerRemovalToken, PeerNetwork, secretMatches, type Frame } from './peer.js';
+import {
+  PeerAttachmentLimitError,
+  peerRemovalToken,
+  PeerNetwork,
+  secretMatches,
+  type Frame,
+} from './peer.js';
+import { attachmentLimitSchema, exceedsAttachmentLimit } from '../shared/attachment-limit.js';
 import type { LocalLanNode } from './lan-discovery.js';
 import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.js';
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
@@ -526,7 +533,11 @@ export class NodeService extends EventEmitter {
     await this.claude.load();
     this.store = new AgentStore(this.directory);
     this.attachmentProvenance = new AttachmentProvenance(this.directory);
-    this.files = new FileStore(this.directory, this.settings.value.exportRoots);
+    this.files = new FileStore(
+      this.directory,
+      this.settings.value.exportRoots,
+      () => this.settings.attachmentLimitMiB,
+    );
     await this.files.init();
     this.adapters.on('change', () => {
       this.refreshPresence();
@@ -581,6 +592,7 @@ export class NodeService extends EventEmitter {
       void this.flush(id);
       void this.drainIncoming();
     });
+    this.network.on('attachmentLimit', (id: string) => void this.flush(id));
     this.network.on('disconnected', () => {
       this.emit('change');
       this.mcp.notify({ source: 'application', type: 'directory_changed' });
@@ -735,6 +747,7 @@ export class NodeService extends EventEmitter {
       directories: this.agentDirectories(),
       adapters: this.adapters.states(),
       exportRoots: this.settings.value.exportRoots,
+      attachmentLimitMiB: this.settings.attachmentLimitMiB,
       errors: [...this.errors],
     };
   }
@@ -2786,10 +2799,14 @@ export class NodeService extends EventEmitter {
     });
     checkSource();
     if (!this.store.get(id, 'out')) throw new Error('The outgoing message was cleared');
-    if (!local && this.running)
-      await this.network
-        .message(envelope, this.store.attachments.temporaryIds(id, 'out'))
-        .catch(() => {});
+    let peerSizeLimit = false;
+    if (!local && this.running) {
+      try {
+        await this.network.message(envelope, this.store.attachments.temporaryIds(id, 'out'));
+      } catch (error) {
+        peerSizeLimit = error instanceof PeerAttachmentLimitError;
+      }
+    }
     checkSource();
     const current = this.store.get(id, 'out');
     if (!current) throw new Error('The outgoing message was cleared');
@@ -2800,6 +2817,9 @@ export class NodeService extends EventEmitter {
       recipientNode,
       recipientNickname: envelope.toNickname,
       delivery: deliveryStatus(current.state),
+      ...(peerSizeLimit && current.state === 'queued'
+        ? { attachmentTransfer: 'peer_size_limit' as const }
+        : {}),
     };
   }
   async receiveFile(connectionId: string, messageId: string, fileId: string): Promise<unknown> {
@@ -2867,19 +2887,34 @@ export class NodeService extends EventEmitter {
         const envelope = frame.envelope;
         if (envelope.fromNode !== peerId || envelope.toNode !== this.settings.value.nodeId)
           throw new Error('The message route does not match the connection');
+        if (
+          envelope.attachments.some(({ size }) =>
+            exceedsAttachmentLimit(size, this.settings.attachmentLimitMiB),
+          )
+        ) {
+          const state =
+            this.store.get(envelope.id, 'in')?.state ?? this.store.clearedState(envelope.id, 'in');
+          if (state !== 'ready' && state !== 'processed') {
+            await this.network.advertiseAttachmentLimit(peerId);
+            return;
+          }
+        }
         this.store.insert(envelope, 'in', () =>
           this.store.attachments.recordRefs(envelope.id, 'in', frame.temporaryFileIds ?? []),
         );
         const state =
           this.store.get(envelope.id, 'in')?.state ?? this.store.clearedState(envelope.id, 'in');
-        if (state && state !== 'queued') await this.network.receipt(peerId, envelope.id, state);
+        if (state === 'ready' || state === 'processed')
+          await this.network.receipt(peerId, envelope.id, state);
       });
       void this.drainIncoming();
       this.emit('change');
     } else if (frame.type === 'receipt') {
       if (this.store.clearedState(frame.id, 'out')) return;
-      if (this.store.get(frame.id, 'out')?.envelope.toNode !== peerId)
+      const outgoing = this.store.get(frame.id, 'out');
+      if (outgoing?.envelope.toNode !== peerId)
         throw new Error('The receipt does not belong to this sender');
+      if (frame.state === 'received' && outgoing.envelope.attachments.length) return;
       this.store.receipt(frame.id, frame.state);
       this.emit('change');
     } else if (frame.type === 'blob/read') {
@@ -2915,7 +2950,8 @@ export class NodeService extends EventEmitter {
             row.envelope,
             this.store.attachments.temporaryIds(row.envelope.id, 'out'),
           );
-        } catch {
+        } catch (error) {
+          if (error instanceof PeerAttachmentLimitError) continue;
           break;
         }
       }
@@ -3642,6 +3678,18 @@ export class NodeService extends EventEmitter {
         channel: 'interface',
         session: context.requesterSession ?? 'local-interface',
       });
+    if (method === 'saveAttachmentLimit') {
+      const { limitMiB } = z.object({ limitMiB: attachmentLimitSchema }).strict().parse(raw);
+      await this.transition(async () => {
+        await this.settings.saveAttachmentLimit(limitMiB);
+        if (this.running) {
+          await this.network.advertiseAttachmentLimit();
+          void this.drainIncoming();
+        }
+        this.emit('change');
+      });
+      return { saved: true };
+    }
     if (method === 'cleanTemporaryAttachments') {
       const { kind } = z
         .object({ kind: z.enum(['sources', 'received']) })

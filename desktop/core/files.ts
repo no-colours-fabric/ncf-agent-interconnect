@@ -4,28 +4,22 @@ import {
   realpath as callbackRealpath,
   type BigIntStats,
 } from 'node:fs';
-import {
-  mkdir,
-  stat,
-  rename,
-  unlink,
-  open,
-  copyFile,
-  link,
-  readdir,
-  lstat,
-  rmdir,
-} from 'node:fs/promises';
+import { mkdir, stat, rename, unlink, open, link, readdir, lstat, rmdir } from 'node:fs/promises';
 import { createHash, randomUUID } from 'node:crypto';
 import path from 'node:path';
 import { Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { promisify } from 'node:util';
 import type { Attachment } from '../shared/contracts.js';
+import {
+  defaultAttachmentLimitMiB,
+  exceedsAttachmentLimit,
+  localAttachmentLimitError,
+  type AttachmentLimit,
+} from '../shared/attachment-limit.js';
 
 const realpath = promisify(callbackRealpath.native);
 const code = (error: unknown) => (error as NodeJS.ErrnoException).code;
-const maxBytes = 100 * 1024 * 1024;
 export class FileStore {
   readonly directory: string;
   private readers = 0;
@@ -122,6 +116,7 @@ export class FileStore {
   constructor(
     readonly dataDir: string,
     public exportRoots: string[],
+    private readonly attachmentLimit: () => AttachmentLimit = () => defaultAttachmentLimitMiB,
   ) {
     this.directory = path.join(dataDir, 'blobs');
   }
@@ -173,8 +168,9 @@ export class FileStore {
     )
       throw new Error('The file is outside the permitted export folders');
     const info = await stat(canonical);
-    if (!info.isFile() || info.size > maxBytes)
-      throw new Error('Only regular files up to 100 MiB are allowed');
+    if (!info.isFile()) throw new Error('Only regular files are allowed');
+    const limit = this.attachmentLimit();
+    if (exceedsAttachmentLimit(info.size, limit)) throw new Error(localAttachmentLimitError);
     const name = path.basename(canonical);
     if (/[\x00-\x1f]/.test(name)) throw new Error('The filename contains control characters');
     const temp = path.join(this.directory, randomUUID() + '.tmp'),
@@ -184,7 +180,8 @@ export class FileStore {
       const counter = new Transform({
         transform(chunk: Buffer, _encoding, done) {
           size += chunk.length;
-          if (size > maxBytes) return done(new Error('The file exceeds 100 MiB'));
+          if (exceedsAttachmentLimit(size, limit))
+            return done(new Error(localAttachmentLimitError));
           hash.update(chunk);
           done(null, chunk);
         },
@@ -220,41 +217,67 @@ export class FileStore {
     file: Attachment,
     getChunk: (offset: number, length: number) => Promise<string>,
   ): Promise<void> {
-    if (file.size > maxBytes) throw new Error('The file exceeds 100 MiB');
+    const checkLimit = () => {
+      if (exceedsAttachmentLimit(file.size, this.attachmentLimit()))
+        throw new Error(localAttachmentLimitError);
+    };
+    checkLimit();
     if (await this.exists(file)) return;
-    const partial = this.blob(file.id) + '.part',
-      handle = await open(partial, 'a+', 0o600);
+    checkLimit();
+    const partial = this.blob(file.id) + '.part';
+    const handle = await open(partial, 'a+', 0o600);
+    const hash = createHash('sha256');
+    let valid = false;
     try {
       let offset = (await handle.stat()).size;
       if (offset > file.size) {
         await handle.truncate(0);
         offset = 0;
       }
+      if (offset) {
+        const prefix = handle.createReadStream({ start: 0, end: offset - 1, autoClose: false });
+        for await (const data of prefix) hash.update(data);
+      }
       while (offset < file.size) {
         const length = Math.min(192 * 1024, file.size - offset),
           data = Buffer.from(await getChunk(offset, length), 'base64');
         if (data.length !== length) throw new Error('Invalid attachment chunk size');
+        checkLimit();
         let written = 0;
-        while (written < data.length)
-          written += (await handle.write(data, written, data.length - written)).bytesWritten;
+        while (written < data.length) {
+          const { bytesWritten } = await handle.write(data, written, data.length - written);
+          if (!bytesWritten) throw new Error('The attachment could not be written');
+          written += bytesWritten;
+        }
+        hash.update(data);
         offset += data.length;
       }
-      await handle.sync();
+      checkLimit();
+      valid = (await handle.stat()).size === file.size && hash.digest('hex') === file.id;
+      if (valid) await handle.sync();
     } finally {
       await handle.close();
     }
-    if ((await this.hash(partial)) !== file.id) {
+    if (!valid) {
       await unlink(partial);
       throw new Error('Attachment SHA-256 mismatch');
     }
     await rename(partial, this.blob(file.id));
   }
+
   async materialize(
     messageId: string,
     file: Attachment,
     onCreated?: (target: string, createdFile: BigIntStats) => Promise<void>,
   ): Promise<string> {
-    if (!/^[0-9a-f-]{36}$/i.test(messageId) || !(await this.exists(file)))
+    if (!/^[0-9a-f-]{36}$/i.test(messageId))
+      throw new Error('The verified attachment is unavailable');
+    const blob = this.blob(file.id);
+    const info = await stat(blob).catch((error) => {
+      if (code(error) === 'ENOENT') return null;
+      throw error;
+    });
+    if (!info?.isFile() || info.size !== file.size)
       throw new Error('The verified attachment is unavailable');
     let safe = file.name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[. ]+$/g, '_');
     if (!safe || /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\.|$)/i.test(safe)) safe = '_' + safe;
@@ -268,8 +291,10 @@ export class FileStore {
         original.name + (attempt ? '-original-' + attempt : '') + original.ext,
       );
       try {
-        if ((await stat(target)).size === file.size && (await this.hash(target)) === file.id)
+        if ((await stat(target)).size === file.size && (await this.hash(target)) === file.id) {
+          if (!(await this.exists(file))) throw new Error('The verified attachment is unavailable');
           return target;
+        }
         continue;
       } catch (e) {
         if (code(e) !== 'ENOENT') throw e;
@@ -277,8 +302,23 @@ export class FileStore {
       const temp = target + '.' + randomUUID() + '.tmp';
       let created: BigIntStats | undefined;
       try {
-        await copyFile(this.blob(file.id), temp);
-        if ((await this.hash(temp)) !== file.id) throw new Error('The attachment copy is damaged');
+        const hash = createHash('sha256');
+        let size = 0;
+        await pipeline(
+          createReadStream(blob),
+          new Transform({
+            transform(data: Buffer, _encoding, done) {
+              size += data.length;
+              if (size > file.size)
+                return done(new Error('The verified attachment is unavailable'));
+              hash.update(data);
+              done(null, data);
+            },
+          }),
+          createWriteStream(temp, { flags: 'wx', mode: 0o600 }),
+        );
+        if (size !== file.size || hash.digest('hex') !== file.id)
+          throw new Error('The verified attachment is unavailable');
         try {
           const witness = onCreated ? await lstat(temp, { bigint: true }) : undefined;
           await link(temp, target);

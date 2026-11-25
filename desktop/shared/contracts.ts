@@ -1,4 +1,5 @@
 import type { PairApprovalDecision } from './pairing-approval.js';
+import type { AttachmentLimit } from './attachment-limit.js';
 import type { NetworkInterfaceExclusion, NetworkInterfaceStatus } from './network-interfaces.js';
 import { z } from 'zod';
 import type { LanDiscoverySnapshot } from './lan-discovery.js';
@@ -75,11 +76,7 @@ export const attachmentSchema = z
       .min(1)
       .max(255)
       .refine((v) => !/[\\/\x00-\x1f]/.test(v)),
-    size: z
-      .number()
-      .int()
-      .min(0)
-      .max(100 * 1024 * 1024),
+    size: z.number().int().min(0),
   })
   .strict();
 export type Attachment = z.infer<typeof attachmentSchema>;
@@ -116,6 +113,7 @@ export interface SendResult {
   recipientNode: string;
   recipientNickname: string;
   delivery: DeliveryStatus;
+  attachmentTransfer?: 'peer_size_limit';
 }
 export interface Message {
   envelope: Envelope;
@@ -246,6 +244,7 @@ export interface Snapshot {
   directories: AgentDirectory[];
   adapters: AdapterState[];
   exportRoots: string[];
+  attachmentLimitMiB?: AttachmentLimit;
   errors: string[];
 }
 export interface McpInstructions {

@@ -1,3 +1,8 @@
+import {
+  attachmentLimitSchema,
+  defaultAttachmentLimitMiB,
+  type AttachmentLimit,
+} from '../shared/attachment-limit.js';
 import { readFile, writeFile, mkdir, rename, unlink } from 'node:fs/promises';
 import { randomUUID, randomBytes } from 'node:crypto';
 import { networkInterfaces, hostname } from 'node:os';
@@ -163,12 +168,28 @@ export function normalizePeerAddress(value: string): string {
 export class SettingsFile {
   value!: Settings;
   private saving: Promise<void> = Promise.resolve();
+  private transferLimit: AttachmentLimit = defaultAttachmentLimitMiB;
   constructor(public readonly directory: string) {}
   get filename(): string {
     return path.join(this.directory, 'settings.json');
   }
+  get attachmentLimitMiB(): AttachmentLimit {
+    return this.transferLimit;
+  }
+  private get attachmentSettingsFile(): string {
+    return path.join(this.directory, 'attachment-settings.json');
+  }
   async load(): Promise<Settings> {
     await mkdir(this.directory, { recursive: true, mode: 0o700 });
+    try {
+      this.transferLimit = z
+        .object({ limitMiB: attachmentLimitSchema })
+        .strict()
+        .parse(JSON.parse(await readFile(this.attachmentSettingsFile, 'utf8'))).limitMiB;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      this.transferLimit = defaultAttachmentLimitMiB;
+    }
     try {
       this.value = settingsSchema.parse(JSON.parse(await readFile(this.filename, 'utf8')));
     } catch (error) {
@@ -198,6 +219,15 @@ export class SettingsFile {
     const operation = this.saving.then(async () => {
       settingsSchema.parse(this.value);
       await atomicJson(this.filename, this.value);
+    });
+    this.saving = operation.catch(() => {});
+    await operation;
+  }
+  async saveAttachmentLimit(limitMiB: AttachmentLimit): Promise<void> {
+    const operation = this.saving.then(async () => {
+      const limit = attachmentLimitSchema.parse(limitMiB);
+      await atomicJson(this.attachmentSettingsFile, { limitMiB: limit });
+      this.transferLimit = limit;
     });
     this.saving = operation.catch(() => {});
     await operation;

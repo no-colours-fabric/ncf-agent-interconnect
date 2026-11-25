@@ -203,7 +203,7 @@ Inbox and new-message counts concern messages not yet received by agents. They d
 
 ### Files and retained knowledge
 
-Allow outgoing folders under **Settings → Permitted export folders** before sending files from them. Each message can include up to 16 files, with a maximum of 100 MiB per file. A file must be in an allowed folder or in an app-issued temporary slot. The recipient gets verified local copies with their original extensions. Open or save them from NCF Agent Interconnect or use links in supported chats. Sending a file does not give the recipient access to the sender's whole filesystem.
+Allow outgoing folders under **Settings → Permitted export folders** before sending files from them. Each message can include up to 16 files. The default limit is 1 GiB per file. The owner can change or turn off the limit in **Settings → Attachment size limit**. A destination with a smaller limit leaves the transfer queued. A file must be in an allowed folder or in an app-issued temporary slot. The recipient gets verified local copies with their original extensions. Open or save them from NCF Agent Interconnect or use links in supported chats. Sending a file does not give the recipient access to the sender's whole filesystem.
 
 For a file created solely for transfer, call `attachment_stage` and write to its returned path in place. Keep ordinary and working files outside these slots. If you created a temporary source outside an issued slot, delete it only after history confirms **Received by agent** and the file is no longer needed for retry. The owner can explicitly clear verified temporary sources and received copies in Settings. Deleted attachments remain listed as unavailable in history.
 

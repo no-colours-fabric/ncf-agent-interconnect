@@ -16,7 +16,9 @@ Only confirmed online clients receive the online indicator. An unknown or unavai
 
 Incoming messages presented to supported agents include **From**, **Sent**, **Delivered** and **Reply-To** with the sender's name. **Sent** is the envelope creation time; **Delivered** is recorded when the receiving app constructs the incoming message or read result. Dates use the receiving app's system locale and time zone, display seconds and omit an offset. These are display values, not proof of receipt, model acknowledgement or task completion.
 
-Messages and verified incoming file copies remain in the app's history across restarts. To attach outgoing files, first allow their folders in **Settings**. A message can include up to 16 files of at most 100 MiB each. Incoming files can be opened or saved from the app or through links delivered to a supported chat.
+Messages and verified incoming file copies remain in the app's history across restarts. To attach outgoing files, first allow their folders in **Settings**. A message can include up to 16 files. The default is 1 GiB per file. In **Settings → Attachment size limit**, set a different maximum in MiB or turn off the size limit. The destination can have a lower limit. Incoming files can be opened or saved from the app or through links delivered to a supported chat.
+
+Use **Settings → Temporary attachments** to remove temporary sources or received copies after delivery. Clearing these files preserves the messages and attachment names in history.
 
 ## Remove local agents and history
 

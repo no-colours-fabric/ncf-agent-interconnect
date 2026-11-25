@@ -5,6 +5,8 @@ import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
 import { attachmentMessages } from './i18n/attachments.js';
+import { attachmentLimitMessages } from './i18n/attachment-limit.js';
+import { localAttachmentLimitError } from '../shared/attachment-limit.js';
 import { designTokens, surfaceSx } from './theme.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
@@ -165,7 +167,9 @@ export function AgentHistory({
           </Typography>
           {m.error && (
             <Alert severity="error" sx={{ mt: 1 }}>
-              {m.error}
+              {m.error === localAttachmentLimitError
+                ? attachmentLimitMessages(locale).exceeded
+                : m.error}
             </Alert>
           )}
         </Paper>

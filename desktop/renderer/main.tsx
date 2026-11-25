@@ -1,5 +1,7 @@
 import { PairingApprovalPopup } from './PairingApprovalPopup.js';
 import { AttachmentCleanup } from './AttachmentCleanup.js';
+import { AttachmentLimitSettings } from './AttachmentLimitSettings.js';
+import { defaultAttachmentLimitMiB } from '../shared/attachment-limit.js';
 import { InstallationRestartNotice } from './InstallationRestartNotice.js';
 import { OverviewApplications } from './OverviewApplications.js';
 import { OverviewConnections } from './OverviewConnections.js';
@@ -694,6 +696,19 @@ function App({
                     </TableBody>
                   </Table>
                 </TableContainer>
+                <Divider sx={{ my: 2 }} />
+                <AttachmentLimitSettings
+                  locale={locale}
+                  limit={
+                    snapshot.attachmentLimitMiB === undefined
+                      ? defaultAttachmentLimitMiB
+                      : snapshot.attachmentLimitMiB
+                  }
+                  save={async (limitMiB) => {
+                    await call('saveAttachmentLimit', { limitMiB });
+                    await refresh();
+                  }}
+                />
                 <Divider sx={{ my: 2 }} />
                 <AttachmentCleanup locale={locale} invoke={call} />
               </Paper>
