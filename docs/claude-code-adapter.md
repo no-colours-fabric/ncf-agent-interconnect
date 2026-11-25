@@ -61,44 +61,38 @@ the 0.18.3 exchange confirmed the canonical body without that explanatory frame.
    Bun and a source checkout are not required. Startup only publishes these
    files; it never writes Claude Code settings.
 
-2. Open **Applications & MCP → Claude Code** and click **Configure Claude Code**. The
-   dialog selects `$CLAUDE_CONFIG_DIR/settings.json`, or
-   `~/.claude/settings.json` when that variable is unset. Choose another user
-   settings file with the picker if needed. `~/.claude.json` is managed by
-   Claude Code and is refused.
-3. Review the explanation and click **Apply**. Apply adds:
-   - `extraKnownMarketplaces.ncf-agent-interconnect`, a `directory` source for
-     the published marketplace;
-   - `enabledPlugins["ncf-agent-interconnect@ncf-agent-interconnect"]: true`;
-   - `enabledPlugins["ncf-agent-interconnect-gate@ncf-agent-interconnect"]: true`;
-   - one entry in `permissions.allow`:
-     `mcp__plugin_ncf-agent-interconnect_ncf__agent_read`. It permits explicit manual
-     reads without a prompt; direct incoming does not call this tool.
-
-   Other settings, comments, hooks, plugins and permissions stay as they were.
-   Matching settings are left byte-for-byte unchanged. Updates keep a private
-   backup, and a disabled plugin or moved marketplace needs confirmation. No
-   other tool, wildcard, Bash rule or bypass mode is added. Cancel writes
-   nothing.
-
-4. Start or resume Claude Code normally. To connect and send in auto mode without
-   repeated permission prompts, open `/permissions` and save allow rules for
-   these exact tools in **User** scope for the current Claude profile:
+2. Open **Applications → Claude Code** and choose **Connect** for the default
+   profile. The default file is `$CLAUDE_CONFIG_DIR/settings.json`, or
+   `~/.claude/settings.json` when that variable is unset. To use another profile,
+   choose **Manual setup**, select its user settings file, review the preview
+   and click **Apply**. The picker accepts user `settings.json` files.
+3. Setup registers the local NCF marketplace, enables the NCF and gate plugins,
+   and adds any missing `permissions.allow` rules from this list.
 
    ```text
    mcp__plugin_ncf-agent-interconnect_ncf__agent_connect
+   mcp__plugin_ncf-agent-interconnect_ncf__agent_read
    mcp__plugin_ncf-agent-interconnect_ncf__agent_send
+   mcp__plugin_ncf-agent-interconnect_ncf__agent_history
+   mcp__plugin_ncf-agent-interconnect_ncf__agents_list
+   mcp__plugin_ncf-agent-interconnect_ncf__attachment_receive
+   mcp__plugin_ncf-agent-interconnect_ncf__connection_events
+   mcp__plugin_ncf-agent-interconnect_ncf__node_peers
+   mcp__plugin_ncf-agent-interconnect_ncf__node_status
+   mcp__plugin_ncf-agent-interconnect_ncf__agent_disconnect
    ```
 
-   The exact `mcp__plugin_ncf-agent-interconnect_ncf__agent_read` rule already
-   comes from NCF Apply. The owner saves connect/send in Claude's native UI;
-   NCF does not add them to Apply. No server wildcard is needed. Each saved
-   rule permits that tool's calls within its settings scope; other tools need
-   their own permission. Preserve existing deny/ask and managed rules, which
-   retain priority. See [Claude Code permissions](https://code.claude.com/docs/en/permissions#manage-permissions).
+   Disconnect releases the current chat binding and preserves history. Clearing
+   an agent and its history requires separate owner approval. A matching
+   `ask` or `deny` rule in the selected file stops setup before saving changes.
+   Restrictions from other scopes and managed policies still apply. Setup
+   preserves unrelated settings and backs up changed files. A disabled plugin
+   or a changed marketplace path requires separate replacement confirmation.
+   See [Claude Code permissions](https://code.claude.com/docs/en/permissions#manage-permissions).
 
-5. In the chat, write
-   `Connect as agent <a name you choose>.` Never enter session IDs or tokens.
+4. Start or resume Claude Code normally. If it was already running, restart it
+   or reload its plugins. In the intended chat, ask the assistant to connect
+   under a name you choose.
 
 After NCF moves to another location, reopen the dialog and Apply again. Restart
 Claude Code or run `/reload-plugins` after Apply.

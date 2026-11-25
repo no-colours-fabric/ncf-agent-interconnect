@@ -20,6 +20,8 @@ After a restart, send one ordinary message in the same previously connected Curs
 
 Open **Applications → OpenCode**. The OpenCode v2 setup is shown first. Turn on the **OpenCode v1** switch to configure v1. Choose the setup for the version you use and the configuration file it loads. If automatic setup is unavailable, choose **Manual setup** to select the file.
 
+Setup adds missing permissions for routine NCF actions in the selected OpenCode profile. The preview lists the permissions it will add. If a rule in the selected file requires approval or blocks one of those actions, setup reports the conflict before saving changes.
+
 For v2, open **Configure OpenCode v2**. Review the selected file and preview before **Apply**. Your provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. If that chat stops receiving messages after an NCF Agent Interconnect restart, restart or reconnect OpenCode and check the chat.
 
 Live delivery in an OpenCode v2 chat has not yet been verified for this release.
@@ -54,7 +56,7 @@ Open AionUi with Cursor Agent and follow the steps shown under **Authorization**
 
 ## Claude Code
 
-In **Applications → Claude Code**, select **Manual setup** to choose another profile. Open **Configure Claude Code**, review the selected settings file and click **Apply**. Restart Claude Code or reload its plugins, then ask the assistant to connect in the intended chat.
+In **Applications → Claude Code**, choose **Connect** for the default profile. For another profile, choose **Manual setup**, open **Configure Claude Code**, review the selected settings file and click **Apply**. Setup enables the NCF plugins and adds missing permissions for ten routine NCF actions. If a rule in the selected file conflicts, setup reports the conflict before saving changes. Restart Claude Code or reload its plugins, then ask the assistant to connect in the intended chat.
 
 Automatic delivery requires compatible Claude Code mods. Where safe mode or organization policy disables them, ask the assistant to check for messages in the connected chat. If Claude requests permission, review its prompt. For Auto mode, see the [Claude Code permissions and compatibility guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md).
 

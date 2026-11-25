@@ -113,8 +113,11 @@ choose. See the included `guides/AionUi.md` for the full steps.
 
 ## Claude Code
 
-In **Applications → Claude Code**, use **Manual setup** to choose a different
-profile. Review the selected settings file and click **Apply**. Restart Claude
+In **Applications → Claude Code**, choose **Connect** for the default profile.
+For a different profile, use **Manual setup**, review the selected settings
+file and click **Apply**. Setup enables the NCF plugins and adds missing
+permissions for ten routine NCF actions. It reports any conflicting approval
+or blocking rule in the selected file before saving changes. Restart Claude
 Code or reload its plugins, then ask the assistant to connect in the intended
 chat. Automatic delivery requires compatible Claude Code mods. If safe mode
 or organization policy disables them, ask the assistant to check for
