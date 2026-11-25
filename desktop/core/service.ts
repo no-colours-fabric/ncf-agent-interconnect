@@ -113,6 +113,14 @@ interface McpHost {
   meta?: Record<string, unknown>;
 }
 
+interface InboxReadWaiter {
+  after: number;
+  preferNative: boolean;
+  nativeSelected: boolean;
+  taking: boolean;
+  wake: () => void;
+}
+
 interface CodexRecoveryTarget {
   nickname: string;
   threadId: string;
@@ -208,10 +216,7 @@ export class NodeService extends EventEmitter {
   deliveryIncarnation = randomUUID();
   private readonly nativeTransports = new WeakMap<AgentAdapter, string>();
   private dispatching = new Set<string>();
-  private readonly pendingReads = new Map<
-    string,
-    { after: number; taking: boolean; wake: () => void }
-  >();
+  private readonly pendingReads = new Map<string, InboxReadWaiter>();
   private adapterRedrain = new Set<string>();
   private claudeDispatchSnapshots = new Map<string, ClaudeDispatchSnapshot>();
   private jobs = new Set<Promise<void>>();
@@ -2153,7 +2158,8 @@ export class NodeService extends EventEmitter {
     after: number,
     waitMs: number,
     handoff: ResponseInvocation | undefined,
-    receive: () => Promise<T>,
+    receive: (nativeSelected: boolean) => Promise<T>,
+    host?: McpHost,
   ): Promise<T> {
     if (!handoff) throw new Error('The MCP response handoff is unavailable');
     handoff.assertCurrent();
@@ -2165,7 +2171,17 @@ export class NodeService extends EventEmitter {
     const arrival = new Promise<void>((resolve) => {
       wake = resolve;
     });
-    const waiter = { after, taking: false, wake };
+    const waiter: InboxReadWaiter = {
+      after,
+      preferNative:
+        host !== undefined &&
+        Boolean(owner.binding.chatId) &&
+        codexThreadId(host) === owner.binding.chatId &&
+        this.adapters.get(owner.binding.adapterId).status().kind === 'codex-desktop',
+      nativeSelected: false,
+      taking: false,
+      wake,
+    };
     this.pendingReads.set(connectionId, waiter);
     const signal = handoff.controller.signal;
     signal.addEventListener('abort', waiter.wake, { once: true });
@@ -2179,7 +2195,9 @@ export class NodeService extends EventEmitter {
       if (waiter.taking) this.drainAdapters();
     };
     try {
-      if (!this.store.history(owner.key, after, 1, true).messages.length) await arrival;
+      const hasReady = this.store.history(owner.key, after, 1, true).messages.length > 0;
+      if (hasReady && waiter.preferNative) this.drainAdapters();
+      if (!hasReady || waiter.nativeSelected) await arrival;
       handoff.assertCurrent();
       const active = this.store.assertOwner(connectionId);
       if (
@@ -2190,8 +2208,8 @@ export class NodeService extends EventEmitter {
         this.store.sourceStampByKey(owner.key).incarnation !== incarnation
       )
         throw new Error('The mailbox changed during the wait');
-      waiter.taking = true;
-      const page = await receive();
+      waiter.taking = !waiter.nativeSelected;
+      const page = await receive(waiter.nativeSelected);
       handoff.assertCurrent();
       // The inbox reservation still belongs to the HTTP response until it finishes or closes.
       handoff.response.once('finish', release);
@@ -3088,6 +3106,7 @@ export class NodeService extends EventEmitter {
     return this.receiving;
   }
   private messageReady(envelope: Envelope): void {
+    let readAfterNative: InboxReadWaiter | undefined;
     const key = this.store.messageOwnerKey(envelope.id, 'in');
     const incoming = this.store.get(envelope.id, 'in');
     if (
@@ -3099,7 +3118,11 @@ export class NodeService extends EventEmitter {
       const binding = this.store.list().find((identity) => identity.key === key)?.binding;
       if (binding) {
         const waiter = this.pendingReads.get(binding.connectionId);
-        if (waiter && incoming.sequence > waiter.after) {
+        if (waiter?.preferNative) {
+          // A mailbox cursor follows ready order, which can differ from insertion order.
+          if (!waiter.taking && this.store.history(key, waiter.after, 1, true).messages.length)
+            readAfterNative = waiter;
+        } else if (waiter && incoming.sequence > waiter.after) {
           waiter.taking = true;
           waiter.wake();
         }
@@ -3115,6 +3138,10 @@ export class NodeService extends EventEmitter {
     });
     this.emit('change');
     this.drainAdapters();
+    if (readAfterNative && !readAfterNative.nativeSelected) {
+      readAfterNative.taking = true;
+      readAfterNative.wake();
+    }
   }
   private claudeDispatchLifecycle(sessionId: string | undefined): string {
     const helper = sessionId ? this.claude.route(sessionId).helper : undefined;
@@ -3339,7 +3366,8 @@ export class NodeService extends EventEmitter {
       const binding = identity.binding,
         dispatchKey = identity.key + ':' + identity.binding.connectionId,
         adapter = this.adapters.get(binding.adapterId);
-      if (this.pendingReads.get(binding.connectionId)?.taking) continue;
+      const waiter = this.pendingReads.get(binding.connectionId);
+      if (waiter?.taking) continue;
       if (this.dispatching.has(dispatchKey)) {
         if (adapterWake) this.adapterRedrain.add(dispatchKey);
         continue;
@@ -3447,6 +3475,7 @@ export class NodeService extends EventEmitter {
           offered = false,
           submitting = false;
         let attempt: DeliveryAttempt | undefined;
+        let nativeRead: InboxReadWaiter | undefined;
         const serviceEpoch = this.deliveryIncarnation;
         let transportEpoch = this.nativeTransports.get(adapter);
         if (!transportEpoch) {
@@ -3474,6 +3503,17 @@ export class NodeService extends EventEmitter {
               transport: 'native',
               lifecycle: { service: serviceEpoch, transport: transportEpoch! },
             });
+          // Native ownership starts at reservation, before preparing attachments.
+          if (
+            attempt &&
+            status.kind === 'codex-desktop' &&
+            waiter?.preferNative &&
+            !waiter.nativeSelected &&
+            row.sequence > waiter.after
+          ) {
+            waiter.nativeSelected = true;
+            nativeRead = waiter;
+          }
           const files = await this.fileOperation(() =>
             allFileResults(
               row.envelope.attachments.map(async (file) => ({
@@ -3653,6 +3693,13 @@ export class NodeService extends EventEmitter {
             } catch {
               // A concurrent clear or replacement can remove the attempt.
             }
+          }
+          if (nativeRead && this.pendingReads.get(binding.connectionId) === nativeRead) {
+            // A queued submission may project only after the tool call returns.
+            // Only a failure before release can hand its content back to MCP.
+            nativeRead.nativeSelected = submitting;
+            nativeRead.taking = !submitting;
+            nativeRead.wake();
           }
           this.dispatching.delete(dispatchKey);
           const redrain = this.adapterRedrain.delete(dispatchKey);

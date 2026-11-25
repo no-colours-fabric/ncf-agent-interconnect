@@ -1012,6 +1012,193 @@ test(
       await new Promise((resolve) => setTimeout(resolve, 10));
     }
     assert.equal(offer.mock.callCount(), 1);
+
+    const peerDirectory = await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-sender-'));
+    const peer = new NodeService(peerDirectory, { codexSockets: () => [] });
+    t.after(async () => {
+      await peer.close();
+      await rm(peerDirectory, { recursive: true, force: true });
+    });
+    await peer.open();
+    await peer.network.join(service.snapshot().peerUrl, service.network.accessCode().code);
+    const peerSender = peer.connect({ nickname: 'Remote sender', client: 'MCP' });
+    if (peerSender.status !== 'connected') throw new Error('Could not bind the test sender');
+    const ownerKey = service.store.assertOwner(binding.connectionId).key;
+    const armRead = async () => {
+      let signalArmed!: () => void;
+      const armed = new Promise<void>((resolve) => {
+        signalArmed = resolve;
+      });
+      const after = service.store.history(ownerKey).nextCursor;
+      const readOnArrival = service.readOnArrival.bind(service);
+      const mock = t.mock.method(
+        service,
+        'readOnArrival',
+        (...args: Parameters<typeof readOnArrival>) => {
+          const read = readOnArrival(...args);
+          signalArmed();
+          return read;
+        },
+      );
+      const result = client.callTool({
+        name: 'agent_read',
+        arguments: { connectionId: binding.connectionId, waitMs: 5000, after },
+        _meta: { threadId },
+      });
+      await armed;
+      mock.mock.restore();
+      return { result, after };
+    };
+    const sendFromPeer = (text: string, files?: string[]) =>
+      peer.send({
+        connectionId: peerSender.binding.connectionId,
+        recipientNode: service.settings.value.nodeId,
+        recipientNickname: 'Recipient',
+        text,
+        files,
+      });
+    const unreadPage = (result: Awaited<ReturnType<typeof client.callTool>>) =>
+      result.structuredContent as {
+        messages: {
+          envelope: { id: string; text: string };
+          replyRef: string;
+          files: { name: string; localPath: string }[];
+        }[];
+        nextCursor: number;
+      };
+    const waitFor = async (check: () => boolean, error: string) => {
+      const limit = Date.now() + 2000;
+      while (!check()) {
+        if (Date.now() > limit) throw new Error(error);
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      }
+    };
+    const waitForPeerState = (id: string, state: 'ready' | 'processed') =>
+      waitFor(
+        () => peer.store.get(id, 'out')?.state === state,
+        'The paired sender did not reach ' + state,
+      );
+
+    await t.test(
+      'a paired sender reaches the exact restored chat without an armed read',
+      { timeout: 3000 },
+      async () => {
+        const priorProjection = project;
+        const sent = await sendFromPeer('Ordinary input from a paired peer');
+        await waitFor(
+          () => project !== priorProjection,
+          'The exact chat did not accept the submission',
+        );
+        await waitForPeerState(sent.id, 'ready');
+        assert.equal(offer.mock.callCount(), 2);
+        assert.match(queued.at(-1)!, /Ordinary input from a paired peer/);
+        assert.equal(service.store.get(sent.id, 'in')?.state, 'ready');
+        project!();
+        await waitForPeerState(sent.id, 'processed');
+      },
+    );
+
+    await t.test(
+      'an armed read yields to native queue submission and returns before projection',
+      { timeout: 3000 },
+      async () => {
+        const deliveries = offer.mock.callCount();
+        const { result, after } = await armRead();
+        const text = 'Прямая доставка после восстановления';
+        const sent = await sendFromPeer(text);
+        const response = await result;
+        assert.equal(
+          offer.mock.callCount(),
+          deliveries + 1,
+          'the armed MCP read must not preempt exact chat delivery',
+        );
+        assert.equal(response.isError, undefined);
+        assert.deepEqual(unreadPage(response).messages, []);
+        assert.equal(unreadPage(response).nextCursor, after);
+        assert.ok(!JSON.stringify(response).includes(text));
+        assert.match(queued.at(-1)!, /Прямая доставка после восстановления/);
+        await waitForPeerState(sent.id, 'ready');
+        project!();
+        assert.equal(service.store.get(sent.id, 'in')?.state, 'processed');
+        await waitForPeerState(sent.id, 'processed');
+      },
+    );
+
+    await t.test(
+      'a definite native failure falls back to one full MCP response in both formats',
+      { timeout: 3000 },
+      async () => {
+        const deliveries = offer.mock.callCount();
+        offer.mock.mockImplementationOnce(async () => ({ state: 'failed' }));
+        const { result, after } = await armRead();
+        const text = 'Резервный путь 東京\nВторая строка';
+        const filename = path.join(peer.settings.value.exportRoots[0], 'план.txt');
+        await writeFile(filename, 'Synthetic attachment', 'utf8');
+        const sent = await sendFromPeer(text, [filename]);
+        const response = await result;
+        assert.equal(response.isError, undefined);
+        const page = unreadPage(response);
+        assert.deepEqual(
+          page?.messages.map(({ envelope }) => [envelope.id, envelope.text]),
+          [[sent.id, text]],
+          'JSON-only callers must receive the original text',
+        );
+        assert.equal(offer.mock.callCount(), deliveries + 1);
+        assert.ok(page.nextCursor > after);
+        assert.match(page.messages[0].replyRef, /^r[0-9a-z]+$/);
+        assert.equal(page.messages[0].files[0].name, 'план.txt');
+        assert.equal(
+          await readFile(page.messages[0].files[0].localPath, 'utf8'),
+          'Synthetic attachment',
+        );
+        assert.ok(Array.isArray(response.content));
+        assert.equal(response.content[0]?.type, 'text');
+        assert.ok(String(response.content[0]?.text).includes(text));
+        assert.ok(String(response.content[0]?.text).includes('план.txt'));
+        await waitForPeerState(sent.id, 'processed');
+        const later = await client.callTool({
+          name: 'agent_read',
+          arguments: { connectionId: binding.connectionId },
+          _meta: { threadId },
+        });
+        assert.deepEqual(unreadPage(later).messages, []);
+      },
+    );
+
+    await t.test(
+      'an uncertain native release cannot leak through the waiting read or retry',
+      { timeout: 3000 },
+      async () => {
+        const deliveries = offer.mock.callCount();
+        offer.mock.mockImplementationOnce(async (event: EventInput) => {
+          event.beforeRelease!(agentMessageText(event), {
+            messageId: event.deliveryAttempt!.id,
+            runtime: codexQueueWitness,
+            session: threadId,
+          });
+          return { state: 'uncertain' };
+        });
+        const { result, after } = await armRead();
+        const text = 'Possibly admitted only once';
+        const sent = await sendFromPeer(text);
+        const response = await result;
+        assert.equal(response.isError, undefined);
+        assert.deepEqual(unreadPage(response).messages, []);
+        assert.equal(unreadPage(response).nextCursor, after);
+        assert.ok(!JSON.stringify(response).includes(text));
+        assert.equal(service.store.dispatchState(sent.id)?.state, 'uncertain');
+        assert.equal(service.store.get(sent.id, 'in')?.state, 'ready');
+        await waitForPeerState(sent.id, 'ready');
+        const later = await client.callTool({
+          name: 'agent_history',
+          arguments: { connectionId: binding.connectionId, after },
+          _meta: { threadId },
+        });
+        assert.ok(!JSON.stringify(later).includes(text));
+        service.desktopChatGptLaunched();
+        assert.equal(offer.mock.callCount(), deliveries + 1);
+      },
+    );
   },
 );
 
