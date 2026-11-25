@@ -32,7 +32,7 @@ import {
 } from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
-import { PeerNetwork, secretMatches, type Frame } from './peer.js';
+import { peerRemovalToken, PeerNetwork, secretMatches, type Frame } from './peer.js';
 import type { LocalLanNode } from './lan-discovery.js';
 import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.js';
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
@@ -709,6 +709,7 @@ export class NodeService extends EventEmitter {
           }
         : {}),
       peers: this.settings.value.peers.map((p) => ({
+        ...(options.lanDiscovery ? { removalToken: peerRemovalToken(p) } : {}),
         id: p.id,
         label: p.label,
         address: p.address,
@@ -3526,6 +3527,14 @@ export class NodeService extends EventEmitter {
     if (method === 'accessCode') {
       if (!this.running) throw new Error('Start the node first');
       return this.network.accessCode();
+    }
+    if (method === 'removePeer') {
+      const { nodeId, token } = z
+        .object({ nodeId: z.uuid(), token: z.string().regex(/^[a-f0-9]{64}$/) })
+        .strict()
+        .parse(raw);
+      await this.transition(() => this.network.removePeer(nodeId, token));
+      return { removed: true };
     }
     if (method === 'connectPeer') {
       const args = z

@@ -1,7 +1,7 @@
 import https from 'node:https';
 import tls from 'node:tls';
 import { readFile, writeFile } from 'node:fs/promises';
-import { X509Certificate, randomUUID, timingSafeEqual } from 'node:crypto';
+import { X509Certificate, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { hostname, networkInterfaces } from 'node:os';
 import { isIPv4, type Socket } from 'node:net';
@@ -112,7 +112,14 @@ function pinned(certificate: string): {
         : new Error('The remote node certificate does not match the access code'),
   };
 }
+export function peerRemovalToken(peer: Peer): string {
+  return createHmac('sha256', Buffer.from(peer.secret, 'hex'))
+    .update(JSON.stringify(['ncf-remove-peer/v1', peer.id, peer.certificate]))
+    .digest('hex');
+}
+
 export class PeerNetwork extends EventEmitter {
+  private readonly removingPeers = new Set<string>();
   private servers = new Map<string, https.Server>();
   private probes = new Map<import('node:http').ClientRequest, string>();
   private candidates = new Map<string, Map<string, number>>();
@@ -701,7 +708,7 @@ export class PeerNetwork extends EventEmitter {
       ? this.write(ws, frame)
       : Promise.reject(new Error('The remote node is disconnected'));
   }
-  reconnectPeer(peerId: string): void {
+  private closePeerLink(peerId: string): void {
     const link = this.link(peerId);
     link.generation++;
     clearTimeout(link.timer);
@@ -723,8 +730,32 @@ export class PeerNetwork extends EventEmitter {
       }
     this.emit('disconnected', peerId);
     this.emit('change');
+  }
+  reconnectPeer(peerId: string): void {
+    this.closePeerLink(peerId);
     const peer = this.settings.value.peers.find((value) => value.id === peerId);
     if (peer) this.connect(peer);
+  }
+  async removePeer(peerId: string, token: string): Promise<void> {
+    if (this.removingPeers.has(peerId)) throw new Error('This node is already being removed');
+    this.removingPeers.add(peerId);
+    try {
+      await this.settings.savePeers((peers) => {
+        const selected = peers.find((peer) => peer.id === peerId);
+        if (!selected || !secretMatches(token, peerRemovalToken(selected)))
+          throw new Error('The selected connection changed');
+        return peers.filter((peer) => peer.id !== peerId);
+      });
+      this.pairingLeases.delete(peerId);
+      this.pairingHost.forgetPeer(peerId);
+      this.candidates.delete(peerId);
+      for (const [request, id] of this.probes)
+        if (id === peerId) request.destroy(new Error('The paired node was removed'));
+      this.closePeerLink(peerId);
+      this.links.delete(peerId);
+    } finally {
+      this.removingPeers.delete(peerId);
+    }
   }
   message(envelope: Envelope): Promise<void> {
     return this.send(envelope.toNode, { type: 'message', envelope });
@@ -783,7 +814,7 @@ export class PeerNetwork extends EventEmitter {
         409,
       );
     const key = nodeId.toLowerCase();
-    if (this.pairingLeases.has(key))
+    if (this.removingPeers.has(key) || this.pairingLeases.has(key))
       throw new PairingError(
         'Another connection to this node is being paired. Retry from one computer only.',
         409,
@@ -797,7 +828,7 @@ export class PeerNetwork extends EventEmitter {
     this.pairingLeases.set(key, token);
     return {
       check: () => {
-        if (this.stopped || this.pairingLeases.get(key) !== token)
+        if (this.stopped || this.removingPeers.has(key) || this.pairingLeases.get(key) !== token)
           throw new PairingError(
             'Pairing was canceled before saving. Create a new access code.',
             409,

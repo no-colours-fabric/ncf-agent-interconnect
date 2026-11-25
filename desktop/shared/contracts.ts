@@ -226,6 +226,7 @@ export interface Snapshot {
     activeAddress?: string | null;
     connected: boolean;
     error: string | null;
+    removalToken?: string;
   }[];
   agents: AgentIdentity[];
   directories: AgentDirectory[];

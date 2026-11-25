@@ -438,7 +438,7 @@ function App({
             ),
           }}
         >
-          <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
+          <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} invoke={call} />
         </NetworkPage>
         {(page === 'mcp' || applicationsMounted) && (
           <Box hidden={page !== 'mcp'}>
