@@ -1223,6 +1223,90 @@ export class NodeService extends EventEmitter {
       },
     };
   }
+  renameFromChat(
+    input: { connectionId: string; nickname: string; contextToken?: string },
+    host: McpHost,
+    authority: {
+      codexSessionBound: boolean;
+      claudePermit?: string;
+      openCodeV2Identity?: OpenCodeV2Identity;
+    },
+  ): { status: ReturnType<AgentStore['rename']>; nickname: string } {
+    if (!this.integrationsReady) throw new Error('The node is not ready to accept requests');
+    const { contextToken, ...rename } = input;
+    const owner = this.store.assertOwner(rename.connectionId);
+    const { binding } = owner;
+    const profile = this.settings.value.adapters.find((a) => a.id === binding.adapterId);
+    const identity = authority.openCodeV2Identity;
+    let authorized = false;
+    if (identity) {
+      identity.assertCurrent();
+      authorized =
+        !contextToken &&
+        profile?.kind === 'opencode-v2' &&
+        !profile.released &&
+        profile.setupTargetId === identity.scope.targetId &&
+        profile.instanceId === identity.scope.bootId &&
+        profile.sessionId === identity.sessionID &&
+        binding.chatId === identity.sessionID;
+    } else if (authority.claudePermit) {
+      const scope = this.claude.callScope(authority.claudePermit);
+      authorized =
+        !contextToken &&
+        scope.tool === 'agent_rename' &&
+        profile?.kind === 'claude-code' &&
+        profile.sessionId === scope.lease.session &&
+        binding.chatId === scope.lease.session;
+    } else if (profile?.kind === 'codex-desktop') {
+      authorized =
+        !contextToken &&
+        authority.codexSessionBound &&
+        profile.threadId === binding.chatId &&
+        codexThreadId(host) === binding.chatId;
+    } else if (contextToken) {
+      const context = this.contexts.consume(contextToken, rename);
+      const compatible =
+        (profile?.kind === 'cursor-hook' &&
+          host.client === 'Cursor' &&
+          profile.sessionId === binding.chatId) ||
+        (profile?.kind === 'opencode-http' &&
+          !profile.released &&
+          profile.sessionId === binding.chatId) ||
+        (profile?.kind === 'aionui' &&
+          host.client === 'AionUi' &&
+          profile.sessionId === binding.chatId &&
+          !!profile.aionConnectionId);
+      authorized =
+        compatible &&
+        binding.client === context.client &&
+        binding.chatId === context.chatId &&
+        binding.adapterId === context.adapterId;
+      if (authorized && profile?.kind === 'aionui') this.aionui.access(profile.aionConnectionId!);
+    }
+    if (!authorized)
+      throw new Error('The current chat could not be verified for renaming this agent');
+    const { incarnation } = this.store.sourceStampByKey(owner.key);
+    if (!incarnation) throw new Error('The agent is no longer connected');
+    const status = this.renameAgent({
+      key: owner.key,
+      incarnation,
+      currentNickname: owner.nickname,
+      nickname: rename.nickname,
+    });
+    return { status, nickname: status === 'renamed' ? rename.nickname : owner.nickname };
+  }
+
+  private renameAgent(
+    input: Parameters<AgentStore['rename']>[0],
+  ): ReturnType<AgentStore['rename']> {
+    const status = this.store.rename(input);
+    if (status === 'renamed') {
+      this.refreshPresence();
+      this.emit('change');
+    }
+    return status;
+  }
+
   async connectOpenCodeV2(
     args: {
       nickname: string;
@@ -3796,12 +3880,7 @@ export class NodeService extends EventEmitter {
         })
         .strict()
         .parse(raw);
-      const status = this.store.rename(input);
-      if (status === 'renamed') {
-        this.refreshPresence();
-        this.emit('change');
-      }
-      return { status };
+      return { status: this.renameAgent(input) };
     }
     if (method === 'registerAgent') {
       const { nickname } = z.object({ nickname: nicknameSchema }).parse(raw);

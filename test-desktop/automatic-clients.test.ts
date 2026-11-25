@@ -120,6 +120,29 @@ function connected(
   return body;
 }
 
+test('OpenCode v1 hook authorizes renaming only the exact bound native chat', async (t) => {
+  const f = await fixture(t);
+  const a = connected(await f.connect('ses_first', 'Old v1 name'));
+  const b = connected(await f.connect('ses_second', 'Other v1 chat'));
+  const args = { connectionId: a.binding.connectionId, nickname: 'Новое v1 имя' };
+  assert.equal((await f.client.callTool({ name: 'agent_rename', arguments: args })).isError, true);
+  const rename = async (sessionID: string) => {
+    const output = { args: { ...args, contextToken: randomUUID() } };
+    await f.host['tool.execute.before'](
+      { tool: 'ncf_agent_interconnect_agent_rename', sessionID },
+      output,
+    );
+    return f.client.callTool({ name: 'agent_rename', arguments: output.args });
+  };
+  await assert.rejects(rename('ses_second'));
+  assert.deepEqual((await rename('ses_first')).structuredContent, {
+    status: 'renamed',
+    nickname: args.nickname,
+  });
+  assert.deepEqual(f.service.store.assertOwner(a.binding.connectionId).binding, a.binding);
+  assert.equal(f.service.store.assertOwner(b.binding.connectionId).nickname, 'Other v1 chat');
+});
+
 test('one OpenCode integration connects any chat without user session settings and wakes only the exact recipient', async (t) => {
   const f = await fixture(t),
     a = connected(await f.connect('ses_first', 'Автор')),

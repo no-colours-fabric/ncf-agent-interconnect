@@ -137,9 +137,16 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   assert.match(instructions, /Reply-To/);
   assert.match(instructions, /Example:.*agent_send/);
   const catalog = await firstClient.listTools();
-  assert.equal(catalog.tools.length, 12);
+  assert.equal(catalog.tools.length, 13);
   assert.ok(catalog.tools.some((tool) => tool.name === 'attachment_stage'));
   assert.ok(catalog.tools.some((tool) => tool.name === 'agent_connect'));
+  const renameTool = catalog.tools.find((tool) => tool.name === 'agent_rename')!;
+  assert.deepEqual(Object.keys(renameTool.inputSchema.properties!).sort(), [
+    'connectionId',
+    'contextToken',
+    'nickname',
+  ]);
+  assert.match(renameTool.description!, /human user.*directly requests/);
   assert.ok(catalog.tools.every((tool) => !tool.name.startsWith('conversation_')));
   const connectSchema = catalog.tools.find((tool) => tool.name === 'agent_connect')!.inputSchema;
   assert.ok(!connectSchema.properties?.client);
@@ -153,6 +160,12 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   });
   const first = connected.structuredContent as unknown as ConnectResult;
   if (first.status !== 'connected') throw new Error();
+  const unverified = await firstClient.callTool({
+    name: 'agent_rename',
+    arguments: { connectionId: first.binding.connectionId, nickname: 'Unverified name' },
+  });
+  assert.equal(unverified.isError, true);
+  assert.equal(service.store.assertOwner(first.binding.connectionId).nickname, 'Новая тема');
   const occupied = await secondClient.callTool({
     name: 'agent_connect',
     arguments: { nickname: 'НОВАЯ ТЕМА' },

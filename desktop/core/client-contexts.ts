@@ -2,8 +2,13 @@ import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { NodeService } from './service.js';
 import { aionId, aionUrl, aionJson, AionUiError, conversationSchema } from './aionui-api.js';
-import type { AdapterProfile } from '../shared/contracts.js';
+import { nicknameSchema, type AdapterProfile } from '../shared/contracts.js';
 import { CursorHookAdapter } from './adapters.js';
+
+export const chatRenameSchema = z
+  .object({ connectionId: z.uuid(), nickname: nicknameSchema })
+  .strict();
+type ChatRename = z.infer<typeof chatRenameSchema>;
 
 const registration = z
   .object({
@@ -17,6 +22,7 @@ const registration = z
       .regex(/^ses_[a-zA-Z0-9_-]+$/)
       .max(200)
       .optional(),
+    rename: chatRenameSchema.optional(),
   })
   .strict();
 const cursorContext = z
@@ -24,6 +30,7 @@ const cursorContext = z
     conversationId: z.uuid(),
     workspaceRoots: z.array(z.string().min(1).max(4000)).max(32).default([]),
     toolName: z.string().min(1).max(300),
+    rename: chatRenameSchema.optional(),
   })
   .strict();
 const cursorHook = z
@@ -43,17 +50,33 @@ export interface ClientContext {
 // Credentials and exact session IDs come from the installed host integration,
 // never from a user's settings form or from a model guessing a session.
 export class ClientContexts {
-  private tickets = new Map<string, { context: ClientContext; expires: number }>();
+  private tickets = new Map<
+    string,
+    { context: ClientContext; expires: number; rename?: ChatRename & { profile: AdapterProfile } }
+  >();
   private setup: Promise<unknown> = Promise.resolve();
   constructor(private readonly service: NodeService) {}
   /** A one-use ticket for context that the node has already verified itself. */
-  issue(context: ClientContext): string {
+  issue(context: ClientContext, rename?: ChatRename & { profile: AdapterProfile }): string {
     const now = Date.now();
     for (const [key, value] of this.tickets) if (value.expires < now) this.tickets.delete(key);
     if (this.tickets.size >= 512) this.tickets.delete(this.tickets.keys().next().value!);
     const contextToken = randomUUID();
-    this.tickets.set(contextToken, { context, expires: now + 60000 });
+    this.tickets.set(contextToken, { context, expires: now + 60000, rename });
     return contextToken;
+  }
+  private issueRename(
+    client: string,
+    chatId: string,
+    profile: AdapterProfile,
+    rename: ChatRename,
+  ): { contextToken: string } {
+    const { binding } = this.service.store.assertOwner(rename.connectionId);
+    if (binding.client !== client || binding.chatId !== chatId || binding.adapterId !== profile.id)
+      throw new Error('The connection belongs to another chat');
+    return {
+      contextToken: this.issue({ client, chatId, adapterId: profile.id }, { ...rename, profile }),
+    };
   }
   private cursorAdapter(profile: AdapterProfile): CursorHookAdapter {
     const adapter = this.service.adapters.get(profile.id);
@@ -65,8 +88,19 @@ export class ClientContexts {
     if (!this.service.integrationsReady)
       throw new Error('The node is not ready to accept connections');
     const input = cursorContext.parse(raw);
-    if (!['agent_connect', 'ncf_agent_interconnect_agent_connect'].includes(input.toolName))
-      throw new Error('The Cursor context is only available for agent_connect');
+    if (input.toolName === 'agent_rename' && input.rename) {
+      const profile = this.service.settings.value.adapters.find(
+        (candidate) =>
+          candidate.kind === 'cursor-hook' && candidate.sessionId === input.conversationId,
+      );
+      if (!profile) throw new Error('The current Cursor chat is not connected');
+      return this.issueRename('Cursor', input.conversationId, profile, input.rename);
+    }
+    if (
+      input.rename ||
+      !['agent_connect', 'ncf_agent_interconnect_agent_connect'].includes(input.toolName)
+    )
+      throw new Error('This Cursor tool has no chat context');
     const work = this.setup.then(async () => {
       if (!this.service.integrationsReady)
         throw new Error('The node is not ready to accept connections');
@@ -158,6 +192,8 @@ export class ClientContexts {
     };
     if (identity.instanceId !== input.instanceId || identity.workspace !== input.workspace)
       throw new Error('The OpenCode integration identity could not be verified');
+    if (input.rename && !input.sessionId)
+      throw new Error('The current OpenCode chat is unavailable');
     if (!input.sessionId)
       return {
         sessions: [
@@ -173,6 +209,21 @@ export class ClientContexts {
     };
     if (session.id !== input.sessionId)
       throw new Error('The integration returned a different chat');
+    if (input.rename) {
+      const profile = this.service.settings.value.adapters.find(
+        (a) =>
+          a.kind === 'opencode-http' &&
+          !a.released &&
+          a.sessionId === input.sessionId &&
+          a.workspace === input.workspace &&
+          a.instanceId === input.instanceId &&
+          a.baseUrl === input.baseUrl &&
+          a.password === input.password,
+      );
+      if (!this.service.integrationsReady || !profile)
+        throw new Error('The current OpenCode chat is not connected');
+      return this.issueRename('OpenCode', input.sessionId, profile, input.rename);
+    }
     const work = this.setup.then(async () => {
       if (!this.service.integrationsReady)
         throw new Error('The node is not ready to accept connections');
@@ -233,6 +284,7 @@ export class ClientContexts {
         userId: aionId,
         sessionId: aionId,
         runtimeToken: z.string().min(1).max(8192),
+        rename: chatRenameSchema.optional(),
       })
       .strict()
       .safeParse(raw);
@@ -263,6 +315,10 @@ export class ClientContexts {
           a.aionConnectionId === connection.id &&
           a.sessionId === input.sessionId,
       );
+      if (input.rename) {
+        if (!profile) throw new AionUiError('The current AionUi chat is not connected.');
+        return this.issueRename('AionUi', input.sessionId, profile, input.rename);
+      }
       const id = profile?.id ?? randomUUID();
       if (!profile || this.service.adapters.get(id).status().state !== 'ready')
         await this.service.installAdapter({
@@ -282,11 +338,17 @@ export class ClientContexts {
     this.setup = work.catch(() => {});
     return work;
   }
-  consume(token: string): ClientContext {
+  consume(token: string, rename?: ChatRename): ClientContext {
     const ticket = this.tickets.get(token);
     this.tickets.delete(token);
     if (!ticket || ticket.expires < Date.now())
       throw new Error('The chat context expired. Reconnect from this chat.');
+    if (
+      ticket.rename?.connectionId !== rename?.connectionId ||
+      ticket.rename?.nickname !== rename?.nickname ||
+      (ticket.rename && !this.service.settings.value.adapters.includes(ticket.rename.profile))
+    )
+      throw new Error('The chat context does not authorize this operation');
     return ticket.context;
   }
   async releaseOpenCode(raw: unknown): Promise<{ released: true }> {

@@ -202,7 +202,7 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       throw new Error('The NCF Agent Interconnect node is unavailable. Start the app.');
     return response.json() as Promise<{ sessions?: string[]; contextToken?: string }>;
   };
-  const register = (sessionId?: string) =>
+  const register = (sessionId?: string, rename?: { connectionId: unknown; nickname: unknown }) =>
     nodeCall('/integrations/opencode', {
       baseUrl,
       password,
@@ -210,6 +210,7 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       hostPid: process.pid,
       workspace: context.directory,
       ...(sessionId ? { sessionId } : {}),
+      ...(rename ? { rename } : {}),
     });
   const restore = (): Promise<void> => {
     if (!restoring)
@@ -254,11 +255,17 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       input: { tool: string; sessionID: string },
       output: { args: Record<string, unknown> },
     ) => {
-      if (input.tool !== 'ncf_agent_interconnect_agent_connect') return;
+      const rename = input.tool === 'ncf_agent_interconnect_agent_rename';
+      if (!rename && input.tool !== 'ncf_agent_interconnect_agent_connect') return;
       delete output.args.contextToken;
       await sessionGet(input.sessionID);
-      sessions.add(input.sessionID);
-      const registration = await register(input.sessionID);
+      if (!rename) sessions.add(input.sessionID);
+      const registration = await register(
+        input.sessionID,
+        rename
+          ? { connectionId: output.args.connectionId, nickname: output.args.nickname }
+          : undefined,
+      );
       if (!registration.contextToken)
         throw new Error('The integration did not confirm the current chat');
       output.args.contextToken = registration.contextToken;

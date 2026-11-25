@@ -777,6 +777,38 @@ test('Codex MCP metadata automatically selects the exact chat and profile among 
   assert.equal(moved.status, 'connected');
   if (moved.status !== 'connected') throw new Error();
   assert.equal(moved.binding.chatId, b.profile.threadId);
+  service.store.ensure('Café');
+  const renameArgs = { connectionId: moved.binding.connectionId, nickname: 'CAFE\u0301' };
+  const rename = (threadId: string, args = renameArgs, on = client) =>
+    on.callTool({ name: 'agent_rename', arguments: args, _meta: { threadId } });
+  assert.equal((await rename(a.profile.threadId!)).isError, true);
+  assert.equal(
+    (await rename(b.profile.threadId!, { ...renameArgs, connectionId: first.binding.connectionId }))
+      .isError,
+    true,
+  );
+  const otherSession = new Client({ name: 'Codex', version: 'test' });
+  await otherSession.connect(
+    new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
+      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+    }),
+  );
+  try {
+    assert.equal((await rename(b.profile.threadId!, renameArgs, otherSession)).isError, true);
+  } finally {
+    await otherSession.close();
+  }
+  const before = service.store.list();
+  assert.deepEqual((await rename(b.profile.threadId!)).structuredContent, {
+    status: 'nickname_in_use',
+    nickname: 'Воевода',
+  });
+  assert.deepEqual(service.store.list(), before);
+  assert.deepEqual(
+    (await rename(b.profile.threadId!, { ...renameArgs, nickname: 'Редактор' })).structuredContent,
+    { status: 'renamed', nickname: 'Редактор' },
+  );
+  assert.deepEqual(service.store.assertOwner(moved.binding.connectionId).binding, moved.binding);
   const metadataMissing = await client.callTool({
     name: 'agent_connect',
     arguments: { nickname: 'Другое имя' },

@@ -100,7 +100,7 @@ export function cursorIntegration(
                 preToolUse: [
                   {
                     command: command('preToolUse'),
-                    matcher: 'MCP:.*agent_connect$',
+                    matcher: 'MCP:.*agent_(connect|rename)$',
                     timeout: 15,
                   },
                 ],

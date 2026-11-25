@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { claudeFixture, FakeHelper } from './claude-code-fixture.js';
+import { claudeCallMetaKey } from '../desktop/integrations/claude-code.js';
 
 test('A native revocation while Claude adapter setup awaits prevents context-ticket issuance', async (t) => {
   const f = await claudeFixture(t);
@@ -85,4 +86,41 @@ test('A context ticket cannot cross a helper transport epoch', async (t) => {
     ),
   );
   assert.ok(!f.service.store.list().some((agent) => agent.nickname === args.nickname));
+});
+
+test('Claude Code rename uses the admitted tool arguments and exact native session', async (t) => {
+  const f = await claudeFixture(t);
+  const session = randomUUID();
+  const other = randomUUID();
+  await f.hook('SessionStart', session, { source: 'startup' });
+  await f.hook('SessionStart', other, { source: 'startup' });
+  const helper = new FakeHelper(f, session);
+  const foreign = new FakeHelper(f, other);
+  await helper.attach();
+  t.after(() => helper.detach());
+  await foreign.attach();
+  t.after(() => foreign.detach());
+  const connected = await f.connect(helper, session, 'Claude previous');
+  const client = await f.mcp();
+  const args = { connectionId: connected.binding.connectionId as string, nickname: 'Claude новое' };
+  const proofFor = async (owner: FakeHelper, chat: string) =>
+    owner.verify('agent_rename', args, await f.preTool(chat, 'agent_rename', args));
+  assert.equal((await proofFor(foreign, other)).status, 400);
+  const approved = await proofFor(helper, session);
+  assert.equal(approved.status, 200);
+  const call = (arguments_: Record<string, unknown>, token: unknown) =>
+    client.callTool({
+      name: 'agent_rename',
+      arguments: arguments_,
+      _meta: { [claudeCallMetaKey]: token },
+    });
+  await assert.rejects(call({ ...args, nickname: 'Substituted' }, approved.body.callToken));
+  const next = await proofFor(helper, session);
+  assert.equal(next.status, 200);
+  assert.deepEqual((await call(args, next.body.callToken)).structuredContent, {
+    status: 'renamed',
+    nickname: args.nickname,
+  });
+  assert.deepEqual(f.service.store.assertOwner(args.connectionId).binding, connected.binding);
+  await assert.rejects(call(args, next.body.callToken));
 });

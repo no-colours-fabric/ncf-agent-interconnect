@@ -202,7 +202,7 @@ try {
   assert.ok(sendSchema.properties.replyRef);
   assert.deepEqual(tools.tools.map(tool => tool.name).sort(), [
     'agent_clear_history', 'agent_connect', 'agent_disconnect', 'agent_history',
-    'agent_read', 'agent_send', 'agents_list', 'attachment_receive', 'attachment_stage',
+    'agent_read', 'agent_rename', 'agent_send', 'agents_list', 'attachment_receive', 'attachment_stage',
     'connection_events', 'node_peers', 'node_status',
   ]);
   assert.ok(tools.tools.find(tool => tool.name === 'agent_clear_history').inputSchema.properties.operationId);

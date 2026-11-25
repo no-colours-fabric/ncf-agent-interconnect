@@ -470,7 +470,7 @@ test('MCP clear targets only the requester mailbox and binds confirmation to the
     first = await mcp(t, service),
     second = await mcp(t, service);
   const catalog = await first.listTools();
-  assert.equal(catalog.tools.length, 12);
+  assert.equal(catalog.tools.length, 13);
   assert.equal(
     catalog.tools.find((tool) => tool.name === 'agent_clear_history')!.annotations?.destructiveHint,
     true,

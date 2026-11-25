@@ -127,7 +127,7 @@ export async function startAionBridge(
       return {
         ...result,
         tools: result.tools.map((tool) => {
-          if (tool.name !== 'agent_connect') return tool;
+          if (tool.name !== 'agent_connect' && tool.name !== 'agent_rename') return tool;
           const inputSchema = structuredClone(tool.inputSchema);
           if (inputSchema.properties) delete inputSchema.properties.contextToken;
           return { ...tool, inputSchema };
@@ -141,14 +141,19 @@ export async function startAionBridge(
     try {
       const client = await connect();
       const args = { ...request.params.arguments };
-      if (request.params.name === 'agent_connect') {
+      if (request.params.name === 'agent_connect' || request.params.name === 'agent_rename') {
         delete args.contextToken;
         const context = aionRuntimeContext(env);
         const config = await descriptor();
         const response = await fetch(new URL('/integrations/aionui/context', config.url), {
           method: 'POST',
           headers: { 'content-type': 'application/json', authorization: 'Bearer ' + config.token },
-          body: JSON.stringify(context),
+          body: JSON.stringify({
+            ...context,
+            ...(request.params.name === 'agent_rename'
+              ? { rename: { connectionId: args.connectionId, nickname: args.nickname } }
+              : {}),
+          }),
           redirect: 'error',
           signal: AbortSignal.timeout(15000),
         });

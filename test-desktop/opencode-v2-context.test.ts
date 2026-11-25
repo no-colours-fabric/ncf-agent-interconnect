@@ -68,6 +68,17 @@ test('foreign tool identity and another native session cannot operate an existin
   const owner = service.store.list().find((agent) => agent.nickname === 'Own mailbox')!;
   const result = await call(b, 'agent_history', { connectionId: owner.binding!.connectionId });
   assert.equal(result.isError, true);
+  const rename = { connectionId: owner.binding!.connectionId, nickname: 'Новое v2 имя' };
+  assert.equal((await call(b, 'agent_rename', rename)).isError, true);
+  assert.equal(
+    (await call(a, 'agent_rename', { ...rename, contextToken: randomUUID() })).isError,
+    true,
+  );
+  assert.deepEqual((await call(a, 'agent_rename', rename)).structuredContent, {
+    status: 'renamed',
+    nickname: rename.nickname,
+  });
+  assert.deepEqual(service.store.assertOwner(rename.connectionId).binding, owner.binding);
   assert.equal(host.prompts.length, 0);
 });
 test('two live bridges sharing target generation revoke authority instead of choosing the last instance', async (t) => {

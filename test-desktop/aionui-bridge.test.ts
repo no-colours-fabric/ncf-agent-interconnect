@@ -66,13 +66,28 @@ test('bundled stdio bridge injects current context, hides it from the model and 
   };
   assert.equal(connected.binding.chatId, 'fixture-chat-b');
   assert.equal(connected.delivery.automatic, true);
+  const renameTool = tools.tools.find((tool) => tool.name === 'agent_rename')!;
+  assert.ok(!('contextToken' in renameTool.inputSchema.properties!));
+  const rename = await client.callTool({
+    name: 'agent_rename',
+    arguments: {
+      connectionId: connected.binding.connectionId,
+      nickname: 'Переводчик 漢字',
+      contextToken: '11111111-1111-4111-8111-111111111111',
+    },
+  });
+  assert.deepEqual(rename.structuredContent, { status: 'renamed', nickname: 'Переводчик 漢字' });
+  assert.deepEqual(
+    service.store.assertOwner(connected.binding.connectionId).binding,
+    connected.binding,
+  );
   const sender = service.connect({ nickname: 'Source', client: 'fixture' });
   assert.equal(sender.status, 'connected');
   if (sender.status !== 'connected') return;
   const sent = await service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
-    recipientNickname: 'Мост 漢字',
+    recipientNickname: 'Переводчик 漢字',
     text: 'native bridge fixture',
   });
   await until(() => service.store.dispatchState(sent.id)?.state === 'admitted');

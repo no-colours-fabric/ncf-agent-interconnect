@@ -80,6 +80,10 @@ test('Cursor plugin commands use the installed Electron runtime on macOS and Win
   const macHooks = JSON.parse(
     mac.managedFiles!.find((file) => file.id === 'cursor-plugin-hooks')!.content,
   );
+  const contextualTool = new RegExp(macHooks.hooks.preToolUse[0].matcher);
+  assert.ok(contextualTool.test('MCP:ncf_agent_interconnect_agent_connect'));
+  assert.ok(contextualTool.test('MCP:ncf_agent_interconnect_agent_rename'));
+  assert.ok(!contextualTool.test('MCP:ncf_agent_interconnect_agent_send'));
   assert.match(macHooks.hooks.beforeSubmitPrompt[0].command, /^ELECTRON_RUN_AS_NODE=1 /);
   assert.match(macHooks.hooks.beforeSubmitPrompt[0].command, /owner'\\''s Mac/);
 });
@@ -333,6 +337,54 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   });
   assert.equal(reused.isError, true);
 
+  const renameTool = tools.tools.find((tool) => tool.name === 'agent_rename')!;
+  assert.ok(!Object.hasOwn(renameTool.inputSchema.properties ?? {}, 'contextToken'));
+  const connectionId = body.binding.connectionId;
+  const renameArgs = { connectionId, nickname: 'Курсор-ревьюер' };
+  const rename = (arguments_: Record<string, unknown>) =>
+    client.callTool({ name: 'agent_rename', arguments: arguments_ });
+  const renameHook = async (chatId: string) =>
+    (
+      await runCursorHook(nodeFile, 'preToolUse', {
+        conversation_id: chatId,
+        tool_name: 'MCP:ncf_agent_interconnect_agent_rename',
+        tool_input: { ...renameArgs, contextToken: randomUUID() },
+      })
+    ).updated_input as Record<string, unknown>;
+  assert.equal((await rename(renameArgs)).isError, true);
+  assert.equal((await rename(await renameHook(randomUUID()))).isError, true);
+  const connectForRename = await runCursorHook(nodeFile, 'preToolUse', {
+    conversation_id: conversationId,
+    workspace_roots: [path.join(directory, 'workspace')],
+    tool_name: 'MCP:ncf_agent_interconnect_agent_connect',
+    tool_input: { nickname: 'Курсор' },
+  });
+  assert.equal(
+    (
+      await rename({
+        ...renameArgs,
+        contextToken: (connectForRename.updated_input as Record<string, unknown>).contextToken,
+      })
+    ).isError,
+    true,
+  );
+  const subject = await renameHook(conversationId);
+  assert.equal((await rename({ ...subject, nickname: 'Changed request' })).isError, true);
+  assert.equal((await rename(subject)).isError, true);
+  assert.equal(service.store.assertOwner(connectionId).nickname, 'Курсор');
+  const staleProof = await renameHook(conversationId);
+  const profile = service.settings.value.adapters.find((a) => a.id === body.binding.adapterId)!;
+  await service.installAdapter({ ...profile, workspace: path.join(directory, 'moved-workspace') });
+  assert.equal((await rename(staleProof)).isError, true);
+  await service.installAdapter(profile);
+  const renameProof = await renameHook(conversationId);
+  assert.deepEqual((await rename(renameProof)).structuredContent, {
+    status: 'renamed',
+    nickname: renameArgs.nickname,
+  });
+  assert.equal((await rename(renameProof)).isError, true);
+  assert.deepEqual(service.store.assertOwner(connectionId).binding, body.binding);
+
   const sender = service.connect({ nickname: 'Автор', client: 'MCP' });
   if (sender.status !== 'connected') throw new Error();
   const firstWait = runCursorHook(nodeFile, 'stop', {
@@ -342,7 +394,7 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   const first = await service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
-    recipientNickname: 'Курсор',
+    recipientNickname: 'Курсор-ревьюер',
     text: 'Первое сообщение',
   });
   const firstPrompt = await firstWait;
@@ -367,7 +419,7 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
     conversation_id: conversationId,
     workspace_roots: [path.join(directory, 'workspace')],
     tool_name: 'MCP:ncf_agent_interconnect_agent_connect',
-    tool_input: { nickname: 'Курсор' },
+    tool_input: { nickname: 'Курсор-ревьюер' },
   });
   const repeatedConnect = await client.callTool({
     name: 'agent_connect',
@@ -387,7 +439,7 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
 
   await client.close();
   const originalBinding = service.store.assertOwner(body.binding.connectionId).binding;
-  const originalStamp = service.store.sourceStamp('Курсор');
+  const originalStamp = service.store.sourceStamp('Курсор-ревьюер');
   await service.close();
   await beforeRestartWait;
   service = new NodeService(directory);
@@ -399,10 +451,10 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
       service.listAgents({ includeUnavailable }) as {
         agents: { nickname: string; availability: string; delivery: string }[];
       }
-    ).agents.find((agent) => agent.nickname === 'Курсор');
+    ).agents.find((agent) => agent.nickname === 'Курсор-ревьюер');
   assert.equal(service.adapters.get(body.binding.adapterId).status().state, 'error');
   assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
-  assert.deepEqual(service.store.sourceStamp('Курсор'), originalStamp);
+  assert.deepEqual(service.store.sourceStamp('Курсор-ревьюер'), originalStamp);
   assert.equal(listedCursor(), undefined);
   assert.equal(listedCursor(true)?.availability, 'unknown');
   assert.equal(listedCursor(true)?.delivery, 'unknown');
@@ -429,7 +481,7 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   const second = await service.send({
     connectionId: sender.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
-    recipientNickname: 'Курсор',
+    recipientNickname: 'Курсор-ревьюер',
     text: 'После перезапуска',
   });
   await until(() => service.store.dispatchState(second.id)?.state === 'failed');
@@ -459,5 +511,5 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   });
   await until(() => service.store.get(second.id, 'in')?.state === 'processed');
   assert.deepEqual(service.store.assertOwner(body.binding.connectionId).binding, originalBinding);
-  assert.deepEqual(service.store.sourceStamp('Курсор'), originalStamp);
+  assert.deepEqual(service.store.sourceStamp('Курсор-ревьюер'), originalStamp);
 });

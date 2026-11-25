@@ -97,7 +97,7 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
       return {
         ...result,
         tools: result.tools.map((tool) => {
-          if (tool.name !== 'agent_connect') return tool;
+          if (tool.name !== 'agent_connect' && tool.name !== 'agent_rename') return tool;
           const inputSchema = structuredClone(tool.inputSchema);
           if (inputSchema.properties) delete inputSchema.properties.contextToken;
           return { ...tool, inputSchema };
@@ -111,7 +111,10 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
   });
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     try {
-      if (request.params.name === 'agent_connect' && !request.params.arguments?.contextToken)
+      if (
+        (request.params.name === 'agent_connect' || request.params.name === 'agent_rename') &&
+        !request.params.arguments?.contextToken
+      )
         throw new Error(
           'Cursor did not provide the current chat. Check that the NCF Agent Interconnect Cursor plugin is enabled, then send the request again.',
         );

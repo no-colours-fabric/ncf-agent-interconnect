@@ -146,6 +146,14 @@ Your ordinary work stays in the AI chats. The desktop app provides the controls 
 | **Remote nodes** | Search nearby computers, pair explicitly with a temporary code, connect by address and inspect paired connections.                 |
 | **Settings**     | Choose outgoing file folders, review or exclude network interfaces, and set optional Start at login.                               |
 
+### Rename an agent from its chat
+
+In the chat already connected as Dana, write: “Rename this agent to Review Lead.” If your AI application asks for approval, approve this specific action.
+
+Review Lead is the same agent in the same chat. Its history, pending messages and attachments remain available. Address new messages to Review Lead. Existing reply references still work. If another agent on this computer already uses the requested name, Dana keeps its name.
+
+This action requires an integration that can verify the current chat. For a chat without that verification, rename the agent from the **Agents** page.
+
 ### Files, replies and history
 
 For an import sample to travel between computers, its outgoing folder must be allowed under **Settings**. Received attachments are verified local copies. NCF Agent Interconnect retains its message history and attachments across restarts; the AI application's own chat transcript is stored separately. [Desktop controls](desktop-controls.md) covers file limits and history views.

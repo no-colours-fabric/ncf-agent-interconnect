@@ -7,7 +7,8 @@ const descriptorSchema = z
   .object({ url: z.url(), token: z.string().regex(/^[a-f0-9]{64}$/) })
   .strict();
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
-const connectTool = /^(?:MCP:)?(?:ncf_agent_interconnect[:_])?agent_connect$/;
+const contextTool =
+  /^(?:MCP:)?(?:(?:ncf_agent_interconnect[:_])?(agent_connect)|ncf_agent_interconnect[:_](agent_rename))$/;
 
 async function input(): Promise<Record<string, unknown>> {
   let value = '';
@@ -119,7 +120,9 @@ export async function runCursorHook(
   if (event === 'preToolUse') {
     const toolName = typeof raw.tool_name === 'string' ? raw.tool_name : '';
     const args = toolInput(raw.tool_input);
-    if (!connectTool.test(toolName) || !args) return { permission: 'allow' };
+    const matched = contextTool.exec(toolName);
+    const operation = matched?.[1] ?? matched?.[2];
+    if (!operation || !args) return { permission: 'allow' };
     try {
       const ticket = await post(
         nodeFile,
@@ -127,13 +130,20 @@ export async function runCursorHook(
         {
           conversationId,
           workspaceRoots: Array.isArray(raw.workspace_roots) ? raw.workspace_roots : [],
-          toolName: 'agent_connect',
+          toolName: operation,
+          ...(operation === 'agent_rename'
+            ? { rename: { connectionId: args.connectionId, nickname: args.nickname } }
+            : {}),
         },
         10000,
       );
       const contextToken = z.uuid().parse(ticket.contextToken);
       return { permission: 'allow', updated_input: { ...args, contextToken } };
     } catch {
+      if (operation === 'agent_rename') {
+        const { contextToken: _discarded, ...input } = args;
+        return { permission: 'allow', updated_input: input };
+      }
       return { permission: 'allow' };
     }
   }
