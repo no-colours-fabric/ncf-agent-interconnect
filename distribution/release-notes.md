@@ -10,7 +10,7 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 ## Agents and message history
 
 - In **Agents**, choose **Rename agent** to change a local agent’s name and keep its connected chat and history.
-- When an agent name is already in use, you can move it to another ChatGPT chat after NCF Agent Interconnect verifies that chat and you confirm the move. Choose the option that keeps history to retain it.
+- When moving an existing agent name to another ChatGPT chat, the move can still proceed if the first check fails and the new chat receives and confirms the connection request. The existing connection and history stay in place until you approve the move.
 - The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
 - Message history remains readable when an attachment is unavailable. The history marks the affected attachment as unavailable.
 
