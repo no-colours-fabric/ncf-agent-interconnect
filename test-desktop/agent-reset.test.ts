@@ -833,7 +833,7 @@ test('a failed materialize waits for still-writing siblings before reset cleanup
     return materialize(id, file);
   };
   let settled = false;
-  const reading = mcpRead(service, old.binding.connectionId);
+  const reading = mcpRead(service, old.binding.connectionId, 0, 50, true);
   void reading.then(
     () => {
       settled = true;
