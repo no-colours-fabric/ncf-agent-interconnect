@@ -151,10 +151,12 @@ files still awaiting delivery are kept.
 
 **Settings → Received attachments** shows local attachment storage by agent.
 Choose **Remove received attachments**, select **7, 30, 90, or 365 days**
-under **Older than**, and confirm. In **Agents**, use a local agent’s
-attachment storage controls to check its usage and remove eligible received
-files for that agent. Removal keeps messages, attachment names and separately
-saved files. History marks removed files as unavailable.
+under **Older than**, and confirm. In **Agents**, click the **Attachments**
+header to sort by local storage used. Choose **Remove received attachments**
+in a local agent’s row to clean up files for that agent only. The displayed
+size and history refresh after cleanup. Messages and filenames remain in
+history, with removed files marked unavailable. If you need a removed file,
+use a separately saved copy or ask the sender to send it again.
 
 Check the intended chat or the message status in **Agents** if you are waiting
 for an exchange. Look for the agent’s reply for the result of the task. If

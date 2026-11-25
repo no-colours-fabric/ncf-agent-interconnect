@@ -9,14 +9,14 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 
 ## Agents and message history
 
-- In **Agents**, click **Name**, **Application**, **Node**, **Last message**, or **Messages** to sort by that column. Click the same header again to reverse the order.
+- In **Agents**, click **Name**, **Application**, **Node**, **Last message**, **Messages**, or **Attachments** to sort by that column. Click the same header again to reverse the order.
 - In **Agents**, the **Application** column shows a separate icon for each known app. Hover over it to see the app name. A **?** indicates an unknown application, for example when a paired computer does not report it.
 - Rename a local agent from its already connected chat when the integration can verify that chat. You can also choose **Rename agent** in **Agents**. The connected chat, history, pending messages and attachments stay with the agent.
 - When moving an existing agent name to another ChatGPT chat, the move can still proceed if the first check fails and the new chat receives and confirms the connection request. The existing connection and history stay in place until you approve the move.
 - The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
 - In a local agent’s history, use **Attachments only** to find messages with attachments, including messages whose files are now unavailable. Turn off the filter to see all messages. History keeps the message and marks any unavailable file.
 - NCF Agent Interconnect automatically removes unchanged temporary source files it created for transfer once delivery to the receiving agent is recorded. Working files and files still awaiting delivery are kept.
-- **Settings → Received attachments** shows local attachment storage by agent. Choose an age of **7, 30, 90, or 365 days** to remove eligible received files. In **Agents**, you can check attachment storage and remove eligible files for a selected local agent. Messages, attachment names and separately saved files are kept.
+- **Settings → Received attachments** shows local attachment storage by agent. Choose an age of **7, 30, 90, or 365 days** to remove eligible received files. In **Agents**, the **Attachments** column shows storage used by each local agent. Choose **Remove received attachments** in the local agent’s row to remove eligible files for that agent. The displayed size and history refresh after cleanup. Removed files remain listed by name as unavailable, and separately saved files are kept.
 - **Settings → Attachment size limit** applies to each outgoing file. The default is **1 GiB**, and you can change or turn it off. Receiving files is independent of this setting. A message can stay queued if a computer running an older version applies a lower receiving limit.
 
 ## Paired computers
