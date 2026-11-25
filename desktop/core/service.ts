@@ -1101,12 +1101,18 @@ export class NodeService extends EventEmitter {
       } catch (error) {
         if (
           !(error instanceof CodexDesktopUnavailable) ||
-          !['darwin', 'win32', 'linux'].includes(process.platform) ||
-          input.transferId ||
-          input.confirmTransfer ||
-          input.resetHistory
+          !['darwin', 'win32', 'linux'].includes(process.platform)
         )
           throw error;
+        if (input.transferId || input.confirmTransfer || input.resetHistory) {
+          if (!input.connectionId || !input.transferId || !input.confirmTransfer) throw error;
+          return this.confirmCodexQueueTransfer(
+            input,
+            threadId,
+            input.connectionId,
+            input.transferId,
+          );
+        }
         if (!input.connectionId) return this.requestCodexRecovery(input.nickname, threadId);
         // An existing binding credential continues to authorize the same chat.
         const owner = this.store.assertOwner(input.connectionId);
@@ -1529,6 +1535,52 @@ export class NodeService extends EventEmitter {
     };
   }
 
+  private async confirmCodexQueueTransfer(
+    input: AutomaticConnectInput,
+    threadId: string,
+    connectionId: string,
+    transferId: string,
+  ): Promise<ConnectedResult> {
+    const epoch = this.deliveryIncarnation;
+    const setup = this.adapterSetup.then(async () => {
+      const context = this.store.transferContext(connectionId, transferId, input.nickname);
+      if (context.client !== 'Codex' || context.chatId !== threadId)
+        throw new Error('The transfer belongs to another Codex chat');
+      const profile = this.settings.value.adapters.find(
+        (candidate) => candidate.id === context.adapterId,
+      );
+      const adapter = this.adapters.get(context.adapterId);
+      if (
+        profile?.kind !== 'codex-desktop' ||
+        !profile.codexQueue ||
+        profile.threadId !== threadId ||
+        !(adapter instanceof CodexQueueAdapter)
+      )
+        throw new Error('The Codex transfer destination no longer has a verified queue profile');
+      const socket = profile.socket;
+      await adapter.start();
+      const status = adapter.status();
+      if (status.state !== 'ready')
+        throw new Error(status.error ?? 'The exact Codex transfer destination is unavailable');
+      if (
+        !this.integrationsReady ||
+        this.deliveryIncarnation !== epoch ||
+        !this.settings.value.adapters.includes(profile) ||
+        profile.socket !== socket ||
+        this.adapters.get(context.adapterId) !== adapter ||
+        this.codexChatOwned(threadId)
+      )
+        throw new Error('The Codex transfer destination changed');
+      const result = this.connect({ ...input, ...context });
+      return { ...result, delivery: this.codexQueueDelivery() };
+    });
+    this.adapterSetup = setup.then(
+      () => {},
+      () => {},
+    );
+    return setup;
+  }
+
   private async codexQueueCanRecover(profile: AdapterProfile): Promise<boolean> {
     if (!profile.socket) return false;
     if (profile.codexQueue) return true;
@@ -1606,10 +1658,20 @@ export class NodeService extends EventEmitter {
       (profile) => profile.kind === 'codex-desktop' && profile.threadId === target.threadId,
     );
     const saved = target.binding;
-    if (!saved) {
+    const sameChat = saved?.chatId === target.threadId;
+    if (
+      saved &&
+      (binding?.connectionId !== saved.connectionId ||
+        binding.generation !== saved.generation ||
+        binding.adapterId !== saved.adapterId ||
+        binding.chatId !== saved.chatId ||
+        binding.client !== 'Codex')
+    )
+      throw new Error('The saved Codex connection changed');
+    if (!sameChat) {
       const stamp = this.store.sourceStamp(target.key);
       if (
-        binding ||
+        (!saved && binding) ||
         this.codexChatOwned(target.threadId) ||
         (expected && this.store.list().some(({ binding }) => binding?.adapterId === expected.id))
       )
@@ -1619,14 +1681,6 @@ export class NodeService extends EventEmitter {
         stamp.incarnation !== target.nameStamp.incarnation
       )
         throw new Error('The requested agent name changed during confirmation');
-    } else if (
-      binding?.connectionId !== saved.connectionId ||
-      binding.generation !== saved.generation ||
-      binding.adapterId !== saved.adapterId ||
-      binding.chatId !== target.threadId ||
-      binding.client !== 'Codex'
-    ) {
-      throw new Error('The saved Codex connection changed');
     }
     if (
       profiles.length !== (expected ? 1 : 0) ||
@@ -1650,19 +1704,22 @@ export class NodeService extends EventEmitter {
       (candidate) => candidate.kind === 'codex-desktop' && candidate.threadId === threadId,
     );
     if (candidates.length > 1) throw new Error('Multiple saved Codex profiles match this chat');
-    const profile = binding
+    if (binding && binding.client !== 'Codex')
+      throw new Error(
+        'The requested name belongs to another client. Connect from a verified Codex Desktop chat to request a transfer.',
+      );
+    const sameChat = binding?.chatId === threadId;
+    const profile = sameChat
       ? this.settings.value.adapters.find((candidate) => candidate.id === binding.adapterId)
       : candidates[0];
     if (
-      binding &&
-      (binding.client !== 'Codex' ||
-        binding.chatId !== threadId ||
-        profile?.kind !== 'codex-desktop' ||
+      sameChat &&
+      (profile?.kind !== 'codex-desktop' ||
         profile.threadId !== threadId ||
         !(await this.codexQueueCanRecover(profile)))
     )
       throw new Error(
-        'The requested name is already bound. Use its original Codex chat or restore the Desktop integration.',
+        'The saved Codex chat could not be verified through its Desktop route or input queue. The existing binding is unchanged.',
       );
     const savedTarget = {
       key,
@@ -1674,7 +1731,7 @@ export class NodeService extends EventEmitter {
     };
     this.assertCodexRecoveryTarget(savedTarget);
     if (
-      !binding &&
+      !sameChat &&
       process.platform === 'win32' &&
       profile &&
       !(await this.codexQueueCanRecover(profile))
@@ -1682,7 +1739,7 @@ export class NodeService extends EventEmitter {
       throw new Error('The saved Codex profile cannot use native recovery');
     const windowsDesktop = process.platform === 'win32' && profile && !profile.codexQueue;
     const socket =
-      !profile || (binding && windowsDesktop)
+      !profile || (sameChat && windowsDesktop)
         ? await this.configuredCodexQueueSocket()
         : await this.savedCodexQueueSocket(profile);
     const target: CodexRecoveryTarget = { ...savedTarget, socket };
@@ -1727,7 +1784,7 @@ export class NodeService extends EventEmitter {
     this.codexRecovery.set(threadId, challenge);
     const adapter = this.codexRecoveryAdapter(target);
     try {
-      if (!binding && profile && !profile.codexQueue) {
+      if (!sameChat && profile && !profile.codexQueue) {
         await adapter.start();
         const status = adapter.status();
         if (status.state !== 'ready')
@@ -1748,7 +1805,9 @@ export class NodeService extends EventEmitter {
         return this.codexRecoveryStatus('codex_recovery_expired');
       }
       if (outcome.state === 'failed')
-        throw new Error('The Codex confirmation could not be submitted to this chat.');
+        throw new Error(
+          'The exact Codex chat, input queue or transcript could not be verified for confirmation.',
+        );
       if (outcome.state === 'blocked') {
         challenge.state = 'retired';
         return this.codexRecoveryStatus('codex_recovery_unavailable');
@@ -1891,7 +1950,7 @@ export class NodeService extends EventEmitter {
     // Consume synchronously before any adapter or profile changes.
     challenge.expires = Math.min(challenge.expires, Date.now() + codexRecoveryLifetime);
     challenge.state = 'used';
-    if (target.binding && profile)
+    if (target.binding?.chatId === threadId && profile)
       return this.reconnectCodexQueue(
         nickname,
         target.binding.connectionId,

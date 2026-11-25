@@ -1178,6 +1178,138 @@ test('Disconnected Codex can confirm the same exact chat under the old or a free
   }
 });
 
+test('Codex queue recovery offers a transfer only in the exact verified destination', async (t) => {
+  const f = await fixture(t);
+  const directory = await realpath(
+    await mkdtemp(path.join(os.tmpdir(), 'interconnect-codex-move-')),
+  );
+  const profileHome = path.join(directory, 'codex-profile');
+  const configFile = path.join(profileHome, 'config.toml');
+  const service = new NodeService(directory, {
+    codexSockets: () => [],
+    runningCodexConfiguration: () => Promise.resolve(configFile),
+  });
+  const client = new Client({ name: 'Codex', version: 'test' });
+  t.after(async () => {
+    await client.close();
+    await service.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await service.open();
+  await mkdir(profileHome, { mode: 0o700 });
+  await writeFile(configFile, service.clientInstructions('codex').configuration, { mode: 0o600 });
+  const nickname = 'Хранитель';
+  const source = await service.connectCodex(
+    { nickname, client: 'Codex' },
+    {
+      threadId: f.profile.threadId!,
+      socket: f.profile.socket,
+    },
+  );
+  const sender = service.connect({ nickname: 'Sender', client: 'MCP' });
+  if (source.status !== 'connected' || sender.status !== 'connected')
+    throw new Error('Missing fixture binding');
+  const sourceAdapter = service.adapters.get(source.binding.adapterId);
+  const baseStatus = sourceAdapter.status();
+  const quiet = { ...baseStatus, capabilities: { ...baseStatus.capabilities, wakeIdle: false } };
+  t.mock.method(sourceAdapter, 'status', () => quiet);
+  const file = path.join(service.settings.value.exportRoots[0], 'transfer.txt');
+  await writeFile(file, 'Verified history and attachment');
+  const pending = await service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: nickname,
+    text: 'Pending delivery',
+    files: [file],
+  });
+  const before = service.store.get(pending.id, 'in');
+  assert.equal(before?.state, 'ready');
+  const current = () => service.store.list().find((agent) => agent.nickname === nickname)?.binding;
+  const destination = randomUUID();
+  const unknown = randomUUID();
+  let confirmation: string | undefined;
+  let queueReady = true;
+  t.mock.method(
+    CodexQueueAdapter.prototype,
+    'challenge',
+    async function (this: CodexQueueAdapter, token: string, isCurrent: () => boolean) {
+      assert.equal(this.profile.socket, codexQueueLocator(profileHome));
+      assert.equal(isCurrent(), true);
+      if (this.profile.threadId !== destination) return { state: 'failed' };
+      assert.equal(confirmation, undefined);
+      confirmation = token;
+      return { state: 'dispatched', witness: { messageId: randomUUID(), payloadHash: 'fixture' } };
+    },
+  );
+  const probe = t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {});
+  t.mock.method(CodexQueueAdapter.prototype, 'status', function (this: CodexQueueAdapter) {
+    assert.equal(this.profile.threadId, destination);
+    return queueReady
+      ? { ...quiet, id: this.profile.id }
+      : { ...quiet, id: this.profile.id, state: 'error', error: 'Exact destination unavailable' };
+  });
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
+      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+    }),
+  );
+  const connect = (threadId: string, args: Record<string, unknown> = {}) =>
+    client.callTool({
+      name: 'agent_connect',
+      arguments: { nickname, ...args },
+      _meta: { threadId },
+    });
+  const denied = await connect(unknown);
+  assert.equal(denied.isError, true);
+  assert.match(JSON.stringify(denied.content), /exact Codex chat, input queue or transcript/);
+  assert.equal(
+    service.settings.value.adapters.some((profile) => profile.threadId === unknown),
+    false,
+  );
+  assert.deepEqual(current(), source.binding);
+
+  const challenge = await connect(destination);
+  assert.equal(challenge.isError, undefined, JSON.stringify(challenge));
+  assert.equal(
+    (challenge.structuredContent as { status?: string })?.status,
+    'codex_recovery_pending',
+  );
+  assert.ok(confirmation);
+  assert.ok(!JSON.stringify(challenge).includes(confirmation));
+  assert.equal((await connect(unknown, { contextToken: confirmation })).isError, true);
+  const proof = await connect(destination, { contextToken: confirmation });
+  assert.equal(proof.isError, undefined, JSON.stringify(proof));
+  const offer =
+    proof.structuredContent as unknown as import('../desktop/core/agent-store.js').ConnectResult;
+  if (offer.status !== 'nickname_in_use') throw new Error('Missing transfer offer');
+  assert.equal(offer.requestingChat.chatId, destination);
+  assert.equal(offer.userApprovalRequired, true);
+  assert.deepEqual(current(), source.binding);
+  const approval = {
+    connectionId: offer.connectionId,
+    transferId: offer.transferId,
+    confirmTransfer: true,
+  };
+  assert.equal((await connect(unknown, approval)).isError, true);
+  assert.equal((await connect(destination, { ...approval, resetHistory: true })).isError, true);
+  queueReady = false;
+  assert.equal((await connect(destination, approval)).isError, true);
+  assert.deepEqual(current(), source.binding);
+  assert.deepEqual(service.store.get(pending.id, 'in'), before);
+
+  queueReady = true;
+  const moved = await connect(destination, approval);
+  assert.equal(moved.isError, undefined, JSON.stringify(moved));
+  assert.equal((moved.structuredContent as { status?: string })?.status, 'connected');
+  assert.equal(current()?.chatId, destination);
+  assert.equal(current()?.generation, source.binding.generation + 1);
+  assert.throws(() => service.store.assertOwner(source.binding.connectionId));
+  assert.deepEqual(service.store.get(pending.id, 'in'), before);
+  assert.equal(await service.files.exists(before.envelope.attachments[0]), true);
+  assert.equal((await connect(destination, approval)).isError, true);
+  assert.ok(probe.mock.callCount() >= 3);
+});
+
 test('Codex records a last-verified observation on success and keeps it as history after a later failure', async (t) => {
   const f = await fixture(t),
     adapter = new CodexDesktopAdapter(f.profile, () => {});
