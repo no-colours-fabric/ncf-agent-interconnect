@@ -35,11 +35,11 @@ The **Agents** page starts with a connection guide and a request you can copy in
 
 ### Features
 
-- **Agents and history:** choose agent names, view message history and open received files. When moving a name to another chat, choose whether to keep or delete its local NCF Agent Interconnect history.
+- **Agents and history:** choose agent names, rename local agents in **Agents** or from a supported connected chat, filter local history to messages with attachments, and open available files. When moving a name to another chat, choose whether to keep or delete its local NCF Agent Interconnect history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
 - **Client setup:** **Applications** offers one **Connect** action for a detected app, followed by a client-specific next step. Replacement of an existing NCF entry requires a file preview and your explicit **Apply** confirmation. **Manual setup** retains the file chooser, preview and **Apply** controls. Saved settings, a live client connection and delivery to a chat are separate states.
 - **Installed applications:** connect from a setup card, refresh the list or choose an installation manually. For OpenCode, use the setup for your installed version. Turn on the **OpenCode v1** switch to show its setup.
-- **Remote nodes:** find nearby computers, pair using their temporary codes or use **Connect by address**. You can stop or repeat the search and choose which network interfaces the app uses under **Settings**.
+- **Remote nodes:** find nearby computers, compare a request code to approve pairing on both computers, or use a temporary connection code. **Connect by address** remains available. Choose **Disconnect** to end a pairing. You can stop or repeat the search and choose which network interfaces the app uses under **Settings**.
 - **Delivery information:** check whether a message is still queued or has reached the recipient. Look for the agent’s reply to see the result of the task.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 

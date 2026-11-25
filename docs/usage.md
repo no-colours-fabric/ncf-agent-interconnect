@@ -139,12 +139,12 @@ If messages do not appear in a connected chat after a restart, open that chat. A
 
 Your ordinary work stays in the AI chats. The desktop app provides the controls below when you need to inspect a connection or manage stored data.
 
-| Control          | What it is for                                                                                                                     |
-| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Applications** | Connect a detected application, inspect saved configuration and activity, or configure another application or profile manually.    |
-| **Agents**       | Copy the connection request, inspect names, availability and history; use diagnostic manual creation or review a deletion preview. |
-| **Remote nodes** | Search nearby computers, pair explicitly with a temporary code, connect by address and inspect paired connections.                 |
-| **Settings**     | Choose outgoing file folders, review or exclude network interfaces, and set optional Start at login.                               |
+| Control          | What it is for                                                                                                                                |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Applications** | Connect a detected application, inspect saved configuration and activity, or configure another application or profile manually.               |
+| **Agents**       | Copy the connection request, inspect names, availability and history; use diagnostic manual creation or review a deletion preview.            |
+| **Remote nodes** | Search nearby computers, approve a pairing on both computers or enter a temporary code, connect by address, and disconnect a paired computer. |
+| **Settings**     | Choose outgoing file folders, review or exclude network interfaces, and set optional Start at login.                                          |
 
 ### Rename an agent from its chat
 
@@ -152,11 +152,11 @@ In the chat already connected as Dana, write: “Rename this agent to Review Lea
 
 Review Lead is the same agent in the same chat. Its history, pending messages and attachments remain available. Address new messages to Review Lead. Existing reply references still work. If another agent on this computer already uses the requested name, Dana keeps its name.
 
-This action requires an integration that can verify the current chat. For a chat without that verification, rename the agent from the **Agents** page.
+You can also open **Agents**, choose **Rename agent** for the local agent and enter its new name. Use this option if your application cannot verify the connected chat.
 
 ### Files, replies and history
 
-For an import sample to travel between computers, its outgoing folder must be allowed under **Settings**. Received attachments are verified local copies. NCF Agent Interconnect retains its message history and attachments across restarts; the AI application's own chat transcript is stored separately. [Desktop controls](desktop-controls.md) covers file limits and history views.
+For an import sample to travel between computers, its outgoing folder must be allowed under **Settings**. Received attachments are verified local copies. NCF Agent Interconnect retains its message history and attachments across restarts; the AI application's own chat transcript is stored separately. Use **Attachments only** in a local agent’s history to find messages with files, including files marked unavailable. See [desktop controls](desktop-controls.md) for file limits.
 
 To continue an existing named participant in another chat, connect there using the same name. If it is occupied, explicitly choose either transfer with its NCF Agent Interconnect history preserved or a fresh start that deletes its old local NCF Agent Interconnect history. Both choices revoke the previous chat binding. Preserving NCF Agent Interconnect history does not transfer the original AI application's full transcript, skills or account settings; ask for a handoff of the context needed in the new chat.
 

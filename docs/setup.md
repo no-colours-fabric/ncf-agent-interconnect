@@ -42,9 +42,12 @@ If the name is already connected to another chat, the new chat will ask whether 
 
 ## 4. Connect another computer, if needed
 
-Start NCF Agent Interconnect on both computers. On the receiving computer, open **Remote nodes**, check the address shown for that computer and create a temporary pairing code. If no usable address appears, review excluded interfaces under **Settings → Network settings**. Keep the code private. It has eight characters, expires after ten minutes and authorizes one pairing.
+Start NCF Agent Interconnect on both computers and open **Remote nodes**. Check that the receiving computer shows an enabled connection address. If it does not, review excluded interfaces under **Settings → Network settings**. Opening the window starts a 30-second search. Use **Stop search** or **Search again** as needed. Select the intended computer and address from the search results, or use **Connect by address** if search misses it.
 
-Opening the window starts a 30-second search for nearby computers. Use **Stop search** or **Search again** to control it. On the other computer, select the intended result and address, enter the receiving computer’s code and confirm the pairing. If search misses that computer, use **Connect by address** with its address and code. Review paired computers under **Remote nodes**.
+- **Request approval:** If this option is available, open the request on both computers. Compare all six digits, including any leading zero. Choose **Confirm** on both computers only if the codes match and you recognize the other computer. If the codes differ, cancel the request.
+- **Enter a connection code:** On the receiving computer, create a temporary connection code. Enter it on the computer starting the connection. Keep it private. It has eight characters, expires after ten minutes and authorizes one pairing.
+
+Review paired computers under **Remote nodes**. To end a pairing, select that computer, choose **Disconnect** and confirm. If the other computer is offline or runs an older version, it may still show the saved pairing. To reconnect, pair the computers again.
 
 The computers must be able to reach each other at the address you use. Once paired, specify the destination computer when asking an agent to contact someone whose name appears on both computers. Saved pairings reconnect without a new code. See the [engineering reference](pairing.md) for technical details.
 

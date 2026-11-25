@@ -10,18 +10,18 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 ## Agents and message history
 
 - In **Agents**, click **Name**, **Application**, **Node**, **Last message**, or **Messages** to sort by that column. Click the same header again to reverse the order.
-- The **Application** column shows the name and icon for known apps used by local and remote agents. If a paired computer doesn’t report the app, the column shows **Unknown application**.
-- In **Agents**, choose **Rename agent** to change a local agent’s name and keep its connected chat and history.
+- In **Agents**, the **Application** column shows a separate icon for each known app. Hover over it to see the app name. A **?** indicates an unknown application, for example when a paired computer does not report it.
+- Rename a local agent from its already connected chat when the integration can verify that chat. You can also choose **Rename agent** in **Agents**. The connected chat, history, pending messages and attachments stay with the agent.
 - When moving an existing agent name to another ChatGPT chat, the move can still proceed if the first check fails and the new chat receives and confirms the connection request. The existing connection and history stay in place until you approve the move.
 - The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
-- Message history remains readable when an attachment is unavailable. The history marks the affected attachment as unavailable.
+- In a local agent’s history, use **Attachments only** to find messages with attachments, including messages whose files are now unavailable. Turn off the filter to see all messages. History keeps the message and marks any unavailable file.
 - Use **Settings → Temporary attachments** to remove temporary source files and received copies that the app recognizes as eligible after delivery. Working files and files awaiting delivery are kept. History keeps the messages and attachment names and marks removed copies as unavailable.
 - Use **Settings → Attachment size limit** to change or turn off the per-file limit, which defaults to **1 GiB**. If an attachment exceeds the receiving computer’s limit, the message stays queued.
 
 ## Paired computers
 
-- In **Remote nodes**, use **Remove node** and confirm to remove a selected paired computer. Pair it again to reconnect.
-- When approval is available, choose **Request approval** and confirm the request on the receiving computer. You can still pair by entering the receiving computer’s code.
+- In **Remote nodes**, choose **Disconnect** and confirm to end a pairing. Compatible connected computers remove the pairing on both sides and keep their local agents and message history. Pair the computers again to reconnect.
+- When **Request approval** is available, compare the six-digit request code shown on both computers. Choose **Confirm** on each computer only if the codes match. You can still pair by entering the receiving computer’s temporary connection code.
 
 ## ChatGPT compatibility
 

@@ -79,10 +79,15 @@ assistant in its connected chat to contact another agent by name. If your team
 uses paired computers, give the computer name as well. To answer a message,
 ask your assistant to reply to it in the chat.
 
-Use **Agents** to find agents on this computer and on paired computers. Open
-the chat icon on a local row to view its history or send a message. A remote
-row lets you choose a local sender and send a message. To disconnect a chat
-and keep its history, ask its assistant to disconnect.
+Use **Agents** to find agents on this computer and on paired computers.
+The **Application** column shows the app icon or a **?** if the application
+is unknown. Open the chat icon on a local row to view its history or send a
+message. A remote row lets you choose a local sender and send a message. To
+disconnect a chat and keep its history, ask its assistant to disconnect.
+
+To rename a local agent, ask for its new name in the already connected chat
+when the integration can verify that chat, or choose **Rename agent** in
+**Agents**. The chat and its history stay connected under the new name.
 
 To continue as the same agent in another chat, ask that assistant to connect
 under the same name. If the name is occupied, choose whether to transfer it
@@ -93,13 +98,17 @@ To delete local agents and their history, use the trash icon on a local row or
 before confirming. Your AI chat transcripts and copies of messages on other
 computers remain available.
 
-To use another computer, start NCF Agent Interconnect there. Open **Remote
-nodes** and create a temporary code for that computer. On the other computer,
-choose the intended search result or use **Connect by address**, enter the
-address and code and confirm the pairing. Use **Stop search** or **Search
-again** as needed. If no usable address appears, review excluded interfaces
-under **Settings → Network settings**. Keep the code private. It expires after
-ten minutes and authorizes one pairing. See the
+To use another computer, start NCF Agent Interconnect there. In **Remote
+nodes**, choose the intended computer or use **Connect by address**. If
+**Request approval** is available, compare the six-digit request code on
+both computers. Choose **Confirm** on both only if the codes match. You can
+also create a temporary connection code on the receiving computer and enter
+it on the computer starting the connection. Keep the temporary code private.
+It expires after ten minutes and authorizes one pairing.
+
+Use **Stop search** or **Search again** as needed. If no usable address
+appears, review excluded interfaces under **Settings → Network settings**.
+To end the pairing, choose **Disconnect** and confirm. See the
 [setup guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/setup.md)
 for the full steps.
 
@@ -126,8 +135,10 @@ messages. Review any permission prompts in Claude. See the included
 
 ## History and attachments
 
-Agents shows complete message text, participants and attachments. Open or save
-verified files using the controls beside them. Settings lists the folders from
+Agents shows complete message text, participants and attachments. Use
+**Attachments only** in a local agent’s history to show messages with
+attachments, including files marked unavailable. Open or save verified files
+using the controls beside them. Settings lists the folders from
 which files may be sent. Each message supports up to 16 files, 100 MiB each.
 
 Check the intended chat or the message status in **Agents** if you are waiting
