@@ -11,9 +11,8 @@ const origin = 'https://no-colours-fabric.github.io';
 const base = '/ncf-agent-interconnect/';
 const repository = 'https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/';
 
-const sources = [
+const guides = [
   'README.md',
-  'llms.txt',
   'docs/usage.md',
   'docs/setup.md',
   'docs/installation.md',
@@ -22,6 +21,8 @@ const sources = [
   'docs/desktop-controls.md',
   'docs/privacy.md',
   'distribution/README.md',
+];
+const scenarios = [
   'docs/scenarios/README.md',
   'docs/scenarios/01-direct-pair.md',
   'docs/scenarios/02-peer-team.md',
@@ -37,10 +38,10 @@ const sources = [
   'docs/scenarios/12-priority-fix.md',
   'docs/scenarios/13-mixed-applications.md',
 ];
+const sources = [...guides, ...scenarios];
 
 const pagePath = (source) => {
   if (source === 'README.md') return 'docs/README.html';
-  if (source === 'llms.txt') return 'docs/llms.html';
   return `docs/${source.replace(/^docs\//, '').replace(/\.md$/, '.html')}`;
 };
 const pageUrl = (source) => `${base}${pagePath(source)}`;
@@ -49,7 +50,6 @@ const sourceSet = new Set(sources);
 const assets = new Set(['docs/assets/agents-preview.png', 'docs/assets/app-preview.png']);
 const pageTitles = {
   'README.md': 'Product overview',
-  'llms.txt': 'Complete AI reference',
   'distribution/README.md': 'Packaged release guide',
 };
 const legacyHeadingIds = {
@@ -59,7 +59,6 @@ const legacyHeadingIds = {
     chatgpt: ['codex-desktop', 'chatgpt-codex-mode'],
   },
   'distribution/README.md': { 'aionui-with-cursor-agent': 'aionui' },
-  'llms.txt': { 'aionui-with-cursor-agent-setup': 'aionui-setup' },
 };
 
 function escapeHtml(value) {
@@ -213,7 +212,7 @@ function documentPage(source, markdown) {
   const raw = `${base}raw/${source}`;
   const html = `<div class="docs-breadcrumb"><a href="${base}docs/">Documentation</a><span aria-hidden="true">/</span><span>${escapeHtml(title)}</span></div>
     <div class="docs-layout"><article class="docs-article">${md.renderer.render(tokens, md.options, {})}</article>
-    <aside class="docs-sidebar" aria-label="Document links"><h2>Source files</h2><a href="${raw}">Raw ${source.endsWith('.txt') ? 'text' : 'Markdown'}</a><a href="${repository}${source}">View on GitHub</a><h2>Browse</h2><a href="${base}docs/">All documentation</a><a href="${base}docs/scenarios/README.html">Examples and prompts</a></aside></div>`;
+    <aside class="docs-sidebar" aria-label="Document links"><h2>Source files</h2><a href="${raw}">Raw Markdown</a><a href="${repository}${source}">View on GitHub</a><h2>Browse</h2><a href="${base}docs/">All documentation</a><a href="${base}docs/scenarios/README.html">Examples and prompts</a></aside></div>`;
   return frame(title, description, canonicalUrl(source), html, raw);
 }
 
@@ -222,13 +221,10 @@ function documentList(items, titles) {
 }
 
 function indexPage(titles) {
-  const main = sources.slice(0, 10);
-  const catalog = sources.slice(10, 11);
-  const examples = sources.slice(11);
   const content = `<div class="docs-intro"><p class="docs-eyebrow">NCF Agent Interconnect</p><h1>Documentation</h1><p>“NCF Agent Interconnect” connects AI assistants on demand for a shared task. Supported applications: ChatGPT, Claude Code, Cursor, OpenCode and AionUi with Cursor Agent. In one of two ChatGPT chats, agent Sam defines search requirements; in the other, ask “Connect as agent Nora. Build search using agent Sam’s requirements.” The agents coordinate by name and share the messages and files the task requires. Each new agent needs no separate setup. Other supported programs or paired computers on a local network can join later. The desktop Applications page connects detected clients or opens manual setup; OpenCode v2 and v1 have separate setup targets. To work across computers, open Remote nodes and pair using the other computer’s temporary code. Every page links to its original Markdown or text file and GitHub source. Documentation is currently in English.</p></div>
     <p><a href="${base}llms.txt">Documentation map for AI tools (llms.txt)</a></p>
-    <section aria-labelledby="main-guides"><h2 id="main-guides">Guides and reference</h2>${documentList(main, titles)}</section>
-    <section aria-labelledby="example-guides"><h2 id="example-guides">Examples and prompts</h2><p>These fictional scenarios are prompts for explaining how agents can work together. They are not records of completed work.</p>${documentList(catalog, titles)}${documentList(examples, titles)}</section>`;
+    <section aria-labelledby="main-guides"><h2 id="main-guides">Guides and reference</h2>${documentList(guides, titles)}</section>
+    <section aria-labelledby="example-guides"><h2 id="example-guides">Examples and prompts</h2><p>These fictional scenarios are prompts for explaining how agents can work together. They are not records of completed work.</p>${documentList(scenarios.slice(0, 1), titles)}${documentList(scenarios.slice(1), titles)}</section>`;
   return frame(
     'Documentation',
     'NCF Agent Interconnect connects named AI assistants for shared tasks. Set up applications in the desktop app; agents exchange messages and files across chats without per-agent setup.',
@@ -275,6 +271,7 @@ for (const source of sources) {
   await writeArtifact(`raw/${source}`, bytes);
   await writeArtifact(pagePath(source), documentPage(source, markdown));
 }
+await writeArtifact('raw/llms.txt', await readFile(path.join(root, 'llms.txt')));
 
 for (const asset of assets) {
   const bytes = await readFile(path.join(root, asset));
@@ -303,11 +300,10 @@ original source bytes. Each HTML page links to its source on GitHub.
 
 ## Guides and reference
 
-${sources
-  .slice(0, 10)
+${guides
   .map(
     (source) =>
-      `- [${titles.get(source)}](${canonicalUrl(source)}): Readable HTML. [Raw ${source.endsWith('.txt') ? 'text' : 'Markdown'}](${origin}${base}raw/${source}). [GitHub source](${repository}${source}).`,
+      `- [${titles.get(source)}](${canonicalUrl(source)}): Readable HTML. [Raw Markdown](${origin}${base}raw/${source}). [GitHub source](${repository}${source}).`,
   )
   .join('\n')}
 
@@ -315,8 +311,7 @@ ${sources
 
 The scenario catalog contains fictional prompts for explaining agent collaboration.
 
-${sources
-  .slice(10)
+${scenarios
   .map(
     (source) =>
       `- [${titles.get(source)}](${canonicalUrl(source)}): [Raw Markdown](${origin}${base}raw/${source}). [GitHub source](${repository}${source}).`,
@@ -337,5 +332,5 @@ await writeArtifact('sitemap.xml', sitemap);
 await writeArtifact('sitemap.txt', urls.join('\n') + '\n');
 
 console.log(
-  `Built ${sources.length} documentation pages, ${sources.length} raw sources and ${urls.length} sitemap URLs in ${output}`,
+  `Built ${sources.length} documentation pages, ${sources.length + 1} raw sources and ${urls.length} sitemap URLs in ${output}`,
 );
