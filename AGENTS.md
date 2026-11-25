@@ -71,6 +71,23 @@ requires separate confirmation.
 
 Use `npm run format` for the shared source style.
 
+## Research records
+
+- Treat any search for a solution that is not immediately apparent as research.
+  Every agent and subagent working on this project must record what it learns,
+  including failed approaches and investigations that produce no code change.
+  Include this requirement in delegated research tasks and handoffs.
+- Save past and new findings under `research/` at the project root. Consult
+  related reports before starting and extend or cross-reference them so the
+  record accumulates knowledge across tasks and agents. Save findings before
+  removing temporary worktrees or experiment directories.
+- Record the problem, research objective, starting state, and verified or
+  suspected cause. Describe the approaches, verification scenarios, observed
+  results, and why each approach worked, failed, or was unsuitable. Identify
+  what remains unverified. Add relevant context such as platform, versions,
+  source revisions, evidence, or reproduction details as the research requires.
+  Keep credentials and private data out of research records.
+
 ## Interface conventions
 
 - Outlined controls use permanent, unscaled labels above the complete border.
