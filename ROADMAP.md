@@ -222,3 +222,25 @@ Create a dedicated documentation page with short, practical scenarios for NCF Ag
 Keep the list open to additional short scenarios.
 
 ---
+
+## R-0016 — Clean up temporary attachment files
+
+- [ ] Open
+
+Add cleanup buttons for temporary files that agents create solely for transfer and for received copies of those files. Preserve user-created files, working files, and any file whose origin or purpose cannot be verified.
+
+Keep message text, IDs, and attachment names in history. Mark removed attachments as unavailable and keep history pagination working, as specified in [issue #12](https://github.com/no-colours-fabric/ncf-agent-interconnect/issues/12).
+
+When NCF Agent Interconnect cannot safely remove an agent’s temporary source file, MCP should instruct the agent to delete it once the transfer is verified and the file is no longer needed for a retry.
+
+---
+
+## R-0017 — Support larger attachments and verify transfers efficiently
+
+- [ ] Open
+
+Raise the default per-file attachment limit substantially. Add settings to set a custom limit or disable it. Users and agents should be able to send large files without splitting them into smaller parts.
+
+Improve transfer and receipt verification to reduce redundant reads and checks. Preserve end-to-end integrity and report success only after the recipient has verified the complete file.
+
+---
