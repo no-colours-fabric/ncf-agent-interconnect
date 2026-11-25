@@ -33,6 +33,8 @@ import { OwnConnectionCard, type OwnConnectionCode } from './OwnConnectionCard.j
 import { t, type Locale } from './i18n/index.js';
 import { lanDiscoveryMessages } from './i18n/lan-discovery.js';
 import { formatLanSearch, lanSearchMessages } from './i18n/lan-search.js';
+import { pairingApprovalMessages } from './i18n/remote-nodes.js';
+import { usePeerApproval } from './use-peer-approval.js';
 
 export interface PairAttemptInput {
   address: string;
@@ -176,7 +178,7 @@ export interface NetworkManualConnection {
   onAddressChange: (value: string) => void;
   onCodeChange: (value: string) => void;
   /** Keep the actual existing manual renderer at the integration boundary. */
-  content?: React.ReactNode;
+  content?: React.ReactNode | ((cancelApproval: () => Promise<boolean>) => React.ReactNode);
 }
 export interface NetworkPageProps {
   active: boolean;
@@ -243,6 +245,8 @@ export function NetworkPage({
 }: NetworkPageProps): React.JSX.Element {
   const m = lanSearchMessages(locale);
   const legacy = lanDiscoveryMessages(locale);
+  const approvalCopy = pairingApprovalMessages(locale);
+  const approval = usePeerApproval(invoke);
   const theme = useTheme();
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const id = useId();
@@ -307,6 +311,7 @@ export function NetworkPage({
     setAddressChoice('auto');
     setCode('');
     setPairError(null);
+    startApproval(node.address, node.nodeId, false, fromOverview);
   };
   useImperativeHandle(overviewActions, () => ({
     connectFoundNode: (nodeId) => {
@@ -491,12 +496,39 @@ export function NetworkPage({
       }
     }
   };
-  const closePair = () => {
-    if (pairFence.current) return;
+  const closePair = async () => {
+    if (pairFence.current || !(await approval.cancel())) return;
     setSelection(null);
     setManualOpen(false);
     setCode('');
     setPairError(null);
+  };
+  const paired = (address: string, isManual: boolean, fromOverview: boolean) => {
+    setAuthenticatedAddresses((previous) => {
+      const next = new Set(previous);
+      next.add(address);
+      if (next.size > 128) next.delete(next.values().next().value!);
+      return next;
+    });
+    if (isManual) manual.onCodeChange('');
+    setSelection(null);
+    setManualOpen(false);
+    setCode('');
+    if (fromOverview) onOverviewPaired?.();
+    else setPairedNotice(true);
+  };
+  const startApproval = (
+    address: string,
+    expectedNodeId: string | undefined,
+    isManual: boolean,
+    fromOverview = false,
+  ) => {
+    if (!snapshot.running || pairFence.current) return;
+    setPairedNotice(false);
+    approval.start(address, expectedNodeId, () => {
+      if (mounted.current && currentSnapshot.current.nodeId === snapshot.nodeId)
+        paired(address, isManual, fromOverview);
+    });
   };
   const connect = async (address: string, access: string, isManual: boolean) => {
     const value = access.trim();
@@ -520,6 +552,7 @@ export function NetworkPage({
     setPairError(null);
     setPairedNotice(false);
     try {
+      if (!(await approval.cancel())) return;
       await ledger.run(snapshot, input, m.uncertain, () => invoke('connectPeer', input));
       if (
         !mounted.current ||
@@ -527,18 +560,7 @@ export function NetworkPage({
         currentSnapshot.current.nodeId !== nodeId
       )
         return;
-      setAuthenticatedAddresses((previous) => {
-        const next = new Set(previous);
-        next.add(address);
-        if (next.size > 128) next.delete(next.values().next().value!);
-        return next;
-      });
-      if (isManual) manual.onCodeChange('');
-      setSelection(null);
-      setManualOpen(false);
-      setCode('');
-      if (!isManual && selection?.fromOverview) onOverviewPaired?.();
-      else setPairedNotice(true);
+      paired(address, isManual, !isManual && !!selection?.fromOverview);
     } catch (error) {
       const detail =
         error instanceof UncertainPairAttempt
@@ -582,6 +604,21 @@ export function NetworkPage({
   };
   const blockedSelection = !!selectedInput && ledger.blocked(snapshot, selectedInput);
   const blockedManual = ledger.blocked(snapshot, { address: manual.address, code: manual.code });
+  const selectedOpen = !!selection && (selection.fromOverview ? overviewActive : active);
+  const manualVisible = active && manualOpen;
+  const cancelApproval = approval.cancel;
+  const manualContent =
+    typeof manual.content === 'function' ? manual.content(cancelApproval) : manual.content;
+  useEffect(() => {
+    if (!selectedOpen && !manualVisible && approval.phase) void cancelApproval();
+  }, [selectedOpen, manualVisible, approval.phase, cancelApproval]);
+
+  const requestingApproval = ['requesting', 'waiting', 'shown'].includes(approval.phase ?? '');
+  const approvalStatus = approval.phase && (
+    <Alert severity={approval.phase === 'failed' ? 'warning' : 'info'} role="status">
+      {approvalCopy[approval.phase]}
+    </Alert>
+  );
   const selectionMissing =
     !!selectedInput &&
     !search?.nodes.some(
@@ -818,8 +855,8 @@ export function NetworkPage({
         </Box>
       </Stack>
       <Dialog
-        open={!!selection && (selection.fromOverview ? overviewActive : active)}
-        onClose={closePair}
+        open={selectedOpen}
+        onClose={() => void closePair()}
         fullWidth
         maxWidth="sm"
         aria-labelledby={id + '-pair-title'}
@@ -868,8 +905,13 @@ export function NetworkPage({
                   value={addressChoice}
                   disabled={pairPending}
                   onChange={(event) => {
-                    setAddressChoice(event.target.value);
-                    setPairError(null);
+                    const value = event.target.value;
+                    void approval.cancel().then((canceled) => {
+                      if (canceled) {
+                        setAddressChoice(value);
+                        setPairError(null);
+                      }
+                    });
                   }}
                   slotProps={{
                     input: { notched: false },
@@ -894,11 +936,31 @@ export function NetworkPage({
                   ))}
                 </TextField>
               )}
+              {approvalStatus}
               {selectedInput && pairFailure(blockedSelection, selectedInput)}
+              {selectedInput && !requestingApproval && approval.phase !== 'unsupported' && (
+                <Box>
+                  <Button
+                    type="button"
+                    disabled={pairPending || !snapshot.running}
+                    sx={{ minHeight: 44 }}
+                    onClick={() =>
+                      startApproval(
+                        selectedInput.address,
+                        selectedInput.expectedNodeId,
+                        false,
+                        !!selection?.fromOverview,
+                      )
+                    }
+                  >
+                    {approvalCopy.request}
+                  </Button>
+                </Box>
+              )}
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button onClick={closePair} disabled={pairPending} sx={{ minHeight: 44 }}>
+            <Button onClick={() => void closePair()} disabled={pairPending} sx={{ minHeight: 44 }}>
               {pairError?.uncertain || blockedSelection
                 ? t(locale, 'mcpSetup_close')
                 : t(locale, 'btnCancel')}
@@ -920,8 +982,8 @@ export function NetworkPage({
         </Box>
       </Dialog>
       <Dialog
-        open={active && manualOpen}
-        onClose={closePair}
+        open={manualVisible}
+        onClose={() => void closePair()}
         fullWidth
         maxWidth="sm"
         aria-labelledby={id + '-manual-title'}
@@ -937,7 +999,7 @@ export function NetworkPage({
           <DialogTitle id={id + '-manual-title'}>{m.connectTitle}</DialogTitle>
           <DialogContent>
             <Stack spacing={2} sx={{ pt: 1 }}>
-              {manual.content ?? (
+              {manualContent ?? (
                 <>
                   <TextField
                     autoFocus
@@ -945,11 +1007,19 @@ export function NetworkPage({
                     placeholder={t(locale, 'networkAddressPlaceholder')}
                     value={manual.address}
                     disabled={pairPending}
-                    onChange={(event) => manual.onAddressChange(event.target.value)}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      if (!approval.phase) manual.onAddressChange(value);
+                      else
+                        void approval.cancel().then((canceled) => {
+                          if (canceled) manual.onAddressChange(value);
+                        });
+                    }}
                     fullWidth
                   />
                   <TextField
                     label={m.connectionCode}
+                    placeholder={t(locale, 'networkAccessPlaceholder')}
                     helperText={t(locale, 'networkAccessHelper')}
                     value={manual.code}
                     disabled={pairPending}
@@ -971,11 +1041,24 @@ export function NetworkPage({
                   />
                 </>
               )}
+              {approvalStatus}
+              {!requestingApproval && approval.phase !== 'unsupported' && (
+                <Box>
+                  <Button
+                    type="button"
+                    disabled={pairPending || !snapshot.running || !manual.address.trim()}
+                    sx={{ minHeight: 44 }}
+                    onClick={() => startApproval(manual.address.trim(), undefined, true)}
+                  >
+                    {approvalCopy.request}
+                  </Button>
+                </Box>
+              )}
               {pairFailure(blockedManual, { address: manual.address, code: manual.code })}
             </Stack>
           </DialogContent>
           <DialogActions>
-            <Button disabled={pairPending} onClick={closePair} sx={{ minHeight: 44 }}>
+            <Button disabled={pairPending} onClick={() => void closePair()} sx={{ minHeight: 44 }}>
               {pairError?.uncertain || blockedManual
                 ? t(locale, 'mcpSetup_close')
                 : t(locale, 'btnCancel')}

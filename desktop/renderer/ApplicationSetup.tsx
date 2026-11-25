@@ -432,6 +432,19 @@ function ManualSetupButton({
   );
 }
 
+function useOpenCodeV1Visibility(discovery: ApplicationDiscoveryModel, statuses: McpSetupStatuses) {
+  const [override, setOverride] = useState<boolean>();
+  const configured =
+    !statuses.errors.opencode && statuses.statuses.opencode?.openCodeV1Configuration === true;
+  const detected = discovery.snapshot?.applications.some(
+    (application) =>
+      application.client === 'opencode' &&
+      application.status === 'detected' &&
+      application.instances.some((instance) => instance.openCodeMajor === 1),
+  );
+  return [override ?? (configured || detected === true), setOverride] as const;
+}
+
 function OpenCodeV1Toggle({
   expanded,
   onChange,
@@ -549,7 +562,7 @@ function ApplicationCompactList({
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
-  const [showV1, setShowV1] = useState(false);
+  const [showV1, setShowV1] = useOpenCodeV1Visibility(discovery, statuses);
   const [expanded, setExpanded] = useState<Partial<Record<ApplicationSetupClient, boolean>>>({});
   const [guidanceClient, setGuidanceClient] = useState<ApplicationSetupClient | null>(null);
   const anyBusy = disabled || applicationSetupClients.some((client) => flow.busy(client));
@@ -930,7 +943,7 @@ export function ApplicationRows({
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
-  const [showV1, setShowV1] = useState(false);
+  const [showV1, setShowV1] = useOpenCodeV1Visibility(discovery, statuses);
   const aionUiConfigured = setupView('aionui', states, statuses, discovery).configured;
   const [aionUiPaired, setAionUiPaired] = useState(false);
   useEffect(() => {

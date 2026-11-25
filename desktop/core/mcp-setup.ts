@@ -26,6 +26,7 @@ import { codexMcpConfigurationMatches, editMcpConfiguration } from './mcp-setup-
 import {
   editOpenCodeV2Configuration,
   hasOpenCodeV2ToolPermissions,
+  isOpenCodeV1Configuration,
   openCodeV2ConfigurationHash,
 } from './mcp-setup-editors.js';
 import {
@@ -277,7 +278,20 @@ export class McpSetupService {
     return { defaults, availableForDelivery };
   }
 
+  private async hasOpenCodeV1Configuration(paths: string[]): Promise<boolean> {
+    for (const filename of paths) {
+      try {
+        const source = await this.readSource(await this.canonicalPath(filename));
+        if (source.exists && isOpenCodeV1Configuration(source.content)) return true;
+      } catch {
+        // An unreadable candidate does not hide evidence from another known path.
+      }
+    }
+    return false;
+  }
+
   async status(client: McpSetupClient): Promise<McpSetupStatus> {
+    const evidence: Pick<McpSetupStatus, 'openCodeV1Configuration'> = {};
     let filename = '';
     let remembered = false;
     try {
@@ -285,11 +299,16 @@ export class McpSetupService {
       remembered = !!saved;
       const { defaults, availableForDelivery } = await this.resolveDefaults(client, saved);
       filename = defaults.files[0].path;
+      if (client === 'opencode')
+        evidence.openCodeV1Configuration = await this.hasOpenCodeV1Configuration(
+          defaults.files[0].alternatives,
+        );
       const source = await this.readSource(await this.canonicalPath(filename));
       if (!source.exists)
         return {
           client,
           remembered,
+          ...evidence,
           state: 'missing',
           files: [{ id: 'configuration', path: filename, state: 'missing' }],
         };
@@ -319,11 +338,19 @@ export class McpSetupService {
         if (!installed.exists && state === 'configured') state = 'not-configured';
         else if (installed.exists && installed.content !== managed.content) state = 'needs-update';
       }
-      return { client, remembered, state, files, cursorPermission: cursorPermission?.status };
+      return {
+        client,
+        remembered,
+        ...evidence,
+        state,
+        files,
+        cursorPermission: cursorPermission?.status,
+      };
     } catch (error) {
       return {
         client,
         remembered,
+        ...evidence,
         state: 'unavailable',
         files: [
           {

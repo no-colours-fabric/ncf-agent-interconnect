@@ -764,6 +764,58 @@ test('known paths use the selected home and explicit environment, without guessi
   );
 });
 
+test('OpenCode v1 configuration evidence uses known targets without writing or changing setup status', async (t) => {
+  const { directory, service } = await fixture(t);
+  const config = path.join(directory, '.config', 'opencode', 'opencode.json');
+  const alternative = config + 'c';
+  await mkdir(path.dirname(config), { recursive: true });
+  assert.equal((await service.status('opencode')).openCodeV1Configuration, false);
+
+  const v2 = '{"providers":{"other":{"package":"example"}},"mcp":{"servers":{}}}';
+  await writeFile(config, v2);
+  const v2Only = await service.status('opencode');
+  assert.equal(v2Only.openCodeV1Configuration, false);
+  assert.equal(v2Only.state, 'unavailable');
+
+  await writeFile(
+    alternative,
+    '{ "$schema":"https://opencode.ai/config.json", "model":"other/example" }',
+  );
+  assert.equal((await service.status('opencode')).openCodeV1Configuration, false);
+  await writeFile(alternative, '{"plugin":[],"plugin":[]}');
+  assert.equal((await service.status('opencode')).openCodeV1Configuration, false);
+
+  const v1 = '\uFEFF{\n  // Preserve the owner restriction\n  "permission": { "*": "deny" },\n}\n';
+  await writeFile(alternative, v1);
+  const separate = await service.status('opencode');
+  assert.equal(separate.openCodeV1Configuration, true);
+  assert.equal(separate.files[0].path, config);
+  assert.equal(await readFile(alternative, 'utf8'), v1);
+
+  await writeFile(config, v1);
+  const restricted = await service.status('opencode');
+  assert.equal(restricted.openCodeV1Configuration, true);
+  assert.equal(restricted.state, 'unavailable');
+  assert.match(restricted.files[0].error ?? '', /Existing OpenCode deny rule/);
+  assert.equal(await readFile(config, 'utf8'), v1);
+
+  for (const v1 of [
+    '{"provider":{"other":{"options":{}}}}',
+    '{"plugin":["example"]}',
+    '{"tools":{"write":false}}',
+    '{"mcp":{"other":{"type":"local","command":["fixture"]}}}',
+  ]) {
+    await writeFile(config, v1);
+    assert.equal((await service.status('opencode')).openCodeV1Configuration, true);
+    assert.equal(await readFile(config, 'utf8'), v1);
+  }
+  assert.deepEqual((await readdir(path.dirname(config))).sort(), [
+    'opencode.json',
+    'opencode.jsonc',
+  ]);
+  assert.deepEqual(await readdir(directory), ['.config']);
+});
+
 test('desktop IPC validates input and uses the native picker with hidden files; cancel is read-only', async (t) => {
   const { directory } = await fixture(t);
   let pickerOptions: unknown;

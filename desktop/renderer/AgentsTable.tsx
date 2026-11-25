@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
+import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import Circle from '@mui/icons-material/Circle';
 import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
@@ -46,6 +47,7 @@ export interface AgentsTableLabels {
   actions: string;
   chat: (nickname: string) => string;
   remove: (nickname: string) => string;
+  rename: string;
   remoteRemoval: string;
 }
 
@@ -72,6 +74,7 @@ export function AgentsTable({
   nodeName,
   onChat,
   onDelete,
+  onRename,
 }: {
   rows: AgentRow[];
   labels: AgentsTableLabels;
@@ -79,6 +82,7 @@ export function AgentsTable({
   nodeName: (id: string) => string;
   onChat: (agent: AgentRow) => void;
   onDelete: (agent: AgentRow) => void;
+  onRename: (agent: AgentRow) => void;
 }): React.JSX.Element {
   const [sort, setSort] = React.useState<AgentSort>({ column: 'name', direction: 'asc' });
   const applicationName = (application: AgentApplicationId) =>
@@ -272,6 +276,18 @@ export function AgentsTable({
                     <ChatBubbleOutlineOutlined fontSize="small" />
                   </IconButton>
                 </Tooltip>
+                {agent.local && agent.identity?.incarnation && (
+                  <Tooltip title={labels.rename}>
+                    <IconButton
+                      size="small"
+                      aria-label={labels.rename}
+                      onClick={() => onRename(agent)}
+                      data-testid="rename-local-agent"
+                    >
+                      <EditOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip title={agent.local ? labels.remove(agent.nickname) : labels.remoteRemoval}>
                   <Box component="span">
                     <IconButton

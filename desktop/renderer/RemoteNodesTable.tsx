@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useId, useRef, useState } from 'react';
 import {
+  Alert,
   Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Paper,
   Stack,
   Table,
@@ -14,18 +20,46 @@ import {
 import type { Snapshot } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
 import { lanSearchMessages } from './i18n/lan-search.js';
+import { remoteNodeRemovalMessages } from './i18n/remote-nodes.js';
+import type { McpSetupInvoke } from '../shared/mcp-setup.js';
 import { designTokens } from './theme.js';
 
 export function RemoteNodesTable({
   snapshot,
   locale,
   nodeName,
+  invoke,
 }: {
   snapshot: Snapshot;
   locale: Locale;
   nodeName: (id: string) => string;
+  invoke?: McpSetupInvoke;
 }): React.JSX.Element {
   const title = lanSearchMessages(locale).pairedTitle;
+  const m = remoteNodeRemovalMessages(locale);
+  const dialogId = useId();
+  const [selected, setSelected] = useState<{ id: string; name: string; token: string }>();
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
+  const submitting = useRef(false);
+  const close = () => {
+    if (!submitting.current) setSelected(undefined);
+  };
+  const confirm = async () => {
+    if (!selected || !invoke || submitting.current) return;
+    submitting.current = true;
+    setBusy(true);
+    setFailed(false);
+    try {
+      await invoke('removePeer', { nodeId: selected.id, token: selected.token });
+      setSelected(undefined);
+    } catch {
+      setFailed(true);
+    } finally {
+      submitting.current = false;
+      setBusy(false);
+    }
+  };
   return (
     <Stack spacing={2} sx={{ minWidth: 0 }}>
       <Typography variant="h6">{title}</Typography>
@@ -45,6 +79,7 @@ export function RemoteNodesTable({
               <TableCell align="right">{t(locale, 'networkColumnAgents')}</TableCell>
               <TableCell>{t(locale, 'networkColumnUpdated')}</TableCell>
               <TableCell>{t(locale, 'networkColumnStatus')}</TableCell>
+              {invoke && <TableCell aria-label={m.remove} />}
             </TableRow>
           </TableHead>
           <TableBody>
@@ -99,12 +134,53 @@ export function RemoteNodesTable({
                       </Typography>
                     )}
                   </TableCell>
+                  {invoke && (
+                    <TableCell align="right">
+                      {peer.removalToken && (
+                        <Button
+                          color="error"
+                          sx={{ minHeight: 44 }}
+                          aria-label={m.remove + ' — ' + nodeName(peer.id)}
+                          onClick={() => {
+                            setFailed(false);
+                            setSelected({
+                              id: peer.id,
+                              name: nodeName(peer.id),
+                              token: peer.removalToken!,
+                            });
+                          }}
+                        >
+                          {m.remove}
+                        </Button>
+                      )}
+                    </TableCell>
+                  )}
                 </TableRow>
               );
             })}
           </TableBody>
         </Table>
       </TableContainer>
+      <Dialog open={!!selected} aria-labelledby={dialogId} onClose={close} fullWidth maxWidth="xs">
+        <DialogTitle id={dialogId}>{m.title}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={1}>
+            <Typography sx={{ overflowWrap: 'anywhere' }}>{selected?.name}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {m.consequence}
+            </Typography>
+            {failed && <Alert severity="error">{m.failed}</Alert>}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus disabled={busy} onClick={close}>
+            {t(locale, 'btnCancel')}
+          </Button>
+          <Button color="error" variant="contained" disabled={busy} onClick={() => void confirm()}>
+            {m.remove}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

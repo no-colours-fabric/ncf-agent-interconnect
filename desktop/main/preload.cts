@@ -2,6 +2,8 @@ import { contextBridge, ipcRenderer } from 'electron';
 contextBridge.exposeInMainWorld('interconnect', {
   invoke: (method: string, params: unknown = {}) =>
     ipcRenderer.invoke('interconnect:call', method, params),
+  pairingApproval: (method: string) =>
+    ipcRenderer.invoke('interconnect:pair-approval-window', method),
   onChange: (callback: () => void) => {
     const listener = () => callback();
     ipcRenderer.on('interconnect:change', listener);

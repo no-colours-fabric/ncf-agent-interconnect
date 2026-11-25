@@ -268,7 +268,7 @@ test('format 4 migration is atomic and legacy dispatch uncertainty stays fenced'
   const store = new AgentStore(directory);
   assert.equal(
     (store.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    5,
+    6,
   );
   assert.equal(store.dispatchState(id)?.state, 'uncertain');
   assert.equal(store.deliveryFenced(id), true);

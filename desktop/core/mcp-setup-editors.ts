@@ -41,6 +41,34 @@ function json(text: string): Record<string, unknown> {
   checkKeys(parseTree(input, [], { allowTrailingComma: true })!);
   return value;
 }
+export function isOpenCodeV1Configuration(source: string): boolean {
+  try {
+    const root = json(source.startsWith('\uFEFF') ? source.slice(1) : source);
+    const mcp = own(root, 'mcp');
+    if (
+      ['plugins', 'permissions', 'providers'].some((key) => Object.hasOwn(root, key)) ||
+      (object(mcp) && Object.hasOwn(mcp, 'servers'))
+    )
+      return false;
+    const permission = own(root, 'permission');
+    return (
+      Array.isArray(own(root, 'plugin')) ||
+      object(own(root, 'provider')) ||
+      object(own(root, 'tools')) ||
+      object(permission) ||
+      isEffect(permission) ||
+      (object(mcp) &&
+        Object.values(mcp).some(
+          (server) =>
+            object(server) &&
+            (server.type === 'local' || server.type === 'remote' || server.enabled === false),
+        ))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function table(root: Record<string, unknown>, key: string): Record<string, unknown> {
   const value = own(root, key);
   if (value === undefined) return {};

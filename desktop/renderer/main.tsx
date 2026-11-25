@@ -1,3 +1,4 @@
+import { PairingApprovalPopup } from './PairingApprovalPopup.js';
 import { InstallationRestartNotice } from './InstallationRestartNotice.js';
 import { OverviewApplications } from './OverviewApplications.js';
 import { OverviewConnections } from './OverviewConnections.js';
@@ -354,7 +355,9 @@ function App({
                       agents:
                         result.scope === 'all'
                           ? []
-                          : current.agents.filter((agent) => !removed.has(agent.key)),
+                          : current.agents.filter(
+                              (agent) => !removed.has(nicknameKey(agent.nickname)),
+                            ),
                     }
                   : current,
               );
@@ -386,13 +389,18 @@ function App({
             code: access,
             onAddressChange: setAddress,
             onCodeChange: setAccess,
-            content: (
+            content: (cancelApproval) => (
               <Stack spacing={2}>
                 <TextField
                   label={t(locale, 'networkAddressLabel')}
                   placeholder={t(locale, 'networkAddressPlaceholder')}
                   value={address}
-                  onChange={(e) => setAddress(e.target.value)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    void cancelApproval().then((canceled) => {
+                      if (canceled) setAddress(value);
+                    });
+                  }}
                   fullWidth
                 />
                 <TextField
@@ -419,15 +427,18 @@ function App({
                       busy || !address.trim() || access.trim().length !== 8 || !snapshot.running
                     }
                     variant="contained"
-                    onClick={() =>
-                      run(
-                        async () => {
-                          await call('connectPeer', { address, code: access.trim() });
-                          setAccess('');
-                        },
-                        t(locale, 'networkConnectOk'),
-                      )
-                    }
+                    onClick={() => {
+                      void cancelApproval().then((canceled) => {
+                        if (!canceled) return;
+                        void run(
+                          async () => {
+                            await call('connectPeer', { address, code: access.trim() });
+                            setAccess('');
+                          },
+                          t(locale, 'networkConnectOk'),
+                        );
+                      });
+                    }}
                   >
                     {t(locale, 'btnConnect')}
                   </Button>
@@ -436,7 +447,7 @@ function App({
             ),
           }}
         >
-          <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} />
+          <RemoteNodesTable snapshot={snapshot} locale={locale} nodeName={nodeName} invoke={call} />
         </NetworkPage>
         {(page === 'mcp' || applicationsMounted) && (
           <Box hidden={page !== 'mcp'}>
@@ -842,7 +853,11 @@ function ThemedApp(): React.JSX.Element {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <App themeMode={themeMode} onThemeChange={changeTheme} />
+      {window.location.hash === '#pair-approval' ? (
+        <PairingApprovalPopup />
+      ) : (
+        <App themeMode={themeMode} onThemeChange={changeTheme} />
+      )}
     </ThemeProvider>
   );
 }

@@ -33,7 +33,7 @@ import {
 } from './settings.js';
 import { AgentStore, type ConnectInput, type ConnectResult } from './agent-store.js';
 import { FileStore } from './files.js';
-import { PeerNetwork, secretMatches, type Frame } from './peer.js';
+import { peerRemovalToken, PeerNetwork, secretMatches, type Frame } from './peer.js';
 import type { LocalLanNode } from './lan-discovery.js';
 import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.js';
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
@@ -106,7 +106,7 @@ interface McpHost {
 }
 
 interface CodexRecoveryTarget {
-  key: string;
+  nickname: string;
   threadId: string;
   socket: string;
   profile?: AdapterProfile;
@@ -710,6 +710,7 @@ export class NodeService extends EventEmitter {
           }
         : {}),
       peers: this.settings.value.peers.map((p) => ({
+        ...(options.lanDiscovery ? { removalToken: peerRemovalToken(p) } : {}),
         id: p.id,
         label: p.label,
         address: p.address,
@@ -762,9 +763,7 @@ export class NodeService extends EventEmitter {
         'The adapter chatId must match its exact session. Use a separate integration for another chat.',
       );
     if (input.resetHistory) {
-      const previous = this.store
-        .list()
-        .find((agent) => agent.key === nicknameKey(input.nickname))?.binding;
+      const previous = this.store.bindingForNickname(input.nickname);
       const prior = this.settings.value.adapters.find(
         (adapter) => adapter.id === previous?.adapterId,
       );
@@ -797,11 +796,11 @@ export class NodeService extends EventEmitter {
     if (result.status === 'connected') {
       for (const [threadId, challenge] of this.codexRecovery)
         if (
-          (challenge.target.key === nicknameKey(result.nickname) ||
+          (nicknameKey(challenge.target.nickname) === nicknameKey(result.nickname) ||
             (profile?.kind === 'codex-desktop' && threadId === result.binding.chatId)) &&
           !(
             challenge.state === 'used' &&
-            challenge.target.key === nicknameKey(result.nickname) &&
+            nicknameKey(challenge.target.nickname) === nicknameKey(result.nickname) &&
             result.binding.client === 'Codex' &&
             threadId === result.binding.chatId
           )
@@ -1104,19 +1103,25 @@ export class NodeService extends EventEmitter {
       } catch (error) {
         if (
           !(error instanceof CodexDesktopUnavailable) ||
-          !['darwin', 'win32', 'linux'].includes(process.platform) ||
-          input.transferId ||
-          input.confirmTransfer ||
-          input.resetHistory
+          !['darwin', 'win32', 'linux'].includes(process.platform)
         )
           throw error;
+        if (input.transferId || input.confirmTransfer || input.resetHistory) {
+          if (!input.connectionId || !input.transferId || !input.confirmTransfer) throw error;
+          return this.confirmCodexQueueTransfer(
+            input,
+            threadId,
+            input.connectionId,
+            input.transferId,
+          );
+        }
         if (!input.connectionId) return this.requestCodexRecovery(input.nickname, threadId);
         // An existing binding credential continues to authorize the same chat.
         const owner = this.store.assertOwner(input.connectionId);
         const saved = owner.binding;
         const profile = this.settings.value.adapters.find((a) => a.id === saved.adapterId);
         if (
-          owner.key !== nicknameKey(input.nickname) ||
+          owner.key !== this.store.keyForNickname(input.nickname) ||
           saved.client !== 'Codex' ||
           saved.chatId !== threadId ||
           profile?.kind !== 'codex-desktop' ||
@@ -1153,7 +1158,7 @@ export class NodeService extends EventEmitter {
         context = this.store.transferContext(input.connectionId, input.transferId, input.nickname);
       else {
         const owner = this.store.assertOwner(input.connectionId);
-        if (owner.key !== nicknameKey(input.nickname))
+        if (owner.key !== this.store.keyForNickname(input.nickname))
           throw new Error('The connection belongs to another agent');
         context = {
           client: owner.binding.client,
@@ -1170,9 +1175,7 @@ export class NodeService extends EventEmitter {
       adapterId: this.settings.value.adapters.find((a) => a.kind === 'manual')!.id,
     };
     if (contextToken && !input.connectionId) {
-      const existing = this.store
-        .list()
-        .find((a) => a.key === nicknameKey(input.nickname))?.binding;
+      const existing = this.store.bindingForNickname(input.nickname);
       if (
         existing &&
         existing.chatId === context.chatId &&
@@ -1238,9 +1241,7 @@ export class NodeService extends EventEmitter {
       identity.assertCurrent();
     }
     const { contextToken: _ignored, ...input } = args;
-    const previous = this.store
-      .list()
-      .find((agent) => agent.key === nicknameKey(input.nickname))?.binding;
+    const previous = this.store.bindingForNickname(input.nickname);
     if (
       !input.connectionId &&
       previous?.adapterId === profile.id &&
@@ -1259,7 +1260,7 @@ export class NodeService extends EventEmitter {
       if (!(adapter instanceof OpenCodeV2Adapter)) throw new Error('V2_ADAPTER_UNAVAILABLE');
       await adapter.bind(identity, {
         agentKey: agent.key,
-        incarnation: this.store.sourceStamp(agent.key).incarnation!,
+        incarnation: this.store.sourceStampByKey(agent.key).incarnation!,
         connectionId: agent.binding.connectionId,
         generation: agent.binding.generation,
         adapterId: agent.binding.adapterId,
@@ -1382,7 +1383,7 @@ export class NodeService extends EventEmitter {
       throw new Error('chatId and codexTarget.threadId must refer to the same chat');
     let adapterId = '';
     const assertNoOtherOwner = () => {
-      if (this.codexChatOwned(validated.threadId, nicknameKey(args.nickname)))
+      if (this.codexChatOwned(validated.threadId, this.store.keyForNickname(args.nickname)))
         throw new Error('The Codex chat already has an active binding');
     };
     const setup = this.adapterSetup.then(async () => {
@@ -1438,7 +1439,7 @@ export class NodeService extends EventEmitter {
     this.adapterSetup = setup.catch(() => {});
     await setup;
     assertNoOtherOwner();
-    const existing = this.store.list().find((a) => a.key === nicknameKey(args.nickname))?.binding;
+    const existing = this.store.bindingForNickname(args.nickname);
     const connectionId =
       args.connectionId ??
       (existing?.chatId === validated.threadId &&
@@ -1465,7 +1466,7 @@ export class NodeService extends EventEmitter {
           throw new Error('The Codex connection lifecycle changed');
         const owner = this.store.assertOwner(connectionId);
         if (
-          owner.key !== nicknameKey(nickname) ||
+          owner.key !== this.store.keyForNickname(nickname) ||
           owner.binding.adapterId !== saved.id ||
           owner.binding.chatId !== saved.threadId ||
           owner.binding.client !== 'Codex'
@@ -1530,6 +1531,52 @@ export class NodeService extends EventEmitter {
       description:
         'Full messages and attachment links are queued for this exact Codex chat. Receipt is recorded after Codex saves the message in the chat.',
     };
+  }
+
+  private async confirmCodexQueueTransfer(
+    input: AutomaticConnectInput,
+    threadId: string,
+    connectionId: string,
+    transferId: string,
+  ): Promise<ConnectedResult> {
+    const epoch = this.deliveryIncarnation;
+    const setup = this.adapterSetup.then(async () => {
+      const context = this.store.transferContext(connectionId, transferId, input.nickname);
+      if (context.client !== 'Codex' || context.chatId !== threadId)
+        throw new Error('The transfer belongs to another Codex chat');
+      const profile = this.settings.value.adapters.find(
+        (candidate) => candidate.id === context.adapterId,
+      );
+      const adapter = this.adapters.get(context.adapterId);
+      if (
+        profile?.kind !== 'codex-desktop' ||
+        !profile.codexQueue ||
+        profile.threadId !== threadId ||
+        !(adapter instanceof CodexQueueAdapter)
+      )
+        throw new Error('The Codex transfer destination no longer has a verified queue profile');
+      const socket = profile.socket;
+      await adapter.start();
+      const status = adapter.status();
+      if (status.state !== 'ready')
+        throw new Error(status.error ?? 'The exact Codex transfer destination is unavailable');
+      if (
+        !this.integrationsReady ||
+        this.deliveryIncarnation !== epoch ||
+        !this.settings.value.adapters.includes(profile) ||
+        profile.socket !== socket ||
+        this.adapters.get(context.adapterId) !== adapter ||
+        this.codexChatOwned(threadId)
+      )
+        throw new Error('The Codex transfer destination changed');
+      const result = this.connect({ ...input, ...context });
+      return { ...result, delivery: this.codexQueueDelivery() };
+    });
+    this.adapterSetup = setup.then(
+      () => {},
+      () => {},
+    );
+    return setup;
   }
 
   private async codexQueueCanRecover(profile: AdapterProfile): Promise<boolean> {
@@ -1604,15 +1651,26 @@ export class NodeService extends EventEmitter {
   ): AdapterProfile | undefined {
     if (!this.integrationsReady || this.deliveryIncarnation !== target.epoch)
       throw new Error('The Codex connection lifecycle changed');
-    const binding = this.store.list().find((agent) => agent.key === target.key)?.binding;
+    const key = this.store.keyForNickname(target.nickname);
+    const binding = this.store.bindingForNickname(target.nickname);
     const profiles = this.settings.value.adapters.filter(
       (profile) => profile.kind === 'codex-desktop' && profile.threadId === target.threadId,
     );
     const saved = target.binding;
-    if (!saved) {
-      const stamp = this.store.sourceStamp(target.key);
+    const sameChat = saved?.chatId === target.threadId;
+    if (
+      saved &&
+      (binding?.connectionId !== saved.connectionId ||
+        binding.generation !== saved.generation ||
+        binding.adapterId !== saved.adapterId ||
+        binding.chatId !== saved.chatId ||
+        binding.client !== 'Codex')
+    )
+      throw new Error('The saved Codex connection changed');
+    if (!sameChat) {
+      const stamp = this.store.sourceStampByKey(key);
       if (
-        binding ||
+        (!saved && binding) ||
         this.codexChatOwned(target.threadId) ||
         (expected && this.store.list().some(({ binding }) => binding?.adapterId === expected.id))
       )
@@ -1622,14 +1680,6 @@ export class NodeService extends EventEmitter {
         stamp.incarnation !== target.nameStamp.incarnation
       )
         throw new Error('The requested agent name changed during confirmation');
-    } else if (
-      binding?.connectionId !== saved.connectionId ||
-      binding.generation !== saved.generation ||
-      binding.adapterId !== saved.adapterId ||
-      binding.chatId !== target.threadId ||
-      binding.client !== 'Codex'
-    ) {
-      throw new Error('The saved Codex connection changed');
     }
     if (
       profiles.length !== (expected ? 1 : 0) ||
@@ -1646,38 +1696,41 @@ export class NodeService extends EventEmitter {
     nickname: string,
     threadId: string,
   ): Promise<AutomaticConnectResult> {
-    const key = nicknameKey(nickname);
+    const key = this.store.keyForNickname(nickname);
     const epoch = this.deliveryIncarnation;
-    const binding = this.store.list().find((agent) => agent.key === key)?.binding ?? undefined;
+    const binding = this.store.bindingForNickname(nickname);
     const candidates = this.settings.value.adapters.filter(
       (candidate) => candidate.kind === 'codex-desktop' && candidate.threadId === threadId,
     );
     if (candidates.length > 1) throw new Error('Multiple saved Codex profiles match this chat');
-    const profile = binding
+    if (binding && binding.client !== 'Codex')
+      throw new Error(
+        'The requested name belongs to another client. Connect from a verified Codex Desktop chat to request a transfer.',
+      );
+    const sameChat = binding?.chatId === threadId;
+    const profile = sameChat
       ? this.settings.value.adapters.find((candidate) => candidate.id === binding.adapterId)
       : candidates[0];
     if (
-      binding &&
-      (binding.client !== 'Codex' ||
-        binding.chatId !== threadId ||
-        profile?.kind !== 'codex-desktop' ||
+      sameChat &&
+      (profile?.kind !== 'codex-desktop' ||
         profile.threadId !== threadId ||
         !(await this.codexQueueCanRecover(profile)))
     )
       throw new Error(
-        'The requested name is already bound. Use its original Codex chat or restore the Desktop integration.',
+        'The saved Codex chat could not be verified through its Desktop route or input queue. The existing binding is unchanged.',
       );
     const savedTarget = {
-      key,
+      nickname,
       threadId,
       profile: profile && structuredClone(profile),
       binding,
-      nameStamp: this.store.sourceStamp(key),
+      nameStamp: this.store.sourceStampByKey(key),
       epoch,
     };
     this.assertCodexRecoveryTarget(savedTarget);
     if (
-      !binding &&
+      !sameChat &&
       process.platform === 'win32' &&
       profile &&
       !(await this.codexQueueCanRecover(profile))
@@ -1685,7 +1738,7 @@ export class NodeService extends EventEmitter {
       throw new Error('The saved Codex profile cannot use native recovery');
     const windowsDesktop = process.platform === 'win32' && profile && !profile.codexQueue;
     const socket =
-      !profile || (binding && windowsDesktop)
+      !profile || (sameChat && windowsDesktop)
         ? await this.configuredCodexQueueSocket()
         : await this.savedCodexQueueSocket(profile);
     const target: CodexRecoveryTarget = { ...savedTarget, socket };
@@ -1702,7 +1755,7 @@ export class NodeService extends EventEmitter {
       }
       this.assertCodexRecoveryTarget(current.target);
       if (
-        current.target.key !== key ||
+        nicknameKey(current.target.nickname) !== nicknameKey(nickname) ||
         current.target.socket !== socket ||
         current.target.binding?.connectionId !== binding?.connectionId ||
         current.state === 'used'
@@ -1730,7 +1783,7 @@ export class NodeService extends EventEmitter {
     this.codexRecovery.set(threadId, challenge);
     const adapter = this.codexRecoveryAdapter(target);
     try {
-      if (!binding && profile && !profile.codexQueue) {
+      if (!sameChat && profile && !profile.codexQueue) {
         await adapter.start();
         const status = adapter.status();
         if (status.state !== 'ready')
@@ -1751,7 +1804,9 @@ export class NodeService extends EventEmitter {
         return this.codexRecoveryStatus('codex_recovery_expired');
       }
       if (outcome.state === 'failed')
-        throw new Error('The Codex confirmation could not be submitted to this chat.');
+        throw new Error(
+          'The exact Codex chat, input queue or transcript could not be verified for confirmation.',
+        );
       if (outcome.state === 'blocked') {
         challenge.state = 'retired';
         return this.codexRecoveryStatus('codex_recovery_unavailable');
@@ -1868,7 +1923,7 @@ export class NodeService extends EventEmitter {
       !challenge ||
       challenge.state !== 'pending' ||
       challenge.expires <= Date.now() ||
-      challenge.target.key !== nicknameKey(nickname) ||
+      nicknameKey(challenge.target.nickname) !== nicknameKey(nickname) ||
       !secretMatches(contentHash(token), challenge.digest)
     )
       throw new Error('The Codex confirmation is invalid or expired');
@@ -1894,7 +1949,7 @@ export class NodeService extends EventEmitter {
     // Consume synchronously before any adapter or profile changes.
     challenge.expires = Math.min(challenge.expires, Date.now() + codexRecoveryLifetime);
     challenge.state = 'used';
-    if (target.binding && profile)
+    if (target.binding?.chatId === threadId && profile)
       return this.reconnectCodexQueue(
         nickname,
         target.binding.connectionId,
@@ -2003,7 +2058,7 @@ export class NodeService extends EventEmitter {
     if (!handoff) throw new Error('The MCP response handoff is unavailable');
     handoff.assertCurrent();
     const owner = this.store.assertOwner(connectionId);
-    const incarnation = this.store.sourceStamp(owner.key).incarnation;
+    const incarnation = this.store.sourceStampByKey(owner.key).incarnation;
     if (this.pendingReads.has(connectionId))
       throw new Error('A read is already waiting on this connection');
     let wake!: () => void;
@@ -2032,7 +2087,7 @@ export class NodeService extends EventEmitter {
         active.binding.generation !== owner.binding.generation ||
         active.binding.adapterId !== owner.binding.adapterId ||
         active.binding.chatId !== owner.binding.chatId ||
-        this.store.sourceStamp(owner.key).incarnation !== incarnation
+        this.store.sourceStampByKey(owner.key).incarnation !== incarnation
       )
         throw new Error('The mailbox changed during the wait');
       waiter.taking = true;
@@ -2079,7 +2134,7 @@ export class NodeService extends EventEmitter {
         return this.store.assertOwner(connectionId);
       };
       const owner = current(),
-        incarnation = this.store.sourceStamp(owner.key).incarnation,
+        incarnation = this.store.sourceStampByKey(owner.key).incarnation,
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
       const page = this.store.history(owner.key, after, limit, unread);
@@ -2137,7 +2192,7 @@ export class NodeService extends EventEmitter {
             active.binding.generation !== owner.binding.generation ||
             active.binding.adapterId !== owner.binding.adapterId ||
             active.binding.chatId !== owner.binding.chatId ||
-            this.store.sourceStamp(owner.key).incarnation !== incarnation
+            this.store.sourceStampByKey(owner.key).incarnation !== incarnation
           )
             throw new Error('The history owner changed');
           for (const row of prepared) {
@@ -2497,13 +2552,14 @@ export class NodeService extends EventEmitter {
       replyTo = args.replyTo ? z.uuid().parse(args.replyTo) : null;
     if (!local && !this.settings.value.peers.some((p) => p.id === recipientNode))
       throw new Error('The remote node has not been configured by the user');
+    const sourceKey = replyTo ? this.store.keyForNickname(nickname) : this.store.ensure(nickname);
     const checkReply = () => {
       if (replyTo) {
         const original = this.store.get(replyTo, 'in')?.envelope;
         if (
           !original ||
           original.toNode !== this.settings.value.nodeId ||
-          nicknameKey(original.toNickname) !== nicknameKey(nickname) ||
+          this.store.messageOwnerKey(replyTo, 'in') !== sourceKey ||
           original.fromNode !== recipientNode ||
           nicknameKey(original.fromNickname) !== nicknameKey(args.recipientNickname)
         )
@@ -2513,12 +2569,14 @@ export class NodeService extends EventEmitter {
       }
     };
     checkReply();
-    this.store.ensure(nickname);
-    const sourceStamp = this.store.sourceStamp(nickname);
+    if (sourceKey === undefined) throw new Error('The source agent does not exist');
+    const sourceStamp = this.store.sourceStampByKey(sourceKey);
+    const recipientKey = local ? this.store.keyForNickname(args.recipientNickname) : undefined;
+    const recipientIncarnation = this.store.sourceStampByKey(recipientKey).incarnation;
     const checkSource = () => {
       stillOwner();
       if (sourceStamp.connectionId) this.store.assertOwner(sourceStamp.connectionId);
-      const current = this.store.sourceStamp(nickname);
+      const current = this.store.sourceStampByKey(sourceKey);
       if (
         current.incarnation !== sourceStamp.incarnation ||
         current.generation !== sourceStamp.generation ||
@@ -2544,12 +2602,21 @@ export class NodeService extends EventEmitter {
         checkSource();
         checkReply();
         const existing = this.store.get(id, 'out');
+        if (existing && this.store.messageOwnerKey(id, 'out') !== sourceKey)
+          throw new Error('Duplicate ID with different content');
+        if (
+          !existing &&
+          !replyTo &&
+          recipientKey !== undefined &&
+          this.store.sourceStampByKey(recipientKey).incarnation !== recipientIncarnation
+        )
+          throw new Error('The selected recipient agent changed');
         const envelope = envelopeSchema.parse({
           protocol: 2,
           id,
           fromNode: this.settings.value.nodeId,
           toNode: recipientNode,
-          fromNickname: nickname,
+          fromNickname: existing?.envelope.fromNickname ?? this.store.nicknameForKey(sourceKey),
           toNickname: args.recipientNickname,
           createdAt: existing?.envelope.createdAt ?? new Date().toISOString(),
           text: args.text,
@@ -2558,7 +2625,7 @@ export class NodeService extends EventEmitter {
         });
         if (local) {
           const previous = this.store.get(id, 'in');
-          this.store.insertLocal(envelope, this.running);
+          this.store.insertLocal(envelope, this.running, recipientKey);
           if (
             this.running &&
             this.store.get(id, 'in')?.state === 'ready' &&
@@ -2589,21 +2656,12 @@ export class NodeService extends EventEmitter {
   }
   async receiveFile(connectionId: string, messageId: string, fileId: string): Promise<unknown> {
     return this.fileOperation(async () => {
-      const owner = this.store.assertOwner(connectionId),
-        row = [this.store.get(messageId, 'in'), this.store.get(messageId, 'out')].find(
-          (candidate) =>
-            candidate &&
-            (candidate.direction === 'in'
-              ? nicknameKey(candidate.envelope.toNickname)
-              : nicknameKey(candidate.envelope.fromNickname)) === owner.key,
-        );
-      if (
-        !row ||
-        (row.direction === 'in'
-          ? nicknameKey(row.envelope.toNickname)
-          : nicknameKey(row.envelope.fromNickname)) !== owner.key ||
-        row.state === 'received'
-      )
+      const owner = this.store.assertOwner(connectionId);
+      const direction = (['in', 'out'] as const).find(
+        (candidate) => this.store.messageOwnerKey(messageId, candidate) === owner.key,
+      );
+      const row = direction && this.store.get(messageId, direction);
+      if (!row || row.state === 'received')
         throw new Error('The attachment does not belong to this agent or is not ready');
       if (
         row.direction === 'in' &&
@@ -2619,7 +2677,8 @@ export class NodeService extends EventEmitter {
         (this.store.claudeFenced(messageId) || this.store.deliveryFenced(messageId))
       )
         throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
-      if (!this.store.get(messageId, row.direction)) throw new Error('The message was cleared');
+      if (this.store.get(messageId, row.direction)?.sequence !== row.sequence)
+        throw new Error('The message was cleared');
       return { ...file, localPath };
     });
   }
@@ -2756,12 +2815,12 @@ export class NodeService extends EventEmitter {
     return this.receiving;
   }
   private messageReady(envelope: Envelope): void {
-    const key = nicknameKey(envelope.toNickname);
+    const key = this.store.messageOwnerKey(envelope.id, 'in');
     const incoming = this.store.get(envelope.id, 'in');
     if (
       incoming?.state === 'ready' &&
       incoming.envelope.toNode === this.settings.value.nodeId &&
-      nicknameKey(incoming.envelope.toNickname) === key
+      key !== undefined
     ) {
       this.claudeDispatchSnapshots.delete(key);
       const binding = this.store.list().find((identity) => identity.key === key)?.binding;
@@ -2778,7 +2837,7 @@ export class NodeService extends EventEmitter {
     this.mcp.notify({
       source: 'application',
       type: 'message_ready',
-      nickname: envelope.toNickname,
+      nickname: key === undefined ? envelope.toNickname : this.store.nicknameForKey(key),
       messageId: envelope.id,
     });
     this.emit('change');
@@ -3440,9 +3499,10 @@ export class NodeService extends EventEmitter {
         })
         .strict()
         .parse(raw);
-      if (incarnation && this.store.sourceStamp(nickname).incarnation !== incarnation)
+      const key = this.store.keyForNickname(nickname);
+      if (incarnation && this.store.sourceStampByKey(key).incarnation !== incarnation)
         throw new Error('The selected agent changed');
-      return this.store.chatHistory(nicknameKey(nickname), before, limit);
+      return this.store.chatHistory(key ?? '', before, limit);
     }
     if (method === 'history') {
       const { nickname, after, limit, incarnation } = z
@@ -3453,9 +3513,10 @@ export class NodeService extends EventEmitter {
           limit: z.number().int().min(1).max(200).default(100),
         })
         .parse(raw);
-      if (incarnation && this.store.sourceStamp(nickname).incarnation !== incarnation)
+      const key = this.store.keyForNickname(nickname);
+      if (incarnation && this.store.sourceStampByKey(key).incarnation !== incarnation)
         throw new Error('The selected agent changed');
-      return this.store.history(nicknameKey(nickname), after, limit);
+      return this.store.history(key ?? '', after, limit);
     }
     if (method === 'instructions') {
       const { client } = z.object({ client: z.enum(['cursor', 'opencode', 'codex']) }).parse(raw);
@@ -3470,6 +3531,31 @@ export class NodeService extends EventEmitter {
       if (!this.running) throw new Error('Start the node first');
       return this.network.accessCode();
     }
+    if (method === 'requestPeerApproval') {
+      const { id, address, expectedNodeId } = z
+        .object({
+          id: z.uuid(),
+          address: z.string().min(1).max(1000),
+          expectedNodeId: z.uuid().optional(),
+        })
+        .strict()
+        .parse(raw);
+      if (!this.running) throw new Error('Start the node first');
+      return this.network.requestApproval(id, address, expectedNodeId);
+    }
+    if (method === 'peerApprovalProgress' || method === 'cancelPeerApproval') {
+      const { id } = z.object({ id: z.uuid() }).strict().parse(raw);
+      if (method === 'cancelPeerApproval') return { canceled: this.network.cancelApproval(id) };
+      return this.network.approvalProgress(id);
+    }
+    if (method === 'removePeer') {
+      const { nodeId, token } = z
+        .object({ nodeId: z.uuid(), token: z.string().regex(/^[a-f0-9]{64}$/) })
+        .strict()
+        .parse(raw);
+      await this.transition(() => this.network.removePeer(nodeId, token));
+      return { removed: true };
+    }
     if (method === 'connectPeer') {
       const args = z
         .object({
@@ -3481,6 +3567,23 @@ export class NodeService extends EventEmitter {
         .parse(raw);
       const peer = await this.network.join(args.address, args.code, args.expectedNodeId);
       return { id: peer.id, label: peer.label };
+    }
+    if (method === 'renameAgent') {
+      const input = z
+        .object({
+          key: z.string().min(1).max(512),
+          incarnation: z.uuid(),
+          currentNickname: nicknameSchema,
+          nickname: nicknameSchema,
+        })
+        .strict()
+        .parse(raw);
+      const status = this.store.rename(input);
+      if (status === 'renamed') {
+        this.refreshPresence();
+        this.emit('change');
+      }
+      return { status };
     }
     if (method === 'registerAgent') {
       const { nickname } = z.object({ nickname: nicknameSchema }).parse(raw);

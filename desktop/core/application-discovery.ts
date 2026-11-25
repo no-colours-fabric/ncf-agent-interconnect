@@ -62,6 +62,16 @@ export function desktopExecutable(text: string): string | undefined {
   return executable;
 }
 
+function openCodeMajor(
+  client: McpSetupClient,
+  version: unknown,
+): Pick<InstallationInstance, 'openCodeMajor'> {
+  if (client !== 'opencode' || typeof version !== 'string' || version.length > 128) return {};
+  const major = /^([12])\.\d+\.\d+(?:\.\d+)?(?:-[\da-z.-]+)?(?:\+[\da-z.-]+)?$/i.exec(version)?.[1];
+  if (major !== '1' && major !== '2') return {};
+  return { openCodeMajor: major === '1' ? 1 : 2 };
+}
+
 export class ApplicationDiscovery {
   private readonly platform;
   private readonly paths;
@@ -324,7 +334,12 @@ export class ApplicationDiscovery {
       !(await this.files.executable(runtime))
     )
       throw new DiscoveryError('missing-runtime');
-    return { path: root, form: 'desktop', evidence: 'bundle' };
+    return {
+      path: root,
+      form: 'desktop',
+      evidence: 'bundle',
+      ...openCodeMajor(client, metadata.CFBundleShortVersionString),
+    };
   }
 
   private async desktop(
@@ -367,16 +382,31 @@ export class ApplicationDiscovery {
           claude: [/^Claude$/, /Anthropic/i],
         }[client];
         if (identity && expected[0].test(identity.product) && expected[1].test(identity.publisher))
-          return { path: installation, form: 'desktop', evidence: 'product-metadata' };
+          return {
+            path: installation,
+            form: 'desktop',
+            evidence: 'product-metadata',
+            ...openCodeMajor(client, identity.version),
+          };
       }
       if (this.platform === 'linux' && client === 'opencode') {
         const identity = await this.files.packageIdentity('opencode', runtime);
         if (identity && /OpenCode|Anomaly|SST/i.test(identity.publisher))
-          return { path: installation, form: 'desktop', evidence: 'package-metadata' };
+          return {
+            path: installation,
+            form: 'desktop',
+            evidence: 'package-metadata',
+            ...openCodeMajor(client, identity.version),
+          };
       }
       throw new DiscoveryError('unverified-identity');
     }
-    return { path: installation, form: 'desktop', evidence: 'product-metadata' };
+    return {
+      path: installation,
+      form: 'desktop',
+      evidence: 'product-metadata',
+      ...openCodeMajor(client, metadata.version),
+    };
   }
 
   private async located(
@@ -427,20 +457,29 @@ export class ApplicationDiscovery {
       client === 'claude'
         ? this.paths.join(this.home, '.local/share/claude/versions')
         : this.paths.join(this.home, '.opencode/bin');
-    const homebrewLayout =
-      this.platform === 'darwin' &&
-      (client === 'claude'
-        ? /^\/(opt\/homebrew|usr\/local)\/Caskroom\/claude-code\/[^/]+\/claude$/.test(canonical)
-        : /^\/(opt\/homebrew|usr\/local)\/Cellar\/opencode(?:-v2)?\/[^/]+\/bin\/opencode$/.test(
+    const homebrewOpenCodeVersion =
+      this.platform === 'darwin' && client === 'opencode'
+        ? /^\/(?:opt\/homebrew|usr\/local)\/Cellar\/opencode(?:-v2)?\/([^/]+)\/bin\/opencode$/.exec(
             canonical,
-          ));
+          )?.[1]
+        : undefined;
+    const homebrewLayout =
+      !!homebrewOpenCodeVersion ||
+      (this.platform === 'darwin' &&
+        client === 'claude' &&
+        /^\/(opt\/homebrew|usr\/local)\/Caskroom\/claude-code\/[^/]+\/claude$/.test(canonical));
     if (
       (nativeLayout || canonical.startsWith(nativeRoot + this.paths.sep) || homebrewLayout) &&
       (await this.files.executable(canonical))
     ) {
       // A documented native installation layout corroborates the command name.
       if (canonical.startsWith(nativeRoot + this.paths.sep) || homebrewLayout)
-        return { path: canonical, form: 'cli', evidence: 'native-install-layout' };
+        return {
+          path: canonical,
+          form: 'cli',
+          evidence: 'native-install-layout',
+          ...openCodeMajor(client, homebrewOpenCodeVersion?.replace(/_\d+$/, '')),
+        };
       if (client === 'claude' && this.platform === 'win32') {
         if (await this.files.linkedClaudeRuntime?.(canonical, nativeRoot))
           return { path: canonical, form: 'cli', evidence: 'native-install-layout' };
@@ -463,7 +502,12 @@ export class ApplicationDiscovery {
           metadata.bin &&
           (await this.files.bytes(canonical, 2)).toString() === '#!'
         )
-          return { path: root, form: 'cli', evidence: 'package-metadata' };
+          return {
+            path: root,
+            form: 'cli',
+            evidence: 'package-metadata',
+            ...openCodeMajor(client, metadata.version),
+          };
       }
     }
     if (nativeLayout) throw new DiscoveryError('unverified-identity');
@@ -494,6 +538,11 @@ export class ApplicationDiscovery {
     const header = await this.files.bytes(target, 2);
     if (header.toString() !== '#!' && !(await this.files.executable(target)))
       throw new DiscoveryError('missing-runtime');
-    return { path: root, form: 'cli', evidence: 'package-metadata' };
+    return {
+      path: root,
+      form: 'cli',
+      evidence: 'package-metadata',
+      ...openCodeMajor(client, metadata.version),
+    };
   }
 }

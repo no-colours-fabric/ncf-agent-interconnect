@@ -511,6 +511,92 @@ test('copy context: list and manual AionUi headings qualify the Cursor Agent tar
   }
 });
 
+for (const scenario of [
+  { name: 'v1 configuration only', configured: true, major: null, shown: true },
+  { name: 'v1 configuration with only v2 installed', configured: true, major: 2, shown: true },
+  { name: 'v1 installation only', configured: false, major: 1, shown: true },
+  { name: 'v1 configuration and installation', configured: true, major: 1, shown: true },
+  { name: 'v2 installation only', configured: false, major: 2, shown: false },
+  { name: 'unversioned discovery only', configured: false, major: undefined, shown: false },
+  { name: 'neither configuration nor detection', configured: false, major: null, shown: false },
+] as const) {
+  test('OpenCode v1 default in Applications and compact setup: ' + scenario.name, () => {
+    let setupCalls = 0;
+    const invoke: McpSetupInvoke = () => {
+      setupCalls++;
+      throw new Error('Rendering the default must be read-only');
+    };
+    const props = {
+      discovery: {
+        ...discovery,
+        snapshot: {
+          ...discovery.snapshot!,
+          applications: [
+            {
+              client: 'opencode' as const,
+              status:
+                scenario.major === null
+                  ? ('not-found-in-known-locations' as const)
+                  : ('detected' as const),
+              instances:
+                scenario.major === null
+                  ? []
+                  : [
+                      {
+                        path: '/isolated/OpenCode',
+                        form: 'cli' as const,
+                        evidence: 'package-metadata' as const,
+                        openCodeMajor: scenario.major,
+                      },
+                    ],
+              coverage: [],
+            },
+          ],
+        },
+      },
+      statuses: {
+        ...statuses,
+        statuses: {
+          opencode: {
+            client: 'opencode' as const,
+            remembered: false,
+            openCodeV1Configuration: scenario.configured,
+            state: scenario.configured ? ('not-configured' as const) : ('missing' as const),
+            files: [],
+          },
+        },
+      },
+      invoke,
+      flow: new ApplicationSetupFlow(invoke),
+      locale: 'en' as const,
+      onManualSetup: () => {},
+    };
+    for (const [view, row] of [
+      [
+        React.createElement(McpSetup, {
+          client: 'opencode',
+          manualClient: null,
+          discovery: props.discovery,
+          invoke,
+          onClientChange: () => {},
+          setupStatuses: props.statuses,
+          setupFlow: props.flow,
+        }),
+        'application-row-opencode',
+      ],
+      [React.createElement(ApplicationTiles, props), 'overview-application-opencode'],
+    ] as const) {
+      const html = renderToStaticMarkup(view);
+      const toggle = html.match(/<input\b[^>]*aria-label="Show OpenCode v1"[^>]*>/)?.[0];
+      assert.ok(toggle, row);
+      assert.equal(toggle.includes('checked=""'), scenario.shown, row);
+      assert.equal(html.includes('data-testid="' + row + '"'), scenario.shown, row);
+      assert.ok(html.includes('data-testid="' + row + '-v2"'), row);
+    }
+    assert.equal(setupCalls, 0);
+  });
+}
+
 test('Overview shares the startup tiles without startup chrome, technical discovery controls or offer acknowledgements', () => {
   const props = {
     discovery,

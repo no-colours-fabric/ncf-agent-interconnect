@@ -51,7 +51,9 @@ export function configuredAgentApplications(
       snapshot.running &&
       localDirectory?.state === 'ready' &&
       localDirectory.agents.some(
-        (entry) => nicknameKey(entry.nickname) === agent.key && entry.availability === 'online',
+        (entry) =>
+          nicknameKey(entry.nickname) === nicknameKey(agent.nickname) &&
+          entry.availability === 'online',
       );
     const previous = evidence.get(application);
     evidence.set(application, {

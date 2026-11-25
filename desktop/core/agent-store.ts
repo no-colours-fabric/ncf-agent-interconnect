@@ -78,7 +78,7 @@ export class AgentStore {
     const version = Number(
       (this.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
     );
-    if (![0, 1, 2, 3, 4, 5].includes(version)) {
+    if (![0, 1, 2, 3, 4, 5, 6].includes(version)) {
       this.db.close();
       throw new Error('Unsupported agent storage format');
     }
@@ -134,6 +134,13 @@ export class AgentStore {
             'ALTER TABLE dispatches ADD COLUMN attempt_id TEXT; ALTER TABLE dispatches ADD COLUMN attempt_meta TEXT;',
           );
         }
+        if (version < 6) {
+          this.db.exec("ALTER TABLE agents ADD COLUMN name_key TEXT NOT NULL DEFAULT ''");
+          const setName = this.db.prepare('UPDATE agents SET name_key=? WHERE key=?');
+          for (const row of this.db.prepare('SELECT key,nickname FROM agents').all() as Row[])
+            setName.run(nicknameKey(String(row.nickname)), row.key);
+          this.db.exec('CREATE UNIQUE INDEX agent_name_key ON agents(name_key);');
+        }
         this.db.exec('CREATE INDEX IF NOT EXISTS dispatch_attempt ON dispatches(attempt_id);');
         this.db.exec(
           "UPDATE dispatches SET state='uncertain',error='The app stopped before confirming message receipt' WHERE state='dispatching' AND attempt_id IS NULL;",
@@ -142,7 +149,7 @@ export class AgentStore {
           "UPDATE dispatches SET state='uncertain' WHERE attempt_id IS NULL AND state NOT IN ('admitted','offered','waiting','failed','revoked','uncertain');",
         );
         this.recoverDeliveries();
-        this.db.exec('PRAGMA user_version=5;');
+        this.db.exec('PRAGMA user_version=6;');
       });
     } catch (error) {
       this.db.close();
@@ -161,26 +168,73 @@ export class AgentStore {
       throw e;
     }
   }
+  keyForNickname(nickname: string): string | undefined {
+    const row = this.db
+      .prepare('SELECT key FROM agents WHERE name_key=?')
+      .get(nicknameKey(nickname));
+    return row ? String(row.key) : undefined;
+  }
+  bindingForNickname(nickname: string): Binding | undefined {
+    const row = this.db
+      .prepare('SELECT binding FROM agents WHERE name_key=?')
+      .get(nicknameKey(nickname));
+    return row?.binding ? (JSON.parse(String(row.binding)) as Binding) : undefined;
+  }
   ensure(nickname: string): string {
-    const key = nicknameKey(nickname);
+    const existing = this.keyForNickname(nickname);
+    if (existing !== undefined) return existing;
+    const nameKey = nicknameKey(nickname);
+    const key = this.db.prepare('SELECT 1 FROM agents WHERE key=?').get(nameKey)
+      ? randomUUID()
+      : nameKey;
     this.db
-      .prepare('INSERT OR IGNORE INTO agents(key,nickname,incarnation) VALUES(?,?,?)')
-      .run(key, nickname, randomUUID());
+      .prepare('INSERT INTO agents(key,nickname,incarnation,name_key) VALUES(?,?,?,?)')
+      .run(key, nickname, randomUUID(), nameKey);
     return key;
   }
-  sourceStamp(nickname: string): {
+  rename(input: {
+    key: string;
+    incarnation: string;
+    currentNickname: string;
+    nickname: string;
+  }): 'renamed' | 'unchanged' | 'nickname_in_use' | 'stale' {
+    const nameKey = nicknameKey(input.nickname);
+    return this.transaction(() => {
+      const current = this.db
+        .prepare('SELECT nickname,incarnation FROM agents WHERE key=?')
+        .get(input.key);
+      if (current?.incarnation !== input.incarnation || current.nickname !== input.currentNickname)
+        return 'stale';
+      const occupied = this.keyForNickname(input.nickname);
+      if (occupied !== undefined && occupied !== input.key) return 'nickname_in_use';
+      if (current.nickname === input.nickname) return 'unchanged';
+      this.db
+        .prepare('UPDATE agents SET nickname=?,name_key=? WHERE key=?')
+        .run(input.nickname, nameKey, input.key);
+      this.db.prepare('DELETE FROM transfers WHERE key=?').run(input.key);
+      return 'renamed';
+    });
+  }
+  sourceStamp(nickname: string) {
+    return this.sourceStampByKey(this.keyForNickname(nickname));
+  }
+  sourceStampByKey(key: string | undefined): {
     generation: number;
     connectionId: string | null;
     incarnation: string | null;
   } {
-    const row = this.db
-      .prepare('SELECT generation,binding,incarnation FROM agents WHERE key=?')
-      .get(nicknameKey(nickname)) as Row | undefined;
+    const row =
+      key === undefined
+        ? undefined
+        : this.db.prepare('SELECT generation,binding,incarnation FROM agents WHERE key=?').get(key);
     return {
       generation: Number(row?.generation ?? 0),
       incarnation: row ? String(row.incarnation) : null,
       connectionId: row?.binding ? (JSON.parse(String(row.binding)) as Binding).connectionId : null,
     };
+  }
+  nicknameForKey(key: string): string {
+    return String(this.identity(key).nickname);
   }
   private identity(key: string): Row {
     const row = this.db.prepare('SELECT * FROM agents WHERE key=?').get(key) as Row | undefined;
@@ -193,7 +247,7 @@ export class AgentStore {
       .get(input.transferId ?? '') as Row | undefined;
     if (
       !request ||
-      request.key !== nicknameKey(input.nickname) ||
+      request.key !== this.keyForNickname(input.nickname) ||
       request.requester !== input.connectionId ||
       request.consumed ||
       Number(request.expires) < Date.now()
@@ -201,7 +255,7 @@ export class AgentStore {
       throw new Error('A current transferId and user approval for this transfer are required');
     const row = this.db
       .prepare('SELECT generation,binding FROM agents WHERE key=?')
-      .get(nicknameKey(input.nickname)) as Row | undefined;
+      .get(request.key) as Row | undefined;
     if (
       !row?.binding ||
       request.generation !== row.generation ||
@@ -220,14 +274,14 @@ export class AgentStore {
     return request;
   }
   connect(input: ConnectInput): ConnectResult {
-    const key = nicknameKey(input.nickname);
     return this.transaction(() => {
       const request = input.confirmTransfer === true ? this.confirmedTransfer(input) : null;
       if (input.connectionId && !request) {
         const owner = this.assertOwner(input.connectionId);
-        if (owner.key !== key) throw new Error('The connection belongs to another agent');
+        if (owner.key !== this.keyForNickname(input.nickname))
+          throw new Error('The connection belongs to another agent');
       }
-      this.ensure(input.nickname);
+      const key = this.ensure(input.nickname);
       const row = this.identity(key);
       const owner = row.binding ? (JSON.parse(String(row.binding)) as Binding) : null;
       if (
@@ -353,7 +407,7 @@ export class AgentStore {
       if (input.scope === 'all' && input.nickname !== undefined)
         throw new Error('All scope does not accept a nickname');
       const key =
-        input.scope === 'agent' ? (owner?.key ?? nicknameKey(input.nickname ?? '')) : null;
+        input.scope === 'agent' ? (owner?.key ?? this.keyForNickname(input.nickname ?? '')) : null;
       const requesterKey = JSON.stringify([
         requester.channel,
         requester.session,
@@ -363,7 +417,9 @@ export class AgentStore {
       const rows = (
         key === null
           ? this.db.prepare('SELECT * FROM agents ORDER BY key').all()
-          : this.db.prepare('SELECT * FROM agents WHERE key=?').all(key)
+          : key === undefined
+            ? []
+            : this.db.prepare('SELECT * FROM agents WHERE key=?').all(key)
       ) as Row[];
       if (key !== null && !rows.length)
         throw new Error(
@@ -410,7 +466,7 @@ export class AgentStore {
         this.clearRequests.set(operationId, {
           requester: requesterKey,
           scope: input.scope,
-          key,
+          key: key ?? null,
           snapshot,
           preview,
           expires,
@@ -545,7 +601,7 @@ export class AgentStore {
     if (
       !row ||
       row.requester !== connectionId ||
-      row.key !== nicknameKey(nickname) ||
+      row.key !== this.keyForNickname(nickname) ||
       row.consumed ||
       Number(row.expires) < Date.now()
     )
@@ -606,17 +662,17 @@ export class AgentStore {
   insert(envelope: Envelope, direction: 'in' | 'out'): boolean {
     return this.transaction(() => this.insertRow(envelope, direction));
   }
-  insertLocal(envelope: Envelope, ready: boolean): boolean {
+  insertLocal(envelope: Envelope, ready: boolean, recipientKey?: string): boolean {
     if (envelope.fromNode !== envelope.toNode)
       throw new Error('A local route must stay on the same node');
     return this.transaction(() => {
       const inserted = this.insertRow(envelope, 'out');
-      this.insertRow(envelope, 'in');
+      this.insertRow(envelope, 'in', recipientKey);
       if (ready) this.markReady(envelope.id);
       return inserted;
     });
   }
-  private insertRow(envelope: Envelope, direction: 'in' | 'out'): boolean {
+  private insertRow(envelope: Envelope, direction: 'in' | 'out', recipientKey?: string): boolean {
     const otherCleared = this.db
       .prepare('SELECT digest FROM cleared_messages WHERE id=? AND direction=?')
       .get(envelope.id, direction === 'in' ? 'out' : 'in') as Row | undefined;
@@ -646,7 +702,9 @@ export class AgentStore {
         throw new Error('Duplicate ID with different content');
       return false;
     }
-    const key = this.ensure(direction === 'in' ? envelope.toNickname : envelope.fromNickname);
+    const key =
+      (direction === 'in' ? (this.replyOwnerKey(envelope) ?? recipientKey) : undefined) ??
+      this.ensure(direction === 'in' ? envelope.toNickname : envelope.fromNickname);
     this.db
       .prepare('INSERT INTO messages(id,local_key,direction,envelope,state) VALUES(?,?,?,?,?)')
       .run(envelope.id, key, direction, encoded, direction === 'in' ? 'received' : 'queued');
@@ -655,6 +713,24 @@ export class AgentStore {
         .prepare('INSERT INTO timeline(message_id,direction) VALUES(?,?)')
         .run(envelope.id, direction);
     return true;
+  }
+  private replyOwnerKey(envelope: Envelope): string | undefined {
+    if (!envelope.replyTo) return undefined;
+    const original = this.get(envelope.replyTo, 'out')?.envelope;
+    if (
+      !original ||
+      original.toNode !== envelope.fromNode ||
+      original.fromNode !== envelope.toNode ||
+      nicknameKey(original.fromNickname) !== nicknameKey(envelope.toNickname)
+    )
+      return undefined;
+    return this.messageOwnerKey(original.id, 'out');
+  }
+  messageOwnerKey(id: string, direction: 'in' | 'out'): string | undefined {
+    const row = this.db
+      .prepare('SELECT local_key FROM messages WHERE id=? AND direction=?')
+      .get(id, direction);
+    return row ? String(row.local_key) : undefined;
   }
   private message(row: Row): Message {
     return {
@@ -778,7 +854,7 @@ export class AgentStore {
         const row = this.get(id, 'in');
         if (
           !row ||
-          nicknameKey(row.envelope.toNickname) !== owner.key ||
+          this.messageOwnerKey(id, 'in') !== owner.key ||
           !['ready', 'processed'].includes(row.state)
         )
           throw new Error('The message does not belong to this agent or is not ready');
@@ -832,7 +908,7 @@ export class AgentStore {
       )
         throw new Error('Invalid delivery member set');
       const owner = this.assertOwner(input.connectionId);
-      const incarnation = this.sourceStamp(owner.key).incarnation;
+      const incarnation = this.sourceStampByKey(owner.key).incarnation;
       const { client: _client, ...captured } = owner.binding;
       const id = randomUUID(),
         now = Date.now();
@@ -851,11 +927,7 @@ export class AgentStore {
       const encoded = encodeDelivery(meta);
       for (const item of input.ids) {
         const message = this.get(item, 'in');
-        if (
-          !message ||
-          nicknameKey(message.envelope.toNickname) !== owner.key ||
-          message.state !== 'ready'
-        )
+        if (!message || this.messageOwnerKey(item, 'in') !== owner.key || message.state !== 'ready')
           throw new Error('The message is not ready for this binding');
         if (this.claudeFenced(item) || this.deliveryFenced(item))
           throw new Error('Message delivery is in progress or uncertain; content is not repeated');
@@ -911,14 +983,14 @@ export class AgentStore {
       current.binding.generation !== captured.generation ||
       current.binding.chatId !== captured.chatId ||
       current.binding.adapterId !== captured.adapterId ||
-      this.sourceStamp(current.key).incarnation !== captured.incarnation
+      this.sourceStampByKey(current.key).incarnation !== captured.incarnation
     )
       throw new Error('The delivery binding changed');
     for (const item of attempt.ids) {
       const message = this.get(item, 'in');
       if (
         !message ||
-        nicknameKey(message.envelope.toNickname) !== current.key ||
+        this.messageOwnerKey(item, 'in') !== current.key ||
         message.state !== 'ready' ||
         this.claudeFenced(item)
       )
@@ -1195,11 +1267,7 @@ export class AgentStore {
       if (active.count >= 32) throw new Error('Too many Claude Code deliveries are in progress');
       for (const id of input.ids) {
         const message = this.get(id, 'in');
-        if (
-          !message ||
-          nicknameKey(message.envelope.toNickname) !== owner.key ||
-          message.state !== 'ready'
-        )
+        if (!message || this.messageOwnerKey(id, 'in') !== owner.key || message.state !== 'ready')
           throw new Error('The message does not belong to this agent or is not ready');
         if (this.claudeFenced(id)) throw new Error('The message is already being delivered');
         if (['dispatching', 'uncertain'].includes(this.dispatchState(id)?.state ?? ''))
@@ -1426,8 +1494,7 @@ export class AgentStore {
       const delivered: string[] = [];
       for (const item of this.claudeDeliveryItems(id)) {
         const message = this.get(item, 'in');
-        if (!message || nicknameKey(message.envelope.toNickname) !== String(row.agent_key))
-          continue;
+        if (!message || this.messageOwnerKey(item, 'in') !== row.agent_key) continue;
         if (message.state !== 'ready') continue;
         this.markDelivered(message, String(row.connection_id));
         delivered.push(item);

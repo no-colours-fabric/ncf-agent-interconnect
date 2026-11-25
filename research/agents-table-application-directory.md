@@ -39,4 +39,9 @@ Agents on different nodes can have the same canonical name.
   relative-URL failure of an inline module on a blank page.
 - The default command sandbox could not open loopback sockets or launch Chromium. The
   successful runs used isolated node data and an isolated browser context.
+- Integration with release source c71e28c preserved R-0018 and the Remote nodes changes.
+  The explicit merge resolution was confined to shared fixture imports and supplying
+  the existing rename callback in the new render test. The combined table, presence and
+  rename suites passed 24 tests. Chromium also confirmed that Edit resolves to the correct
+  local row after sorting and is absent for remote rows.
 - Native installers and a live hub were outside this verification.

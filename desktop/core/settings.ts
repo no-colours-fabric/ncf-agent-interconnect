@@ -94,6 +94,7 @@ const peerSchema = z
 export const networkExclusionsSchema = z
   .array(z.object({ name: z.string().min(1), mac: z.string().optional() }).strict())
   .transform((value) => normalizeInterfaceExclusions(value));
+const approvalSuppression = z.string().regex(/^[a-f0-9-]{36}:[a-f0-9]{64}$/);
 export const settingsSchema = z
   .object({
     version: z.literal(1),
@@ -104,6 +105,7 @@ export const settingsSchema = z
     peerPort: z.number().int().min(0).max(65535),
     listenHost: z.string().min(1).max(255),
     networkExclusions: networkExclusionsSchema.default([]),
+    pairApprovalSuppressions: z.array(approvalSuppression).optional(),
     exportRoots: z.array(z.string()),
     peers: z.array(peerSchema),
     adapters: z.array(adapterSchema).min(1),
@@ -209,18 +211,42 @@ export class SettingsFile {
     this.saving = operation.catch(() => {});
     await operation;
   }
+  async suppressPairApproval(key: string): Promise<void> {
+    const operation = this.saving.then(async () => {
+      const existing = this.value.pairApprovalSuppressions ?? [];
+      if (existing.includes(key)) return;
+      const candidate = settingsSchema.parse({
+        ...this.value,
+        pairApprovalSuppressions: [...existing, key],
+      });
+      await atomicJson(this.filename, candidate);
+      this.value.pairApprovalSuppressions = candidate.pairApprovalSuppressions;
+    });
+    this.saving = operation.catch(() => {});
+    await operation;
+  }
   async savePeers(
     update: (current: readonly Peer[]) => Peer[],
     beforeWrite?: () => void,
     commitGuard?: () => void,
+    clearPairApprovalSuppression?: string,
   ): Promise<void> {
     const operation = this.saving.then(async () => {
+      const remaining = this.value.pairApprovalSuppressions?.filter(
+        (key) => key !== clearPairApprovalSuppression,
+      );
       const candidate = settingsSchema.parse({
         ...this.value,
+        ...(remaining !== undefined
+          ? { pairApprovalSuppressions: remaining.length ? remaining : undefined }
+          : {}),
         peers: update(structuredClone(this.value.peers)),
       });
       await atomicJson(this.filename, candidate, beforeWrite, commitGuard);
       this.value.peers = candidate.peers;
+      if (candidate.pairApprovalSuppressions)
+        this.value.pairApprovalSuppressions = candidate.pairApprovalSuppressions;
+      else delete this.value.pairApprovalSuppressions;
     });
     this.saving = operation.catch(() => {});
     await operation;

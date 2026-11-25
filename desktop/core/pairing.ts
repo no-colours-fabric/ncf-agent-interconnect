@@ -162,6 +162,7 @@ interface Code {
   claimant?: string;
 }
 interface Committed {
+  nodeId: string;
   request: Confirm;
   receipt: Receipt;
   expires: number;
@@ -189,6 +190,13 @@ export class PairingHost {
     this.active = undefined;
     this.receipts.clear();
     this.committing.clear();
+  }
+  forgetPeer(nodeId: string): void {
+    const sessions = this.active?.sessions;
+    for (const [id, session] of sessions ?? [])
+      if (session.identity.nodeId === nodeId) sessions?.delete(id);
+    for (const [id, receipt] of this.receipts)
+      if (receipt.nodeId === nodeId) this.receipts.delete(id);
   }
   private prune(): void {
     if (this.active && Date.now() >= this.active.expires) this.active = undefined;
@@ -313,7 +321,10 @@ export class PairingHost {
     const beforeWrite = () => {
       if (
         generation !== this.generation ||
-        (!writeBegun && (this.active !== active || Date.now() >= active.expires))
+        (!writeBegun &&
+          (this.active !== active ||
+            active.sessions.get(request.sessionId) !== session ||
+            Date.now() >= active.expires))
       )
         throw new PairingError(
           'Pairing was canceled before saving. Create a new access code.',
@@ -350,7 +361,12 @@ export class PairingHost {
       this.prune();
       if (this.receipts.size >= receiptLimit)
         this.receipts.delete(this.receipts.keys().next().value!);
-      this.receipts.set(request.sessionId, { request, receipt, expires: active.expires });
+      this.receipts.set(request.sessionId, {
+        nodeId: session.identity.nodeId,
+        request,
+        receipt,
+        expires: active.expires,
+      });
       return receipt;
     })();
     const entry = { request, promise: session.commit };

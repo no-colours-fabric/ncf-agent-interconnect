@@ -44,7 +44,7 @@ export function useChatHistory({
   onError: (error: string) => void;
 }): ChatHistoryPage & { loading: boolean } {
   const agent = owner
-    ? snapshot?.agents.find((value) => value.key === nicknameKey(owner))
+    ? snapshot?.agents.find((value) => nicknameKey(value.nickname) === nicknameKey(owner))
     : undefined;
   const cacheKey = agentCacheKey(agent);
   const opened = useRef({ key: cacheKey, count: agent?.messageCount ?? 0 });

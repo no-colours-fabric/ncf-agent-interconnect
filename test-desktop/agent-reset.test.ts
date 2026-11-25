@@ -131,7 +131,7 @@ test('format 1 migration is atomic, idempotent and keeps legacy requests preserv
   f.reopen();
   assert.equal(
     (f.store.db.prepare('PRAGMA user_version').get() as { user_version: number }).user_version,
-    5,
+    6,
   );
   assert.throws(
     () => f.store.connect({ ...confirm(request), transferId: request.transferId }),
@@ -833,7 +833,7 @@ test('a failed materialize waits for still-writing siblings before reset cleanup
     return materialize(id, file);
   };
   let settled = false;
-  const reading = mcpRead(service, old.binding.connectionId);
+  const reading = mcpRead(service, old.binding.connectionId, 0, 50, true);
   void reading.then(
     () => {
       settled = true;

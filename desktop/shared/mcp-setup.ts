@@ -64,6 +64,8 @@ export type McpSetupFileStatus =
 export interface McpSetupStatus {
   client: McpSetupClient;
   remembered: boolean;
+  /** A known configuration contains v1 settings, independent of NCF setup status. */
+  openCodeV1Configuration?: boolean;
   state: McpSetupFileStatus;
   files: (McpSetupTarget & { state: McpSetupFileStatus; error?: string })[];
   cursorPermission?: CursorPermissionSetup;
