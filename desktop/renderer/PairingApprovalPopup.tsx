@@ -10,6 +10,7 @@ export function PairingApprovalPopup(): React.JSX.Element {
   const [request, setRequest] = useState<IncomingPairApproval>();
   const [failed, setFailed] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
   const sent = useRef(false);
   useEffect(() => {
     document.documentElement.lang = locale;
@@ -37,6 +38,7 @@ export function PairingApprovalPopup(): React.JSX.Element {
     setFailed(false);
     try {
       await window.interconnect.pairingApproval(decision);
+      if (decision === 'confirm') setConfirmed(true);
     } catch {
       setFailed(true);
     } finally {
@@ -58,15 +60,22 @@ export function PairingApprovalPopup(): React.JSX.Element {
           <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
             {t(locale, 'networkColumnAddress')} · {request.address || '—'}
           </Typography>
-          <Box component="details">
-            <summary>{m.identity}</summary>
-            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-              {request.nodeId}
-            </Typography>
-            <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
-              {request.fingerprint}
+          <Box>
+            <Typography variant="body2">{m.compare}</Typography>
+            <Typography
+              variant="h4"
+              component="p"
+              dir="ltr"
+              sx={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}
+            >
+              {request.comparisonCode}
             </Typography>
           </Box>
+          {confirmed && (
+            <Alert severity="info" role="status">
+              {m.confirmed}
+            </Alert>
+          )}
           <Stack
             direction="row"
             useFlexGap
@@ -79,19 +88,27 @@ export function PairingApprovalPopup(): React.JSX.Element {
               onClick={() => void decide('dismiss')}
               sx={{ minHeight: 44 }}
             >
-              {t(locale, 'mcpSetup_close')}
+              {t(locale, 'btnCancel')}
             </Button>
-            <Button disabled={busy} onClick={() => void decide('suppress')} sx={{ minHeight: 44 }}>
-              {m.suppress}
-            </Button>
-            <Button
-              variant="contained"
-              disabled={busy}
-              onClick={() => void decide('confirm')}
-              sx={{ minHeight: 44 }}
-            >
-              {m.confirm}
-            </Button>
+            {!confirmed && (
+              <>
+                <Button
+                  disabled={busy}
+                  onClick={() => void decide('suppress')}
+                  sx={{ minHeight: 44 }}
+                >
+                  {m.suppress}
+                </Button>
+                <Button
+                  variant="contained"
+                  disabled={busy}
+                  onClick={() => void decide('confirm')}
+                  sx={{ minHeight: 44 }}
+                >
+                  {m.confirm}
+                </Button>
+              </>
+            )}
           </Stack>
         </>
       )}

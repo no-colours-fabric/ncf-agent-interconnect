@@ -729,6 +729,9 @@ export class NodeService extends EventEmitter {
             lanSearch: this.lanSearch.snapshot(),
           }
         : {}),
+      ...(options.lanDiscovery && this.network?.lastPeerDisconnection
+        ? { peerDisconnection: this.network.lastPeerDisconnection }
+        : {}),
       peers: this.settings.value.peers.map((p) => ({
         ...(options.lanDiscovery ? { removalToken: peerRemovalToken(p) } : {}),
         id: p.id,
@@ -3893,9 +3896,14 @@ export class NodeService extends EventEmitter {
       if (!this.running) throw new Error('Start the node first');
       return this.network.requestApproval(id, address, expectedNodeId);
     }
-    if (method === 'peerApprovalProgress' || method === 'cancelPeerApproval') {
+    if (
+      method === 'peerApprovalProgress' ||
+      method === 'cancelPeerApproval' ||
+      method === 'confirmPeerApproval'
+    ) {
       const { id } = z.object({ id: z.uuid() }).strict().parse(raw);
       if (method === 'cancelPeerApproval') return { canceled: this.network.cancelApproval(id) };
+      if (method === 'confirmPeerApproval') return { confirmed: this.network.confirmApproval(id) };
       return this.network.approvalProgress(id);
     }
     if (method === 'removePeer') {

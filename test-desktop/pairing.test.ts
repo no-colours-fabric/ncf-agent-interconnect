@@ -696,8 +696,10 @@ test('revoked peer authorization cannot finish a stale handshake or persist its 
   const peerId = b.settings.value.nodeId;
   a.network.reconnectPeer(peerId);
   await enteredPromise;
+  // The replacement authority has no route. Keep reconciliation of an authenticated
+  // rejection independent from this test of the already in-flight identity write.
   a.settings.value.peers = a.settings.value.peers.map((current) =>
-    current.id === peerId ? { ...current, secret: 'cd'.repeat(32) } : current,
+    current.id === peerId ? { ...current, address: '', secret: 'cd'.repeat(32) } : current,
   );
   a.network.reconnectPeer(peerId);
   release();

@@ -14,6 +14,8 @@ import { NodeService } from '../desktop/core/service.js';
 import { SettingsFile } from '../desktop/core/settings.js';
 import type { LanDiscoveryOptions, LanDiscoveryTransport } from '../desktop/core/lan-discovery.js';
 import type { Snapshot } from '../desktop/shared/contracts.js';
+import { setTimeout as delay } from 'node:timers/promises';
+import { unpairedLanNodes } from '../desktop/renderer/NetworkPage.js';
 
 // All discovery traffic in this file must use the injected transport, even on failure.
 const udp = mock.method(dgram, 'createSocket', () =>
@@ -54,7 +56,7 @@ class FakeLanTransport implements LanDiscoveryTransport {
     this.closed = true;
     this.release?.();
   }
-  announce(nodeId = remoteId): void {
+  announce(nodeId = remoteId, label = 'Untrusted fixture computer'): void {
     this.handlers?.message(
       Buffer.from(
         JSON.stringify({
@@ -62,7 +64,7 @@ class FakeLanTransport implements LanDiscoveryTransport {
           version: 1,
           type: 'announce',
           nodeId,
-          label: 'Untrusted fixture computer',
+          label,
           peerPort: 7336,
         }),
       ),
@@ -819,3 +821,58 @@ test('precommit fence: separate commit guard does not repeat a one-use beforeWri
   assert.equal(earlyCalls, 1);
   assert.equal(commitCalls, 1);
 });
+
+for (const initiator of ['connector', 'receiver'] as const) {
+  test(`first owner search finds both nodes after Disconnect from the ${initiator}`, async (t) => {
+    const [aLan, bLan] = [discoveryFixture(), discoveryFixture()];
+    const [a, b] = await Promise.all([
+      serviceFixture(t, aLan.options),
+      serviceFixture(t, bLan.options),
+    ]);
+    await Promise.all([a.open(), b.open()]);
+    const [aId, bId] = [a.snapshot().nodeId, b.snapshot().nodeId];
+    const disconnector = initiator === 'connector' ? a : b;
+    const counterpart = disconnector === a ? b : a;
+    const until = async (condition: () => boolean) => {
+      for (let attempt = 0; attempt < 150 && !condition(); attempt++) await delay(20);
+      assert.ok(condition());
+    };
+    await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+    await until(() =>
+      Boolean(a.snapshot().peers[0]?.connected && b.snapshot().peers[0]?.connected),
+    );
+    const selected = (await uiSnapshot(disconnector)).peers[0];
+    await disconnector.userCall('removePeer', {
+      nodeId: selected.id,
+      token: selected.removalToken,
+    });
+    for (const node of [a, b])
+      assert.deepEqual(await node.userCall('startLanSearch'), { started: true });
+    // Discovery fixtures use documentation addresses, never TCP destinations.
+    t.mock.method(a.network, 'observeEndpoint', () => {});
+    t.mock.method(b.network, 'observeEndpoint', () => {});
+    aLan.transport.announce(bId, b.snapshot().nodeLabel);
+    bLan.transport.announce(aId, a.snapshot().nodeLabel);
+    await until(() => counterpart.settings.value.peers.length === 0);
+    for (const [node, discovery, expected] of [
+      [a, aLan, bId],
+      [b, bLan, aId],
+    ] as const) {
+      discovery.advance(1000);
+      assert.deepEqual(
+        discovery.transport.sent.map(({ packet }) => packet.type),
+        ['query'],
+      );
+      const snapshot = await uiSnapshot(node);
+      assert.equal(snapshot.lanSearch?.runId, 1);
+      assert.equal(snapshot.lanSearch?.foundCount, 1);
+      assert.deepEqual(
+        unpairedLanNodes(snapshot).map((option) => option.nodeId),
+        [expected],
+      );
+      assert.equal(snapshot.peerDisconnection?.id, expected);
+      assert.deepEqual(snapshot.peers, []);
+      assert.deepEqual((await new SettingsFile(node.settings.directory).load()).peers, []);
+    }
+  });
+}

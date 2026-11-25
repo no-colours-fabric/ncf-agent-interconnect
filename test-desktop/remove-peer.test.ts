@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { setTimeout as delay } from 'node:timers/promises';
+import { once } from 'node:events';
+import { WebSocket } from 'ws';
 import { pairingNode } from './pairing-node-fixture.js';
 import { SettingsFile } from '../desktop/core/settings.js';
 import type { NodeService } from '../desktop/core/service.js';
@@ -52,9 +54,12 @@ test('removing the confirmed connected node preserves other links, agents and hi
     { removed: true },
   );
 
-  for (let index = 0; index < 150 && selected.snapshot().peers[0]?.connected; index++)
-    await delay(20);
-  assert.equal(selected.snapshot().peers[0]?.connected, false);
+  for (let index = 0; index < 150 && selected.snapshot().peers.length; index++) await delay(20);
+  assert.deepEqual(selected.snapshot().peers, []);
+  assert.equal(
+    selected.snapshot({ lanDiscovery: true }).peerDisconnection?.id,
+    local.snapshot().nodeId,
+  );
   assert.deepEqual(
     local.snapshot().peers.map((peer) => [peer.id, peer.connected]),
     [[otherId, true]],
@@ -84,4 +89,28 @@ test('removing the confirmed connected node preserves other links, agents and hi
     /selected connection changed/,
   );
   assert.equal(local.snapshot().peers.find((peer) => peer.id === selectedId)?.connected, true);
+});
+
+test('a close code before the exact peer hello does not revoke authorization', async (t) => {
+  const [connector, receiver] = await Promise.all([pairingNode(t), pairingNode(t)]);
+  const connectorId = connector.snapshot().nodeId;
+  await connector.network.join(receiver.snapshot().peerUrl, receiver.network.accessCode().code);
+  await connected(receiver, connectorId);
+  const original = receiver.settings.value.peers[0];
+  const target = connector.settings.value.peers[0];
+  await connector.stop();
+  const socket = new WebSocket(receiver.snapshot().peerUrl, {
+    ca: target.certificate,
+    headers: {
+      authorization: 'Bearer ' + target.secret,
+      'x-node-id': connectorId,
+    },
+  });
+  t.after(() => socket.terminate());
+  await once(socket, 'open');
+  const closed = once(socket, 'close');
+  socket.close(4001);
+  await closed;
+  assert.deepEqual(receiver.settings.value.peers, [original]);
+  assert.equal(receiver.snapshot({ lanDiscovery: true }).peerDisconnection, undefined);
 });

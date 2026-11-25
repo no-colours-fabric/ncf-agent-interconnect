@@ -231,6 +231,7 @@ export interface Snapshot {
   networkInterfaces?: NetworkInterfaceStatus;
   lanDiscovery?: LanDiscoverySnapshot;
   lanSearch?: LanSearchSnapshot;
+  peerDisconnection?: { id: string; label: string };
   peers: {
     id: string;
     label: string;

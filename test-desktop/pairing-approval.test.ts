@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import https from 'node:https';
@@ -8,6 +8,7 @@ import type { NodeService } from '../desktop/core/service.js';
 import {
   approvalPath,
   approvalChallenge,
+  approvalCommitment,
   signApprovalRequest,
 } from '../desktop/core/pairing-approval.js';
 import type { OutgoingPairApproval } from '../desktop/shared/pairing-approval.js';
@@ -15,7 +16,17 @@ import { pairingNode, pairingNodeResources } from './pairing-node-fixture.js';
 
 const peers = (node: NodeService) => node.settings.value.peers;
 const begin = (first: NodeService, second: NodeService, id: string, expectedNodeId?: string) =>
-  first.userCall('requestPeerApproval', { id, address: second.snapshot().peerUrl, expectedNodeId });
+  first.userCall('requestPeerApproval', {
+    id,
+    address: second.snapshot().peerUrl,
+    expectedNodeId,
+  }) as Promise<OutgoingPairApproval>;
+function pending(state: OutgoingPairApproval, phase: 'waiting' | 'shown'): string {
+  assert.ok(state.state === phase);
+  assert.match(state.comparisonCode, /^[0-9]{6}$/);
+  return state.comparisonCode;
+}
+const confirm = (node: NodeService, id: string) => node.userCall('confirmPeerApproval', { id });
 const progress = (first: NodeService, id: string) =>
   first.userCall('peerApprovalProgress', { id }) as Promise<OutgoingPairApproval>;
 
@@ -26,30 +37,38 @@ test('dismissal creates no trust, a retry gets a new dialog, and approval pairs 
   const bId = b.snapshot().nodeId;
   await assert.rejects(begin(a, b, randomUUID(), randomUUID()), /does not match/);
   assert.equal(b.network.approvalHost.next(), undefined);
-  assert.deepEqual(await begin(a, b, id, bId), { state: 'waiting' });
+  const firstCode = pending(await begin(a, b, id, bId), 'waiting');
   const first = b.network.approvalHost.next()!;
-  assert.equal(first.nodeId, aId);
-  assert.match(first.fingerprint, /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/);
-  assert.deepEqual(await progress(a, id), { state: 'waiting' });
+  assert.equal(first.label, a.snapshot().nodeLabel);
+  assert.equal(first.comparisonCode, firstCode);
+  assert.equal(pending(await progress(a, id), 'waiting'), firstCode);
+  assert.deepEqual(await confirm(a, id), { confirmed: false });
   await assert.rejects(b.network.approvalHost.decide(first.id, 'confirm'), /no longer displayed/);
   assert.equal(b.network.approvalHost.displayed(randomUUID()), false);
   assert.equal(b.network.approvalHost.displayed(first.id), true);
-  assert.deepEqual(await progress(a, id), { state: 'shown' });
+  assert.equal(pending(await progress(a, id), 'shown'), firstCode);
+  assert.deepEqual(await confirm(a, id), { confirmed: true });
   await b.network.approvalHost.decide(first.id, 'dismiss');
   assert.deepEqual(await progress(a, id), { state: 'dismissed' });
   assert.equal(b.network.approvalHost.next(), undefined);
   assert.equal(peers(a).length + peers(b).length, 0);
 
   const retry = randomUUID();
-  assert.deepEqual(await begin(a, b, retry, bId), { state: 'waiting' });
+  const retryCode = pending(await begin(a, b, retry, bId), 'waiting');
   const incoming = b.network.approvalHost.next()!;
   assert.notEqual(incoming.id, first.id);
+  assert.equal(incoming.comparisonCode, retryCode);
+  assert.deepEqual(await confirm(a, id), { confirmed: false });
   await b.network.approvalHost.decide(first.id, 'confirm');
   assert.equal(b.network.approvalHost.next()?.id, incoming.id);
   b.network.approvalHost.displayed(incoming.id);
   await b.network.approvalHost.decide(incoming.id, 'confirm');
   assert.equal(peers(a).length + peers(b).length, 0);
+  assert.equal(b.network.approvalHost.next()?.comparisonCode, retryCode);
+  assert.equal(pending(await progress(a, retry), 'shown'), retryCode);
+  assert.deepEqual(await confirm(a, retry), { confirmed: true });
   const result = await progress(a, retry);
+  assert.equal(b.network.approvalHost.next(), undefined);
   assert.equal(result.state, 'paired');
   assert.equal(peers(a)[0].id, bId);
   assert.equal(peers(a)[0].address, b.snapshot().peerUrl);
@@ -61,7 +80,7 @@ test('suppression survives restart, applies to the exact certificate, and code p
   const [a, b] = await Promise.all([pairingNode(t), pairingNode(t)]);
   const impostor = await pairingNode(t, a.snapshot().nodeId);
   const id = randomUUID();
-  assert.deepEqual(await begin(a, b, id), { state: 'waiting' });
+  pending(await begin(a, b, id), 'waiting');
   const first = b.network.approvalHost.next()!;
   b.network.approvalHost.displayed(first.id);
   await b.network.approvalHost.decide(first.id, 'suppress');
@@ -73,8 +92,8 @@ test('suppression survives restart, applies to the exact certificate, and code p
   assert.equal(b.network.approvalHost.next(), undefined);
 
   const other = randomUUID();
-  assert.deepEqual(await begin(impostor, b, other), { state: 'waiting' });
-  assert.notEqual(b.network.approvalHost.next()?.fingerprint, first.fingerprint);
+  const code = pending(await begin(impostor, b, other), 'waiting');
+  assert.equal(b.network.approvalHost.next()?.comparisonCode, code);
   await b.network.approvalHost.decide(b.network.approvalHost.next()!.id, 'dismiss');
   await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
   assert.equal(b.settings.value.pairApprovalSuppressions, undefined);
@@ -87,14 +106,19 @@ test('suppression survives restart, applies to the exact certificate, and code p
 
   await a.stop();
   await a.start();
-  assert.deepEqual(await begin(a, b, randomUUID()), { state: 'waiting' });
-  assert.equal(b.network.approvalHost.next()?.fingerprint, first.fingerprint);
+  pending(await begin(a, b, randomUUID()), 'waiting');
+  assert.ok(b.network.approvalHost.next());
 });
 
 test('a canceled requester has no pairing and a 404 receiver still supports code pairing', async (t) => {
   const [a, b] = await Promise.all([pairingNode(t), pairingNode(t)]);
   const pending = randomUUID();
-  assert.deepEqual(await begin(a, b, pending), { state: 'waiting' });
+  const canceledCode = await begin(a, b, pending);
+  assert.equal(canceledCode.state, 'waiting');
+  const incoming = b.network.approvalHost.next()!;
+  b.network.approvalHost.displayed(incoming.id);
+  await b.network.approvalHost.decide(incoming.id, 'confirm');
+  assert.equal((await progress(a, pending)).state, 'shown');
   assert.deepEqual(await a.userCall('cancelPeerApproval', { id: pending }), { canceled: true });
   assert.deepEqual(await progress(a, pending), { state: 'dismissed' });
 
@@ -143,9 +167,31 @@ test('a certificate without its private key cannot raise an approval window', as
       );
       req.on('error', reject).end(JSON.stringify(body));
     });
-  const challenge = approvalChallenge.parse((await post({ phase: 'prepare' })).body);
-  const proof = signApprovalRequest(challenge, realIdentity, wrongKey);
+  const token = randomBytes(32).toString('hex');
+  const prepared = () =>
+    post({ phase: 'prepare', commitment: approvalCommitment(realIdentity, token) });
+  const challenge = approvalChallenge.parse((await prepared()).body);
+  const proof = signApprovalRequest(challenge, realIdentity, wrongKey, token);
   assert.equal((await post(proof)).code, 401);
+  const realKey = await readFile(path.join(real.settings.directory, 'node-key.pem'), 'utf8');
+  const changedToken = randomBytes(32).toString('hex');
+  assert.equal(
+    (await post(signApprovalRequest(challenge, realIdentity, realKey, changedToken))).code,
+    401,
+  );
+  assert.equal(
+    (await post({ phase: 'cancel', id: challenge.id, identity: realIdentity, token: changedToken }))
+      .code,
+    401,
+  );
+  assert.deepEqual(
+    await post({ phase: 'cancel', id: challenge.id, identity: realIdentity, token }),
+    { code: 200, body: { state: 'dismissed' } },
+  );
+  assert.equal(
+    (await post(signApprovalRequest(challenge, realIdentity, realKey, token))).code,
+    410,
+  );
   assert.equal(receiver.network.approvalHost.next(), undefined);
   assert.equal(peers(receiver).length, 0);
 });
@@ -157,7 +203,7 @@ test('local outbound code pairing clears only the suppression for the selected i
     pairingNode(t),
   ]);
   for (const source of [requester, other]) {
-    assert.deepEqual(await begin(source, receiver, randomUUID()), { state: 'waiting' });
+    pending(await begin(source, receiver, randomUUID()), 'waiting');
     const current = receiver.network.approvalHost.next()!;
     receiver.network.approvalHost.displayed(current.id);
     await receiver.network.approvalHost.decide(current.id, 'suppress');
@@ -166,5 +212,5 @@ test('local outbound code pairing clears only the suppression for the selected i
   await receiver.network.join(requester.snapshot().peerUrl, requester.network.accessCode().code);
   assert.equal(receiver.settings.value.pairApprovalSuppressions?.length, 1);
   assert.deepEqual(await begin(other, receiver, randomUUID()), { state: 'suppressed' });
-  assert.deepEqual(await begin(requester, receiver, randomUUID()), { state: 'waiting' });
+  pending(await begin(requester, receiver, randomUUID()), 'waiting');
 });

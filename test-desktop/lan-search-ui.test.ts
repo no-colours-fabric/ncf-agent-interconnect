@@ -1508,7 +1508,7 @@ const clone=value=>structuredClone(value);
 const changed=()=>listeners.forEach(listener=>listener());
 const read=(method,data)=>held?new Promise(resolve=>reads.push({method,data:clone(data),resolve})):Promise.resolve(clone(data));
 window.wiring={calls,approval(state){approvalState=state;},failPair(error){pairError=error;},failNetworkSave(error){saveError=error;},change(patch){if(patch.snapshot)value=clone(patch.snapshot);if('visible' in patch)visible=patch.visible;changed();},navigate(page){navigation.forEach(listener=>listener(page));},holdReads(){held=true;reads.length=0;},readCount:()=>reads.length,releasePair(index){for(const request of reads.slice(index*2,index*2+2))request.resolve(request.data);},resumeReads(){held=false;},manualIntersections(manual){manualIntersections=manual;},observerFor(key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);return intersections.findLastIndex(observer=>observer.targets.has(row));},replay(index,key){const row=[...document.querySelectorAll('[data-lan-key]')].find(row=>row.dataset.lanKey===key);if(row)intersections[index].callback([{target:row,isIntersecting:true,intersectionRatio:1}]);}};
-window.interconnect={async pairingApproval(method){calls.push({method:'approvalWindow',input:{method}});if(method==='view')return {id:'exact-session',nodeId:'837baaa7-20d9-43a7-8755-b25072f4984f',label:'Incoming fixture node',address:'192.0.2.31',fingerprint:'D5:A2'};},onChange(callback){listeners.add(callback);return()=>listeners.delete(callback);},onNavigate(callback){navigation.add(callback);return()=>navigation.delete(callback);},async invoke(method,input={}){
+window.interconnect={async pairingApproval(method){calls.push({method:'approvalWindow',input:{method}});if(method==='view')return {id:'exact-session',nodeId:'837baaa7-20d9-43a7-8755-b25072f4984f',label:'Incoming fixture node',address:'192.0.2.31',comparisonCode:'042317'};},onChange(callback){listeners.add(callback);return()=>listeners.delete(callback);},onNavigate(callback){navigation.add(callback);return()=>navigation.delete(callback);},async invoke(method,input={}){
  calls.push({method,input:clone(input)});
  if(method==='snapshot')return read(method,value);
  if(method==='windowState')return read(method,{visible});
@@ -1527,8 +1527,9 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
  if(method==='saveNode'){if(saveError)throw new Error(saveError);value.nodeLabel=input.nodeLabel;value.networkInterfaces.exclusions=input.networkExclusions.map(exclusion=>({exclusion,matchingNames:[exclusion.name],absent:false,ambiguous:false}));changed();return {saved:true};}
  if(method==='copy')return {copied:true};
  if(method==='accessCode')return {code:'ABCD2345',expiresAt:new Date(Date.now()+600000).toISOString()};
- if(method==='requestPeerApproval'||method==='peerApprovalProgress')return {state:approvalState};
- if(method==='removePeer'){value.peers=value.peers.filter(peer=>peer.id!==input.nodeId);changed();return {removed:true};}
+ if(method==='requestPeerApproval'||method==='peerApprovalProgress')return {state:approvalState,comparisonCode:'042317'};
+ if(method==='confirmPeerApproval')return {confirmed:true};
+ if(method==='removePeer'){const peer=value.peers.find(peer=>peer.id===input.nodeId);value.peers=value.peers.filter(peer=>peer.id!==input.nodeId);value.peerDisconnection={id:peer.id,label:peer.label};changed();return {removed:true};}
  if(method==='cancelPeerApproval')return {canceled:true};
  if(method==='connectPeer'){if(pairError)throw new Error(pairError);return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};}
  if(method==='stopLanSearch'){value.lanSearch.phase='stopped';changed();return {stopped:true};}
@@ -1889,7 +1890,7 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
       );
 
       await suite.test(
-        'remote nodes: exact remove confirmation and code/approval UI share the selected address',
+        'remote nodes: Disconnect, immediate rediscovery and code comparison keep the exact target',
         {
           skip:
             !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'remote-nodes',
@@ -1907,9 +1908,9 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
             const state = snapshot();
             state.peers = [
               {
-                id: 'authenticated-fixture-peer',
+                id: first.nodeId,
                 label: 'Authenticated fixture',
-                address: 'wss://192.0.2.90:7336/peer',
+                address: first.address,
                 removalToken: 'b'.repeat(64),
                 connected: true,
                 error: null,
@@ -1928,11 +1929,12 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
             await remove.click();
             await dialog.getByRole('button', { name: r.remove, exact: true }).click();
             await remove.waitFor({ state: 'detached' });
+            await page.getByText(r.disconnected, { exact: true }).waitFor();
             assert.deepEqual(
               (await calls(page, 'removePeer')).map(({ input }) => input),
               [
                 {
-                  nodeId: 'authenticated-fixture-peer',
+                  nodeId: first.nodeId,
                   token: 'b'.repeat(64),
                 },
               ],
@@ -1942,11 +1944,20 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
             await page.getByRole('button', { name: `Connect ${first.label}`, exact: true }).click();
             dialog = page.getByRole('dialog');
             await dialog.getByText(m.waiting, { exact: true }).waitFor();
+            await dialog.getByText(m.compare, { exact: true }).waitFor();
+            await dialog.getByText('042317', { exact: true }).waitFor();
+            const confirm = dialog.getByRole('button', { name: m.confirm, exact: true });
+            assert.equal(await confirm.isEnabled(), false);
             const request = (await calls(page, 'requestPeerApproval')).at(-1)!.input;
             assert.equal(request.address, first.address);
             assert.equal(request.expectedNodeId, first.nodeId);
             await approval('shown');
             await dialog.getByText(m.shown, { exact: true }).waitFor();
+            await confirm.click();
+            await dialog.getByText(m.confirmed, { exact: true }).waitFor();
+            assert.deepEqual((await calls(page, 'confirmPeerApproval')).at(-1)!.input, {
+              id: request.id,
+            });
             const code = dialog.getByRole('textbox', { name: 'Connection code', exact: true });
             await code.fill('ABCD2345');
             await approval('dismissed');
@@ -1994,10 +2005,16 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
               ['view', 'ready'],
             );
             assert.equal(await page.getByText('192.0.2.31', { exact: false }).count(), 1);
-            await page.getByRole('button', { name: m.suppress, exact: true }).click();
+            assert.equal(await page.getByText('Node identity', { exact: true }).count(), 0);
+            await page.getByText(m.compare, { exact: true }).waitFor();
+            await page.getByText('042317', { exact: true }).waitFor();
+            await page.getByRole('button', { name: m.confirm, exact: true }).click();
+            await page.getByText(m.confirmed, { exact: true }).waitFor();
+            await page.getByText('042317', { exact: true }).waitFor();
+            await page.getByRole('button', { name: 'Cancel', exact: true }).click();
             assert.deepEqual(
               (await calls(page, 'approvalWindow')).map(({ input }) => input.method),
-              ['view', 'ready', 'suppress'],
+              ['view', 'ready', 'confirm', 'dismiss'],
             );
             assert.deepEqual(errors, []);
           } finally {

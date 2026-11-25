@@ -11,8 +11,8 @@ import { z } from 'zod';
 import type { IncomingPairApproval, PairApprovalDecision } from '../shared/pairing-approval.js';
 import { certificateDer, PairingError, type PairedIdentity } from './pairing.js';
 
-export const approvalPath = '/pair-approval';
-const domain = 'ncf-pair-approval/v1';
+export const approvalPath = '/pair-approval/v2';
+const domain = 'ncf-pair-approval/v2';
 const lifetime = 120_000;
 const challengeLifetime = 12_000;
 const limit = 32;
@@ -29,7 +29,7 @@ type Identity = z.infer<typeof approvalIdentity>;
 export const approvalChallenge = z.object({ id, identity: approvalIdentity }).strict();
 type Challenge = z.infer<typeof approvalChallenge>;
 const approvalAuth = z.object({ id, token: hex });
-const prepare = z.object({ phase: z.literal('prepare') }).strict();
+const prepare = z.object({ phase: z.literal('prepare'), commitment: hex }).strict();
 const request = approvalAuth
   .extend({
     phase: z.literal('request'),
@@ -39,7 +39,9 @@ const request = approvalAuth
   .strict();
 const status = approvalAuth.extend({ phase: z.literal('status') }).strict();
 const commit = approvalAuth.extend({ phase: z.literal('commit') }).strict();
-const cancel = approvalAuth.extend({ phase: z.literal('cancel') }).strict();
+const cancel = approvalAuth
+  .extend({ phase: z.literal('cancel'), identity: approvalIdentity })
+  .strict();
 const inputSchema = z.discriminatedUnion('phase', [prepare, request, status, commit, cancel]);
 
 export const approvalStatus = z.discriminatedUnion('state', [
@@ -68,8 +70,36 @@ function transcript(challenge: Challenge, requester: Identity, token: string): B
   );
 }
 
-export function signApprovalRequest(challenge: Challenge, identity: Identity, key: string) {
-  const token = randomBytes(32).toString('hex');
+export function approvalCommitment(identity: Identity, token: string): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify([
+        domain + '/commitment',
+        approvalIdentityKey(identity),
+        identity.label,
+        token,
+      ]),
+    )
+    .digest('hex');
+}
+
+export function approvalComparisonCode(
+  challenge: Challenge,
+  identity: Identity,
+  token: string,
+): string {
+  const digest = createHash('sha256')
+    .update(transcript(challenge, identity, token))
+    .digest();
+  return String(Number(digest.readBigUInt64BE() % 1_000_000n)).padStart(6, '0');
+}
+
+export function signApprovalRequest(
+  challenge: Challenge,
+  identity: Identity,
+  key: string,
+  token: string,
+) {
   return {
     phase: 'request',
     id: challenge.id,
@@ -83,6 +113,7 @@ interface Request {
   identity: Identity;
   key: string;
   token: string;
+  comparisonCode: string;
   address: string;
   state: Status['state'];
   secret?: string;
@@ -91,6 +122,7 @@ interface Request {
 }
 interface Session {
   challenge: Challenge;
+  commitment: string;
   expires: number;
   address: string;
   available: () => boolean;
@@ -144,13 +176,17 @@ export class PairApprovalHost {
   next(): IncomingPairApproval | undefined {
     this.prune();
     for (const { challenge, request } of this.sessions.values()) {
-      if (request?.state !== 'waiting' && request?.state !== 'shown') continue;
+      if (
+        request?.state !== 'waiting' &&
+        request?.state !== 'shown' &&
+        request?.state !== 'approved'
+      )
+        continue;
       return {
         id: challenge.id,
-        nodeId: request.identity.nodeId,
         label: request.identity.label,
         address: request.address,
-        fingerprint: new X509Certificate(request.identity.certificate).fingerprint256,
+        comparisonCode: request.comparisonCode,
       };
     }
   }
@@ -165,7 +201,14 @@ export class PairApprovalHost {
   async decide(id: string, decision: PairApprovalDecision): Promise<void> {
     this.prune();
     const request = this.sessions.get(id)?.request;
-    if (!request || (request.state !== 'waiting' && request.state !== 'shown')) return;
+    if (!request) return;
+    if (request.state === 'approved' && decision === 'dismiss' && !request.saving) {
+      request.state = 'dismissed';
+      request.secret = undefined;
+      this.options.changed();
+      return;
+    }
+    if (request.state !== 'waiting' && request.state !== 'shown') return;
     if (request.deciding && decision !== 'dismiss')
       throw new PairingError('A decision is already being saved', 409);
     if (decision === 'dismiss') request.state = 'dismissed';
@@ -217,6 +260,7 @@ export class PairApprovalHost {
       };
       this.sessions.set(challenge.id, {
         challenge,
+        commitment: input.commitment,
         expires: Date.now() + challengeLifetime,
         address,
         available,
@@ -227,11 +271,17 @@ export class PairApprovalHost {
 
     const session = this.sessions.get(input.id);
     if (!session) throw new PairingError('The connection request expired or was closed', 410);
+    const matchesCommitment = (identity: Identity, token: string) =>
+      timingSafeEqual(
+        Buffer.from(session.commitment, 'hex'),
+        Buffer.from(approvalCommitment(identity, token), 'hex'),
+      );
     if (input.phase === 'request') {
       if (session.request) return this.state(session.request, input);
       if (input.identity.nodeId === session.challenge.identity.nodeId)
         throw new PairingError('This address belongs to this node');
       if (
+        !matchesCommitment(input.identity, input.token) ||
         !verify(
           'sha256',
           transcript(session.challenge, input.identity, input.token),
@@ -254,6 +304,7 @@ export class PairApprovalHost {
         key,
         address,
         token: input.token,
+        comparisonCode: approvalComparisonCode(session.challenge, input.identity, input.token),
         state: suppressed ? 'suppressed' : 'waiting',
       };
       session.expires = Date.now() + lifetime;
@@ -265,12 +316,21 @@ export class PairApprovalHost {
       return { state: suppressed ? 'suppressed' : 'waiting' };
     }
     const entry = session.request;
-    if (!entry) throw new PairingError('The requesting node could not be verified', 401);
+    if (!entry) {
+      // Cancellation can overtake the signed request on a different TLS connection.
+      if (input.phase === 'cancel' && matchesCommitment(input.identity, input.token)) {
+        this.sessions.delete(input.id);
+        this.schedule();
+        return { state: 'dismissed' };
+      }
+      throw new PairingError('The requesting node could not be verified', 401);
+    }
     const current = this.state(entry, input);
     if (input.phase === 'status') return current;
     if (input.phase === 'cancel') {
       if (!entry.saving && current.state !== 'paired') {
         entry.state = 'dismissed';
+        entry.secret = undefined;
         this.options.changed();
       }
       return { state: entry.state === 'paired' ? 'paired' : 'dismissed' };
@@ -293,6 +353,7 @@ export class PairApprovalHost {
       .then(() => {
         entry.state = 'paired';
         entry.secret = undefined;
+        this.options.changed();
       })
       .finally(() => {
         entry.saving = undefined;

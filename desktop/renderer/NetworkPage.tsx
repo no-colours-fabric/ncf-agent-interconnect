@@ -33,7 +33,7 @@ import { OwnConnectionCard, type OwnConnectionCode } from './OwnConnectionCard.j
 import { t, type Locale } from './i18n/index.js';
 import { lanDiscoveryMessages } from './i18n/lan-discovery.js';
 import { formatLanSearch, lanSearchMessages } from './i18n/lan-search.js';
-import { pairingApprovalMessages } from './i18n/remote-nodes.js';
+import { pairingApprovalMessages, remoteNodeRemovalMessages } from './i18n/remote-nodes.js';
 import { usePeerApproval } from './use-peer-approval.js';
 
 export interface PairAttemptInput {
@@ -265,7 +265,7 @@ export function NetworkPage({
   const [searchError, setSearchError] = useState(false);
   const [diagnostic, setDiagnostic] = useState('');
   const [pairedNotice, setPairedNotice] = useState(false);
-  const [authenticatedAddresses, setAuthenticatedAddresses] = useState<ReadonlySet<string>>(
+  const [authenticatedNodeIds, setAuthenticatedNodeIds] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
   const mounted = useRef(true);
@@ -290,11 +290,9 @@ export function NetworkPage({
     () =>
       unpairedLanNodes(snapshot).filter(
         (node) =>
-          ![node, ...(node.endpoints ?? [])].some((endpoint) =>
-            authenticatedAddresses.has(endpoint.address),
-          ),
+          node.nodeId === snapshot.peerDisconnection?.id || !authenticatedNodeIds.has(node.nodeId),
       ),
-    [snapshot, authenticatedAddresses],
+    [snapshot, authenticatedNodeIds],
   );
   const covered = obscured || !!selected || manualOpen;
   const canObserve = active && windowVisible && documentVisible && !covered;
@@ -333,12 +331,13 @@ export function NetworkPage({
   }, []);
   useEffect(() => {
     // The authoritative snapshot takes over temporary success suppression.
-    const paired = new Set(snapshot.peers.map((peer) => peer.address));
-    setAuthenticatedAddresses((previous) => {
-      if (![...previous].some((address) => paired.has(address))) return previous;
-      return new Set([...previous].filter((address) => !paired.has(address)));
+    const observed = new Set(snapshot.peers.map((peer) => peer.id));
+    if (snapshot.peerDisconnection) observed.add(snapshot.peerDisconnection.id);
+    setAuthenticatedNodeIds((previous) => {
+      if (![...previous].some((id) => observed.has(id))) return previous;
+      return new Set([...previous].filter((id) => !observed.has(id)));
     });
-  }, [snapshot.peers]);
+  }, [snapshot.peers, snapshot.peerDisconnection]);
   useEffect(() => {
     const update = () =>
       setDocumentVisible(document.visibilityState === 'visible' && document.hasFocus());
@@ -503,13 +502,14 @@ export function NetworkPage({
     setCode('');
     setPairError(null);
   };
-  const paired = (address: string, isManual: boolean, fromOverview: boolean) => {
-    setAuthenticatedAddresses((previous) => {
-      const next = new Set(previous);
-      next.add(address);
-      if (next.size > 128) next.delete(next.values().next().value!);
-      return next;
-    });
+  const paired = (nodeId: string, isManual: boolean, fromOverview: boolean) => {
+    if (!currentSnapshot.current.peers.some((peer) => peer.id === nodeId))
+      setAuthenticatedNodeIds((previous) => {
+        const next = new Set(previous);
+        next.add(nodeId);
+        if (next.size > 128) next.delete(next.values().next().value!);
+        return next;
+      });
     if (isManual) manual.onCodeChange('');
     setSelection(null);
     setManualOpen(false);
@@ -525,9 +525,9 @@ export function NetworkPage({
   ) => {
     if (!snapshot.running || pairFence.current) return;
     setPairedNotice(false);
-    approval.start(address, expectedNodeId, () => {
+    approval.start(address, expectedNodeId, (nodeId) => {
       if (mounted.current && currentSnapshot.current.nodeId === snapshot.nodeId)
-        paired(address, isManual, fromOverview);
+        paired(nodeId, isManual, fromOverview);
     });
   };
   const connect = async (address: string, access: string, isManual: boolean) => {
@@ -553,14 +553,16 @@ export function NetworkPage({
     setPairedNotice(false);
     try {
       if (!(await approval.cancel())) return;
-      await ledger.run(snapshot, input, m.uncertain, () => invoke('connectPeer', input));
+      const result = await ledger.run(snapshot, input, m.uncertain, () =>
+        invoke<{ id: string }>('connectPeer', input),
+      );
       if (
         !mounted.current ||
         attempt.current !== request ||
         currentSnapshot.current.nodeId !== nodeId
       )
         return;
-      paired(address, isManual, !isManual && !!selection?.fromOverview);
+      paired(result.id, isManual, !isManual && !!selection?.fromOverview);
     } catch (error) {
       const detail =
         error instanceof UncertainPairAttempt
@@ -615,9 +617,34 @@ export function NetworkPage({
 
   const requestingApproval = ['requesting', 'waiting', 'shown'].includes(approval.phase ?? '');
   const approvalStatus = approval.phase && (
-    <Alert severity={approval.phase === 'failed' ? 'warning' : 'info'} role="status">
-      {approvalCopy[approval.phase]}
-    </Alert>
+    <Stack spacing={1}>
+      <Alert severity={approval.phase === 'failed' ? 'warning' : 'info'} role="status">
+        {requestingApproval && approval.confirmed
+          ? approvalCopy.confirmed
+          : approvalCopy[approval.phase]}
+      </Alert>
+      {requestingApproval && approval.comparisonCode && (
+        <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
+          <Typography variant="body2">{approvalCopy.compare}</Typography>
+          <Typography
+            variant="h4"
+            component="p"
+            dir="ltr"
+            sx={{ fontFamily: 'monospace', letterSpacing: '0.15em' }}
+          >
+            {approval.comparisonCode}
+          </Typography>
+          <Button
+            variant="contained"
+            sx={{ minHeight: 44 }}
+            disabled={pairPending || approval.phase !== 'shown' || approval.confirmed}
+            onClick={() => void approval.confirm()}
+          >
+            {approvalCopy.confirm}
+          </Button>
+        </Stack>
+      )}
+    </Stack>
   );
   const selectionMissing =
     !!selectedInput &&
@@ -673,6 +700,16 @@ export function NetworkPage({
         {pairedNotice && (
           <Alert severity="success" role="status" onClose={() => setPairedNotice(false)}>
             {legacy.success}
+          </Alert>
+        )}
+        {snapshot.peerDisconnection && (
+          <Alert severity="info" role="status">
+            <Typography variant="body2">
+              {remoteNodeRemovalMessages(locale).disconnected}
+            </Typography>
+            <Typography variant="body2" component="bdi" sx={{ overflowWrap: 'anywhere' }}>
+              {snapshot.peerDisconnection.label}
+            </Typography>
           </Alert>
         )}
         {snapshot.peers.length > 0 && (

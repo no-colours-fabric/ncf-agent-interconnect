@@ -7,7 +7,7 @@ import {
 import https from 'node:https';
 import tls from 'node:tls';
 import { readFile, writeFile } from 'node:fs/promises';
-import { X509Certificate, createHmac, randomUUID, timingSafeEqual } from 'node:crypto';
+import { X509Certificate, createHmac, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { hostname, networkInterfaces } from 'node:os';
 import { isIPv4, type Socket } from 'node:net';
@@ -40,6 +40,8 @@ import {
 } from './pairing.js';
 import {
   approvalChallenge,
+  approvalCommitment,
+  approvalComparisonCode,
   approvalIdentityKey,
   approvalPath,
   approvalStatus,
@@ -76,6 +78,7 @@ function headerAttachmentLimit(raw: string | string[] | undefined): AttachmentLi
   return limit.success ? limit.data : undefined;
 }
 export class PeerAttachmentLimitError extends Error {}
+const peerDisconnectCode = 4001;
 const directoryFeature = 'agent-directory-v1';
 const directoryApplicationHeader = 'x-ncf-directory-application';
 const directoryApplicationVersion = '1';
@@ -179,14 +182,19 @@ interface OutgoingApproval {
   remote?: {
     id: string;
     token: string;
+    comparisonCode: string;
+    requester: Omit<PairedIdentity, 'secret'>;
     identity: Omit<PairedIdentity, 'secret'>;
   };
   checking?: Promise<OutgoingPairApproval>;
+  displayed?: boolean;
+  confirmed?: boolean;
   committing?: boolean;
 }
 
 export class PeerNetwork extends EventEmitter {
   private readonly removingPeers = new Set<string>();
+  lastPeerDisconnection?: { id: string; label: string };
   private readonly outgoingApprovals = new Map<string, OutgoingApproval>();
   private servers = new Map<string, https.Server>();
   private probes = new Map<import('node:http').ClientRequest, string>();
@@ -508,7 +516,15 @@ export class PeerNetwork extends EventEmitter {
     if (!current) return;
     peer = current;
     const link = this.link(peer.id);
-    if (this.stopped || link.socket || link.timer || !this.routes(peer).length) return;
+    if (
+      this.stopped ||
+      this.removingPeers.has(peer.id) ||
+      link.socket ||
+      link.connecting ||
+      link.timer ||
+      !this.routes(peer).length
+    )
+      return;
     link.timer = setTimeout(() => {
       link.timer = undefined;
       this.connect(peer);
@@ -612,7 +628,14 @@ export class PeerNetwork extends EventEmitter {
     peer = current;
     const link = this.link(peer.id);
     const routes = this.routes(peer);
-    if (this.stopped || !routes.length || link.socket || link.connecting) return;
+    if (
+      this.stopped ||
+      this.removingPeers.has(peer.id) ||
+      !routes.length ||
+      link.socket ||
+      link.connecting
+    )
+      return;
     const address = routes[link.addressIndex++ % routes.length];
     const generation = link.generation;
     const isCurrent = () =>
@@ -666,6 +689,14 @@ export class PeerNetwork extends EventEmitter {
     this.socketPeers.set(ws, peer.id);
     this.sockets.add(ws);
     let verified = false;
+    let rejectedStatus: number | undefined;
+    if (outbound) {
+      ws.once('unexpected-response', (_request, response) => {
+        rejectedStatus = response.statusCode;
+        response.destroy();
+        ws.terminate();
+      });
+    }
     if (outbound)
       ws.once('upgrade', (response) => {
         directorySupported = response.headers['x-ncf-features'] === directoryFeature;
@@ -793,13 +824,22 @@ export class PeerNetwork extends EventEmitter {
     ws.on('error', (e) => {
       if (link.generation !== generation) return;
       if (verified && link.socket !== ws) return;
-      link.error = e.message;
+      if (rejectedStatus === 401) return;
+      link.error = rejectedStatus ? 'Unexpected server response: ' + rejectedStatus : e.message;
       this.emit('change');
     });
-    ws.on('close', () => {
+    ws.on('close', (code) => {
       clearTimeout(deadline);
       this.sockets.delete(ws);
       if (link.generation !== generation) return;
+      if (code === peerDisconnectCode && verified && isCurrent()) {
+        void this.reconcilePeerDisconnect(peer, link, generation);
+        return;
+      }
+      if (rejectedStatus === 401 && address && !link.socket && !this.removingPeers.has(peer.id)) {
+        void this.reconcilePeerDisconnect(peer, link, generation, address);
+        return;
+      }
       link.connecting = false;
       if (link.socket === ws) {
         link.socket = null;
@@ -821,6 +861,31 @@ export class PeerNetwork extends EventEmitter {
       this.schedule(peer);
     });
   }
+  private async reconcilePeerDisconnect(
+    peer: Peer,
+    link: Link,
+    generation: number,
+    rejectedAddress?: string,
+  ): Promise<void> {
+    try {
+      // A legacy peer does not send a close code. Its 401 alone proves neither identity nor removal.
+      if (rejectedAddress) await this.verifyAlternate(peer, rejectedAddress);
+      if (this.stopped || link.generation !== generation || this.removingPeers.has(peer.id)) return;
+      if (rejectedAddress && link.socket) return;
+      await this.forgetPeer(peer.id, peerRemovalToken(peer), false);
+    } catch (error) {
+      if (this.stopped || link.generation !== generation) return;
+      link.error = error instanceof Error ? error.message : String(error);
+      if (link.socket?.readyState !== WebSocket.OPEN) link.socket = null;
+      this.emit('change');
+    } finally {
+      if (link.generation === generation) {
+        link.connecting = false;
+        this.schedule(peer);
+      }
+    }
+  }
+
   private write(ws: WebSocket, frame: Frame): Promise<void> {
     return new Promise((resolve, reject) => {
       if (ws.readyState !== WebSocket.OPEN) {
@@ -836,8 +901,9 @@ export class PeerNetwork extends EventEmitter {
       ? this.write(ws, frame)
       : Promise.reject(new Error('The remote node is disconnected'));
   }
-  private closePeerLink(peerId: string): void {
+  private closePeerLink(peerId: string, notify: boolean = false): void {
     const link = this.link(peerId);
+    const selected = notify && link.socket?.readyState === WebSocket.OPEN ? link.socket : null;
     link.generation++;
     clearTimeout(link.timer);
     link.timer = undefined;
@@ -852,7 +918,10 @@ export class PeerNetwork extends EventEmitter {
     link.attachmentLimitMiB = undefined;
     link.error = null;
     for (const socket of this.sockets)
-      if (this.socketPeers.get(socket) === peerId) socket.terminate();
+      if (this.socketPeers.get(socket) === peerId) {
+        if (socket === selected) socket.close(peerDisconnectCode);
+        else socket.terminate();
+      }
     for (const [id, request] of this.requests)
       if (request.peerId === peerId) {
         clearTimeout(request.timer);
@@ -868,13 +937,19 @@ export class PeerNetwork extends EventEmitter {
     if (peer) this.connect(peer);
   }
   async removePeer(peerId: string, token: string): Promise<void> {
+    await this.forgetPeer(peerId, token, true);
+  }
+
+  private async forgetPeer(peerId: string, token: string, notify: boolean): Promise<void> {
     if (this.removingPeers.has(peerId)) throw new Error('This node is already being removed');
     this.removingPeers.add(peerId);
     try {
+      let label = '';
       await this.settings.savePeers((peers) => {
         const selected = peers.find((peer) => peer.id === peerId);
         if (!selected || !secretMatches(token, peerRemovalToken(selected)))
           throw new Error('The selected connection changed');
+        label = selected.label;
         return peers.filter((peer) => peer.id !== peerId);
       });
       this.pairingLeases.delete(peerId);
@@ -885,7 +960,8 @@ export class PeerNetwork extends EventEmitter {
       this.candidates.delete(peerId);
       for (const [request, id] of this.probes)
         if (id === peerId) request.destroy(new Error('The paired node was removed'));
-      this.closePeerLink(peerId);
+      this.lastPeerDisconnection = { id: peerId, label };
+      this.closePeerLink(peerId, notify);
       this.links.delete(peerId);
     } finally {
       this.removingPeers.delete(peerId);
@@ -1041,6 +1117,7 @@ export class PeerNetwork extends EventEmitter {
   private peerCommitted(peerId: string): void {
     if (this.stopped) return;
     try {
+      if (this.lastPeerDisconnection?.id === peerId) this.lastPeerDisconnection = undefined;
       this.reconnectPeer(peerId);
       this.emit('change');
     } catch {
@@ -1303,11 +1380,13 @@ export class PeerNetwork extends EventEmitter {
     entry.deadline = setTimeout(() => this.cancelApproval(id), 120_000);
     entry.deadline.unref();
     try {
+      const own = this.ownIdentity();
+      const token = randomBytes(32).toString('hex');
       let response;
       try {
         response = await this.pairRequest(
           endpoint,
-          { phase: 'prepare' },
+          { phase: 'prepare', commitment: approvalCommitment(own, token) },
           undefined,
           entry.controller.signal,
         );
@@ -1328,8 +1407,9 @@ export class PeerNetwork extends EventEmitter {
       )
         throw new PairingError('The remote node does not match the requested identity', 409);
       this.checkApprovalIdentity(identity);
-      const request = signApprovalRequest(challenge, this.ownIdentity(), this.key);
-      entry.remote = { id: request.id, token: request.token, identity };
+      const request = signApprovalRequest(challenge, own, this.key, token);
+      const comparisonCode = approvalComparisonCode(challenge, own, token);
+      entry.remote = { id: request.id, token, comparisonCode, requester: own, identity };
       const value = await this.pairRequest(
         endpoint,
         request,
@@ -1338,7 +1418,10 @@ export class PeerNetwork extends EventEmitter {
       );
       this.checkOutgoingApproval(id, entry);
       const status = approvalStatus.parse(value.body);
-      if (status.state === 'waiting' || status.state === 'shown') return { state: status.state };
+      if (status.state === 'waiting' || status.state === 'shown') {
+        entry.displayed = status.state === 'shown';
+        return { state: status.state, comparisonCode };
+      }
       if (status.state === 'suppressed' || status.state === 'dismissed') {
         this.finishApproval(id, entry);
         return { state: status.state };
@@ -1371,9 +1454,16 @@ export class PeerNetwork extends EventEmitter {
     if (remote)
       void this.pairRequest(
         entry.endpoint,
-        { phase: 'cancel', id: remote.id, token: remote.token },
+        { phase: 'cancel', id: remote.id, token: remote.token, identity: remote.requester },
         remote.identity.certificate,
       ).catch(() => {});
+    return true;
+  }
+
+  confirmApproval(id: string): boolean {
+    const entry = this.outgoingApprovals.get(id);
+    if (!entry?.remote || !entry.displayed || this.stopped) return false;
+    entry.confirmed = true;
     return true;
   }
 
@@ -1402,13 +1492,18 @@ export class PeerNetwork extends EventEmitter {
       );
       this.checkOutgoingApproval(id, entry);
       const status = approvalStatus.parse(response.body);
-      if (status.state === 'waiting' || status.state === 'shown') return { state: status.state };
+      if (status.state === 'waiting' || status.state === 'shown') {
+        entry.displayed = status.state === 'shown';
+        return { state: status.state, comparisonCode: remote.comparisonCode };
+      }
       if (status.state === 'dismissed' || status.state === 'suppressed') {
         this.finishApproval(id, entry);
         return { state: status.state };
       }
       if (status.state !== 'approved')
         throw new PairingError('Unexpected connection approval state', 409);
+      entry.displayed = true;
+      if (!entry.confirmed) return { state: 'shown', comparisonCode: remote.comparisonCode };
       this.checkApprovalIdentity(remote.identity);
       const lease = this.holdPeer(remote.identity.nodeId);
       entry.committing = true;
