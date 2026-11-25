@@ -133,7 +133,8 @@ export const de: Messages = {
   mcpSetup_connectionPrompt: 'Verbinde dich als Agent <ein Name deiner Wahl>.',
 
   agentsColumnName: 'Name',
-  agentsColumnClient: 'Client',
+  agentsColumnClient: 'Anwendung',
+  agentsApplicationUnknown: 'Unbekannte Anwendung',
   agentsColumnNode: 'Knoten',
   agentsColumnLastMessage: 'Letzte Nachricht',
   agentsColumnIncoming: 'Ein',

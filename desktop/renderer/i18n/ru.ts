@@ -125,7 +125,8 @@ export const ru: Messages = {
   mcpSetup_connectionPrompt: 'Подключись как агент <выбранное вами имя>.',
 
   agentsColumnName: 'Имя',
-  agentsColumnClient: 'Клиент',
+  agentsColumnClient: 'Приложение',
+  agentsApplicationUnknown: 'Приложение неизвестно',
   agentsColumnNode: 'Узел',
   agentsColumnLastMessage: 'Последнее сообщение',
   agentsColumnIncoming: 'Входящие',

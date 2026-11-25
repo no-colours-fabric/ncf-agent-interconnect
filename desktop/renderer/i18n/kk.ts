@@ -129,7 +129,8 @@ export const kk: Messages = {
   mcpSetup_connectionPrompt: '<Өзіңіз таңдаған ат> атты агент ретінде қосыл.',
 
   agentsColumnName: 'Аты',
-  agentsColumnClient: 'Клиент',
+  agentsColumnClient: 'Қолданба',
+  agentsApplicationUnknown: 'Белгісіз қолданба',
   agentsColumnNode: 'Түйін',
   agentsColumnLastMessage: 'Соңғы хабарлама',
   agentsColumnIncoming: 'Кіріс',

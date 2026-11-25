@@ -18,11 +18,22 @@ export const nicknameKey = (nickname: string): string =>
     .toLowerCase()
     .replace(/\u03c2/g, '\u03c3')
     .replace(/ß/g, 'ss');
+export const agentApplicationSchema = z.enum([
+  'cursor-hook',
+  'opencode-http',
+  'opencode-v2',
+  'codex-desktop',
+  'aionui',
+  'claude-code',
+]);
+export type AgentApplicationId = z.infer<typeof agentApplicationSchema>;
+
 export const directoryAgentSchema = z
   .object({
     nickname: nicknameSchema,
     availability: z.enum(['online', 'unknown']),
     delivery: z.enum(['mcp', 'automatic', 'unknown']),
+    application: agentApplicationSchema.optional(),
   })
   .strict();
 export const directorySnapshotSchema = z

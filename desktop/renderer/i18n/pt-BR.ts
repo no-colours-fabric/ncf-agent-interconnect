@@ -127,7 +127,8 @@ export const ptBR: Messages = {
   mcpSetup_connectionPrompt: 'Conecte-se como agente <um nome de sua escolha>.',
 
   agentsColumnName: 'Nome',
-  agentsColumnClient: 'Cliente',
+  agentsColumnClient: 'Aplicativo',
+  agentsApplicationUnknown: 'Aplicativo desconhecido',
   agentsColumnNode: 'Nó',
   agentsColumnLastMessage: 'Última mensagem',
   agentsColumnIncoming: 'Entrada',

@@ -128,7 +128,8 @@ export const nl: Messages = {
   mcpSetup_connectionPrompt: 'Verbind als agent <een naam naar keuze>.',
 
   agentsColumnName: 'Naam',
-  agentsColumnClient: 'Client',
+  agentsColumnClient: 'Applicatie',
+  agentsApplicationUnknown: 'Onbekende applicatie',
   agentsColumnNode: 'Knooppunt',
   agentsColumnLastMessage: 'Laatste bericht',
   agentsColumnIncoming: 'In',

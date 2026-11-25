@@ -123,7 +123,8 @@ export const ko: Messages = {
   mcpSetup_connectionPrompt: '에이전트 <원하는 이름>으로 연결해 주세요.',
 
   agentsColumnName: '이름',
-  agentsColumnClient: '클라이언트',
+  agentsColumnClient: '앱',
+  agentsApplicationUnknown: '알 수 없는 앱',
   agentsColumnNode: '노드',
   agentsColumnLastMessage: '최근 메시지',
   agentsColumnIncoming: '수신',

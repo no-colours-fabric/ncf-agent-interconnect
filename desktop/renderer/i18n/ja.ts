@@ -125,7 +125,8 @@ export const ja: Messages = {
   mcpSetup_connectionPrompt: 'エージェント<任意の名前>として接続してください。',
 
   agentsColumnName: '名前',
-  agentsColumnClient: 'クライアント',
+  agentsColumnClient: 'アプリ',
+  agentsApplicationUnknown: '不明なアプリ',
   agentsColumnNode: 'ノード',
   agentsColumnLastMessage: '最新メッセージ',
   agentsColumnIncoming: '受信',

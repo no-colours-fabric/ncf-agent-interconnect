@@ -127,7 +127,8 @@ export const tr: Messages = {
   mcpSetup_connectionPrompt: '<Seçtiğiniz bir ad> adlı ajan olarak bağlan.',
 
   agentsColumnName: 'Ad',
-  agentsColumnClient: 'İstemci',
+  agentsColumnClient: 'Uygulama',
+  agentsApplicationUnknown: 'Bilinmeyen uygulama',
   agentsColumnNode: 'Düğüm',
   agentsColumnLastMessage: 'Son mesaj',
   agentsColumnIncoming: 'Gelen',

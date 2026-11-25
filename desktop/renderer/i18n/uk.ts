@@ -127,7 +127,8 @@ export const uk: Messages = {
   mcpSetup_connectionPrompt: 'Підключись як агент <вибране вами ім’я>.',
 
   agentsColumnName: 'Ім’я',
-  agentsColumnClient: 'Клієнт',
+  agentsColumnClient: 'Застосунок',
+  agentsApplicationUnknown: 'Невідомий застосунок',
   agentsColumnNode: 'Вузол',
   agentsColumnLastMessage: 'Останнє повідомлення',
   agentsColumnIncoming: 'Вхідні',

@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { z } from 'zod';
 import {
   envelopeSchema,
+  agentApplicationSchema,
   deliveryStatus,
   nicknameKey,
   nicknameSchema,
@@ -876,6 +877,7 @@ export class NodeService extends EventEmitter {
         const adapter = this.adapters
           .states()
           .find((value) => value.id === agent.binding!.adapterId);
+        const application = agentApplicationSchema.safeParse(adapter?.kind).data;
         const cursor = adapter?.kind === 'cursor-hook';
         const adapterInstance = cursor ? this.adapters.get(agent.binding.adapterId) : undefined;
         const cursorActive =
@@ -890,6 +892,7 @@ export class NodeService extends EventEmitter {
         return [
           {
             nickname: agent.nickname,
+            ...(application ? { application } : {}),
             availability: online ? ('online' as const) : ('unknown' as const),
             delivery:
               adapter?.kind === 'claude-code' || !online

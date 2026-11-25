@@ -120,7 +120,8 @@ export const zh: Messages = {
   mcpSetup_connectionPrompt: '以代理<您选择的名称>的身份连接。',
 
   agentsColumnName: '名称',
-  agentsColumnClient: '客户端',
+  agentsColumnClient: '应用',
+  agentsApplicationUnknown: '未知应用',
   agentsColumnNode: '节点',
   agentsColumnLastMessage: '最新消息',
   agentsColumnIncoming: '接收',

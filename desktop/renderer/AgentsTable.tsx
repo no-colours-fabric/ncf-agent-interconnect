@@ -10,6 +10,7 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  TableSortLabel,
   Tooltip,
   Typography,
 } from '@mui/material';
@@ -20,7 +21,18 @@ import ArrowDownwardOutlined from '@mui/icons-material/ArrowDownwardOutlined';
 import ArrowUpwardOutlined from '@mui/icons-material/ArrowUpwardOutlined';
 import ComputerOutlined from '@mui/icons-material/ComputerOutlined';
 import PublicOutlined from '@mui/icons-material/PublicOutlined';
-import type { AgentRow } from './agents-table-model.js';
+import { applicationNames } from '../shared/application-discovery.js';
+import type { AgentApplicationId } from '../shared/contracts.js';
+import type { McpSetupClient } from '../shared/mcp-setup.js';
+import { ClientLogo } from './ApplicationDiscovery.js';
+import {
+  agentLastMessageTime,
+  sortAgentRows,
+  type AgentRow,
+  type AgentSort,
+  type AgentSortColumn,
+} from './agents-table-model.js';
+import { applicationSetupMessages } from './i18n/application-setup.js';
 import { t, type Locale } from './i18n/index.js';
 import { designTokens } from './theme.js';
 
@@ -35,6 +47,22 @@ export interface AgentsTableLabels {
   chat: (nickname: string) => string;
   remove: (nickname: string) => string;
   remoteRemoval: string;
+}
+
+const applicationClients = {
+  'cursor-hook': 'cursor',
+  'opencode-http': 'opencode',
+  'opencode-v2': 'opencode',
+  'codex-desktop': 'codex',
+  aionui: 'aionui',
+  'claude-code': 'claude',
+} satisfies Record<AgentApplicationId, McpSetupClient>;
+
+function agentApplicationName(application: AgentApplicationId, locale: Locale): string {
+  if (application === 'aionui') return applicationSetupMessages(locale).aionUiName;
+  if (application === 'opencode-http') return 'OpenCode v1';
+  if (application === 'opencode-v2') return 'OpenCode v2';
+  return applicationNames[applicationClients[application]];
 }
 
 export function AgentsTable({
@@ -52,6 +80,16 @@ export function AgentsTable({
   onChat: (agent: AgentRow) => void;
   onDelete: (agent: AgentRow) => void;
 }): React.JSX.Element {
+  const [sort, setSort] = React.useState<AgentSort>({ column: 'name', direction: 'asc' });
+  const applicationName = (application: AgentApplicationId) =>
+    agentApplicationName(application, locale);
+  const columns: { key: AgentSortColumn; label: string; align?: 'right'; span?: number }[] = [
+    { key: 'name', label: labels.name },
+    { key: 'application', label: labels.client },
+    { key: 'node', label: labels.node, span: 2 },
+    { key: 'lastMessage', label: labels.lastMessage },
+    { key: 'messages', label: t(locale, 'agentsColumnMessages'), align: 'right' },
+  ];
   return (
     <TableContainer component={Paper}>
       <Table
@@ -66,17 +104,43 @@ export function AgentsTable({
       >
         <TableHead>
           <TableRow>
-            <TableCell>{labels.name}</TableCell>
-            <TableCell>{labels.client}</TableCell>
-            <TableCell aria-hidden="true" sx={{ width: 36, px: 1 }} />
-            <TableCell>{labels.node}</TableCell>
-            <TableCell>{labels.lastMessage}</TableCell>
-            <TableCell align="right">{t(locale, 'agentsColumnMessages')}</TableCell>
+            {columns.map(({ key, label, align, span }) => {
+              const active = sort.column === key;
+              const direction = active ? sort.direction : 'asc';
+              return (
+                <TableCell
+                  key={key}
+                  scope="col"
+                  align={align}
+                  colSpan={span}
+                  sortDirection={active ? direction : false}
+                >
+                  <TableSortLabel
+                    component="button"
+                    type="button"
+                    active={active}
+                    direction={direction}
+                    onClick={() =>
+                      setSort((current) => ({
+                        column: key,
+                        direction:
+                          current.column === key && current.direction === 'asc' ? 'desc' : 'asc',
+                      }))
+                    }
+                    sx={{
+                      '&.Mui-focusVisible': { outline: '2px solid currentColor', outlineOffset: 2 },
+                    }}
+                  >
+                    {label}
+                  </TableSortLabel>
+                </TableCell>
+              );
+            })}
             <TableCell align="right">{labels.actions}</TableCell>
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((agent) => (
+          {sortAgentRows(rows, sort, locale, nodeName, applicationName).map((agent) => (
             <TableRow key={agent.id} data-testid="agent-row" data-agent-id={agent.id} hover>
               <TableCell
                 component="th"
@@ -105,7 +169,18 @@ export function AgentsTable({
                 </Stack>
               </TableCell>
               <TableCell sx={{ whiteSpace: 'nowrap', overflowWrap: 'normal' }}>
-                {agent.client}
+                {agent.application ? (
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <ClientLogo client={applicationClients[agent.application]} size={24} />
+                    <Typography component="span" variant="body2">
+                      {applicationName(agent.application)}
+                    </Typography>
+                  </Stack>
+                ) : (
+                  <Typography component="span" variant="body2" color="text.secondary">
+                    {t(locale, 'agentsApplicationUnknown')}
+                  </Typography>
+                )}
               </TableCell>
               <TableCell sx={{ width: 36, px: 1 }}>
                 <Tooltip title={t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}>
@@ -130,7 +205,9 @@ export function AgentsTable({
                 </Typography>
               </TableCell>
               <TableCell sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'normal' }}>
-                {agent.lastMessageAt ? new Date(agent.lastMessageAt).toLocaleString(locale) : ''}
+                {agent.lastMessageAt && agentLastMessageTime(agent) !== undefined
+                  ? new Date(agent.lastMessageAt).toLocaleString(locale)
+                  : ''}
               </TableCell>
               <TableCell
                 align="right"

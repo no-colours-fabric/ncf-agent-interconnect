@@ -123,7 +123,8 @@ export const en: Messages = {
   mcpSetup_connectionPrompt: 'Connect as agent <a name you choose>.',
 
   agentsColumnName: 'Name',
-  agentsColumnClient: 'Client',
+  agentsColumnClient: 'Application',
+  agentsApplicationUnknown: 'Unknown application',
   agentsColumnNode: 'Node',
   agentsColumnLastMessage: 'Last message',
   agentsColumnIncoming: 'In',

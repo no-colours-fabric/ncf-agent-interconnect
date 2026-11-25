@@ -334,6 +334,83 @@ test('transfer and reconnect discard obsolete evidence and cached remote agents'
   assert.equal(b.store.list().filter((agent) => agent.binding).length, 1);
 });
 
+for (const legacy of [false, true]) {
+  test(
+    legacy
+      ? 'paired peers using strict directory v1 exchange entries without the application field'
+      : 'paired peers advertise different applications for Unicode namesakes',
+    async (t) => {
+      const a = await node(t),
+        b = await node(t);
+      if (legacy)
+        b.network.server!.prependListener('upgrade', (req) => {
+          // A v1 peer replies to the original feature header only.
+          delete req.headers['x-ncf-directory-application'];
+        });
+      const cursor = {
+        kind: 'cursor-hook',
+        id: randomUUID(),
+        sessionId: randomUUID(),
+        label: 'Private Cursor adapter',
+      } as const;
+      const claude = {
+        kind: 'claude-code',
+        id: randomUUID(),
+        sessionId: randomUUID(),
+        label: 'Private Claude adapter',
+      } as const;
+      await a.installAdapter(cursor);
+      await b.installAdapter(claude);
+      const one = a.connect({
+        nickname: 'Один агент',
+        client: 'Cursor',
+        adapterId: cursor.id,
+        chatId: cursor.sessionId,
+      });
+      const two = b.connect({
+        nickname: 'ОДИН АГЕНТ',
+        client: 'Claude Code',
+        adapterId: claude.id,
+        chatId: claude.sessionId,
+      });
+      assert.ok(one.status === 'connected' && two.status === 'connected');
+      await a.network.join(b.snapshot().peerUrl, b.network.accessCode().code);
+      const aId = a.settings.value.nodeId;
+      const bId = b.settings.value.nodeId;
+      await until(
+        () => advertised(a, bId).agents.length === 1 && advertised(b, aId).agents.length === 1,
+      );
+      const fromA = advertised(b, aId).agents[0];
+      const fromB = advertised(a, bId).agents[0];
+      assert.equal(fromA.nickname, 'Один агент');
+      assert.equal(fromB.nickname, 'ОДИН АГЕНТ');
+      assert.equal(advertised(a, aId).agents[0].application, cursor.kind);
+      assert.equal(advertised(b, bId).agents[0].application, claude.kind);
+      if (legacy) {
+        for (const entry of [fromA, fromB])
+          assert.deepEqual(Object.keys(entry).sort(), ['availability', 'delivery', 'nickname']);
+      } else {
+        assert.equal(fromA.application, cursor.kind);
+        assert.equal(fromB.application, claude.kind);
+        for (const entry of [fromA, fromB])
+          assert.deepEqual(Object.keys(entry).sort(), [
+            'application',
+            'availability',
+            'delivery',
+            'nickname',
+          ]);
+      }
+      const message = await a.send({
+        connectionId: one.binding.connectionId,
+        recipientNode: bId,
+        recipientNickname: two.nickname,
+        text: 'Compatible message',
+      });
+      await until(() => b.store.get(message.id, 'in')?.state === 'ready');
+    },
+  );
+}
+
 test('peers without the negotiated capability stay unsupported and protocol 2 messages still work', async (t) => {
   const a = await node(t),
     b = await node(t);

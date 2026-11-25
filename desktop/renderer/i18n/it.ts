@@ -127,7 +127,8 @@ export const it: Messages = {
   mcpSetup_connectionPrompt: 'Collegati come agente <un nome a tua scelta>.',
 
   agentsColumnName: 'Nome',
-  agentsColumnClient: 'Client',
+  agentsColumnClient: 'Applicazione',
+  agentsApplicationUnknown: 'Applicazione sconosciuta',
   agentsColumnNode: 'Nodo',
   agentsColumnLastMessage: 'Ultimo messaggio',
   agentsColumnIncoming: 'In entrata',
