@@ -133,7 +133,7 @@ export function AgentsTable({
   });
   const columns: { key: AgentSortColumn; label: string; align?: 'right'; span?: number }[] = [
     { key: 'name', label: labels.name },
-    { key: 'application', label: labels.client },
+    { key: 'application', label: labels.client, span: 2 },
     { key: 'node', label: labels.node, span: 2 },
     { key: 'lastMessage', label: labels.lastMessage },
     { key: 'messages', label: t(locale, 'agentsColumnMessages'), align: 'right' },
@@ -146,18 +146,19 @@ export function AgentsTable({
         aria-label={t(locale, 'agentsTitle')}
         size="small"
         sx={{
-          minWidth: 704,
+          minWidth: 736,
           tableLayout: 'fixed',
           '& td, & th': { overflowWrap: 'anywhere', verticalAlign: 'middle' },
           '& thead th': { whiteSpace: 'normal' },
         }}
       >
         <colgroup>
-          <Box component="col" sx={{ width: '24%' }} />
-          <col style={{ width: 72 }} />
+          <col style={{ width: '16%' }} />
+          <col style={{ width: 28 }} />
+          <col style={{ width: 92 }} />
           <col style={{ width: 36 }} />
           <col />
-          <Box component="col" sx={{ width: 'clamp(90px, calc(100cqw - 700px), 180px)' }} />
+          <Box component="col" sx={{ width: 'clamp(90px, calc(84cqw - 574px), 180px)' }} />
           <col style={{ width: 88 }} />
           <col style={{ width: 116 }} />
           <col style={{ width: 122 }} />
@@ -230,6 +231,11 @@ export function AgentsTable({
               </TableCell>
               <TableCell sx={{ p: '2px' }}>
                 <AgentApplicationIcon application={agent.application} locale={locale} />
+              </TableCell>
+              <TableCell sx={{ pl: 0, pr: 1 }}>
+                {agent.application && (
+                  <Typography variant="body2">{applicationName(agent.application)}</Typography>
+                )}
               </TableCell>
               <TableCell sx={{ width: 36, px: 1 }}>
                 <Tooltip title={t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}>
@@ -380,7 +386,7 @@ export function AgentsTable({
           ))}
           {!rows.length && (
             <TableRow>
-              <TableCell colSpan={8} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
+              <TableCell colSpan={9} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
                 {t(locale, 'agentEmptyPrompt')}
               </TableCell>
             </TableRow>

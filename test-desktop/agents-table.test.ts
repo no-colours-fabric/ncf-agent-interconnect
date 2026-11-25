@@ -110,7 +110,7 @@ test('one message column distinguishes measured zeros from unknown directional a
   const messageCells = (html: string) =>
     [...html.matchAll(/<tr\b[^>]*data-testid="agent-row"[^>]*>([\s\S]*?)<\/tr>/g)].map((row) => {
       const cells = [...row[1].matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)];
-      return cells[4][1]
+      return cells[5][1]
         .replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '')
         .replace(/<[^>]*>/g, '')
         .replace(/\s/g, '');
@@ -275,22 +275,29 @@ test('the application column renders the paired node’s own app and a localized
     );
     const cells = [...html.matchAll(/<tr\b[^>]*data-testid="agent-row"[^>]*>([\s\S]*?)<\/tr>/g)];
     assert.equal(cells.length, 3, locale);
+    const applicationHeader = [...html.matchAll(/<th\b([^>]*)>([\s\S]*?)<\/th>/g)].find((header) =>
+      header[2].includes('>' + t(locale, 'agentsColumnClient') + '<'),
+    );
+    assert.match(applicationHeader?.[1] ?? '', /colspan="2"/i);
+    const tableCells = (row: string) =>
+      [...row.matchAll(/<td\b[^>]*>([\s\S]*?)<\/td>/g)].map((cell) => cell[1]);
     for (const [nodeId, name] of [
       [snapshot.nodeId, 'ChatGPT'],
       [remote.nodeId, 'OpenCode v2'],
     ]) {
       const row = cells.find((cell) => cell[0].includes('data-agent-id="' + nodeId + ':'));
-      assert.ok(row?.[1].includes('aria-label="' + name + '"'), locale);
-      assert.ok(!row?.[1].includes('>' + name + '<'), locale);
-      assert.match(row![1], /<img[^>]+alt=""/);
+      const [icon, label] = tableCells(row![1]);
+      assert.ok(icon.includes('aria-label="' + name + '"'), locale);
+      assert.match(icon, /<img[^>]+alt=""/);
+      assert.ok(!icon.includes('>' + name + '<'), locale);
+      assert.ok(label.includes('>' + name + '<'), locale);
     }
     const legacy = cells.find((cell) => cell[0].includes('data-agent-id="' + older.nodeId + ':'));
-    assert.ok(
-      legacy?.[1].includes('aria-label="' + t(locale, 'agentsApplicationUnknown') + '"'),
-      locale,
-    );
-    assert.match(legacy![1], /aria-hidden="true">\?<\/span>/);
-    assert.doesNotMatch(legacy![1], /<img\b/);
+    const [icon, label] = tableCells(legacy![1]);
+    assert.ok(icon.includes('aria-label="' + t(locale, 'agentsApplicationUnknown') + '"'), locale);
+    assert.match(icon, /aria-hidden="true">\?<\/span>/);
+    assert.doesNotMatch(icon, /<img\b/);
+    assert.equal(label, '', locale);
     assert.ok(!html.includes('Private adapter label'), locale);
   }
 });
