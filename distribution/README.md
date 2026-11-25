@@ -139,7 +139,22 @@ Agents shows complete message text, participants and attachments. Use
 **Attachments only** in a local agent’s history to show messages with
 attachments, including files marked unavailable. Open or save verified files
 using the controls beside them. Settings lists the folders from
-which files may be sent. Each message supports up to 16 files, 100 MiB each.
+which files may be sent. Each message supports up to 16 files. Under
+**Settings → Attachment size limit**, change the maximum size for each
+outgoing file or choose **No size limit**. The default is **1 GiB** per file.
+The setting leaves incoming transfers unchanged. Older receiving computers
+may apply a lower limit and leave the message queued.
+
+NCF Agent Interconnect removes an unchanged temporary source it created for
+transfer once delivery to the receiving agent is recorded. Working files and
+files still awaiting delivery are kept.
+
+**Settings → Received attachments** shows local attachment storage by agent.
+Choose **Remove received attachments**, select **7, 30, 90, or 365 days**
+under **Older than**, and confirm. In **Agents**, use a local agent’s
+attachment storage controls to check its usage and remove eligible received
+files for that agent. Removal keeps messages, attachment names and separately
+saved files. History marks removed files as unavailable.
 
 Check the intended chat or the message status in **Agents** if you are waiting
 for an exchange. Look for the agent’s reply for the result of the task. If
