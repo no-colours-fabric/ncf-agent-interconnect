@@ -200,7 +200,11 @@ try {
   const sendSchema = tools.tools.find(tool => tool.name === 'agent_send').inputSchema;
   assert.ok(opencode.getInstructions().includes('Reply-To')); assert.ok(opencode.getInstructions().includes('agent_send'));
   assert.ok(sendSchema.properties.replyRef);
-  assert.equal(tools.tools.length, 11); assert.ok(!tools.tools.some(tool => tool.name === 'message_ack'));
+  assert.deepEqual(tools.tools.map(tool => tool.name).sort(), [
+    'agent_clear_history', 'agent_connect', 'agent_disconnect', 'agent_history',
+    'agent_read', 'agent_send', 'agents_list', 'attachment_receive', 'attachment_stage',
+    'connection_events', 'node_peers', 'node_status',
+  ]);
   assert.ok(tools.tools.find(tool => tool.name === 'agent_clear_history').inputSchema.properties.operationId);
   for (const tool of tools.tools) assert.equal(tool.annotations.destructiveHint, ['agent_connect', 'agent_clear_history'].includes(tool.name));
   for (const removed of ['client', 'chatId', 'adapterId', 'codexTarget']) assert.ok(!(removed in schema.properties));
