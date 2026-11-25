@@ -12,7 +12,7 @@ For ordinary work, open a chat in a configured AI application, choose a name and
 
 The **For diagnostics: Create an agent manually** link remains available on **Agents**. It opens the name dialog and creates a local mailbox without connecting an AI chat. Afterward, ask the assistant in a configured chat to connect under the same name. The dialog warns when that name is also used on a paired computer, and the app's manual controls can simulate agent activity for diagnostics. If a name is already bound to another local chat, connecting a different chat still requires your explicit transfer and history choice; manual creation does not bypass that decision.
 
-The **Application** column shows the app icon for local and remote agents when the app is known. Hover over the icon to see the app name. A **?** means the application is unknown. Use **Rename agent** on a local row, or [ask for the new name in the connected chat](usage.md#rename-an-agent-from-its-chat) when the integration can verify it. Either action keeps the chat and its history.
+The **Application** group shows the app icon in a narrow cell and the app name in the next cell. If the app is unknown, the group shows only **?**, labeled “Unknown application” for accessibility. Use **Rename agent** on a local row, or [ask for the new name in the connected chat](usage.md#rename-an-agent-from-its-chat) when the integration can verify it. Either action keeps the chat and its history.
 
 Only confirmed online clients receive the online indicator. An unknown or unavailable state does not prove that an agent cannot receive a queued message later. New-message counts refer to messages the agents have not yet received. They do not track completed tasks.
 

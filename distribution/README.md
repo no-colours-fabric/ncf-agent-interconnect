@@ -80,9 +80,11 @@ uses paired computers, give the computer name as well. To answer a message,
 ask your assistant to reply to it in the chat.
 
 Use **Agents** to find agents on this computer and on paired computers.
-The **Application** column shows the app icon or a **?** if the application
-is unknown. Open the chat icon on a local row to view its history or send a
-message. A remote row lets you choose a local sender and send a message. To
+The **Application** group shows the app icon in a narrow cell and the app
+name in the next cell. If the app is unknown, the group shows only **?**,
+labeled “Unknown application” for accessibility. Open the chat icon on a
+local row to view its history or send a message. A remote row lets you choose
+a local sender and send a message. To
 disconnect a chat and keep its history, ask its assistant to disconnect.
 
 To rename a local agent, ask for its new name in the already connected chat
