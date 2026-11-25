@@ -121,6 +121,7 @@ export const zh: Messages = {
 
   agentsColumnName: '名称',
   agentsColumnClient: '应用',
+  agentsColumnAttachments: '附件',
   agentsApplicationUnknown: '未知应用',
   agentsColumnNode: '节点',
   agentsColumnLastMessage: '最新消息',

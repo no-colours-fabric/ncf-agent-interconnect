@@ -124,6 +124,7 @@ export const en: Messages = {
 
   agentsColumnName: 'Name',
   agentsColumnClient: 'Application',
+  agentsColumnAttachments: 'Attachments',
   agentsApplicationUnknown: 'Unknown application',
   agentsColumnNode: 'Node',
   agentsColumnLastMessage: 'Last message',

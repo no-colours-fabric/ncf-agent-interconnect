@@ -124,6 +124,7 @@ export const ko: Messages = {
 
   agentsColumnName: '이름',
   agentsColumnClient: '앱',
+  agentsColumnAttachments: '첨부파일',
   agentsApplicationUnknown: '알 수 없는 앱',
   agentsColumnNode: '노드',
   agentsColumnLastMessage: '최근 메시지',

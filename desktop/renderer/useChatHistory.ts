@@ -36,6 +36,7 @@ export function useChatHistory({
   size,
   active,
   attachmentsOnly,
+  refresh,
   onError,
 }: {
   owner: string;
@@ -43,6 +44,7 @@ export function useChatHistory({
   size: number;
   active: boolean;
   attachmentsOnly: boolean;
+  refresh: number;
   onError: (error: string) => void;
 }): ChatHistoryPage & { loading: boolean } {
   const agent = owner
@@ -92,7 +94,7 @@ export function useChatHistory({
     return () => {
       cancelled = true;
     };
-  }, [owner, cacheKey, snapshot, windowSize, active, attachmentsOnly, onError]);
+  }, [owner, cacheKey, snapshot, windowSize, active, attachmentsOnly, refresh, onError]);
   return {
     ...visibleAgentHistory(history, cacheKey),
     loading: active && (loading || settledKey !== cacheKey),

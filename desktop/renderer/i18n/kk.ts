@@ -130,6 +130,7 @@ export const kk: Messages = {
 
   agentsColumnName: 'Аты',
   agentsColumnClient: 'Қолданба',
+  agentsColumnAttachments: 'Тіркемелер',
   agentsApplicationUnknown: 'Белгісіз қолданба',
   agentsColumnNode: 'Түйін',
   agentsColumnLastMessage: 'Соңғы хабарлама',

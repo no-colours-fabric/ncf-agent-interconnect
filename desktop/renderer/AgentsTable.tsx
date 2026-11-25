@@ -15,6 +15,7 @@ import {
   Typography,
 } from '@mui/material';
 import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
+import FileDownloadOffOutlined from '@mui/icons-material/FileDownloadOffOutlined';
 import EditOutlined from '@mui/icons-material/EditOutlined';
 import DeleteOutlined from '@mui/icons-material/DeleteOutlined';
 import Circle from '@mui/icons-material/Circle';
@@ -111,6 +112,7 @@ export function AgentsTable({
   onChat,
   onDelete,
   onRename,
+  onRemoveReceivedAttachments,
 }: {
   rows: AgentRow[];
   labels: AgentsTableLabels;
@@ -119,16 +121,23 @@ export function AgentsTable({
   onChat: (agent: AgentRow) => void;
   onDelete: (agent: AgentRow) => void;
   onRename: (agent: AgentRow) => void;
+  onRemoveReceivedAttachments?: { label: string; open: (agent: AgentRow) => void };
 }): React.JSX.Element {
   const [sort, setSort] = React.useState<AgentSort>({ column: 'name', direction: 'asc' });
   const applicationName = (application: AgentApplicationId) =>
     agentApplicationName(application, locale);
+  const attachmentSize = new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit: 'byte',
+    unitDisplay: 'short',
+  });
   const columns: { key: AgentSortColumn; label: string; align?: 'right'; span?: number }[] = [
     { key: 'name', label: labels.name },
     { key: 'application', label: labels.client },
     { key: 'node', label: labels.node, span: 2 },
     { key: 'lastMessage', label: labels.lastMessage },
     { key: 'messages', label: t(locale, 'agentsColumnMessages'), align: 'right' },
+    { key: 'attachments', label: t(locale, 'agentsColumnAttachments'), align: 'right' },
   ];
   return (
     <TableContainer component={Paper} sx={{ containerType: 'inline-size' }}>
@@ -137,7 +146,7 @@ export function AgentsTable({
         aria-label={t(locale, 'agentsTitle')}
         size="small"
         sx={{
-          minWidth: 600,
+          minWidth: 704,
           tableLayout: 'fixed',
           '& td, & th': { overflowWrap: 'anywhere', verticalAlign: 'middle' },
           '& thead th': { whiteSpace: 'normal' },
@@ -148,8 +157,9 @@ export function AgentsTable({
           <col style={{ width: 72 }} />
           <col style={{ width: 36 }} />
           <col />
-          <Box component="col" sx={{ width: 'clamp(90px, calc(100cqw - 610px), 180px)' }} />
+          <Box component="col" sx={{ width: 'clamp(90px, calc(100cqw - 700px), 180px)' }} />
           <col style={{ width: 88 }} />
+          <col style={{ width: 116 }} />
           <col style={{ width: 122 }} />
         </colgroup>
         <TableHead>
@@ -301,6 +311,35 @@ export function AgentsTable({
                   </Box>
                 )}
               </TableCell>
+              <TableCell align="right" sx={{ px: 1 }} data-testid="agent-received-attachments">
+                <Stack
+                  direction="row"
+                  spacing={0.5}
+                  sx={{ alignItems: 'center', justifyContent: 'end' }}
+                >
+                  {agent.receivedAttachmentBytes !== undefined && (
+                    <Typography
+                      component="span"
+                      variant="body2"
+                      sx={{ fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {attachmentSize.format(agent.receivedAttachmentBytes)}
+                    </Typography>
+                  )}
+                  {agent.local && agent.identity?.incarnation && onRemoveReceivedAttachments && (
+                    <Tooltip title={onRemoveReceivedAttachments.label}>
+                      <IconButton
+                        size="small"
+                        color="error"
+                        aria-label={onRemoveReceivedAttachments.label}
+                        onClick={() => onRemoveReceivedAttachments.open(agent)}
+                      >
+                        <FileDownloadOffOutlined fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
+                </Stack>
+              </TableCell>
               <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
                 <Tooltip title={labels.chat(agent.nickname)}>
                   <IconButton
@@ -341,7 +380,7 @@ export function AgentsTable({
           ))}
           {!rows.length && (
             <TableRow>
-              <TableCell colSpan={7} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
+              <TableCell colSpan={8} sx={{ py: 5, textAlign: 'center', color: 'text.secondary' }}>
                 {t(locale, 'agentEmptyPrompt')}
               </TableCell>
             </TableRow>

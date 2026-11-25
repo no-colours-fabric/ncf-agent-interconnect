@@ -128,6 +128,7 @@ export const tr: Messages = {
 
   agentsColumnName: 'Ad',
   agentsColumnClient: 'Uygulama',
+  agentsColumnAttachments: 'Ekler',
   agentsApplicationUnknown: 'Bilinmeyen uygulama',
   agentsColumnNode: 'Düğüm',
   agentsColumnLastMessage: 'Son mesaj',

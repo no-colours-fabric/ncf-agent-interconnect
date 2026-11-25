@@ -134,6 +134,7 @@ export const de: Messages = {
 
   agentsColumnName: 'Name',
   agentsColumnClient: 'Anwendung',
+  agentsColumnAttachments: 'Anhänge',
   agentsApplicationUnknown: 'Unbekannte Anwendung',
   agentsColumnNode: 'Knoten',
   agentsColumnLastMessage: 'Letzte Nachricht',

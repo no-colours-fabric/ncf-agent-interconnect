@@ -128,6 +128,7 @@ export const uk: Messages = {
 
   agentsColumnName: 'Ім’я',
   agentsColumnClient: 'Застосунок',
+  agentsColumnAttachments: 'Вкладення',
   agentsApplicationUnknown: 'Невідомий застосунок',
   agentsColumnNode: 'Вузол',
   agentsColumnLastMessage: 'Останнє повідомлення',

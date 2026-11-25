@@ -27,6 +27,7 @@ export interface Messages extends McpSetupTranslations {
 
   agentsColumnName: string;
   agentsColumnClient: string;
+  agentsColumnAttachments: string;
   agentsApplicationUnknown: string;
   agentsColumnNode: string;
   agentsColumnLastMessage: string;

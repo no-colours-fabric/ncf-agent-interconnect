@@ -132,6 +132,7 @@ export const es: Messages = {
 
   agentsColumnName: 'Nombre',
   agentsColumnClient: 'Aplicación',
+  agentsColumnAttachments: 'Archivos adjuntos',
   agentsApplicationUnknown: 'Aplicación desconocida',
   agentsColumnNode: 'Nodo',
   agentsColumnLastMessage: 'Último mensaje',

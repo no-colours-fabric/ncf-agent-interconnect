@@ -129,6 +129,7 @@ export const fr: Messages = {
 
   agentsColumnName: 'Nom',
   agentsColumnClient: 'Application',
+  agentsColumnAttachments: 'Pièces jointes',
   agentsApplicationUnknown: 'Application inconnue',
   agentsColumnNode: 'Nœud',
   agentsColumnLastMessage: 'Dernier message',

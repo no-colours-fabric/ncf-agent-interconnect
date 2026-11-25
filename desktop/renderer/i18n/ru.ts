@@ -126,6 +126,7 @@ export const ru: Messages = {
 
   agentsColumnName: 'Имя',
   agentsColumnClient: 'Приложение',
+  agentsColumnAttachments: 'Вложения',
   agentsApplicationUnknown: 'Приложение неизвестно',
   agentsColumnNode: 'Узел',
   agentsColumnLastMessage: 'Последнее сообщение',

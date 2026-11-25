@@ -6,6 +6,8 @@ import {
   type Snapshot,
 } from '../shared/contracts.js';
 
+import type { ReceivedAttachmentUsage } from '../shared/attachment-cleanup.js';
+
 export interface AgentRow {
   id: string;
   nickname: string;
@@ -18,13 +20,19 @@ export interface AgentRow {
   lastMessageAt?: string | null;
   incomingCount?: number;
   outgoingCount?: number;
+  receivedAttachmentBytes?: number;
   identity?: AgentIdentity;
 }
 
-export function agentRows(snapshot: Snapshot): AgentRow[] {
+export function agentRows(
+  snapshot: Snapshot,
+  attachmentUsage?: ReceivedAttachmentUsage,
+): AgentRow[] {
+  const usageByKey = new Map(attachmentUsage?.agents.map((entry) => [entry.key, entry]));
   const localDirectory = snapshot.directories.find((directory) => directory.local);
   const adapters = new Map(snapshot.adapters.map((adapter) => [adapter.id, adapter.kind]));
   const rows: AgentRow[] = snapshot.agents.map((identity) => {
+    const usage = usageByKey.get(identity.key);
     return {
       id: snapshot.nodeId + ':' + identity.key,
       nickname: identity.nickname,
@@ -46,6 +54,8 @@ export function agentRows(snapshot: Snapshot): AgentRow[] {
       lastMessageAt: identity.lastMessageAt,
       incomingCount: identity.incomingCount,
       outgoingCount: identity.outgoingCount,
+      receivedAttachmentBytes:
+        usage && usage.incarnation === identity.incarnation ? usage.bytes : undefined,
       identity,
     };
   });
@@ -66,7 +76,8 @@ export function agentRows(snapshot: Snapshot): AgentRow[] {
   );
 }
 
-export type AgentSortColumn = 'name' | 'application' | 'node' | 'lastMessage' | 'messages';
+export type AgentSortColumn =
+  'name' | 'application' | 'node' | 'lastMessage' | 'messages' | 'attachments';
 export interface AgentSort {
   column: AgentSortColumn;
   direction: 'asc' | 'desc';
@@ -97,6 +108,8 @@ export function sortAgentRows(
         return agentLastMessageTime(agent);
       case 'messages':
         return agent.messageCount;
+      case 'attachments':
+        return agent.receivedAttachmentBytes;
     }
   };
   return rows

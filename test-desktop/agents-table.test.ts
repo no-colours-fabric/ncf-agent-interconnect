@@ -342,3 +342,85 @@ test('the renamed local agent keeps its table identity, matches directory presen
     assert.ok(html.includes('aria-label="' + copy.title + '"'));
   }
 });
+
+test('received attachment totals and actions stay with the exact local agent incarnation', () => {
+  const snapshot = fixture();
+  const identity = snapshot.agents[0];
+  identity.incarnation = randomUUID();
+  snapshot.agents.push({
+    key: 'other',
+    nickname: 'Other',
+    incarnation: randomUUID(),
+    binding: null,
+    unread: 0,
+    messageCount: 0,
+  });
+  const exact = {
+    key: identity.key,
+    incarnation: identity.incarnation,
+    nickname: 'Old display name',
+    bytes: 1536,
+  };
+  const zero = {
+    key: 'other',
+    incarnation: snapshot.agents[1].incarnation!,
+    nickname: 'Other',
+    bytes: 0,
+  };
+  const usage = { agents: [exact, zero], totalBytes: 1536 };
+  const rows = agentRows(snapshot, usage);
+  assert.equal(
+    rows.find((row) => row.identity?.key === identity.key)?.receivedAttachmentBytes,
+    1536,
+  );
+  assert.equal(rows.find((row) => !row.local)?.receivedAttachmentBytes, undefined);
+  assert.equal(
+    agentRows(snapshot, { ...usage, agents: [{ ...exact, incarnation: randomUUID() }] }).find(
+      (row) => row.identity?.key === identity.key,
+    )?.receivedAttachmentBytes,
+    undefined,
+  );
+  for (const direction of ['asc', 'desc'] as const) {
+    const sorted = sortAgentRows(
+      rows,
+      { column: 'attachments', direction },
+      'en',
+      (id) => id,
+      (id) => id,
+    );
+    assert.deepEqual(
+      sorted.map((row) => row.receivedAttachmentBytes),
+      direction === 'asc' ? [0, 1536, undefined] : [1536, 0, undefined],
+    );
+  }
+  for (const locale of supportedLocales) {
+    const html = renderToStaticMarkup(
+      createElement(AgentsTable, {
+        rows,
+        labels,
+        locale,
+        nodeName: (id) => id,
+        onChat: () => assert.fail(),
+        onDelete: () => assert.fail(),
+        onRename: () => assert.fail(),
+        onRemoveReceivedAttachments: { label: 'Fixture remove', open: () => assert.fail() },
+      }),
+    );
+    assert.ok(html.includes(t(locale, 'agentsColumnAttachments')), locale);
+    const targets = [...html.matchAll(/<tr\b[^>]*data-testid="agent-row"[^>]*>([\s\S]*?)<\/tr>/g)];
+    const escapedKey = identity.key
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;');
+    const localRow = targets.find((match) => match[0].includes(snapshot.nodeId + ':' + escapedKey));
+    const remoteRow = targets.find((match) => match[0].includes(snapshot.peers[0].id + ':'));
+    const expected = new Intl.NumberFormat(locale, {
+      style: 'unit',
+      unit: 'byte',
+      unitDisplay: 'short',
+    }).format(1536);
+    assert.ok(localRow?.[1].includes(expected), locale);
+    assert.match(localRow![1], /aria-label="Fixture remove"/);
+    assert.doesNotMatch(remoteRow![1], /Fixture remove/);
+  }
+});

@@ -39,3 +39,27 @@ application-column and peer compatibility findings are in
   interception exercised the actual renderer and CSS without a real node
   or profile. The browser verification and SQLite tests did not exercise
   native installers or installed application detection.
+
+The Startup regression also checked the exact Cursor, ChatGPT 26.1120.50957,
+and AionUi with Cursor Agent order. At one and two columns all cards kept one
+track. At three and six columns the warning used two tracks. Both version
+numbers in the notice and its download link occupied single text fragments
+on every measured EN, RU, and DE viewport. Keyboard focus could move from the
+download link to Connect without invoking either action.
+
+## Per-agent received storage
+
+- A second change adds the sortable storage column and uses the shared Settings
+  cleanup dialog. The desktop usage call returns deduplicated byte counts.
+  The UI associates each count with the local stable key and incarnation.
+  A remote namesake and a replacement incarnation have no matching local value.
+  A measured zero remains distinguishable from missing usage.
+- The row action submits only the exact local identity and selected age. The
+  UI closes a dialog whose original identity disappears. The backend owns the
+  final stale-scope check. Success and failure both trigger a storage refresh
+  and invalidate loaded history so the display can re-read retained file metadata.
+- The isolated Chrome fixture used the shared dialog source and mock desktop
+  IPC. It exercised keyboard sorting, age selection, confirmation, focus restore,
+  the two namesakes, the refreshed zero count and history, and replacing the
+  selected incarnation before confirmation. A narrow German header wrapped
+  inside the table. No real files or agents were removed.

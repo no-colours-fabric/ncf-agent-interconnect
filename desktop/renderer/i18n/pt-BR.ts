@@ -128,6 +128,7 @@ export const ptBR: Messages = {
 
   agentsColumnName: 'Nome',
   agentsColumnClient: 'Aplicativo',
+  agentsColumnAttachments: 'Anexos',
   agentsApplicationUnknown: 'Aplicativo desconhecido',
   agentsColumnNode: 'Nó',
   agentsColumnLastMessage: 'Última mensagem',

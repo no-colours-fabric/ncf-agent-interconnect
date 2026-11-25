@@ -129,6 +129,7 @@ export const nl: Messages = {
 
   agentsColumnName: 'Naam',
   agentsColumnClient: 'Applicatie',
+  agentsColumnAttachments: 'Bijlagen',
   agentsApplicationUnknown: 'Onbekende applicatie',
   agentsColumnNode: 'Knooppunt',
   agentsColumnLastMessage: 'Laatste bericht',

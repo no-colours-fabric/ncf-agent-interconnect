@@ -41,6 +41,13 @@ import {
   type AgentClearResult,
   type Snapshot,
 } from '../shared/contracts.js';
+import type {
+  ReceivedAttachmentCleanupResult,
+  ReceivedAttachmentUsage,
+  RemoveReceivedAttachments,
+} from '../shared/attachment-cleanup.js';
+import { ReceivedAttachmentCleanupDialog } from './AttachmentCleanup.js';
+import { attachmentMessages } from './i18n/attachments.js';
 import { AgentClearFlow, agentCacheKey } from './agent-clear-model.js';
 import { AgentClearSummary } from './AgentClearControls.js';
 import { AgentsTable } from './AgentsTable.js';
@@ -107,7 +114,63 @@ export function AgentsPage({
   const composeToggle = useRef<HTMLButtonElement>(null);
   const composePanel = useRef<HTMLDivElement>(null);
   const restoreComposeFocus = useRef(false);
-  const rows = agentRows(snapshot);
+  const attachmentCopy = attachmentMessages(locale);
+  const [attachmentUsage, setAttachmentUsage] = useState<ReceivedAttachmentUsage | 'error'>();
+  const [attachmentRevision, refreshAttachments] = useState(0);
+  const [attachmentTarget, setAttachmentTarget] = useState<{
+    key: string;
+    incarnation: string;
+  } | null>(null);
+  const [attachmentBusy, setAttachmentBusy] = useState(false);
+  const [attachmentOutcome, setAttachmentOutcome] = useState<
+    ReceivedAttachmentCleanupResult | 'error'
+  >();
+  const rows = agentRows(snapshot, attachmentUsage === 'error' ? undefined : attachmentUsage);
+  const attachmentAgent = attachmentTarget
+    ? snapshot.agents.find(
+        (agent) =>
+          agent.key === attachmentTarget.key && agent.incarnation === attachmentTarget.incarnation,
+      )
+    : undefined;
+  useEffect(() => {
+    let cancelled = false;
+    void call<ReceivedAttachmentUsage>('receivedAttachmentUsage', {}).then(
+      (result) => {
+        if (!cancelled) setAttachmentUsage(result);
+      },
+      () => {
+        if (!cancelled) setAttachmentUsage('error');
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [call, snapshot.agents, attachmentRevision]);
+  const removeReceivedAttachments = async (input: RemoveReceivedAttachments) => {
+    if (
+      attachmentBusy ||
+      input.scope !== 'agent' ||
+      !attachmentAgent ||
+      input.key !== attachmentAgent.key ||
+      input.incarnation !== attachmentAgent.incarnation
+    )
+      return;
+    setAttachmentBusy(true);
+    setAttachmentOutcome(undefined);
+    try {
+      const outcome = await call<ReceivedAttachmentCleanupResult>(
+        'removeReceivedAttachments',
+        input,
+      );
+      setAttachmentOutcome(outcome);
+    } catch {
+      setAttachmentOutcome('error');
+    } finally {
+      setAttachmentBusy(false);
+      setAttachmentTarget(null);
+      refreshAttachments((revision) => revision + 1);
+    }
+  };
   const entryMessages = agentEntryMessages(locale);
   const renameMessages = agentRenameMessages[locale];
   const [renameTarget, setRenameTarget] = useState<{
@@ -221,6 +284,7 @@ export function AgentsPage({
     snapshot,
     size: historySize,
     attachmentsOnly,
+    refresh: attachmentRevision,
     active: validChat && !!chat?.local,
     onError,
   });
@@ -498,6 +562,18 @@ export function AgentsPage({
           {t(locale, 'clearAllLocalAgents')}
         </Link>
       </Stack>
+      {attachmentUsage === 'error' && <Alert severity="error">{attachmentCopy.usageFailed}</Alert>}
+      {attachmentOutcome === 'error' ? (
+        <Alert severity="error">{attachmentCopy.failed}</Alert>
+      ) : (
+        attachmentOutcome && (
+          <Typography role="status" variant="body2">
+            {attachmentCopy.result
+              .replace('{removed}', attachmentOutcome.removed.toLocaleString(locale))
+              .replace('{preserved}', attachmentOutcome.preserved.toLocaleString(locale))}
+          </Typography>
+        )
+      )}
       {rows.length ? (
         <AgentsTable
           rows={rows}
@@ -516,6 +592,14 @@ export function AgentsPage({
           }}
           onDelete={(agent) => {
             if (agent.local) void clear.begin({ scope: 'agent', nickname: agent.nickname });
+          }}
+          onRemoveReceivedAttachments={{
+            label: attachmentCopy.received,
+            open: ({ identity }) => {
+              if (!identity?.incarnation) return;
+              setAttachmentOutcome(undefined);
+              setAttachmentTarget({ key: identity.key, incarnation: identity.incarnation });
+            },
           }}
           labels={{
             name: t(locale, 'agentsColumnName'),
@@ -551,6 +635,18 @@ export function AgentsPage({
             })}
           </Alert>
         ))}
+      <ReceivedAttachmentCleanupDialog
+        key={attachmentTarget?.incarnation}
+        locale={locale}
+        target={
+          attachmentTarget && attachmentAgent
+            ? { scope: 'agent', ...attachmentTarget, nickname: attachmentAgent.nickname }
+            : null
+        }
+        onClose={() => setAttachmentTarget(null)}
+        onRemove={(input) => void removeReceivedAttachments(input)}
+        busy={attachmentBusy}
+      />
       <Drawer
         anchor="right"
         open={validChat && !!chat?.local}

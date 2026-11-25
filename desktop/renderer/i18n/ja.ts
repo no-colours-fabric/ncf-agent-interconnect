@@ -126,6 +126,7 @@ export const ja: Messages = {
 
   agentsColumnName: '名前',
   agentsColumnClient: 'アプリ',
+  agentsColumnAttachments: '添付ファイル',
   agentsApplicationUnknown: '不明なアプリ',
   agentsColumnNode: 'ノード',
   agentsColumnLastMessage: '最新メッセージ',
