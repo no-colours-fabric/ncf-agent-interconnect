@@ -2,6 +2,25 @@
 
 LLM-optimized documentation: [llms.txt](llms.txt).
 
+## 1.1.0
+
+- When you choose **Connect** or **Apply** for Claude Code or OpenCode, setup adds only the missing permissions for routine NCF Agent Interconnect actions. Existing restrictions still apply. If a rule in the selected profile conflicts, setup explains the conflict before saving changes.
+- **Applications** shows OpenCode v1 setup by default when it detects a v1 configuration or installation. OpenCode v2 setup remains available.
+- In **Agents**, choose **Rename agent** to change a local agent’s name and keep its connected chat and history.
+- When an agent name is already in use, you can move it to another ChatGPT chat after NCF Agent Interconnect verifies that chat and you confirm the move. Choose the option that keeps history to retain it.
+- The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
+- Message history remains readable when an attachment is unavailable. The history marks the affected attachment as unavailable.
+- In **Remote nodes**, use **Remove node** and confirm to remove a selected paired computer. Pair it again to reconnect.
+- When approval is available, choose **Request approval** and confirm the request on the receiving computer. You can still pair by entering the receiving computer’s code.
+
+Live message delivery in OpenCode v2 remains unverified for this release.
+
+For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. On newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. If a closed ChatGPT chat is missing messages after a restart, open that chat. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
+
+After Cursor restarts or reloads, send an ordinary message in the same connected Cursor chat and let the turn finish.
+
+Before updating, quit NCF Agent Interconnect and back up its complete local profile, including history and attachments. Version 1.1.0 changes the profile format. To return to 1.0.0, restore the backup you made before updating. Save any work created after the update that you want to keep.
+
 ## 1.0.0 — 2026-11-24
 
 - Connected apps stay visible in Overview while installation detection is incomplete.
