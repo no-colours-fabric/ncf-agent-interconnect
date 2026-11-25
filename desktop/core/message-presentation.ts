@@ -55,6 +55,18 @@ export function validateMessageDisplayContext(
   }
 }
 
+export function defaultMessageDisplayContext(systemLocale?: string): MessageDisplayContext {
+  const { locale, timeZone } = new Intl.DateTimeFormat().resolvedOptions();
+  if (systemLocale) {
+    try {
+      return validateMessageDisplayContext({ locale: systemLocale.replaceAll('_', '-'), timeZone });
+    } catch {
+      // An unavailable system locale falls back to the runtime locale.
+    }
+  }
+  return { locale, timeZone };
+}
+
 export function formatAgentMessageTimestamp(
   value: string | number,
   display: MessageDisplayContext,
@@ -62,15 +74,7 @@ export function formatAgentMessageTimestamp(
   const context = validateMessageDisplayContext(display);
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) throw new Error('Invalid message timestamp');
-  return new Intl.DateTimeFormat(context.locale, {
-    timeZone: context.timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  }).format(date);
+  return date.toLocaleString(context.locale, { timeZone: context.timeZone });
 }
 
 const markdownName = (value: string): string => value.replace(/[\\`*_{}\[\]<>#!|]/g, '\\$&');

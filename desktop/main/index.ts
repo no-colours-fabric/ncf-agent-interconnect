@@ -15,6 +15,7 @@ import path from 'node:path';
 import { mkdir, copyFile, appendFile } from 'node:fs/promises';
 import { z } from 'zod';
 import { NodeService } from '../core/service.js';
+import { defaultMessageDisplayContext } from '../core/message-presentation.js';
 import { wakeStockChat } from './codex-chat-wake.js';
 import {
   macChatWake,
@@ -143,6 +144,7 @@ else {
       tray = new Tray(image);
       tray.setToolTip('NCF Agent Interconnect — messaging node');
       service = new NodeService(data, {
+        messageDisplayContext: () => defaultMessageDisplayContext(app.getSystemLocale()),
         runningCodexConfiguration,
         wakeCodexChat: alternateUserData
           ? undefined

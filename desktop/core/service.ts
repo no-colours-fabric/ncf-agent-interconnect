@@ -65,6 +65,7 @@ import { AgentPresence } from './presence.js';
 import { cursorIntegration } from './cursor-integration.js';
 import { traceClaude } from '../integrations/claude-diagnostics.js';
 import {
+  defaultMessageDisplayContext,
   formatAgentMessagePresentation,
   type MessageDisplayContext,
   type MessagePresentationFile,
@@ -398,10 +399,7 @@ export class NodeService extends EventEmitter {
     return this.integrationOptions.presentationNow?.() ?? Date.now();
   }
   private messageDisplayContext(): MessageDisplayContext {
-    if (this.integrationOptions.messageDisplayContext)
-      return this.integrationOptions.messageDisplayContext();
-    const { locale, timeZone } = new Intl.DateTimeFormat().resolvedOptions();
-    return { locale, timeZone };
+    return this.integrationOptions.messageDisplayContext?.() ?? defaultMessageDisplayContext();
   }
   private formatMessagePresentation(
     envelope: Envelope,

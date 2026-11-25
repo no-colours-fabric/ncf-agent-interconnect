@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
+  defaultMessageDisplayContext,
   formatAgentMessagePresentation,
   formatAgentMessageTimestamp,
   validateMessageDisplayContext,
@@ -48,6 +49,32 @@ test('uses the selected locale and IANA time zone without displaying an offset',
     locale: 'en-GB',
     timeZone: 'UTC',
   });
+});
+
+test('uses the runtime date format for Sent and Delivered in each regional locale', () => {
+  const sentAt = '2026-11-18T05:04:06.000Z';
+  const deliveredAt = Date.parse('2026-11-18T05:04:09.000Z');
+  const timeZone = 'Europe/Moscow';
+  for (const locale of ['en-US', 'ru-RU']) {
+    const value = formatAgentMessagePresentation(input({ sentAt, deliveredAt, locale, timeZone }));
+    assert.ok(value.includes(`Sent: ${new Date(sentAt).toLocaleString(locale, { timeZone })}\n`));
+    assert.ok(
+      value.includes(`Delivered: ${new Date(deliveredAt).toLocaleString(locale, { timeZone })}\n`),
+    );
+  }
+  assert.equal(
+    formatAgentMessageTimestamp(sentAt, defaultMessageDisplayContext()),
+    new Date(sentAt).toLocaleString(),
+  );
+});
+
+test('uses the OS regional locale when supported and falls back to the runtime locale', () => {
+  assert.equal(defaultMessageDisplayContext('ru_RU').locale, 'ru-RU');
+  assert.deepEqual(defaultMessageDisplayContext('invalid_locale'), defaultMessageDisplayContext());
+  assert.equal(
+    defaultMessageDisplayContext('en-US').timeZone,
+    defaultMessageDisplayContext().timeZone,
+  );
 });
 
 test('preserves Unicode text and escapes only Markdown names and unsafe link delimiters', () => {
