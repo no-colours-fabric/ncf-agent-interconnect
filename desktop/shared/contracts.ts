@@ -123,6 +123,7 @@ export interface Message {
   state: MessageState;
   sequence: number;
   error: string | null;
+  unavailableAttachments?: string[];
 }
 export interface Binding {
   connectionId: string;

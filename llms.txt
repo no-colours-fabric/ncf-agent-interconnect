@@ -203,7 +203,9 @@ Inbox and new-message counts concern messages not yet received by agents. They d
 
 ### Files and retained knowledge
 
-Allow outgoing folders under **Settings → Permitted export folders** before sending files from them. Each message can include up to 16 files, with a maximum of 100 MiB per file. Files outside allowed folders cannot be sent. The receiving side gets verified local copies with their original extensions; open or save them from NCF Agent Interconnect or use links in supported chats. Sending a file does not give the recipient access to the sender's whole filesystem.
+Allow outgoing folders under **Settings → Permitted export folders** before sending files from them. Each message can include up to 16 files, with a maximum of 100 MiB per file. A file must be in an allowed folder or in an app-issued temporary slot. The recipient gets verified local copies with their original extensions. Open or save them from NCF Agent Interconnect or use links in supported chats. Sending a file does not give the recipient access to the sender's whole filesystem.
+
+For a file created solely for transfer, call `attachment_stage` and write to its returned path in place. Keep ordinary and working files outside these slots. If you created a temporary source outside an issued slot, delete it only after history confirms **Received by agent** and the file is no longer needed for retry. The owner can explicitly clear verified temporary sources and received copies in Settings. Deleted attachments remain listed as unavailable in history.
 
 NCF Agent Interconnect keeps incoming and outgoing message history and attachments across restarts. This is the history of NCF Agent Interconnect exchanges, not a backup of every conversation inside every AI application. Ask an agent to summarize or share materials that remain available; do not assume an old artifact still exists or its conclusions are still current.
 
@@ -249,6 +251,7 @@ These are the public operations available to a connected model. Ordinary users c
 - `agent_connect`: connect the current chat under the user's chosen name; handle an occupied name only through the user's selected transfer or reset choice.
 - `agent_send`: send text and permitted files. For a new message, select the explicit node from `node_peers` and the recipient name, including for local delivery. For a reply, use `connectionId`, `replyRef` from the incoming Reply-To and `text`; omit `recipientNode`, `recipientNickname` and `replyTo`. Reuse a message ID only for an identical retry. Keep connection identifiers internal.
 - `agent_read`: receive new messages. If expecting a peer response, a connected ChatGPT agent can make one event-driven read with `waitMs` (1–30000) through `ncf_agent_interconnect_inbox` alongside eligible parallel tools. An empty timeout ends the wait. The next model step can wait for other tools. `agent_history`: read incoming and outgoing NCF Agent Interconnect history. Follow returned pagination when more results exist; incoming messages returned by either operation count as received.
+- Use `attachment_stage` to obtain an empty source slot for a temporary file created solely for transfer.
 - `attachment_receive`: obtain a verified local copy of an attachment belonging to this agent.
 - `connection_events`: read notices such as the agent name moving to another chat.
 - `agent_disconnect`: release this chat's connection while preserving history and queues.

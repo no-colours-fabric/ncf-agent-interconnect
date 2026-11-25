@@ -465,12 +465,12 @@ test('incarnation migration from format 2 preserves identity until reset or expl
   assert.throws(() => f.store.assertOwner(owner.binding.connectionId), /agent_moved/);
 });
 
-test('MCP clear is the eleventh tool, targets only the requester mailbox and binds confirmation to the server session', async (t) => {
+test('MCP clear targets only the requester mailbox and binds confirmation to the server session', async (t) => {
   const service = await node(t),
     first = await mcp(t, service),
     second = await mcp(t, service);
   const catalog = await first.listTools();
-  assert.equal(catalog.tools.length, 11);
+  assert.equal(catalog.tools.length, 12);
   assert.equal(
     catalog.tools.find((tool) => tool.name === 'agent_clear_history')!.annotations?.destructiveHint,
     true,

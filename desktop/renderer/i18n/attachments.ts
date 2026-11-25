@@ -1,0 +1,167 @@
+import type { Locale } from './index.js';
+
+type AttachmentMessages = {
+  title: string;
+  help: string;
+  sources: string;
+  received: string;
+  confirm: string;
+  result: string;
+  failed: string;
+  unavailable: string;
+};
+
+const dictionaries: Record<Locale, AttachmentMessages> = {
+  en: {
+    title: 'Temporary attachments',
+    help: 'Remove files created only for transfer after delivery. Message history and ordinary files are kept.',
+    sources: 'Remove temporary sources',
+    received: 'Remove received copies',
+    confirm: 'Remove',
+    result: 'Removed: {removed}. Preserved: {preserved}.',
+    failed: 'Some attachments could not be removed. Try again.',
+    unavailable: 'Unavailable',
+  },
+  ru: {
+    title: 'Временные вложения',
+    help: 'После доставки можно удалить файлы, созданные только для передачи. История сообщений и обычные файлы сохраняются.',
+    sources: 'Удалить временные исходники',
+    received: 'Удалить полученные копии',
+    confirm: 'Удалить',
+    result: 'Удалено: {removed}. Сохранено: {preserved}.',
+    failed: 'Не удалось удалить все вложения. Повторите попытку.',
+    unavailable: 'Недоступно',
+  },
+  'zh-CN': {
+    title: '临时附件',
+    help: '传送完成后，可删除仅用于传送的文件。消息历史记录和普通文件会保留。',
+    sources: '删除临时源文件',
+    received: '删除已接收的副本',
+    confirm: '删除',
+    result: '已删除：{removed}。已保留：{preserved}。',
+    failed: '部分附件无法删除。请重试。',
+    unavailable: '不可用',
+  },
+  fr: {
+    title: 'Pièces jointes temporaires',
+    help: 'Après la livraison, supprimez les fichiers créés uniquement pour le transfert. L’historique des messages et les fichiers ordinaires sont conservés.',
+    sources: 'Supprimer les fichiers sources temporaires',
+    received: 'Supprimer les copies reçues',
+    confirm: 'Supprimer',
+    result: 'Supprimés : {removed}. Conservés : {preserved}.',
+    failed: 'Certaines pièces jointes n’ont pas pu être supprimées. Réessayez.',
+    unavailable: 'Indisponible',
+  },
+  de: {
+    title: 'Temporäre Anhänge',
+    help: 'Dateien, die nur zur Übertragung erstellt wurden, können nach der Zustellung entfernt werden. Der Nachrichtenverlauf und reguläre Dateien bleiben erhalten.',
+    sources: 'Temporäre Quelldateien entfernen',
+    received: 'Empfangene Kopien entfernen',
+    confirm: 'Entfernen',
+    result: 'Entfernt: {removed}. Beibehalten: {preserved}.',
+    failed: 'Einige Anhänge konnten nicht entfernt werden. Versuchen Sie es erneut.',
+    unavailable: 'Nicht verfügbar',
+  },
+  it: {
+    title: 'Allegati temporanei',
+    help: 'Dopo la consegna puoi rimuovere i file creati solo per il trasferimento. La cronologia dei messaggi e i file ordinari vengono conservati.',
+    sources: 'Rimuovi file sorgente temporanei',
+    received: 'Rimuovi copie ricevute',
+    confirm: 'Rimuovi',
+    result: 'Rimossi: {removed}. Conservati: {preserved}.',
+    failed: 'Impossibile rimuovere alcuni allegati. Riprova.',
+    unavailable: 'Non disponibile',
+  },
+  es: {
+    title: 'Archivos adjuntos temporales',
+    help: 'Después de la entrega, puedes eliminar los archivos creados solo para la transferencia. Se conservan el historial de mensajes y los archivos habituales.',
+    sources: 'Eliminar archivos de origen temporales',
+    received: 'Eliminar copias recibidas',
+    confirm: 'Eliminar',
+    result: 'Eliminados: {removed}. Conservados: {preserved}.',
+    failed: 'No se pudieron eliminar todos los archivos adjuntos. Inténtalo de nuevo.',
+    unavailable: 'No disponible',
+  },
+  kk: {
+    title: 'Уақытша тіркемелер',
+    help: 'Жеткізілгеннен кейін тек жіберу үшін жасалған файлдарды жоюға болады. Хабарлар тарихы мен кәдімгі файлдар сақталады.',
+    sources: 'Уақытша бастапқы файлдарды жою',
+    received: 'Алынған көшірмелерді жою',
+    confirm: 'Жою',
+    result: 'Жойылды: {removed}. Сақталды: {preserved}.',
+    failed: 'Кейбір тіркемелерді жою мүмкін болмады. Қайталап көріңіз.',
+    unavailable: 'Қолжетімсіз',
+  },
+  ja: {
+    title: '一時添付ファイル',
+    help: '配信後、転送専用に作成したファイルを削除できます。メッセージ履歴と通常のファイルは保持されます。',
+    sources: '一時ファイルの原本を削除',
+    received: '受信したコピーを削除',
+    confirm: '削除',
+    result: '削除: {removed} 件。保持: {preserved} 件。',
+    failed: '一部の添付ファイルを削除できませんでした。もう一度お試しください。',
+    unavailable: '利用不可',
+  },
+  'pt-BR': {
+    title: 'Anexos temporários',
+    help: 'Após a entrega, você pode remover arquivos criados apenas para transferência. O histórico de mensagens e os arquivos comuns são mantidos.',
+    sources: 'Remover arquivos de origem temporários',
+    received: 'Remover cópias recebidas',
+    confirm: 'Remover',
+    result: 'Removidos: {removed}. Mantidos: {preserved}.',
+    failed: 'Não foi possível remover alguns anexos. Tente novamente.',
+    unavailable: 'Indisponível',
+  },
+  ko: {
+    title: '임시 첨부 파일',
+    help: '전달이 완료되면 전송 전용으로 만든 파일을 삭제할 수 있습니다. 메시지 기록과 일반 파일은 유지됩니다.',
+    sources: '임시 원본 파일 삭제',
+    received: '받은 사본 삭제',
+    confirm: '삭제',
+    result: '삭제: {removed}개. 유지: {preserved}개.',
+    failed: '일부 첨부 파일을 삭제하지 못했습니다. 다시 시도하세요.',
+    unavailable: '사용할 수 없음',
+  },
+  tr: {
+    title: 'Geçici ekler',
+    help: 'Teslimden sonra yalnızca aktarım için oluşturulan dosyaları silebilirsiniz. İleti geçmişi ve normal dosyalar korunur.',
+    sources: 'Geçici kaynak dosyaları sil',
+    received: 'Alınan kopyaları sil',
+    confirm: 'Sil',
+    result: 'Silinen: {removed}. Korunan: {preserved}.',
+    failed: 'Bazı ekler silinemedi. Yeniden deneyin.',
+    unavailable: 'Kullanılamıyor',
+  },
+  pl: {
+    title: 'Tymczasowe załączniki',
+    help: 'Po dostarczeniu można usunąć pliki utworzone wyłącznie do przesłania. Historia wiadomości i zwykłe pliki pozostaną zachowane.',
+    sources: 'Usuń tymczasowe pliki źródłowe',
+    received: 'Usuń otrzymane kopie',
+    confirm: 'Usuń',
+    result: 'Usunięto: {removed}. Zachowano: {preserved}.',
+    failed: 'Nie udało się usunąć części załączników. Spróbuj ponownie.',
+    unavailable: 'Niedostępny',
+  },
+  nl: {
+    title: 'Tijdelijke bijlagen',
+    help: 'Na bezorging kun je bestanden verwijderen die alleen voor overdracht zijn gemaakt. De berichtgeschiedenis en gewone bestanden blijven behouden.',
+    sources: 'Tijdelijke bronbestanden verwijderen',
+    received: 'Ontvangen kopieën verwijderen',
+    confirm: 'Verwijderen',
+    result: 'Verwijderd: {removed}. Behouden: {preserved}.',
+    failed: 'Sommige bijlagen konden niet worden verwijderd. Probeer het opnieuw.',
+    unavailable: 'Niet beschikbaar',
+  },
+  uk: {
+    title: 'Тимчасові вкладення',
+    help: 'Після доставки можна видалити файли, створені лише для передавання. Історія повідомлень і звичайні файли зберігаються.',
+    sources: 'Видалити тимчасові вихідні файли',
+    received: 'Видалити отримані копії',
+    confirm: 'Видалити',
+    result: 'Видалено: {removed}. Збережено: {preserved}.',
+    failed: 'Не вдалося видалити деякі вкладення. Спробуйте ще раз.',
+    unavailable: 'Недоступно',
+  },
+};
+
+export const attachmentMessages = (locale: Locale): AttachmentMessages => dictionaries[locale];

@@ -4,6 +4,7 @@ import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
 import { t, type Locale } from './i18n/index.js';
+import { attachmentMessages } from './i18n/attachments.js';
 import { designTokens, surfaceSx } from './theme.js';
 
 const time = (value: string, locale: Locale) => new Date(value).toLocaleString(locale);
@@ -97,9 +98,9 @@ export function AgentHistory({
           >
             {m.envelope.text}
           </Typography>
-          {m.envelope.attachments.map((f) => (
+          {m.envelope.attachments.map((f, index) => (
             <Stack
-              key={f.id}
+              key={f.id + ':' + index}
               direction="row"
               spacing={1}
               sx={{
@@ -117,36 +118,42 @@ export function AgentHistory({
                   size: Math.ceil(f.size / 1024),
                 })}
               </Typography>
-              <Tooltip title={t(locale, 'msgOpenVerified')}>
-                <IconButton
-                  aria-label={t(locale, 'msgOpenAria', { name: f.name })}
-                  onClick={() =>
-                    run(() =>
-                      call('openAttachment', {
-                        messageId: m.envelope.id,
-                        fileId: f.id,
-                      }),
-                    )
-                  }
-                >
-                  <OpenInNewOutlined fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title={t(locale, 'msgSaveAs')}>
-                <IconButton
-                  aria-label={t(locale, 'msgSaveAria', { name: f.name })}
-                  onClick={() =>
-                    run(() =>
-                      call('saveAttachment', {
-                        messageId: m.envelope.id,
-                        fileId: f.id,
-                      }),
-                    )
-                  }
-                >
-                  <DownloadOutlined fontSize="small" />
-                </IconButton>
-              </Tooltip>
+              {m.unavailableAttachments?.includes(f.id) ? (
+                <Chip size="small" label={attachmentMessages(locale).unavailable} />
+              ) : (
+                <>
+                  <Tooltip title={t(locale, 'msgOpenVerified')}>
+                    <IconButton
+                      aria-label={t(locale, 'msgOpenAria', { name: f.name })}
+                      onClick={() =>
+                        run(() =>
+                          call('openAttachment', {
+                            messageId: m.envelope.id,
+                            fileId: f.id,
+                          }),
+                        )
+                      }
+                    >
+                      <OpenInNewOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title={t(locale, 'msgSaveAs')}>
+                    <IconButton
+                      aria-label={t(locale, 'msgSaveAria', { name: f.name })}
+                      onClick={() =>
+                        run(() =>
+                          call('saveAttachment', {
+                            messageId: m.envelope.id,
+                            fileId: f.id,
+                          }),
+                        )
+                      }
+                    >
+                      <DownloadOutlined fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </>
+              )}
             </Stack>
           ))}
           <Typography

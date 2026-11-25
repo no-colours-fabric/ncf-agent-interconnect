@@ -1,4 +1,9 @@
-import { createReadStream, createWriteStream, realpath as callbackRealpath } from 'node:fs';
+import {
+  createReadStream,
+  createWriteStream,
+  realpath as callbackRealpath,
+  type BigIntStats,
+} from 'node:fs';
 import {
   mkdir,
   stat,
@@ -143,7 +148,7 @@ export class FileStore {
       throw error;
     }
   }
-  async snapshot(filename: string): Promise<Attachment> {
+  async snapshot(filename: string, stagedPath?: string): Promise<Attachment> {
     const canonical = await realpath(filename),
       roots = await Promise.all(
         this.exportRoots.map((p) =>
@@ -154,6 +159,7 @@ export class FileStore {
         ),
       );
     if (
+      (!stagedPath || path.relative(canonical, stagedPath) !== '') &&
       !roots.some((root) => {
         if (!root) return false;
         const relative = path.relative(root, canonical);
@@ -243,7 +249,11 @@ export class FileStore {
     }
     await rename(partial, this.blob(file.id));
   }
-  async materialize(messageId: string, file: Attachment): Promise<string> {
+  async materialize(
+    messageId: string,
+    file: Attachment,
+    onCreated?: (target: string, createdFile: BigIntStats) => Promise<void>,
+  ): Promise<string> {
     if (!/^[0-9a-f-]{36}$/i.test(messageId) || !(await this.exists(file)))
       throw new Error('The verified attachment is unavailable');
     let safe = file.name.replace(/[<>:"/\\|?*\x00-\x1f]/g, '_').replace(/[. ]+$/g, '_');
@@ -265,20 +275,24 @@ export class FileStore {
         if (code(e) !== 'ENOENT') throw e;
       }
       const temp = target + '.' + randomUUID() + '.tmp';
+      let created: BigIntStats | undefined;
       try {
         await copyFile(this.blob(file.id), temp);
         if ((await this.hash(temp)) !== file.id) throw new Error('The attachment copy is damaged');
         try {
+          const witness = onCreated ? await lstat(temp, { bigint: true }) : undefined;
           await link(temp, target);
+          created = witness;
         } catch (e) {
           if (code(e) !== 'EEXIST') throw e;
           if ((await stat(target)).size !== file.size || (await this.hash(target)) !== file.id)
             continue;
         }
-        return target;
       } finally {
         await unlink(temp).catch(() => {});
       }
+      if (created) await onCreated?.(target, created);
+      return target;
     }
     throw new Error('Too many modified attachment copies');
   }

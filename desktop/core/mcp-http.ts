@@ -384,7 +384,7 @@ export function createAgentMcp(
   );
   register(
     'agent_send',
-    'Durably queue text and permitted local files for the explicit recipientNode UUID and recipientNickname. Get node UUIDs from node_peers. The local UUID explicitly selects a local mailbox, even before its chat connects. A configured offline peer keeps its remote queue; no local fallback occurs. accepted means saved, not received by the agent; delivery reports queued, accepted_by_node or received_by_agent. For replies, use replyRef from Reply-To instead of the address fields, or copy all parameters from legacy Reply-To JSON. Reuse the message UUID only for identical retries. This chat must still be connected as the sending agent.',
+    'Durably queue text and permitted local files for the explicit recipientNode UUID and recipientNickname. Get node UUIDs from node_peers. The local UUID explicitly selects a local mailbox, even before its chat connects. A configured offline peer keeps its remote queue; no local fallback occurs. accepted means saved, not received by the agent; delivery reports queued, accepted_by_node or received_by_agent. For replies, use replyRef from Reply-To instead of the address fields, or copy all parameters from legacy Reply-To JSON. Reuse the message UUID only for identical retries. Use attachment_stage for a file created solely for transfer. NCF cannot clean up sources outside an issued slot. If you created a temporary source elsewhere, delete it yourself only after agent_history reports received_by_agent and you no longer need it for a retry. Preserve ordinary files. This chat must still be connected as the sending agent.',
     {
       connectionId: z.uuid(),
       recipientNode: z
@@ -431,6 +431,16 @@ export function createAgentMcp(
     { connectionId: z.uuid() },
     false,
     (args) => service.disconnect(args.connectionId),
+  );
+  register(
+    'attachment_stage',
+    'Create an empty file with this filename in a private slot bound to the current agent, only for an attachment made solely for transfer. Write into the returned localPath without replacing the file, then pass that path to agent_send. The owner can explicitly remove the verified source after transfer. Keep working files outside the slot.',
+    { connectionId: z.uuid(), name: z.string().min(1).max(255) },
+    false,
+    (args) => {
+      touch(args.connectionId);
+      return service.stageAttachment(args.connectionId, args.name);
+    },
   );
   register(
     'attachment_receive',

@@ -1,3 +1,4 @@
+import { AttachmentLedger } from './attachment-ledger.js';
 import { DatabaseSync } from 'node:sqlite';
 import { randomUUID, createHash } from 'node:crypto';
 import { mkdirSync } from 'node:fs';
@@ -61,6 +62,7 @@ export type ConnectResult = (
 
 export class AgentStore {
   readonly db: DatabaseSync;
+  readonly attachments: AttachmentLedger;
   private clearRequests = new Map<
     string,
     {
@@ -151,6 +153,7 @@ export class AgentStore {
         this.recoverDeliveries();
         this.db.exec('PRAGMA user_version=6;');
       });
+      this.attachments = new AttachmentLedger(this.db);
     } catch (error) {
       this.db.close();
       throw error;
@@ -659,15 +662,29 @@ export class AgentStore {
       .prepare('UPDATE system_events SET dispatch_state=?,error=? WHERE id=?')
       .run(state, error, id);
   }
-  insert(envelope: Envelope, direction: 'in' | 'out'): boolean {
-    return this.transaction(() => this.insertRow(envelope, direction));
+  insert(
+    envelope: Envelope,
+    direction: 'in' | 'out',
+    onInsert?: (direction: Message['direction']) => void,
+  ): boolean {
+    return this.transaction(() => {
+      const inserted = this.insertRow(envelope, direction);
+      if (inserted) onInsert?.(direction);
+      return inserted;
+    });
   }
-  insertLocal(envelope: Envelope, ready: boolean, recipientKey?: string): boolean {
+  insertLocal(
+    envelope: Envelope,
+    ready: boolean,
+    recipientKey?: string,
+    onInsert?: (direction: Message['direction']) => void,
+  ): boolean {
     if (envelope.fromNode !== envelope.toNode)
       throw new Error('A local route must stay on the same node');
     return this.transaction(() => {
       const inserted = this.insertRow(envelope, 'out');
-      this.insertRow(envelope, 'in', recipientKey);
+      if (inserted) onInsert?.('out');
+      if (this.insertRow(envelope, 'in', recipientKey)) onInsert?.('in');
       if (ready) this.markReady(envelope.id);
       return inserted;
     });

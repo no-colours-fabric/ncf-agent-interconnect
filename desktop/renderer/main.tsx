@@ -1,4 +1,5 @@
 import { PairingApprovalPopup } from './PairingApprovalPopup.js';
+import { AttachmentCleanup } from './AttachmentCleanup.js';
 import { InstallationRestartNotice } from './InstallationRestartNotice.js';
 import { OverviewApplications } from './OverviewApplications.js';
 import { OverviewConnections } from './OverviewConnections.js';
@@ -693,6 +694,8 @@ function App({
                     </TableBody>
                   </Table>
                 </TableContainer>
+                <Divider sx={{ my: 2 }} />
+                <AttachmentCleanup locale={locale} invoke={call} />
               </Paper>
             </Stack>
             <Paper sx={{ ...surfaceSx('glass'), p: 3, minWidth: 0 }}>

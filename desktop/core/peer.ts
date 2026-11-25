@@ -42,7 +42,24 @@ import {
 } from './pairing-approval.js';
 import type { OutgoingPairApproval } from '../shared/pairing-approval.js';
 
-const messageFrame = z.object({ type: z.literal('message'), envelope: envelopeSchema }).strict();
+const messageFrame = z
+  .object({
+    type: z.literal('message'),
+    envelope: envelopeSchema,
+    temporaryFileIds: z
+      .array(z.string().regex(/^[a-f0-9]{64}$/))
+      .min(1)
+      .max(16)
+      .optional(),
+  })
+  .strict()
+  .refine(
+    ({ envelope, temporaryFileIds }) =>
+      !temporaryFileIds ||
+      (new Set(temporaryFileIds).size === temporaryFileIds.length &&
+        temporaryFileIds.every((id) => envelope.attachments.some((file) => file.id === id))),
+  );
+const temporaryFilesHeader = 'x-ncf-temporary-attachments';
 const directoryFeature = 'agent-directory-v1';
 const directoryApplicationHeader = 'x-ncf-directory-application';
 const directoryApplicationVersion = '1';
@@ -89,6 +106,7 @@ interface Link {
   directorySupported: boolean;
   directoryApplicationSupported: boolean;
   identitySupported: boolean;
+  temporaryFilesSupported: boolean;
   generation: number;
   addressIndex: number;
   activeAddress: string | null;
@@ -310,6 +328,7 @@ export class PeerNetwork extends EventEmitter {
         if (req.headers[directoryApplicationHeader] === directoryApplicationVersion)
           headers.push(directoryApplicationHeader + ': ' + directoryApplicationVersion);
       }
+      if (req.headers[temporaryFilesHeader] === '1') headers.push(temporaryFilesHeader + ': 1');
       headers.push('X-NCF-Node-Label: ' + encodedNodeLabel(this.settings.value.nodeLabel));
     });
     const inventory = this.inventory();
@@ -389,6 +408,7 @@ export class PeerNetwork extends EventEmitter {
           decodedNodeLabel(req.headers[nodeLabelHeader]),
           undefined,
           req.headers[directoryApplicationHeader] === directoryApplicationVersion,
+          req.headers[temporaryFilesHeader] === '1',
         ),
       );
     });
@@ -435,6 +455,7 @@ export class PeerNetwork extends EventEmitter {
         directorySupported: false,
         directoryApplicationSupported: false,
         identitySupported: false,
+        temporaryFilesSupported: false,
         generation: 0,
         addressIndex: 0,
         activeAddress: null,
@@ -590,6 +611,7 @@ export class PeerNetwork extends EventEmitter {
           'x-node-id': this.settings.value.nodeId,
           'x-ncf-features': directoryFeature,
           [directoryApplicationHeader]: directoryApplicationVersion,
+          [temporaryFilesHeader]: '1',
           [nodeLabelHeader]: encodedNodeLabel(this.settings.value.nodeLabel),
         },
         handshakeTimeout: 6000,
@@ -613,6 +635,7 @@ export class PeerNetwork extends EventEmitter {
     remoteLabel?: string,
     address?: string,
     directoryApplicationSupported = false,
+    temporaryFilesSupported = false,
   ): void {
     this.socketPeers.set(ws, peer.id);
     this.sockets.add(ws);
@@ -623,6 +646,7 @@ export class PeerNetwork extends EventEmitter {
         directoryApplicationSupported =
           response.headers[directoryApplicationHeader] === directoryApplicationVersion;
         remoteLabel = decodedNodeLabel(response.headers[nodeLabelHeader]);
+        temporaryFilesSupported = response.headers[temporaryFilesHeader] === '1';
       });
     const link = this.link(peer.id),
       generation = link.generation,
@@ -672,6 +696,7 @@ export class PeerNetwork extends EventEmitter {
           link.directorySupported = directorySupported;
           link.directoryApplicationSupported = directorySupported && directoryApplicationSupported;
           link.identitySupported = remoteLabel !== undefined;
+          link.temporaryFilesSupported = temporaryFilesSupported;
           link.connecting = false;
           link.error = null;
           if (!isCurrent()) return;
@@ -691,6 +716,8 @@ export class PeerNetwork extends EventEmitter {
         }
         if (link.socket !== ws) return;
         if (frame.type === 'hello') throw new Error('Repeated handshake');
+        if (frame.type === 'message' && frame.temporaryFileIds && !temporaryFilesSupported)
+          throw new Error('Temporary attachments were not negotiated');
         if (frame.type === 'directory' && !directorySupported)
           throw new Error('Agent directory was not negotiated on this connection');
         if (frame.type === 'identity') {
@@ -735,6 +762,7 @@ export class PeerNetwork extends EventEmitter {
         link.directorySupported = false;
         link.directoryApplicationSupported = false;
         link.identitySupported = false;
+        link.temporaryFilesSupported = false;
         for (const [id, r] of this.requests)
           if (r.peerId === peer.id) {
             clearTimeout(r.timer);
@@ -774,6 +802,7 @@ export class PeerNetwork extends EventEmitter {
     link.directorySupported = false;
     link.directoryApplicationSupported = false;
     link.identitySupported = false;
+    link.temporaryFilesSupported = false;
     link.error = null;
     for (const socket of this.sockets)
       if (this.socketPeers.get(socket) === peerId) socket.terminate();
@@ -815,8 +844,14 @@ export class PeerNetwork extends EventEmitter {
       this.removingPeers.delete(peerId);
     }
   }
-  message(envelope: Envelope): Promise<void> {
-    return this.send(envelope.toNode, { type: 'message', envelope });
+  message(envelope: Envelope, temporaryFileIds: string[] = []): Promise<void> {
+    return this.send(envelope.toNode, {
+      type: 'message',
+      envelope,
+      ...(temporaryFileIds.length && this.link(envelope.toNode).temporaryFilesSupported
+        ? { temporaryFileIds }
+        : {}),
+    });
   }
   directory(peerId: string, snapshot: DirectorySnapshot): Promise<void> {
     const link = this.link(peerId);
@@ -1375,6 +1410,7 @@ export class PeerNetwork extends EventEmitter {
       link.directorySupported = false;
       link.directoryApplicationSupported = false;
       link.identitySupported = false;
+      link.temporaryFilesSupported = false;
       link.socket = null;
       link.activeAddress = null;
     }
