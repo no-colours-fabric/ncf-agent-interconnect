@@ -244,3 +244,11 @@ Raise the default per-file attachment limit substantially. Add settings to set a
 Improve transfer and receipt verification to reduce redundant reads and checks. Preserve end-to-end integrity and report success only after the recipient has verified the complete file.
 
 ---
+
+## R-0018 — Rename an agent in place
+
+- [ ] Open
+
+Allow the user to rename an existing agent while keeping the agent’s identity, current chat binding, and full message history, including attachments. New messages addressed to the new name reach the same bound chat. If the new name is already in use, reject the rename and keep the current name.
+
+---
