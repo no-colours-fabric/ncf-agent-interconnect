@@ -15,6 +15,8 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 - When moving an existing agent name to another ChatGPT chat, the move can still proceed if the first check fails and the new chat receives and confirms the connection request. The existing connection and history stay in place until you approve the move.
 - The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
 - Message history remains readable when an attachment is unavailable. The history marks the affected attachment as unavailable.
+- Use **Settings → Temporary attachments** to remove temporary source files and received copies that the app recognizes as eligible after delivery. Working files and files awaiting delivery are kept. History keeps the messages and attachment names and marks removed copies as unavailable.
+- Use **Settings → Attachment size limit** to change or turn off the per-file limit, which defaults to **1 GiB**. If an attachment exceeds the receiving computer’s limit, the message stays queued.
 
 ## Paired computers
 
