@@ -88,7 +88,7 @@ test('Corrupt prefix and last chunk cannot publish or leave a falsely verified a
   await assert.rejects(stat(blob), { code: 'ENOENT' });
 });
 
-test('Local and incoming caps reject before disk allocation and unlimited mode retains streaming verification', async (t) => {
+test('Outgoing size limits do not affect incoming verification', async (t) => {
   let limit: AttachmentLimit = 1;
   const { directory, files } = await filesFixture(t, () => limit);
   const payload = Buffer.alloc(bytesPerMiB + 1, 4),
@@ -96,17 +96,11 @@ test('Local and incoming caps reject before disk allocation and unlimited mode r
   const filename = path.join(directory, attachment.name);
   await writeFile(filename, payload);
   await assert.rejects(files.snapshot(filename), /attachment size limit/);
-  await assert.rejects(
-    files.receive(attachment, async () => {
-      throw new Error('Unexpected request');
-    }),
-    /attachment size limit/,
-  );
-  await assert.rejects(stat(files.blob(attachment.id) + '.part'), { code: 'ENOENT' });
-  limit = null;
   await files.receive(attachment, async (offset, length) =>
     payload.subarray(offset, offset + length).toString('base64'),
   );
+  assert.equal(await files.exists(attachment), true);
+  limit = null;
   assert.deepEqual(await files.snapshot(filename), attachment);
   assert.deepEqual(await readFile(await files.materialize(randomUUID(), attachment)), payload);
 });

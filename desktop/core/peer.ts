@@ -69,8 +69,8 @@ const messageFrame = z
   );
 const temporaryFilesHeader = 'x-ncf-temporary-attachments';
 const attachmentLimitHeader = 'x-ncf-attachment-limit-mib';
-const formatAttachmentLimit = (limit: AttachmentLimit): string =>
-  limit === null ? 'unlimited' : String(limit);
+// Older peers already interpret this value as accepting any valid file size.
+const receiveAttachmentLimit = 'unlimited';
 function headerAttachmentLimit(raw: string | string[] | undefined): AttachmentLimit | undefined {
   if (raw === 'unlimited') return null;
   if (typeof raw !== 'string' || !/^[1-9]\d{0,9}$/.test(raw)) return undefined;
@@ -356,9 +356,7 @@ export class PeerNetwork extends EventEmitter {
       }
       if (req.headers[temporaryFilesHeader] === '1') headers.push(temporaryFilesHeader + ': 1');
       if (headerAttachmentLimit(req.headers[attachmentLimitHeader]) !== undefined)
-        headers.push(
-          attachmentLimitHeader + ': ' + formatAttachmentLimit(this.settings.attachmentLimitMiB),
-        );
+        headers.push(attachmentLimitHeader + ': ' + receiveAttachmentLimit);
       headers.push('X-NCF-Node-Label: ' + encodedNodeLabel(this.settings.value.nodeLabel));
     });
     const inventory = this.inventory();
@@ -659,7 +657,7 @@ export class PeerNetwork extends EventEmitter {
           'x-ncf-features': directoryFeature,
           [directoryApplicationHeader]: directoryApplicationVersion,
           [temporaryFilesHeader]: '1',
-          [attachmentLimitHeader]: formatAttachmentLimit(this.settings.attachmentLimitMiB),
+          [attachmentLimitHeader]: receiveAttachmentLimit,
           [nodeLabelHeader]: encodedNodeLabel(this.settings.value.nodeLabel),
         },
         handshakeTimeout: 6000,
@@ -988,16 +986,6 @@ export class PeerNetwork extends EventEmitter {
       envelope,
       ...(temporaryFileIds.length && link.temporaryFilesSupported ? { temporaryFileIds } : {}),
     });
-  }
-  async advertiseAttachmentLimit(peerId?: string): Promise<void> {
-    const frame: Frame = { type: 'attachment/limit', limitMiB: this.settings.attachmentLimitMiB };
-    await Promise.allSettled(
-      [...this.links].flatMap(([id, link]) =>
-        (!peerId || peerId === id) && link.socket && link.attachmentLimitMiB !== undefined
-          ? [this.send(id, frame)]
-          : [],
-      ),
-    );
   }
   directory(peerId: string, snapshot: DirectorySnapshot): Promise<void> {
     const link = this.link(peerId);

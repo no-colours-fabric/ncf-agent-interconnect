@@ -483,7 +483,7 @@ export function createAgentMcp(
   );
   register(
     'attachment_stage',
-    'Create an empty file with this filename in a private slot bound to the current agent, only for an attachment made solely for transfer. Write into the returned localPath without replacing the file, then pass that path to agent_send. The owner can explicitly remove the verified source after transfer. Keep working files outside the slot.',
+    'Create an empty file with this filename in a private slot bound to the current agent, only for an attachment made solely for transfer. Write into the returned localPath without replacing the file, then pass that path to agent_send. NCF automatically removes an unchanged staged source after the recipient receives the message and the source is no longer needed for retry. Keep working files outside the slot.',
     { connectionId: z.uuid(), name: z.string().min(1).max(255) },
     false,
     (args) => {

@@ -13,6 +13,13 @@ type Source = {
   attachment: Pick<Attachment, 'id' | 'size'>;
 };
 
+export type ReceivedAttachment = {
+  agentKey: string;
+  messageId: string;
+  attachment: Pick<Attachment, 'id' | 'size'>;
+  removed: boolean;
+};
+
 /** Local provenance; no local filenames or file identities are accepted from a peer. */
 export class AttachmentLedger {
   constructor(private readonly db: DatabaseSync) {
@@ -33,7 +40,27 @@ export class AttachmentLedger {
         direction TEXT NOT NULL DEFAULT 'in', PRIMARY KEY(message_id,file_id,name),
         FOREIGN KEY(message_id,direction,file_id) REFERENCES temporary_attachment_refs(message_id,direction,file_id) ON DELETE CASCADE
       );
+      CREATE INDEX IF NOT EXISTS staged_attachment_message ON staged_attachment_sources(message_id);
+      CREATE TABLE IF NOT EXISTS received_attachment_times (
+        message_id TEXT PRIMARY KEY, direction TEXT NOT NULL DEFAULT 'in',
+        received_at INTEGER NOT NULL,
+        FOREIGN KEY(message_id,direction) REFERENCES messages(id,direction) ON DELETE CASCADE
+      );
     `);
+    // Existing rows have no trustworthy local arrival time. Start their age at migration.
+    this.db
+      .prepare(
+        "INSERT OR IGNORE INTO received_attachment_times(message_id,received_at) SELECT id,? FROM messages WHERE direction='in' AND state IN ('ready','processed') AND json_array_length(envelope,'$.attachments')>0",
+      )
+      .run(Date.now());
+  }
+
+  recordReceivedTime(messageId: string): void {
+    this.db
+      .prepare(
+        'INSERT OR IGNORE INTO received_attachment_times(message_id,received_at) VALUES(?,?)',
+      )
+      .run(messageId, Date.now());
   }
 
   registerSource(owner: string, file: ManagedAttachmentFile): void {
@@ -51,6 +78,20 @@ export class AttachmentLedger {
     if (!row || row.owner !== owner || (row.message_id !== null && row.message_id !== messageId))
       return;
     return JSON.parse(row.file) as ManagedAttachmentFile;
+  }
+
+  cleanedSource(directory: string, owner: string, messageId: string): Source | undefined {
+    const row = this.db
+      .prepare(
+        'SELECT file,file_id,size FROM staged_attachment_sources WHERE directory=? AND owner=? AND message_id=? AND cleaned=1',
+      )
+      .get(directory, owner, messageId);
+    return (
+      row && {
+        file: JSON.parse(String(row.file)) as ManagedAttachmentFile,
+        attachment: { id: String(row.file_id), size: Number(row.size) },
+      }
+    );
   }
 
   bindSources(owner: string, messageId: string, sources: readonly Source[]): void {
@@ -100,6 +141,11 @@ export class AttachmentLedger {
   recordCopy(messageId: string, id: string, file: ManagedAttachmentFile): void {
     this.db
       .prepare(
+        "INSERT OR IGNORE INTO temporary_attachment_refs(message_id,direction,file_id) VALUES(?,'in',?)",
+      )
+      .run(messageId, id);
+    this.db
+      .prepare(
         `INSERT INTO temporary_attachment_copies(message_id,file_id,name,file)
       VALUES(?,?,?,?) ON CONFLICT(message_id,file_id,name) DO UPDATE SET file=excluded.file`,
       )
@@ -113,15 +159,16 @@ export class AttachmentLedger {
       .map((row) => JSON.parse(String(row.file)) as ManagedAttachmentFile);
   }
 
-  verifiedSources(): Source[] {
+  verifiedSources(messageId?: string): (Source & { messageId: string })[] {
     return this.db
       .prepare(
-        `SELECT s.file,s.file_id,s.size FROM staged_attachment_sources s
+        `SELECT s.file,s.file_id,s.size,s.message_id FROM staged_attachment_sources s
       JOIN messages m ON m.id=s.message_id AND m.direction='out'
-      WHERE s.cleaned=0 AND m.state='processed'`,
+      WHERE s.cleaned=0 AND m.state='processed' ${messageId ? 'AND s.message_id=?' : ''}`,
       )
-      .all()
+      .all(...(messageId ? [messageId] : []))
       .map((row) => ({
+        messageId: String(row.message_id),
         file: JSON.parse(String(row.file)) as ManagedAttachmentFile,
         attachment: { id: String(row.file_id), size: Number(row.size) },
       }));
@@ -133,39 +180,55 @@ export class AttachmentLedger {
       .run(directory);
   }
 
-  verifiedReceived(): { messageId: string; attachment: Attachment; removed: boolean }[] {
+  received(cutoff?: number, agentKey?: string): ReceivedAttachment[] {
+    const filters = [
+      cutoff === undefined
+        ? "m.state IN ('ready','processed')"
+        : "m.state='processed' AND age.received_at<?",
+      agentKey === undefined ? '' : 'm.local_key=?',
+    ].filter(Boolean);
     return this.db
       .prepare(
-        `SELECT m.id,m.envelope,r.file_id,r.removed FROM temporary_attachment_refs r
-      JOIN messages m ON m.id=r.message_id AND m.direction=r.direction
-      WHERE r.direction='in' AND m.state='processed'`,
+        `
+        SELECT DISTINCT m.id,m.local_key,
+          json_extract(a.value,'$.id') AS file_id,
+          json_extract(a.value,'$.size') AS size,
+          COALESCE(r.removed,0) AS removed
+        FROM received_attachment_times age JOIN messages m ON m.id=age.message_id AND m.direction='in'
+        JOIN json_each(m.envelope,'$.attachments') a
+        LEFT JOIN temporary_attachment_refs r
+          ON r.message_id=m.id AND r.direction='in' AND r.file_id=json_extract(a.value,'$.id')
+        WHERE ${filters.join(' AND ')}
+      `,
       )
-      .all()
-      .flatMap((row) => {
-        const envelope = JSON.parse(String(row.envelope)) as Message['envelope'];
-        const attachment = envelope.attachments.find(({ id }) => id === row.file_id);
-        return attachment
-          ? [{ messageId: String(row.id), attachment, removed: row.removed === 1 }]
-          : [];
-      });
+      .all(...(cutoff === undefined ? [] : [cutoff]), ...(agentKey === undefined ? [] : [agentKey]))
+      .map((row) => ({
+        agentKey: String(row.local_key),
+        messageId: String(row.id),
+        attachment: { id: String(row.file_id), size: Number(row.size) },
+        removed: row.removed === 1,
+      }));
   }
 
   finishReceived(messageId: string, id: string): void {
-    // The local sender and recipient may share the same managed copy.
     this.db
-      .prepare('UPDATE temporary_attachment_refs SET removed=1 WHERE message_id=? AND file_id=?')
-      .run(messageId, id);
+      .prepare(
+        `INSERT INTO temporary_attachment_refs(message_id,direction,file_id,removed)
+        SELECT id,'in',?,1 FROM messages WHERE id=? AND direction='in'
+        ON CONFLICT(message_id,direction,file_id) DO UPDATE SET removed=1`,
+      )
+      .run(id, messageId);
   }
 
-  retainedBlob(id: string): boolean {
+  retainedBlob(id: string, messageId?: string): boolean {
     return !!this.db
       .prepare(
         `SELECT 1 FROM messages m,json_each(m.envelope,'$.attachments') a
-      WHERE json_extract(a.value,'$.id')=? AND NOT EXISTS (
+      WHERE json_extract(a.value,'$.id')=? AND (? IS NULL OR m.id=?) AND NOT EXISTS (
         SELECT 1 FROM temporary_attachment_refs r WHERE m.id=r.message_id AND m.direction=r.direction
           AND r.file_id=? AND r.removed=1
       ) LIMIT 1`,
       )
-      .get(id, id);
+      .get(id, messageId ?? null, messageId ?? null, id);
   }
 }

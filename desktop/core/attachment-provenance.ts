@@ -97,6 +97,7 @@ export class AttachmentProvenance {
     root: ManagedRoot,
     expected: ManagedAttachmentFile,
     attachment: Pick<Attachment, 'id' | 'size'>,
+    isCurrent: () => boolean = () => true,
   ): Promise<'removed' | 'missing' | 'preserved'> {
     const matches = (current: ManagedAttachmentFile) =>
       current.identity === expected.identity && current.revision === expected.revision;
@@ -106,7 +107,7 @@ export class AttachmentProvenance {
     } catch (error) {
       return missing(error) ? 'missing' : 'preserved';
     }
-    if (!matches(current.witness)) return 'preserved';
+    if (!matches(current.witness) || !isCurrent()) return 'preserved';
     const parent = path.dirname(current.localPath);
     const quarantine = path.join(parent, '.cleanup-' + randomUUID());
     await mkdir(quarantine, { mode: 0o700 });
@@ -131,7 +132,12 @@ export class AttachmentProvenance {
             size += chunk.length;
             hash.update(chunk);
           }
-          if (size === attachment.size && hash.digest('hex') === attachment.id && (await valid())) {
+          if (
+            size === attachment.size &&
+            hash.digest('hex') === attachment.id &&
+            (await valid()) &&
+            isCurrent()
+          ) {
             await unlink(held);
             return 'removed';
           }

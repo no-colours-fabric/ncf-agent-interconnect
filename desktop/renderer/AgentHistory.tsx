@@ -132,6 +132,7 @@ export function AgentHistory({
                           call('openAttachment', {
                             messageId: m.envelope.id,
                             fileId: f.id,
+                            direction: m.direction,
                           }),
                         )
                       }
@@ -147,6 +148,7 @@ export function AgentHistory({
                           call('saveAttachment', {
                             messageId: m.envelope.id,
                             fileId: f.id,
+                            direction: m.direction,
                           }),
                         )
                       }

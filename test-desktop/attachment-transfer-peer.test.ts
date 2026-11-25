@@ -37,7 +37,7 @@ async function sparseFixture(service: NodeService, size: number): Promise<string
 const legacyLimit = legacyAttachmentLimitMiB * bytesPerMiB;
 
 test(
-  'The receiving limit keeps a large file queued and retries it after a capability change',
+  'A receiver configured for 1 MiB accepts a file over 100 MiB and waits for SHA-256 verification before receipt',
   { timeout: 45000 },
   async (t) => {
     const source = await pairingNode(t),
@@ -47,11 +47,6 @@ test(
     await until(() => source.snapshot().peers[0]?.connected === true);
     const send = sender(source, target.settings.value.nodeId);
     const file = await sparseFixture(source, legacyLimit + 1);
-    const pending = await send('above the legacy ceiling', [file]);
-    assert.equal(pending.accepted, true);
-    assert.equal(pending.delivery, 'queued');
-    assert.equal(pending.attachmentTransfer, 'peer_size_limit');
-    assert.equal(target.store.get(pending.id, 'in'), undefined);
     const additional = await send('other mail keeps flowing');
     await until(() => target.store.get(additional.id, 'in')?.state === 'ready');
 
@@ -73,10 +68,13 @@ test(
         }
         return data;
       });
+    const pending = await send('above the legacy ceiling', [file]);
     const attachment = source.store.get(pending.id, 'out')!.envelope.attachments[0];
     try {
-      await target.userCall('saveAttachmentLimit', { limitMiB: null });
       await withDeadline(lastChunk, 20000, 'last attachment chunk');
+      assert.equal(pending.accepted, true);
+      assert.equal(pending.delivery, 'queued');
+      assert.equal(pending.attachmentTransfer, undefined);
       assert.equal(target.store.get(pending.id, 'in')?.state, 'received');
       assert.equal(source.store.get(pending.id, 'out')?.state, 'queued');
       await assert.rejects(stat(target.files.blob(attachment.id)), { code: 'ENOENT' });
@@ -89,30 +87,26 @@ test(
   },
 );
 
-test('The receiver independently rejects a send made against a stale advertised limit before writing', async (t) => {
+test('The dialing peer and the accepting peer both apply their own cap only on send', async (t) => {
   const source = await pairingNode(t),
     target = await pairingNode(t);
+  await source.userCall('saveAttachmentLimit', { limitMiB: 1 });
+  await target.userCall('saveAttachmentLimit', { limitMiB: 2 });
   await source.network.join(target.snapshot().peerUrl, target.network.accessCode().code);
   await until(() => source.snapshot().peers[0]?.connected === true);
-  // Model an already in-flight envelope: the receiver's persisted limit changes
-  // before its updated limit notice reaches the sender.
-  await target.settings.saveAttachmentLimit(1);
-  const pending = await sender(source, target.settings.value.nodeId)('against stale capability', [
-    await sparseFixture(source, bytesPerMiB + 1),
+  const outbound = await sparseFixture(source, bytesPerMiB + 1);
+  const inbound = await sparseFixture(target, bytesPerMiB + 1);
+  await assert.rejects(
+    sender(source, target.settings.value.nodeId)('locally blocked', [outbound]),
+    /attachment size limit/,
+  );
+  const accepted = await sender(target, source.settings.value.nodeId)('reverse direction', [
+    inbound,
   ]);
-  const saved = source.store.get(pending.id, 'out')!;
-  assert.equal(pending.attachmentTransfer, undefined);
-  assert.equal(pending.delivery, 'queued');
-  const attachment = saved.envelope.attachments[0];
-  await until(() => {
-    const active = source.network as unknown as {
-      links: Map<string, { attachmentLimitMiB: number }>;
-    };
-    return active.links.get(target.settings.value.nodeId)?.attachmentLimitMiB === 1;
-  });
-  assert.equal(target.store.get(pending.id, 'in'), undefined);
-  await assert.rejects(stat(target.files.blob(attachment.id) + '.part'), { code: 'ENOENT' });
-  assert.equal(source.store.get(pending.id, 'out')?.state, 'queued');
+  await until(() => target.store.get(accepted.id, 'out')?.state === 'ready');
+  const file = target.store.get(accepted.id, 'out')!.envelope.attachments[0];
+  assert.equal(await source.files.exists(file), true);
+  assert.equal(source.store.get(accepted.id, 'in')?.state, 'ready');
 });
 
 test(
@@ -158,3 +152,45 @@ test(
     assert.equal(source.store.get(oversized.id, 'out')?.state, 'queued');
   },
 );
+
+test('A pre-update peer can still set its incoming limit with the existing handshake header', async (t) => {
+  const node = await pairingNode(t);
+  const peerId = randomUUID();
+  const secret = randomBytes(32).toString('hex');
+  const certificate = await readFile(path.join(node.directory, 'node-cert.pem'), 'utf8');
+  await node.userCall('saveAttachmentLimit', { limitMiB: 3 });
+  await node.settings.savePeers(() => [
+    { id: peerId, label: 'Previous-version fixture', address: '', secret, certificate },
+  ]);
+  const socket = new WebSocket(node.snapshot().peerUrl, {
+    ca: certificate,
+    headers: {
+      authorization: 'Bearer ' + secret,
+      'x-node-id': peerId,
+      'x-ncf-attachment-limit-mib': '1',
+    },
+  });
+  t.after(() => socket.terminate());
+  await withDeadline(
+    new Promise<void>((resolve, reject) => {
+      socket.once('upgrade', (result) => {
+        try {
+          assert.equal(result.headers['x-ncf-attachment-limit-mib'], 'unlimited');
+        } catch (error) {
+          reject(error);
+        }
+      });
+      socket.once('open', resolve);
+      socket.once('error', reject);
+    }),
+    5000,
+    'previous-version socket open',
+  );
+  socket.send(JSON.stringify({ type: 'hello', protocol: 2, nodeId: peerId }));
+  await until(() => node.snapshot().peers[0]?.connected === true);
+  const blocked = await sender(node, peerId)('the previous receiver still rejects it', [
+    await sparseFixture(node, bytesPerMiB + 1),
+  ]);
+  assert.equal(blocked.delivery, 'queued');
+  assert.equal(blocked.attachmentTransfer, 'peer_size_limit');
+});

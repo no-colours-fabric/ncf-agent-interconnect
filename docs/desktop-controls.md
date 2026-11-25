@@ -20,9 +20,9 @@ Incoming messages presented to supported agents include **From**, **Sent**, **De
 
 In a local agent’s history, turn on **Attachments only** to show messages with attachments, including older messages. A message remains in the filtered view if a file is marked unavailable. Turn off the filter to return to the full history.
 
-Messages and verified incoming file copies remain in the app's history across restarts. To attach outgoing files, first allow their folders in **Settings**. A message can include up to 16 files. The default is 1 GiB per file. In **Settings → Attachment size limit**, set a different maximum in MiB or turn off the size limit. The destination can have a lower limit. Incoming files can be opened or saved from the app or through links delivered to a supported chat.
+Messages and verified incoming file copies remain in the app's history across restarts. To attach outgoing files, first allow their folders in **Settings**. A message can include up to 16 files. The default is 1 GiB per file. In **Settings → Attachment size limit**, set or turn off the maximum size for each outgoing file. Older versions on the receiving computer can enforce their own limit. Incoming files can be opened or saved from the app or through links delivered to a supported chat.
 
-Use **Settings → Temporary attachments** to remove temporary sources or received copies after delivery. Clearing these files preserves the messages and attachment names in history.
+NCF Agent Interconnect automatically removes an unchanged temporary source that it issued for transfer after the receiving agent confirms delivery. Use **Settings → Received attachments** to see managed storage per agent and remove eligible files older than the selected age. The age starts when the local node verifies the received files. For older history without a receipt date, it starts the first time this version opens the history. Messages, attachment names and separately saved files remain.
 
 ## Remove local agents and history
 

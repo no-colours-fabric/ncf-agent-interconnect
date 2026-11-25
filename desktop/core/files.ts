@@ -73,10 +73,10 @@ export class FileStore {
   async cleanup(
     task: { messageId: string; files: Pick<Attachment, 'id' | 'size'>[] },
     referenced: (id: string) => boolean,
-    keepCopies: () => boolean,
+    keepCopy: (id: string) => boolean,
   ): Promise<void> {
     if (!/^[0-9a-f-]{36}$/i.test(task.messageId)) throw new Error('Invalid cleanup message ID');
-    if (!keepCopies()) {
+    if (task.files.some(({ id }) => !keepCopy(id))) {
       const root = path.join(this.dataDir, 'Received'),
         directory = path.join(root, task.messageId);
       try {
@@ -90,9 +90,12 @@ export class FileStore {
             if (!info.isFile()) continue;
             const file = task.files.find(
               (file) =>
-                entry.name.startsWith(file.id.slice(0, 16) + '-') && info.size === file.size,
+                !keepCopy(file.id) &&
+                entry.name.startsWith(file.id.slice(0, 16) + '-') &&
+                info.size === file.size,
             );
-            if (file && (await this.hash(candidate)) === file.id) await unlink(candidate);
+            if (file && (await this.hash(candidate)) === file.id && !keepCopy(file.id))
+              await unlink(candidate);
           }
           await rmdir(directory).catch((error) => {
             if (!['ENOENT', 'ENOTEMPTY'].includes(code(error) ?? '')) throw error;
@@ -126,6 +129,13 @@ export class FileStore {
   blob(id: string): string {
     if (!/^[a-f0-9]{64}$/.test(id)) throw new Error('Invalid attachment ID');
     return path.join(this.directory, id);
+  }
+  async storedSize(file: Pick<Attachment, 'id' | 'size'>): Promise<number> {
+    const info = await lstat(this.blob(file.id)).catch((error) => {
+      if (code(error) === 'ENOENT') return null;
+      throw error;
+    });
+    return info?.isFile() && info.size === file.size ? info.size : 0;
   }
   async hash(filename: string): Promise<string> {
     const hash = createHash('sha256');
@@ -217,13 +227,9 @@ export class FileStore {
     file: Attachment,
     getChunk: (offset: number, length: number) => Promise<string>,
   ): Promise<void> {
-    const checkLimit = () => {
-      if (exceedsAttachmentLimit(file.size, this.attachmentLimit()))
-        throw new Error(localAttachmentLimitError);
-    };
-    checkLimit();
+    if (!Number.isSafeInteger(file.size) || file.size < 0)
+      throw new Error('Invalid attachment size');
     if (await this.exists(file)) return;
-    checkLimit();
     const partial = this.blob(file.id) + '.part';
     const handle = await open(partial, 'a+', 0o600);
     const hash = createHash('sha256');
@@ -242,7 +248,6 @@ export class FileStore {
         const length = Math.min(192 * 1024, file.size - offset),
           data = Buffer.from(await getChunk(offset, length), 'base64');
         if (data.length !== length) throw new Error('Invalid attachment chunk size');
-        checkLimit();
         let written = 0;
         while (written < data.length) {
           const { bytesWritten } = await handle.write(data, written, data.length - written);
@@ -252,7 +257,6 @@ export class FileStore {
         hash.update(data);
         offset += data.length;
       }
-      checkLimit();
       valid = (await handle.stat()).size === file.size && hash.digest('hex') === file.id;
       if (valid) await handle.sync();
     } finally {

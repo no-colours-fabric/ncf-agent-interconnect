@@ -13,7 +13,7 @@ type AttachmentLimitMessages = {
 const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   en: {
     title: 'Attachment size limit',
-    help: 'Applies to each file you send or receive. The destination computer may have a lower limit.',
+    help: 'Applies to each file sent from this computer. Receiving ignores this setting. Older destinations may have their own limit.',
     size: 'Maximum size (MiB)',
     unlimited: 'No size limit',
     invalid: 'Enter a positive whole number.',
@@ -22,7 +22,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   ru: {
     title: 'Ограничение размера вложений',
-    help: 'Действует для каждого отправляемого и получаемого файла. На другом компьютере может действовать более низкий лимит.',
+    help: 'Действует для каждого файла, отправляемого с этого компьютера. На приём файлов эта настройка не влияет. На старых узлах может действовать собственный лимит.',
     size: 'Максимальный размер (МиБ)',
     unlimited: 'Без ограничения',
     invalid: 'Введите положительное целое число.',
@@ -31,7 +31,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   'zh-CN': {
     title: '附件大小限制',
-    help: '适用于每个发送或接收的文件。对方计算机的限制可能更低。',
+    help: '适用于从此计算机发送的每个文件。此设置不影响接收文件。旧版目标节点可能有自己的限制。',
     size: '最大大小（MiB）',
     unlimited: '不限大小',
     invalid: '请输入正整数。',
@@ -40,7 +40,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   fr: {
     title: 'Taille maximale des pièces jointes',
-    help: 'S’applique à chaque fichier envoyé ou reçu. L’ordinateur destinataire peut avoir une limite plus basse.',
+    help: 'S’applique à chaque fichier envoyé depuis cet ordinateur. La réception ne dépend pas de ce réglage. Les anciens nœuds destinataires peuvent appliquer leur propre limite.',
     size: 'Taille maximale (Mio)',
     unlimited: 'Aucune limite de taille',
     invalid: 'Saisissez un nombre entier positif.',
@@ -49,7 +49,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   de: {
     title: 'Größenlimit für Anhänge',
-    help: 'Gilt für jede gesendete oder empfangene Datei. Auf dem Zielcomputer kann ein niedrigeres Limit gelten.',
+    help: 'Gilt für jede Datei, die von diesem Computer gesendet wird. Der Empfang ist von dieser Einstellung unabhängig. Ältere Zielknoten können ein eigenes Limit haben.',
     size: 'Maximale Größe (MiB)',
     unlimited: 'Kein Größenlimit',
     invalid: 'Geben Sie eine positive ganze Zahl ein.',
@@ -58,7 +58,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   it: {
     title: 'Limite di dimensione degli allegati',
-    help: 'Si applica a ogni file inviato o ricevuto. Il computer di destinazione potrebbe avere un limite inferiore.',
+    help: 'Si applica a ogni file inviato da questo computer. La ricezione non dipende da questa impostazione. I nodi di destinazione meno recenti possono avere un proprio limite.',
     size: 'Dimensione massima (MiB)',
     unlimited: 'Nessun limite di dimensione',
     invalid: 'Inserisci un numero intero positivo.',
@@ -67,7 +67,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   es: {
     title: 'Límite de tamaño de los archivos adjuntos',
-    help: 'Se aplica a cada archivo que envías o recibes. El equipo de destino puede tener un límite menor.',
+    help: 'Se aplica a cada archivo enviado desde este equipo. La recepción no depende de este ajuste. Los nodos de destino antiguos pueden tener su propio límite.',
     size: 'Tamaño máximo (MiB)',
     unlimited: 'Sin límite de tamaño',
     invalid: 'Introduce un número entero positivo.',
@@ -76,7 +76,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   kk: {
     title: 'Тіркеме өлшемінің шегі',
-    help: 'Әр жіберілген және алынған файлға қолданылады. Қабылдаушы компьютердің шегі төменірек болуы мүмкін.',
+    help: 'Осы компьютерден жіберілетін әр файлға қолданылады. Бұл параметр файл қабылдауға әсер етпейді. Ескі қабылдаушы түйіндерде өз шектеуі болуы мүмкін.',
     size: 'Ең үлкен өлшем (МиБ)',
     unlimited: 'Өлшем шектелмейді',
     invalid: 'Оң бүтін сан енгізіңіз.',
@@ -85,7 +85,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   ja: {
     title: '添付ファイルのサイズ上限',
-    help: '送受信するファイルごとに適用されます。相手のコンピューターでは上限が低い場合があります。',
+    help: 'このコンピューターから送信するファイルごとに適用されます。受信には影響しません。旧バージョンの受信ノードには独自の上限がある場合があります。',
     size: '最大サイズ（MiB）',
     unlimited: 'サイズ制限なし',
     invalid: '正の整数を入力してください。',
@@ -94,7 +94,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   'pt-BR': {
     title: 'Limite de tamanho dos anexos',
-    help: 'Aplica-se a cada arquivo enviado ou recebido. O computador de destino pode ter um limite menor.',
+    help: 'Aplica-se a cada arquivo enviado deste computador. O recebimento independe dessa configuração. Nós de destino antigos podem ter um limite próprio.',
     size: 'Tamanho máximo (MiB)',
     unlimited: 'Sem limite de tamanho',
     invalid: 'Digite um número inteiro positivo.',
@@ -103,7 +103,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   ko: {
     title: '첨부 파일 크기 제한',
-    help: '보내거나 받는 각 파일에 적용됩니다. 상대 컴퓨터의 제한은 더 낮을 수 있습니다.',
+    help: '이 컴퓨터에서 보내는 각 파일에 적용됩니다. 파일 수신에는 영향을 주지 않습니다. 이전 버전의 대상 노드에는 자체 제한이 있을 수 있습니다.',
     size: '최대 크기(MiB)',
     unlimited: '크기 제한 없음',
     invalid: '양의 정수를 입력하세요.',
@@ -112,7 +112,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   tr: {
     title: 'Ek boyutu sınırı',
-    help: 'Gönderilen veya alınan her dosya için geçerlidir. Karşı bilgisayarın sınırı daha düşük olabilir.',
+    help: 'Bu bilgisayardan gönderilen her dosya için geçerlidir. Alma işlemi bu ayardan etkilenmez. Eski hedef düğümlerin kendi sınırı olabilir.',
     size: 'En büyük boyut (MiB)',
     unlimited: 'Boyut sınırı yok',
     invalid: 'Pozitif bir tam sayı girin.',
@@ -121,7 +121,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   pl: {
     title: 'Limit rozmiaru załącznika',
-    help: 'Dotyczy każdego wysyłanego i odbieranego pliku. Komputer docelowy może mieć niższy limit.',
+    help: 'Dotyczy każdego pliku wysyłanego z tego komputera. Ustawienie nie wpływa na odbieranie plików. Starsze węzły docelowe mogą stosować własny limit.',
     size: 'Maksymalny rozmiar (MiB)',
     unlimited: 'Bez limitu rozmiaru',
     invalid: 'Wpisz dodatnią liczbę całkowitą.',
@@ -130,7 +130,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   nl: {
     title: 'Maximale bijlagegrootte',
-    help: 'Geldt voor elk bestand dat je verstuurt of ontvangt. De andere computer kan een lagere limiet hebben.',
+    help: 'Geldt voor elk bestand dat vanaf deze computer wordt verstuurd. De instelling heeft geen invloed op ontvangen bestanden. Oudere bestemmingsknooppunten kunnen een eigen limiet hebben.',
     size: 'Maximale grootte (MiB)',
     unlimited: 'Geen groottelimiet',
     invalid: 'Voer een positief geheel getal in.',
@@ -139,7 +139,7 @@ const dictionaries: Record<Locale, AttachmentLimitMessages> = {
   },
   uk: {
     title: 'Обмеження розміру вкладень',
-    help: 'Діє для кожного надісланого й отриманого файлу. На іншому комп’ютері обмеження може бути нижчим.',
+    help: 'Діє для кожного файлу, надісланого з цього комп’ютера. На отримання файлів налаштування не впливає. Старі вузли отримувача можуть мати власний ліміт.',
     size: 'Максимальний розмір (МіБ)',
     unlimited: 'Без обмеження розміру',
     invalid: 'Введіть додатне ціле число.',

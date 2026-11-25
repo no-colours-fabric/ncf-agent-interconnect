@@ -15,8 +15,8 @@ import {
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
-import { attachmentMessages } from './i18n/attachments.js';
 import { t, type Locale } from './i18n/index.js';
+import { attachmentMessages } from './i18n/attachments.js';
 import { designTokens, surfaceSx } from './theme.js';
 
 const messageKey = (message: Message | undefined) =>
@@ -225,7 +225,11 @@ export function AgentChatHistory({
                             aria-label={t(locale, 'msgOpenAria', { name: file.name })}
                             onClick={() =>
                               run(() =>
-                                call('openAttachment', { messageId: envelope.id, fileId: file.id }),
+                                call('openAttachment', {
+                                  messageId: envelope.id,
+                                  fileId: file.id,
+                                  direction,
+                                }),
                               )
                             }
                           >
@@ -238,7 +242,11 @@ export function AgentChatHistory({
                             aria-label={t(locale, 'msgSaveAria', { name: file.name })}
                             onClick={() =>
                               run(() =>
-                                call('saveAttachment', { messageId: envelope.id, fileId: file.id }),
+                                call('saveAttachment', {
+                                  messageId: envelope.id,
+                                  fileId: file.id,
+                                  direction,
+                                }),
                               )
                             }
                           >

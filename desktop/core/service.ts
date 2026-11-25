@@ -41,7 +41,13 @@ import {
   secretMatches,
   type Frame,
 } from './peer.js';
-import { attachmentLimitSchema, exceedsAttachmentLimit } from '../shared/attachment-limit.js';
+import { attachmentLimitSchema } from '../shared/attachment-limit.js';
+import {
+  removeReceivedAttachmentsSchema,
+  type ReceivedAttachmentCleanupResult,
+  type ReceivedAttachmentUsage,
+  type RemoveReceivedAttachments,
+} from '../shared/attachment-cleanup.js';
 import type { LocalLanNode } from './lan-discovery.js';
 import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.js';
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
@@ -248,7 +254,7 @@ export class NodeService extends EventEmitter {
             await this.files.cleanup(
               task,
               (id) => this.store.attachmentReferenced(id),
-              () => !!this.store.get(task.messageId),
+              (id) => this.store.attachmentReferenced(id, task.messageId),
             );
             this.store.finishFileCleanup(task.messageId);
           } catch {
@@ -472,6 +478,7 @@ export class NodeService extends EventEmitter {
         const row = this.store.get(id, 'in');
         if (row && row.envelope.fromNode !== this.settings.value.nodeId)
           await this.network.receipt(row.envelope.fromNode, id, 'processed').catch(() => {});
+        else if (row) this.scheduleSourceCleanup(id);
       }),
     );
     try {
@@ -617,6 +624,7 @@ export class NodeService extends EventEmitter {
       void this.drainIncoming();
       this.drainAdapters();
       this.drainFileCleanup();
+      this.scheduleSourceCleanup();
       this.startLanDiscovery();
       this.emit('change');
     } catch (e) {
@@ -2227,34 +2235,29 @@ export class NodeService extends EventEmitter {
       signal.removeEventListener('abort', waiter.wake);
     }
   }
-  private async materializeAttachment(messageId: string, file: Attachment): Promise<string> {
-    if (this.store.attachments.unavailableIds(messageId).includes(file.id))
+  private async materializeAttachment(
+    messageId: string,
+    file: Attachment,
+    direction: Message['direction'] = 'in',
+  ): Promise<string> {
+    if (this.store.attachments.unavailableIds(messageId, direction).includes(file.id))
       throw new Error('The verified attachment is unavailable');
-    const temporary = this.store.attachments.temporaryIds(messageId, 'in').includes(file.id);
-    return this.files.materialize(
-      messageId,
-      file,
-      temporary
-        ? async (target, created) => {
-            try {
-              const { witness } = await this.attachmentProvenance.inspect(
-                'Received',
-                messageId,
-                path.basename(target),
-              );
-              const original = AttachmentProvenance.witness(
-                created,
-                messageId,
-                path.basename(target),
-              );
-              if (witness.identity === original.identity && witness.revision === original.revision)
-                this.store.attachments.recordCopy(messageId, file.id, witness);
-            } catch {
-              // A file without reliable provenance is never a cleanup candidate.
-            }
-          }
-        : undefined,
-    );
+    return this.files.materialize(messageId, file, async (target, created) => {
+      if (!this.store.get(messageId, 'in')) return;
+      try {
+        const name = path.basename(target);
+        const { witness } = await this.attachmentProvenance.inspect('Received', messageId, name);
+        const original = AttachmentProvenance.witness(created, messageId, name);
+        if (
+          this.store.get(messageId, 'in') &&
+          witness.identity === original.identity &&
+          witness.revision === original.revision
+        )
+          this.store.attachments.recordCopy(messageId, file.id, witness);
+      } catch {
+        // A file without reliable provenance is never a cleanup candidate.
+      }
+    });
   }
   async stageAttachment(connectionId: string, name: string): Promise<{ localPath: string }> {
     return this.fileOperation(async () => {
@@ -2298,48 +2301,155 @@ export class NodeService extends EventEmitter {
         return { attachment, ...(witness.identity === staged.identity ? { source: witness } : {}) };
       }
     }
+    const cleaned =
+      connectionId && this.store.attachments.cleanedSource(directory, connectionId, messageId);
+    if (
+      cleaned &&
+      cleaned.file.name === path.basename(filename) &&
+      (await this.attachmentProvenance.isSourcePath(filename, directory, cleaned.file.name))
+    ) {
+      try {
+        await lstat(filename);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+        const file = this.store
+          .get(messageId, 'out')
+          ?.envelope.attachments.find(
+            ({ id, size }) => id === cleaned.attachment.id && size === cleaned.attachment.size,
+          );
+        if (file) return { attachment: { ...file, name: cleaned.file.name } };
+      }
+    }
     return { attachment: await this.files.snapshot(filename) };
   }
-  private async cleanTemporaryAttachments(kind: 'sources' | 'received') {
-    if (this.closing) throw new Error('The app is closing');
+  private scheduleSourceCleanup(onlyMessageId?: string): void {
+    if (this.closing || !this.store.attachments.verifiedSources(onlyMessageId).length) return;
     const work = this.files.exclusive(async () => {
-      let removed = 0;
-      let preserved = 0;
-      if (kind === 'sources') {
-        for (const { file, attachment } of this.store.attachments.verifiedSources()) {
+      for (const { messageId, file, attachment } of this.store.attachments.verifiedSources(
+        onlyMessageId,
+      )) {
+        try {
           const result = await this.attachmentProvenance.remove(
             'Temporary Attachments',
             file,
             attachment,
+            () => this.store.get(messageId, 'out')?.state === 'processed',
           );
-          if (result === 'preserved') preserved++;
-          else {
-            this.store.attachments.finishSource(file.directory);
-            if (result === 'removed') removed++;
-          }
+          if (result !== 'preserved') this.store.attachments.finishSource(file.directory);
+        } catch {
+          // Keep provenance for recovery after an interrupted filesystem operation.
         }
-      } else {
-        for (const candidate of this.store.attachments.verifiedReceived()) {
-          const { messageId, attachment } = candidate;
-          if (!candidate.removed) {
+      }
+    });
+    this.fileJobs.add(work);
+    void work.finally(() => this.fileJobs.delete(work)).catch(() => {});
+  }
+  private withUnavailableAttachments(row: Message): Message {
+    const unavailableAttachments = this.store.attachments.unavailableIds(
+      row.envelope.id,
+      row.direction,
+    );
+    return unavailableAttachments.length ? { ...row, unavailableAttachments } : row;
+  }
+  private receivedAttachmentUsage(): Promise<ReceivedAttachmentUsage> {
+    return this.fileOperation(async () => {
+      const filesByAgent = new Map<string, Map<string, number>>();
+      const all = new Map<string, number>();
+      const blobSizes = new Map<string, number>();
+      for (const {
+        agentKey,
+        messageId,
+        attachment,
+        removed,
+      } of this.store.attachments.received()) {
+        if (removed) continue;
+        const files = filesByAgent.get(agentKey) ?? new Map<string, number>();
+        filesByAgent.set(agentKey, files);
+        const blobSize = blobSizes.get(attachment.id) ?? (await this.files.storedSize(attachment));
+        blobSizes.set(attachment.id, blobSize);
+        files.set(attachment.id, blobSize);
+        all.set(attachment.id, blobSize);
+        for (const copy of this.store.attachments.copies(messageId, attachment.id)) {
+          const current = await this.attachmentProvenance
+            .inspect('Received', messageId, copy.name)
+            .catch(() => undefined);
+          if (
+            current?.witness.identity !== copy.identity ||
+            current.witness.revision !== copy.revision
+          )
+            continue;
+          files.set(current.localPath, attachment.size);
+          all.set(current.localPath, attachment.size);
+        }
+      }
+      const sum = (files: Map<string, number> | undefined) =>
+        files ? [...files.values()].reduce((total, size) => total + size, 0) : 0;
+      return {
+        agents: this.store
+          .list()
+          .flatMap(({ key, incarnation, nickname }) =>
+            incarnation ? [{ key, incarnation, nickname, bytes: sum(filesByAgent.get(key)) }] : [],
+          ),
+        totalBytes: sum(all),
+      };
+    });
+  }
+  private async removeReceivedAttachments(
+    input: RemoveReceivedAttachments,
+  ): Promise<ReceivedAttachmentCleanupResult> {
+    if (this.closing) throw new Error('The app is closing');
+    const cutoff = Date.now() - input.olderThanDays * 86_400_000;
+    const assertScope = () => {
+      if (
+        input.scope === 'agent' &&
+        this.store.sourceStampByKey(input.key).incarnation !== input.incarnation
+      )
+        throw new Error('The selected agent changed');
+    };
+    const work = this.files.exclusive(async () => {
+      assertScope();
+      let removed = 0;
+      let preserved = 0;
+      for (const candidate of this.store.attachments.received(
+        cutoff,
+        input.scope === 'agent' ? input.key : undefined,
+      )) {
+        const { messageId, attachment } = candidate;
+        const isCurrent = () =>
+          this.store.get(messageId, 'in')?.state === 'processed' &&
+          (input.scope === 'all' ||
+            this.store.sourceStampByKey(input.key).incarnation === input.incarnation);
+        assertScope();
+        if (!isCurrent()) continue;
+        if (!candidate.removed) {
+          // A local sender may use the same materialized path from its outgoing history.
+          const outgoingUsesCopy =
+            this.store
+              .get(messageId, 'out')
+              ?.envelope.attachments.some(({ id }) => id === attachment.id) &&
+            !this.store.attachments.unavailableIds(messageId, 'out').includes(attachment.id);
+          if (!outgoingUsesCopy) {
+            const copies = this.store.attachments.copies(messageId, attachment.id);
             const results = await Promise.all(
-              this.store.attachments
-                .copies(messageId, attachment.id)
-                .map((file) => this.attachmentProvenance.remove('Received', file, attachment)),
+              copies.map((file) =>
+                this.attachmentProvenance.remove('Received', file, attachment, isCurrent),
+              ),
             );
             if (results.includes('preserved')) {
               preserved++;
               continue;
             }
-            removed++;
-            this.store.attachments.finishReceived(messageId, attachment.id);
           }
-          await this.files.cleanup(
-            { messageId, files: [attachment] },
-            (id) => this.store.attachments.retainedBlob(id),
-            () => true,
-          );
+          assertScope();
+          if (!isCurrent()) continue;
+          this.store.attachments.finishReceived(messageId, attachment.id);
+          removed++;
         }
+        await this.files.cleanup(
+          { messageId, files: [attachment] },
+          (id) => this.store.attachments.retainedBlob(id),
+          () => true,
+        );
       }
       return { removed, preserved };
     });
@@ -2356,9 +2466,10 @@ export class NodeService extends EventEmitter {
     messageId: string,
     file: Attachment,
     unread: boolean,
+    direction: Message['direction'],
   ): Promise<Attachment & MessagePresentationFile> {
     try {
-      return { ...file, localPath: await this.materializeAttachment(messageId, file) };
+      return { ...file, localPath: await this.materializeAttachment(messageId, file, direction) };
     } catch (error) {
       if (unread) throw error;
       return { ...file, status: 'unavailable' };
@@ -2426,7 +2537,7 @@ export class NodeService extends EventEmitter {
               ...row,
               files: await allFileResults(
                 row.envelope.attachments.map((file) =>
-                  this.prepareReadAttachment(row.envelope.id, file, unread),
+                  this.prepareReadAttachment(row.envelope.id, file, unread, row.direction),
                 ),
               ),
             })),
@@ -2587,7 +2698,7 @@ export class NodeService extends EventEmitter {
               ...row,
               files: await allFileResults(
                 row.envelope.attachments.map((file) =>
-                  this.prepareReadAttachment(row.envelope.id, file, unread),
+                  this.prepareReadAttachment(row.envelope.id, file, unread, row.direction),
                 ),
               ),
             })),
@@ -2707,6 +2818,7 @@ export class NodeService extends EventEmitter {
             const row = this.store.get(id, 'in')!;
             if (row.envelope.fromNode !== this.settings.value.nodeId)
               await this.network.receipt(row.envelope.fromNode, id, 'processed').catch(() => {});
+            else this.scheduleSourceCleanup(id);
           }),
         );
       }
@@ -2736,6 +2848,7 @@ export class NodeService extends EventEmitter {
         const row = this.store.get(id, 'in')!;
         if (row.envelope.fromNode !== this.settings.value.nodeId)
           await this.network.receipt(row.envelope.fromNode, id, 'processed').catch(() => {});
+        else this.scheduleSourceCleanup(id);
       }),
     );
     if (delivered.size) this.emit('change');
@@ -2905,7 +3018,7 @@ export class NodeService extends EventEmitter {
     checkSource();
     if (!this.store.get(id, 'out')) throw new Error('The outgoing message was cleared');
     let peerSizeLimit = false;
-    if (!local && this.running) {
+    if (!local && this.running && this.store.get(id, 'out')?.state !== 'processed') {
       try {
         await this.network.message(envelope, this.store.attachments.temporaryIds(id, 'out'));
       } catch (error) {
@@ -2943,7 +3056,7 @@ export class NodeService extends EventEmitter {
         throw new Error('Delivery of this message to Claude Code is in progress or uncertain');
       const file = row.envelope.attachments.find((f) => f.id === fileId);
       if (!file) throw new Error('Attachment not found');
-      const localPath = await this.materializeAttachment(messageId, file);
+      const localPath = await this.materializeAttachment(messageId, file, row.direction);
       this.store.assertOwner(connectionId);
       if (
         row.direction === 'in' &&
@@ -2959,19 +3072,20 @@ export class NodeService extends EventEmitter {
     messageId: string,
     fileId: string,
     work: (file: Attachment, localPath: string, assertCurrent: () => void) => Promise<T>,
+    direction?: Message['direction'],
   ): Promise<T> {
     return this.fileOperation(async () => {
-      const row = this.store.get(messageId),
+      const row = this.store.get(messageId, direction),
         file = row?.envelope.attachments.find((file) => file.id === fileId);
       if (!row || row.state === 'received' || !file)
         throw new Error('Verified attachment not found');
       const assertCurrent = () => {
-        if (!this.store.get(messageId, row.direction))
+        if (this.store.get(messageId, row.direction)?.sequence !== row.sequence)
           throw new Error(
             'The attachment message was cleared. An already opened or copied external file cannot be recalled',
           );
       };
-      const localPath = await this.materializeAttachment(messageId, file);
+      const localPath = await this.materializeAttachment(messageId, file, row.direction);
       assertCurrent();
       const result = await work(file, localPath, assertCurrent);
       assertCurrent();
@@ -2992,18 +3106,6 @@ export class NodeService extends EventEmitter {
         const envelope = frame.envelope;
         if (envelope.fromNode !== peerId || envelope.toNode !== this.settings.value.nodeId)
           throw new Error('The message route does not match the connection');
-        if (
-          envelope.attachments.some(({ size }) =>
-            exceedsAttachmentLimit(size, this.settings.attachmentLimitMiB),
-          )
-        ) {
-          const state =
-            this.store.get(envelope.id, 'in')?.state ?? this.store.clearedState(envelope.id, 'in');
-          if (state !== 'ready' && state !== 'processed') {
-            await this.network.advertiseAttachmentLimit(peerId);
-            return;
-          }
-        }
         this.store.insert(envelope, 'in', () =>
           this.store.attachments.recordRefs(envelope.id, 'in', frame.temporaryFileIds ?? []),
         );
@@ -3021,6 +3123,8 @@ export class NodeService extends EventEmitter {
         throw new Error('The receipt does not belong to this sender');
       if (frame.state === 'received' && outgoing.envelope.attachments.length) return;
       this.store.receipt(frame.id, frame.state);
+      if (frame.state === 'processed' && outgoing.state !== 'processed')
+        this.scheduleSourceCleanup(frame.id);
       this.emit('change');
     } else if (frame.type === 'blob/read') {
       try {
@@ -3816,21 +3920,16 @@ export class NodeService extends EventEmitter {
       const { limitMiB } = z.object({ limitMiB: attachmentLimitSchema }).strict().parse(raw);
       await this.transition(async () => {
         await this.settings.saveAttachmentLimit(limitMiB);
-        if (this.running) {
-          await this.network.advertiseAttachmentLimit();
-          void this.drainIncoming();
-        }
         this.emit('change');
       });
       return { saved: true };
     }
-    if (method === 'cleanTemporaryAttachments') {
-      const { kind } = z
-        .object({ kind: z.enum(['sources', 'received']) })
-        .strict()
-        .parse(raw);
-      return this.cleanTemporaryAttachments(kind);
+    if (method === 'receivedAttachmentUsage') {
+      z.strictObject({}).parse(raw);
+      return this.receivedAttachmentUsage();
     }
+    if (method === 'removeReceivedAttachments')
+      return this.removeReceivedAttachments(removeReceivedAttachmentsSchema.parse(raw));
     if (method === 'chatHistory') {
       const { nickname, incarnation, before, limit, attachmentsOnly } = z
         .object({
@@ -3848,13 +3947,7 @@ export class NodeService extends EventEmitter {
       const page = this.store.chatHistory(key ?? '', before, limit, attachmentsOnly);
       return {
         ...page,
-        messages: page.messages.map((row) => {
-          const unavailableAttachments = this.store.attachments.unavailableIds(
-            row.envelope.id,
-            row.direction,
-          );
-          return unavailableAttachments.length ? { ...row, unavailableAttachments } : row;
-        }),
+        messages: page.messages.map((row) => this.withUnavailableAttachments(row)),
       };
     }
     if (method === 'history') {
@@ -3869,7 +3962,11 @@ export class NodeService extends EventEmitter {
       const key = this.store.keyForNickname(nickname);
       if (incarnation && this.store.sourceStampByKey(key).incarnation !== incarnation)
         throw new Error('The selected agent changed');
-      return this.store.history(key ?? '', after, limit);
+      const page = this.store.history(key ?? '', after, limit);
+      return {
+        ...page,
+        messages: page.messages.map((row) => this.withUnavailableAttachments(row)),
+      };
     }
     if (method === 'instructions') {
       const { client } = z.object({ client: z.enum(['cursor', 'opencode', 'codex']) }).parse(raw);

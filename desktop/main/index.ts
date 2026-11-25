@@ -409,13 +409,18 @@ function setupIpc(): void {
       return access.current().userCall('exportRoots', { remove: folder });
     }
     if (method === 'openAttachment' || method === 'saveAttachment') {
-      const { messageId, fileId } = z
-        .object({ messageId: z.uuid(), fileId: z.string().regex(/^[a-f0-9]{64}$/) })
+      const { messageId, fileId, direction } = z
+        .object({
+          messageId: z.uuid(),
+          fileId: z.string().regex(/^[a-f0-9]{64}$/),
+          direction: z.enum(['in', 'out']).optional(),
+        })
         .parse(raw);
       const attachmentWindow = window;
-      return access
-        .current()
-        .withUserAttachment(messageId, fileId, async (file, local, assertCurrent) => {
+      return access.current().withUserAttachment(
+        messageId,
+        fileId,
+        async (file, local, assertCurrent) => {
           access.current();
           if (method === 'openAttachment') {
             assertCurrent();
@@ -433,7 +438,9 @@ function setupIpc(): void {
             await copyFile(local, destination.filePath);
           }
           return { saved: !!destination.filePath };
-        });
+        },
+        direction,
+      );
     }
     if (
       ![
@@ -459,6 +466,9 @@ function setupIpc(): void {
         'registerAgent',
         'renameAgent',
         'clearAgents',
+        'saveAttachmentLimit',
+        'receivedAttachmentUsage',
+        'removeReceivedAttachments',
         'saveNode',
         'stop',
         'start',

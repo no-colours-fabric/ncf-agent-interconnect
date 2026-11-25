@@ -573,12 +573,8 @@ export class AgentStore {
   finishFileCleanup(messageId: string): void {
     this.db.prepare('DELETE FROM file_cleanup WHERE message_id=?').run(messageId);
   }
-  attachmentReferenced(id: string): boolean {
-    return !!this.db
-      .prepare(
-        "SELECT 1 FROM messages m, json_each(m.envelope,'$.attachments') f WHERE json_extract(f.value,'$.id')=? LIMIT 1",
-      )
-      .get(id);
+  attachmentReferenced(id: string, messageId?: string): boolean {
+    return this.attachments.retainedBlob(id, messageId);
   }
   assertOwner(connectionId: string): { key: string; nickname: string; binding: Binding } {
     for (const row of this.db
@@ -853,6 +849,8 @@ export class AgentStore {
       )
       .run(id);
     const incoming = this.get(id, 'in');
+    if (incoming?.envelope.attachments.length && incoming.state !== 'received')
+      this.attachments.recordReceivedTime(id);
     if (incoming && incoming.envelope.fromNode === incoming.envelope.toNode)
       this.receipt(id, incoming.state);
   }
