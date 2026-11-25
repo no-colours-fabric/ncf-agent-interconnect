@@ -70,13 +70,13 @@ maximum Cursor wait or overnight reliability.
 
 ## Restart and recovery scenarios
 
-| Scenario | Native observation |
-| --- | --- |
-| Renderer/window reload with the research listener still running | The plugin registered again. Returning a follow-up to the old wait produced no native message or reply. |
-| Normal application quit and launch | The original process exited and a new process restored the same chat and transcript. The stale wait again produced no native message or reply. |
-| `workspaceOpen` after either restart | The helper retrieved the exact saved binding from an isolated NCF SQLite store. Returning experimental `conversation_id`, `session_id`, and `followup_message` alongside `pluginPaths` did not start the chat. After the full restart, no native reply appeared during over 78 seconds of observation. |
-| Select the restored target tab without sending a message | No agent hook fired, no fresh wait appeared, and the queued event remained pending. |
-| Send an ordinary reconnect message in the same chat and let it finish | A fresh `stop` wait accepted delivery. Hidden-chat delivery resumed in the IDE and Agents Window after restarting, with one matching reply per confirmed event. Uncertain attempts through stale waits were not replayed. |
+| Scenario                                                              | Native observation                                                                                                                                                                                                                                                                                     |
+| --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Renderer/window reload with the research listener still running       | The plugin registered again. Returning a follow-up to the old wait produced no native message or reply.                                                                                                                                                                                                |
+| Normal application quit and launch                                    | The original process exited and a new process restored the same chat and transcript. The stale wait again produced no native message or reply.                                                                                                                                                         |
+| `workspaceOpen` after either restart                                  | The helper retrieved the exact saved binding from an isolated NCF SQLite store. Returning experimental `conversation_id`, `session_id`, and `followup_message` alongside `pluginPaths` did not start the chat. After the full restart, no native reply appeared during over 78 seconds of observation. |
+| Select the restored target tab without sending a message              | No agent hook fired, no fresh wait appeared, and the queued event remained pending.                                                                                                                                                                                                                    |
+| Send an ordinary reconnect message in the same chat and let it finish | A fresh `stop` wait accepted delivery. Hidden-chat delivery resumed in the IDE and Agents Window after restarting, with one matching reply per confirmed event. Uncertain attempts through stale waits were not replayed.                                                                              |
 
 Saved identity and a still-open HTTP request did not establish that the native
 conversation could accept a follow-up. A new turn rearmed the tested route.

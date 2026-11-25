@@ -4,10 +4,10 @@
 
 NCF Agent Interconnect sent live local messages to the bound Home chat. The initial workload was submitted separately to that chat using the bundled CLI. The original turn was active when NCF created the message in each test. Elapsed times are measured from message creation using the NCF outbound record, local turn completion and the ordinary user item in persisted history, all on the same machine. The time of painting a bubble in the GUI was not instrumented.
 
-| GUI launch        | Original turn ended | Ordinary message recorded | Receiving turn |
-| ----------------- | ------------------: | ------------------------: | -------------- |
+| GUI launch         | Original turn ended | Ordinary message recorded | Receiving turn |
+| ------------------ | ------------------: | ------------------------: | -------------- |
 | Pass-through stdio |             1317 ms |                   5485 ms | Following      |
-| Stock Home        |            33160 ms |                  33181 ms | Following      |
+| Stock Home         |            33160 ms |                  33181 ms | Following      |
 
 Both ordinary items matched the complete original test body, Unicode, newlines, indentation, sender, timestamps, reply reference and reply instructions. An independent read using the bundled thread/items/list and thread/queue/list confirmed one matching userMessage and zero residual queued copies for each. Stock Home recorded the NCF item 21 ms after the original turn ended. It continued working for 33.160 seconds after NCF created the message.
 

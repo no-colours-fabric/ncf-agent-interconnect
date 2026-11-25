@@ -17,13 +17,13 @@ Both versions preview and add only missing exact `allow` rules for ten named `nc
 
 The integrated candidate passed profile-specific source tests and the isolated macOS Electron UI check. The setup test suite includes these cases:
 
-| Scenario | Established by the tests |
-| --- | --- |
-| v1 clean setup and upgrade | Adds ten exact rules for a new configuration, or nine when one already exists. Preview leaves the selected file untouched. Apply backs up the original and preserves unrelated settings and comments. Repeated Apply leaves the result byte-for-byte unchanged. |
-| v1 overlapping rules | An effective exact or wildcard `ask` or `deny` blocks setup. A legacy `tools` denial blocks setup unless an explicit matching permission replaces its effect. An earlier exact allow does not override a later applicable ask. |
-| v2 permission-only upgrade | Preview lists missing rules. Discard leaves the file untouched. Apply writes the permissions and retains the target credential and registration. Existing provider and other MCP settings are preserved. |
-| v2 conflict, stale preview, or failed write | An effective restriction stops preview without modifying the selected file or creating target state. A stale preview cannot activate a configuration. Injected failures before activation restore the original file. |
-| Major selection and preview | v1 and v2 use separate targets and reject the other format. The preview shows only the newly added exact permissions for the selected major. |
+| Scenario                                    | Established by the tests                                                                                                                                                                                                                                        |
+| ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| v1 clean setup and upgrade                  | Adds ten exact rules for a new configuration, or nine when one already exists. Preview leaves the selected file untouched. Apply backs up the original and preserves unrelated settings and comments. Repeated Apply leaves the result byte-for-byte unchanged. |
+| v1 overlapping rules                        | An effective exact or wildcard `ask` or `deny` blocks setup. A legacy `tools` denial blocks setup unless an explicit matching permission replaces its effect. An earlier exact allow does not override a later applicable ask.                                  |
+| v2 permission-only upgrade                  | Preview lists missing rules. Discard leaves the file untouched. Apply writes the permissions and retains the target credential and registration. Existing provider and other MCP settings are preserved.                                                        |
+| v2 conflict, stale preview, or failed write | An effective restriction stops preview without modifying the selected file or creating target state. A stale preview cannot activate a configuration. Injected failures before activation restore the original file.                                            |
+| Major selection and preview                 | v1 and v2 use separate targets and reject the other format. The preview shows only the newly added exact permissions for the selected major.                                                                                                                    |
 
 ## What remains unconfirmed
 

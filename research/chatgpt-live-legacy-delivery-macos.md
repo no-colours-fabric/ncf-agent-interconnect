@@ -8,12 +8,12 @@ The receiving chat's saved binding was initially configured for codex-queue. A m
 
 An NCF agent_send targeted the bound chat during an active turn. The original and receiving turns matched. Native dispatch committed. Elapsed times are measured from message creation.
 
-| Event                                                       | Elapsed time |
-| ----------------------------------------------------------- | -----------: |
-| NCF created message                                         |         0 ms |
-| Full ordinary user message recorded in the active turn      |       877 ms |
-| The assistant reply included the unique last line           |     60722 ms |
-| Original turn completed                                     |     61792 ms |
+| Event                                                  | Elapsed time |
+| ------------------------------------------------------ | -----------: |
+| NCF created message                                    |         0 ms |
+| Full ordinary user message recorded in the active turn |       877 ms |
+| The assistant reply included the unique last line      |     60722 ms |
+| Original turn completed                                |     61792 ms |
 
 One recorded message matched the full Unicode body and indentation, original sender, timestamps and Reply-To. No browser call occurred during the measured busy turn. A separate browser check in the same exact chat and installed desktop reached the blind loopback page and returned its exact random title through the browser tool. The page received 1 request.
 
