@@ -27,7 +27,8 @@ export function agentRows(snapshot: Snapshot): AgentRow[] {
         localDirectory?.state === 'ready' &&
         localDirectory.agents.some(
           (agent) =>
-            nicknameKey(agent.nickname) === identity.key && agent.availability === 'online',
+            nicknameKey(agent.nickname) === nicknameKey(identity.nickname) &&
+            agent.availability === 'online',
         ),
       client: identity.binding?.client,
       messageCount: identity.messageCount,

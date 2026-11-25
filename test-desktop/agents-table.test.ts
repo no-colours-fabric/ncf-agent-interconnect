@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { agentRows } from '../desktop/renderer/agents-table-model.js';
+import { agentRenameMessages } from '../desktop/renderer/i18n/agent-rename.js';
+import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 import { AgentsTable, type AgentsTableLabels } from '../desktop/renderer/AgentsTable.js';
 import { RemoteNodesTable } from '../desktop/renderer/RemoteNodesTable.js';
 import type { Snapshot } from '../desktop/shared/contracts.js';
@@ -81,6 +83,7 @@ const labels: AgentsTableLabels = {
   outgoing: 'Out',
   actions: 'Actions',
   chat: (name) => 'Chat ' + name,
+  rename: 'Rename agent',
   remove: (name) => 'Delete ' + name,
   remoteRemoval: 'Delete on remote node',
 };
@@ -96,6 +99,7 @@ test('one message column distinguishes measured zeros from unknown directional a
         nodeName: () => 'Machine',
         onChat: () => {},
         onDelete: () => {},
+        onRename: () => {},
       }),
     );
   const messageCells = (html: string) =>
@@ -136,6 +140,7 @@ test('same Unicode name on different nodes keeps separate rows and only confirme
       nodeName: () => 'Machine',
       onChat: () => assert.fail(),
       onDelete: () => assert.fail(),
+      onRename: () => assert.fail(),
     }),
   );
   assert.equal((html.match(/data-testid="agent-online"/g) ?? []).length, 1);
@@ -178,4 +183,34 @@ test('remote nodes table reports counts and update time without exposing agent l
   const unknown = render();
   assert.ok(!unknown.includes('>0</td>'));
   assert.ok(!unknown.includes('>1</td>'));
+});
+
+test('the renamed local agent keeps its table identity, matches directory presence and has the only rename action', () => {
+  const snapshot = fixture();
+  const original = agentRows(snapshot).find((agent) => agent.local)!;
+  snapshot.agents[0].incarnation = randomUUID();
+  snapshot.agents[0].nickname = 'Éditeur';
+  snapshot.directories[0].agents[0].nickname = 'E\u0301DITEUR';
+  const rows = agentRows(snapshot);
+  const renamed = rows.find((agent) => agent.local)!;
+  assert.equal(renamed.id, original.id);
+  assert.equal(renamed.online, true);
+  assert.equal(renamed.nickname, 'Éditeur');
+  for (const locale of supportedLocales) {
+    const copy = agentRenameMessages[locale];
+    assert.ok(Object.values(copy).every((value) => value.trim()));
+    const html = renderToStaticMarkup(
+      createElement(AgentsTable, {
+        rows,
+        labels: { ...labels, rename: copy.title },
+        locale,
+        nodeName: () => 'Machine',
+        onChat: () => assert.fail(),
+        onDelete: () => assert.fail(),
+        onRename: () => assert.fail(),
+      }),
+    );
+    assert.equal((html.match(/data-testid="rename-local-agent"/g) ?? []).length, 1);
+    assert.ok(html.includes('aria-label="' + copy.title + '"'));
+  }
 });

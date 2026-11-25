@@ -354,7 +354,9 @@ function App({
                       agents:
                         result.scope === 'all'
                           ? []
-                          : current.agents.filter((agent) => !removed.has(agent.key)),
+                          : current.agents.filter(
+                              (agent) => !removed.has(nicknameKey(agent.nickname)),
+                            ),
                     }
                   : current,
               );

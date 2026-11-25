@@ -46,6 +46,7 @@ import { AgentsTable } from './AgentsTable.js';
 import { agentRows, type AgentRow } from './agents-table-model.js';
 import { AgentChatHistory } from './AgentChatHistory.js';
 import { useChatHistory } from './useChatHistory.js';
+import { agentRenameMessages } from './i18n/agent-rename.js';
 import { agentEntryMessages } from './i18n/agent-entry.js';
 import { mcpSetupMessages } from './i18n/mcp-setup.js';
 import { t, type Locale } from './i18n/index.js';
@@ -107,6 +108,39 @@ export function AgentsPage({
   const restoreComposeFocus = useRef(false);
   const rows = agentRows(snapshot);
   const entryMessages = agentEntryMessages(locale);
+  const renameMessages = agentRenameMessages[locale];
+  const [renameTarget, setRenameTarget] = useState<{
+    key: string;
+    incarnation: string;
+    nickname: string;
+  } | null>(null);
+  const [newName, setNewName] = useState('');
+  const [renameError, setRenameError] = useState<'nickname_in_use' | 'stale' | 'failed' | null>(
+    null,
+  );
+  const [renaming, setRenaming] = useState(false);
+  const renameAgent = async () => {
+    if (!renameTarget || renaming || !nicknameSchema.safeParse(newName).success) return;
+    setRenaming(true);
+    setRenameError(null);
+    try {
+      const result = await call<{ status: 'renamed' | 'unchanged' | 'nickname_in_use' | 'stale' }>(
+        'renameAgent',
+        {
+          key: renameTarget.key,
+          incarnation: renameTarget.incarnation,
+          currentNickname: renameTarget.nickname,
+          nickname: newName,
+        },
+      );
+      if (result.status === 'renamed' || result.status === 'unchanged') setRenameTarget(null);
+      else setRenameError(result.status);
+    } catch {
+      setRenameError('failed');
+    } finally {
+      setRenaming(false);
+    }
+  };
   const [chat, setChat] = useState<AgentRow | null>(null);
   const [historySize, setHistorySize] = useState(100);
   const [composerOpen, setComposerOpen] = useState(false);
@@ -181,7 +215,7 @@ export function AgentsPage({
     }
   }, [chat, validChat]);
   const history = useChatHistory({
-    owner: validChat && chat?.local ? chat.nickname : '',
+    owner: validChat && chat?.local ? (selected?.nickname ?? '') : '',
     snapshot,
     size: historySize,
     active: validChat && !!chat?.local,
@@ -273,7 +307,10 @@ export function AgentsPage({
       }}
     >
       <Avatar sx={{ width: 32, height: 32, fontSize: 13 }}>
-        {Array.from(chat.nickname).slice(0, 2).join('').toLocaleUpperCase(locale)}
+        {Array.from(current?.nickname ?? chat.nickname)
+          .slice(0, 2)
+          .join('')
+          .toLocaleUpperCase(locale)}
       </Avatar>
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Typography
@@ -281,7 +318,7 @@ export function AgentsPage({
           component="h2"
           sx={{ fontSize: 16, fontWeight: 500, overflowWrap: 'anywhere' }}
         >
-          {chat.nickname}
+          {current?.nickname ?? chat.nickname}
         </Typography>
         <Typography
           variant="caption"
@@ -447,6 +484,16 @@ export function AgentsPage({
           locale={locale}
           nodeName={nodeName}
           onChat={openChat}
+          onRename={({ identity }) => {
+            if (!identity?.incarnation) return;
+            setNewName(identity.nickname);
+            setRenameError(null);
+            setRenameTarget({
+              key: identity.key,
+              incarnation: identity.incarnation,
+              nickname: identity.nickname,
+            });
+          }}
           onDelete={(agent) => {
             if (agent.local) void clear.begin({ scope: 'agent', nickname: agent.nickname });
           }}
@@ -459,6 +506,7 @@ export function AgentsPage({
             outgoing: t(locale, 'agentsColumnOutgoing'),
             actions: t(locale, 'agentsColumnActions'),
             chat: (name) => t(locale, 'agentsChatAria', { name }),
+            rename: renameMessages.title,
             remove: (name) => t(locale, 'agentsDeleteAria', { name }),
             remoteRemoval: t(locale, 'agentsRemoteDeleteHelp'),
           }}
@@ -551,7 +599,7 @@ export function AgentsPage({
                       noWrap
                       sx={{ flex: 1, minWidth: 0, textAlign: 'right' }}
                     >
-                      {t(locale, 'composeSenderAgent')}: {chat.nickname}
+                      {t(locale, 'composeSenderAgent')}: {current?.nickname ?? chat.nickname}
                     </Typography>
                     <Tooltip title={t(locale, 'chatCloseComposer')}>
                       <IconButton
@@ -634,6 +682,62 @@ export function AgentsPage({
         )}
       </Dialog>
       <Dialog
+        open={!!renameTarget}
+        onClose={() => {
+          if (!renaming) setRenameTarget(null);
+        }}
+        fullWidth
+        maxWidth="xs"
+        aria-labelledby="agent-rename-title"
+      >
+        <Box
+          component="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            void renameAgent();
+          }}
+        >
+          <DialogTitle id="agent-rename-title">{renameMessages.title}</DialogTitle>
+          <DialogContent sx={{ pt: '16px !important' }}>
+            <TextField
+              label={t(locale, 'dialogAgentName')}
+              autoFocus
+              fullWidth
+              disabled={renaming}
+              value={newName}
+              onChange={(event) => {
+                setNewName(event.target.value);
+                if (renameError === 'nickname_in_use' || renameError === 'failed')
+                  setRenameError(null);
+              }}
+              slotProps={{ htmlInput: { maxLength: 120 } }}
+            />
+            {renameError && (
+              <Alert severity="error" sx={{ mt: 2 }}>
+                {renameMessages[renameError]}
+              </Alert>
+            )}
+          </DialogContent>
+          <DialogActions>
+            <Button disabled={renaming} onClick={() => setRenameTarget(null)}>
+              {t(locale, 'btnCancel')}
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={
+                renaming ||
+                renameError === 'stale' ||
+                newName === renameTarget?.nickname ||
+                !nicknameSchema.safeParse(newName).success
+              }
+            >
+              {t(locale, 'btnSave')}
+            </Button>
+          </DialogActions>
+        </Box>
+      </Dialog>
+      <Dialog
         open={deletion.open}
         onClose={() => clear.cancel()}
         fullWidth
@@ -665,7 +769,10 @@ export function AgentsPage({
                 if (result) {
                   if (
                     chat?.local &&
-                    names.some((name) => nicknameKey(name) === nicknameKey(chat.nickname))
+                    names.some(
+                      (name) =>
+                        nicknameKey(name) === nicknameKey(current?.nickname ?? chat.nickname),
+                    )
                   )
                     closeChat();
                   onCleared(result, names);

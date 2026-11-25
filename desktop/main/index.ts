@@ -438,6 +438,7 @@ function setupIpc(): void {
         'accessCode',
         'connectPeer',
         'registerAgent',
+        'renameAgent',
         'clearAgents',
         'saveNode',
         'stop',

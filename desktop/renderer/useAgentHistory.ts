@@ -20,7 +20,7 @@ export function useAgentHistory({
   onError: (error: string) => void;
 }): HistoryPage {
   const agent = owner
-    ? snapshot?.agents.find((agent) => agent.key === nicknameKey(owner))
+    ? snapshot?.agents.find((agent) => nicknameKey(agent.nickname) === nicknameKey(owner))
     : undefined;
   const cacheKey = agentCacheKey(agent);
   const [history, setHistory] = useState<HistoryPage & { owner: string }>({

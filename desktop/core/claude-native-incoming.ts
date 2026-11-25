@@ -1,7 +1,6 @@
 import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import type { AdapterProfile, Message } from '../shared/contracts.js';
-import { nicknameKey } from '../shared/contracts.js';
 import type { AgentMessageInput } from './adapters.js';
 import type { AgentStore } from './agent-store.js';
 import type { ClaudeSessions } from './claude-sessions.js';
@@ -212,7 +211,7 @@ export class ClaudeNativeIncoming {
       if (
         !row ||
         row.state !== 'ready' ||
-        nicknameKey(row.envelope.toNickname) !== claim.binding.agentKey ||
+        store.messageOwnerKey(id, 'in') !== claim.binding.agentKey ||
         store.claudeFenced(id) ||
         ['dispatching', 'uncertain'].includes(store.dispatchState(id)?.state ?? '')
       )

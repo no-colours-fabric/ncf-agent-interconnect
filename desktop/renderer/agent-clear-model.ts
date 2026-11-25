@@ -102,8 +102,8 @@ export function invalidatedAgent(
 ): boolean {
   if (!nickname) return false;
   const key = nicknameKey(nickname),
-    before = previous.find((agent) => agent.key === key),
-    after = next.find((agent) => agent.key === key);
+    before = previous.find((agent) => nicknameKey(agent.nickname) === key),
+    after = next.find((agent) => nicknameKey(agent.nickname) === key);
   return !after || (!!before && agentCacheKey(before) !== agentCacheKey(after));
 }
 

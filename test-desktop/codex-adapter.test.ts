@@ -1198,9 +1198,10 @@ test('Codex queue recovery offers a transfer only in the exact verified destinat
   await service.open();
   await mkdir(profileHome, { mode: 0o700 });
   await writeFile(configFile, service.clientInstructions('codex').configuration, { mode: 0o600 });
+  const originalName = 'Хранитель истории';
   const nickname = 'Хранитель';
   const source = await service.connectCodex(
-    { nickname, client: 'Codex' },
+    { nickname: originalName, client: 'Codex' },
     {
       threadId: f.profile.threadId!,
       socket: f.profile.socket,
@@ -1209,6 +1210,16 @@ test('Codex queue recovery offers a transfer only in the exact verified destinat
   const sender = service.connect({ nickname: 'Sender', client: 'MCP' });
   if (source.status !== 'connected' || sender.status !== 'connected')
     throw new Error('Missing fixture binding');
+  const identity = service.store.list().find((agent) => agent.nickname === originalName)!;
+  assert.deepEqual(
+    await service.userCall('renameAgent', {
+      key: identity.key,
+      incarnation: identity.incarnation,
+      currentNickname: originalName,
+      nickname,
+    }),
+    { status: 'renamed' },
+  );
   const sourceAdapter = service.adapters.get(source.binding.adapterId);
   const baseStatus = sourceAdapter.status();
   const quiet = { ...baseStatus, capabilities: { ...baseStatus.capabilities, wakeIdle: false } };
