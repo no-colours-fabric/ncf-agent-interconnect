@@ -151,12 +151,12 @@ test('attachment-only history paginates over matching envelopes and retains remo
     const incarnation = service.store.list()[0].incarnation;
     const file = { id: 'a'.repeat(64), name: 'removed.pdf', size: 120 };
     for (let i = 1; i <= 250; i++) {
-      const row = envelope(i, owner);
+      const row = i === 1 ? { ...envelope(i, 'Sender'), toNickname: owner } : envelope(i, owner);
       if ([1, 9, 249].includes(i))
         row.attachments.push(i === 1 ? file : { ...file, name: i + '.pdf' });
       service.store.insertLocal(row, true);
       if (i === 1) {
-        service.store.attachments.recordRefs(row.id, 'out', [file.id]);
+        service.store.attachments.recordRefs(row.id, 'in', [file.id]);
         service.store.attachments.finishReceived(row.id, file.id);
       }
     }
@@ -180,6 +180,7 @@ test('attachment-only history paginates over matching envelopes and retains remo
       ['Message 1'],
     );
     assert.equal(older.hasMore, false);
+    assert.equal(older.messages[0].direction, 'in');
     assert.deepEqual(older.messages[0].unavailableAttachments, [file.id]);
     assert.equal(
       service.store.chatHistory(key, undefined, 2).messages.at(-1)?.envelope.text,
