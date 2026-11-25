@@ -222,6 +222,8 @@ export const ko: Messages = {
   msgStateReceived: '노드가 수락함. 첨부 파일 수신 중',
   msgStateReady: '노드가 수락함. 에이전트 대기 중',
   msgStateProcessed: '에이전트가 수신함',
+  chatAttachmentsOnly: '첨부파일이 있는 메시지만',
+  msgNoAttachmentMessages: '첨부파일이 있는 메시지가 없습니다.',
   msgNoMessages: '아직 메시지가 없습니다.',
   msgLoadMore: '메시지 더 불러오기',
   composeRecipientNode: '수신 노드',

@@ -229,6 +229,8 @@ export const pl: Messages = {
   msgStateReceived: 'Przyjęto przez węzeł; pobieranie załączników',
   msgStateReady: 'Przyjęto przez węzeł; oczekiwanie na agenta',
   msgStateProcessed: 'Odebrano przez agenta',
+  chatAttachmentsOnly: 'Tylko z załącznikami',
+  msgNoAttachmentMessages: 'Brak wiadomości z załącznikami.',
   msgNoMessages: 'Nie ma jeszcze wiadomości.',
   msgLoadMore: 'Załaduj więcej wiadomości',
   composeRecipientNode: 'Węzeł odbiorcy',

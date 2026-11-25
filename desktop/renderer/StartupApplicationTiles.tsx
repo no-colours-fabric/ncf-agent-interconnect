@@ -1,45 +1,9 @@
 import type { ReactNode } from 'react';
-import { Box, Button, CircularProgress, Stack, Typography } from '@mui/material';
+import { Button, CircularProgress, Stack, Typography } from '@mui/material';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import type { ApplicationSetupClient } from './application-setup-model.js';
 import { surfaceSx } from './theme.js';
-
-export function StartupApplicationTiles({ children }: { children: ReactNode }) {
-  return (
-    <Box sx={{ containerType: 'inline-size' }}>
-      <Box
-        data-testid="startup-application-grid"
-        sx={{
-          '--startup-card-columns': 2,
-          '--startup-card-gaps': '16px',
-          '@container (max-width: 359px)': {
-            '--startup-card-columns': 1,
-            '--startup-card-gaps': '0px',
-          },
-          '@container (min-width: 744px)': {
-            '--startup-card-columns': 3,
-            '--startup-card-gaps': '32px',
-          },
-          '@container (min-width: 912px)': {
-            '--startup-card-columns': 4,
-            '--startup-card-gaps': '48px',
-          },
-          '@container (min-width: 1056px)': {
-            '--startup-card-columns': 6,
-            '--startup-card-gaps': '80px',
-          },
-          display: 'flex',
-          flexWrap: 'wrap',
-          gap: '16px',
-          justifyContent: 'center',
-        }}
-      >
-        {children}
-      </Box>
-    </Box>
-  );
-}
 
 export function StartupApplicationTile({
   client,
@@ -47,6 +11,7 @@ export function StartupApplicationTile({
   name,
   status,
   busy,
+  compatibilityWarning,
   action,
   onConnect,
   children,
@@ -56,6 +21,7 @@ export function StartupApplicationTile({
   name: string;
   status: string;
   busy: boolean;
+  compatibilityWarning: boolean;
   action: { label: string; disabled: boolean } | undefined;
   onConnect: () => void;
   children?: ReactNode;
@@ -67,9 +33,9 @@ export function StartupApplicationTile({
       aria-label={name}
       data-testid={'startup-application-' + client}
       data-offer-client={offer}
+      data-compatibility-warning={compatibilityWarning || undefined}
       sx={{
         ...surfaceSx('soft'),
-        flex: '0 0 calc((100% - var(--startup-card-gaps)) / var(--startup-card-columns))',
         boxSizing: 'border-box',
         minWidth: 0,
         minHeight: 360,

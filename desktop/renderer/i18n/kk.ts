@@ -228,6 +228,8 @@ export const kk: Messages = {
   msgStateReceived: 'Торап қабылдады; тіркемелер алынуда',
   msgStateReady: 'Торап қабылдады; агент күтілуде',
   msgStateProcessed: 'Агент қабылдады',
+  chatAttachmentsOnly: 'Тек тіркемесі бар хабарлар',
+  msgNoAttachmentMessages: 'Тіркемесі бар хабарлар жоқ.',
   msgNoMessages: 'Әзірге хабарлама жоқ.',
   msgLoadMore: 'Көбірек хабарлама жүктеу',
   composeRecipientNode: 'Алушы торап',

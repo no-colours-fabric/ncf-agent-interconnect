@@ -3782,11 +3782,12 @@ export class NodeService extends EventEmitter {
       return this.cleanTemporaryAttachments(kind);
     }
     if (method === 'chatHistory') {
-      const { nickname, incarnation, before, limit } = z
+      const { nickname, incarnation, before, limit, attachmentsOnly } = z
         .object({
           nickname: nicknameSchema,
           incarnation: z.uuid().optional(),
           before: z.number().int().positive().optional(),
+          attachmentsOnly: z.boolean().optional(),
           limit: z.number().int().min(1).max(200).default(100),
         })
         .strict()
@@ -3794,7 +3795,7 @@ export class NodeService extends EventEmitter {
       const key = this.store.keyForNickname(nickname);
       if (incarnation && this.store.sourceStampByKey(key).incarnation !== incarnation)
         throw new Error('The selected agent changed');
-      const page = this.store.chatHistory(key ?? '', before, limit);
+      const page = this.store.chatHistory(key ?? '', before, limit, attachmentsOnly);
       return {
         ...page,
         messages: page.messages.map((row) => {

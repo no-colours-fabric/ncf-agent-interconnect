@@ -232,6 +232,8 @@ export const de: Messages = {
   msgStateReceived: 'Vom Knoten angenommen; Anhänge werden empfangen',
   msgStateReady: 'Vom Knoten angenommen; wartet auf Agenten',
   msgStateProcessed: 'Vom Agenten empfangen',
+  chatAttachmentsOnly: 'Nur mit Anhängen',
+  msgNoAttachmentMessages: 'Keine Nachrichten mit Anhängen.',
   msgNoMessages: 'Noch keine Nachrichten.',
   msgLoadMore: 'Weitere Nachrichten laden',
   composeRecipientNode: 'Empfängerknoten',

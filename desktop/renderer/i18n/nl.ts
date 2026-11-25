@@ -227,6 +227,8 @@ export const nl: Messages = {
   msgStateReceived: 'Geaccepteerd door knooppunt; bijlagen worden ontvangen',
   msgStateReady: 'Geaccepteerd door knooppunt; wacht op agent',
   msgStateProcessed: 'Ontvangen door agent',
+  chatAttachmentsOnly: 'Alleen met bijlagen',
+  msgNoAttachmentMessages: 'Geen berichten met bijlagen.',
   msgNoMessages: 'Nog geen berichten.',
   msgLoadMore: 'Meer berichten laden',
   composeRecipientNode: 'Knooppunt ontvanger',

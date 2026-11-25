@@ -224,6 +224,8 @@ export const ja: Messages = {
   msgStateReceived: 'ノードが受信。添付ファイルを受信中',
   msgStateReady: 'ノードが受信。エージェントを待機中',
   msgStateProcessed: 'エージェントが受信',
+  chatAttachmentsOnly: '添付ファイル付きのみ',
+  msgNoAttachmentMessages: '添付ファイル付きのメッセージはありません。',
   msgNoMessages: 'メッセージはまだありません。',
   msgLoadMore: 'さらにメッセージを読み込む',
   composeRecipientNode: '宛先ノード',

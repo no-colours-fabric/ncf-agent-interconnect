@@ -67,6 +67,42 @@ function agentApplicationName(application: AgentApplicationId, locale: Locale): 
   return applicationNames[applicationClients[application]];
 }
 
+function AgentApplicationIcon({
+  application,
+  locale,
+}: {
+  application?: AgentApplicationId;
+  locale: Locale;
+}) {
+  const name = application
+    ? agentApplicationName(application, locale)
+    : t(locale, 'agentsApplicationUnknown');
+  return (
+    <Tooltip title={name}>
+      <Box
+        component="span"
+        role="img"
+        aria-label={name}
+        sx={{
+          display: 'inline-flex',
+          width: 24,
+          height: 24,
+          alignItems: 'center',
+          justifyContent: 'center',
+          verticalAlign: 'middle',
+          color: 'text.secondary',
+        }}
+      >
+        {application ? (
+          <ClientLogo client={applicationClients[application]} size={24} />
+        ) : (
+          <span aria-hidden="true">?</span>
+        )}
+      </Box>
+    </Tooltip>
+  );
+}
+
 export function AgentsTable({
   rows,
   labels,
@@ -95,17 +131,27 @@ export function AgentsTable({
     { key: 'messages', label: t(locale, 'agentsColumnMessages'), align: 'right' },
   ];
   return (
-    <TableContainer component={Paper}>
+    <TableContainer component={Paper} sx={{ containerType: 'inline-size' }}>
       <Table
         data-testid="agents-table"
         aria-label={t(locale, 'agentsTitle')}
         size="small"
         sx={{
-          minWidth: 680,
+          minWidth: 600,
+          tableLayout: 'fixed',
           '& td, & th': { overflowWrap: 'anywhere', verticalAlign: 'middle' },
-          '& thead th': { whiteSpace: 'nowrap' },
+          '& thead th': { whiteSpace: 'normal' },
         }}
       >
+        <colgroup>
+          <Box component="col" sx={{ width: '24%' }} />
+          <col style={{ width: 72 }} />
+          <col style={{ width: 36 }} />
+          <col />
+          <Box component="col" sx={{ width: 'clamp(90px, calc(100cqw - 610px), 180px)' }} />
+          <col style={{ width: 88 }} />
+          <col style={{ width: 122 }} />
+        </colgroup>
         <TableHead>
           <TableRow>
             {columns.map(({ key, label, align, span }) => {
@@ -118,6 +164,7 @@ export function AgentsTable({
                   align={align}
                   colSpan={span}
                   sortDirection={active ? direction : false}
+                  sx={key === 'application' ? { p: '2px' } : undefined}
                 >
                   <TableSortLabel
                     component="button"
@@ -132,6 +179,9 @@ export function AgentsTable({
                       }))
                     }
                     sx={{
+                      maxWidth: '100%',
+                      textAlign: align ?? 'left',
+                      '& .MuiTableSortLabel-icon': { flexShrink: 0 },
                       '&.Mui-focusVisible': { outline: '2px solid currentColor', outlineOffset: 2 },
                     }}
                   >
@@ -146,11 +196,7 @@ export function AgentsTable({
         <TableBody>
           {sortAgentRows(rows, sort, locale, nodeName, applicationName).map((agent) => (
             <TableRow key={agent.id} data-testid="agent-row" data-agent-id={agent.id} hover>
-              <TableCell
-                component="th"
-                scope="row"
-                sx={{ whiteSpace: 'nowrap', overflowWrap: 'normal' }}
-              >
+              <TableCell component="th" scope="row">
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   {agent.online && (
                     <Tooltip title={t(locale, 'directoryOnline')}>
@@ -172,19 +218,8 @@ export function AgentsTable({
                   </Typography>
                 </Stack>
               </TableCell>
-              <TableCell sx={{ whiteSpace: 'nowrap', overflowWrap: 'normal' }}>
-                {agent.application ? (
-                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                    <ClientLogo client={applicationClients[agent.application]} size={24} />
-                    <Typography component="span" variant="body2">
-                      {applicationName(agent.application)}
-                    </Typography>
-                  </Stack>
-                ) : (
-                  <Typography component="span" variant="body2" color="text.secondary">
-                    {t(locale, 'agentsApplicationUnknown')}
-                  </Typography>
-                )}
+              <TableCell sx={{ p: '2px' }}>
+                <AgentApplicationIcon application={agent.application} locale={locale} />
               </TableCell>
               <TableCell sx={{ width: 36, px: 1 }}>
                 <Tooltip title={t(locale, agent.local ? 'agentsLocalTitle' : 'agentsRemoteTitle')}>
@@ -203,12 +238,12 @@ export function AgentsTable({
                   </Box>
                 </Tooltip>
               </TableCell>
-              <TableCell>
+              <TableCell sx={{ pl: 0 }}>
                 <Typography variant="body2" sx={{ fontSize: 12 }}>
                   {nodeName(agent.nodeId)}
                 </Typography>
               </TableCell>
-              <TableCell sx={{ fontSize: 12, color: 'text.secondary', overflowWrap: 'normal' }}>
+              <TableCell sx={{ fontSize: 12, color: 'text.secondary' }}>
                 {agent.lastMessageAt && agentLastMessageTime(agent) !== undefined
                   ? new Date(agent.lastMessageAt).toLocaleString(locale)
                   : ''}
@@ -266,7 +301,7 @@ export function AgentsTable({
                   </Box>
                 )}
               </TableCell>
-              <TableCell align="right" sx={{ whiteSpace: 'nowrap' }}>
+              <TableCell align="right" sx={{ px: 1, whiteSpace: 'nowrap' }}>
                 <Tooltip title={labels.chat(agent.nickname)}>
                   <IconButton
                     size="small"

@@ -4,6 +4,7 @@ import {
   Avatar,
   Box,
   Button,
+  Chip,
   CircularProgress,
   IconButton,
   Paper,
@@ -14,6 +15,7 @@ import {
 import OpenInNewOutlined from '@mui/icons-material/OpenInNewOutlined';
 import DownloadOutlined from '@mui/icons-material/DownloadOutlined';
 import type { Message } from '../shared/contracts.js';
+import { attachmentMessages } from './i18n/attachments.js';
 import { t, type Locale } from './i18n/index.js';
 import { designTokens, surfaceSx } from './theme.js';
 
@@ -52,6 +54,7 @@ export function AgentChatHistory({
   call,
   nodeName,
   layoutKey,
+  attachmentsOnly,
 }: {
   messages: Message[];
   hasMore: boolean;
@@ -62,6 +65,7 @@ export function AgentChatHistory({
   call: (method: string, params: unknown) => Promise<unknown>;
   nodeName: (id: string) => string;
   layoutKey?: boolean;
+  attachmentsOnly?: boolean;
 }): React.JSX.Element {
   const scroll = useRef<HTMLDivElement>(null);
   const previous = useRef<ReturnType<typeof scrollPosition> | null>(null);
@@ -211,32 +215,38 @@ export function AgentChatHistory({
                         size: Math.ceil(file.size / 1024),
                       })}
                     </Typography>
-                    <Tooltip title={t(locale, 'msgOpenVerified')}>
-                      <IconButton
-                        size="small"
-                        aria-label={t(locale, 'msgOpenAria', { name: file.name })}
-                        onClick={() =>
-                          run(() =>
-                            call('openAttachment', { messageId: envelope.id, fileId: file.id }),
-                          )
-                        }
-                      >
-                        <OpenInNewOutlined fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                    <Tooltip title={t(locale, 'msgSaveAs')}>
-                      <IconButton
-                        size="small"
-                        aria-label={t(locale, 'msgSaveAria', { name: file.name })}
-                        onClick={() =>
-                          run(() =>
-                            call('saveAttachment', { messageId: envelope.id, fileId: file.id }),
-                          )
-                        }
-                      >
-                        <DownloadOutlined fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                    {message.unavailableAttachments?.includes(file.id) ? (
+                      <Chip size="small" label={attachmentMessages(locale).unavailable} />
+                    ) : (
+                      <>
+                        <Tooltip title={t(locale, 'msgOpenVerified')}>
+                          <IconButton
+                            size="small"
+                            aria-label={t(locale, 'msgOpenAria', { name: file.name })}
+                            onClick={() =>
+                              run(() =>
+                                call('openAttachment', { messageId: envelope.id, fileId: file.id }),
+                              )
+                            }
+                          >
+                            <OpenInNewOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title={t(locale, 'msgSaveAs')}>
+                          <IconButton
+                            size="small"
+                            aria-label={t(locale, 'msgSaveAria', { name: file.name })}
+                            onClick={() =>
+                              run(() =>
+                                call('saveAttachment', { messageId: envelope.id, fileId: file.id }),
+                              )
+                            }
+                          >
+                            <DownloadOutlined fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
                   </Stack>
                 ))}
                 <Typography
@@ -273,7 +283,9 @@ export function AgentChatHistory({
           );
         })}
         {!messages.length && !loading && (
-          <Typography color="text.secondary">{t(locale, 'msgNoMessages')}</Typography>
+          <Typography color="text.secondary" role="status">
+            {t(locale, attachmentsOnly ? 'msgNoAttachmentMessages' : 'msgNoMessages')}
+          </Typography>
         )}
       </Stack>
     </Box>

@@ -1,5 +1,9 @@
 import React from 'react';
-import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
+import {
+  ChatgptCompatibilityNotice,
+  showsChatgptCompatibilityNotice,
+} from './ChatgptCompatibilityNotice.js';
+import { ApplicationCardGrid } from './ApplicationCardGrid.js';
 import { Alert, Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
 import InboxOutlined from '@mui/icons-material/InboxOutlined';
@@ -99,12 +103,8 @@ export function OverviewApplications({
   const copy = applicationSetupMessages(locale);
   const setupCopy = mcpSetupMessages(locale);
   return (
-    <Box
-      component="section"
-      data-testid="overview-applications"
-      sx={{ containerType: 'inline-size' }}
-    >
-      <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+    <Box component="section" data-testid="overview-applications">
+      <Stack spacing={0.5} sx={{ mb: 1.5, textAlign: 'center' }}>
         <Typography variant="h6" component="h2">
           {copy.readyTitle}
         </Typography>
@@ -118,17 +118,7 @@ export function OverviewApplications({
           <ReadyChatGuidance locale={locale} />
         </Typography>
       </Stack>
-      <Box
-        data-testid="overview-applications-grid"
-        sx={{
-          display: 'grid',
-          gap: 2,
-          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
-          '@container (min-width: 744px)': { gridTemplateColumns: 'repeat(3, minmax(0, 1fr))' },
-          '@container (min-width: 912px)': { gridTemplateColumns: 'repeat(4, minmax(0, 1fr))' },
-          '@container (min-width: 1056px)': { gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' },
-        }}
-      >
+      <ApplicationCardGrid testId="overview-applications-grid">
         {visible.map(({ client }) => {
           const name = setupApplicationName(client, locale);
           const active = connected.find((item) => item.client === client);
@@ -144,6 +134,9 @@ export function OverviewApplications({
             : pending
               ? setupCopy.statusUnknown
               : copy.detected;
+          const compatibilityWarning =
+            client === 'codex' &&
+            showsChatgptCompatibilityNotice(discovery.snapshot?.chatgptCompatibility);
           const heading = (
             <Stack spacing={1.25} sx={{ minWidth: 0 }}>
               <ClientLogo client={client === 'opencode-v2' ? 'opencode' : client} size={48} />
@@ -183,18 +176,18 @@ export function OverviewApplications({
                   {status}
                 </Typography>
               </Stack>
+              {compatibilityWarning && (
+                <ChatgptCompatibilityNotice
+                  compatibility={discovery.snapshot?.chatgptCompatibility}
+                  locale={locale}
+                />
+              )}
               {configured && (
                 <Typography component="span" variant="caption" color="text.secondary">
                   {active
                     ? copy.applicationReadyHelp
                     : applicationNextStep(client, locale, setupCopy)}
                 </Typography>
-              )}
-              {client === 'codex' && (
-                <ChatgptCompatibilityNotice
-                  compatibility={discovery.snapshot?.chatgptCompatibility}
-                  locale={locale}
-                />
               )}
               {!active && (pending || failed) && (
                 <Alert severity={pending ? 'warning' : 'error'}>
@@ -207,7 +200,12 @@ export function OverviewApplications({
           const testId = 'overview-application-' + client;
           if (!active) {
             return (
-              <Box key={client} data-testid={testId} sx={cardSx}>
+              <Box
+                key={client}
+                data-testid={testId}
+                data-compatibility-warning={compatibilityWarning || undefined}
+                sx={cardSx}
+              >
                 {heading}
                 {action && (
                   <Button
@@ -233,6 +231,7 @@ export function OverviewApplications({
               key={client}
               data-testid={testId}
               data-connected="true"
+              data-compatibility-warning={compatibilityWarning || undefined}
               sx={{
                 ...cardSx,
                 backgroundColor: designTokens.successAlertBackground,
@@ -281,7 +280,7 @@ export function OverviewApplications({
             </Box>
           );
         })}
-      </Box>
+      </ApplicationCardGrid>
     </Box>
   );
 }

@@ -280,11 +280,16 @@ test('the application column renders the paired node’s own app and a localized
       [remote.nodeId, 'OpenCode v2'],
     ]) {
       const row = cells.find((cell) => cell[0].includes('data-agent-id="' + nodeId + ':'));
-      assert.ok(row?.[1].includes(name), locale);
+      assert.ok(row?.[1].includes('aria-label="' + name + '"'), locale);
+      assert.ok(!row?.[1].includes('>' + name + '<'), locale);
       assert.match(row![1], /<img[^>]+alt=""/);
     }
     const legacy = cells.find((cell) => cell[0].includes('data-agent-id="' + older.nodeId + ':'));
-    assert.ok(legacy?.[1].includes(t(locale, 'agentsApplicationUnknown')), locale);
+    assert.ok(
+      legacy?.[1].includes('aria-label="' + t(locale, 'agentsApplicationUnknown') + '"'),
+      locale,
+    );
+    assert.match(legacy![1], /aria-hidden="true">\?<\/span>/);
     assert.doesNotMatch(legacy![1], /<img\b/);
     assert.ok(!html.includes('Private adapter label'), locale);
   }

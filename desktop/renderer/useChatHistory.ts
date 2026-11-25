@@ -35,18 +35,21 @@ export function useChatHistory({
   snapshot,
   size,
   active,
+  attachmentsOnly,
   onError,
 }: {
   owner: string;
   snapshot: Snapshot | null;
   size: number;
   active: boolean;
+  attachmentsOnly: boolean;
   onError: (error: string) => void;
 }): ChatHistoryPage & { loading: boolean } {
   const agent = owner
     ? snapshot?.agents.find((value) => nicknameKey(value.nickname) === nicknameKey(owner))
     : undefined;
-  const cacheKey = agentCacheKey(agent);
+  const agentKey = agentCacheKey(agent);
+  const cacheKey = agentKey && `${agentKey}:${attachmentsOnly}`;
   const opened = useRef({ key: cacheKey, count: agent?.messageCount ?? 0 });
   if (opened.current.key !== cacheKey)
     opened.current = { key: cacheKey, count: agent?.messageCount ?? 0 };
@@ -57,6 +60,7 @@ export function useChatHistory({
     nextCursor: 0,
     hasMore: false,
   });
+  const [settledKey, setSettledKey] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     if (!active || !owner || !cacheKey) return;
@@ -68,6 +72,7 @@ export function useChatHistory({
         window.interconnect.invoke<ChatHistoryPage>('chatHistory', {
           nickname: owner,
           incarnation: agent?.incarnation,
+          attachmentsOnly,
           ...params,
         }),
       () => cancelled,
@@ -79,11 +84,17 @@ export function useChatHistory({
         if (!cancelled) onError(error.message);
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+          setSettledKey(cacheKey);
+        }
       });
     return () => {
       cancelled = true;
     };
-  }, [owner, cacheKey, snapshot, windowSize, active, onError]);
-  return { ...visibleAgentHistory(history, cacheKey), loading: active && loading };
+  }, [owner, cacheKey, snapshot, windowSize, active, attachmentsOnly, onError]);
+  return {
+    ...visibleAgentHistory(history, cacheKey),
+    loading: active && (loading || settledKey !== cacheKey),
+  };
 }

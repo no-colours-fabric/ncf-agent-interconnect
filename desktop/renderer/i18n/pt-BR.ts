@@ -226,6 +226,8 @@ export const ptBR: Messages = {
   msgStateReceived: 'Aceito pelo nó; recebendo anexos',
   msgStateReady: 'Aceito pelo nó; aguardando agente',
   msgStateProcessed: 'Recebido pelo agente',
+  chatAttachmentsOnly: 'Somente com anexos',
+  msgNoAttachmentMessages: 'Não há mensagens com anexos.',
   msgNoMessages: 'Ainda não há mensagens.',
   msgLoadMore: 'Carregar mais mensagens',
   composeRecipientNode: 'Nó destinatário',

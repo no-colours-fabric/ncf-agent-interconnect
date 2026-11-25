@@ -216,6 +216,8 @@ export const zh: Messages = {
   msgStateReceived: '节点已接收；正在获取附件',
   msgStateReady: '节点已接收；等待智能体',
   msgStateProcessed: '智能体已接收',
+  chatAttachmentsOnly: '仅显示带附件的消息',
+  msgNoAttachmentMessages: '没有带附件的消息。',
   msgNoMessages: '暂无消息。',
   msgLoadMore: '加载更多消息',
   composeRecipientNode: '收件人节点',

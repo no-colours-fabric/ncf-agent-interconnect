@@ -226,6 +226,8 @@ export const it: Messages = {
   msgStateReceived: 'Accettato dal nodo; ricezione allegati',
   msgStateReady: 'Accettato dal nodo; in attesa dell’agente',
   msgStateProcessed: 'Ricevuto dall’agente',
+  chatAttachmentsOnly: 'Solo con allegati',
+  msgNoAttachmentMessages: 'Nessun messaggio con allegati.',
   msgNoMessages: 'Ancora nessun messaggio.',
   msgLoadMore: 'Carica altri messaggi',
   composeRecipientNode: 'Nodo destinatario',

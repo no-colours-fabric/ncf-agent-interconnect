@@ -42,8 +42,12 @@ import {
 } from './application-setup-model.js';
 import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2-setup-model.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
-import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
-import { StartupApplicationTile, StartupApplicationTiles } from './StartupApplicationTiles.js';
+import {
+  ChatgptCompatibilityNotice,
+  showsChatgptCompatibilityNotice,
+} from './ChatgptCompatibilityNotice.js';
+import { ApplicationCardGrid } from './ApplicationCardGrid.js';
+import { StartupApplicationTile } from './StartupApplicationTiles.js';
 import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
 import { ClientApplicationMetrics } from './application-connections.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
@@ -1473,7 +1477,7 @@ export function ApplicationSetup({
             {copy.startupTitle}
           </Typography>
           {remaining.length > 0 && (
-            <StartupApplicationTiles>
+            <ApplicationCardGrid testId="startup-application-grid">
               {remaining.map((client) => {
                 const view = setupView(client, states, statuses, discovery);
                 const pending = hasPendingSetupResult(view.state);
@@ -1489,6 +1493,10 @@ export function ApplicationSetup({
                     name={name}
                     status={busy ? copy.connecting : copy.detected}
                     busy={busy}
+                    compatibilityWarning={
+                      client === 'codex' &&
+                      showsChatgptCompatibilityNotice(discovery.snapshot?.chatgptCompatibility)
+                    }
                     action={action}
                     onConnect={() => {
                       setAttempted((current) =>
@@ -1517,7 +1525,7 @@ export function ApplicationSetup({
                   </StartupApplicationTile>
                 );
               })}
-            </StartupApplicationTiles>
+            </ApplicationCardGrid>
           )}
           {completed.map((client) => (
             <Box key={client} role="status">

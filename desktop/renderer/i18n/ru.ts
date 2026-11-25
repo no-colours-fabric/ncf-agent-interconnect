@@ -224,6 +224,8 @@ export const ru: Messages = {
   msgStateReceived: 'Принято узлом; получение вложений',
   msgStateReady: 'Принято узлом; ожидание агента',
   msgStateProcessed: 'Получено агентом',
+  chatAttachmentsOnly: 'Только с вложениями',
+  msgNoAttachmentMessages: 'Нет сообщений с вложениями.',
   msgNoMessages: 'Сообщений пока нет.',
   msgLoadMore: 'Загрузить ещё сообщения',
   composeRecipientNode: 'Узел получателя',

@@ -121,6 +121,8 @@ export interface Messages extends McpSetupTranslations {
   msgStateReceived: string;
   msgStateReady: string;
   msgStateProcessed: string;
+  chatAttachmentsOnly: string;
+  msgNoAttachmentMessages: string;
   msgNoMessages: string;
   msgLoadMore: string;
   composeRecipientNode: string;

@@ -221,6 +221,8 @@ export const en: Messages = {
   msgStateReceived: 'Accepted by node; receiving attachments',
   msgStateReady: 'Accepted by node; awaiting agent',
   msgStateProcessed: 'Received by agent',
+  chatAttachmentsOnly: 'Attachments only',
+  msgNoAttachmentMessages: 'No messages with attachments.',
   msgNoMessages: 'No messages yet.',
   msgLoadMore: 'Load more messages',
   composeRecipientNode: 'Recipient node',

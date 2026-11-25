@@ -259,3 +259,32 @@ test('Overview shows the saved v2 next step without treating it as a live connec
   assert.ok(!html.includes('Copy prompt'));
   assert.ok(!html.includes('data-connected="true"'));
 });
+
+test('Overview widens ChatGPT only when it displays a compatibility warning', () => {
+  const snapshot = {
+    adapters: [profile('chatgpt', 'codex-desktop')],
+    agents: [agent('Connected', 'chatgpt')],
+  };
+  for (const [version, warning] of [
+    ['26.1111.71704', false],
+    ['26.1117.41037', true],
+  ] as const) {
+    const discovery = {
+      ...detected('codex'),
+      chatgptCompatibility: { status: 'affected' as const, version },
+    };
+    const html = renderToStaticMarkup(
+      React.createElement(OverviewApplications, {
+        snapshot,
+        ...setupFixture(discovery),
+      }),
+    );
+    assert.equal(/<div[^>]*data-compatibility-warning="true"/.test(html), warning);
+    if (warning) {
+      const notice = html.indexOf('role="alert"');
+      assert.ok(
+        notice > 0 && notice < html.indexOf('Already set up. You can work in this app now.'),
+      );
+    }
+  }
+});

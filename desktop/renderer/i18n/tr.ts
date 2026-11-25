@@ -226,6 +226,8 @@ export const tr: Messages = {
   msgStateReceived: 'Düğüm tarafından kabul edildi; ekler alınıyor',
   msgStateReady: 'Düğüm tarafından kabul edildi; aracı bekleniyor',
   msgStateProcessed: 'Aracı tarafından alındı',
+  chatAttachmentsOnly: 'Yalnızca ek içerenler',
+  msgNoAttachmentMessages: 'Ek içeren mesaj yok.',
   msgNoMessages: 'Henüz mesaj yok.',
   msgLoadMore: 'Daha fazla mesaj yükle',
   composeRecipientNode: 'Alıcı düğüm',

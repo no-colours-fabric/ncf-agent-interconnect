@@ -1,5 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { AgentChatHistory } from '../desktop/renderer/AgentChatHistory.js';
 import { randomUUID } from 'node:crypto';
 import { mkdtemp, rm } from 'node:fs/promises';
 import os from 'node:os';
@@ -132,6 +135,76 @@ test('chat UI operation validates limits and incarnation without changing MCP fo
     for (const input of [{ limit: 201 }, { before: 0 }, { after: 1 }])
       await assert.rejects(service.userCall('chatHistory', { nickname: 'Owner', ...input }));
     assert.equal(service.store.history(key, 0, 100).messages.length, 1);
+  } finally {
+    service.store.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test('attachment-only history paginates over matching envelopes and retains removed filenames', async () => {
+  const directory = await mkdtemp(path.join(os.tmpdir(), 'ncf-chat-attachments-'));
+  const service = new NodeService(directory);
+  service.store = new AgentStore(directory);
+  try {
+    const owner = 'Owner Ж';
+    const key = service.store.ensure(owner);
+    const incarnation = service.store.list()[0].incarnation;
+    const file = { id: 'a'.repeat(64), name: 'removed.pdf', size: 120 };
+    for (let i = 1; i <= 250; i++) {
+      const row = envelope(i, owner);
+      if ([1, 9, 249].includes(i))
+        row.attachments.push(i === 1 ? file : { ...file, name: i + '.pdf' });
+      service.store.insertLocal(row, true);
+      if (i === 1) {
+        service.store.attachments.recordRefs(row.id, 'out', [file.id]);
+        service.store.attachments.finishReceived(row.id, file.id);
+      }
+    }
+    service.store.insertLocal({ ...envelope(251, 'Someone else'), attachments: [file] }, true);
+    const read = (paging: { before?: number; limit: number }) =>
+      service.userCall('chatHistory', {
+        nickname: owner,
+        incarnation,
+        attachmentsOnly: true,
+        ...paging,
+      }) as Promise<ReturnType<AgentStore['chatHistory']>>;
+    const latest = await read({ limit: 2 });
+    assert.deepEqual(
+      latest.messages.map((row) => row.envelope.text),
+      ['Message 9', 'Message 249'],
+    );
+    assert.equal(latest.hasMore, true);
+    const older = await read({ before: latest.nextCursor, limit: 2 });
+    assert.deepEqual(
+      older.messages.map((row) => row.envelope.text),
+      ['Message 1'],
+    );
+    assert.equal(older.hasMore, false);
+    assert.deepEqual(older.messages[0].unavailableAttachments, [file.id]);
+    assert.equal(
+      service.store.chatHistory(key, undefined, 2).messages.at(-1)?.envelope.text,
+      'Message 250',
+    );
+    const markup = (history: typeof older) =>
+      renderToStaticMarkup(
+        createElement(AgentChatHistory, {
+          ...history,
+          attachmentsOnly: true,
+          loading: false,
+          loadMore: () => assert.fail(),
+          locale: 'en',
+          run: async () => assert.fail(),
+          call: async () => assert.fail(),
+          nodeName: () => 'Fixture',
+        }),
+      );
+    assert.match(markup(older), /removed\.pdf/);
+    assert.doesNotMatch(markup(older), /aria-label="[^"]*removed\.pdf"/);
+    assert.match(markup(latest), /aria-label="[^"]*249\.pdf"/);
+    assert.match(markup({ ...older, messages: [] }), /No messages with attachments/);
+    await assert.rejects(
+      service.userCall('chatHistory', { nickname: owner, attachmentsOnly: 'true' }),
+    );
   } finally {
     service.store.close();
     await rm(directory, { recursive: true, force: true });

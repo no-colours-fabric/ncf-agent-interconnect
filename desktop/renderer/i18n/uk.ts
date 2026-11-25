@@ -226,6 +226,8 @@ export const uk: Messages = {
   msgStateReceived: 'Прийнято вузлом; отримання вкладень',
   msgStateReady: 'Прийнято вузлом; очікування агента',
   msgStateProcessed: 'Отримано агентом',
+  chatAttachmentsOnly: 'Лише з вкладеннями',
+  msgNoAttachmentMessages: 'Немає повідомлень із вкладеннями.',
   msgNoMessages: 'Повідомлень поки немає.',
   msgLoadMore: 'Завантажити ще повідомлення',
   composeRecipientNode: 'Вузол отримувача',

@@ -30,6 +30,7 @@ import {
   useTheme,
 } from '@mui/material';
 import ChatBubbleOutlineOutlined from '@mui/icons-material/ChatBubbleOutlineOutlined';
+import AttachFileOutlined from '@mui/icons-material/AttachFileOutlined';
 import CloseOutlined from '@mui/icons-material/CloseOutlined';
 import SendOutlined from '@mui/icons-material/SendOutlined';
 import {
@@ -143,6 +144,7 @@ export function AgentsPage({
   };
   const [chat, setChat] = useState<AgentRow | null>(null);
   const [historySize, setHistorySize] = useState(100);
+  const [attachmentsOnly, setAttachmentsOnly] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   useLayoutEffect(() => {
     if (restoreComposeFocus.current) {
@@ -218,6 +220,7 @@ export function AgentsPage({
     owner: validChat && chat?.local ? (selected?.nickname ?? '') : '',
     snapshot,
     size: historySize,
+    attachmentsOnly,
     active: validChat && !!chat?.local,
     onError,
   });
@@ -234,6 +237,7 @@ export function AgentsPage({
   const openChat = (agent: AgentRow) => {
     retainDraft();
     setHistorySize(100);
+    setAttachmentsOnly(false);
     setChat(agent);
     setComposerOpen(false);
   };
@@ -329,6 +333,22 @@ export function AgentsPage({
           {current.client ? ' · ' + current.client : ''}
         </Typography>
       </Box>
+      {chat.local && (
+        <Tooltip title={t(locale, 'chatAttachmentsOnly')}>
+          <IconButton
+            aria-label={t(locale, 'chatAttachmentsOnly')}
+            aria-pressed={attachmentsOnly}
+            color={attachmentsOnly ? 'primary' : 'default'}
+            onClick={() => {
+              setHistorySize(100);
+              setAttachmentsOnly((enabled) => !enabled);
+            }}
+            sx={{ '&[aria-pressed="true"]': { bgcolor: 'action.selected' } }}
+          >
+            <AttachFileOutlined />
+          </IconButton>
+        </Tooltip>
+      )}
       <Tooltip title={t(locale, 'chatClose')}>
         <IconButton aria-label={t(locale, 'chatClose')} onClick={closeChat}>
           <CloseOutlined />
@@ -554,7 +574,8 @@ export function AgentsPage({
           <>
             {chatHeader}
             <AgentChatHistory
-              key={agentCacheKey(selected)}
+              key={`${agentCacheKey(selected)}:${attachmentsOnly}`}
+              attachmentsOnly={attachmentsOnly}
               layoutKey={composerOpen}
               messages={history.messages}
               hasMore={history.hasMore}

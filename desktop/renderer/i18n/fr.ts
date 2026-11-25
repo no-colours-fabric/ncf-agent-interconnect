@@ -227,6 +227,8 @@ export const fr: Messages = {
   msgStateReceived: 'Accepté par le nœud ; réception des pièces jointes',
   msgStateReady: 'Accepté par le nœud ; en attente de l’agent',
   msgStateProcessed: 'Reçu par l’agent',
+  chatAttachmentsOnly: 'Avec pièces jointes uniquement',
+  msgNoAttachmentMessages: 'Aucun message avec pièce jointe.',
   msgNoMessages: 'Aucun message pour le moment.',
   msgLoadMore: 'Charger plus de messages',
   composeRecipientNode: 'Nœud destinataire',

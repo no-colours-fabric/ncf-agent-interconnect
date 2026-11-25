@@ -230,6 +230,8 @@ export const es: Messages = {
   msgStateReceived: 'Aceptado por el nodo; recibiendo archivos adjuntos',
   msgStateReady: 'Aceptado por el nodo; a la espera del agente',
   msgStateProcessed: 'Recibido por el agente',
+  chatAttachmentsOnly: 'Solo con archivos adjuntos',
+  msgNoAttachmentMessages: 'No hay mensajes con archivos adjuntos.',
   msgNoMessages: 'Aún no hay mensajes.',
   msgLoadMore: 'Cargar más mensajes',
   composeRecipientNode: 'Nodo destinatario',

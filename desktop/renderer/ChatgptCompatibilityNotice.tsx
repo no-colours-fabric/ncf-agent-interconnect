@@ -6,6 +6,16 @@ import { t, type Locale } from './i18n/index.js';
 const delayNoticeCutoff = '26.1111.71704';
 const versionOrder = new Intl.Collator('en', { numeric: true });
 
+export function showsChatgptCompatibilityNotice(
+  compatibility: ChatgptCompatibility | undefined,
+): compatibility is ChatgptCompatibility {
+  return (
+    !!compatibility &&
+    compatibility.status !== 'verified' &&
+    (!compatibility.version || versionOrder.compare(compatibility.version, delayNoticeCutoff) > 0)
+  );
+}
+
 export function ChatgptCompatibilityNotice({
   compatibility,
   locale,
@@ -13,9 +23,8 @@ export function ChatgptCompatibilityNotice({
   compatibility?: ChatgptCompatibility;
   locale: Locale;
 }) {
-  if (!compatibility || compatibility.status === 'verified') return null;
+  if (!showsChatgptCompatibilityNotice(compatibility)) return null;
   const { version, download } = compatibility;
-  if (version && versionOrder.compare(version, delayNoticeCutoff) <= 0) return null;
   return (
     <Alert severity="warning" sx={{ gridColumn: '1 / -1', minWidth: 0 }}>
       {version && <strong>ChatGPT {version}. </strong>}

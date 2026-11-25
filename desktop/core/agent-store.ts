@@ -809,12 +809,13 @@ export class AgentStore {
         .all(key, Math.min(20, Math.max(1, limit))) as Row[]
     ).map((row) => String(row.id));
   }
-  chatHistory(key: string, before?: number, limit = 100): ChatHistoryPage {
+  chatHistory(key: string, before?: number, limit = 100, attachmentsOnly = false): ChatHistoryPage {
     const rows = this.db
       .prepare(
         `SELECT m.*,t.cursor AS sequence FROM timeline t JOIN messages m
          ON m.id=t.message_id AND m.direction=t.direction
          WHERE m.local_key=? ${before === undefined ? '' : 'AND t.cursor<?'}
+         ${attachmentsOnly ? "AND json_array_length(m.envelope, '$.attachments') > 0" : ''}
          ORDER BY t.cursor DESC LIMIT ?`,
       )
       .all(...(before === undefined ? [key, limit + 1] : [key, before, limit + 1])) as Row[];
