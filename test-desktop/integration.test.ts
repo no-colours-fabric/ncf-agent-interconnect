@@ -137,9 +137,21 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   assert.match(instructions, /Reply-To/);
   assert.match(instructions, /Example:.*agent_send/);
   const catalog = await firstClient.listTools();
-  assert.equal(catalog.tools.length, 13);
-  assert.ok(catalog.tools.some((tool) => tool.name === 'attachment_stage'));
-  assert.ok(catalog.tools.some((tool) => tool.name === 'agent_connect'));
+  assert.deepEqual(catalog.tools.map(({ name }) => name).sort(), [
+    'agent_clear_history',
+    'agent_connect',
+    'agent_disconnect',
+    'agent_history',
+    'agent_read',
+    'agent_rename',
+    'agent_send',
+    'agents_list',
+    'attachment_receive',
+    'attachment_stage',
+    'connection_events',
+    'node_peers',
+    'node_status',
+  ]);
   const renameTool = catalog.tools.find((tool) => tool.name === 'agent_rename')!;
   assert.deepEqual(Object.keys(renameTool.inputSchema.properties!).sort(), [
     'connectionId',
@@ -172,7 +184,17 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   });
   const pending = occupied.structuredContent as unknown as ConnectResult;
   if (pending.status !== 'nickname_in_use') throw new Error();
-  assert.ok(!JSON.stringify(pending.currentOwner).includes(first.binding.connectionId));
+  assert.equal('currentOwner' in pending, false);
+  assert.ok(!JSON.stringify(occupied).includes(first.binding.connectionId));
+  assert.ok(!JSON.stringify(occupied).includes(first.binding.chatId));
+  assert.match(
+    String((occupied.structuredContent as { description?: string } | undefined)?.description),
+    /selected choices\[\]\.transferId/,
+  );
+  assert.match(
+    String((occupied.structuredContent as { description?: string } | undefined)?.description),
+    /explicitly approved reset choice/,
+  );
   const status = await secondClient.callTool({ name: 'node_status', arguments: {} });
   assert.ok(!JSON.stringify(status).includes(first.binding.connectionId));
   const confirmed = await secondClient.callTool({

@@ -785,40 +785,120 @@ test('Codex MCP metadata automatically selects the exact chat and profile among 
   const renameArgs = { connectionId: moved.binding.connectionId, nickname: 'CAFE\u0301' };
   const rename = (threadId: string, args = renameArgs, on = client) =>
     on.callTool({ name: 'agent_rename', arguments: args, _meta: { threadId } });
-  assert.equal((await rename(a.profile.threadId!)).isError, true);
+  const structured = (result: Awaited<ReturnType<Client['callTool']>>) =>
+    result.structuredContent as Record<string, unknown> | undefined;
+  const wrongChat = await rename(a.profile.threadId!);
+  assert.equal(wrongChat.isError, true);
+  assert.notEqual(structured(wrongChat)?.nextAction, 'agent_connect');
+  assert.ok(!JSON.stringify(wrongChat).includes(moved.binding.chatId));
   assert.equal(
     (await rename(b.profile.threadId!, { ...renameArgs, connectionId: first.binding.connectionId }))
       .isError,
     true,
   );
-  const otherSession = new Client({ name: 'Codex', version: 'test' });
-  await otherSession.connect(
+  const before = service.store.list();
+  const occupied = structured(await rename(b.profile.threadId!));
+  assert.equal(occupied?.status, 'nickname_in_use');
+  assert.equal(occupied?.nickname, 'Воевода');
+  assert.match(
+    String(occupied?.description),
+    /current name is unchanged.*do not transfer or reset/i,
+  );
+  assert.deepEqual(service.store.list(), before);
+  await client.close();
+
+  // A new MCP client/server handshake models the MCP boundary after a host restart.
+  const reopened = new Client({ name: 'Codex', version: 'test' });
+  await reopened.connect(
     new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
       requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
     }),
   );
-  try {
-    assert.equal((await rename(b.profile.threadId!, renameArgs, otherSession)).isError, true);
-  } finally {
-    await otherSession.close();
-  }
-  const before = service.store.list();
-  assert.deepEqual((await rename(b.profile.threadId!)).structuredContent, {
-    status: 'nickname_in_use',
-    nickname: 'Воевода',
-  });
-  assert.deepEqual(service.store.list(), before);
-  assert.deepEqual(
-    (await rename(b.profile.threadId!, { ...renameArgs, nickname: 'Редактор' })).structuredContent,
-    { status: 'renamed', nickname: 'Редактор' },
+  t.after(() => reopened.close());
+  const instructions = reopened.getInstructions()!;
+  assert.match(instructions, /reconnect this chat, call agent_connect/);
+  assert.match(instructions, /new unbound chat.*means agent_connect with nickname X/);
+  assert.match(instructions, /already bound as a different agent, ask whether/);
+  assert.match(instructions, /change its agent name means agent_rename/);
+  assert.match(instructions, /disconnect this chat, call agent_disconnect/);
+  const catalog = await reopened.listTools();
+  for (const name of ['agent_connect', 'agent_rename', 'agent_disconnect'])
+    assert.match(
+      catalog.tools.find((tool) => tool.name === name)!.description!,
+      /new unbound chat.*means agent_connect with nickname X/,
+    );
+
+  const newName = 'Редактор';
+  const unverified = await rename(
+    b.profile.threadId!,
+    { ...renameArgs, nickname: newName },
+    reopened,
   );
+  assert.equal(unverified.isError, true);
+  assert.equal(structured(unverified)?.status, 'codex_rename_reconnect_required');
+  assert.equal(structured(unverified)?.nextAction, 'agent_connect');
+  assert.match(String(structured(unverified)?.description), /current nickname.*same connectionId/);
+  assert.match(
+    String(structured(unverified)?.description),
+    /After status=connected, call agent_rename once/,
+  );
+  assert.ok(!JSON.stringify(unverified).includes(moved.binding.connectionId));
+  assert.deepEqual(service.store.list(), before);
+  const conflictingMetadata = await reopened.callTool({
+    name: 'agent_rename',
+    arguments: { ...renameArgs, nickname: newName },
+    _meta: {
+      threadId: b.profile.threadId,
+      'x-codex-turn-metadata': { thread_id: a.profile.threadId },
+    },
+  });
+  assert.equal(conflictingMetadata.isError, true);
+  assert.notEqual(structured(conflictingMetadata)?.nextAction, 'agent_connect');
+  assert.deepEqual(service.store.list(), before);
+
+  const restored = await reopened.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: moved.nickname, connectionId: moved.binding.connectionId },
+    _meta: { threadId: b.profile.threadId },
+  });
+  assert.equal(structured(restored)?.status, 'connected');
+  assert.deepEqual(structured(restored)?.binding, moved.binding);
+  const renamedArgs = { ...renameArgs, nickname: newName };
+  assert.deepEqual(structured(await rename(b.profile.threadId!, renamedArgs, reopened)), {
+    status: 'renamed',
+    nickname: newName,
+  });
+  const unchanged = structured(await rename(b.profile.threadId!, renamedArgs, reopened));
+  assert.equal(unchanged?.status, 'unchanged');
+  assert.match(String(unchanged?.description), /already has the requested name/);
   assert.deepEqual(service.store.assertOwner(moved.binding.connectionId).binding, moved.binding);
-  const metadataMissing = await client.callTool({
+  const metadataMissing = await reopened.callTool({
     name: 'agent_connect',
     arguments: { nickname: 'Другое имя' },
   });
   assert.equal(metadataMissing.isError, true);
   assert.match(JSON.stringify(metadataMissing), /current chat context/);
+
+  const unbound = await reopened.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: 'Новый агент' },
+    _meta: { threadId: a.profile.threadId },
+  });
+  assert.equal(structured(unbound)?.status, 'connected');
+  assert.equal(structured(unbound)?.nickname, 'Новый агент');
+  const newBinding = structured(unbound)?.binding as { connectionId: string; chatId: string };
+  assert.equal(newBinding.chatId, a.profile.threadId);
+  const disconnect = () =>
+    reopened.callTool({
+      name: 'agent_disconnect',
+      arguments: { connectionId: newBinding.connectionId },
+      _meta: { threadId: a.profile.threadId },
+    });
+  assert.equal(structured(await disconnect())?.disconnected, true);
+  const alreadyDisconnected = await disconnect();
+  assert.equal(structured(alreadyDisconnected)?.status, 'connection_not_found');
+  assert.match(String(structured(alreadyDisconnected)?.description), /already disconnected/);
+  assert.equal(structured(alreadyDisconnected)?.nextAction, undefined);
 });
 
 test(

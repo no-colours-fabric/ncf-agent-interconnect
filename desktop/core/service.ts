@@ -53,6 +53,7 @@ import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
+import { CodexRenameReconnectRequired } from './mcp-agent-guidance.js';
 import type { ResponseInvocation } from './mcp-response-handoff.js';
 import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
@@ -1339,11 +1340,15 @@ export class NodeService extends EventEmitter {
         profile.sessionId === scope.lease.session &&
         binding.chatId === scope.lease.session;
     } else if (profile?.kind === 'codex-desktop') {
-      authorized =
+      const exactChat =
         !contextToken &&
-        authority.codexSessionBound &&
         profile.threadId === binding.chatId &&
         codexThreadId(host) === binding.chatId;
+      if (exactChat && !authority.codexSessionBound)
+        throw new CodexRenameReconnectRequired(
+          'The current chat could not be verified for renaming this agent',
+        );
+      authorized = exactChat && authority.codexSessionBound;
     } else if (contextToken) {
       const context = this.contexts.consume(contextToken, rename);
       const compatible =

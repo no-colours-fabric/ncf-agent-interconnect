@@ -79,6 +79,44 @@ test('missing, malformed and unknown nodes fail before files, phantom agents or 
   assert.equal(service.store.history(nicknameKey('Автор')).messages.length, 0);
 });
 
+test('MCP guides an uncertain send to its existing history without leaking an internal error', async (t) => {
+  const service = await fixture(t);
+  const c = await client(t, service);
+  const sender = service.connect({ nickname: 'Автор', client: 'A' });
+  if (sender.status !== 'connected') throw new Error();
+  const args = {
+    connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Проверяющий',
+    text: 'Исходный текст',
+    id: randomUUID(),
+  };
+  const send = service.send.bind(service);
+  const internalDetails = '/private/fixture/other-chat/' + randomUUID();
+  let calls = 0;
+  service.send = async (input) => {
+    calls++;
+    await send(input);
+    throw new Error(internalDetails);
+  };
+  const lost = await c.callTool({ name: 'agent_send', arguments: args });
+  assert.equal(lost.isError, true);
+  const recovery = lost.structuredContent as Record<string, unknown> | undefined;
+  assert.equal(recovery?.status, 'send_outcome_unverified');
+  assert.equal(recovery?.nextAction, 'agent_history');
+  assert.match(String(recovery?.description), /original id.*Do not send another copy/);
+  assert.ok(!JSON.stringify(lost).includes(internalDetails));
+  const history = await c.callTool({
+    name: 'agent_history',
+    arguments: { connectionId: args.connectionId },
+  });
+  const { messages } = page(history.structuredContent);
+  assert.equal(messages.length, 1);
+  assert.equal(messages[0].envelope.id, args.id);
+  assert.equal(messages[0].envelope.text, args.text);
+  assert.equal(calls, 1);
+});
+
 test('two MCP chats exchange local text/files and automatic delivery receipts without any configured peer or network dispatch', async (t) => {
   const service = await fixture(t),
     a = await client(t, service),
