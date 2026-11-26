@@ -1,6 +1,6 @@
 {
   "name": "ncf-agent-interconnect",
-  "version": "1.1.0",
+  "version": "1.1.0-alpha-10-20261126T230138",
   "private": true,
   "type": "module",
   "description": "A local message hub for AI agents, with MCP access and desktop client adapters.",
