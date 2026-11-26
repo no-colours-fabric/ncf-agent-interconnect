@@ -13,6 +13,7 @@ import {
 import { applicationSetupClients, type ApplicationSetupFlow } from './application-setup-model.js';
 import { OpenCodeV2SetupFlow, openCodeV2TargetKey } from './opencode-v2-setup-model.js';
 import { applicationSetupMessages } from './i18n/application-setup.js';
+import { openCodeRuntimeText, type OpenCodeRuntimeSnapshot } from './i18n/opencode-runtime.js';
 import React, { useEffect, useId, useMemo, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
@@ -376,7 +377,7 @@ interface DialogProps {
   flow?: McpSetupFlow;
   setupBusy?: boolean;
   chatDelivery?: DesktopSessionDeliveryModel;
-  snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
+  snapshot?: Pick<Snapshot, 'adapters' | 'agents'> & OpenCodeRuntimeSnapshot;
   locale?: Locale;
   onApplied?: () => Promise<void>;
   onSuccess?: (status: SetupSuccess) => void;
@@ -818,12 +819,14 @@ export function OpenCodeSetupDialog(props: DialogProps): React.JSX.Element {
 
 export function OpenCodeV2SetupDialog({
   flow,
+  snapshot,
   messages: m,
   locale,
   onSuccess,
   setupBusy = false,
 }: {
   flow: OpenCodeV2SetupFlow;
+  snapshot?: OpenCodeRuntimeSnapshot;
   messages: McpSetupMessages;
   locale: Locale;
   onSuccess?: (status: SetupSuccess) => void;
@@ -880,6 +883,9 @@ export function OpenCodeV2SetupDialog({
         checking={state.checking}
         messages={m}
       />
+      {status?.state === 'configured' && (
+        <Typography role="status">{openCodeRuntimeText(locale, status, snapshot)}</Typography>
+      )}
       {(status?.state === 'configured' || completed) && (
         <ClientSetupHelp client="opencode" openCodeMajor={2} locale={locale} messages={m} />
       )}
@@ -1064,7 +1070,7 @@ export function McpSetup({
   onClientChange: (client: McpSetupApplication) => void;
   invoke: McpSetupInvoke;
   messages?: Partial<McpSetupMessages>;
-  snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
+  snapshot?: Pick<Snapshot, 'adapters' | 'agents'> & OpenCodeRuntimeSnapshot;
   locale?: Locale;
   setupStatuses?: McpSetupStatuses;
   setupFlow?: ApplicationSetupFlow;
@@ -1173,6 +1179,7 @@ export function McpSetup({
           <Stack spacing={0}>
             {showOpenCodeV2 ? (
               <OpenCodeV2SetupDialog
+                snapshot={snapshot}
                 flow={autoFlow.openCodeV2}
                 messages={m}
                 locale={locale}

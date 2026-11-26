@@ -1,4 +1,5 @@
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
+import { openCodeRuntimeText, type OpenCodeRuntimeSnapshot } from './i18n/opencode-runtime.js';
 import { installationRestartMessages } from './i18n/installation-restart.js';
 import { configurationProfile } from '../shared/desktop-session-delivery.js';
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
@@ -144,7 +145,7 @@ interface SetupProps {
   invoke: McpSetupInvoke;
   locale: Locale;
   onManualSetup: (client: McpSetupClient) => void;
-  snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
+  snapshot?: Pick<Snapshot, 'adapters' | 'agents'> & OpenCodeRuntimeSnapshot;
   disabled?: boolean;
 }
 
@@ -639,6 +640,7 @@ export function applicationSetupAction(
 
 function ApplicationCompactList({
   discovery,
+  snapshot,
   flow,
   statuses,
   invoke,
@@ -690,6 +692,8 @@ function ApplicationCompactList({
     const needsRetry = state.phase === 'failed' || pending;
     const connect = (!configured || pending) && (automatic || needsRetry);
     const configuredDetails = configured && !needsRetry;
+    const runtime =
+      client === 'opencode-v2' ? openCodeRuntimeText(locale, states[client].status, snapshot) : '';
     const detailsId = 'application-info-' + context + '-' + client;
     const detection = detected
       ? copy.detected
@@ -703,7 +707,7 @@ function ApplicationCompactList({
         : pending
           ? m.statusUnknown
           : configured
-            ? m.configured
+            ? [m.configured, runtime].filter(Boolean).join(' · ')
             : unavailable || state.phase === 'failed'
               ? m.unavailable
               : hasStatus
@@ -1087,6 +1091,8 @@ export function ApplicationRows({
       !cursorPermissionUnconfirmed &&
       (client !== 'aionui' || aionUiPaired);
     const showGuidance = !busy && !checking && !needsRetry && (configured || working);
+    const runtime =
+      client === 'opencode-v2' ? openCodeRuntimeText(locale, states[client].status, snapshot) : '';
     const setupStatus = busy
       ? copy.connecting
       : checking
@@ -1096,7 +1102,7 @@ export function ApplicationRows({
           : configured
             ? cursorPermissionUnconfirmed
               ? `${m.configured}. ${t(locale, 'clientsUnavailableImpact')}`
-              : m.configured
+              : [m.configured, runtime].filter(Boolean).join(' · ')
             : unavailable || state.phase === 'failed'
               ? m.unavailable
               : configurationState === 'needs-update'
@@ -1242,6 +1248,11 @@ export function ApplicationRows({
         )}
         {showStatus && (
           <ConfiguredApplicationStatus client={client} snapshot={snapshot} locale={locale} />
+        )}
+        {showStatus && runtime && (
+          <Typography variant="body2" role="status">
+            {runtime}
+          </Typography>
         )}
       </Box>
     );

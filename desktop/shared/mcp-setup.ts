@@ -110,6 +110,7 @@ export interface OpenCodeV2SetupStatus extends Omit<McpSetupStatus, 'client'> {
   client: 'opencode-v2';
   target: OpenCodeV2SetupTarget;
   targetId?: string;
+  generation?: string;
   setupAvailability: OpenCodeV2SetupAvailability;
 }
 /** Ability to attempt the guarded selected-config transaction, never installation or receive readiness. */

@@ -552,7 +552,49 @@ test('wrong auth/target/generation/boot/owner fail closed before native submissi
   assert.equal(host.prompts.length, 0);
 });
 
-test('unsupported pin and invalid registration never leave an armed component', async () => {
+for (const version of [
+  '2.0.3',
+  '2.0.4',
+  '2.0.5',
+  '2.0.6',
+  '2.1.4',
+  '2.2.0',
+  '2.2.5',
+  '2.3.0',
+  '2.3.2',
+  '2.4.2',
+]) {
+  test('host registration and native receipt on ' + version, async (t) => {
+    const host = new OpenCodeV2HostFixture();
+    host.context.app.version = version;
+    host.events.filterTypes = !/^2\.[01]\./.test(version);
+    const { peer } = await runtime(t, {}, host);
+    assert.equal(peer.registration?.appVersion, version);
+    const id = host.addSession();
+    const captured = owner(id);
+    await bind(peer, captured);
+    const ready = await peer.wait('ready');
+    host.events.publish({
+      type: 'model.updated' as PinnedEvent['type'],
+      id: 'evt_model',
+      created: 1,
+      data: { sessionID: id },
+    });
+    host.promptResult = async (input) => {
+      host.delivered(input.sessionID, input.id!);
+      const item = host.user(input);
+      if (version !== '2.0.3') return item;
+      const { time, ...legacy } = item;
+      return { ...legacy, timeCreated: time.created } as unknown as typeof item;
+    };
+    const command = submit(peer, captured, ready.armId);
+    assert.equal((await peer.command(command)).value.kind, 'submitted');
+    assert.equal((await peer.wait('projected')).hostMessageId, command.hostMessageId);
+    assert.equal(host.prompts.length, 1);
+  });
+}
+
+test('unsupported host or missing capability never leaves an armed component', async () => {
   const host = new OpenCodeV2HostFixture(),
     peer = new OpenCodeV2NodeFixture();
   host.context.options = {
@@ -565,6 +607,15 @@ test('unsupported pin and invalid registration never leave an armed component', 
     /V2_HOST_UNSUPPORTED/,
   );
   assert.equal(host.events.consumers, 0);
+  const incomplete = {
+    ...host.context,
+    app: { ...host.context.app, version: '2.2.5' },
+    mcp: {},
+  } as typeof host.context;
+  await assert.rejects(
+    startOpenCodeV2(incomplete, peer.provision, { register: peer.register }),
+    /V2_HOST_UNSUPPORTED/,
+  );
   host.context.app.version = '2.3.0';
   await assert.rejects(
     startOpenCodeV2(host.context, peer.provision, {

@@ -219,7 +219,15 @@ export interface Settings {
   peers: Peer[];
   adapters: AdapterProfile[];
 }
+export interface OpenCodeV2Runtime {
+  targetId: string;
+  generation: string;
+  state: 'registered' | 'unsupported';
+  version?: string;
+}
+
 export interface Snapshot {
+  openCodeV2Runtime?: OpenCodeV2Runtime[];
   running: boolean;
   nodeId: string;
   nodeLabel: string;

@@ -18,6 +18,8 @@ import type { Snapshot } from '../desktop/shared/contracts.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
 import { mcpSetupMessages } from '../desktop/renderer/i18n/mcp-setup.js';
 import { supportedLocales, type Locale } from '../desktop/renderer/i18n/index.js';
+import { openCodeRuntimeText } from '../desktop/renderer/i18n/opencode-runtime.js';
+import type { OpenCodeV2SetupStatus } from '../desktop/shared/mcp-setup.js';
 import type { McpSetupInvoke, OpenCodeV2SetupTarget } from '../desktop/shared/mcp-setup.js';
 
 test('OpenCode permission preview lists only new exact permissions for the selected major', () => {
@@ -384,4 +386,35 @@ test('the startup working-chat hint requires an actual ready bound v2 chat, not 
   assert.equal(hasConnectedClientChat('opencode-v2', snapshot), true);
   snapshot.adapters[0].state = 'checking';
   assert.equal(hasConnectedClientChat('opencode-v2', snapshot), false);
+});
+test('configuration, waiting, unsupported interface, live registration and stopped node are distinct', () => {
+  const status: OpenCodeV2SetupStatus = {
+    client: 'opencode-v2',
+    state: 'configured',
+    target,
+    targetId: 'profile',
+    generation: 'current',
+    remembered: true,
+    setupAvailability: { state: 'available' },
+    files: [],
+  };
+  for (const locale of supportedLocales) {
+    const entry = { targetId: 'profile', generation: 'current', version: '2.2.5' };
+    const waiting = openCodeRuntimeText(locale, status, { running: true, openCodeV2Runtime: [] });
+    assert.equal(
+      openCodeRuntimeText(locale, status, {
+        openCodeV2Runtime: [{ ...entry, generation: 'old', state: 'registered' }],
+      }),
+      waiting,
+    );
+    const unsupported = openCodeRuntimeText(locale, status, {
+      openCodeV2Runtime: [{ ...entry, state: 'unsupported' }],
+    });
+    const connected = openCodeRuntimeText(locale, status, {
+      openCodeV2Runtime: [{ ...entry, state: 'registered' }],
+    });
+    const stopped = openCodeRuntimeText(locale, status, { running: false });
+    assert.equal(new Set([waiting, unsupported, connected, stopped]).size, 4);
+    assert.ok(connected.includes('2.2.5') && unsupported.includes('2.2.5'));
+  }
 });

@@ -1086,6 +1086,7 @@ export class OpenCodeV2SetupService extends McpSetupService {
           target,
           setupAvailability,
           targetId: row.targetId,
+          generation: row.generation,
           remembered: true,
           state,
           files: [{ id: 'configuration', path: target.configurationPath, state }],

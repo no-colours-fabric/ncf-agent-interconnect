@@ -3,6 +3,7 @@
 export {
   OPEN_CODE_V2_PROTOCOL,
   OPEN_CODE_V2_PIN,
+  openCodeV2HostVersion,
   parseOpenCodeV2Provision,
   parseOpenCodeV2Command,
   parseOpenCodeV2Evidence,

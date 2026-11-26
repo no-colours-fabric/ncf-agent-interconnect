@@ -339,6 +339,7 @@ export class NodeService extends EventEmitter {
         this.jobs.add(save);
         void save.finally(() => this.jobs.delete(save));
       },
+      () => this.emit('change'),
     );
     this.adapters = new AdapterRegistry(
       this.aionui,
@@ -732,6 +733,7 @@ export class NodeService extends EventEmitter {
     const peerUrls = endpoints.map(({ address, port }) => `wss://${address}:${port}/peer`);
     return {
       running: this.running,
+      ...(options.lanDiscovery ? { openCodeV2Runtime: this.opencodeV2.runtime() } : {}),
       nodeId: this.settings.value.nodeId,
       nodeLabel: this.settings.value.nodeLabel,
       mcpUrl: `http://127.0.0.1:${this.settings.value.mcpPort}/mcp`,

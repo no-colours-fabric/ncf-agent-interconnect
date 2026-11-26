@@ -39,9 +39,10 @@ class Events {
   armed = false;
   ended = false;
   selected = new Set<string>();
+  filterTypes = true;
 
   publish(event: PinnedEvent): void {
-    if (!this.armed || this.ended || !this.selected.has(event.type)) return;
+    if (!this.armed || this.ended || (this.filterTypes && !this.selected.has(event.type))) return;
     const pending = this.pending.shift();
     if (pending) pending.resolve({ done: false, value: structuredClone(event) });
     else this.queue.push(structuredClone(event));

@@ -136,8 +136,13 @@ export function createAgentMcp(
             };
             return handoff ? handoffs!.seal(handoff, response) : response;
           }
-          const sessionID = extra._meta?.['ai.opencode/sessionID'];
-          if (typeof sessionID !== 'string')
+          const qualified = extra._meta?.['ai.opencode/sessionID'];
+          const legacy = extra._meta?.sessionID;
+          const sessionID = qualified ?? legacy;
+          if (
+            typeof sessionID !== 'string' ||
+            (qualified !== undefined && legacy !== undefined && qualified !== legacy)
+          )
             throw new Error('OpenCode v2 did not provide the native session context');
           nativeIdentity = await service.opencodeV2.identity(
             openCodeV2.targetId,
@@ -668,10 +673,13 @@ export class McpEndpoint {
         chunks.push(Buffer.from(chunk));
       }
       try {
-        const result = await this.service.opencodeV2.register(
-          JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks))),
-          credential,
+        const input = JSON.parse(
+          new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)),
         );
+        const result =
+          input?.kind === 'unsupported-host'
+            ? await this.service.opencodeV2.reportUnsupported(input, credential)
+            : await this.service.opencodeV2.register(input, credential);
         if (res.destroyed) return;
         res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
         res.end(JSON.stringify(result));

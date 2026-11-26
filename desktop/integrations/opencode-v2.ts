@@ -11,6 +11,8 @@ export const OPEN_CODE_V2_PIN = Object.freeze({
 const MAX_BYTES = 2 * 1024 * 1024;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const HASH = /^[a-f0-9]{64}$/;
+export const openCodeV2HostVersion =
+  /^2\.(?:0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const scopeKeys = ['protocol', 'nodeId', 'targetId', 'generation', 'bootId', 'nodeEpoch'];
 const ownerKeys = ['agentKey', 'incarnation', 'connectionId', 'generation', 'adapterId', 'chatId'];
 
@@ -220,7 +222,7 @@ export interface OpenCodeV2Registration {
   generation: string;
   bootId: string;
   workspace: string;
-  appVersion: '2.3.0';
+  appVersion: string;
   bridgeUrl: string;
   bridgeCredential: string;
   instanceCredential?: string;
@@ -609,18 +611,46 @@ export async function startOpenCodeV2(
   dependencies: OpenCodeV2Dependencies = {},
 ): Promise<OpenCodeV2Handle> {
   const provision = parseOpenCodeV2Provision(rawProvision);
-  if (
-    context.app.version !== OPEN_CODE_V2_PIN.version ||
-    typeof context.session.wait !== 'function' ||
-    typeof context.event.subscribe !== 'function' ||
-    typeof context.mcp?.transform !== 'function' ||
-    typeof context.rpc.register !== 'function'
-  )
-    fail('V2_HOST_UNSUPPORTED');
   const options = object(context.options);
   keys(options, ['targetId', 'generation']);
   if (options.targetId !== provision.targetId || options.generation !== provision.generation)
     fail('V2_TARGET_MISMATCH');
+  if (
+    typeof context.app?.version !== 'string' ||
+    context.app.version.length > 96 ||
+    !openCodeV2HostVersion.test(context.app.version) ||
+    typeof context.session?.get !== 'function' ||
+    typeof context.session?.prompt !== 'function' ||
+    typeof context.session?.wait !== 'function' ||
+    typeof context.event?.subscribe !== 'function' ||
+    typeof context.mcp?.transform !== 'function' ||
+    typeof context.rpc?.register !== 'function'
+  ) {
+    if (!dependencies.register) {
+      const version = context.app?.version;
+      const response = await fetch(provision.nodeUrl + '/integrations/opencode-v2/register', {
+        method: 'POST',
+        redirect: 'error',
+        signal: AbortSignal.timeout(1500),
+        headers: {
+          authorization: 'Bearer ' + provision.credential,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          kind: 'unsupported-host',
+          nodeId: provision.nodeId,
+          targetId: provision.targetId,
+          generation: provision.generation,
+          version:
+            typeof version === 'string' && /^[0-9A-Za-z.+-]{1,96}$/.test(version)
+              ? version
+              : undefined,
+        }),
+      }).catch(() => undefined);
+      await response?.body?.cancel().catch(() => {});
+    }
+    fail('V2_HOST_UNSUPPORTED');
+  }
   const workspace = text(context.location.directory, 4000);
   const now = dependencies.now ?? Date.now;
   const timeout = Math.min(Math.max(integer(dependencies.timeoutMs ?? 10_000), 1), 60_000);
@@ -825,6 +855,11 @@ export async function startOpenCodeV2(
   const dispatch = (event: HostEvent): void => {
     if (closed) return;
     if (
+      event.location?.workspaceID !== undefined &&
+      event.location.workspaceID !== context.location.workspaceID
+    )
+      return;
+    if (
       event.type === barrierType &&
       event.data?.nonce === barrierNonce &&
       event.location?.directory === workspace
@@ -835,11 +870,6 @@ export async function startOpenCodeV2(
     }
     if (event.type === 'location.shutdown') {
       if (event.location?.directory && event.location.directory !== workspace) return;
-      if (
-        event.location?.workspaceID &&
-        event.location.workspaceID !== context.location.workspaceID
-      )
-        return;
       nativeArmed = false;
       revokeAll('V2_LOCATION_ENDED');
       return;
@@ -1128,10 +1158,21 @@ export async function startOpenCodeV2(
         if (!attemptCurrent(attempt)) fail('V2_SCOPE_UNAVAILABLE');
         const raw = object(value),
           payload = object(raw.payload);
-        keys(raw, ['id', 'sessionID', 'type', 'time', 'delivery', 'payload']);
-        const time = object(raw.time);
-        keys(time, ['created']);
-        integer(time.created);
+        const legacyTime = Object.hasOwn(raw, 'timeCreated');
+        keys(raw, [
+          'id',
+          'sessionID',
+          'type',
+          legacyTime ? 'timeCreated' : 'time',
+          'delivery',
+          'payload',
+        ]);
+        if (legacyTime) integer(raw.timeCreated);
+        else {
+          const time = object(raw.time);
+          keys(time, ['created']);
+          integer(time.created);
+        }
         if (
           raw.id !== command.hostMessageId ||
           raw.sessionID !== bound.owner.chatId ||
@@ -1298,7 +1339,7 @@ export async function startOpenCodeV2(
       generation: provision.generation,
       bootId,
       workspace,
-      appVersion: '2.3.0',
+      appVersion: context.app.version,
       bridgeUrl: 'http://127.0.0.1:' + address.port,
       bridgeCredential,
       instanceCredential: randomBytes(32).toString('hex'),

@@ -2,7 +2,7 @@ import { EventEmitter } from 'node:events';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { isDeepStrictEqual } from 'node:util';
-import type { AdapterProfile, AdapterState } from '../shared/contracts.js';
+import type { AdapterProfile, AdapterState, OpenCodeV2Runtime } from '../shared/contracts.js';
 import type { AgentAdapter, Admission, EventInput } from './adapters.js';
 import { agentMessageText } from './adapters.js';
 import { OpenCodeV2Auth } from './opencode-v2-auth.js';
@@ -10,6 +10,7 @@ import {
   parseOpenCodeV2Evidence,
   openCodeV2HostMessageId,
   openCodeV2Prompt,
+  openCodeV2HostVersion,
   openCodeV2PayloadHash,
   type OpenCodeV2Scope,
   type OpenCodeV2Owner,
@@ -26,7 +27,7 @@ const registrationSchema = z
     generation: z.uuid(),
     bootId: z.uuid(),
     workspace: z.string().min(1).max(4000),
-    appVersion: z.literal('2.3.0'),
+    appVersion: z.string().max(96).regex(openCodeV2HostVersion),
     bridgeUrl: z.url(),
     bridgeCredential: z.string().regex(/^[a-f0-9]{64}$/),
     instanceCredential: z
@@ -36,6 +37,17 @@ const registrationSchema = z
   })
   .strict();
 const same = isDeepStrictEqual;
+const unsupportedSchema = registrationSchema
+  .pick({ nodeId: true, targetId: true, generation: true })
+  .extend({
+    kind: z.literal('unsupported-host'),
+    version: z
+      .string()
+      .max(96)
+      .regex(/^[0-9A-Za-z.+-]+$/)
+      .optional(),
+  })
+  .strict();
 interface Bridge {
   key: string;
   admissionId: string;
@@ -81,16 +93,19 @@ async function boundedJSON(response: Response): Promise<unknown> {
 export class OpenCodeV2Bridges {
   private readonly bridges = new Map<string, Bridge>();
   private readonly legacyBlocked = new Map<string, string>();
+  private readonly unsupported = new Map<string, OpenCodeV2Runtime>();
   private requests = 0;
   private unobserve?: () => void;
   constructor(
     readonly auth: OpenCodeV2Auth,
     private readonly node: () => { id: string; epoch: string; ready: boolean },
     private readonly profileRetired?: (id: string) => void,
+    private readonly changed?: () => void,
   ) {}
   start(): void {
     this.unobserve?.();
     this.unobserve = this.auth.observe((id) => {
+      if (this.unsupported.delete(id)) this.changed?.();
       this.legacyBlocked.delete(id);
       for (const bridge of this.bridges.values())
         if (bridge.scope.targetId === id) this.retire(bridge);
@@ -125,6 +140,31 @@ export class OpenCodeV2Bridges {
     }
     bridge.events.removeAllListeners();
     if (this.bridges.get(bridge.key) === bridge) this.bridges.delete(bridge.key);
+    if (bridge.ready) this.changed?.();
+  }
+  runtime(): OpenCodeV2Runtime[] {
+    const entries = [...this.unsupported.values()];
+    for (const bridge of this.bridges.values()) {
+      if (!this.current(bridge)) continue;
+      entries.push({
+        targetId: bridge.scope.targetId,
+        generation: bridge.scope.generation,
+        state: 'registered',
+        version: bridge.registration.appVersion,
+      });
+    }
+    return entries;
+  }
+  async reportUnsupported(raw: unknown, credential: string): Promise<void> {
+    const { nodeId, targetId, generation, version } = unsupportedSchema.parse(raw);
+    const node = this.node();
+    if (!node.ready || node.id !== nodeId) throw new Error('V2_NODE_UNAVAILABLE');
+    await this.auth.authenticate(targetId, generation, credential);
+    if (!this.node().ready || this.node().epoch !== node.epoch)
+      throw new Error('V2_NODE_UNAVAILABLE');
+    if (this.unsupported.size >= 128 && !this.unsupported.has(targetId)) return;
+    this.unsupported.set(targetId, { targetId, generation, state: 'unsupported', version });
+    this.changed?.();
   }
   async register(raw: unknown, credential: string): Promise<OpenCodeV2Scope> {
     const input = registrationSchema.parse(raw),
@@ -202,6 +242,8 @@ export class OpenCodeV2Bridges {
       )
         throw new Error('V2_BRIDGE_UNAVAILABLE');
       bridge.ready = true;
+      this.unsupported.delete(input.targetId);
+      this.changed?.();
       if (input.instanceCredential) {
         this.legacyBlocked.set(input.targetId, input.generation);
         const previous = this.legacy(input.targetId, input.generation);
@@ -393,6 +435,7 @@ export class OpenCodeV2Bridges {
     this.unobserve = undefined;
     for (const bridge of [...this.bridges.values()]) this.retire(bridge);
     this.legacyBlocked.clear();
+    this.unsupported.clear();
   }
 }
 

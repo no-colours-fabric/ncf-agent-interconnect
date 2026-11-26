@@ -6,6 +6,58 @@ import { setImmediate as tick } from 'node:timers/promises';
 import { openCodeV2ProductFixture, OpenCodeV2HostFixture } from './fixtures/opencode-v2-host.js';
 import { startOpenCodeV2 } from '../desktop/integrations/opencode-v2.js';
 
+test('native session metadata remains compatible across the 2.0.4 boundary', async (t) => {
+  const { client, host } = await openCodeV2ProductFixture(t);
+  const sessionID = host.addSession('ses_metadata');
+  for (const _meta of [
+    { sessionID },
+    { 'ai.opencode/sessionID': sessionID },
+    { sessionID, 'ai.opencode/sessionID': sessionID },
+  ]) {
+    const result = await client.callTool({ name: 'node_status', arguments: {}, _meta });
+    assert.equal(result.isError, undefined);
+  }
+  const result = await client.callTool({
+    name: 'node_status',
+    arguments: {},
+    _meta: { sessionID, 'ai.opencode/sessionID': 'ses_other' },
+  });
+  assert.equal(result.isError, true);
+});
+
+test('setup runtime diagnostics follow the active target and node lifecycle', async (t) => {
+  const { service, provision, target, setup, handle } = await openCodeV2ProductFixture(t);
+  const status = await setup.v2Status(target);
+  assert.equal(status.generation, provision.generation);
+  const runtime = () => service.snapshot({ lanDiscovery: true }).openCodeV2Runtime!;
+  assert.equal(runtime()[0]?.state, 'registered');
+  await handle.dispose();
+  await new Promise<void>((resolve, reject) => {
+    if (!runtime().length) return resolve();
+    const timer = setTimeout(() => reject(new Error('Bridge remained registered')), 2000);
+    service.once('change', () => {
+      clearTimeout(timer);
+      resolve();
+    });
+  });
+  assert.deepEqual(runtime(), []);
+  const host = new OpenCodeV2HostFixture();
+  host.context.options = { targetId: provision.targetId, generation: provision.generation };
+  host.context.app.version = '3.0.0';
+  await assert.rejects(startOpenCodeV2(host.context, provision), /V2_HOST_UNSUPPORTED/);
+  assert.deepEqual(runtime(), [
+    {
+      targetId: provision.targetId,
+      generation: provision.generation,
+      state: 'unsupported',
+      version: '3.0.0',
+    },
+  ]);
+  await service.stop();
+  assert.equal(service.snapshot().running, false);
+  assert.deepEqual(runtime(), []);
+});
+
 test('v2 own endpoint rejects generic bearer and generic endpoint rejects target credential', async (t) => {
   const { service, configuration } = await openCodeV2ProductFixture(t),
     remote = configuration.mcp.servers.ncf_agent_interconnect;
