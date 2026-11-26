@@ -32,15 +32,23 @@ For v1, use **Configure OpenCode v1** and select the file that OpenCode loads, s
 
 ## ChatGPT
 
-Under **Applications**, choose **ChatGPT**. If NCF Agent Interconnect has no saved ChatGPT profile on macOS, it can use the running app’s profile when that profile already contains this node’s MCP settings. To select a profile explicitly, choose **Manual setup**, select its `config.toml` and click **Apply**. A matching file keeps its original contents. Reconnect MCP in ChatGPT if you changed its settings, then ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
+**Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile. Background chat delivery is available for supported ChatGPT installations on macOS and Windows only. On macOS, the selected profile applies to ChatGPT windows opened during the current login session.
 
-Open ChatGPT normally after setup.
+On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it.
 
-NCF Agent Interconnect 1.0.0 supports stable real-time messaging with ChatGPT app versions up to and including **26.1111.71704**. Real-time delivery may vary on newer ChatGPT releases. Changes in ChatGPT can leave incoming messages queued until the current reply ends or the next turn begins. If you rely on real-time messaging, stay on a compatible ChatGPT version for now or install the recommended build from OpenAI.
+In **Applications → ChatGPT**, the settings gear labeled **Manual setup** opens setup for a specific profile. Select the configuration you use, review the preview and select **Apply**. If the profile has not been set up, you can select **Background chat delivery** before applying. After setup, use the switch in the same dialog to turn delivery on or off. On macOS, quit and reopen ChatGPT after changing the switch. If setup reports conflicting settings, review the selected profile before making changes.
+
+After setup, open ChatGPT from its usual icon and ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
+
+### Background delivery and compatibility
+
+With background delivery active, eligible connected ChatGPT chats on macOS and Windows can receive messages during a response. A connected chat that is no longer open can resume without you switching chats.
+
+For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**.
+
+Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. If you use the earlier delivery path, the recommended compatible ChatGPT downloads are listed below.
 
 See [our delivery regression report in OpenAI Codex issue #63680](https://github.com/openai/codex/issues/63680) for the behavior we observed and the results of our checks. The [related discussion in OpenAI Codex issue #51625](https://github.com/openai/codex/issues/51625#issuecomment-7135067258) requests a supported way to send messages during an active turn.
-
-During setup, NCF Agent Interconnect may warn that messages can arrive after the current response ends.
 
 - [Apple Silicon Mac — ChatGPT 26.1111.71704](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
 - [Windows x64 — ChatGPT 26.1111.71704 (MSIX package 26.1111.9664.0)](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)

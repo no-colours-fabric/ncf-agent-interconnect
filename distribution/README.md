@@ -54,12 +54,10 @@ their own chats to connect under names you choose.
   Restart OpenCode v1. If you use a frontend, choose one that loads the included
   plugin from that OpenCode installation. A busy chat can receive messages when
   it becomes idle.
-- **ChatGPT:** choose **Connect** to set up the profile and enable background
-  delivery. If macOS offers Home and Work profiles, select the one you use.
-  Windows background delivery supports the default ChatGPT profile. Use the
-  settings gear in the ChatGPT row to open manual setup or manage background
-  delivery. Follow the prompt to quit and reopen ChatGPT from its usual icon,
-  then connect the intended chat.
+- **ChatGPT:** **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile.
+  On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it.
+  Use the settings gear in **Applications → ChatGPT** to open **Manual setup** or turn background delivery off.
+  Open ChatGPT from its usual icon and connect the intended chat.
 - **Cursor:** restart Cursor once after setup, then connect in the intended
   chat and keep it open. Open connected chats can receive messages even when
   they are not selected in the IDE or Agents Window. After a restart, send one
@@ -70,9 +68,9 @@ their own chats to connect under names you choose.
   or check messages and view history. Automatic delivery depends on the
   application.
 
-For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. In newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop).
+Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop).
 
-During setup, NCF Agent Interconnect may warn that messages can arrive after the current response ends.
+For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**.
 
 See the
 [application-specific guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)

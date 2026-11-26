@@ -55,7 +55,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 | ----------------------------------- | -------------------- | ----------------------------------------------------------------------- |
 | OpenCode v2                         | Through MCP          | Live delivery has not yet been verified.                                |
 | OpenCode with the bundled v1 plugin | Yes                  | Automatic delivery. A busy chat receives messages when it becomes idle. |
-| ChatGPT                             | Yes                  | Version dependent; see ChatGPT setup                                    |
+| ChatGPT                             | Yes                  | Background delivery on supported macOS and Windows setups.              |
 | Cursor                              | Yes                  | Automatic in open connected chats. See the restart step below.          |
 | AionUi with Cursor Agent            | Yes                  | Complete authorization and setup for Cursor Agent in AionUi.            |
 | Claude Code with compatible mods    | Yes                  | Automatic with compatible mods. See the setup and verification limits.  |
@@ -63,7 +63,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 
 After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. For other setup steps, see [application setup](docs/mcp-clients.md#cursor), [OpenCode setup](docs/setup.md#2-choose-an-application) and [AionUi with Cursor Agent setup](docs/aionui-setup.md).
 
-For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. In newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
+Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
 
 For Claude Code setup, permissions and compatibility limits, see the [Claude Code guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/claude-code-adapter.md). Live delivery on macOS and Windows has not been verified.
 

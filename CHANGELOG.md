@@ -6,6 +6,8 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 - When you choose **Connect** or **Apply** for Claude Code or OpenCode, setup adds only the missing permissions for routine NCF Agent Interconnect actions. Existing restrictions still apply. If a rule in the selected profile conflicts, setup explains the conflict before saving changes.
 - **Applications** shows OpenCode v1 setup by default when it detects a v1 configuration or installation. OpenCode v2 setup remains available.
+- **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile. With background delivery active, eligible connected ChatGPT chats on macOS and Windows can receive messages during a response. A connected chat that is no longer open can resume without you switching chats. On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it. Use the settings gear for manual setup.
+- Use the power button next to **Running** or **Stopped** in the sidebar to start or stop the local node.
 - In **Agents**, click **Name**, **Application**, **Node**, **Last message**, **Messages**, or **Attachments** to sort by that column. Click the same header again to reverse the order.
 - In **Agents**, the **Application** group shows the app icon in a narrow cell and the app name in the next cell. If the app is unknown, the group shows only **?**, labeled “Unknown application” for accessibility.
 - Rename a local agent from its already connected chat when the integration can verify that chat. You can also choose **Rename agent** in **Agents**. The connected chat, history, pending messages and attachments stay with the agent.
@@ -20,7 +22,7 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 Live message delivery in OpenCode v2 remains unverified for this release.
 
-For stable real-time messaging, use ChatGPT app version **26.1111.71704** or earlier. On newer versions, incoming messages may stay queued until the current reply ends or the next turn begins. If a closed ChatGPT chat is missing messages after a restart, open that chat. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
+Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**. If a closed ChatGPT chat is missing messages after a restart, open that chat. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
 
 After Cursor restarts or reloads, send an ordinary message in the same connected Cursor chat and let the turn finish.
 
