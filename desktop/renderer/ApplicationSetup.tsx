@@ -1133,6 +1133,17 @@ export function ApplicationRows({
             />
           </Stack>
         </Box>
+        {client === 'codex' &&
+          (detected ||
+            configured ||
+            working ||
+            discovery.snapshot?.chatgptCompatibility?.version) && (
+            <ChatgptCompatibilityNotice
+              compatibility={discovery.snapshot?.chatgptCompatibility}
+              locale={locale}
+              marginTop="12px"
+            />
+          )}
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
           <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
             {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
@@ -1143,16 +1154,6 @@ export function ApplicationRows({
             )}
           </Alert>
         )}
-        {client === 'codex' &&
-          (detected ||
-            configured ||
-            working ||
-            discovery.snapshot?.chatgptCompatibility?.version) && (
-            <ChatgptCompatibilityNotice
-              compatibility={discovery.snapshot?.chatgptCompatibility}
-              locale={locale}
-            />
-          )}
         <SetupDetails state={state} locale={locale} />
         {showGuidance && (
           <NextStep

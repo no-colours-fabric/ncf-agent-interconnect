@@ -59,7 +59,8 @@ try {
     async () => (await window.interconnect.invoke('snapshot')).attachmentLimitMiB === 2,
   );
   const section = page.getByRole('region', { name: 'Received attachments' });
-  await section.getByText('Fixture recipient', { exact: false }).waitFor();
+  await section.getByText(/^Attachment storage: /).waitFor();
+  assert.equal(await section.getByText('Fixture recipient', { exact: false }).count(), 0);
   assert.equal(await section.getByRole('button', { name: /temporary sources/i }).count(), 0);
   const action = section.getByRole('button', { name: 'Remove received attachments' });
   await action.click();
@@ -77,7 +78,7 @@ try {
   await page.getByRole('option', { name: '7 days', exact: true }).click();
   await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
   await section.getByText('Removed: 1. Preserved: 0.', { exact: true }).waitFor();
-  await section.getByText('Managed storage: 0 byte', { exact: false }).waitFor();
+  await section.getByText('Attachment storage: 0 byte', { exact: false }).waitFor();
   const pageRows = await page.evaluate(() =>
     window.interconnect.invoke('chatHistory', { nickname: 'Fixture recipient' }),
   );

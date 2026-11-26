@@ -63,3 +63,28 @@ download link to Connect without invoking either action.
   the two namesakes, the refreshed zero count and history, and replacing the
   selected incarnation before confirmation. A narrow German header wrapped
   inside the table. No real files or agents were removed.
+
+## Table, storage, and Applications follow-up
+
+The starting point was `f5a2f92e3fd88eb83b7dbaee8263454dc7c68da4`.
+
+- With automatic table layout, equal declared widths redistributed differently
+  between Messages and Attachments at narrow sizes. Fixed 152 px tracks keep
+  them equal. The table scrolls below 960 px. The longest word in each heading,
+  its padding, and the sort icon fit at the minimum; headings break at spaces.
+  In Chrome the narrowest tested date track was 150 px, and it grew to 181 px
+  before the node name track changed width. Application image padding is 2 px
+  with an independent 8 px horizontal inset on its table cell.
+- The Settings summary uses the reported total, which can differ from a sum
+  of per-agent usage. Both views use decimal units with localized numbers and
+  unit symbols. Choosing the unit from the raw bytes before truncating to two
+  decimals keeps values such as 999,999 bytes below the megabyte threshold.
+  The table continues sorting the unformatted byte counts.
+- A Chrome renderer fixture measured the table in all 15 locales at 650,
+  995, and 1400 px. It exercised keyboard sorting across a unit boundary, the
+  per-agent action delegate, and Settings cleanup with the all-agent scope.
+  Computed gaps around the ChatGPT warning were 12 px at both 560 and 1240 px
+  in Applications. A verified version rendered no warning.
+- The fixture used synthetic data and mocked IPC. The existing packaged
+  smoke selector now waits for the total without expecting an agent entry.
+  Native packaging and native smoke execution were outside this verification.

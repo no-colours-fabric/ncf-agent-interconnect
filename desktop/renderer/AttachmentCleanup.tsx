@@ -19,6 +19,7 @@ import {
   type ReceivedAttachmentUsage,
   type RemoveReceivedAttachments,
 } from '../shared/attachment-cleanup.js';
+import { formatAttachmentStorage } from './attachment-storage-format.js';
 import { attachmentMessages } from './i18n/attachments.js';
 import { t, type Locale } from './i18n/index.js';
 
@@ -149,11 +150,6 @@ export function AttachmentCleanup({
       setRefresh((previous) => previous + 1);
     }
   };
-  const size = new Intl.NumberFormat(locale, {
-    style: 'unit',
-    unit: 'byte',
-    unitDisplay: 'short',
-  });
   return (
     <Stack component="section" aria-labelledby="received-attachments-title" spacing={1.5}>
       <Typography id="received-attachments-title" component="h2" variant="h6">
@@ -163,25 +159,9 @@ export function AttachmentCleanup({
         <Alert severity="error">{messages.usageFailed}</Alert>
       ) : (
         usage && (
-          <>
-            <Typography variant="body2">
-              {messages.usage.replace('{size}', size.format(usage.totalBytes))}
-            </Typography>
-            {usage.agents.length > 0 && (
-              <Stack component="ul" sx={{ my: 0, pl: 2.5 }}>
-                {usage.agents.map((agent) => (
-                  <Typography
-                    component="li"
-                    key={agent.key}
-                    variant="body2"
-                    sx={{ overflowWrap: 'anywhere' }}
-                  >
-                    {agent.nickname} · {size.format(agent.bytes)}
-                  </Typography>
-                ))}
-              </Stack>
-            )}
-          </>
+          <Typography variant="body2">
+            {messages.usage.replace('{size}', formatAttachmentStorage(usage.totalBytes, locale))}
+          </Typography>
         )
       )}
       <Button

@@ -23,7 +23,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Removed: {removed}. Preserved: {preserved}.',
     failed: 'Some attachments could not be removed. Try again.',
     unavailable: 'Unavailable',
-    usage: 'Managed storage: {size}',
+    usage: 'Attachment storage: {size}',
     usageFailed: 'Could not load attachment storage usage.',
   },
   ru: {
@@ -47,7 +47,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: '已删除：{removed}。已保留：{preserved}。',
     failed: '部分附件无法删除。请重试。',
     unavailable: '不可用',
-    usage: '受管理的存储空间：{size}',
+    usage: '附件存储空间：{size}',
     usageFailed: '无法加载附件存储用量。',
   },
   fr: {
@@ -59,7 +59,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Supprimés : {removed}. Conservés : {preserved}.',
     failed: 'Certaines pièces jointes n’ont pas pu être supprimées. Réessayez.',
     unavailable: 'Indisponible',
-    usage: 'Espace de stockage géré : {size}',
+    usage: 'Stockage des pièces jointes : {size}',
     usageFailed: 'Impossible de charger l’espace occupé par les pièces jointes.',
   },
   de: {
@@ -71,7 +71,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Entfernt: {removed}. Beibehalten: {preserved}.',
     failed: 'Einige Anhänge konnten nicht entfernt werden. Versuchen Sie es erneut.',
     unavailable: 'Nicht verfügbar',
-    usage: 'Verwalteter Speicher: {size}',
+    usage: 'Speicher für Anhänge: {size}',
     usageFailed: 'Der Speicherverbrauch der Anhänge konnte nicht geladen werden.',
   },
   it: {
@@ -83,7 +83,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Rimossi: {removed}. Conservati: {preserved}.',
     failed: 'Impossibile rimuovere alcuni allegati. Riprova.',
     unavailable: 'Non disponibile',
-    usage: 'Spazio gestito: {size}',
+    usage: 'Spazio occupato dagli allegati: {size}',
     usageFailed: 'Impossibile caricare lo spazio occupato dagli allegati.',
   },
   es: {
@@ -95,7 +95,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Eliminados: {removed}. Conservados: {preserved}.',
     failed: 'No se pudieron eliminar todos los archivos adjuntos. Inténtalo de nuevo.',
     unavailable: 'No disponible',
-    usage: 'Espacio gestionado: {size}',
+    usage: 'Almacenamiento de archivos adjuntos: {size}',
     usageFailed: 'No se pudo cargar el espacio ocupado por los archivos adjuntos.',
   },
   kk: {
@@ -107,7 +107,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Жойылды: {removed}. Сақталды: {preserved}.',
     failed: 'Кейбір тіркемелерді жою мүмкін болмады. Қайталап көріңіз.',
     unavailable: 'Қолжетімсіз',
-    usage: 'Басқарылатын сақтау орны: {size}',
+    usage: 'Тіркемелердің сақтау орны: {size}',
     usageFailed: 'Тіркемелер алатын орын туралы деректер жүктелмеді.',
   },
   ja: {
@@ -119,7 +119,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: '削除: {removed} 件。保持: {preserved} 件。',
     failed: '一部の添付ファイルを削除できませんでした。もう一度お試しください。',
     unavailable: '利用不可',
-    usage: '管理対象の使用容量: {size}',
+    usage: '添付ファイルの使用容量: {size}',
     usageFailed: '添付ファイルの使用容量を読み込めませんでした。',
   },
   'pt-BR': {
@@ -131,7 +131,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Removidos: {removed}. Mantidos: {preserved}.',
     failed: 'Não foi possível remover alguns anexos. Tente novamente.',
     unavailable: 'Indisponível',
-    usage: 'Armazenamento gerenciado: {size}',
+    usage: 'Armazenamento de anexos: {size}',
     usageFailed: 'Não foi possível carregar o espaço ocupado pelos anexos.',
   },
   ko: {
@@ -143,7 +143,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: '삭제: {removed}개. 유지: {preserved}개.',
     failed: '일부 첨부 파일을 삭제하지 못했습니다. 다시 시도하세요.',
     unavailable: '사용할 수 없음',
-    usage: '관리되는 저장 공간: {size}',
+    usage: '첨부 파일 저장 공간: {size}',
     usageFailed: '첨부 파일의 저장 공간 사용량을 불러오지 못했습니다.',
   },
   tr: {
@@ -155,7 +155,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Silinen: {removed}. Korunan: {preserved}.',
     failed: 'Bazı ekler silinemedi. Yeniden deneyin.',
     unavailable: 'Kullanılamıyor',
-    usage: 'Yönetilen depolama alanı: {size}',
+    usage: 'Ek depolama alanı: {size}',
     usageFailed: 'Eklerin depolama kullanımı yüklenemedi.',
   },
   pl: {
@@ -167,7 +167,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Usunięto: {removed}. Zachowano: {preserved}.',
     failed: 'Nie udało się usunąć części załączników. Spróbuj ponownie.',
     unavailable: 'Niedostępny',
-    usage: 'Zarządzane miejsce: {size}',
+    usage: 'Miejsce zajęte przez załączniki: {size}',
     usageFailed: 'Nie udało się wczytać informacji o miejscu zajmowanym przez załączniki.',
   },
   nl: {
@@ -179,7 +179,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Verwijderd: {removed}. Behouden: {preserved}.',
     failed: 'Sommige bijlagen konden niet worden verwijderd. Probeer het opnieuw.',
     unavailable: 'Niet beschikbaar',
-    usage: 'Beheerde opslag: {size}',
+    usage: 'Opslagruimte voor bijlagen: {size}',
     usageFailed: 'Het opslaggebruik van bijlagen kon niet worden geladen.',
   },
   uk: {
@@ -191,7 +191,7 @@ const dictionaries: Record<Locale, AttachmentMessages> = {
     result: 'Видалено: {removed}. Збережено: {preserved}.',
     failed: 'Не вдалося видалити деякі вкладення. Спробуйте ще раз.',
     unavailable: 'Недоступно',
-    usage: 'Кероване сховище: {size}',
+    usage: 'Сховище вкладень: {size}',
     usageFailed: 'Не вдалося завантажити відомості про місце, зайняте вкладеннями.',
   },
 };

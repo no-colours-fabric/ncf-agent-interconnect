@@ -38,9 +38,11 @@ function VersionedText({ text, version }: { text: string; version: string }) {
 export function ChatgptCompatibilityNotice({
   compatibility,
   locale,
+  marginTop,
 }: {
   compatibility?: ChatgptCompatibility;
   locale: Locale;
+  marginTop?: string;
 }) {
   if (!showsChatgptCompatibilityNotice(compatibility)) return null;
   const { version, download } = compatibility;
@@ -49,6 +51,7 @@ export function ChatgptCompatibilityNotice({
       severity="warning"
       sx={{
         gridColumn: '1 / -1',
+        marginTop,
         minWidth: 0,
         flexWrap: 'wrap',
         '& .MuiAlert-message': { flex: '1 1 105px', minWidth: 0, overflowWrap: 'anywhere' },

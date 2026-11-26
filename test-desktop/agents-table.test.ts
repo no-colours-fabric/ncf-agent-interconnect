@@ -423,9 +423,9 @@ test('received attachment totals and actions stay with the exact local agent inc
     const remoteRow = targets.find((match) => match[0].includes(snapshot.peers[0].id + ':'));
     const expected = new Intl.NumberFormat(locale, {
       style: 'unit',
-      unit: 'byte',
+      unit: 'kilobyte',
       unitDisplay: 'short',
-    }).format(1536);
+    }).format(1.53);
     assert.ok(localRow?.[1].includes(expected), locale);
     assert.match(localRow![1], /aria-label="Fixture remove"/);
     assert.doesNotMatch(remoteRow![1], /Fixture remove/);

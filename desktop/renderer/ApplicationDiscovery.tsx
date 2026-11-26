@@ -24,9 +24,11 @@ const logos: Record<McpSetupClient, string> = {
 export function ClientLogo({
   client,
   size = 32,
+  padding,
 }: {
   client: McpSetupClient;
   size?: number;
+  padding?: string;
 }): React.JSX.Element {
   return (
     <Box
@@ -40,7 +42,7 @@ export function ClientLogo({
         flexShrink: 0,
         bgcolor: '#ffffff',
         borderRadius: 0.75,
-        p: 0.5,
+        p: padding ?? 0.5,
         boxSizing: 'border-box',
       }}
     />

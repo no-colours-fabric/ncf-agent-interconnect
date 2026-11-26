@@ -27,6 +27,7 @@ import { applicationNames } from '../shared/application-discovery.js';
 import type { AgentApplicationId } from '../shared/contracts.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
+import { formatAttachmentStorage } from './attachment-storage-format.js';
 import {
   agentLastMessageTime,
   sortAgentRows,
@@ -95,7 +96,7 @@ function AgentApplicationIcon({
         }}
       >
         {application ? (
-          <ClientLogo client={applicationClients[application]} size={24} />
+          <ClientLogo client={applicationClients[application]} size={24} padding="2px" />
         ) : (
           <span aria-hidden="true">?</span>
         )}
@@ -126,11 +127,6 @@ export function AgentsTable({
   const [sort, setSort] = React.useState<AgentSort>({ column: 'name', direction: 'asc' });
   const applicationName = (application: AgentApplicationId) =>
     agentApplicationName(application, locale);
-  const attachmentSize = new Intl.NumberFormat(locale, {
-    style: 'unit',
-    unit: 'byte',
-    unitDisplay: 'short',
-  });
   const columns: { key: AgentSortColumn; label: string; align?: 'right'; span?: number }[] = [
     { key: 'name', label: labels.name },
     { key: 'application', label: labels.client, span: 2 },
@@ -146,21 +142,26 @@ export function AgentsTable({
         aria-label={t(locale, 'agentsTitle')}
         size="small"
         sx={{
-          minWidth: 736,
+          minWidth: 960,
           tableLayout: 'fixed',
-          '& td, & th': { overflowWrap: 'anywhere', verticalAlign: 'middle' },
-          '& thead th': { whiteSpace: 'normal' },
+          '& td, & tbody th': { overflowWrap: 'anywhere', verticalAlign: 'middle' },
+          '& thead th': {
+            whiteSpace: 'normal',
+            overflowWrap: 'normal',
+            wordBreak: 'keep-all',
+          },
         }}
       >
         <colgroup>
-          <col style={{ width: '16%' }} />
-          <col style={{ width: 28 }} />
-          <col style={{ width: 92 }} />
+          <col style={{ width: '12%' }} />
+          <col style={{ width: 40 }} />
+          <col style={{ width: 100 }} />
           <col style={{ width: 36 }} />
           <col />
-          <Box component="col" sx={{ width: 'clamp(90px, calc(84cqw - 574px), 180px)' }} />
-          <col style={{ width: 88 }} />
-          <col style={{ width: 116 }} />
+          {/* The date absorbs width changes after the name track's 12% share. */}
+          <Box component="col" sx={{ width: 'clamp(150px, calc(88cqw - 695px), 200px)' }} />
+          <col style={{ width: 152 }} />
+          <col style={{ width: 152 }} />
           <col style={{ width: 122 }} />
         </colgroup>
         <TableHead>
@@ -175,7 +176,6 @@ export function AgentsTable({
                   align={align}
                   colSpan={span}
                   sortDirection={active ? direction : false}
-                  sx={key === 'application' ? { p: '2px' } : undefined}
                 >
                   <TableSortLabel
                     component="button"
@@ -229,7 +229,7 @@ export function AgentsTable({
                   </Typography>
                 </Stack>
               </TableCell>
-              <TableCell sx={{ p: '2px' }}>
+              <TableCell sx={{ px: 1, py: '2px' }}>
                 <AgentApplicationIcon application={agent.application} locale={locale} />
               </TableCell>
               <TableCell sx={{ pl: 0, pr: 1 }}>
@@ -329,7 +329,7 @@ export function AgentsTable({
                       variant="body2"
                       sx={{ fontVariantNumeric: 'tabular-nums' }}
                     >
-                      {attachmentSize.format(agent.receivedAttachmentBytes)}
+                      {formatAttachmentStorage(agent.receivedAttachmentBytes, locale)}
                     </Typography>
                   )}
                   {agent.local && agent.identity?.incarnation && onRemoveReceivedAttachments && (
