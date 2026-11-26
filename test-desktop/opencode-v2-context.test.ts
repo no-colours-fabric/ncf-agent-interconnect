@@ -58,6 +58,24 @@ test('setup runtime diagnostics follow the active target and node lifecycle', as
   assert.deepEqual(runtime(), []);
 });
 
+test('a stopped node prevents registration in one location and the same setup works after restart', async (t) => {
+  const { service, provision, handle } = await openCodeV2ProductFixture(t);
+  await handle.dispose();
+  await service.stop();
+  const start = async () => {
+    const host = new OpenCodeV2HostFixture();
+    host.context.options = { targetId: provision.targetId, generation: provision.generation };
+    host.context.app.version = '2.3.2';
+    return startOpenCodeV2(host.context, provision, { timeoutMs: 2000 });
+  };
+  await assert.rejects(start(), /V2_REGISTRATION_UNAVAILABLE/);
+  assert.deepEqual(service.opencodeV2.runtime(), []);
+  await service.start();
+  const restarted = await start();
+  t.after(() => restarted.dispose());
+  assert.equal(service.opencodeV2.runtime()[0]?.version, '2.3.2');
+});
+
 test('v2 own endpoint rejects generic bearer and generic endpoint rejects target credential', async (t) => {
   const { service, configuration } = await openCodeV2ProductFixture(t),
     remote = configuration.mcp.servers.ncf_agent_interconnect;
