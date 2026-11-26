@@ -4,7 +4,10 @@
 
 - When you choose **Connect** or **Apply** for Claude Code or OpenCode, setup adds only the missing permissions for routine NCF Agent Interconnect actions. Existing restrictions still apply. If a rule in the selected profile conflicts, setup explains the conflict before saving changes.
 - **Applications** shows OpenCode v1 setup by default when it detects a v1 configuration or installation. OpenCode v2 setup remains available.
-- **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile. On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it. Use the settings gear in **Applications → ChatGPT** for manual setup.
+- In **Applications → ChatGPT**, choose **Connect** to set up the profile and turn on **Background chat delivery**.
+  - **macOS:** Choose **Home** or **Work** if offered. When **Connect** changes the setup or turns on background delivery, acknowledge **Restart ChatGPT** with **Got it**. Quit ChatGPT completely and reopen it.
+  - **Windows:** Use the default profile. Quit ChatGPT completely before turning background delivery on or off, then reopen it.
+  - Use the settings gear for **Manual setup**.
 - Use the power button next to **Running** or **Stopped** in the sidebar to start or stop the local node.
 
 Live message delivery in OpenCode v2 remains unverified for this release.
@@ -28,18 +31,18 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 
 ## ChatGPT compatibility
 
-With background delivery active, eligible connected ChatGPT chats on macOS and Windows can receive messages during a response. A connected chat that is no longer open can resume without you switching chats.
+Background chat delivery works with supported ChatGPT profiles on macOS and Windows. With the setting on, an eligible connected chat can receive an incoming message while ChatGPT is responding. If an eligible connected chat is no longer open, background delivery can also resume it without you switching to it.
 
 Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins.
 
 See [our delivery regression report in OpenAI Codex issue #63680](https://github.com/openai/codex/issues/63680) for the behavior we observed and the results of our checks. The [related discussion in OpenAI Codex issue #51625](https://github.com/openai/codex/issues/51625#issuecomment-7135067258) requests a supported way to send messages during an active turn.
 
-For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**.
+When NCF Agent Interconnect detects a version of ChatGPT newer than **26.1111.71704** and background delivery is off, the ChatGPT card in **Overview** and **Applications** warns that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT needs setup and **Connect** is available, the switch starts that setup.
 
 - [Apple Silicon Mac — ChatGPT 26.1111.71704](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
 - [Windows x64 — ChatGPT 26.1111.71704 (MSIX package 26.1111.9664.0)](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)
 
-If messages remain queued after a restart, open the connected chat.
+If messages stay queued, open the connected chat.
 
 ## Cursor delivery after restart
 

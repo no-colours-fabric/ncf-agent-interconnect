@@ -6,7 +6,10 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 - When you choose **Connect** or **Apply** for Claude Code or OpenCode, setup adds only the missing permissions for routine NCF Agent Interconnect actions. Existing restrictions still apply. If a rule in the selected profile conflicts, setup explains the conflict before saving changes.
 - **Applications** shows OpenCode v1 setup by default when it detects a v1 configuration or installation. OpenCode v2 setup remains available.
-- **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile. With background delivery active, eligible connected ChatGPT chats on macOS and Windows can receive messages during a response. A connected chat that is no longer open can resume without you switching chats. On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it. Use the settings gear for manual setup.
+- In **Applications → ChatGPT**, choose **Connect** to set up the profile and turn on **Background chat delivery**.
+  - **macOS:** Choose **Home** or **Work** if offered. When **Connect** changes the setup or turns on background delivery, acknowledge **Restart ChatGPT** with **Got it**. Quit ChatGPT completely and reopen it.
+  - **Windows:** Use the default profile. Quit ChatGPT completely before turning background delivery on or off, then reopen it.
+  - Use the settings gear for **Manual setup**.
 - Use the power button next to **Running** or **Stopped** in the sidebar to start or stop the local node.
 - In **Agents**, click **Name**, **Application**, **Node**, **Last message**, **Messages**, or **Attachments** to sort by that column. Click the same header again to reverse the order.
 - In **Agents**, the **Application** group shows the app icon in a narrow cell and the app name in the next cell. If the app is unknown, the group shows only **?**, labeled “Unknown application” for accessibility.
@@ -22,7 +25,13 @@ LLM-optimized documentation: [llms.txt](llms.txt).
 
 Live message delivery in OpenCode v2 remains unverified for this release.
 
-Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**. If a closed ChatGPT chat is missing messages after a restart, open that chat. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
+Background chat delivery works with supported ChatGPT profiles on macOS and Windows. With the setting on, an eligible connected chat can receive an incoming message while ChatGPT is responding. If an eligible connected chat is no longer open, background delivery can also resume it without you switching to it.
+
+Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins.
+
+When NCF Agent Interconnect detects a version of ChatGPT newer than **26.1111.71704** and background delivery is off, the ChatGPT card in **Overview** and **Applications** warns that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT needs setup and **Connect** is available, the switch starts that setup.
+
+If messages stay queued, open the connected chat. See [ChatGPT compatibility and downloads](docs/mcp-clients.md#codex-desktop).
 
 After Cursor restarts or reloads, send an ordinary message in the same connected Cursor chat and let the turn finish.
 
