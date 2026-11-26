@@ -29,7 +29,7 @@ export async function enableChatDelivery(
 export async function configureChatDelivery(
   invoke: import('./mcp-setup.js').McpSetupInvoke,
   configuration: string,
-): Promise<{ issue?: DeliveryIssue; changed?: true }> {
+): Promise<{ issue?: DeliveryIssue; changed?: true; status?: DesktopSessionDelivery }> {
   const profile = configurationProfile(configuration);
   if (!profile) return { issue: 'unavailable' };
   try {
@@ -40,7 +40,7 @@ export async function configureChatDelivery(
       status.state === 'unsupported' ||
       (status.state === 'enabled' && status.profile === profile)
     )
-      return {};
+      return { status };
     if (status.state === 'configuration-required') return { issue: 'unavailable' };
     if (
       status.state === 'unavailable' ||
@@ -53,8 +53,9 @@ export async function configureChatDelivery(
       action: 'enable',
       profile,
     });
-    if (result.state === 'unsupported') return {};
-    if (result.state === 'enabled' && result.profile === profile) return { changed: true };
+    if (result.state === 'unsupported') return { status: result };
+    if (result.state === 'enabled' && result.profile === profile)
+      return { changed: true, status: result };
     return {
       issue:
         result.state === 'conflict' || result.state === 'close-required'

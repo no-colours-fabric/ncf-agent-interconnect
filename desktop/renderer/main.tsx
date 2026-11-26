@@ -379,6 +379,7 @@ function App({
             nicknameDialog ||
             installationRestartPending ||
             applicationStartup.open ||
+            applicationSetupStates.codex.restartNotice === 'pending' ||
             Object.values(applicationSetupStates).some((state) => state.phase === 'confirmation')
           }
           snapshot={snapshot}

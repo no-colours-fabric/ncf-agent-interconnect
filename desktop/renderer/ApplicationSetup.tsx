@@ -47,7 +47,7 @@ import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2
 import { ClientLogo } from './ApplicationDiscovery.js';
 import {
   ChatgptCompatibilityNotice,
-  showsChatgptCompatibilityNotice,
+  useChatgptCompatibilityNotice,
 } from './ChatgptCompatibilityNotice.js';
 import { ApplicationCardGrid } from './ApplicationCardGrid.js';
 import { StartupApplicationTile } from './StartupApplicationTiles.js';
@@ -390,7 +390,7 @@ export function ApplicationSetupConfirmation({
       </Dialog>
     );
   const preview = client ? states[client].preview : undefined;
-  return (
+  const confirmation = (
     <Dialog
       open={!!client}
       onClose={() => {
@@ -447,6 +447,47 @@ export function ApplicationSetupConfirmation({
         </Button>
       </DialogActions>
     </Dialog>
+  );
+  return (
+    <>
+      {confirmation}
+      <Dialog
+        open={states.codex.restartNotice === 'pending'}
+        disableRestoreFocus
+        fullWidth
+        maxWidth="xs"
+        aria-labelledby="chatgpt-connect-restart-title"
+        aria-describedby="chatgpt-connect-restart-body"
+        slotProps={{
+          transition: {
+            onExited: () =>
+              requestAnimationFrame(() => {
+                const target = [
+                  ...document.querySelectorAll<HTMLElement>('[data-chatgpt-restart-focus]'),
+                ].find(
+                  (element) =>
+                    element.getClientRects().length && !element.closest('[aria-hidden="true"]'),
+                );
+                target?.focus();
+              }),
+          },
+        }}
+      >
+        <DialogTitle id="chatgpt-connect-restart-title">
+          {sessionDeliveryMessages[locale].connectRestartTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="chatgpt-connect-restart-body" variant="body2" color="text.secondary">
+            {sessionDeliveryMessages[locale].connectRestart}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus variant="contained" onClick={() => flow.acknowledgeCodexRestart()}>
+            {installationRestartMessages(locale).dismiss}
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </>
   );
 }
 
@@ -611,6 +652,14 @@ function ApplicationCompactList({
   context: 'application' | 'startup' | 'overview';
 }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  const chatgptWarning = useChatgptCompatibilityNotice(
+    flow.chatDelivery,
+    discovery.snapshot?.chatgptCompatibility,
+  );
+  const connectApplication = (client: ApplicationSetupClient) =>
+    flow.connect(client, undefined, {
+      showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
+    });
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
   const [showV1, setShowV1] = useOpenCodeV1Visibility(discovery, statuses);
@@ -789,7 +838,7 @@ function ApplicationCompactList({
             }
             onClick={() => {
               setGuidanceClient(client);
-              void flow.connect(client);
+              void connectApplication(client);
             }}
             data-testid={context + '-connect-' + client}
             title={
@@ -821,13 +870,9 @@ function ApplicationCompactList({
             sx={{ gridColumn: 3, alignSelf: 'start', justifySelf: 'end' }}
           />
         )}
-        {client === 'codex' &&
-          (detected || configured || discovery.snapshot?.chatgptCompatibility?.version) && (
-            <ChatgptCompatibilityNotice
-              compatibility={discovery.snapshot?.chatgptCompatibility}
-              locale={locale}
-            />
-          )}
+        {client === 'codex' && chatgptWarning && (
+          <ChatgptCompatibilityNotice model={flow.chatDelivery} locale={locale} />
+        )}
         {(state.phase === 'failed' || pending) && (
           <Alert
             severity={pending ? 'warning' : 'error'}
@@ -969,11 +1014,18 @@ export function ApplicationRows({
   disabled = false,
 }: SetupProps) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  const chatgptWarning = useChatgptCompatibilityNotice(
+    flow.chatDelivery,
+    discovery.snapshot?.chatgptCompatibility,
+  );
+  const connect = (client: ApplicationSetupClient) =>
+    flow.connect(client, undefined, {
+      showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
+    });
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
   const [showV1, setShowV1] = useOpenCodeV1Visibility(discovery, statuses);
-  const chatgptCard = useRef<HTMLElement>(null);
   const aionUiConfigured = setupView('aionui', states, statuses, discovery).configured;
   const [aionUiPaired, setAionUiPaired] = useState(false);
   useEffect(() => {
@@ -1138,12 +1190,7 @@ export function ApplicationRows({
               <Button
                 variant="contained"
                 disabled={action.disabled}
-                onClick={() => {
-                  void flow.connect(client, undefined, {
-                    showRestartNotice:
-                      client === 'codex' && discovery.snapshot?.platform === 'darwin',
-                  });
-                }}
+                onClick={() => void connect(client)}
                 data-testid={'application-connect-' + client}
                 title={
                   client === 'opencode' || client === 'opencode-v2'
@@ -1162,17 +1209,16 @@ export function ApplicationRows({
             />
           </Stack>
         </Box>
-        {client === 'codex' &&
-          (detected ||
-            configured ||
-            working ||
-            discovery.snapshot?.chatgptCompatibility?.version) && (
-            <ChatgptCompatibilityNotice
-              compatibility={discovery.snapshot?.chatgptCompatibility}
-              locale={locale}
-              marginTop="12px"
-            />
-          )}
+        {client === 'codex' && chatgptWarning && (
+          <ChatgptCompatibilityNotice
+            model={flow.chatDelivery}
+            locale={locale}
+            marginTop="12px"
+            showSwitch
+            disabled={anyBusy || state.phase === 'confirmation'}
+            onConnect={action && !action.disabled ? () => void connect(client) : undefined}
+          />
+        )}
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
           <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
             {hasPendingSetupResult(state) ? copy.uncertain : setupFailure(state, locale)}
@@ -1229,6 +1275,7 @@ export function ApplicationRows({
           onClick={() => {
             flow.invalidateSucceeded();
             void discovery.refresh();
+            void flow.chatDelivery.refresh();
             void statuses.refreshAll(true);
             void flow.openCodeV2.refresh();
           }}
@@ -1262,7 +1309,7 @@ export function ApplicationRows({
           <Paper
             key={client}
             component="article"
-            ref={client === 'codex' ? chatgptCard : undefined}
+            data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
             aria-label={client === 'codex' ? setupApplicationName(client, locale) : undefined}
             tabIndex={client === 'codex' ? -1 : undefined}
             data-testid={client === 'opencode' ? 'application-group-opencode' : undefined}
@@ -1291,29 +1338,6 @@ export function ApplicationRows({
           </Paper>
         ))}
       </Box>
-      <Dialog
-        open={states.codex.restartNotice === 'pending'}
-        disableRestoreFocus
-        fullWidth
-        maxWidth="xs"
-        aria-labelledby="chatgpt-connect-restart-title"
-        aria-describedby="chatgpt-connect-restart-body"
-        slotProps={{ transition: { onExited: () => chatgptCard.current?.focus() } }}
-      >
-        <DialogTitle id="chatgpt-connect-restart-title">
-          {sessionDeliveryMessages[locale].connectRestartTitle}
-        </DialogTitle>
-        <DialogContent>
-          <Typography id="chatgpt-connect-restart-body" variant="body2" color="text.secondary">
-            {sessionDeliveryMessages[locale].connectRestart}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button autoFocus variant="contained" onClick={() => flow.acknowledgeCodexRestart()}>
-            {installationRestartMessages(locale).dismiss}
-          </Button>
-        </DialogActions>
-      </Dialog>
     </Stack>
   );
 }
@@ -1404,6 +1428,14 @@ export function ApplicationSetup({
   startup,
 }: SetupProps & { startup: ApplicationStartup }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
+  const chatgptWarning = useChatgptCompatibilityNotice(
+    flow.chatDelivery,
+    discovery.snapshot?.chatgptCompatibility,
+  );
+  const connect = (client: ApplicationSetupClient) =>
+    flow.connect(client, undefined, {
+      showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
+    });
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
   const [content, setContent] = useState<HTMLDivElement | null>(null);
@@ -1549,23 +1581,17 @@ export function ApplicationSetup({
                     name={name}
                     status={busy ? copy.connecting : copy.detected}
                     busy={busy}
-                    compatibilityWarning={
-                      client === 'codex' &&
-                      showsChatgptCompatibilityNotice(discovery.snapshot?.chatgptCompatibility)
-                    }
+                    compatibilityWarning={client === 'codex' && chatgptWarning}
                     action={action}
                     onConnect={() => {
                       setAttempted((current) =>
                         current.includes(client) ? current : [...current, client],
                       );
-                      void flow.connect(client);
+                      void connect(client);
                     }}
                   >
-                    {client === 'codex' && (
-                      <ChatgptCompatibilityNotice
-                        compatibility={discovery.snapshot?.chatgptCompatibility}
-                        locale={locale}
-                      />
+                    {client === 'codex' && chatgptWarning && (
+                      <ChatgptCompatibilityNotice model={flow.chatDelivery} locale={locale} />
                     )}
                     {client === 'claude' && action && (
                       <Typography variant="caption" color="text.secondary">
@@ -1584,7 +1610,12 @@ export function ApplicationSetup({
             </ApplicationCardGrid>
           )}
           {completed.map((client) => (
-            <Box key={client} role="status">
+            <Box
+              key={client}
+              role="status"
+              data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
+              tabIndex={client === 'codex' ? -1 : undefined}
+            >
               <Typography component="h2" variant="subtitle2" color="success.main">
                 {setupApplicationName(client, locale)} · {copy.configuredStatus}
               </Typography>

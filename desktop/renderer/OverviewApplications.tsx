@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   ChatgptCompatibilityNotice,
-  showsChatgptCompatibilityNotice,
+  useChatgptCompatibilityNotice,
 } from './ChatgptCompatibilityNotice.js';
 import { ApplicationCardGrid } from './ApplicationCardGrid.js';
 import { Alert, Box, Button, Stack, Tooltip, Typography } from '@mui/material';
@@ -83,6 +83,14 @@ export function OverviewApplications({
   statuses: McpSetupStatuses;
   locale: Locale;
 }): React.JSX.Element | null {
+  const chatgptWarning = useChatgptCompatibilityNotice(
+    flow.chatDelivery,
+    discovery.snapshot?.chatgptCompatibility,
+  );
+  const connect = (client: (typeof applications)[number]['client']) =>
+    flow.connect(client, undefined, {
+      showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
+    });
   const connected = connectedOverviewApplications(snapshot);
   const openCodeV2Target = states['opencode-v2'].target;
   const detected = new Set(
@@ -135,9 +143,7 @@ export function OverviewApplications({
             : pending
               ? setupCopy.statusUnknown
               : copy.detected;
-          const compatibilityWarning =
-            client === 'codex' &&
-            showsChatgptCompatibilityNotice(discovery.snapshot?.chatgptCompatibility);
+          const compatibilityWarning = client === 'codex' && chatgptWarning;
           const heading = (
             <Stack spacing={1.25} sx={{ minWidth: 0 }}>
               <ClientLogo client={client === 'opencode-v2' ? 'opencode' : client} size={48} />
@@ -179,8 +185,11 @@ export function OverviewApplications({
               </Stack>
               {compatibilityWarning && (
                 <ChatgptCompatibilityNotice
-                  compatibility={discovery.snapshot?.chatgptCompatibility}
+                  model={flow.chatDelivery}
                   locale={locale}
+                  showSwitch
+                  disabled={anyBusy || state.phase === 'confirmation'}
+                  onConnect={action && !action.disabled ? () => void connect(client) : undefined}
                 />
               )}
               {configured && (
@@ -205,6 +214,9 @@ export function OverviewApplications({
                 key={client}
                 data-testid={testId}
                 data-compatibility-warning={compatibilityWarning || undefined}
+                data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
+                aria-label={client === 'codex' ? name : undefined}
+                tabIndex={client === 'codex' ? -1 : undefined}
                 sx={cardSx}
               >
                 {heading}
@@ -212,7 +224,7 @@ export function OverviewApplications({
                   <Button
                     variant="contained"
                     disabled={action.disabled}
-                    onClick={() => void flow.connect(client)}
+                    onClick={() => void connect(client)}
                     aria-label={`${action.label} — ${name}`}
                     sx={{ minHeight: 44, px: 1, overflowWrap: 'anywhere' }}
                   >
@@ -233,6 +245,9 @@ export function OverviewApplications({
               data-testid={testId}
               data-connected="true"
               data-compatibility-warning={compatibilityWarning || undefined}
+              data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
+              aria-label={client === 'codex' ? name : undefined}
+              tabIndex={client === 'codex' ? -1 : undefined}
               sx={{
                 ...cardSx,
                 backgroundColor: designTokens.successAlertBackground,

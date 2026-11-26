@@ -24,18 +24,21 @@ import { McpSetup, CodexSetupDialog } from ${JSON.stringify(path.join(root, 'des
 import { mcpSetupEnglish } from ${JSON.stringify(path.join(root, 'desktop/renderer/mcp-setup-messages.ts'))};
 import { ApplicationSetupFlow } from ${JSON.stringify(path.join(root, 'desktop/renderer/application-setup-model.ts'))};
 import { createAppTheme } from ${JSON.stringify(path.join(root, 'desktop/renderer/theme.ts'))};
-const surface = new URLSearchParams(location.search).get('surface');
+const query = new URLSearchParams(location.search);
+const surface = query.get('surface');
+const sharedDelivery = surface === 'delivery-sync';
+const requiredDelivery = surface === 'delivery-required';
 const calls = [];
 window.fixture = { calls };
 const restartFixture = surface?.startsWith('restart-');
 const profileTargets = ['/fixture/Home/config.toml', '/fixture/Work/config.toml'];
 const target = {id: 'configuration', path: '/fixture/work/config.toml'};
-const configured = ['session-delivery','manual-choice'].includes(surface) ? 'configured' : 'not-configured';
+const configured = ['session-delivery','manual-choice','delivery-sync'].includes(surface) ? 'configured' : 'not-configured';
 const status = {client:'codex', remembered:configured === 'configured', state:configured, files:[{...target,state:configured}]};
 const preview = {client:'codex',planId:'fixture-plan',requiresReplacement:surface==='restart-replacement-cancel',
   files:[{...target,action:'update',changes:[]}]};
 const first = {profile:'/fixture/work', scope:'user', requiresClosedChatGPT:true};
-let enabled = false;
+let enabled = query.get('state') === 'enabled';
 const deliveryResults = [
   'throw', {state:'ready',...first}, {state:'close-required'}, {state:'enabled',...first},
   {state:'unavailable'}, 'throw', {state:'conflict'}, {state:'enabled',...first}, {state:'ready',...first},
@@ -50,7 +53,14 @@ const invoke = async (method, params) => {
       if (params.action==='enable') enabled=true;
       return {...first, profile, state:enabled||surface==='restart-noop'?'enabled':'ready'};
     }
-    if (['quick','manual-offer','manual-choice'].includes(surface)) {
+    if (sharedDelivery || requiredDelivery) {
+      if (query.get('state') === 'unavailable') return {state:'unavailable'};
+      if (status.state !== 'configured') return {state:'configuration-required'};
+      if (params.action==='enable') enabled=true;
+      if (params.action==='disable') enabled=false;
+      return {...first, state:enabled?'enabled':'ready'};
+    }
+    if (['applications','overview','startup','quick','manual-offer','manual-choice'].includes(surface)) {
       if (surface === 'manual-offer' && status.state !== 'configured') return {state:'configuration-required'};
       if(params.action==='enable') enabled=true;
       return {...first, profile:status.files[0].path.replace('/config.toml',''), state:enabled?'enabled':'ready'};
@@ -87,19 +97,25 @@ const props = {flow, invoke, locale:'en', snapshot:{adapters:[],agents:[]},
   discovery:{busy:false,failed:false,offers:['codex'],snapshot:{
     platform:surface==='restart-unsupported'?'win32':'darwin',
     applications:[{client:'codex',status:'detected'},...(restartFixture?[{client:'cursor',status:'detected'}]:[])],
-    chatgptCompatibility:surface==='restart-profile'?{status:'unknown',version:'26.1120.50957'}:undefined,
+    chatgptCompatibility:surface==='restart-profile'||sharedDelivery||requiredDelivery
+      ? {status:'unknown',version:query.get('version') ?? '26.1120.50957'}:undefined,
     offers:['codex']},refresh:async()=>{},acknowledge:async()=>{}},
   onManualSetup:()=>{}};
 if (surface === 'manual-undetected') props.discovery.snapshot.applications=[];
 function Fixture() {
   const states = useSyncExternalStore(flow.subscribe,flow.getSnapshot);
-  if (surface === 'overview') return <OverviewApplications {...props} states={states}/>;
+  const confirm = <ApplicationSetupConfirmation flow={flow} locale="en"/>;
+  const overview = <OverviewApplications {...props} states={states}/>;
+  const applications = <McpSetup client="codex" onClientChange={()=>{}} invoke={invoke} discovery={props.discovery} setupFlow={flow} setupStatuses={props.statuses}/>;
+  if (sharedDelivery || requiredDelivery) return <><section data-testid="delivery-overview">{overview}</section>
+    <section data-testid="delivery-applications">{applications}</section>{confirm}</>;
+  if (surface === 'overview') return <>{overview}{confirm}</>;
   if (surface === 'startup') return <ApplicationSetup {...props} startup={{open:true, clients:['codex'],close:()=>{}}}/>;
-  if (['manual-choice','manual-before','manual-failed','manual-undetected','restart-quick'].includes(surface)) return <McpSetup client="codex" onClientChange={()=>{}} invoke={invoke} discovery={props.discovery} setupFlow={flow} setupStatuses={props.statuses}/>;
+  if (['manual-choice','manual-before','manual-failed','manual-undetected','restart-quick'].includes(surface)) return <>{applications}{confirm}</>;
   if (['manual','manual-offer','session-delivery'].includes(surface)) return <CodexSetupDialog invoke={invoke} inline messages={mcpSetupEnglish}/>;
-  return <><ApplicationRows {...props}/>{restartFixture && <ApplicationSetupConfirmation flow={flow} locale="en"/>}</>;
+  return <><ApplicationRows {...props}/>{confirm}</>;
 }
-createRoot(document.getElementById('root')).render(restartFixture ?
+createRoot(document.getElementById('root')).render(restartFixture || sharedDelivery || requiredDelivery ?
   <ThemeProvider theme={createAppTheme('light')}><Fixture/></ThemeProvider> : <Fixture/>);
 `,
   );
@@ -162,6 +178,11 @@ createRoot(document.getElementById('root')).render(restartFixture ?
     await page.waitForFunction(() =>
       window.fixture.calls.some((c) => c.method === 'mcpSetupApply'),
     );
+    if (surface !== 'manual') {
+      const restartDialog = page.getByRole('dialog', { name: 'Restart ChatGPT' });
+      await restartDialog.getByRole('button', { name: 'Got it' }).click();
+      await restartDialog.waitFor({ state: 'hidden' });
+    }
     const calls = await page.evaluate(() => window.fixture.calls);
     assert.deepEqual(
       calls.filter((c) => c.method === 'mcpSetupApply').map((c) => c.params),
@@ -170,6 +191,14 @@ createRoot(document.getElementById('root')).render(restartFixture ?
     assert.equal(
       calls.filter((c) => c.method === 'codexSetupPrepare').length,
       surface === 'manual' ? 0 : 1,
+    );
+    assert.deepEqual(
+      calls
+        .filter(
+          (call) => call.method === 'desktopSessionDelivery' && call.params.action === 'enable',
+        )
+        .map((call) => call.params.profile),
+      surface === 'manual' ? [] : ['/fixture/work'],
     );
     assert.ok(calls.every((c) => !/shortcut/i.test(c.method)));
     assert.equal(await page.getByText(/create.*shortcut/i).count(), 0);
@@ -346,7 +375,7 @@ createRoot(document.getElementById('root')).render(restartFixture ?
   assert.equal(await restart.count(), 0);
 
   await openRestartFixture('profile');
-  await page.getByTestId('application-row-codex').getByRole('alert').waitFor();
+  await page.getByTestId('application-row-codex').getByTestId('chatgpt-delivery-off').waitFor();
   const chooser = page.getByRole('dialog', { name: 'Choose the ChatGPT profile to connect' });
   await restartAction.click();
   await chooser.getByRole('button', { name: 'Home', exact: true }).waitFor();
@@ -391,6 +420,96 @@ createRoot(document.getElementById('root')).render(restartFixture ?
     await page.waitForFunction((phase) => window.fixture.snapshot().codex.phase === phase, phase);
     assert.equal(await restart.count(), 0, scenario);
   }
+  const summary = page.getByTestId('delivery-overview');
+  const appSettings = page.getByTestId('delivery-applications');
+  const warning = 'chatgpt-delivery-off';
+  const switchName = { name: 'Background chat delivery' };
+  const dialogToggle = appSettings.getByRole('switch', switchName);
+  const overviewWarning = summary.getByTestId(warning);
+  const appWarning = appSettings.getByTestId(warning);
+  const openDelivery = (query = '') =>
+    page.goto('http://ncf-setup.test/?surface=delivery-sync' + query);
+  for (const width of [560, 1280]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await openDelivery();
+    for (const area of [overviewWarning, appWarning]) {
+      await area.waitFor();
+      assert.equal(await area.getByRole('link').count(), 0);
+      assert.equal(await area.getByRole('switch', switchName).isEnabled(), true);
+      await area.getByText(/Background chat delivery is off/).waitFor();
+      assert.equal(
+        await area.evaluate((element) => element.scrollWidth > element.clientWidth),
+        false,
+      );
+    }
+    assert.equal(
+      await appWarning.evaluate((element) =>
+        Math.round(
+          element.getBoundingClientRect().top -
+            element.previousElementSibling.getBoundingClientRect().bottom,
+        ),
+      ),
+      12,
+    );
+  }
+
+  await overviewWarning.getByRole('switch', switchName).press('Space');
+  await overviewWarning.waitFor({ state: 'hidden' });
+  await appWarning.waitFor({ state: 'hidden' });
+  await appSettings.getByTestId('application-manual-codex').press('Enter');
+  await dialogToggle.waitFor();
+  assert.equal(await dialogToggle.isChecked(), true);
+  await dialogToggle.press('Space');
+  await overviewWarning.waitFor();
+  await appSettings.getByRole('button', { name: /Back/ }).click();
+  await appWarning.getByRole('switch', switchName).press('Space');
+  await overviewWarning.waitFor({ state: 'hidden' });
+  await appWarning.waitFor({ state: 'hidden' });
+  await appSettings.getByTestId('application-manual-codex').press('Enter');
+  await dialogToggle.waitFor();
+  assert.equal(await dialogToggle.isChecked(), true);
+  assert.deepEqual(
+    (await deliveryCalls()).filter(({ action }) => action !== 'status'),
+    [
+      { action: 'enable', profile: '/fixture/work' },
+      { action: 'disable', profile: '/fixture/work' },
+      { action: 'enable', profile: '/fixture/work' },
+    ],
+  );
+
+  for (const query of [
+    '&version=26.1111.71704',
+    '&version=invalid',
+    '&state=enabled',
+    '&state=unavailable',
+  ]) {
+    await openDelivery(query);
+    await appSettings.getByTestId('application-manual-codex').waitFor();
+    assert.equal(await overviewWarning.count(), 0, query);
+    assert.equal(await appWarning.count(), 0, query);
+  }
+
+  // With no verified configuration, the warning uses guarded Connect, not a second writer.
+  await page.goto('http://ncf-setup.test/?surface=delivery-required');
+  await appWarning.getByRole('switch', switchName).press('Space');
+  await restart.waitFor();
+  await restart.getByRole('button', { name: 'Got it' }).press('Enter');
+  await restart.waitFor({ state: 'hidden' });
+  assert.deepEqual(
+    await page.evaluate(() =>
+      window.fixture.calls
+        .filter(
+          (call) =>
+            call.method === 'codexSetupPrepare' ||
+            call.method === 'mcpSetupApply' ||
+            (call.method === 'desktopSessionDelivery' && call.params.action === 'enable'),
+        )
+        .map((call) => call.method),
+    ),
+    ['codexSetupPrepare', 'mcpSetupApply', 'desktopSessionDelivery'],
+  );
+  await overviewWarning.waitFor({ state: 'hidden' });
+  await appWarning.waitFor({ state: 'hidden' });
   process.stdout.write(
     'ChatGPT setup passed through Applications, Overview, Startup and Manual setup.\n',
   );

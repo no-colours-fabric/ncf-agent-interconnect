@@ -8,7 +8,7 @@ import { createMacSessionDelivery } from '../desktop/main/mac-session-delivery.j
 test('session delivery checks the selected profile and releases only its own setting', async (t) => {
   const directory = await mkdtemp(path.join(tmpdir(), 'ncf-session-setting-'));
   t.after(() => rm(directory, { recursive: true, force: true }));
-  let profile = '/private/fixture-a';
+  let profile: string | null = null;
   let current = '';
   let started = 0;
   const target = 'ws+unix://localhost/private/fixture.sock:/rpc';
@@ -28,6 +28,10 @@ test('session delivery checks the selected profile and releases only its own set
   };
   const create = () => createMacSessionDelivery(directory, async () => profile, host);
   const first = create();
+  assert.deepEqual(await first('status'), { state: 'configuration-required' });
+  assert.deepEqual(await first('enable', '/private/fixture-a'), { state: 'unavailable' });
+  assert.equal(started, 0);
+  profile = '/private/fixture-a';
   assert.equal((await first('status')).state, 'ready');
   await first('enable', '/private/other');
   assert.equal(started, 0);

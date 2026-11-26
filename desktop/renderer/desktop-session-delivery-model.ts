@@ -1,0 +1,116 @@
+import {
+  configureChatDelivery,
+  type DeliveryIssue,
+  type DesktopSessionDelivery,
+} from '../shared/desktop-session-delivery.js';
+import type { McpSetupInvoke } from '../shared/mcp-setup.js';
+
+type Verified = Extract<DesktopSessionDelivery, { profile: string }>;
+type Notice = Exclude<DesktopSessionDelivery, Verified>['state'];
+
+interface DeliveryState {
+  known?: Verified;
+  notice?: Notice;
+  issue?: DeliveryIssue;
+  busy: boolean;
+}
+
+/** One owner-side delivery state for Quick Connect, the warnings and manual setup. */
+export class DesktopSessionDeliveryModel {
+  private state: DeliveryState = { busy: false };
+  private listeners = new Set<() => void>();
+  private revision = 0;
+  private writing = false;
+  private loaded = false;
+
+  constructor(private readonly invoke: McpSetupInvoke) {}
+
+  getSnapshot = () => this.state;
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  private set(state: DeliveryState) {
+    this.state = state;
+    for (const listener of this.listeners) listener();
+  }
+
+  isWriting() {
+    return this.writing;
+  }
+
+  load() {
+    if (!this.loaded) void this.refresh();
+  }
+
+  async refresh() {
+    if (this.writing) return;
+    this.loaded = true;
+    const revision = ++this.revision;
+    this.set({ ...this.state, issue: undefined, busy: true });
+    try {
+      const status = await this.invoke<DesktopSessionDelivery>('desktopSessionDelivery', {
+        action: 'status',
+      });
+      if (revision !== this.revision) return;
+      if ('profile' in status) this.set({ known: status, busy: false });
+      else if (status.state === 'configuration-required' || status.state === 'unsupported')
+        this.set({ notice: status.state, busy: false });
+      else this.set({ ...this.state, notice: status.state, busy: false });
+    } catch {
+      if (revision === this.revision)
+        this.set({ ...this.state, notice: 'unavailable', busy: false });
+    }
+  }
+
+  private beginWrite() {
+    this.loaded = true;
+    this.writing = true;
+    this.revision++;
+    this.set({ ...this.state, issue: undefined, busy: true });
+  }
+
+  private finishWrite(status?: DesktopSessionDelivery, issue?: DeliveryIssue) {
+    this.writing = false;
+    if (status && 'profile' in status) this.set({ known: status, issue, busy: false });
+    else if (status) this.set({ notice: status.state, issue, busy: false });
+    else this.set({ ...this.state, issue, busy: false });
+  }
+
+  async change(action: 'enable' | 'disable', profile: string) {
+    if (this.writing || this.state.busy) return;
+    this.beginWrite();
+    try {
+      const result = await this.invoke<DesktopSessionDelivery>('desktopSessionDelivery', {
+        action,
+        profile,
+      });
+      if ('profile' in result) {
+        const expected = action === 'enable' ? 'enabled' : 'ready';
+        this.finishWrite(result, result.state === expected ? undefined : 'unavailable');
+      } else if (
+        result.state === 'unsupported' ||
+        (action === 'disable' && result.state === 'configuration-required')
+      ) {
+        this.finishWrite(result);
+      } else {
+        this.finishWrite(
+          undefined,
+          result.state === 'configuration-required' ? 'unavailable' : result.state,
+        );
+      }
+    } catch {
+      this.finishWrite(undefined, 'unavailable');
+    }
+  }
+
+  async enableForConfiguration(configuration: string) {
+    if (this.writing) return { issue: 'unavailable' as const };
+    this.beginWrite();
+    const result = await configureChatDelivery(this.invoke, configuration);
+    // Quick Connect presents its own error beside the selected configuration.
+    this.finishWrite(result.status);
+    return result;
+  }
+}

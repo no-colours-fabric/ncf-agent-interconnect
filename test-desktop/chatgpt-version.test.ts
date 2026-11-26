@@ -7,8 +7,13 @@ import {
   chatgptCompatibility,
   isChatgptReleaseUrl,
 } from '../desktop/shared/chatgpt-compatibility.js';
-import { ChatgptCompatibilityNotice } from '../desktop/renderer/ChatgptCompatibilityNotice.js';
-import { supportedLocales, t } from '../desktop/renderer/i18n/index.js';
+import {
+  ChatgptCompatibilityNotice,
+  showsChatgptCompatibilityNotice,
+} from '../desktop/renderer/ChatgptCompatibilityNotice.js';
+import { DesktopSessionDeliveryModel } from '../desktop/renderer/desktop-session-delivery-model.js';
+import { sessionDeliveryMessages } from '../desktop/renderer/i18n/session-delivery.js';
+import { supportedLocales } from '../desktop/renderer/i18n/index.js';
 import { detectChatgptCompatibility, sameWindowsDesktop } from '../desktop/main/chatgpt-version.js';
 import { NativeDiscoveryFiles } from '../desktop/core/application-discovery-platforms.js';
 
@@ -19,7 +24,7 @@ const textOnly = (markup: string) =>
 const official =
   'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip';
 
-test('Windows without version metadata keeps the warning and offers the download only on an x64 runtime', async (context) => {
+test('Windows only establishes the available compatibility metadata and keeps unknown versions undefined', async (context) => {
   const missing = Object.assign(new NativeDiscoveryFiles('win32'), { windowsCodex: undefined });
   const unreadable = Object.assign(new NativeDiscoveryFiles('win32'), {
     windowsCodex() {
@@ -36,13 +41,10 @@ test('Windows without version metadata keeps the warning and offers the download
       result.download?.url,
       'https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix',
     );
-    const html = renderToStaticMarkup(
-      createElement(ChatgptCompatibilityNotice, { compatibility: result, locale: 'ru' }),
+    assert.equal(
+      showsChatgptCompatibilityNotice(result, { busy: false, notice: 'configuration-required' }),
+      false,
     );
-    assert.ok(
-      textOnly(html).includes(t('ru', 'chatgptDeliveryVersionUnknown', { version: good.version })),
-    );
-    assert.ok(html.includes(result.download!.url));
   }
   for (const architecture of ['arm64', 'ia32'] as const) {
     arch.mock.mockImplementation(() => architecture);
@@ -91,10 +93,9 @@ test('only a tested platform, architecture and exact build can establish current
   assert.equal(isChatgptReleaseUrl(official.replace('https:', 'http:'), 'darwin'), false);
 });
 
-test('the notice uses a numeric app-version cutoff and names it when the version is unknown', () => {
-  const windowsUrl =
-    'https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix';
-  for (const [version, showNotice] of [
+test('the notice requires a numeric version above the cutoff and a confirmed off state', () => {
+  const ready = { state: 'ready', scope: 'login', profile: '/fixture/profile' } as const;
+  for (const [version, visible] of [
     ['25.9999.99999', false],
     ['26.999.99999', false],
     ['26.1111.9', false],
@@ -102,72 +103,68 @@ test('the notice uses a numeric app-version cutoff and names it when the version
     [good.version, false],
     ['26.1111.71705', true],
     ['26.1112.1', true],
-    ['26.1117.41037', true],
     ['27.1.1', true],
-    [undefined, true],
-    ['invalid', true],
-    ['26.1111.9664.0', true],
+    [undefined, false],
+    ['invalid', false],
+    ['26.1111.9664.0', false],
   ] as const) {
-    const compatibility = chatgptCompatibility('win32', { architecture: 'x64', version });
-    assert.equal(compatibility.status, 'unknown');
-    const html = renderToStaticMarkup(
-      createElement(ChatgptCompatibilityNotice, { compatibility, locale: 'ru' }),
+    const compatibility = { status: 'unknown' as const, version };
+    assert.equal(
+      showsChatgptCompatibilityNotice(compatibility, { busy: false, known: ready }),
+      visible,
     );
-    if (!showNotice) {
-      assert.equal(html, '');
-      continue;
-    }
-    assert.ok(html.includes(windowsUrl));
-    if (compatibility.version) {
-      assert.ok(textOnly(html).includes('ChatGPT ' + compatibility.version));
-      assert.ok(html.includes(t('ru', 'chatgptDeliveryUnknown')));
-    } else {
-      assert.ok(
-        textOnly(html).includes(
-          t('ru', 'chatgptDeliveryVersionUnknown', { version: good.version }),
-        ),
-      );
-    }
+    assert.equal(
+      showsChatgptCompatibilityNotice(compatibility, {
+        busy: false,
+        notice: 'configuration-required',
+      }),
+      visible,
+    );
+    assert.equal(
+      showsChatgptCompatibilityNotice(compatibility, {
+        busy: false,
+        known: { ...ready, state: 'enabled' },
+      }),
+      false,
+    );
   }
-});
-
-test('each locale distinguishes observed queueing from unverified delivery and renders the platform-specific link', () => {
-  for (const locale of supportedLocales) {
-    const render = (compatibility: ReturnType<typeof chatgptCompatibility>) =>
-      renderToStaticMarkup(createElement(ChatgptCompatibilityNotice, { compatibility, locale }));
-    assert.equal(render(chatgptCompatibility('darwin', good)), '');
-    const delayed = render(chatgptCompatibility('darwin', affected));
-    const unknown = render(chatgptCompatibility('linux', {}));
-    const win = render(chatgptCompatibility('win32', { ...affected, architecture: 'x64' }));
-    assert.ok(win.includes(t(locale, 'chatgptDeliveryUnknown')));
-    assert.ok(
-      textOnly(win).includes(t(locale, 'chatgptDownloadAutomatic', { version: good.version })),
-    );
-    assert.ok(win.includes('/26.1111.9664.0/ChatGPT-x64.msix'));
-    const equal = render(chatgptCompatibility('win32', { ...good, architecture: 'x64' }));
-    assert.equal(equal, '');
-    assert.ok(delayed.includes(t(locale, 'chatgptDeliveryAffected')));
-    assert.ok(
-      textOnly(delayed).includes(t(locale, 'chatgptDownloadVerified', { version: good.version })),
-    );
-    assert.ok(delayed.includes(official));
-    assert.ok(
-      textOnly(unknown).includes(
-        t(locale, 'chatgptDeliveryVersionUnknown', { version: good.version }),
+  for (const notice of [
+    'conflict',
+    'unavailable',
+    'unsupported',
+    'close-required',
+    undefined,
+  ] as const) {
+    assert.equal(
+      showsChatgptCompatibilityNotice(
+        { status: 'unknown', version: affected.version },
+        { busy: false, notice },
       ),
+      false,
     );
-    assert.ok(unknown.includes(good.version));
-    assert.ok(!unknown.includes('href='));
-    assert.notEqual(t(locale, 'chatgptDeliveryUnknown'), t(locale, 'chatgptDeliveryAffected'));
   }
+  assert.equal(
+    showsChatgptCompatibilityNotice(
+      { status: 'unknown', version: affected.version },
+      { busy: false, notice: 'unavailable', known: ready },
+    ),
+    false,
+  );
 });
 
-test('the installed and offered ChatGPT versions stay together in warning and link text', () => {
-  const compatibility = chatgptCompatibility('darwin', { ...affected, version: '26.1120.50957' });
-  const html = renderToStaticMarkup(
-    createElement(ChatgptCompatibilityNotice, { compatibility, locale: 'en' }),
+test('all 15 locales render the new warning and an accessible switch without a download link', () => {
+  const model = new DesktopSessionDeliveryModel(async () =>
+    assert.fail('Static render cannot invoke IPC'),
   );
-  assert.match(html, /white-space:nowrap/);
-  assert.match(html, /<strong>ChatGPT [\s\S]*?<span[^>]*>26\.1120\.50957<\/span>/);
-  assert.match(html, /<a[^>]*href=[^>]*>[\s\S]*?<span[^>]*>26\.1111\.71704<\/span><\/a>/);
+  assert.equal(supportedLocales.length, 15);
+  for (const locale of supportedLocales) {
+    const copy = sessionDeliveryMessages[locale];
+    const html = renderToStaticMarkup(
+      createElement(ChatgptCompatibilityNotice, { model, locale, showSwitch: true }),
+    );
+    assert.ok(textOnly(html).includes(copy.offWarning));
+    assert.ok(textOnly(html).includes(copy.label));
+    assert.match(html, /role="switch"/);
+    assert.doesNotMatch(html, /href=|26\.1111/);
+  }
 });

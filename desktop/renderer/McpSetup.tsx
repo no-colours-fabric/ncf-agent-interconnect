@@ -1,11 +1,7 @@
 import { DesktopSessionDeliveryControl } from './DesktopSessionDeliveryControl.js';
-import {
-  configurationProfile,
-  enableChatDelivery,
-  type DeliveryIssue,
-} from '../shared/desktop-session-delivery.js';
+import { configurationProfile, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
+import { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
-import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import {
   ApplicationRows,
@@ -379,6 +375,7 @@ interface DialogProps {
   inline?: boolean;
   flow?: McpSetupFlow;
   setupBusy?: boolean;
+  chatDelivery?: DesktopSessionDeliveryModel;
   snapshot?: Pick<Snapshot, 'adapters' | 'agents'>;
   locale?: Locale;
   onApplied?: () => Promise<void>;
@@ -403,6 +400,7 @@ function ClientSetupDialog({
   inline,
   flow: providedFlow,
   setupBusy,
+  chatDelivery: sharedDelivery,
 }: DialogProps & { client: McpSetupClient; before?: React.ReactNode }): React.JSX.Element {
   const flow = useMemo(
     () => providedFlow ?? new McpSetupFlow(client, invoke),
@@ -417,7 +415,10 @@ function ClientSetupDialog({
     !!state.uncertain && !result && state.preview?.planId === state.uncertain.preview.planId;
   const configuration = state.files.find((file) => file.id === 'configuration')?.path ?? '';
   const [pendingConfiguration, setPendingConfiguration] = useState<string>();
-  const [deliveryRefresh, setDeliveryRefresh] = useState(0);
+  const chatDelivery = useMemo(
+    () => sharedDelivery ?? new DesktopSessionDeliveryModel(invoke),
+    [sharedDelivery, invoke],
+  );
   const [deliveryIssue, setDeliveryIssue] = useState<DeliveryIssue>();
   const [deliveryBusy, setDeliveryBusy] = useState(false);
   const verifiedConfiguration =
@@ -437,12 +438,13 @@ function ClientSetupDialog({
         current.status?.files[0]?.path;
       if (pendingConfiguration && target === pendingConfiguration) {
         setDeliveryBusy(true);
-        const issue = await enableChatDelivery(invoke, target);
+        const { issue } = await chatDelivery.enableForConfiguration(target);
         setDeliveryBusy(false);
         setDeliveryIssue(issue);
         setPendingConfiguration(undefined);
+      } else {
+        void chatDelivery.refresh();
       }
-      setDeliveryRefresh((value) => value + 1);
     }
     if (current.result && current.result !== state.result && current.result.status !== 'failed')
       onSuccess?.(current.result.status);
@@ -732,13 +734,12 @@ function ClientSetupDialog({
         })}
         {client === 'codex' && (
           <DesktopSessionDeliveryControl
-            invoke={invoke}
+            model={chatDelivery}
             locale={locale}
             configuration={configuration}
             configured={!!verifiedConfiguration}
             pending={!!pendingConfiguration && pendingConfiguration === configuration}
             onPendingChange={(value) => setPendingConfiguration(value ? configuration : undefined)}
-            refresh={deliveryRefresh}
             applyIssue={deliveryIssue}
             clearIssue={() => setDeliveryIssue(undefined)}
             formBusy={state.busy || deliveryBusy || !!setupBusy}
@@ -1170,12 +1171,6 @@ export function McpSetup({
             {copy.back}
           </Button>
           <Stack spacing={0}>
-            {selectedClient === 'codex' && (
-              <ChatgptCompatibilityNotice
-                compatibility={discovery?.snapshot?.chatgptCompatibility}
-                locale={locale}
-              />
-            )}
             {showOpenCodeV2 ? (
               <OpenCodeV2SetupDialog
                 flow={autoFlow.openCodeV2}
@@ -1190,6 +1185,7 @@ export function McpSetup({
                 inline
                 flow={manualFlows[selectedClient]}
                 setupBusy={quickBusy}
+                chatDelivery={autoFlow.chatDelivery}
                 onSuccess={showSuccess}
                 invoke={invoke}
                 messages={m}

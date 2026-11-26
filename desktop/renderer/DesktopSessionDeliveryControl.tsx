@@ -1,78 +1,38 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useSyncExternalStore } from 'react';
 import { Alert, Box, Button, FormControlLabel, Switch, Typography } from '@mui/material';
-import {
-  configurationProfile,
-  type DesktopSessionDelivery,
-  type DeliveryAction,
-  type DeliveryIssue,
-} from '../shared/desktop-session-delivery.js';
-import type { McpSetupInvoke } from '../shared/mcp-setup.js';
+import { configurationProfile, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
+import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 import type { Locale } from './i18n/index.js';
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
 
-type Verified = Extract<DesktopSessionDelivery, { profile: string }>;
-type Notice = Exclude<DesktopSessionDelivery, Verified>['state'];
-
 export function DesktopSessionDeliveryControl({
-  invoke,
+  model,
   locale,
   configuration,
   configured,
   pending,
   onPendingChange,
-  refresh,
   applyIssue,
   clearIssue,
   formBusy,
 }: {
-  invoke: McpSetupInvoke;
+  model: DesktopSessionDeliveryModel;
   locale: Locale;
   configuration: string;
   configured: boolean;
   pending: boolean;
   onPendingChange: (value: boolean) => void;
-  refresh: number;
   applyIssue?: DeliveryIssue;
   clearIssue: () => void;
   formBusy: boolean;
 }) {
-  const [known, setKnown] = useState<Verified | null>(null);
-  const [notice, setNotice] = useState<Notice | null>(null);
-  const [busy, setBusy] = useState(false);
-  const sequence = useRef(0);
-  const copy = sessionDeliveryMessages[locale];
-  const request = useCallback(
-    async (action: DeliveryAction, profile?: string) => {
-      const id = ++sequence.current;
-      setBusy(true);
-      try {
-        const result = await invoke<DesktopSessionDelivery>(
-          'desktopSessionDelivery',
-          action === 'status' ? { action } : { action, profile },
-        );
-        if (id !== sequence.current) return;
-        if ('profile' in result) {
-          setKnown(result);
-          setNotice(null);
-        } else {
-          setNotice(result.state);
-        }
-      } catch {
-        if (id === sequence.current) setNotice('unavailable');
-      } finally {
-        if (id === sequence.current) setBusy(false);
-      }
-    },
-    [invoke],
+  const { known, notice, issue, busy } = useSyncExternalStore(
+    model.subscribe,
+    model.getSnapshot,
+    model.getSnapshot,
   );
-  useEffect(() => {
-    setKnown(null);
-    setNotice(null);
-    void request('status');
-    return () => {
-      sequence.current++;
-    };
-  }, [request, refresh]);
+  const copy = sessionDeliveryMessages[locale];
+  useEffect(() => model.load(), [model]);
   if (notice === 'unsupported' || (!known && !notice)) return null;
   const profile = configurationProfile(configuration);
   const staged = !configured;
@@ -97,7 +57,7 @@ export function DesktopSessionDeliveryControl({
         </Typography>
       </Box>
     );
-  const visibleNotice = notice ?? applyIssue;
+  const visibleNotice = notice ?? issue ?? applyIssue;
   return (
     <Box sx={{ gridColumn: '1 / -1', mt: 1 }}>
       {known && (
@@ -107,11 +67,16 @@ export function DesktopSessionDeliveryControl({
               <Switch
                 checked={known.state === 'enabled' && known.profile === profile}
                 disabled={
-                  busy || formBusy || !profile || notice === 'unavailable' || notice === 'conflict'
+                  busy ||
+                  formBusy ||
+                  !profile ||
+                  visibleNotice === 'unavailable' ||
+                  visibleNotice === 'conflict'
                 }
                 onChange={() => {
+                  if (!profile) return;
                   clearIssue();
-                  void request(
+                  void model.change(
                     known.state === 'enabled' && known.profile === profile ? 'disable' : 'enable',
                     profile,
                   );
@@ -142,7 +107,7 @@ export function DesktopSessionDeliveryControl({
               disabled={busy}
               onClick={() => {
                 clearIssue();
-                void request('status');
+                void model.refresh();
               }}
             >
               {copy.checkStatus}

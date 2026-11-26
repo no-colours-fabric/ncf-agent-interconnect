@@ -118,7 +118,7 @@ export function createMacSessionDelivery(
         return { state: 'enabled', scope: 'login', profile: prior.profile };
     }
     const profile = await selected();
-    if (!profile) return { state: 'unavailable' };
+    if (!profile) return { state: action === 'status' ? 'configuration-required' : 'unavailable' };
     if (action !== 'enable' || expected !== profile)
       return { state: 'ready', scope: 'login', profile };
     const url = await host.start(profile);

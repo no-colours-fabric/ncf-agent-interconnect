@@ -260,28 +260,39 @@ test('Overview shows the saved v2 next step without treating it as a live connec
   assert.ok(!html.includes('data-connected="true"'));
 });
 
-test('Overview widens ChatGPT only when it displays a compatibility warning', () => {
+test('Overview widens ChatGPT only when it displays the disabled delivery warning', async () => {
   const snapshot = {
     adapters: [profile('chatgpt', 'codex-desktop')],
     agents: [agent('Connected', 'chatgpt')],
   };
-  for (const [version, warning] of [
-    ['26.1111.71704', false],
-    ['26.1117.41037', true],
+  for (const [version, enabled, warning] of [
+    ['26.1111.71704', false, false],
+    ['26.1117.41037', true, false],
+    ['26.1117.41037', false, true],
   ] as const) {
     const discovery = {
       ...detected('codex'),
       chatgptCompatibility: { status: 'affected' as const, version },
     };
+    const flow = new ApplicationSetupFlow(
+      async <T>() =>
+        ({
+          state: enabled ? 'enabled' : 'ready',
+          profile: '/fixture/profile',
+          scope: 'login',
+        }) as T,
+    );
+    await flow.chatDelivery.refresh();
     const html = renderToStaticMarkup(
       React.createElement(OverviewApplications, {
         snapshot,
         ...setupFixture(discovery),
+        flow,
       }),
     );
     assert.equal(/<div[^>]*data-compatibility-warning="true"/.test(html), warning);
     if (warning) {
-      const notice = html.indexOf('role="alert"');
+      const notice = html.indexOf('data-testid="chatgpt-delivery-off"');
       assert.ok(
         notice > 0 && notice < html.indexOf('Already set up. You can work in this app now.'),
       );

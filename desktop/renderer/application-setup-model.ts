@@ -10,7 +10,8 @@ import {
   type McpSetupTarget,
 } from '../shared/mcp-setup.js';
 import { OpenCodeV2SetupFlow, type OpenCodeV2SetupState } from './opencode-v2-setup-model.js';
-import { configureChatDelivery, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
+import type { DeliveryIssue } from '../shared/desktop-session-delivery.js';
+import { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 
 export type ApplicationSetupClient = McpSetupClient | 'opencode-v2';
 export const applicationSetupClients: readonly ApplicationSetupClient[] = [
@@ -116,6 +117,7 @@ export class ApplicationSetupFlow {
   ) as LegacyApplicationSetupStates;
   private listeners = new Set<() => void>();
   private disposed = false;
+  readonly chatDelivery: DesktopSessionDeliveryModel;
   readonly openCodeV2: OpenCodeV2SetupFlow;
   private snapshot: ApplicationSetupStates;
   private readonly unsubscribeV2: () => void;
@@ -124,6 +126,7 @@ export class ApplicationSetupFlow {
     private readonly invoke: McpSetupInvoke,
     private readonly onApplied?: () => Promise<void>,
   ) {
+    this.chatDelivery = new DesktopSessionDeliveryModel(invoke);
     this.openCodeV2 = new OpenCodeV2SetupFlow(invoke, onApplied, () =>
       mcpSetupClients.some((client) => this.busy(client)),
     );
@@ -182,6 +185,7 @@ export class ApplicationSetupFlow {
       return;
     const state = this.states[client];
     if (state.phase === 'confirmation' || state.phase === 'succeeded') return;
+    if (client === 'codex' && this.chatDelivery.isWriting()) return;
     const previous: ApplicationSetupState =
       client === 'codex' && showRestartNotice ? { ...state, restartNotice: 'requested' } : state;
     if (previous.phase === 'uncertain') {
@@ -190,7 +194,7 @@ export class ApplicationSetupFlow {
     }
     if (client === 'codex' && previous.deliveryIssue && previous.target) {
       this.set(client, { ...previous, phase: 'applying' });
-      const delivery = await configureChatDelivery(this.invoke, previous.target.path);
+      const delivery = await this.chatDelivery.enableForConfiguration(previous.target.path);
       this.set(client, {
         ...previous,
         phase: delivery.issue ? 'failed' : 'succeeded',
@@ -318,7 +322,7 @@ export class ApplicationSetupFlow {
         this.discard(fresh);
         const delivery =
           client === 'codex'
-            ? await configureChatDelivery(this.invoke, previous.target.path)
+            ? await this.chatDelivery.enableForConfiguration(previous.target.path)
             : undefined;
         this.set(client, {
           ...previous,
@@ -436,7 +440,7 @@ export class ApplicationSetupFlow {
       });
       const delivery =
         client === 'codex' && result.status !== 'failed' && previous.target
-          ? await configureChatDelivery(this.invoke, previous.target.path)
+          ? await this.chatDelivery.enableForConfiguration(previous.target.path)
           : undefined;
       const succeeded = result.status !== 'failed' && !delivery?.issue;
       this.set(client, {
