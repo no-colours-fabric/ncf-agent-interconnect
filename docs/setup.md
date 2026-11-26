@@ -44,7 +44,7 @@ If the name is already connected to another chat, the new chat will ask whether 
 
 Start NCF Agent Interconnect on both computers and open **Remote nodes**. Check that the receiving computer shows an enabled connection address. If it does not, review excluded interfaces under **Settings → Network settings**. Opening the window starts a 30-second search. Use **Stop search** or **Search again** as needed. Select the intended computer and address from the search results, or use **Connect by address** if search misses it.
 
-- **Request approval:** If this option is available, open the request on both computers. Compare all six digits, including any leading zero. Choose **Confirm** on both computers only if the codes match and you recognize the other computer. If the codes differ, cancel the request.
+- **Request approval:** If this option is available, open the request on both computers. Compare all six digits, including any leading zero. On the receiving computer, choose **Confirm** only if the codes match and you recognize the other computer. If the codes differ, cancel the request.
 - **Enter a connection code:** On the receiving computer, create a temporary connection code. Enter it on the computer starting the connection. Keep it private. It has eight characters, expires after ten minutes and authorizes one pairing.
 
 Review paired computers under **Remote nodes**. To end a pairing, select that computer, choose **Disconnect** and confirm. If the other computer is offline or runs an older version, it may still show the saved pairing. To reconnect, pair the computers again.
