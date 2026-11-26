@@ -575,10 +575,19 @@ export class AdapterRegistry extends EventEmitter {
     return adapter;
   }
 
-  activateCodexQueue(previous: AgentAdapter, prepared: CodexQueueAdapter): void {
-    if (this.adapters.get(prepared.profile.id) !== previous)
-      throw new Error('The saved Codex adapter changed');
-    this.adapters.set(prepared.profile.id, prepared);
+  assertCurrent(id: string, expected: AgentAdapter | undefined): void {
+    if (this.adapters.get(id) !== expected) throw new Error('The saved Codex adapter changed');
+  }
+
+  activateCodexQueue(previous: AgentAdapter | undefined, prepared: CodexQueueAdapter): () => void {
+    const id = prepared.profile.id;
+    this.assertCurrent(id, previous);
+    this.adapters.set(id, prepared);
+    return () => {
+      if (this.adapters.get(id) !== prepared) return;
+      if (previous) this.adapters.set(id, previous);
+      else this.adapters.delete(id);
+    };
   }
 
   states(): AdapterState[] {

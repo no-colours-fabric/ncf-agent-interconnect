@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import net from 'node:net';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
-import { mkdir, mkdtemp, realpath, rm, writeFile, readFile } from 'node:fs/promises';
+import fsPromises, { mkdir, mkdtemp, realpath, rm, writeFile, readFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { randomUUID } from 'node:crypto';
@@ -2389,3 +2389,256 @@ test(
       });
   },
 );
+
+test('a new Codex destination is private until the exact proof and owner survive publication', async (t) => {
+  for (const scenario of [
+    'queued-expiry',
+    'temp-expiry',
+    'temp-revocation',
+    'temp-owner-change',
+    'rename-revocation',
+    'success',
+  ] as const) {
+    await t.test(scenario, { timeout: 10000 }, async (t) => {
+      let configuration = '';
+      const { service, connect, directory } = await recoveryMcp(t, {
+        codexSockets: () => [],
+        runningCodexConfiguration: async () => configuration,
+      });
+      configuration = path.join(directory, 'config.toml');
+      await writeFile(configuration, service.clientInstructions('codex').configuration, {
+        mode: 0o600,
+      });
+      const occupied = scenario === 'temp-owner-change' || scenario === 'rename-revocation';
+      const source = occupied ? await fixture(t) : undefined;
+      const original = source
+        ? await service.connectCodex(
+            { nickname: 'Recipient', client: 'Codex' },
+            { threadId: source.profile.threadId!, socket: source.profile.socket },
+          )
+        : undefined;
+      if (original && original.status !== 'connected') throw Error('fixture source');
+      if (original) {
+        const adapter = service.adapters.get(original.binding.adapterId);
+        const state = adapter.status();
+        t.mock.method(adapter, 'status', () => ({
+          ...state,
+          capabilities: { ...state.capabilities, wakeIdle: false },
+        }));
+      }
+      const sender = service.connect({ nickname: 'Sender', client: 'MCP' });
+      if (sender.status !== 'connected') throw Error('fixture sender');
+      const message = await service.send({
+        connectionId: sender.binding.connectionId,
+        recipientNode: service.settings.value.nodeId,
+        recipientNickname: 'Recipient',
+        text: 'Saved history — ё / 東京.',
+      });
+      const history = service.store.get(message.id, 'in');
+      assert.ok(history);
+      const dest = randomUUID();
+      const tokens: string[] = [];
+      t.mock.method(CodexQueueAdapter.prototype, 'challenge', async (token: string) => {
+        tokens.push(token);
+        return {
+          state: 'dispatched',
+          witness: { messageId: randomUUID(), payloadHash: 'fixture' },
+        };
+      });
+      let candidateId = '';
+      t.mock.method(CodexQueueAdapter.prototype, 'start', async function (this: CodexQueueAdapter) {
+        candidateId = this.profile.id;
+      });
+      t.mock.method(CodexQueueAdapter.prototype, 'status', function (this: CodexQueueAdapter) {
+        return {
+          id: this.profile.id,
+          label: 'Fixture',
+          kind: 'codex-desktop',
+          state: 'ready',
+          error: null,
+          capabilities: {
+            wakeIdle: false,
+            nativeDisplay: true,
+            exactSession: true,
+            receiveActive: false,
+          },
+        };
+      });
+      const offer = await connect(dest);
+      assert.equal(offer.body?.status, 'codex_recovery_pending');
+      const expires = Date.parse(String(offer.body?.expiresAt));
+      let now = expires - 1;
+      t.mock.method(Date, 'now', () => now);
+      const filename = service.settings.filename;
+      const before = JSON.parse(await readFile(filename, 'utf8'));
+      let expectedOwner = original?.binding;
+      const storeConnect = t.mock.method(service.store, 'connect');
+      const candidateTemps = new Set<string>();
+      let renames = 0;
+      let resume!: () => void, entered!: () => void;
+      const hold = new Promise<void>((r) => {
+        resume = r;
+      });
+      const atBarrier = new Promise<void>((r) => {
+        entered = r;
+      });
+      const originalWrite = fsPromises.writeFile.bind(fsPromises);
+      const originalRename = fsPromises.rename.bind(fsPromises);
+      const write = t.mock.method(
+        fsPromises,
+        'writeFile',
+        async (...args: Parameters<typeof fsPromises.writeFile>) => {
+          await originalWrite(...args);
+          const [file, data] = args;
+          if (
+            typeof file !== 'string' ||
+            !file.startsWith(filename + '.') ||
+            !file.endsWith('.tmp') ||
+            typeof data !== 'string'
+          )
+            return;
+          const hasCandidate = JSON.parse(data).adapters.some(
+            (a: AdapterProfile) => a.threadId === dest,
+          );
+          if (hasCandidate) candidateTemps.add(file);
+          if (hasCandidate && scenario.startsWith('temp-')) {
+            entered();
+            await hold;
+          }
+        },
+      );
+      const rename = t.mock.method(
+        fsPromises,
+        'rename',
+        async (...args: Parameters<typeof fsPromises.rename>) => {
+          const ours =
+            typeof args[0] === 'string' && candidateTemps.has(args[0]) && args[1] === filename;
+          if (ours) renames++;
+          await originalRename(...args);
+          if (ours && scenario === 'rename-revocation') {
+            entered();
+            await hold;
+          }
+        },
+      );
+      // Hold a real unrelated save before it serializes live settings. The destination
+      // must stay private while its own write waits behind that save.
+      const originalMkdir = fsPromises.mkdir.bind(fsPromises);
+      let first = true;
+      const mkdirGate =
+        scenario === 'queued-expiry'
+          ? t.mock.method(
+              fsPromises,
+              'mkdir',
+              async (...args: Parameters<typeof fsPromises.mkdir>) => {
+                const result = await originalMkdir(...args);
+                if (first && args[0] === directory) {
+                  first = false;
+                  entered();
+                  await hold;
+                }
+                return result;
+              },
+            )
+          : undefined;
+      syncBuiltinESMExports();
+      const preexisting = mkdirGate ? service.settings.save() : Promise.resolve();
+      if (mkdirGate) await atBarrier;
+      const blockedTail = service.settings['saving'];
+      const redemption = connect(dest, { contextToken: tokens[0] });
+      let otherSave: Promise<void> | undefined;
+      let visible = false,
+        active = false;
+      try {
+        if (scenario !== 'success') {
+          if (scenario === 'queued-expiry') {
+            const end = performance.now() + 2000;
+            while (service.settings['saving'] === blockedTail && performance.now() < end)
+              await new Promise((r) => setTimeout(r, 5));
+            assert.notEqual(service.settings['saving'], blockedTail);
+          } else await atBarrier;
+          visible = service.settings.value.adapters.some((a) => a.threadId === dest);
+          active = service.adapters.states().some((a) => a.id === candidateId);
+          if (scenario.endsWith('expiry')) now = expires;
+          if (scenario.endsWith('revocation')) service['codexRecovery'].delete(dest);
+          if (scenario === 'temp-owner-change' && original) {
+            // Change the source generation independently of challenge bookkeeping.
+            service.store.disconnect(original.binding.connectionId);
+            const changed = service.store.connect({
+              nickname: 'Recipient',
+              client: 'Codex',
+              chatId: original.binding.chatId,
+              adapterId: original.binding.adapterId,
+            });
+            if (changed.status !== 'connected') throw Error('fixture owner');
+            expectedOwner = changed.binding;
+          }
+          service.settings.value.nodeLabel = 'Concurrent settings change';
+          if (scenario === 'rename-revocation') {
+            const unrelated: AdapterProfile = {
+              id: randomUUID(),
+              label: 'Concurrent manual adapter',
+              kind: 'manual',
+            };
+            before.adapters.push(unrelated);
+            otherSave = service.installAdapter(unrelated);
+          } else otherSave = service.settings.save();
+          resume();
+        }
+        const outcome = await redemption;
+        await otherSave;
+        assert.equal(tokens.length, 1);
+        if (scenario === 'success') {
+          assert.equal(outcome.body?.status, 'connected');
+          assert.equal(service.store.bindingForNickname('Recipient')?.chatId, dest);
+          assert.equal(renames, 1);
+        } else {
+          assert.equal(outcome.isError, true);
+          assert.equal(
+            renames,
+            scenario === 'rename-revocation' ? 1 : 0,
+            'only an already authorized candidate rename can reach disk',
+          );
+          assert.equal(
+            visible,
+            false,
+            'another settings caller must never see a provisional destination',
+          );
+          assert.equal(active, false, 'the adapter must remain private until commit');
+          assert.equal(
+            storeConnect.mock.calls.filter((call) => call.arguments[0].chatId === dest).length,
+            0,
+          );
+          assert.equal(service.store.db.prepare('SELECT COUNT(*) AS n FROM transfers').get()?.n, 0);
+          assert.deepEqual(service.store.bindingForNickname('Recipient'), expectedOwner);
+          assert.deepEqual(service.store.get(message.id, 'in'), history);
+          assert.equal(
+            service.settings.value.adapters.some((a) => a.threadId === dest),
+            false,
+          );
+          assert.equal(
+            service.adapters.states().some((a) => a.id === candidateId),
+            false,
+          );
+          before.nodeLabel = 'Concurrent settings change';
+          assert.equal(
+            contentHash(await readFile(filename, 'utf8')),
+            contentHash(JSON.stringify(before, null, 2) + '\n'),
+          );
+          assert.ok(
+            !(await fsPromises.readdir(directory)).some(
+              (name) => name.startsWith('settings.json.') && name.endsWith('.tmp'),
+            ),
+          );
+        }
+      } finally {
+        resume();
+        await Promise.allSettled([redemption, otherSave, preexisting]);
+        mkdirGate?.mock.restore();
+        write.mock.restore();
+        rename.mock.restore();
+        syncBuiltinESMExports();
+      }
+    });
+  }
+});

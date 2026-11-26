@@ -223,32 +223,61 @@ export class SettingsFile {
     this.saving = operation.catch(() => {});
     await operation;
   }
-  async replaceAdapter(
+  replaceAdapter(
     previous: AdapterProfile,
     replacement: AdapterProfile,
     guard?: () => void,
   ): Promise<void> {
+    return this.commitAdapter(previous, replacement, guard, () => {});
+  }
+
+  // Publish the live entry and its synchronous consumer within the same settings write.
+  // A queued save can see only the previous state or the completed installation.
+  commitAdapter<T>(
+    previous: AdapterProfile | undefined,
+    replacement: AdapterProfile,
+    guard: (() => void) | undefined,
+    publish: () => T,
+  ): Promise<T> {
     const operation = this.saving.then(async () => {
       const assertCurrent = () => {
         guard?.();
-        if (!this.value.adapters.includes(previous) || previous.id !== replacement.id)
+        if (
+          this.value.adapters.find((entry) => entry.id === replacement.id) !== previous ||
+          (previous && previous.id !== replacement.id)
+        )
           throw new Error('The saved adapter changed');
       };
       assertCurrent();
-      const candidate = {
-        ...this.value,
-        adapters: this.value.adapters.map((profile) =>
-          profile === previous ? replacement : profile,
-        ),
-      };
+      const adapters = [...this.value.adapters];
+      if (previous) adapters[adapters.indexOf(previous)] = replacement;
+      else adapters.push(replacement);
+      const candidate = { ...this.value, adapters };
       settingsSchema.parse(candidate);
       await atomicJson(this.filename, candidate, assertCurrent, assertCurrent);
-      const index = this.value.adapters.indexOf(previous);
-      if (index < 0) throw new Error('The saved adapter changed');
-      this.value.adapters[index] = replacement;
+      try {
+        // The proof can expire even while an authorized rename completes.
+        assertCurrent();
+        if (previous) this.value.adapters[this.value.adapters.indexOf(previous)] = replacement;
+        else this.value.adapters.push(replacement);
+        return publish();
+      } catch (error) {
+        const slot = this.value.adapters.indexOf(replacement);
+        if (slot !== -1) {
+          if (previous) this.value.adapters[slot] = previous;
+          else this.value.adapters.splice(slot, 1);
+        }
+        // Preserve independent owner edits. No other settings writer can commit
+        // between our rename and this correction.
+        await atomicJson(this.filename, this.value);
+        throw error;
+      }
     });
-    this.saving = operation.catch(() => {});
-    await operation;
+    this.saving = operation.then(
+      () => {},
+      () => {},
+    );
+    return operation;
   }
   async saveAttachmentLimit(limitMiB: AttachmentLimit): Promise<void> {
     const operation = this.saving.then(async () => {

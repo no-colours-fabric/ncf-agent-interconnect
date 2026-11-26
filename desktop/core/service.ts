@@ -2244,38 +2244,38 @@ export class NodeService extends EventEmitter {
         socket: target.socket,
         codexQueue: true,
       };
-      let persisted = false;
-      try {
-        await this.adapters.add(profile);
+      const priorAdapter = previous && this.adapters.get(previous.id);
+      const candidate = this.adapters.prepareCodexQueue(profile);
+      const guard = () => {
         assertCurrent();
-        const active = this.adapters.get(profile.id);
-        if (!(active instanceof CodexQueueAdapter))
-          throw new Error('The saved Codex adapter changed');
-        active.requireReady();
-        if (previous)
-          this.settings.value.adapters = this.settings.value.adapters.map((candidate) =>
-            candidate === previous ? profile : candidate,
-          );
-        else this.settings.value.adapters.push(profile);
-        await this.settings.save();
-        persisted = true;
-        assertCurrent(profile);
-        const result = this.connect({
-          nickname,
-          client: 'Codex',
-          chatId: threadId,
-          adapterId: profile.id,
+        this.adapters.assertCurrent(profile.id, priorAdapter);
+        candidate.requireReady();
+      };
+      let installed = false;
+      try {
+        await candidate.start();
+        const result = await this.settings.commitAdapter(previous, profile, guard, () => {
+          candidate.requireReady();
+          const undo = this.adapters.activateCodexQueue(priorAdapter, candidate);
+          try {
+            assertCurrent(profile);
+            return this.connect({
+              nickname,
+              client: 'Codex',
+              chatId: threadId,
+              adapterId: profile.id,
+            });
+          } catch (error) {
+            undo();
+            throw error;
+          }
         });
+        installed = true;
         return { ...result, delivery: this.codexQueueDelivery() };
-      } catch (error) {
-        this.settings.value.adapters = this.settings.value.adapters.flatMap((candidate) =>
-          candidate !== profile ? [candidate] : previous ? [previous] : [],
-        );
-        if (previous && this.integrationsReady && this.deliveryIncarnation === target.epoch)
-          await this.adapters.add(previous);
-        else await this.adapters.remove(profile.id);
-        if (persisted) await this.settings.save();
-        throw error;
+      } finally {
+        // A saved, unbound destination keeps its prior adapter throughout staging.
+        if (installed) await priorAdapter?.stop();
+        else await candidate.stop();
       }
     });
     this.adapterSetup = setup.then(
