@@ -42,8 +42,29 @@ interface CodexConfirmationWitness {
   payloadHash: string;
 }
 
+const connectStages = {
+  profile: 'verifying the selected Codex profile',
+  desktop_owner: 'identifying the Desktop owner of this chat',
+  app_server: 'opening the Codex App Server session',
+  chat: 'verifying the exact saved Codex chat',
+  queue: 'reading the input queue for this chat',
+  history: 'reading the message history for this chat',
+  transcript: 'verifying the transcript for this chat',
+  turn: 'reading the current turn for this chat',
+};
+type ConnectStage = keyof typeof connectStages;
+
+export class CodexConnectFailure extends Error {
+  constructor(readonly stage: ConnectStage) {
+    super('Automatic chat delivery stopped while ' + connectStages[stage] + '.');
+  }
+  savedMailbox = false;
+  expiresAt?: string;
+}
+
 export type CodexConfirmationOffer =
-  | { state: 'failed' | 'blocked' }
+  | { state: 'failed'; stage?: ConnectStage }
+  | { state: 'blocked' }
   | { state: 'dispatched' | 'queued' | 'uncertain'; witness: CodexConfirmationWitness };
 
 type ConfirmationObservation = 'queued' | { admittedAt: number } | 'missing' | 'unknown';
@@ -530,6 +551,7 @@ export class CodexQueueAdapter implements AgentAdapter {
   private readonly jobs = new Set<Promise<unknown>>();
   private state: AdapterState['state'] = 'checking';
   private error: string | null = null;
+  private failedCheck?: ConnectStage;
   private transcript?: string;
   private sharedOwner = false;
   private launchGeneration = 0;
@@ -573,6 +595,14 @@ export class CodexQueueAdapter implements AgentAdapter {
       state: this.state,
       error: this.error,
     };
+  }
+
+  requireReady(): void {
+    const status = this.status();
+    if (status.state !== 'ready') {
+      if (this.failedCheck) throw new CodexConnectFailure(this.failedCheck);
+      throw new Error(status.error ?? 'The exact Codex chat is unavailable');
+    }
   }
 
   private run<T>(operation: QueueOperation<T>): Promise<T> {
@@ -667,13 +697,17 @@ export class CodexQueueAdapter implements AgentAdapter {
     const text = confirmationText + token;
     const witness = { messageId: randomUUID(), payloadHash: contentHash(text) };
     let submitting = false;
+    let stage: ConnectStage = 'app_server';
     const current = () => !this.controller.signal.aborted && isCurrent();
     try {
       return await this.run(async (call, shared) => {
+        stage = 'chat';
         let thread = await this.verifyThread(call);
         const threadId = thread.id;
+        stage = 'transcript';
         await this.resolveTranscript(this.profile, threadId, thread.path);
         // A previous confirmation can outlive NCF in the persistent Codex queue.
+        stage = 'queue';
         const existing = await this.scanConfirmationQueue(call, threadId, (item) => {
           const input = singleText(item.input);
           return (
@@ -683,7 +717,9 @@ export class CodexQueueAdapter implements AgentAdapter {
           );
         });
         if (existing === 'found') return { state: 'blocked' };
-        if (existing === 'unknown' || !current()) return { state: 'failed' };
+        if (existing === 'unknown') return { state: 'failed', stage };
+        if (!current()) return { state: 'failed' };
+        stage = 'turn';
         if (shared && thread.state === 'active') {
           const turn = await this.latestTurn(call, threadId);
           if (!current()) return { state: 'failed' };
@@ -703,12 +739,15 @@ export class CodexQueueAdapter implements AgentAdapter {
               if (!(error instanceof CodexRpcRejection) || !error.expiredTurn(turn.id)) throw error;
               // Only an explicit precondition refusal allows a different submission path.
               submitting = false;
+              stage = 'chat';
               thread = await this.verifyThread(call);
             }
           } else {
+            stage = 'chat';
             thread = await this.verifyThread(call);
           }
         }
+        stage = 'turn';
         const interrupted =
           shared && thread.state === 'idle' ? await this.latestTurn(call, threadId) : undefined;
         if (!current()) return { state: 'failed' };
@@ -744,7 +783,7 @@ export class CodexQueueAdapter implements AgentAdapter {
         return { state: 'queued', witness };
       });
     } catch {
-      return submitting ? { state: 'uncertain', witness } : { state: 'failed' };
+      return submitting ? { state: 'uncertain', witness } : { state: 'failed', stage };
     }
   }
 
@@ -830,16 +869,22 @@ export class CodexQueueAdapter implements AgentAdapter {
       await this.watchControlEndpoint();
       if (this.controller.signal.aborted) return;
     }
+    let stage: ConnectStage = 'app_server';
     try {
       await this.run(async (call, shared) => {
+        stage = 'chat';
         const thread = await this.verifyThread(call);
+        stage = 'queue';
         const response = await call('thread/queue/list', { threadId: thread.id, limit: 1 });
         if (!Array.isArray(response.data)) throw new Error('Codex did not confirm queue support');
+        stage = 'history';
         await this.projectionPage(call, thread.id);
+        stage = 'transcript';
         this.transcript = await this.resolveTranscript(this.profile, thread.id, thread.path);
         this.sharedOwner = shared && (thread.state === 'active' || thread.state === 'idle');
       });
       if (this.controller.signal.aborted) return;
+      this.failedCheck = undefined;
       this.state = 'ready';
       this.error = null;
       clearTimeout(this.recoveryTimer);
@@ -847,6 +892,7 @@ export class CodexQueueAdapter implements AgentAdapter {
       this.recoveryAttempt = 0;
     } catch {
       if (this.controller.signal.aborted) return;
+      this.failedCheck = stage;
       this.state = 'error';
       this.error = 'The saved Codex chat, its input queue or its transcript is unavailable';
       this.scheduleRecovery();

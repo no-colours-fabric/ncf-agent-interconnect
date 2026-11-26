@@ -958,3 +958,69 @@ test('Codex confirmation recognizes only its exact queued or persisted input', a
   assert.equal(wake.mock.callCount(), initialWakes + 1);
   assert.equal(submissions, 1);
 });
+
+test('connect diagnostics identify the first unavailable native operation without exposing its input', async (t) => {
+  for (const [method, stage] of [
+    ['initialize', 'app_server'],
+    ['thread/read', 'chat'],
+    ['thread/queue/list', 'queue'],
+    ['thread/items/list', 'history'],
+    ['transcript', 'transcript'],
+    ['thread/turns/list', 'turn'],
+  ]) {
+    await t.test(method, async () => {
+      const threadId = randomUUID();
+      const fail = () => {
+        throw Error('private native diagnostic');
+      };
+      const session: NonNullable<ConstructorParameters<typeof CodexQueueAdapter>[2]> = async (
+        _p,
+        _signal,
+        operation,
+      ) => {
+        if (method === 'initialize') fail();
+        return operation(async (rpc) => {
+          if (rpc === method) fail();
+          if (rpc === 'thread/read')
+            return {
+              thread: {
+                id: threadId,
+                ephemeral: false,
+                status: { type: 'active' },
+                path: 'synthetic',
+              },
+            };
+          if (!['thread/items/list', 'thread/queue/list', 'thread/turns/list'].includes(rpc))
+            throw Error('Unexpected submission');
+          return { data: [] };
+        });
+      };
+      const adapter = new CodexQueueAdapter(
+        { id: randomUUID(), threadId, label: 'Fixture', kind: 'codex-desktop' },
+        () => {},
+        session,
+        async () => (method === 'transcript' ? fail() : 'synthetic'),
+        session,
+      );
+      try {
+        if (stage !== 'turn') {
+          await adapter.start();
+          assert.throws(
+            () => adapter.requireReady(),
+            (error: unknown) =>
+              error instanceof Error &&
+              'stage' in error &&
+              error.stage === stage &&
+              !error.message.includes('private'),
+          );
+        }
+        if (stage !== 'history') {
+          const outcome = await adapter.challenge(randomUUID(), () => true);
+          assert.deepEqual(outcome, { state: 'failed', stage });
+        }
+      } finally {
+        await adapter.stop();
+      }
+    });
+  }
+});

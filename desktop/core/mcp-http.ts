@@ -10,6 +10,7 @@ import {
 import { z } from 'zod';
 import { nicknameSchema } from '../shared/contracts.js';
 import { secretMatches } from './peer.js';
+import { CodexConnectFailure } from './codex-queue.js';
 import type { NodeService } from './service.js';
 import { chatRenameSchema } from './client-contexts.js';
 import { McpResponseHandoff, type ResponseInvocation } from './mcp-response-handoff.js';
@@ -225,9 +226,24 @@ export function createAgentMcp(
         // The error result carries no content, so the attempt ends without receipt.
         if (delivery) service.store.cancelClaudeDelivery(delivery, 'The call lost its authority');
         handoff?.discardDelivery();
+        const recovery =
+          name === 'agent_connect' && e instanceof CodexConnectFailure
+            ? {
+                status: 'codex_recovery_required',
+                stage: e.stage,
+                ...(e.expiresAt && { expiresAt: e.expiresAt }),
+                nextAction: e.savedMailbox ? 'agent_read' : 'agent_connect',
+                description:
+                  e.message +
+                  (e.savedMailbox
+                    ? ' Call agent_read once with your saved connectionId for pending messages. A later agent_connect with the same arguments resumes native recovery.'
+                    : ' When this stage is available, retry agent_connect once in this chat with the same arguments.'),
+              }
+            : undefined;
         const response: CallToolResult = {
           isError: true,
-          content: [{ type: 'text' as const, text: (e as Error).message }],
+          content: [{ type: 'text' as const, text: recovery?.description ?? (e as Error).message }],
+          ...(recovery && { structuredContent: recovery }),
         };
         return handoff ? handoffs!.seal(handoff, response) : response;
       }
@@ -279,7 +295,7 @@ export function createAgentMcp(
   );
   register(
     'agent_connect',
-    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. When reconnecting the same Codex chat, reuse its connectionId if you still have it internally. For Codex, codex_recovery_pending means confirmation was dispatched; codex_recovery_queued and codex_recovery_uncertain do not confirm delivery. The expiresAt value bounds the attempt. When the confirmation arrives in this exact chat, act within five minutes of delivery and before that deadline. Use the original nickname and its exact contextToken in one follow-up agent_connect call. Keep it internal. Do not poll or resend automatically. codex_recovery_expired and codex_recovery_unavailable end the attempt. Never ask the user to steer the confirmation manually or copy its code. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters or invent a contextToken.',
+    'Connect this chat as the agent with the USER-CHOSEN nickname. Current chat and adapter are determined automatically by the client integration. When reconnecting the same Codex chat, reuse its connectionId if you still have it internally. For codex_recovery_required, follow the single nextAction in the result. Keep the original arguments for a retry in this chat. For Codex, codex_recovery_pending means confirmation was dispatched; codex_recovery_queued and codex_recovery_uncertain do not confirm delivery. The expiresAt value bounds the attempt. When the confirmation arrives in this exact chat, act within five minutes of delivery and before that deadline. Use the original nickname and its exact contextToken in one follow-up agent_connect call. Keep it internal. Do not poll or resend automatically. codex_recovery_expired and codex_recovery_unavailable end the attempt. Never ask the user to steer the confirmation manually or copy its code. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters or invent a contextToken.',
     {
       nickname: nicknameSchema.describe('The agent nickname chosen by the user.'),
       connectionId: z.uuid().optional(),

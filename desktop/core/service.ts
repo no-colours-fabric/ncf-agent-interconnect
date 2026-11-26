@@ -60,6 +60,7 @@ import { ClientContexts, type ClientContext } from './client-contexts.js';
 import { discoverCodex, codexEndpoints, CodexDesktopUnavailable } from './codex-adapter.js';
 import {
   CodexQueueAdapter,
+  CodexConnectFailure,
   type WakeCodexChat,
   codexQueueHome,
   codexQueueLocator,
@@ -275,6 +276,14 @@ export class NodeService extends EventEmitter {
   private adapterSetup: Promise<void> = Promise.resolve();
   private readonly codexRecovery = new Map<string, CodexRecoveryChallenge>();
   private readonly codexMigrationHead = new WeakMap<AgentAdapter, string>();
+  private readonly codexReconnect = new WeakMap<
+    AdapterProfile,
+    {
+      connectionId: string;
+      generation: number;
+      expires: number;
+    }
+  >();
   private readonly codexRecoveryAdapters = new Set<CodexQueueAdapter>();
   private readonly restoredCodexProjections = new WeakMap<CodexQueueAdapter, string>();
   private acceptingIntegrations = false;
@@ -1129,52 +1138,105 @@ export class NodeService extends EventEmitter {
         throw new Error(
           'Codex did not provide the current chat context. Automatic binding is not supported by this client version.',
         );
-      let result: ConnectResult;
-      try {
-        result = await this.connectCodex({ ...input, client: 'Codex' }, { threadId });
-      } catch (error) {
-        if (
-          !(error instanceof CodexDesktopUnavailable) ||
-          !['darwin', 'win32', 'linux'].includes(process.platform)
-        )
-          throw error;
-        if (input.transferId || input.confirmTransfer || input.resetHistory) {
-          if (!input.connectionId || !input.transferId || !input.confirmTransfer) throw error;
-          return this.confirmCodexQueueTransfer(
-            input,
-            threadId,
-            input.connectionId,
-            input.transferId,
-          );
-        }
-        if (!input.connectionId) return this.requestCodexRecovery(input.nickname, threadId);
-        // An existing binding credential continues to authorize the same chat.
-        const owner = this.store.assertOwner(input.connectionId);
-        const saved = owner.binding;
-        const profile = this.settings.value.adapters.find((a) => a.id === saved.adapterId);
-        if (
-          owner.key !== this.store.keyForNickname(input.nickname) ||
-          saved.client !== 'Codex' ||
-          saved.chatId !== threadId ||
-          profile?.kind !== 'codex-desktop' ||
-          profile.threadId !== saved.chatId ||
-          !(await this.codexQueueCanRecover(profile))
-        )
-          throw error;
-        const socket =
-          process.platform === 'win32' && !profile.codexQueue
-            ? await this.configuredCodexQueueSocket()
-            : profile.socket;
-        return this.reconnectCodexQueue(input.nickname, saved.connectionId, profile, socket);
+      const pending = this.codexRecovery.get(threadId);
+      if (
+        !input.connectionId &&
+        !input.transferId &&
+        !input.confirmTransfer &&
+        !input.resetHistory &&
+        pending?.state === 'pending' &&
+        nicknameKey(pending.target.nickname) === nicknameKey(input.nickname)
+      ) {
+        return this.requestCodexRecovery(input.nickname, threadId);
       }
-      return {
-        ...result,
-        delivery: {
-          automatic: true,
-          description:
-            'Messages with their sender, body and attachment links are delivered automatically to this Codex Desktop chat. This integration is experimental.',
-        },
-      };
+      const binding = this.store.bindingForNickname(input.nickname);
+      const profile =
+        binding && this.settings.value.adapters.find((a) => a.id === binding.adapterId);
+      const checkpoint = profile && this.codexReconnect.get(profile);
+      const resume =
+        checkpoint &&
+        binding &&
+        input.connectionId === checkpoint.connectionId &&
+        binding.connectionId === input.connectionId &&
+        binding.generation === checkpoint.generation &&
+        binding.chatId === threadId &&
+        checkpoint.expires > Date.now() &&
+        !input.transferId &&
+        !input.confirmTransfer &&
+        !input.resetHistory;
+      if (!resume) {
+        try {
+          const result = await this.connectCodex({ ...input, client: 'Codex' }, { threadId });
+          return {
+            ...result,
+            delivery: {
+              automatic: true,
+              description:
+                'Messages with their sender, body and attachment links are delivered automatically to this Codex Desktop chat. This integration is experimental.',
+            },
+          };
+        } catch (error) {
+          if (
+            !(error instanceof CodexDesktopUnavailable) ||
+            !['darwin', 'win32', 'linux'].includes(process.platform)
+          )
+            throw error;
+          if (input.transferId || input.confirmTransfer || input.resetHistory) {
+            if (!input.connectionId || !input.transferId || !input.confirmTransfer) throw error;
+            return this.confirmCodexQueueTransfer(
+              input,
+              threadId,
+              input.connectionId,
+              input.transferId,
+            );
+          }
+        }
+      }
+      if (!input.connectionId) return this.requestCodexRecovery(input.nickname, threadId);
+      // A saved credential can recover only its current owner and exact chat.
+      const owner = this.store.assertOwner(input.connectionId);
+      if (
+        owner.key !== this.store.keyForNickname(input.nickname) ||
+        binding?.connectionId !== input.connectionId ||
+        binding.client !== 'Codex' ||
+        binding.chatId !== threadId ||
+        profile?.kind !== 'codex-desktop' ||
+        profile.threadId !== threadId
+      )
+        throw new CodexDesktopUnavailable();
+      try {
+        if (!(await this.codexQueueCanRecover(profile)))
+          throw new CodexConnectFailure('desktop_owner');
+        const result = await this.reconnectCodexQueue(input.nickname, input.connectionId, profile);
+        this.codexReconnect.delete(profile);
+        return result;
+      } catch (error) {
+        if (error instanceof CodexConnectFailure) {
+          const current = this.store.bindingForNickname(input.nickname);
+          if (
+            !this.integrationsReady ||
+            current?.connectionId !== binding.connectionId ||
+            current.generation !== binding.generation ||
+            current.adapterId !== binding.adapterId ||
+            current.chatId !== threadId
+          )
+            throw new Error('The saved Codex connection changed');
+          error.savedMailbox = true;
+          // Resume the verified binding's recovery route within a bounded window.
+          // Repeated failures never extend it or skip native identity checks.
+          const currentProfile = this.settings.value.adapters.find(
+            (a) => a.id === current.adapterId,
+          );
+          if (currentProfile?.threadId === threadId && error.stage !== 'desktop_owner') {
+            this.codexReconnect.set(currentProfile, {
+              connectionId: binding.connectionId,
+              generation: binding.generation,
+              expires: resume ? checkpoint.expires : Date.now() + codexRecoveryLifetime,
+            });
+          }
+        }
+        throw error;
+      }
     } else if (/aionui/i.test(host.client))
       throw new Error('Connect AionUi using its bundled MCP bridge from Applications.');
     else if (/opencode/i.test(host.client))
@@ -1570,6 +1632,7 @@ export class NodeService extends EventEmitter {
     connectionId: string,
     profile: AdapterProfile,
     requestedSocket?: string,
+    onMigration?: (updated: AdapterProfile) => void,
   ) {
     const epoch = this.deliveryIncarnation;
     const setup = this.adapterSetup.then(async () => {
@@ -1608,7 +1671,7 @@ export class NodeService extends EventEmitter {
         const probe = new CodexQueueAdapter(updated, () => {});
         try {
           await probe.start();
-          if (probe.status().state !== 'ready') throw new Error(probe.status().error!);
+          probe.requireReady();
         } finally {
           await probe.stop();
         }
@@ -1622,12 +1685,15 @@ export class NodeService extends EventEmitter {
           this.settings.value.adapters[index] = saved;
           throw error;
         }
+        onMigration?.(updated);
       }
       const adapter = this.adapters.get(saved.id);
       if (!(adapter instanceof CodexQueueAdapter) || adapter.status().state !== 'ready')
         await this.adapters.add(updated);
-      const status = this.adapters.get(saved.id).status();
-      if (status.state !== 'ready') throw new Error(status.error!);
+      const active = this.adapters.get(saved.id);
+      if (!(active instanceof CodexQueueAdapter))
+        throw new Error('The saved Codex adapter changed');
+      active.requireReady();
       assertSameBinding();
       const result = this.connect({
         nickname,
@@ -1741,9 +1807,7 @@ export class NodeService extends EventEmitter {
         throw new Error();
       return socket;
     } catch {
-      throw new Error(
-        'The selected local Codex profile could not be verified. Apply Codex setup first.',
-      );
+      throw new CodexConnectFailure('profile');
     }
   }
 
@@ -1840,9 +1904,7 @@ export class NodeService extends EventEmitter {
         profile.threadId !== threadId ||
         !(await this.codexQueueCanRecover(profile)))
     )
-      throw new Error(
-        'The saved Codex chat could not be verified through its Desktop route or input queue. The existing binding is unchanged.',
-      );
+      throw new CodexConnectFailure('desktop_owner');
     const savedTarget = {
       nickname,
       threadId,
@@ -1908,9 +1970,7 @@ export class NodeService extends EventEmitter {
     try {
       if (!sameChat && profile && !profile.codexQueue) {
         await adapter.start();
-        const status = adapter.status();
-        if (status.state !== 'ready')
-          throw new Error(status.error ?? 'The exact Codex chat is unavailable');
+        adapter.requireReady();
       }
       const outcome = await adapter.challenge(token, () => {
         this.assertCodexRecoveryTarget(target);
@@ -1926,6 +1986,7 @@ export class NodeService extends EventEmitter {
         this.codexRecovery.delete(threadId);
         return this.codexRecoveryStatus('codex_recovery_expired');
       }
+      if (outcome.state === 'failed' && outcome.stage) throw new CodexConnectFailure(outcome.stage);
       if (outcome.state === 'failed')
         throw new Error(
           'The exact Codex chat, input queue or transcript could not be verified for confirmation.',
@@ -2072,12 +2133,37 @@ export class NodeService extends EventEmitter {
     // Consume synchronously before any adapter or profile changes.
     challenge.expires = Math.min(challenge.expires, Date.now() + codexRecoveryLifetime);
     challenge.state = 'used';
+    try {
+      return await this.completeCodexBinding(challenge, profile);
+    } catch (error) {
+      // A failed readiness check precedes binding/transfer. The verified caller
+      // may retry with the same proof, within its original lifetime.
+      if (error instanceof CodexConnectFailure) {
+        if (this.codexRecovery.get(threadId) !== challenge || challenge.expires <= Date.now())
+          throw new Error('The Codex confirmation is invalid or expired');
+        this.assertCodexRecoveryTarget(target);
+        challenge.state = 'pending';
+        error.expiresAt = new Date(challenge.expires).toISOString();
+      }
+      throw error;
+    }
+  }
+
+  private async completeCodexBinding(
+    challenge: CodexRecoveryChallenge,
+    profile?: AdapterProfile,
+  ): Promise<ConnectedResult> {
+    const target = challenge.target;
+    const { nickname, threadId } = target;
     if (target.binding?.chatId === threadId && profile)
       return this.reconnectCodexQueue(
         nickname,
         target.binding.connectionId,
         profile,
         target.socket,
+        (updated) => {
+          target.profile = structuredClone(updated);
+        },
       );
 
     const setup = this.adapterSetup.then(async () => {
@@ -2106,9 +2192,10 @@ export class NodeService extends EventEmitter {
       try {
         await this.adapters.add(profile);
         assertCurrent();
-        const status = this.adapters.get(profile.id).status();
-        if (status.state !== 'ready')
-          throw new Error(status.error ?? 'The exact Codex chat is unavailable');
+        const active = this.adapters.get(profile.id);
+        if (!(active instanceof CodexQueueAdapter))
+          throw new Error('The saved Codex adapter changed');
+        active.requireReady();
         if (previous)
           this.settings.value.adapters = this.settings.value.adapters.map((candidate) =>
             candidate === previous ? profile : candidate,

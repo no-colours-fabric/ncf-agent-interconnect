@@ -1964,3 +1964,149 @@ test(
     );
   },
 );
+
+test('agent_connect keeps MCP available and resumes the same saved Codex binding after a native failure', async (t) => {
+  const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'ncf-connect-stage-')));
+  const threadId = randomUUID();
+  const profile: AdapterProfile = {
+    id: randomUUID(),
+    label: 'Fixture',
+    kind: 'codex-desktop',
+    codexQueue: true,
+    socket: codexQueueLocator(directory),
+    threadId,
+  };
+  let rejectItems = true;
+  let discoveries = 0;
+  const service = new NodeService(directory, {
+    codexSockets: () => {
+      discoveries++;
+      return [];
+    },
+  });
+  const client = new Client({ name: 'Codex', version: 'fixture' });
+  t.after(async () => {
+    await client.close();
+    await service.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  const submitted: string[] = [];
+  const queued: object[] = [];
+  t.mock.method(
+    CodexQueueAdapter,
+    'forDesktop',
+    (p: AdapterProfile, changed: () => void) =>
+      new CodexQueueAdapter(
+        p,
+        changed,
+        undefined,
+        async () => 'synthetic-transcript',
+        async (_p, _signal, operation) =>
+          operation(async (method, params) => {
+            assert.equal((params as { threadId: string }).threadId, threadId);
+            if (method === 'thread/read')
+              return {
+                thread: {
+                  id: threadId,
+                  ephemeral: false,
+                  path: 'synthetic-transcript',
+                  status: { type: 'idle' },
+                },
+              };
+            if (method === 'thread/items/list' && rejectItems) throw Error('private diagnostic');
+            if (method === 'thread/queue/add') {
+              const input = params as { clientUserMessageId: string; input: { text: string }[] };
+              submitted.push(input.input[0].text);
+              queued.push(input);
+              return { queuedSubmission: { id: randomUUID(), ...input } };
+            }
+            if (method === 'thread/queue/list') return { data: queued };
+            assert.ok(['thread/turns/list', 'thread/items/list'].includes(method));
+            return { data: [] };
+          }),
+      ),
+  );
+  await service.open();
+  await service.installAdapter(profile);
+  const saved = service.connect({
+    nickname: 'Receiver',
+    client: 'Codex',
+    chatId: threadId,
+    adapterId: profile.id,
+  });
+  if (saved.status !== 'connected') throw Error('fixture');
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
+      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+    }),
+  );
+  const call = async (name: string, args: Record<string, unknown>, thread = threadId) => {
+    const result = await client.callTool({ name, arguments: args, _meta: { threadId: thread } });
+    return {
+      isError: result.isError,
+      content: result.content,
+      structuredContent: result.structuredContent as Record<string, unknown> | undefined,
+    };
+  };
+  const connect = (args: Record<string, unknown> = {}, thread = threadId) =>
+    call('agent_connect', { nickname: 'Receiver', ...args }, thread);
+  const { connectionId } = saved.binding;
+  const failure = await connect({ connectionId });
+  assert.equal(failure.isError, true);
+  assert.equal(failure.structuredContent?.stage, 'history');
+  assert.equal(failure.structuredContent?.nextAction, 'agent_read');
+  assert.doesNotMatch(JSON.stringify(failure), /private diagnostic/);
+  const sender = service.connect({ nickname: 'Sender', client: 'MCP' });
+  if (sender.status !== 'connected') throw Error('fixture sender');
+  const msg = await service.send({
+    connectionId: sender.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Receiver',
+    text: 'One full incoming — ё / 東京.',
+  });
+  const read = await call('agent_read', { connectionId, waitMs: 0 });
+  assert.equal(read.isError, undefined);
+  assert.match(JSON.stringify(read.structuredContent), /One full incoming — ё \/ 東京\./);
+  const beforeRetry = discoveries;
+  assert.equal((await connect({ connectionId })).structuredContent?.stage, 'history');
+  assert.equal(discoveries, beforeRetry);
+  rejectItems = false;
+  const retry = await connect({ connectionId });
+  assert.deepEqual(retry.structuredContent?.binding, saved.binding);
+  assert.equal(discoveries, beforeRetry, 'retry stays on the exact saved recovery route');
+  assert.equal(service.store.get(msg.id, 'in')?.state, 'processed');
+  assert.equal(submitted.length, 0);
+  assert.equal((await connect({ connectionId }, randomUUID())).isError, true);
+
+  const offer = await connect();
+  assert.equal(offer.structuredContent?.status, 'codex_recovery_queued');
+  assert.equal(submitted.length, 1);
+  const beforeObservation = discoveries;
+  await connect();
+  assert.equal(discoveries, beforeObservation);
+  assert.equal(submitted.length, 1);
+  const token = submitted[0].split('contextToken: ')[1];
+  assert.ok(token);
+  // Make the registered adapter check readiness again during proof redemption.
+  rejectItems = true;
+  await service.adapters.get(profile.id).start();
+  const delayed = await connect({ contextToken: token });
+  assert.equal(delayed.structuredContent?.stage, 'history');
+  assert.equal(delayed.structuredContent?.nextAction, 'agent_connect');
+  assert.ok(Date.parse(String(delayed.structuredContent?.expiresAt)) > Date.now());
+  assert.equal(JSON.stringify(delayed).includes(token), false);
+  assert.equal((await connect({ contextToken: token }, randomUUID())).isError, true);
+  rejectItems = false;
+  const competing = await Promise.all([
+    connect({ contextToken: token }),
+    connect({ contextToken: token }),
+  ]);
+  assert.equal(competing.filter((result) => result.isError).length, 1);
+  assert.deepEqual(
+    competing.find((result) => !result.isError)?.structuredContent?.binding,
+    saved.binding,
+  );
+  assert.equal((await connect({ contextToken: token })).isError, true);
+  assert.equal(submitted.length, 1);
+  assert.equal(service.store.get(msg.id, 'in')?.state, 'processed');
+});
