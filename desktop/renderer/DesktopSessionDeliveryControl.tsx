@@ -65,6 +65,7 @@ export function DesktopSessionDeliveryControl({
           <FormControlLabel
             control={
               <Switch
+                slotProps={{ input: { role: 'switch', ...{ 'data-chatgpt-restart-focus': '' } } }}
                 checked={known.state === 'enabled' && known.profile === profile}
                 disabled={
                   busy ||

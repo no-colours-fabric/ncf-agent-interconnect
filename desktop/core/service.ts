@@ -2555,7 +2555,8 @@ export class NodeService extends EventEmitter {
     input: RemoveReceivedAttachments,
   ): Promise<ReceivedAttachmentCleanupResult> {
     if (this.closing) throw new Error('The app is closing');
-    const cutoff = Date.now() - input.olderThanDays * 86_400_000;
+    const cutoff =
+      input.olderThanDays === 'all' ? null : Date.now() - input.olderThanDays * 86_400_000;
     const assertScope = () => {
       if (
         input.scope === 'agent' &&

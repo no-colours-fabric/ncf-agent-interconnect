@@ -13,6 +13,7 @@ interface DeliveryState {
   notice?: Notice;
   issue?: DeliveryIssue;
   busy: boolean;
+  restartPending?: true;
 }
 
 /** One owner-side delivery state for Quick Connect, the warnings and manual setup. */
@@ -32,12 +33,16 @@ export class DesktopSessionDeliveryModel {
   };
 
   private set(state: DeliveryState) {
-    this.state = state;
+    this.state = { restartPending: this.state.restartPending, ...state };
     for (const listener of this.listeners) listener();
   }
 
   isWriting() {
     return this.writing;
+  }
+
+  acknowledgeRestart() {
+    if (this.state.restartPending) this.set({ ...this.state, restartPending: undefined });
   }
 
   load() {
@@ -73,7 +78,13 @@ export class DesktopSessionDeliveryModel {
 
   private finishWrite(status?: DesktopSessionDelivery, issue?: DeliveryIssue) {
     this.writing = false;
-    if (status && 'profile' in status) this.set({ known: status, issue, busy: false });
+    if (status && 'profile' in status)
+      this.set({
+        known: status,
+        issue,
+        busy: false,
+        restartPending: status.restartRequired === true ? true : this.state.restartPending,
+      });
     else if (status) this.set({ notice: status.state, issue, busy: false });
     else this.set({ ...this.state, issue, busy: false });
   }
@@ -88,7 +99,9 @@ export class DesktopSessionDeliveryModel {
       });
       if ('profile' in result) {
         const expected = action === 'enable' ? 'enabled' : 'ready';
-        this.finishWrite(result, result.state === expected ? undefined : 'unavailable');
+        const succeeded = result.state === expected && result.profile === profile;
+        if (!succeeded) this.finishWrite(undefined, 'unavailable');
+        else this.finishWrite(result);
       } else if (
         result.state === 'unsupported' ||
         (action === 'disable' && result.state === 'configuration-required')
@@ -110,7 +123,13 @@ export class DesktopSessionDeliveryModel {
     this.beginWrite();
     const result = await configureChatDelivery(this.invoke, configuration);
     // Quick Connect presents its own error beside the selected configuration.
-    this.finishWrite(result.status);
+    const status = result.status;
+    // A status read can establish a no-op, but only a successful mutation can request a restart.
+    this.finishWrite(
+      status && 'profile' in status && !result.changed
+        ? { ...status, restartRequired: undefined }
+        : status,
+    );
     return result;
   }
 }

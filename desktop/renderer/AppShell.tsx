@@ -164,20 +164,25 @@ export function AppShell({
           data-testid="sidebar-node-status"
           sx={{ px: 1.5, pt: 2.5, mt: 2.5, borderTop: '1px solid', borderColor: 'divider' }}
         >
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Box
-              sx={{
-                width: 6,
-                height: 6,
-                flexShrink: 0,
-                borderRadius: '50%',
-                bgcolor: snapshot.running ? 'success.main' : 'warning.main',
-                boxShadow: snapshot.running ? designTokens.statusGlow : 'none',
-              }}
-            />
-            <Typography variant="caption" color="text.secondary">
-              {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
-            </Typography>
+          <Stack
+            direction="row"
+            sx={{ alignItems: 'center', justifyContent: 'space-between', gap: 1 }}
+          >
+            <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+              <Box
+                sx={{
+                  width: 6,
+                  height: 6,
+                  flexShrink: 0,
+                  borderRadius: '50%',
+                  bgcolor: snapshot.running ? 'success.main' : 'warning.main',
+                  boxShadow: snapshot.running ? designTokens.statusGlow : 'none',
+                }}
+              />
+              <Typography variant="caption" color="text.secondary">
+                {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
+              </Typography>
+            </Stack>
             <IconButton
               data-testid="node-toggle"
               aria-label={powerAction}

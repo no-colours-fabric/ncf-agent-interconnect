@@ -178,7 +178,9 @@ export interface NetworkManualConnection {
   onAddressChange: (value: string) => void;
   onCodeChange: (value: string) => void;
   /** Keep the actual existing manual renderer at the integration boundary. */
-  content?: React.ReactNode | ((cancelApproval: () => Promise<boolean>) => React.ReactNode);
+  content?:
+    | React.ReactNode
+    | ((cancelApproval: () => Promise<boolean>, addressField: React.ReactNode) => React.ReactNode);
 }
 export interface NetworkPageProps {
   active: boolean;
@@ -609,8 +611,43 @@ export function NetworkPage({
   const selectedOpen = !!selection && (selection.fromOverview ? overviewActive : active);
   const manualVisible = active && manualOpen;
   const cancelApproval = approval.cancel;
+  const addressField = (
+    <TextField
+      autoFocus
+      label={t(locale, 'networkAddressLabel')}
+      placeholder={t(locale, 'networkAddressPlaceholder')}
+      value={manual.address}
+      disabled={pairPending}
+      onChange={(event) => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement)) return;
+        const value = input.value;
+        if (!approval.phase) {
+          manual.onAddressChange(value);
+          return;
+        }
+        const { selectionStart, selectionEnd, selectionDirection } = input;
+        void cancelApproval().then((canceled) => {
+          if (!canceled) return;
+          manual.onAddressChange(value);
+          if (selectionStart === null || selectionEnd === null) return;
+          requestAnimationFrame(() => {
+            if (document.activeElement === input && input.value === value)
+              input.setSelectionRange(
+                selectionStart,
+                selectionEnd,
+                selectionDirection ?? undefined,
+              );
+          });
+        });
+      }}
+      fullWidth
+    />
+  );
   const manualContent =
-    typeof manual.content === 'function' ? manual.content(cancelApproval) : manual.content;
+    typeof manual.content === 'function'
+      ? manual.content(cancelApproval, addressField)
+      : manual.content;
   useEffect(() => {
     if (!selectedOpen && !manualVisible && approval.phase) void cancelApproval();
   }, [selectedOpen, manualVisible, approval.phase, cancelApproval]);
@@ -1028,22 +1065,7 @@ export function NetworkPage({
             <Stack spacing={2} sx={{ pt: 1 }}>
               {manualContent ?? (
                 <>
-                  <TextField
-                    autoFocus
-                    label={t(locale, 'networkAddressLabel')}
-                    placeholder={t(locale, 'networkAddressPlaceholder')}
-                    value={manual.address}
-                    disabled={pairPending}
-                    onChange={(event) => {
-                      const value = event.target.value;
-                      if (!approval.phase) manual.onAddressChange(value);
-                      else
-                        void approval.cancel().then((canceled) => {
-                          if (canceled) manual.onAddressChange(value);
-                        });
-                    }}
-                    fullWidth
-                  />
+                  {addressField}
                   <TextField
                     label={m.connectionCode}
                     placeholder={t(locale, 'networkAccessPlaceholder')}

@@ -4,7 +4,8 @@ export const receivedAttachmentAges = [7, 30, 90, 365] as const;
 export type ReceivedAttachmentAge = (typeof receivedAttachmentAges)[number];
 
 const agentIdentity = { key: z.string().min(1), incarnation: z.uuid() };
-const age = z.literal(receivedAttachmentAges);
+const age = z.literal([...receivedAttachmentAges, 'all']);
+export type ReceivedAttachmentPeriod = z.infer<typeof age>;
 export const removeReceivedAttachmentsSchema = z.discriminatedUnion('scope', [
   z.strictObject({ scope: z.literal('all'), olderThanDays: age }),
   z.strictObject({ scope: z.literal('agent'), ...agentIdentity, olderThanDays: age }),

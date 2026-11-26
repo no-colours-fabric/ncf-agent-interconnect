@@ -152,6 +152,10 @@ test('same Unicode name on different nodes keeps separate rows and only confirme
   assert.equal((html.match(/data-testid="agent-row"/g) ?? []).length, 2);
   assert.equal((html.match(/data-testid="agent-node-kind"/g) ?? []).length, 2);
   assert.ok(html.includes('aria-label="Remote agents"'));
+  assert.match(
+    html.replace(/<style[^>]*>[^<]*<\/style>/g, ''),
+    /role="img" aria-label="Unknown application"[^>]*><span[^>]*aria-hidden="true"[^>]*>\?<\/span><\/span>/,
+  );
   assert.ok(html.includes('Агент &lt;&amp;&gt;'));
   assert.ok(!html.includes('Client availability unknown'));
   assert.ok(!html.includes('Offline'));

@@ -363,6 +363,11 @@ export function ApplicationSetupConfirmation({
       file
     );
   };
+  const { restartPending } = useSyncExternalStore(
+    flow.chatDelivery.subscribe,
+    flow.chatDelivery.getSnapshot,
+    flow.chatDelivery.getSnapshot,
+  );
   if (choices?.length)
     return (
       <Dialog open onClose={() => flow.cancel('codex')} aria-labelledby="codex-profile-choice">
@@ -453,7 +458,7 @@ export function ApplicationSetupConfirmation({
     <>
       {confirmation}
       <Dialog
-        open={states.codex.restartNotice === 'pending'}
+        open={restartPending === true || states.codex.restartNotice === 'pending'}
         disableRestoreFocus
         fullWidth
         maxWidth="xs"
@@ -463,12 +468,14 @@ export function ApplicationSetupConfirmation({
           transition: {
             onExited: () =>
               requestAnimationFrame(() => {
-                const target = [
+                const targets = [
                   ...document.querySelectorAll<HTMLElement>('[data-chatgpt-restart-focus]'),
-                ].find(
+                ].filter(
                   (element) =>
                     element.getClientRects().length && !element.closest('[aria-hidden="true"]'),
                 );
+                const target =
+                  targets.find((element) => element instanceof HTMLInputElement) ?? targets[0];
                 target?.focus();
               }),
           },
@@ -479,11 +486,18 @@ export function ApplicationSetupConfirmation({
         </DialogTitle>
         <DialogContent>
           <Typography id="chatgpt-connect-restart-body" variant="body2" color="text.secondary">
-            {sessionDeliveryMessages[locale].connectRestart}
+            {sessionDeliveryMessages[locale].restartInstruction}
           </Typography>
         </DialogContent>
         <DialogActions>
-          <Button autoFocus variant="contained" onClick={() => flow.acknowledgeCodexRestart()}>
+          <Button
+            autoFocus
+            variant="contained"
+            onClick={() => {
+              flow.chatDelivery.acknowledgeRestart();
+              flow.acknowledgeCodexRestart();
+            }}
+          >
             {installationRestartMessages(locale).dismiss}
           </Button>
         </DialogActions>
@@ -654,10 +668,7 @@ function ApplicationCompactList({
   context: 'application' | 'startup' | 'overview';
 }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
-  const chatgptWarning = useChatgptCompatibilityNotice(
-    flow.chatDelivery,
-    discovery.snapshot?.chatgptCompatibility,
-  );
+  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
   const connectApplication = (client: ApplicationSetupClient) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
@@ -1018,10 +1029,7 @@ export function ApplicationRows({
   disabled = false,
 }: SetupProps) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
-  const chatgptWarning = useChatgptCompatibilityNotice(
-    flow.chatDelivery,
-    discovery.snapshot?.chatgptCompatibility,
-  );
+  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
   const connect = (client: ApplicationSetupClient) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
@@ -1452,10 +1460,7 @@ export function ApplicationSetup({
   startup,
 }: SetupProps & { startup: ApplicationStartup }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
-  const chatgptWarning = useChatgptCompatibilityNotice(
-    flow.chatDelivery,
-    discovery.snapshot?.chatgptCompatibility,
-  );
+  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
   const connect = (client: ApplicationSetupClient) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',

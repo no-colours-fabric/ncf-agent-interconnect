@@ -202,7 +202,7 @@ export class ApplicationSetupFlow {
         restartNotice: restartNoticeAfter(
           previous,
           !delivery.issue,
-          !!delivery.changed || previous.result?.status === 'applied',
+          previous.result?.status === 'applied',
         ),
       });
       await this.onApplied?.().catch(() => {});
@@ -328,7 +328,7 @@ export class ApplicationSetupFlow {
           ...previous,
           deliveryIssue: delivery?.issue,
           phase: delivery?.issue ? 'failed' : 'succeeded',
-          restartNotice: restartNoticeAfter(previous, !delivery?.issue, !!delivery?.changed),
+          restartNotice: restartNoticeAfter(previous, !delivery?.issue, false),
           verified: true,
           result: undefined,
           error: undefined,
@@ -447,11 +447,7 @@ export class ApplicationSetupFlow {
         ...previous,
         deliveryIssue: delivery?.issue,
         phase: succeeded ? 'succeeded' : 'failed',
-        restartNotice: restartNoticeAfter(
-          previous,
-          succeeded,
-          result.status === 'applied' || !!delivery?.changed,
-        ),
+        restartNotice: restartNoticeAfter(previous, succeeded, result.status === 'applied'),
         preview,
         result,
         error: result.error,

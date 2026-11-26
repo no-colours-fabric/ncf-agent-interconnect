@@ -98,7 +98,24 @@ function AgentApplicationIcon({
         {application ? (
           <ClientLogo client={applicationClients[application]} size={24} padding="2px" />
         ) : (
-          <span aria-hidden="true">?</span>
+          <Box
+            component="span"
+            aria-hidden="true"
+            sx={{
+              display: 'grid',
+              placeItems: 'center',
+              width: 24,
+              height: 24,
+              boxSizing: 'border-box',
+              border: '2px solid',
+              borderColor: 'divider',
+              borderRadius: 0.75,
+              p: '2px',
+              lineHeight: 1,
+            }}
+          >
+            ?
+          </Box>
         )}
       </Box>
     </Tooltip>

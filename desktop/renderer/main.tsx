@@ -144,6 +144,11 @@ function App({
     applicationSetup.getSnapshot,
     applicationSetup.getSnapshot,
   );
+  const { restartPending: chatgptRestartPending } = useSyncExternalStore(
+    applicationSetup.chatDelivery.subscribe,
+    applicationSetup.chatDelivery.getSnapshot,
+    applicationSetup.chatDelivery.getSnapshot,
+  );
   const applicationStartup = useApplicationSetupStartup(
     discovery,
     applicationSetupStates,
@@ -379,6 +384,7 @@ function App({
             nicknameDialog ||
             installationRestartPending ||
             applicationStartup.open ||
+            chatgptRestartPending ||
             applicationSetupStates.codex.restartNotice === 'pending' ||
             Object.values(applicationSetupStates).some((state) => state.phase === 'confirmation')
           }
@@ -393,20 +399,9 @@ function App({
             code: access,
             onAddressChange: setAddress,
             onCodeChange: setAccess,
-            content: (cancelApproval) => (
+            content: (cancelApproval, addressField) => (
               <Stack spacing={2}>
-                <TextField
-                  label={t(locale, 'networkAddressLabel')}
-                  placeholder={t(locale, 'networkAddressPlaceholder')}
-                  value={address}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    void cancelApproval().then((canceled) => {
-                      if (canceled) setAddress(value);
-                    });
-                  }}
-                  fullWidth
-                />
+                {addressField}
                 <TextField
                   label={t(locale, 'networkAccessLabel')}
                   placeholder={t(locale, 'networkAccessPlaceholder')}

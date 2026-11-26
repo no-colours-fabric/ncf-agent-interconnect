@@ -51,14 +51,17 @@ const invoke = async (method, params) => {
       if (surface==='restart-unsupported') return {state:'unsupported'};
       if (surface==='restart-refused') return {state:'close-required'};
       if (params.action==='enable') enabled=true;
-      return {...first, profile, state:enabled||surface==='restart-noop'?'enabled':'ready'};
+      return {...first, profile, state:enabled||surface==='restart-noop'?'enabled':'ready',
+        restartRequired: surface === 'restart-backend' && params.action==='enable'};
     }
     if (sharedDelivery || requiredDelivery) {
       if (query.get('state') === 'unavailable') return {state:'unavailable'};
       if (status.state !== 'configured') return {state:'configuration-required'};
       if (params.action==='enable') enabled=true;
       if (params.action==='disable') enabled=false;
-      return {...first, state:enabled?'enabled':'ready'};
+      return {...first, state:enabled?'enabled':'ready',
+        restartRequired: query.get('restart') === 'required' && params.action !== 'status'};
+
     }
     if (['applications','overview','startup','quick','manual-offer','manual-choice'].includes(surface)) {
       if (surface === 'manual-offer' && status.state !== 'configured') return {state:'configuration-required'};
@@ -85,7 +88,8 @@ const invoke = async (method, params) => {
     const choice=calls.filter(c=>c.method==='codexSetupPrepare').at(-1)?.params?.configuration;
     status.files[0].path=prepared?.params.files[0].path ?? choice ?? target.path;
     status.remembered=true;status.state='configured';
-    return {status:surface==='restart-noop'?'unchanged':'applied',files:[{path:status.files[0].path,status:'updated'}]};
+    const unchanged = surface === 'restart-noop' || surface === 'restart-backend';
+    return {status:unchanged?'unchanged':'applied',files:[{path:status.files[0].path,status:'updated'}]};
   }
   throw new Error('Unexpected setup operation: ' + method);
 };
@@ -95,13 +99,14 @@ const cursor={client:'cursor',state:'missing',remembered:false,files:[]};
 const props = {flow, invoke, locale:'en', snapshot:{adapters:[],agents:[]},
   statuses:{statuses:{codex:status,...(restartFixture?{cursor}:{})},errors:{},refreshAll:async()=>{}},
   discovery:{busy:false,failed:false,offers:['codex'],snapshot:{
-    platform:surface==='restart-unsupported'?'win32':'darwin',
+    platform:['restart-unsupported','restart-backend'].includes(surface)?'win32':'darwin',
     applications:[{client:'codex',status:'detected'},...(restartFixture?[{client:'cursor',status:'detected'}]:[])],
     chatgptCompatibility:surface==='restart-profile'||sharedDelivery||requiredDelivery
       ? {status:'unknown',version:query.get('version') ?? '26.1120.50957'}:undefined,
     offers:['codex']},refresh:async()=>{},acknowledge:async()=>{}},
   onManualSetup:()=>{}};
-if (surface === 'manual-undetected') props.discovery.snapshot.applications=[];
+if (surface === 'manual-undetected' || query.get('detected') === 'false')
+  props.discovery.snapshot.applications=[];
 function Fixture() {
   const states = useSyncExternalStore(flow.subscribe,flow.getSnapshot);
   const confirm = <ApplicationSetupConfirmation flow={flow} locale="en"/>;
@@ -346,7 +351,7 @@ createRoot(document.getElementById('root')).render(restartFixture || sharedDeliv
   await restartAction.press('Enter');
   await restart.waitFor();
   const acknowledge = restart.getByRole('button', { name: 'Got it' });
-  await restart.getByText('After connecting, quit ChatGPT completely and reopen it.').waitFor();
+  await restart.getByText('Quit ChatGPT completely and reopen it.', { exact: true }).waitFor();
   assert.equal(await acknowledge.evaluate((button) => document.activeElement === button), true);
   await page.mouse.click(5, 5);
   await page.keyboard.press('Escape');
@@ -400,6 +405,12 @@ createRoot(document.getElementById('root')).render(restartFixture || sharedDeliv
     ['/fixture/Work'],
   );
   await acknowledge.click();
+  await restart.waitFor({ state: 'hidden' });
+
+  await openRestartFixture('backend');
+  await restartAction.press('Enter');
+  await restart.waitFor();
+  await acknowledge.press('Enter');
   await restart.waitFor({ state: 'hidden' });
 
   await openRestartFixture('replacement-cancel');
@@ -477,9 +488,31 @@ createRoot(document.getElementById('root')).render(restartFixture || sharedDeliv
     ],
   );
 
+  await openDelivery('&state=enabled&restart=required');
+  await appSettings.getByTestId('application-manual-codex').press('Enter');
+  await dialogToggle.waitFor();
+  await dialogToggle.press('Space');
+  await restart.waitFor();
+  await overviewWarning.waitFor();
+  await acknowledge.press('Enter');
+  await restart.waitFor({ state: 'hidden' });
+  await page.waitForFunction(() =>
+    document.activeElement?.matches('input[data-chatgpt-restart-focus]'),
+  );
+  await appSettings.getByRole('button', { name: /Back/ }).click();
+  await appWarning.waitFor();
+  await appWarning.getByRole('switch', switchName).press('Space');
+  await restart.waitFor();
+  await appWarning.waitFor({ state: 'hidden' });
+  await overviewWarning.waitFor({ state: 'hidden' });
+  await acknowledge.press('Enter');
+  await restart.waitFor({ state: 'hidden' });
+
   for (const query of [
     '&version=26.1111.71704',
+    '&version=26.1111.71703',
     '&version=invalid',
+    '&detected=false',
     '&state=enabled',
     '&state=unavailable',
   ]) {

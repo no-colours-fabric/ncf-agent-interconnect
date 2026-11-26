@@ -83,10 +83,7 @@ export function OverviewApplications({
   statuses: McpSetupStatuses;
   locale: Locale;
 }): React.JSX.Element | null {
-  const chatgptWarning = useChatgptCompatibilityNotice(
-    flow.chatDelivery,
-    discovery.snapshot?.chatgptCompatibility,
-  );
+  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
   const connect = (client: (typeof applications)[number]['client']) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',

@@ -13,7 +13,7 @@ import {
 } from '@mui/material';
 import {
   receivedAttachmentAges,
-  type ReceivedAttachmentAge,
+  type ReceivedAttachmentPeriod,
   type ReceivedAttachmentCleanupResult,
   type ReceivedAttachmentScope,
   type ReceivedAttachmentUsage,
@@ -41,10 +41,14 @@ export function ReceivedAttachmentCleanupDialog({
   const titleId = useId();
   const helpId = useId();
   const messages = attachmentMessages(locale);
-  const [olderThanDays, setAge] = useState<ReceivedAttachmentAge>(30);
+  const [olderThanDays, setAge] = useState<ReceivedAttachmentPeriod>(30);
+  const opened = target !== null;
+  useEffect(() => {
+    if (!opened) setAge(30);
+  }, [opened]);
   return (
     <Dialog
-      open={target !== null}
+      open={opened}
       onClose={busy ? undefined : onClose}
       aria-labelledby={titleId}
       aria-describedby={helpId}
@@ -63,10 +67,12 @@ export function ReceivedAttachmentCleanupDialog({
             label={messages.olderThan}
             value={olderThanDays}
             onChange={(event) => {
-              const selected = receivedAttachmentAges.find(
-                (days) => String(days) === String(event.target.value),
-              );
-              if (selected) setAge(selected);
+              const value = event.target.value;
+              if (value === 'all') setAge('all');
+              else {
+                const selected = receivedAttachmentAges.find((days) => String(days) === value);
+                if (selected) setAge(selected);
+              }
             }}
             disabled={busy}
           >
@@ -79,6 +85,7 @@ export function ReceivedAttachmentCleanupDialog({
                 }).format(days)}
               </MenuItem>
             ))}
+            <MenuItem value="all">{messages.allAges}</MenuItem>
           </TextField>
         </Stack>
       </DialogContent>
@@ -155,23 +162,28 @@ export function AttachmentCleanup({
       <Typography id="received-attachments-title" component="h2" variant="h6">
         {messages.title}
       </Typography>
-      {usage === 'error' ? (
-        <Alert severity="error">{messages.usageFailed}</Alert>
-      ) : (
-        usage && (
-          <Typography variant="body2">
-            {messages.usage.replace('{size}', formatAttachmentStorage(usage.totalBytes, locale))}
-          </Typography>
-        )
-      )}
-      <Button
-        sx={{ alignSelf: 'flex-start' }}
-        variant="outlined"
-        disabled={busy}
-        onClick={() => setOpen(true)}
+      <Stack
+        direction="row"
+        sx={{ alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1.5 }}
       >
-        {messages.received}
-      </Button>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'baseline' }}>
+          <Typography variant="body2">{t(locale, 'agentsColumnAttachments')}</Typography>
+          {usage && usage !== 'error' && (
+            <Typography variant="body2" color="text.secondary">
+              {formatAttachmentStorage(usage.totalBytes, locale)}
+            </Typography>
+          )}
+        </Stack>
+        <Button
+          sx={{ marginInlineStart: 'auto' }}
+          variant="outlined"
+          disabled={busy}
+          onClick={() => setOpen(true)}
+        >
+          {messages.received}
+        </Button>
+      </Stack>
+      {usage === 'error' && <Alert severity="error">{messages.usageFailed}</Alert>}
       {outcome === 'error' ? (
         <Alert severity="error">{messages.failed}</Alert>
       ) : (

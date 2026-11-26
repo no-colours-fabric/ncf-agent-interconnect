@@ -79,9 +79,9 @@ test('Peer receipt removes staged sources automatically; scoped cleanup preserve
   setAge.run(deadline, two.id);
   setAge.run(deadline - 1, queued.id);
   const recipient = receiver.store.list().find((agent) => agent.nickname === 'Recipient')!;
-  const remove = (scope: 'all' | 'agent') =>
+  const remove = (scope: 'all' | 'agent', olderThanDays: 7 | 'all' = 7) =>
     receiver.userCall('removeReceivedAttachments', {
-      olderThanDays: 7,
+      olderThanDays,
       ...(scope === 'all'
         ? { scope }
         : {
@@ -93,6 +93,7 @@ test('Peer receipt removes staged sources automatically; scoped cleanup preserve
   assert.deepEqual(await remove('all'), { removed: 0, preserved: 0 });
   assert.equal(await readFile(exact, 'utf8'), 'shared digest');
   assert.equal(await readFile(waiting, 'utf8'), 'still queued for the agent');
+  assert.deepEqual(await remove('all', 'all'), { removed: 0, preserved: 0 });
   await writeFile(edited, 'source working edits');
   const savedSource = path.join(sender.settings.value.exportRoots[0], 'saved-source.txt');
   await copyFile(exact, savedSource);
@@ -137,8 +138,10 @@ test('Peer receipt removes staged sources automatically; scoped cleanup preserve
     managedCopy.size * 2,
   );
   assert.ok(before.totalBytes < before.agents.reduce((sum, row) => sum + row.bytes, 0));
-  assert.deepEqual(await remove('agent'), { removed: 1, preserved: 1 });
-  assert.deepEqual(await remove('all'), { removed: 0, preserved: 1 });
+  setAge.run(now, one.id);
+  assert.deepEqual(await remove('agent'), { removed: 0, preserved: 0 });
+  assert.deepEqual(await remove('agent', 'all'), { removed: 1, preserved: 1 });
+  assert.deepEqual(await remove('all'), { removed: 0, preserved: 0 });
   await assert.rejects(readFile(managedCopy.localPath!), { code: 'ENOENT' });
   assert.equal(await readFile(edited, 'utf8'), 'source working edits');
   assert.equal(await readFile(editedCopy.localPath!, 'utf8'), 'recipient working edits');
@@ -172,9 +175,14 @@ test('Peer receipt removes staged sources automatically; scoped cleanup preserve
     ui.messages.find(({ envelope }) => envelope.id === one.id)?.envelope.attachments[0].name,
     'временный 漢字.txt',
   );
-  t.mock.timers.setTime(now + 1);
-  assert.deepEqual(await remove('all'), { removed: 1, preserved: 1 });
-  assert.deepEqual(await remove('all'), { removed: 0, preserved: 1 });
+  assert.deepEqual(await remove('all', 'all'), { removed: 1, preserved: 1 });
+  assert.deepEqual(await remove('all', 'all'), { removed: 0, preserved: 1 });
+  assert.equal(receiver.store.get(queued.id, 'in')?.state, 'ready');
+  const otherAfter = (await mcpRead(receiver, otherId)) as History;
+  assert.equal(
+    otherAfter.messages.find(({ envelope }) => envelope.id === two.id)?.files[0].status,
+    'unavailable',
+  );
   await assert.rejects(stat(receiver.files.blob(managedCopy.id)), { code: 'ENOENT' });
   await assert.rejects(stat(ordinary.files[0].localPath!), { code: 'ENOENT' });
 });

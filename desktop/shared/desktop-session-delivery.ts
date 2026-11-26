@@ -4,6 +4,8 @@ export type DesktopSessionDelivery =
       profile: string;
       scope: 'login' | 'user' | 'profile';
       requiresClosedChatGPT?: true;
+      /** Reported only by a successful action when the open app must reload. */
+      restartRequired?: boolean;
     }
   | {
       state:

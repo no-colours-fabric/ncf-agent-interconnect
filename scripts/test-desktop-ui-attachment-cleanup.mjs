@@ -31,9 +31,6 @@ try {
   const file = seed.store.get(id, 'in').envelope.attachments[0];
   const { localPath: received } = await seed.receiveFile(target.binding.connectionId, id, file.id);
   seed.store.recordDelivery(target.binding.connectionId, [id]);
-  seed.store.db
-    .prepare('UPDATE received_attachment_times SET received_at=? WHERE message_id=?')
-    .run(Date.now() - 10 * 86_400_000, id);
   await seed.close();
   seed = null;
 
@@ -51,6 +48,23 @@ try {
     .getByRole('dialog')
     .filter({ has: page.getByTestId('application-startup-setup') });
   await startup.getByRole('button', { name: 'Close', exact: true }).click();
+  await page.getByTestId('nav-agents').click();
+  const fallback = page.getByRole('img', { name: 'Unknown application', exact: true }).first();
+  await fallback.waitFor();
+  const glyph = fallback.getByText('?', { exact: true });
+  const { width, height, border, padding, radius } = await glyph.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    const style = getComputedStyle(element);
+    return {
+      width: box.width,
+      height: box.height,
+      border: style.borderTopWidth,
+      padding: style.paddingTop,
+      radius: style.borderTopLeftRadius,
+    };
+  });
+  assert.deepEqual([width, height, border, padding], [24, 24, '2px', '2px']);
+  assert.ok(parseFloat(radius) > 0);
   await page.getByTestId('nav-settings').click();
   const cap = page.getByRole('form', { name: 'Attachment size limit' });
   await cap.getByRole('textbox', { name: 'Maximum size (MiB)' }).fill('2');
@@ -58,27 +72,35 @@ try {
   await page.waitForFunction(
     async () => (await window.interconnect.invoke('snapshot')).attachmentLimitMiB === 2,
   );
-  const section = page.getByRole('region', { name: 'Received attachments' });
-  await section.getByText(/^Attachment storage: /).waitFor();
+  const section = page.getByRole('region', { name: 'Storage' });
+  const attachments = section.getByText('Attachments', { exact: true });
+  await attachments.waitFor();
+  const size = section.getByText(/^\d+ byte/);
+  await size.waitFor();
   assert.equal(await section.getByText('Fixture recipient', { exact: false }).count(), 0);
   assert.equal(await section.getByRole('button', { name: /temporary sources/i }).count(), 0);
   const action = section.getByRole('button', { name: 'Remove received attachments' });
+  const labelBounds = await attachments.boundingBox();
+  const sizeBounds = await size.boundingBox();
+  const actionBounds = await action.boundingBox();
+  assert.ok(labelBounds && sizeBounds && actionBounds);
+  assert.ok(labelBounds.x < sizeBounds.x && sizeBounds.x + sizeBounds.width < actionBounds.x);
   await action.click();
   const dialog = page.getByRole('dialog', { name: 'Remove received attachments' });
   await dialog.getByText(/Message history, file names and separately saved files/).waitFor();
   const age = dialog.getByRole('combobox', { name: 'Older than' });
   assert.equal((await age.innerText()).trim(), '30 days');
   await age.click();
-  await page.getByRole('option', { name: '7 days', exact: true }).click();
+  await page.getByRole('option', { name: 'All', exact: true }).press('Enter');
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   assert.equal(await readFile(received, 'utf8'), 'Synthetic attachment');
 
   await action.click();
   await age.click();
-  await page.getByRole('option', { name: '7 days', exact: true }).click();
+  await page.getByRole('option', { name: 'All', exact: true }).press('Enter');
   await dialog.getByRole('button', { name: 'Remove', exact: true }).click();
   await section.getByText('Removed: 1. Preserved: 0.', { exact: true }).waitFor();
-  await section.getByText('Attachment storage: 0 byte', { exact: false }).waitFor();
+  await section.getByText('0 byte', { exact: true }).waitFor();
   const pageRows = await page.evaluate(() =>
     window.interconnect.invoke('chatHistory', { nickname: 'Fixture recipient' }),
   );

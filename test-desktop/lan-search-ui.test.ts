@@ -1739,7 +1739,10 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
               const status = await footer.getByText('Running', { exact: true }).boundingBox();
               const power = await stop.boundingBox();
               assert.ok(status && power);
+              const frame = await footer.boundingBox();
+              assert.ok(frame);
               assert.ok(power.x > status.x + status.width);
+              assert.ok(Math.abs(frame.x + frame.width - power.x - power.width - 12) < 2);
               assert.ok(Math.abs(power.y + power.height / 2 - status.y - status.height / 2) < 2);
               assert.deepEqual([power.width, power.height], [44, 44]);
               assert.equal(await page.locator('header').getByTestId('node-toggle').count(), 0);
@@ -2050,6 +2053,66 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
               ['view', 'ready', 'confirm', 'dismiss'],
             );
             assert.deepEqual(errors, []);
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
+        'manual address edits preserve the caret in the actual renderer',
+        { skip: !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'caret' },
+        async () => {
+          const page = await open();
+          try {
+            await page.getByRole('button', { name: 'Connect by address', exact: true }).click();
+            const addressField = page.getByRole('dialog').getByRole('textbox', {
+              name: translate('en', 'networkAddressLabel'),
+              exact: true,
+            });
+            for (const [base, offset, text] of [
+              ['92.0.2.20:7336', 0, '1'],
+              ['192.0.2.20:736', 13, '3'],
+              ['wss://fixture.invalid/per', 24, 'e'],
+            ] as const) {
+              await addressField.fill(base);
+              await addressField.evaluate((element: HTMLInputElement, position) => {
+                element.setSelectionRange(position, position);
+              }, offset);
+              await page.keyboard.insertText(text);
+              assert.equal(
+                await addressField.inputValue(),
+                base.slice(0, offset) + text + base.slice(offset),
+              );
+              assert.equal(
+                await addressField.evaluate((element: HTMLInputElement) => element.selectionStart),
+                offset + 1,
+              );
+            }
+            const approval = pairingApprovalMessages('en');
+            await page.evaluate(() =>
+              (window as unknown as { wiring: WiringHarness }).wiring.approval('waiting'),
+            );
+            await page
+              .getByRole('dialog')
+              .getByRole('button', { name: approval.request, exact: true })
+              .click();
+            await page.getByText(approval.waiting, { exact: true }).waitFor();
+            await addressField.focus();
+            await addressField.evaluate((element: HTMLInputElement) =>
+              element.setSelectionRange(6, 6),
+            );
+            await page.keyboard.insertText('x');
+            await until(
+              async () => (await addressField.inputValue()) === 'wss://xfixture.invalid/peer',
+              'The canceled approval allows committing the new text',
+            );
+            await until(
+              () => addressField.evaluate((field: HTMLInputElement) => field.selectionStart === 7),
+              'The accepted edit restores the original insertion position',
+            );
+            assert.equal((await calls(page, 'cancelPeerApproval')).length, 1);
+            assert.equal((await calls(page, 'connectPeer')).length, 0);
           } finally {
             await page.close();
           }

@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { Alert, Box, FormControlLabel, Switch, Typography } from '@mui/material';
+import type { ApplicationDiscoverySnapshot } from '../shared/application-discovery.js';
 import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
 import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 import type { Locale } from './i18n/index.js';
@@ -29,8 +30,13 @@ function isAboveCutoff(version?: string) {
 
 export function useChatgptCompatibilityNotice(
   model: DesktopSessionDeliveryModel,
-  compatibility?: ChatgptCompatibility,
+  discovery?: ApplicationDiscoverySnapshot,
 ) {
+  const compatibility = discovery?.applications.some(
+    ({ client, status }) => client === 'codex' && status === 'detected',
+  )
+    ? discovery.chatgptCompatibility
+    : undefined;
   const state = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getSnapshot);
   const newer = isAboveCutoff(compatibility?.version);
   useEffect(() => {
@@ -94,6 +100,7 @@ export function ChatgptCompatibilityNotice({
                 void model.change('enable', profile).then(() => {
                   if (
                     model.getSnapshot().known?.state === 'enabled' &&
+                    !model.getSnapshot().restartPending &&
                     (document.activeElement === target || document.activeElement === document.body)
                   )
                     requestAnimationFrame(() => {

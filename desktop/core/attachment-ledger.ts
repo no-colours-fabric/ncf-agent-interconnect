@@ -180,11 +180,10 @@ export class AttachmentLedger {
       .run(directory);
   }
 
-  received(cutoff?: number, agentKey?: string): ReceivedAttachment[] {
+  received(cutoff?: number | null, agentKey?: string): ReceivedAttachment[] {
     const filters = [
-      cutoff === undefined
-        ? "m.state IN ('ready','processed')"
-        : "m.state='processed' AND age.received_at<?",
+      cutoff === undefined ? "m.state IN ('ready','processed')" : "m.state='processed'",
+      typeof cutoff === 'number' ? 'age.received_at<?' : '',
       agentKey === undefined ? '' : 'm.local_key=?',
     ].filter(Boolean);
     return this.db
@@ -201,7 +200,10 @@ export class AttachmentLedger {
         WHERE ${filters.join(' AND ')}
       `,
       )
-      .all(...(cutoff === undefined ? [] : [cutoff]), ...(agentKey === undefined ? [] : [agentKey]))
+      .all(
+        ...(typeof cutoff === 'number' ? [cutoff] : []),
+        ...(agentKey === undefined ? [] : [agentKey]),
+      )
       .map((row) => ({
         agentKey: String(row.local_key),
         messageId: String(row.id),

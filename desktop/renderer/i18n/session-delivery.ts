@@ -6,6 +6,7 @@ export const sessionDeliveryMessages = {
       'Background chat delivery is off. Turn it on to receive messages in the chat right away. While background delivery is off, messages may stay in the queue.',
     chooseProfile: 'Choose the ChatGPT profile to connect',
     connectRestartTitle: 'Restart ChatGPT',
+    restartInstruction: 'Quit ChatGPT completely and reopen it.',
     connectRestart: 'After connecting, quit ChatGPT completely and reopen it.',
     offer: 'Turn this on to receive messages in the background. Apply to save your choice.',
     quitBeforeChange: 'Quit ChatGPT completely before changing this setting. Reopen it afterwards.',
@@ -24,6 +25,7 @@ export const sessionDeliveryMessages = {
       'Фоновая доставка в чат отключена. Включите её, чтобы сообщения сразу поступали в чат. Пока фоновая доставка отключена, сообщения могут оставаться в очереди.',
     chooseProfile: 'Выберите профиль ChatGPT для подключения',
     connectRestartTitle: 'Перезапустите ChatGPT',
+    restartInstruction: 'Полностью закройте ChatGPT и откройте его снова.',
     connectRestart: 'После подключения полностью закройте ChatGPT и откройте его снова.',
     offer:
       'Включите, чтобы чаты получали сообщения в фоне. Нажмите «Применить», чтобы сохранить выбор.',
@@ -44,6 +46,7 @@ export const sessionDeliveryMessages = {
       '聊天后台投递已关闭。开启后，消息会立即送达聊天。后台投递关闭时，消息可能会留在队列中。',
     chooseProfile: '选择要连接的 ChatGPT 配置文件',
     connectRestartTitle: '重新启动 ChatGPT',
+    restartInstruction: '请完全退出 ChatGPT，再重新打开。',
     connectRestart: '连接后，请完全退出 ChatGPT，再重新打开。',
     offer: '开启后，聊天可在后台接收消息。点击“应用”保存选择。',
     quitBeforeChange: '更改此设置前，请完全退出 ChatGPT。更改后重新打开应用。',
@@ -61,6 +64,7 @@ export const sessionDeliveryMessages = {
       'La livraison des messages en arrière-plan est désactivée. Activez-la pour recevoir les messages immédiatement dans la discussion. Tant qu’elle est désactivée, les messages peuvent rester en file d’attente.',
     chooseProfile: 'Choisissez le profil ChatGPT à connecter',
     connectRestartTitle: 'Redémarrez ChatGPT',
+    restartInstruction: 'Quittez complètement ChatGPT, puis rouvrez l’application.',
     connectRestart: 'Après la connexion, quittez complètement ChatGPT, puis rouvrez l’application.',
     offer:
       'Activez cette option pour recevoir les messages en arrière-plan. Cliquez sur Appliquer pour enregistrer votre choix.',
@@ -83,6 +87,7 @@ export const sessionDeliveryMessages = {
       'Die Hintergrundzustellung an den Chat ist deaktiviert. Aktivieren Sie sie, damit Nachrichten sofort im Chat ankommen. Solange die Hintergrundzustellung deaktiviert ist, können Nachrichten in der Warteschlange bleiben.',
     chooseProfile: 'ChatGPT-Profil für die Verbindung auswählen',
     connectRestartTitle: 'ChatGPT neu starten',
+    restartInstruction: 'Beenden Sie ChatGPT vollständig und öffnen Sie es erneut.',
     connectRestart: 'Beenden Sie ChatGPT nach dem Verbinden vollständig und öffnen Sie es erneut.',
     offer:
       'Aktivieren Sie diese Option, um Nachrichten im Hintergrund zu empfangen. Klicken Sie zum Speichern auf „Übernehmen“.',
@@ -104,6 +109,7 @@ export const sessionDeliveryMessages = {
       'La consegna in background nella chat è disattivata. Attivala per ricevere subito i messaggi nella chat. Finché la consegna in background è disattivata, i messaggi potrebbero rimanere in coda.',
     chooseProfile: 'Scegli il profilo ChatGPT da collegare',
     connectRestartTitle: 'Riavvia ChatGPT',
+    restartInstruction: 'Chiudi completamente ChatGPT e riaprilo.',
     connectRestart: 'Dopo il collegamento, chiudi completamente ChatGPT e riaprilo.',
     offer:
       'Attiva questa opzione per ricevere i messaggi in background. Seleziona Applica per salvare la scelta.',
@@ -126,6 +132,7 @@ export const sessionDeliveryMessages = {
       'La entrega de mensajes en segundo plano al chat está desactivada. Actívala para recibir los mensajes de inmediato en el chat. Mientras esté desactivada, los mensajes pueden quedar en cola.',
     chooseProfile: 'Elige el perfil de ChatGPT que quieres conectar',
     connectRestartTitle: 'Reinicia ChatGPT',
+    restartInstruction: 'Cierra ChatGPT por completo y vuelve a abrirlo.',
     connectRestart:
       'Después de conectar el perfil, cierra ChatGPT por completo y vuelve a abrirlo.',
     offer:
@@ -149,6 +156,7 @@ export const sessionDeliveryMessages = {
       'Чатқа фондық жеткізу өшірулі. Хабарлар чатқа бірден түсуі үшін оны қосыңыз. Фондық жеткізу өшірулі кезде хабарлар кезекте қалуы мүмкін.',
     chooseProfile: 'Қосылатын ChatGPT профилін таңдаңыз',
     connectRestartTitle: 'ChatGPT қолданбасын қайта іске қосыңыз',
+    restartInstruction: 'ChatGPT қолданбасын толық жауып, қайта ашыңыз.',
     connectRestart: 'Қосылғаннан кейін ChatGPT қолданбасын толық жауып, қайта ашыңыз.',
     offer:
       'Хабарларды фондық режимде алу үшін осы параметрді қосыңыз. Таңдауды сақтау үшін «Қолдану» түймесін басыңыз.',
@@ -170,6 +178,7 @@ export const sessionDeliveryMessages = {
       'チャットへのバックグラウンド配信はオフです。オンにすると、メッセージがすぐにチャットに届きます。オフの間は、メッセージがキューに残る場合があります。',
     chooseProfile: '接続する ChatGPT プロファイルを選択',
     connectRestartTitle: 'ChatGPT を再起動してください',
+    restartInstruction: 'ChatGPT を完全に終了してから、もう一度開いてください。',
     connectRestart: '接続後、ChatGPT を完全に終了してから、もう一度開いてください。',
     offer:
       'オンにすると、バックグラウンドでメッセージを受信できます。「適用」を押して選択を保存してください。',
@@ -192,6 +201,7 @@ export const sessionDeliveryMessages = {
       'A entrega de mensagens em segundo plano no chat está desativada. Ative-a para receber mensagens imediatamente no chat. Enquanto estiver desativada, as mensagens poderão ficar na fila.',
     chooseProfile: 'Escolha o perfil do ChatGPT que deseja conectar',
     connectRestartTitle: 'Reinicie o ChatGPT',
+    restartInstruction: 'Encerre o ChatGPT completamente e abra-o novamente.',
     connectRestart: 'Após a conexão, encerre o ChatGPT completamente e abra-o novamente.',
     offer:
       'Ative esta opção para receber mensagens em segundo plano. Clique em Aplicar para salvar a escolha.',
@@ -213,6 +223,7 @@ export const sessionDeliveryMessages = {
       '채팅 백그라운드 전달이 꺼져 있습니다. 메시지를 채팅에서 바로 받으려면 이 기능을 켜세요. 백그라운드 전달이 꺼져 있으면 메시지가 대기열에 남을 수 있습니다.',
     chooseProfile: '연결할 ChatGPT 프로필을 선택하세요',
     connectRestartTitle: 'ChatGPT를 다시 시작하세요',
+    restartInstruction: 'ChatGPT를 완전히 종료한 다음 다시 여세요.',
     connectRestart: '연결한 후 ChatGPT를 완전히 종료하고 다시 여세요.',
     offer: '백그라운드에서 메시지를 받으려면 이 옵션을 켜세요. 적용을 눌러 선택을 저장하세요.',
     quitBeforeChange:
@@ -231,6 +242,7 @@ export const sessionDeliveryMessages = {
       'Sohbete arka planda ileti teslimi kapalı. İletileri sohbetinizde hemen almak için bu özelliği açın. Arka planda teslim kapalıyken iletiler kuyrukta kalabilir.',
     chooseProfile: 'Bağlanacak ChatGPT profilini seçin',
     connectRestartTitle: 'ChatGPT’yi yeniden başlatın',
+    restartInstruction: 'ChatGPT’yi tamamen kapatıp yeniden açın.',
     connectRestart: 'Bağlandıktan sonra ChatGPT’yi tamamen kapatıp yeniden açın.',
     offer:
       'Arka planda mesaj almak için bu seçeneği açın. Seçiminizi kaydetmek için Uygula’ya tıklayın.',
@@ -251,6 +263,7 @@ export const sessionDeliveryMessages = {
       'Dostarczanie wiadomości do czatu w tle jest wyłączone. Włącz je, aby od razu otrzymywać wiadomości w czacie. Gdy dostarczanie w tle jest wyłączone, wiadomości mogą pozostawać w kolejce.',
     chooseProfile: 'Wybierz profil ChatGPT do połączenia',
     connectRestartTitle: 'Uruchom ponownie ChatGPT',
+    restartInstruction: 'Całkowicie zamknij ChatGPT i otwórz go ponownie.',
     connectRestart: 'Po połączeniu całkowicie zamknij ChatGPT i otwórz go ponownie.',
     offer: 'Włącz tę opcję, aby odbierać wiadomości w tle. Kliknij Zastosuj, aby zapisać wybór.',
     quitBeforeChange:
@@ -270,6 +283,7 @@ export const sessionDeliveryMessages = {
       'Berichtbezorging op de achtergrond is uitgeschakeld. Schakel dit in om berichten direct in de chat te ontvangen. Zolang bezorging op de achtergrond is uitgeschakeld, kunnen berichten in de wachtrij blijven.',
     chooseProfile: 'Kies het ChatGPT-profiel dat je wilt verbinden',
     connectRestartTitle: 'Start ChatGPT opnieuw',
+    restartInstruction: 'Sluit ChatGPT volledig af en open de app opnieuw.',
     connectRestart: 'Sluit ChatGPT na het verbinden volledig af en open de app opnieuw.',
     offer:
       'Zet deze optie aan om berichten op de achtergrond te ontvangen. Klik op Toepassen om je keuze op te slaan.',
@@ -292,6 +306,7 @@ export const sessionDeliveryMessages = {
       'Фонову доставку в чат вимкнено. Увімкніть її, щоб повідомлення одразу надходили в чат. Поки фонову доставку вимкнено, повідомлення можуть залишатися в черзі.',
     chooseProfile: 'Виберіть профіль ChatGPT для підключення',
     connectRestartTitle: 'Перезапустіть ChatGPT',
+    restartInstruction: 'Повністю закрийте ChatGPT і відкрийте його знову.',
     connectRestart: 'Після підключення повністю закрийте ChatGPT і відкрийте його знову.',
     offer:
       'Увімкніть цей параметр, щоб чати отримували повідомлення у фоновому режимі. Натисніть «Застосувати», щоб зберегти вибір.',
@@ -313,6 +328,7 @@ export const sessionDeliveryMessages = {
     | 'chooseProfile'
     | 'connectRestart'
     | 'connectRestartTitle'
+    | 'restartInstruction'
     | 'offWarning'
     | 'offer'
     | 'label'

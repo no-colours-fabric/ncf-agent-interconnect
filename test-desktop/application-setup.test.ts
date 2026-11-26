@@ -521,12 +521,13 @@ test('delivery retry for a manually selected profile never repeats Apply or fall
 });
 
 test('ChatGPT restart notice follows a successful change, including delivery-only changes', async () => {
-  for (const [result, delivery, expected] of [
-    ['applied', 'enabled', 'pending'],
-    ['unchanged', 'ready', 'pending'],
-    ['unchanged', 'enabled', undefined],
-    ['applied', 'close-required', 'requested'],
-    ['failed', 'enabled', 'requested'],
+  for (const [result, delivery, expected, restartRequired] of [
+    ['applied', 'enabled', 'pending', false],
+    ['unchanged', 'ready', undefined, true],
+    ['unchanged', 'ready', undefined, false],
+    ['unchanged', 'enabled', undefined, false],
+    ['applied', 'close-required', 'requested', false],
+    ['failed', 'enabled', 'requested', false],
   ] as const) {
     let enables = 0;
     const flow = new ApplicationSetupFlow((async (method: string, raw: { action?: string }) => {
@@ -544,6 +545,7 @@ test('ChatGPT restart notice follows a successful change, including delivery-onl
           state: raw.action === 'enable' ? 'enabled' : delivery,
           profile: '/fixture/Work',
           scope: 'login',
+          restartRequired: raw.action === 'enable' && restartRequired,
         };
       }
       throw Error(method);
@@ -551,6 +553,9 @@ test('ChatGPT restart notice follows a successful change, including delivery-onl
     await flow.connect('codex', undefined, { showRestartNotice: true });
     assert.equal(flow.getSnapshot().codex.restartNotice, expected, result + delivery);
     assert.equal(enables, delivery === 'ready' ? 1 : 0);
+    assert.equal(flow.chatDelivery.getSnapshot().restartPending === true, restartRequired);
+    flow.chatDelivery.acknowledgeRestart();
+    assert.equal(flow.chatDelivery.getSnapshot().restartPending, undefined);
     const phase = flow.getSnapshot().codex.phase;
     assert.equal(phase, expected === 'requested' ? 'failed' : 'succeeded');
     if (expected === 'pending') {

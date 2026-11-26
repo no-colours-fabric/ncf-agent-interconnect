@@ -24,9 +24,8 @@ test('attachment storage uses the largest full decimal unit and never rounds up 
 
 test('each supported locale formats numbers and units in its own attachment storage row', () => {
   for (const locale of supportedLocales) {
-    const label = attachmentMessages(locale).usage;
-    assert.equal(label.split('{size}').length, 2, locale);
-    if (locale !== 'en') assert.notEqual(label, attachmentMessages('en').usage, locale);
+    const { title, allAges, help } = attachmentMessages(locale);
+    assert.ok(title && allAges && help, locale);
     for (const [bytes, value, unit] of [
       [15, 15, 'byte'],
       [1_500, 1.5, 'kilobyte'],
