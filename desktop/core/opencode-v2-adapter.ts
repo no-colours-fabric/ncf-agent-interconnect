@@ -56,6 +56,7 @@ interface Bridge {
   scope: OpenCodeV2Scope;
   abort: AbortController;
   events: EventEmitter;
+  sessions: Map<string, { revoked: boolean }>;
   active: boolean;
   ready: boolean;
   requests: number;
@@ -112,6 +113,17 @@ export class OpenCodeV2Bridges {
     });
   }
   sessionEnded(profile: AdapterProfile): void {
+    for (const bridge of this.bridges.values()) {
+      if (
+        bridge.scope.targetId === profile.setupTargetId &&
+        bridge.scope.bootId === profile.instanceId &&
+        profile.sessionId
+      ) {
+        const claim = bridge.sessions.get(profile.sessionId);
+        if (claim) claim.revoked = true;
+        bridge.sessions.delete(profile.sessionId);
+      }
+    }
     profile.released = true;
     this.profileRetired?.(profile.id);
   }
@@ -218,6 +230,7 @@ export class OpenCodeV2Bridges {
       },
       abort: new AbortController(),
       events: new EventEmitter(),
+      sessions: new Map(),
       active: true,
       ready: false,
       requests: 0,
@@ -373,24 +386,29 @@ export class OpenCodeV2Bridges {
     sessionID: string,
     bootId?: string,
     admissionId?: string,
+    connecting = false,
   ): Promise<OpenCodeV2Identity> {
     if (!sessionID.startsWith('ses') || sessionID.length > 200)
       throw new Error('V2_SESSION_UNAVAILABLE');
     const bridge = this.get(targetId, generation, bootId),
       nonce = randomUUID();
     if (bootId && bridge.admissionId !== admissionId) throw new Error('V2_SCOPE_UNAVAILABLE');
+    const sessionEvent = 'session:' + sessionID;
+    let claim: { revoked: boolean } | undefined;
     const identity: OpenCodeV2Identity = {
       nonce,
       sessionID,
       scope: bridge.scope,
       bridge,
       assertCurrent: () => {
-        if (!this.current(bridge)) throw new Error('V2_SCOPE_UNAVAILABLE');
+        if (!this.current(bridge) || claim?.revoked) throw new Error('V2_SCOPE_UNAVAILABLE');
       },
       onRevoke: (callback) => {
         bridge.events.on('closed', callback);
+        bridge.events.on(sessionEvent, callback);
         return () => {
           bridge.events.off('closed', callback);
+          bridge.events.off(sessionEvent, callback);
         };
       },
     };
@@ -409,6 +427,35 @@ export class OpenCodeV2Bridges {
       result.workspace !== bridge.registration.workspace
     )
       throw new Error('V2_SESSION_UNAVAILABLE');
+    // A verified second origin for the same physical chat also invalidates
+    // pending deliveries to that chat. Independent chats keep their authority.
+    const peers = [...this.bridges.values()].filter(
+      (other) =>
+        other !== bridge &&
+        this.current(other) &&
+        other.scope.targetId === targetId &&
+        other.scope.generation === generation &&
+        other.registration.workspace === result.workspace &&
+        other.sessions.has(sessionID),
+    );
+    claim = bridge.sessions.get(sessionID);
+    if (connecting || peers.length || claim) {
+      if (!claim || (claim.revoked && !peers.length)) {
+        if (!claim && !peers.length && bridge.sessions.size >= 512)
+          throw new Error('V2_BRIDGE_CAPACITY');
+        claim = { revoked: false };
+        bridge.sessions.set(sessionID, claim);
+      }
+      if (peers.length) {
+        for (const participant of [bridge, ...peers]) {
+          const held = participant.sessions.get(sessionID)!;
+          if (held.revoked) continue;
+          held.revoked = true;
+          participant.events.emit(sessionEvent);
+        }
+        throw new Error('V2_SESSION_AMBIGUOUS');
+      }
+    }
     return identity;
   }
   listen(
@@ -425,9 +472,12 @@ export class OpenCodeV2Bridges {
     if (!bridge) throw new Error('V2_SCOPE_UNAVAILABLE');
     bridge.events.on('evidence', callback);
     bridge.events.on('closed', closed);
+    const sessionEvent = 'session:' + profile.sessionId;
+    bridge.events.on(sessionEvent, closed);
     return () => {
       bridge.events.off('evidence', callback);
       bridge.events.off('closed', closed);
+      bridge.events.off(sessionEvent, closed);
     };
   }
   close(): void {

@@ -207,6 +207,46 @@ test('location routes isolate two concurrent hosts and release only the closing 
     401,
   );
 });
+
+test('two live instances opening the same native chat suspend just that chat until one closes', async (t) => {
+  const { host, service, call, provision, connectHost } = await openCodeV2ProductFixture(t);
+  const shared = host.addSession('ses_shared'),
+    sibling = host.addSession('ses_independent');
+  assert.equal(
+    (await call(shared, 'agent_connect', { nickname: 'Shared chat' })).isError,
+    undefined,
+  );
+  assert.equal(
+    (await call(sibling, 'agent_connect', { nickname: 'Independent chat' })).isError,
+    undefined,
+  );
+  const original = service.store.bindingForNickname('Shared chat')!;
+  const second = new OpenCodeV2HostFixture(host.workspace);
+  second.addSession(shared);
+  second.context.options = { targetId: provision.targetId, generation: provision.generation };
+  const handle = await startOpenCodeV2(second.context, provision);
+  t.after(() => handle.dispose());
+  const client = await connectHost(second);
+  const duplicate = await client.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: 'Shared chat' },
+    _meta: { 'ai.opencode/sessionID': shared },
+  });
+  assert.equal(duplicate.isError, true);
+  assert.equal(service.store.bindingForNickname('Shared chat')?.adapterId, original.adapterId);
+  assert.equal(service.adapters.get(original.adapterId).status().capabilities.wakeIdle, false);
+  assert.equal((await call(shared, 'node_status', {})).isError, true);
+  assert.equal((await call(sibling, 'node_status', {})).isError, undefined);
+  await handle.dispose();
+  assert.equal(
+    (await call(shared, 'agent_connect', { nickname: 'Shared chat' })).isError,
+    undefined,
+  );
+  assert.equal(
+    service.store.bindingForNickname('Shared chat')?.connectionId,
+    original.connectionId,
+  );
+});
 test('already installed single-location legacy plugin retains its original endpoint and exact chat', async (t) => {
   const { host, call } = await openCodeV2ProductFixture(t, { legacy: true });
   const id = host.addSession('ses_legacy');

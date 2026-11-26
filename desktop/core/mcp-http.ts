@@ -150,6 +150,7 @@ export function createAgentMcp(
             sessionID,
             openCodeV2.bootId,
             openCodeV2.admissionId,
+            name === 'agent_connect',
           );
           if (handoff) {
             const detach = nativeIdentity.onRevoke(() => handoff.controller.abort());
