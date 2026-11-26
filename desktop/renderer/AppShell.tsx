@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   Box,
-  Button,
+  IconButton,
   List,
   ListItemButton,
   ListItemIcon,
@@ -11,6 +11,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import PowerSettingsNewOutlined from '@mui/icons-material/PowerSettingsNewOutlined';
 import HubOutlined from '@mui/icons-material/HubOutlined';
 import ForumOutlined from '@mui/icons-material/ForumOutlined';
 import CableOutlined from '@mui/icons-material/CableOutlined';
@@ -65,6 +66,7 @@ export function AppShell({
   const title = navigation.find((item) => item.id === page)?.tKey ?? 'navOverview';
   const appCopy = applicationSetupMessages(locale);
   const pageTitle = page === 'mcp' ? appCopy.applications : t(locale, title);
+  const powerAction = t(locale, snapshot.running ? 'btnStop' : 'btnStart');
   return (
     <Box
       sx={{
@@ -176,11 +178,26 @@ export function AppShell({
             <Typography variant="caption" color="text.secondary">
               {snapshot.running ? t(locale, 'nodeRunning') : t(locale, 'nodeStopped')}
             </Typography>
+            <IconButton
+              data-testid="node-toggle"
+              aria-label={powerAction}
+              title={powerAction}
+              disabled={busy}
+              onClick={onToggle}
+              sx={{
+                width: 44,
+                height: 44,
+                flexShrink: 0,
+                color: snapshot.running ? 'success.main' : 'warning.main',
+              }}
+            >
+              <PowerSettingsNewOutlined fontSize="small" />
+            </IconButton>
           </Stack>
           <Typography
             variant="caption"
             color="text.secondary"
-            sx={{ display: 'block', mt: 0.75, fontFamily: 'monospace', overflowWrap: 'anywhere' }}
+            sx={{ display: 'block', fontFamily: 'monospace', overflowWrap: 'anywhere' }}
           >
             {snapshot.nodeLabel}
           </Typography>
@@ -230,15 +247,6 @@ export function AppShell({
                 {pageTitle}
               </Typography>
             </Box>
-            <Button
-              data-testid="node-toggle"
-              size="small"
-              variant="outlined"
-              disabled={busy}
-              onClick={onToggle}
-            >
-              {snapshot.running ? t(locale, 'btnStop') : t(locale, 'btnStart')}
-            </Button>
           </Stack>
         </Box>
         <Box sx={{ px: 3, py: 2.5 }}>

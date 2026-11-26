@@ -1533,6 +1533,7 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
  if(method==='cancelPeerApproval')return {canceled:true};
  if(method==='connectPeer'){if(pairError)throw new Error(pairError);return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};}
  if(method==='stopLanSearch'){value.lanSearch.phase='stopped';changed();return {stopped:true};}
+ if(method==='start'||method==='stop'){value.running=method==='start';changed();return {};}
  if(method==='startLanSearch'){value.lanSearch={...value.lanSearch,phase:'searching',runId:value.lanSearch.runId+1,foundCount:0,elapsedMs:0,nodes:value.lanSearch.nodes.map(node=>({...node,observedInRun:false}))};changed();return {started:true};}
  if(method==='ackLanSearch'){value.lanSearch.unseenKeys=value.lanSearch.unseenKeys.filter(key=>!input.keys.includes(key));value.lanSearch.nodes=value.lanSearch.nodes.map(node=>input.keys.includes(node.key)?{...node,newlyFound:false}:node);changed();return {acknowledged:true};}
  throw new Error('Unexpected fixture method: '+method);
@@ -1726,6 +1727,42 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
       );
 
       await suite.test(
+        'sidebar power follows the node state and activates by keyboard',
+        { skip: !!process.env.NCF_LAN_WIRING_CASE && process.env.NCF_LAN_WIRING_CASE !== 'power' },
+        async () => {
+          const page = await open([], 'overview');
+          try {
+            const footer = page.getByTestId('sidebar-node-status');
+            const stop = footer.getByRole('button', { name: 'Stop', exact: true });
+            const start = footer.getByRole('button', { name: 'Start', exact: true });
+            for (const width of [720, 1280]) {
+              await page.setViewportSize({ width, height: 900 });
+              const status = await footer.getByText('Running', { exact: true }).boundingBox();
+              const power = await stop.boundingBox();
+              assert.ok(status && power);
+              assert.ok(power.x > status.x + status.width);
+              assert.ok(Math.abs(power.y + power.height / 2 - status.y - status.height / 2) < 2);
+              assert.deepEqual([power.width, power.height], [44, 44]);
+              assert.equal(await page.locator('header').getByTestId('node-toggle').count(), 0);
+            }
+            const color = (button: typeof stop) =>
+              button.evaluate((element) => getComputedStyle(element).color);
+            const runningColor = await color(stop);
+            await stop.press('Enter');
+            await start.waitFor();
+            await until(() => start.isEnabled(), 'Power is ready after stopping');
+            assert.notEqual(await color(start), runningColor);
+            assert.equal((await calls(page, 'stop')).length, 1);
+            await start.press('Space');
+            await stop.waitFor();
+            assert.equal((await calls(page, 'start')).length, 1);
+          } finally {
+            await page.close();
+          }
+        },
+      );
+
+      await suite.test(
         'sidebar keeps passive indicators; the network page owns search status and Stop',
         {
           skip:
@@ -1764,7 +1801,7 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
             await stop.click();
             assert.deepEqual((await calls(page, 'stopLanSearch'))[0].input, {});
             assert.equal((await calls(page, 'stop')).length, 0);
-            assert.equal(await page.getByTestId('node-toggle').textContent(), 'Stop');
+            assert.equal(await page.getByTestId('node-toggle').getAttribute('aria-label'), 'Stop');
             await page.getByRole('button', { name: 'Search', exact: true }).waitFor();
             await page.getByTestId('remote-nodes-table').waitFor();
             await page.getByText('Retained fixture peer diagnostic', { exact: true }).waitFor();
