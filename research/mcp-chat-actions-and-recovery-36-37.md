@@ -83,3 +83,30 @@ behave across a fresh MCP session. The installed ChatGPT GUI, an application
 Quit/relaunch, natural-language tool selection by a live model, packaging and
 the full suite were outside these checks. Working profiles and the release
 branch were untouched.
+
+## Integrated response compatibility
+
+The shared source run at `99629548b475996743d5994170315e4c3299c70a`
+(NCF Agent Interconnect 1.1.0) found five differences in the same MCP
+presentation layer. AionUi lost the specific no-poll instruction on its
+forwarded initialize response. That wording is restored. The duplicate
+long-read guard still rejected a second read, but its different wording
+prevented the existing client check from recognizing the reason. The
+legacy reason now precedes the new guidance. The raw-row history guard
+still withheld the replaced page. Its known, static refusal now makes that
+outcome explicit without changing the row checks.
+
+An attachment preparation failure is determinate even if its internal exception
+is private. Normalize it at the unread-page attachment boundary and keep the
+original exception as its cause. The public response says the attachment is
+unavailable and that this read released no messages. Existing reservation
+cancellation, sibling waits, owner checks and history handling are unchanged.
+The reset fixture now checks that the injected failure occurred, no receipt was
+recorded, cleanup waits for the sibling and the private exception stays out of
+the MCP response.
+
+On macOS arm64 with Node `22.12.0`, all five original cases passed once on the
+isolated correction, along with the reset approval and AionUi diagnostics
+guards. TypeScript and scoped style passed. This was a targeted rerun after the
+shared source run. Installed clients, working profiles and packages were
+outside the check.

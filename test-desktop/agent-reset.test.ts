@@ -827,8 +827,13 @@ test('a failed materialize waits for still-writing siblings before reset cleanup
   });
   const barrier = gate(),
     materialize = service.files.materialize.bind(service.files);
+  const privateFailure = 'Simulated materialize failure at /private/fixture/file';
+  let firstFailed = false;
   service.files.materialize = async (id, file) => {
-    if (file.name === 'first.txt') throw new Error('Simulated materialize failure');
+    if (file.name === 'first.txt') {
+      firstFailed = true;
+      throw new Error(privateFailure);
+    }
     await barrier.wait();
     return materialize(id, file);
   };
@@ -842,9 +847,15 @@ test('a failed materialize waits for still-writing siblings before reset cleanup
       settled = true;
     },
   );
-  const rejected = assert.rejects(reading, /Simulated materialize failure/);
+  const rejected = assert.rejects(reading, (error: Error) => {
+    assert.match(error.message, /The attachment is unavailable\. This read released no messages/);
+    assert.ok(!error.message.includes(privateFailure));
+    return true;
+  });
   try {
     await until(() => barrier.entered);
+    assert.equal(firstFailed, true);
+    assert.equal(service.store.get(sent.id, 'out')?.state, 'ready');
     reset(service);
     await new Promise((resolve) => setImmediate(resolve));
     assert.equal(settled, false);

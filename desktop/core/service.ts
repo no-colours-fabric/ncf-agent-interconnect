@@ -53,7 +53,7 @@ import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
-import { CodexRenameReconnectRequired } from './mcp-agent-guidance.js';
+import { CodexRenameReconnectRequired, McpReadAttachmentFailure } from './mcp-agent-guidance.js';
 import type { ResponseInvocation } from './mcp-response-handoff.js';
 import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
@@ -2629,7 +2629,7 @@ export class NodeService extends EventEmitter {
     try {
       return { ...file, localPath: await this.materializeAttachment(messageId, file, direction) };
     } catch (error) {
-      if (unread) throw error;
+      if (unread) throw new McpReadAttachmentFailure(error);
       return { ...file, status: 'unavailable' };
     }
   }
