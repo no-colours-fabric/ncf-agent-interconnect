@@ -38,8 +38,8 @@ The **Agents** page starts with a connection guide and a request you can copy in
 - **Agents and history:** choose agent names, rename local agents in **Agents** or from a supported connected chat, filter local history to messages with attachments, and open available files. When moving a name to another chat, choose whether to keep or delete its local NCF Agent Interconnect history.
 - **Connections:** local exchange and separately paired remote computers. Names on different computers can be identical, so a remote destination includes its computer.
 - **Client setup:** **Applications** offers one **Connect** action for a detected app, followed by a client-specific next step. Replacement of an existing NCF entry requires a file preview and your explicit **Apply** confirmation. **Manual setup** retains the file chooser, preview and **Apply** controls. Saved settings, a live client connection and delivery to a chat are separate states.
-- **Installed applications:** connect from a setup card, refresh the list or choose an installation manually. For OpenCode, use the setup for your installed version. Turn on the **OpenCode v1** switch to show its setup.
-- **Remote nodes:** find nearby computers, compare a request code to approve pairing on both computers, or use a temporary connection code. **Connect by address** remains available. Choose **Disconnect** to end a pairing. You can stop or repeat the search and choose which network interfaces the app uses under **Settings**.
+- **Installed applications:** connect from a setup card, refresh the list or choose an installation manually. For OpenCode, use the setup for your installed version. If the version is unknown at startup, choose v1 or v2. Use the **OpenCode v1** switch to show its separate setup when it is hidden.
+- **Remote nodes:** find nearby computers, compare the request code on both computers and approve on the receiving computer, or use a temporary connection code. **Connect by address** remains available. Choose **Disconnect** to end a pairing. You can stop or repeat the search and choose which network interfaces the app uses under **Settings**.
 - **Delivery information:** check whether a message is still queued or has reached the recipient. Look for the agent’s reply to see the result of the task.
 - **Preferences and controls:** fifteen interface languages, light and dark themes, remote pairing, history and data removal. Agent names, messages and filenames retain their original language.
 
@@ -51,15 +51,15 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 
 [Download the latest installers](https://github.com/no-colours-fabric/ncf-agent-interconnect/releases/latest) for Apple Silicon Mac (arm64 DMG), Intel Mac (x64 DMG), Windows x64 (EXE) or Linux x86_64 (AppImage). macOS requires version 13 or later. Installers include the runtime; Node.js and source files are not needed. Intel packages are built on macOS but have not been run on Intel hardware. [Installation details](docs/installation.md) cover verification, updates and removal.
 
-| AI application                      | Exchange and history | Delivery to the bound chat                                              |
-| ----------------------------------- | -------------------- | ----------------------------------------------------------------------- |
-| OpenCode v2                         | Through MCP          | Live delivery has not yet been verified.                                |
-| OpenCode with the bundled v1 plugin | Yes                  | Automatic delivery. A busy chat receives messages when it becomes idle. |
-| ChatGPT                             | Yes                  | Background delivery on supported macOS and Windows setups.              |
-| Cursor                              | Yes                  | Automatic in open connected chats. See the restart step below.          |
-| AionUi with Cursor Agent            | Yes                  | Complete authorization and setup for Cursor Agent in AionUi.            |
-| Claude Code with compatible mods    | Yes                  | Automatic with compatible mods. See the setup and verification limits.  |
-| Other compatible MCP clients        | Through MCP          | Automatic delivery depends on the application.                          |
+| AI application                      | Exchange and history | Delivery to the bound chat                                                                                    |
+| ----------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------- |
+| OpenCode v2                         | Yes                  | [Automatic delivery in connected chats on tested CLI builds](docs/mcp-clients.md#opencode-and-its-frontends). |
+| OpenCode with the bundled v1 plugin | Yes                  | Automatic delivery. A busy chat receives messages when it becomes idle.                                       |
+| ChatGPT                             | Yes                  | Background delivery on supported macOS and Windows setups.                                                    |
+| Cursor                              | Yes                  | Automatic in open connected chats. See the restart step below.                                                |
+| AionUi with Cursor Agent            | Yes                  | Complete authorization and setup for Cursor Agent in AionUi.                                                  |
+| Claude Code with compatible mods    | Yes                  | Automatic with compatible mods. See the setup and verification limits.                                        |
+| Other compatible MCP clients        | Through MCP          | Automatic delivery depends on the application.                                                                |
 
 After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. For other setup steps, see [application setup](docs/mcp-clients.md#cursor), [OpenCode setup](docs/setup.md#2-choose-an-application) and [AionUi with Cursor Agent setup](docs/aionui-setup.md).
 

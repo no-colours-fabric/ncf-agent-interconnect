@@ -47,17 +47,18 @@ are available, with English as the default.
 Configure each application or profile once. To add agents, ask the assistants in
 their own chats to connect under names you choose.
 
-- **OpenCode v2:** choose the separate v2 setup and the configuration file it
-  uses. Restart OpenCode v2 and connect in the intended chat. Live OpenCode v2
-  delivery has not yet been verified.
+- **OpenCode v2:** use the v2 setup and select the configuration file it uses. Restart OpenCode v2 and connect in the intended chat. If the local NCF Agent Interconnect node is stopped, start it before reconnecting OpenCode. Startup offers setup for the detected OpenCode major version. Choose v1 or v2 if the version is unknown.
+
+  Message and attachment delivery was verified with the official OpenCode CLI versions **2.2.5**, **2.3.0**, **2.3.2**, and **2.4.2** on Apple Silicon macOS, and **2.3.2** and **2.4.2** in an emulated Linux/amd64 Docker environment. Both used isolated profiles and a local test model. OpenCode Desktop and Windows CLI delivery were outside these checks.
+
 - **OpenCode v1:** turn on the **OpenCode v1** switch and complete its setup.
   Restart OpenCode v1. If you use a frontend, choose one that loads the included
   plugin from that OpenCode installation. A busy chat can receive messages when
   it becomes idle.
-- **ChatGPT:** **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile.
-  On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it.
-  Use the settings gear in **Applications → ChatGPT** to open **Manual setup** or turn background delivery off.
-  Open ChatGPT from its usual icon and connect the intended chat.
+- **ChatGPT:** **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**.
+  - **macOS:** Choose **Home** or **Work** if offered. If you see **Restart ChatGPT**, select **Got it**, then quit ChatGPT completely and reopen it.
+  - **Windows:** Use the default profile. Quit ChatGPT completely before turning background delivery on or off, then reopen it.
+  - Use the settings gear for **Manual setup** or to turn background delivery off. Open ChatGPT from its usual icon and connect the intended chat.
 - **Cursor:** restart Cursor once after setup, then connect in the intended
   chat and keep it open. Open connected chats can receive messages even when
   they are not selected in the IDE or Agents Window. After a restart, send one
@@ -70,7 +71,7 @@ their own chats to connect under names you choose.
 
 Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. See [ChatGPT compatibility and downloads](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md#codex-desktop).
 
-For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**.
+When NCF Agent Interconnect detects a ChatGPT version newer than **26.1111.71704** and background delivery is off, the ChatGPT card in **Overview** and **Applications** warns that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT needs setup and **Connect** is available, the switch starts that setup.
 
 See the
 [application-specific guide](https://github.com/no-colours-fabric/ncf-agent-interconnect/blob/main/docs/mcp-clients.md)
@@ -107,8 +108,10 @@ computers remain available.
 To use another computer, start NCF Agent Interconnect there. In **Remote
 nodes**, choose the intended computer or use **Connect by address**. If
 **Request approval** is available, compare the six-digit request code on
-both computers. Choose **Confirm** on both only if the codes match. You can
-also create a temporary connection code on the receiving computer and enter
+both computers. If they match, choose **Confirm** on the receiving computer.
+The computer that sent the request waits for approval. If it runs an older
+version and still shows **Confirm**, confirm there as well. You can also
+create a temporary connection code on the receiving computer and enter
 it on the computer starting the connection. Keep the temporary code private.
 It expires after ten minutes and authorizes one pairing.
 
@@ -155,11 +158,11 @@ NCF Agent Interconnect removes an unchanged temporary source it created for
 transfer once delivery to the receiving agent is recorded. Working files and
 files still awaiting delivery are kept.
 
-**Settings → Received attachments** shows the total storage used by received attachments on the **Attachment storage** line.
-Choose **Remove received attachments**, select **7, 30, 90, or 365 days**
+In **Settings → Storage**, the **Attachments** row shows the total space used by received attachments.
+Choose **Remove received attachments**, select **7, 30, 90, or 365 days** or **All**
 under **Older than**, and confirm. In **Agents**, click the **Attachments**
 header to sort by local storage used. Choose **Remove received attachments**
-in a local agent’s row to clean up files for that agent only. The displayed
+in a local agent’s row to apply the same cleanup choices to that agent only. The displayed
 size and history refresh after cleanup. Messages and filenames remain in
 history, with removed files marked unavailable. If you need a removed file,
 use a separately saved copy or ask the sender to send it again.

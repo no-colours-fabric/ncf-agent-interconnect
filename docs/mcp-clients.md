@@ -18,13 +18,15 @@ After a restart, send one ordinary message in the same previously connected Curs
 
 ## OpenCode and its frontends
 
-Open **Applications → OpenCode**. The OpenCode v2 setup is shown first. Turn on the **OpenCode v1** switch to configure v1. Choose the setup for the version you use and the configuration file it loads. If automatic setup is unavailable, choose **Manual setup** to select the file.
+At startup, NCF Agent Interconnect offers setup for the detected OpenCode major version. If it cannot determine the version, choose v1 or v2. You can also open **Applications → OpenCode** and choose the setup for the version you use. If the v1 setup is hidden, turn on the **OpenCode v1** switch. If automatic setup is unavailable, choose **Manual setup** and select the configuration file your OpenCode installation loads.
 
 Setup adds missing permissions for routine NCF actions in the selected OpenCode profile. The preview lists the permissions it will add. If a rule in the selected file requires approval or blocks one of those actions, setup reports the conflict before saving changes.
 
-For v2, open **Configure OpenCode v2**. Review the selected file and preview before **Apply**. Your provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. If that chat stops receiving messages after an NCF Agent Interconnect restart, restart or reconnect OpenCode and check the chat.
+For v2, open **Configure OpenCode v2**. Review the selected file and preview before **Apply**. Your provider and account settings are preserved. Restart OpenCode v2 and ask the assistant to connect in the intended chat. Saved configuration and a connected plugin are separate. The v2 setup shows the plugin status. Messages and attachments can reach their connected chats even when several project directories are open in one process.
 
-Live delivery in an OpenCode v2 chat has not yet been verified for this release.
+If the setup shows **NCF node stopped**, use the power button next to **Stopped** in the sidebar to start it. Keep the existing OpenCode setup. If the plugin still has not connected, reopen OpenCode v2 and return to the intended chat. If prompted to approve a transfer for the same agent name, approve it to keep the history.
+
+Message and attachment delivery was verified with the official OpenCode CLI versions **2.2.5**, **2.3.0**, **2.3.2**, and **2.4.2** on Apple Silicon macOS, and **2.3.2** and **2.4.2** in an emulated Linux/amd64 Docker environment. Both used isolated profiles and a local test model. OpenCode Desktop and Windows CLI delivery were outside these checks.
 
 For v1, use **Configure OpenCode v1** and select the file that OpenCode loads, such as `opencode.json` or `opencode.jsonc`. Review the preview, click **Apply**, then restart OpenCode v1. If you use an OpenCode frontend, choose one that loads the included plugin from that OpenCode installation. A busy chat can receive messages when it becomes idle. Configuring v2 leaves v1 available.
 
@@ -34,17 +36,18 @@ For v1, use **Configure OpenCode v1** and select the file that OpenCode loads, s
 
 **Applications → ChatGPT → Connect** sets up the selected profile and turns on **Background chat delivery**. On macOS, choose **Home** or **Work** if offered. Windows background delivery uses the default profile. Background chat delivery is available for supported ChatGPT installations on macOS and Windows only. On macOS, the selected profile applies to ChatGPT windows opened during the current login session.
 
-On macOS, when **Connect** changes setup or turns on delivery for the selected profile, the **Restart ChatGPT** dialog requires acknowledgment. Select **Got it**, quit ChatGPT completely and reopen it. On Windows, quit ChatGPT completely before turning background delivery on or off, then reopen it.
+- **macOS:** If you see **Restart ChatGPT**, select **Got it**, then quit ChatGPT completely and reopen it.
+- **Windows:** Quit ChatGPT completely before turning background delivery on or off. Reopen it after the change.
 
-In **Applications → ChatGPT**, the settings gear labeled **Manual setup** opens setup for a specific profile. Select the configuration you use, review the preview and select **Apply**. If the profile has not been set up, you can select **Background chat delivery** before applying. After setup, use the switch in the same dialog to turn delivery on or off. On macOS, quit and reopen ChatGPT after changing the switch. If setup reports conflicting settings, review the selected profile before making changes.
+In **Applications → ChatGPT**, the settings gear labeled **Manual setup** opens setup for a specific profile. Select the configuration you use, review the preview and select **Apply**. If the profile has not been set up, you can select **Background chat delivery** before applying. After setup, use the switch in the same dialog to turn delivery on or off. On macOS, turning delivery off keeps the selected profile. Follow the restart steps if **Restart ChatGPT** appears. If setup reports conflicting settings, review the selected profile before making changes.
 
 After setup, open ChatGPT from its usual icon and ask the assistant to connect in the chat you intend to use. To restore an existing connection, open the same chat and ask the assistant to connect under the same name.
 
 ### Background delivery and compatibility
 
-With background delivery active, eligible connected ChatGPT chats on macOS and Windows can receive messages during a response. A connected chat that is no longer open can resume without you switching chats.
+With background delivery on for a supported ChatGPT profile on macOS or Windows, an eligible connected chat can receive messages during a response. An eligible connected chat that is no longer open can also resume without you switching to it.
 
-For detected ChatGPT versions newer than **26.1111.71704**, the ChatGPT card in **Overview** and **Applications** can show “Background chat delivery is off” and warn that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT still needs setup, the switch can open the same setup flow as **Connect**.
+When NCF Agent Interconnect detects a ChatGPT version newer than **26.1111.71704** and background delivery is off, the ChatGPT card in **Overview** and **Applications** warns that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT needs setup and **Connect** is available, the switch starts that setup.
 
 Without background delivery, incoming messages on ChatGPT versions newer than **26.1111.71704** may stay queued until the current reply ends or the next turn begins. If you use the earlier delivery path, the recommended compatible ChatGPT downloads are listed below.
 

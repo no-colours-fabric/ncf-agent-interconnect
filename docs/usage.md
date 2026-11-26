@@ -139,12 +139,12 @@ If a ChatGPT chat is missing messages after a restart, check **Background chat d
 
 Your ordinary work stays in the AI chats. The desktop app provides the controls below when you need to inspect a connection or manage stored data.
 
-| Control          | What it is for                                                                                                                                |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Applications** | Connect a detected application, inspect saved configuration and activity, or configure another application or profile manually.               |
-| **Agents**       | Copy the connection request, inspect names, availability and history; use diagnostic manual creation or review a deletion preview.            |
-| **Remote nodes** | Search nearby computers, approve a pairing on both computers or enter a temporary code, connect by address, and disconnect a paired computer. |
-| **Settings**     | Choose outgoing file folders, review or exclude network interfaces, and set optional Start at login.                                          |
+| Control          | What it is for                                                                                                                     |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| **Applications** | Connect a detected application, inspect saved configuration and activity, or configure another application or profile manually.    |
+| **Agents**       | Copy the connection request, inspect names, availability and history; use diagnostic manual creation or review a deletion preview. |
+| **Remote nodes** | Find computers, connect by address, pair by comparing codes or entering a temporary code, and disconnect paired computers.         |
+| **Settings**     | Choose outgoing file folders, review or exclude network interfaces, and set optional Start at login.                               |
 
 ### Rename an agent from its chat
 

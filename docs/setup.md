@@ -14,7 +14,7 @@ Start NCF Agent Interconnect. Keep it running while agents exchange messages. Us
 
 On **Connect your apps**, choose an application or select **Not now**. You can return to **Applications** from the sidebar, use **Refresh** to check again or use **Choose installation** to locate an app manually.
 
-If an application shows **Not found in known locations** or **Unknown**, expand **Locations checked** or choose its installation manually. For OpenCode use the setup for the version you installed. The **OpenCode v1** switch shows the separate v1 setup. For Claude Desktop, check that your setup uses a compatible Claude Code backend.
+If an application shows **Not found in known locations** or **Unknown**, expand **Locations checked** or choose its installation manually. For OpenCode, use the startup setup for the detected major version. If the version is unknown, choose v1 or v2. In **Applications**, the **OpenCode v1** switch reveals the separate v1 setup when it is hidden. For Claude Desktop, check that your setup uses a compatible Claude Code backend.
 
 For a detected application, select **Connect** from its startup card or under **Applications**. If the app asks to replace existing settings, review the selected file and change preview, then choose **Apply** or **Cancel**. Follow **Next step** to reconnect or restart the application and connect its chat.
 
@@ -22,15 +22,15 @@ For another installation or profile, use **Manual setup** and the client-specifi
 
 After Connect or Apply, restart Cursor once to load its included plugin, or restart the selected OpenCode version after setup. For ChatGPT, follow the [profile and restart steps](mcp-clients.md#codex-desktop). Restart Claude Code or reload its plugins. For AionUi with Cursor Agent, follow its [separate owner authorization and Cursor Agent bridge setup](aionui-setup.md). Saved settings alone do not mean that an agent chat is connected or that its plugin is running.
 
-| Application                         | What to expect after setup                                                                                                   |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
-| OpenCode with the bundled v1 plugin | Restart after setup. Busy chats receive messages when they become idle.                                                      |
-| OpenCode v2                         | Use the separate v2 setup, restart OpenCode and connect in the intended chat. Live v2 delivery has not yet been verified.    |
-| ChatGPT                             | Choose your profile if prompted and follow the [ChatGPT setup](mcp-clients.md#codex-desktop) restart steps.                  |
-| Cursor                              | Restart Cursor after setup. For restart recovery in a connected chat, see [Cursor setup](mcp-clients.md#cursor).             |
-| AionUi with Cursor Agent            | Use Cursor Agent in AionUi and complete its authorization and setup.                                                         |
-| Claude Code with compatible mods    | Restart Claude Code or reload its plugins. See [Claude setup](mcp-clients.md#claude-code) for permissions and compatibility. |
-| Other compatible MCP clients        | Ask the assistant to check for messages if its application does not deliver them automatically.                              |
+| Application                         | What to expect after setup                                                                                                                                   |
+| ----------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| OpenCode with the bundled v1 plugin | Restart after setup. Busy chats receive messages when they become idle.                                                                                      |
+| OpenCode v2                         | Use the v2 setup, then restart OpenCode and connect in the intended chat. See [tested CLI versions and recovery](mcp-clients.md#opencode-and-its-frontends). |
+| ChatGPT                             | Choose your profile if prompted and follow the [ChatGPT setup](mcp-clients.md#codex-desktop) restart steps.                                                  |
+| Cursor                              | Restart Cursor after setup. For restart recovery in a connected chat, see [Cursor setup](mcp-clients.md#cursor).                                             |
+| AionUi with Cursor Agent            | Use Cursor Agent in AionUi and complete its authorization and setup.                                                                                         |
+| Claude Code with compatible mods    | Restart Claude Code or reload its plugins. See [Claude setup](mcp-clients.md#claude-code) for permissions and compatibility.                                 |
+| Other compatible MCP clients        | Ask the assistant to check for messages if its application does not deliver them automatically.                                                              |
 
 The [application-specific guide](mcp-clients.md) covers setup choices and compatibility limits.
 
@@ -42,9 +42,9 @@ If the name is already connected to another chat, the new chat will ask whether 
 
 ## 4. Connect another computer, if needed
 
-Start NCF Agent Interconnect on both computers and open **Remote nodes**. Check that the receiving computer shows an enabled connection address. If it does not, review excluded interfaces under **Settings → Network settings**. Opening the window starts a 30-second search. Use **Stop search** or **Search again** as needed. Select the intended computer and address from the search results, or use **Connect by address** if search misses it.
+Start NCF Agent Interconnect on both computers and open **Remote nodes**. Check that the receiving computer shows an enabled connection address. If it does not, review excluded interfaces under **Settings → Network settings**. Opening the window starts a 30-second search. Use **Stop search** or **Search again** as needed. Select the intended computer and address from the search results, or use **Connect by address** if search misses it. When both computers support direct replies, search can find a computer that receives the multicast request and can reply directly over local IPv4.
 
-- **Request approval:** If this option is available, open the request on both computers. Compare all six digits, including any leading zero. On the receiving computer, choose **Confirm** only if the codes match and you recognize the other computer. If the codes differ, cancel the request.
+- **Request approval:** Select this option on the computer starting the connection, then open the request on the receiving computer. Compare all six digits, including any leading zero. If the codes match and you recognize the other computer, choose **Confirm** on the receiving computer. The computer that sent the request waits for approval. If it runs an older version and still shows **Confirm**, confirm there as well. If the codes differ, cancel the request.
 - **Enter a connection code:** On the receiving computer, create a temporary connection code. Enter it on the computer starting the connection. Keep it private. It has eight characters, expires after ten minutes and authorizes one pairing.
 
 Review paired computers under **Remote nodes**. To end a pairing, select that computer, choose **Disconnect** and confirm. If the other computer is offline or runs an older version, it may still show the saved pairing. To reconnect, pair the computers again.
