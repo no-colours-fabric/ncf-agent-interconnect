@@ -1,5 +1,5 @@
 import { EventEmitter } from 'node:events';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { z } from 'zod';
 import { isDeepStrictEqual } from 'node:util';
 import type { AdapterProfile, AdapterState } from '../shared/contracts.js';
@@ -29,10 +29,16 @@ const registrationSchema = z
     appVersion: z.literal('2.3.0'),
     bridgeUrl: z.url(),
     bridgeCredential: z.string().regex(/^[a-f0-9]{64}$/),
+    instanceCredential: z
+      .string()
+      .regex(/^[a-f0-9]{64}$/)
+      .optional(),
   })
   .strict();
 const same = isDeepStrictEqual;
 interface Bridge {
+  key: string;
+  admissionId: string;
   registration: OpenCodeV2Registration;
   credential: string;
   scope: OpenCodeV2Scope;
@@ -74,7 +80,7 @@ async function boundedJSON(response: Response): Promise<unknown> {
 /** Per-boot transport/authority only; durable attempts stay in the common dispatch ledger. */
 export class OpenCodeV2Bridges {
   private readonly bridges = new Map<string, Bridge>();
-  private readonly ambiguous = new Map<string, string>();
+  private readonly legacyBlocked = new Map<string, string>();
   private requests = 0;
   private unobserve?: () => void;
   constructor(
@@ -85,8 +91,9 @@ export class OpenCodeV2Bridges {
   start(): void {
     this.unobserve?.();
     this.unobserve = this.auth.observe((id) => {
-      const bridge = this.bridges.get(id);
-      if (bridge) this.retire(bridge);
+      this.legacyBlocked.delete(id);
+      for (const bridge of this.bridges.values())
+        if (bridge.scope.targetId === id) this.retire(bridge);
     });
   }
   sessionEnded(profile: AdapterProfile): void {
@@ -102,8 +109,7 @@ export class OpenCodeV2Bridges {
       !bridge.abort.signal.aborted &&
       node.id === bridge.scope.nodeId &&
       node.epoch === bridge.scope.nodeEpoch &&
-      this.bridges.get(bridge.scope.targetId) === bridge &&
-      this.ambiguous.get(bridge.scope.targetId) !== bridge.scope.generation
+      this.bridges.get(bridge.key) === bridge
     );
   }
   private retire(bridge: Bridge): void {
@@ -118,8 +124,7 @@ export class OpenCodeV2Bridges {
       }
     }
     bridge.events.removeAllListeners();
-    if (this.bridges.get(bridge.scope.targetId) === bridge)
-      this.bridges.delete(bridge.scope.targetId);
+    if (this.bridges.get(bridge.key) === bridge) this.bridges.delete(bridge.key);
   }
   async register(raw: unknown, credential: string): Promise<OpenCodeV2Scope> {
     const input = registrationSchema.parse(raw),
@@ -139,20 +144,28 @@ export class OpenCodeV2Bridges {
       url.hash
     )
       throw new Error('V2_BRIDGE_ADDRESS');
-    const old = this.bridges.get(input.targetId);
-    if (this.ambiguous.get(input.targetId) === input.generation)
+    const key = [input.targetId, input.generation, input.bootId].join('/');
+    const old = this.bridges.get(key);
+    if (!input.instanceCredential && this.legacyBlocked.get(input.targetId) === input.generation)
       throw new Error('V2_BRIDGE_AMBIGUOUS');
     if (old && old.active && old.scope.nodeEpoch === node.epoch) {
       if (same(old.registration, input)) {
         if (!old.ready) throw new Error('V2_BRIDGE_REGISTERING');
         return old.scope;
       }
-      this.ambiguous.set(input.targetId, input.generation);
-      this.retire(old);
+      throw new Error('V2_BRIDGE_AMBIGUOUS');
+    }
+    // Older installed plugins use one shared endpoint with no instance proof.
+    const legacy = this.legacy(input.targetId, input.generation);
+    if (legacy && !input.instanceCredential) {
+      this.legacyBlocked.set(input.targetId, input.generation);
+      this.retire(legacy);
       throw new Error('V2_BRIDGE_AMBIGUOUS');
     }
     if (this.bridges.size >= 128) throw new Error('V2_BRIDGE_CAPACITY');
     const bridge: Bridge = {
+      key,
+      admissionId: randomUUID(),
       registration: input,
       credential,
       scope: {
@@ -169,7 +182,7 @@ export class OpenCodeV2Bridges {
       ready: false,
       requests: 0,
     };
-    this.bridges.set(input.targetId, bridge);
+    this.bridges.set(key, bridge);
     const headerTimer = setTimeout(() => bridge.abort.abort(), 5000);
     headerTimer.unref();
     try {
@@ -184,11 +197,16 @@ export class OpenCodeV2Bridges {
         !response.body ||
         !this.node().ready ||
         this.node().epoch !== node.epoch ||
-        this.bridges.get(input.targetId) !== bridge ||
+        this.bridges.get(key) !== bridge ||
         bridge.abort.signal.aborted
       )
         throw new Error('V2_BRIDGE_UNAVAILABLE');
       bridge.ready = true;
+      if (input.instanceCredential) {
+        this.legacyBlocked.set(input.targetId, input.generation);
+        const previous = this.legacy(input.targetId, input.generation);
+        if (previous) this.retire(previous);
+      }
       const reader = response.body.getReader();
       void (async () => {
         let buffer = '';
@@ -226,15 +244,36 @@ export class OpenCodeV2Bridges {
       throw new Error('V2_BRIDGE_UNAVAILABLE');
     }
   }
-  private get(targetId: string, generation?: string): Bridge {
-    const bridge = this.bridges.get(targetId);
-    if (
-      !bridge ||
-      !this.current(bridge) ||
-      (generation !== undefined && bridge.scope.generation !== generation)
-    )
-      throw new Error('V2_BRIDGE_UNAVAILABLE');
+  private legacy(targetId: string, generation: string): Bridge | undefined {
+    return [...this.bridges.values()].find(
+      (b) =>
+        b.scope.targetId === targetId &&
+        b.scope.generation === generation &&
+        !b.registration.instanceCredential,
+    );
+  }
+  hasLegacy(targetId: string, generation: string): boolean {
+    const bridge = this.legacy(targetId, generation);
+    return !!bridge && this.current(bridge);
+  }
+  private get(targetId: string, generation: string, bootId?: string): Bridge {
+    const bridge = bootId
+      ? this.bridges.get([targetId, generation, bootId].join('/'))
+      : this.legacy(targetId, generation);
+    if (!bridge || !this.current(bridge)) throw new Error('V2_BRIDGE_UNAVAILABLE');
     return bridge;
+  }
+  verifyRoute(targetId: string, generation: string, bootId: string, proof: unknown): string {
+    const bridge = this.get(targetId, generation, bootId);
+    const secret = bridge.registration.instanceCredential;
+    if (
+      !secret ||
+      typeof proof !== 'string' ||
+      !/^[a-f0-9]{64}$/.test(proof) ||
+      !timingSafeEqual(Buffer.from(secret), Buffer.from(proof))
+    )
+      throw new Error('V2_SCOPE_UNAVAILABLE');
+    return bridge.admissionId;
   }
   async authenticate(targetId: string, generation: string, credential: string): Promise<void> {
     await this.auth.authenticate(targetId, generation, credential);
@@ -290,11 +329,14 @@ export class OpenCodeV2Bridges {
     targetId: string,
     generation: string,
     sessionID: string,
+    bootId?: string,
+    admissionId?: string,
   ): Promise<OpenCodeV2Identity> {
     if (!sessionID.startsWith('ses') || sessionID.length > 200)
       throw new Error('V2_SESSION_UNAVAILABLE');
-    const bridge = this.get(targetId, generation),
+    const bridge = this.get(targetId, generation, bootId),
       nonce = randomUUID();
+    if (bootId && bridge.admissionId !== admissionId) throw new Error('V2_SCOPE_UNAVAILABLE');
     const identity: OpenCodeV2Identity = {
       nonce,
       sessionID,
@@ -332,8 +374,13 @@ export class OpenCodeV2Bridges {
     callback: (evidence: OpenCodeV2Evidence) => void,
     closed: () => void,
   ): () => void {
-    const bridge = this.get(profile.setupTargetId!);
-    if (bridge.scope.bootId !== profile.instanceId) throw new Error('V2_SCOPE_UNAVAILABLE');
+    const bridge = [...this.bridges.values()].find(
+      (b) =>
+        b.scope.targetId === profile.setupTargetId &&
+        b.scope.bootId === profile.instanceId &&
+        this.current(b),
+    );
+    if (!bridge) throw new Error('V2_SCOPE_UNAVAILABLE');
     bridge.events.on('evidence', callback);
     bridge.events.on('closed', closed);
     return () => {
@@ -345,7 +392,7 @@ export class OpenCodeV2Bridges {
     this.unobserve?.();
     this.unobserve = undefined;
     for (const bridge of [...this.bridges.values()]) this.retire(bridge);
-    this.ambiguous.clear();
+    this.legacyBlocked.clear();
   }
 }
 

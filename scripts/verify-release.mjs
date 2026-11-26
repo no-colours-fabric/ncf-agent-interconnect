@@ -391,7 +391,9 @@ try {
   const v2CloseEvents = () => { v2Closed = true; for (const resolve of v2Waiters.splice(0)) resolve({ done: true, value: undefined }); };
   const v2Emit = event => { if (v2Closed || !v2Types.has(event.type)) return; const waiting = v2Waiters.shift(); if (waiting) waiting({ done: false, value: event }); else v2Queue.push(event); };
   // Pinned 2.3.0 host contract fixture, not a live OpenCode/frontend/model.
+  const v2Remote = structuredClone(v2Configuration.mcp.servers.ncf_agent_interconnect);
   v2Cleanup = await v2Plugin.default.setup({
+    mcp: { transform: async (callback) => { callback({get: () => v2Remote, update: (_name, change) => change(v2Remote)}); return { dispose: async () => {} }; } },
     app: { name: 'opencode', version: '2.3.0', channel: 'package-fixture' }, location: { directory: v2Workspace }, options: v2Configuration.plugins[0].options,
     event: { subscribe: options => { v2Types = new Set(options.types); options.signal.addEventListener('abort', v2CloseEvents, { once: true }); return { [Symbol.asyncIterator]: () => ({ next: () => v2Closed ? Promise.resolve({ done: true, value: undefined }) : v2Queue.length ? Promise.resolve({ done: false, value: v2Queue.shift() }) : new Promise(resolve => v2Waiters.push(resolve)), return: async () => { v2CloseEvents(); return { done: true, value: undefined }; } }) }; } },
     rpc: { register: async definition => ({ dispose: async () => {}, events: { emit: async (name, data) => v2Emit({ type: 'rpc.' + definition.id + '.' + name, id: 'evt_' + randomUUID(), created: Date.now(), location: { directory: v2Workspace }, data }) } }) },
@@ -403,7 +405,6 @@ try {
   });
   assert.equal(typeof v2Cleanup, 'function');
   const v2Client = new Client({ name: 'OpenCode', version: '2.3.0-package-fixture' }); clients.push(v2Client);
-  const v2Remote = v2Configuration.mcp.servers.ncf_agent_interconnect;
   await v2Client.connect(new StreamableHTTPClientTransport(new URL(v2Remote.url), { requestInit: { headers: v2Remote.headers } }));
   const v2Connected = await v2Client.callTool({ name: 'agent_connect', arguments: { nickname: 'Package V2 recipient' }, _meta: { 'ai.opencode/sessionID': v2Session } });
   assert.ok(!v2Connected.isError); assert.equal(v2Connected.structuredContent.status, 'connected');

@@ -107,12 +107,35 @@ export class OpenCodeV2HostFixture {
   promptResult?: (input: PinnedPromptInput) => Promise<PinnedInboxUser>;
   beforeGet?: () => Promise<void>;
   private sequence = 0;
+  private routeTransform?: Parameters<PinnedContext['mcp']['transform']>[0];
+
+  route(remote: { type: string; url: string; headers: Record<string, string> }) {
+    const entry = structuredClone(remote);
+    this.routeTransform?.({
+      get: (name) => (name === 'ncf_agent_interconnect' ? entry : undefined),
+      update: (name, change) => {
+        assert.equal(name, 'ncf_agent_interconnect');
+        change(entry);
+      },
+    });
+    return entry;
+  }
 
   constructor(readonly workspace = '/isolated/opencode-v2') {
     this.context = {
       app: { name: 'opencode', version: '2.3.0', channel: 'test' },
       location: { directory: workspace },
       options: {},
+      mcp: {
+        transform: async (callback) => {
+          this.routeTransform = callback;
+          return {
+            dispose: async () => {
+              this.routeTransform = undefined;
+            },
+          };
+        },
+      },
       event: { subscribe: this.events.subscribe },
       rpc: {
         register: async (definition, handlers) => {
@@ -330,6 +353,7 @@ export async function openCodeV2ProductFixture(
   t: import('node:test').TestContext,
   options: {
     timeoutMs?: number;
+    legacy?: boolean;
     beforeRegistration?: (
       service: import('../../desktop/core/service.js').NodeService,
       registration: OpenCodeV2Registration,
@@ -398,17 +422,19 @@ export async function openCodeV2ProductFixture(
   host.context.options = configuration.plugins[0].options;
   handle = await startOpenCodeV2(host.context, provision, {
     timeoutMs: options.timeoutMs ?? 1000,
-    ...(options.beforeRegistration
+    ...(options.beforeRegistration || options.legacy
       ? {
           register: async (request: OpenCodeV2Registration) => {
-            await options.beforeRegistration!(service, request);
+            await options.beforeRegistration?.(service, request);
+            const wire = { ...request };
+            if (options.legacy) delete wire.instanceCredential;
             const response = await fetch(provision.nodeUrl + '/integrations/opencode-v2/register', {
               method: 'POST',
               headers: {
                 authorization: 'Bearer ' + provision.credential,
                 'content-type': 'application/json',
               },
-              body: JSON.stringify(request),
+              body: JSON.stringify(wire),
             });
             assert.equal(response.status, 200);
             return (await response.json()) as OpenCodeV2Scope;
@@ -416,14 +442,19 @@ export async function openCodeV2ProductFixture(
         }
       : {}),
   });
-  const client = new Client({ name: 'OpenCode', version: '2.3.0-source-fixture' });
-  clients.push(client);
-  const remote = configuration.mcp.servers.ncf_agent_interconnect;
-  await client.connect(
-    new StreamableHTTPClientTransport(new URL(remote.url), {
-      requestInit: { headers: remote.headers },
-    }),
-  );
+  const connectHost = async (instance?: OpenCodeV2HostFixture) => {
+    const client = new Client({ name: 'OpenCode', version: '2.3.0-source-fixture' });
+    clients.push(client);
+    const entry = configuration.mcp.servers.ncf_agent_interconnect;
+    const remote = instance ? instance.route(entry) : entry;
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(remote.url), {
+        requestInit: { headers: remote.headers },
+      }),
+    );
+    return client;
+  };
+  const client = await connectHost(options.legacy ? undefined : host);
   const call = (sessionID: string, name: string, args: Record<string, unknown>) =>
     client.callTool({ name, arguments: args, _meta: { 'ai.opencode/sessionID': sessionID } });
   return {
@@ -431,6 +462,7 @@ export async function openCodeV2ProductFixture(
     service,
     host,
     client,
+    connectHost,
     provision,
     configuration,
     handle,

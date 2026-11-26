@@ -103,8 +103,13 @@ type HostEventType =
   | `rpc.${string}`;
 export interface OpenCodeV2Context {
   app: { name: string; version: string; channel: string };
-  location: { directory: string; workspaceID?: string };
+  location: { directory: string; workspaceID?: string; project?: { id: string } };
   options: Readonly<Record<string, unknown>>;
+  mcp: {
+    transform(
+      callback: (editor: OpenCodeV2McpEditor) => void,
+    ): Promise<{ dispose(): Promise<void> }>;
+  };
   session: {
     get(input: { sessionID: string }): Promise<SessionInfo>;
     wait(input: { sessionID: string }): Promise<void>;
@@ -125,6 +130,16 @@ export interface OpenCodeV2Context {
       events: { emit(name: string, data: Record<string, unknown>): Promise<void> };
     }>;
   };
+}
+
+interface RemoteEntry {
+  type: string;
+  url?: string;
+  headers?: Record<string, string>;
+}
+export interface OpenCodeV2McpEditor {
+  get(name: string): RemoteEntry | undefined;
+  update(name: string, change: (entry: RemoteEntry) => void): void;
 }
 
 type Scoped = { scope: OpenCodeV2Scope; nonce: string };
@@ -208,6 +223,7 @@ export interface OpenCodeV2Registration {
   appVersion: '2.3.0';
   bridgeUrl: string;
   bridgeCredential: string;
+  instanceCredential?: string;
 }
 export interface OpenCodeV2Dependencies {
   loadProvision?: () => Promise<unknown>;
@@ -479,6 +495,7 @@ interface Arm {
 interface BoundSession {
   owner: OpenCodeV2Owner;
   projectID: string;
+  created: number;
   authorityRevision: number;
   receiveRevision: number;
   requested: boolean;
@@ -596,6 +613,7 @@ export async function startOpenCodeV2(
     context.app.version !== OPEN_CODE_V2_PIN.version ||
     typeof context.session.wait !== 'function' ||
     typeof context.event.subscribe !== 'function' ||
+    typeof context.mcp?.transform !== 'function' ||
     typeof context.rpc.register !== 'function'
   )
     fail('V2_HOST_UNSUPPORTED');
@@ -627,6 +645,7 @@ export async function startOpenCodeV2(
     nativeArmed = false,
     authoritySerial = 0;
   let registration: Awaited<ReturnType<OpenCodeV2Context['rpc']['register']>> | undefined;
+  let route: Awaited<ReturnType<OpenCodeV2Context['mcp']['transform']>> | undefined;
   let server: http.Server | undefined;
   let closing: Promise<void> | undefined;
   let rejectBarrier: ((error: Error) => void) | undefined;
@@ -729,6 +748,9 @@ export async function startOpenCodeV2(
     if (
       info.id !== sessionID ||
       info.location?.directory !== workspace ||
+      (info.location.workspaceID !== undefined &&
+        info.location.workspaceID !== context.location.workspaceID) ||
+      (context.location.project !== undefined && info.projectID !== context.location.project.id) ||
       typeof info.projectID !== 'string' ||
       !info.projectID ||
       !Number.isSafeInteger(info.time?.created)
@@ -812,6 +834,12 @@ export async function startOpenCodeV2(
       return;
     }
     if (event.type === 'location.shutdown') {
+      if (event.location?.directory && event.location.directory !== workspace) return;
+      if (
+        event.location?.workspaceID &&
+        event.location.workspaceID !== context.location.workspaceID
+      )
+        return;
       nativeArmed = false;
       revokeAll('V2_LOCATION_ENDED');
       return;
@@ -893,6 +921,7 @@ export async function startOpenCodeV2(
     eventResponse?.end();
     for (const response of requests) json(response, 503, { error: 'V2_DISPOSED' });
     closing = (async () => {
+      await route?.dispose();
       await registration?.dispose();
       if (server?.listening)
         await new Promise<void>((resolve, reject) => {
@@ -992,6 +1021,7 @@ export async function startOpenCodeV2(
       const bound: BoundSession = {
         owner: command.owner,
         projectID: info.projectID,
+        created: info.time.created,
         authorityRevision: ++authoritySerial,
         receiveRevision: 0,
         requested: true,
@@ -1059,7 +1089,8 @@ export async function startOpenCodeV2(
       pendingSubmits.delete(command.attemptId);
     }
     if (!active(bound) || bound.authorityRevision !== authority) fail('V2_SCOPE_UNAVAILABLE');
-    if (info.projectID !== bound.projectID) fail('V2_SESSION_MISMATCH');
+    if (info.projectID !== bound.projectID || info.time.created !== bound.created)
+      fail('V2_SESSION_MISMATCH');
     if (arm.consumed || bound.attempt) fail('V2_ARM_UNAVAILABLE');
     if (arm.receiveRevision !== bound.receiveRevision) return noBody('V2_ARM_CHANGED');
     if (attempts.size >= maxAttempts) return noBody('V2_ATTEMPT_CAPACITY');
@@ -1270,6 +1301,7 @@ export async function startOpenCodeV2(
       appVersion: '2.3.0',
       bridgeUrl: 'http://127.0.0.1:' + address.port,
       bridgeCredential,
+      instanceCredential: randomBytes(32).toString('hex'),
     };
     let registered: OpenCodeV2Scope;
     let registrationTimer: NodeJS.Timeout | undefined;
@@ -1298,6 +1330,29 @@ export async function startOpenCodeV2(
       currentScope.bootId !== bootId
     )
       fail('V2_REGISTRATION_MISMATCH');
+    const endpoint =
+      provision.nodeUrl +
+      '/integrations/opencode-v2/' +
+      provision.targetId +
+      '/' +
+      provision.generation;
+    route = await context.mcp.transform((editor) => {
+      const name = 'ncf_agent_interconnect';
+      const entry = editor.get(name);
+      if (
+        entry?.type !== 'remote' ||
+        entry.url !== endpoint + '/mcp' ||
+        entry.headers?.Authorization !== 'Bearer ' + provision.credential
+      )
+        return;
+      editor.update(name, (remote) => {
+        remote.url = endpoint + '/' + bootId + '/mcp';
+        remote.headers = {
+          ...remote.headers,
+          'x-ncf-opencode-instance': request.instanceCredential!,
+        };
+      });
+    });
     return { dispose };
   } catch (error) {
     await dispose();

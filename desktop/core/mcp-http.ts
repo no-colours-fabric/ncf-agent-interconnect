@@ -52,12 +52,19 @@ function incomingReadText(result: unknown): string {
   return text + '\n\nNext cursor: ' + page.nextCursor + '\nHas more: ' + Boolean(page.hasMore);
 }
 
+interface OpenCodeV2Endpoint {
+  targetId: string;
+  generation: string;
+  bootId?: string;
+  admissionId?: string;
+}
+
 export function createAgentMcp(
   service: NodeService,
   sessionKey = randomUUID(),
   isActive: () => boolean = () => true,
   handoffs?: McpResponseHandoff,
-  openCodeV2?: { targetId: string; generation: string },
+  openCodeV2?: OpenCodeV2Endpoint,
 ): McpServer {
   // Codex turn metadata identifies a chat within the session that connected it.
   const codexConnections = new Set<string>();
@@ -117,6 +124,18 @@ export function createAgentMcp(
           );
         let nativeIdentity: OpenCodeV2Identity | undefined;
         if (openCodeV2) {
+          if (
+            name === 'node_status' &&
+            !openCodeV2.bootId &&
+            !service.opencodeV2.hasLegacy(openCodeV2.targetId, openCodeV2.generation)
+          ) {
+            const status = { node: 'ready', openCodeV2: 'instance-route-required' };
+            const response: CallToolResult = {
+              structuredContent: status,
+              content: [{ type: 'text', text: JSON.stringify(status) }],
+            };
+            return handoff ? handoffs!.seal(handoff, response) : response;
+          }
           const sessionID = extra._meta?.['ai.opencode/sessionID'];
           if (typeof sessionID !== 'string')
             throw new Error('OpenCode v2 did not provide the native session context');
@@ -124,6 +143,8 @@ export function createAgentMcp(
             openCodeV2.targetId,
             openCodeV2.generation,
             sessionID,
+            openCodeV2.bootId,
+            openCodeV2.admissionId,
           );
           if (handoff) {
             const detach = nativeIdentity.onRevoke(() => handoff.controller.abort());
@@ -151,13 +172,17 @@ export function createAgentMcp(
           if (name === 'connection_events' && typeof connectionId === 'string') {
             const events = service.store.events(connectionId, 0);
             if (
-              events.some(
-                (event) =>
+              events.some((event) => {
+                const profile = service.settings.value.adapters.find(
+                  (p) => p.id === event.binding.adapterId,
+                );
+                return (
                   event.binding.chatId !== sessionID ||
-                  service.settings.value.adapters.find(
-                    (profile) => profile.id === event.binding.adapterId,
-                  )?.setupTargetId !== openCodeV2.targetId,
-              )
+                  profile?.kind !== 'opencode-v2' ||
+                  profile.setupTargetId !== openCodeV2.targetId ||
+                  profile.instanceId !== nativeIdentity!.scope.bootId
+                );
+              })
             )
               throw new Error('The connection belongs to another OpenCode v2 chat');
           }
@@ -543,7 +568,7 @@ export class McpEndpoint {
       transport: StreamableHTTPServerTransport;
       mcp: McpServer;
       key: string;
-      openCodeV2?: { targetId: string; generation: string };
+      openCodeV2?: OpenCodeV2Endpoint;
       probing?: boolean;
       lastActivity: number;
     }
@@ -612,10 +637,13 @@ export class McpEndpoint {
       res.end(JSON.stringify({ error }));
     };
     const host = req.headers.host?.split(':')[0];
-    const v2Match = /^\/integrations\/opencode-v2\/([a-f0-9-]{36})\/([a-f0-9-]{36})\/mcp$/.exec(
-      req.url ?? '',
-    );
-    const v2Target = v2Match ? { targetId: v2Match[1], generation: v2Match[2] } : undefined;
+    const v2Match =
+      /^\/integrations\/opencode-v2\/([a-f0-9-]{36})\/([a-f0-9-]{36})(?:\/([a-f0-9-]{36}))?\/mcp$/.exec(
+        req.url ?? '',
+      );
+    const v2Target: OpenCodeV2Endpoint | undefined = v2Match
+      ? { targetId: v2Match[1], generation: v2Match[2], bootId: v2Match[3] }
+      : undefined;
     if (req.url === '/integrations/opencode-v2/register' && req.method === 'POST') {
       if (
         !['127.0.0.1', 'localhost'].includes(host ?? '') ||
@@ -680,6 +708,13 @@ export class McpEndpoint {
           v2Target.generation,
           credential,
         );
+        if (v2Target.bootId)
+          v2Target.admissionId = this.service.opencodeV2.verifyRoute(
+            v2Target.targetId,
+            v2Target.generation,
+            v2Target.bootId,
+            req.headers['x-ncf-opencode-instance'],
+          );
       } catch {
         reject(401, 'Unauthorized');
         return;

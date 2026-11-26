@@ -81,21 +81,88 @@ test('foreign tool identity and another native session cannot operate an existin
   assert.deepEqual(service.store.assertOwner(rename.connectionId).binding, owner.binding);
   assert.equal(host.prompts.length, 0);
 });
-test('two live bridges sharing target generation revoke authority instead of choosing the last instance', async (t) => {
-  const { service, host, provision, call } = await openCodeV2ProductFixture(t);
+test('location routes isolate two concurrent hosts and release only the closing host', async (t) => {
+  const { service, host, provision, call, connectHost, configuration } =
+    await openCodeV2ProductFixture(t);
   const id = host.addSession();
-  const connected = await call(id, 'agent_connect', { nickname: 'Ambiguous fixture' });
+  const connected = await call(id, 'agent_connect', { nickname: 'First location' });
   assert.equal(connected.isError, undefined, JSON.stringify(connected));
-  const second = new OpenCodeV2HostFixture();
+  const sibling = host.addSession('ses_sibling');
+  assert.equal(
+    (await call(sibling, 'agent_connect', { nickname: 'Sibling session' })).isError,
+    undefined,
+  );
+  const second = new OpenCodeV2HostFixture('/isolated/another');
   second.context.options = { targetId: provision.targetId, generation: provision.generation };
-  await assert.rejects(startOpenCodeV2(second.context, provision), /REGISTRATION_UNAVAILABLE/);
-  const next = await call(id, 'node_status', {});
-  assert.equal(next.isError, true);
-  assert.equal(host.prompts.length, 0);
-  const profile = service.settings.value.adapters.find(
-    (profile) => profile.kind === 'opencode-v2',
-  )!;
-  assert.equal(service.adapters.get(profile.id).status().capabilities.wakeIdle, false);
+  const handle = await startOpenCodeV2(second.context, provision);
+  t.after(() => handle.dispose());
+  const other = await connectHost(second);
+  second.addSession(id);
+  const meta = { 'ai.opencode/sessionID': id };
+  const foreign = await other.callTool({
+    name: 'agent_history',
+    arguments: { connectionId: service.store.bindingForNickname('First location')!.connectionId },
+    _meta: meta,
+  });
+  assert.equal(foreign.isError, true);
+  assert.equal(
+    (
+      await other.callTool({
+        name: 'agent_connect',
+        arguments: { nickname: 'Second location' },
+        _meta: meta,
+      })
+    ).isError,
+    undefined,
+  );
+  const bootstrap = await connectHost();
+  const diagnostic = await bootstrap.callTool({ name: 'node_status', arguments: {} });
+  assert.deepEqual(diagnostic.structuredContent, {
+    node: 'ready',
+    openCodeV2: 'instance-route-required',
+  });
+  assert.equal(
+    (
+      await bootstrap.callTool({
+        name: 'agent_connect',
+        arguments: { nickname: 'Bootstrap' },
+        _meta: meta,
+      })
+    ).isError,
+    true,
+  );
+  const firstRoute = host.route(configuration.mcp.servers.ncf_agent_interconnect);
+  const otherRoute = second.route(configuration.mcp.servers.ncf_agent_interconnect);
+  assert.notEqual(firstRoute.url, otherRoute.url);
+  const wrong = await fetch(firstRoute.url, {
+    method: 'POST',
+    headers: otherRoute.headers,
+    body: '{}',
+  });
+  assert.equal(wrong.status, 401);
+  await handle.dispose();
+  assert.equal(
+    (
+      await call(id, 'agent_history', {
+        connectionId: service.store.bindingForNickname('First location')!.connectionId,
+      })
+    ).isError,
+    undefined,
+  );
+  assert.equal(
+    (await fetch(otherRoute.url, { method: 'POST', headers: otherRoute.headers, body: '{}' }))
+      .status,
+    401,
+  );
+});
+test('already installed single-location legacy plugin retains its original endpoint and exact chat', async (t) => {
+  const { host, call } = await openCodeV2ProductFixture(t, { legacy: true });
+  const id = host.addSession('ses_legacy');
+  assert.equal((await call(id, 'agent_connect', { nickname: 'Legacy host' })).isError, undefined);
+  assert.equal(
+    (await call('ses_unknown', 'agent_connect', { nickname: 'Foreign chat' })).isError,
+    true,
+  );
 });
 test('owner reconfigure invalidates old native transport without changing the saved binding', async (t) => {
   const { service, host, call, setup, target } = await openCodeV2ProductFixture(t);
@@ -180,7 +247,7 @@ test('persisted v2 adapter reattaches current evidence after node startup preced
   const profileId = randomUUID(),
     oldProfileId = randomUUID(),
     sessionID = 'ses_restart_rebind';
-  const { service, host, call, provision } = await openCodeV2ProductFixture(t, {
+  const { service, host, call, provision, configuration } = await openCodeV2ProductFixture(t, {
     beforeRegistration: async (service, registration) => {
       service.settings.value.adapters.push({
         id: profileId,
@@ -245,10 +312,20 @@ test('persisted v2 adapter reattaches current evidence after node startup preced
     service.settings.value.adapters.filter((profile) => profile.id === profileId).length,
     1,
   );
+  const route = host.route(configuration.mcp.servers.ncf_agent_interconnect);
+  const boot = new URL(route.url).pathname.split('/').at(-2)!;
+  const admission = service.opencodeV2.verifyRoute(
+    provision.targetId,
+    provision.generation,
+    boot,
+    route.headers['x-ncf-opencode-instance'],
+  );
   const current = await service.opencodeV2.identity(
     provision.targetId,
     provision.generation,
     sessionID,
+    boot,
+    admission,
   );
   assert.equal(current.bridge.events.listenerCount('evidence'), 1);
   assert.equal(service.adapters.get(oldProfileId).status().capabilities.wakeIdle, false);

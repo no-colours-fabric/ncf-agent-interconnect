@@ -90,6 +90,19 @@ export interface PinnedContext {
   app: { name: string; version: string; channel: string };
   location: { directory: string; workspaceID?: string };
   options: Readonly<Record<string, unknown>>;
+  mcp: {
+    transform(
+      callback: (editor: {
+        get(
+          name: string,
+        ): { type: string; url?: string; headers?: Record<string, string> } | undefined;
+        update(
+          name: string,
+          change: (entry: { type: string; url?: string; headers?: Record<string, string> }) => void,
+        ): void;
+      }) => void,
+    ): Promise<PinnedRegistration>;
+  };
   session: {
     // These return values are direct, not the v1 {data,error,response} envelope.
     get(input: { sessionID: string }): Promise<PinnedSessionInfo>;
