@@ -151,7 +151,7 @@ NCF Agent Interconnect removes an unchanged temporary source it created for
 transfer once delivery to the receiving agent is recorded. Working files and
 files still awaiting delivery are kept.
 
-**Settings → Received attachments** shows local attachment storage by agent.
+**Settings → Received attachments** shows the total storage used by received attachments on the **Attachment storage** line.
 Choose **Remove received attachments**, select **7, 30, 90, or 365 days**
 under **Older than**, and confirm. In **Agents**, click the **Attachments**
 header to sort by local storage used. Choose **Remove received attachments**
