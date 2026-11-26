@@ -787,6 +787,35 @@ test('alignment fixture preserves mixed manual-only, configured, busy and error 
   }
 });
 
+test('unconfigured ChatGPT uses the common row with no advance restart instruction', () => {
+  for (const locale of supportedLocales) {
+    const html = renderToStaticMarkup(
+      React.createElement(ApplicationRows, {
+        discovery,
+        statuses,
+        invoke: noInvoke,
+        flow: new ApplicationSetupFlow(noInvoke),
+        locale,
+        onManualSetup: () => {},
+      }),
+    );
+    const row = html.slice(
+      html.indexOf('data-testid="application-row-codex"'),
+      html.indexOf('data-testid="application-row-aionui"'),
+    );
+    assert.ok(row.includes('data-testid="application-connect-codex"'), locale);
+    assert.ok(row.includes('data-testid="application-manual-codex"'), locale);
+    assert.doesNotMatch(row, /data-testid="application-guidance-codex"/);
+    assert.ok(!row.includes(sessionDeliveryMessages[locale].connectRestart), locale);
+    assert.ok(sessionDeliveryMessages[locale].connectRestartTitle.includes('ChatGPT'), locale);
+    if (locale !== 'en')
+      assert.notEqual(
+        sessionDeliveryMessages[locale].connectRestartTitle,
+        sessionDeliveryMessages.en.connectRestartTitle,
+      );
+  }
+});
+
 test('Applications rows keep setup status and manual actions with immediate unheaded guidance', () => {
   const html = renderToStaticMarkup(
     React.createElement(ApplicationRows, {

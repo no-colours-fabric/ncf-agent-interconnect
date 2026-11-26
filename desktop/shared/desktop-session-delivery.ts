@@ -23,8 +23,15 @@ export async function enableChatDelivery(
   invoke: import('./mcp-setup.js').McpSetupInvoke,
   configuration: string,
 ): Promise<DeliveryIssue | undefined> {
+  return (await configureChatDelivery(invoke, configuration)).issue;
+}
+
+export async function configureChatDelivery(
+  invoke: import('./mcp-setup.js').McpSetupInvoke,
+  configuration: string,
+): Promise<{ issue?: DeliveryIssue; changed?: true }> {
   const profile = configurationProfile(configuration);
-  if (!profile) return 'unavailable';
+  if (!profile) return { issue: 'unavailable' };
   try {
     const status = await invoke<DesktopSessionDelivery>('desktopSessionDelivery', {
       action: 'status',
@@ -33,28 +40,28 @@ export async function enableChatDelivery(
       status.state === 'unsupported' ||
       (status.state === 'enabled' && status.profile === profile)
     )
-      return;
-    if (status.state === 'configuration-required') return 'unavailable';
+      return {};
+    if (status.state === 'configuration-required') return { issue: 'unavailable' };
     if (
       status.state === 'unavailable' ||
       status.state === 'conflict' ||
       status.state === 'close-required'
     )
-      return status.state;
-    if (status.state === 'ready' && status.profile !== profile) return 'unavailable';
+      return { issue: status.state };
+    if (status.state === 'ready' && status.profile !== profile) return { issue: 'unavailable' };
     const result = await invoke<DesktopSessionDelivery>('desktopSessionDelivery', {
       action: 'enable',
       profile,
     });
-    if (
-      result.state === 'unsupported' ||
-      (result.state === 'enabled' && result.profile === profile)
-    )
-      return;
-    return result.state === 'conflict' || result.state === 'close-required'
-      ? result.state
-      : 'unavailable';
+    if (result.state === 'unsupported') return {};
+    if (result.state === 'enabled' && result.profile === profile) return { changed: true };
+    return {
+      issue:
+        result.state === 'conflict' || result.state === 'close-required'
+          ? result.state
+          : 'unavailable',
+    };
   } catch {
-    return 'unavailable';
+    return { issue: 'unavailable' };
   }
 }

@@ -1,4 +1,5 @@
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
+import { installationRestartMessages } from './i18n/installation-restart.js';
 import { configurationProfile } from '../shared/desktop-session-delivery.js';
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
@@ -972,6 +973,7 @@ export function ApplicationRows({
   const m = mcpSetupMessages(locale);
   const discoveryCopy = discoveryMessages(locale);
   const [showV1, setShowV1] = useOpenCodeV1Visibility(discovery, statuses);
+  const chatgptCard = useRef<HTMLElement>(null);
   const aionUiConfigured = setupView('aionui', states, statuses, discovery).configured;
   const [aionUiPaired, setAionUiPaired] = useState(false);
   useEffect(() => {
@@ -1137,7 +1139,10 @@ export function ApplicationRows({
                 variant="contained"
                 disabled={action.disabled}
                 onClick={() => {
-                  void flow.connect(client);
+                  void flow.connect(client, undefined, {
+                    showRestartNotice:
+                      client === 'codex' && discovery.snapshot?.platform === 'darwin',
+                  });
                 }}
                 data-testid={'application-connect-' + client}
                 title={
@@ -1157,11 +1162,6 @@ export function ApplicationRows({
             />
           </Stack>
         </Box>
-        {client === 'codex' && action && !showGuidance && !states.codex.deliveryIssue && (
-          <Typography variant="body2" color="text.secondary">
-            {sessionDeliveryMessages[locale].connectRestart}
-          </Typography>
-        )}
         {client === 'codex' &&
           (detected ||
             configured ||
@@ -1262,6 +1262,9 @@ export function ApplicationRows({
           <Paper
             key={client}
             component="article"
+            ref={client === 'codex' ? chatgptCard : undefined}
+            aria-label={client === 'codex' ? setupApplicationName(client, locale) : undefined}
+            tabIndex={client === 'codex' ? -1 : undefined}
             data-testid={client === 'opencode' ? 'application-group-opencode' : undefined}
             sx={{
               overflow: 'hidden',
@@ -1288,6 +1291,29 @@ export function ApplicationRows({
           </Paper>
         ))}
       </Box>
+      <Dialog
+        open={states.codex.restartNotice === 'pending'}
+        disableRestoreFocus
+        fullWidth
+        maxWidth="xs"
+        aria-labelledby="chatgpt-connect-restart-title"
+        aria-describedby="chatgpt-connect-restart-body"
+        slotProps={{ transition: { onExited: () => chatgptCard.current?.focus() } }}
+      >
+        <DialogTitle id="chatgpt-connect-restart-title">
+          {sessionDeliveryMessages[locale].connectRestartTitle}
+        </DialogTitle>
+        <DialogContent>
+          <Typography id="chatgpt-connect-restart-body" variant="body2" color="text.secondary">
+            {sessionDeliveryMessages[locale].connectRestart}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button autoFocus variant="contained" onClick={() => flow.acknowledgeCodexRestart()}>
+            {installationRestartMessages(locale).dismiss}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   );
 }

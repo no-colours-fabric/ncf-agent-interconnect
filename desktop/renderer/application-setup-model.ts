@@ -10,7 +10,7 @@ import {
   type McpSetupTarget,
 } from '../shared/mcp-setup.js';
 import { OpenCodeV2SetupFlow, type OpenCodeV2SetupState } from './opencode-v2-setup-model.js';
-import { enableChatDelivery, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
+import { configureChatDelivery, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
 
 export type ApplicationSetupClient = McpSetupClient | 'opencode-v2';
 export const applicationSetupClients: readonly ApplicationSetupClient[] = [
@@ -32,6 +32,7 @@ export interface ApplicationSetupState {
   manualConfiguration?: string;
   configurations?: string[];
   deliveryIssue?: DeliveryIssue;
+  restartNotice?: 'requested' | 'pending';
   preview?: McpSetupPreview;
   result?: McpSetupApplyResult;
   error?: string;
@@ -98,6 +99,16 @@ export async function inspectSetupRetry(
   };
 }
 
+function restartNoticeAfter(
+  state: ApplicationSetupState,
+  succeeded: boolean,
+  requiresRestart: boolean,
+): ApplicationSetupState['restartNotice'] {
+  if (state.restartNotice !== 'requested') return undefined;
+  if (!succeeded) return 'requested';
+  return requiresRestart ? 'pending' : undefined;
+}
+
 /** A click prepares and applies one existing client target; mounting never writes configuration. */
 export class ApplicationSetupFlow {
   private states = Object.fromEntries(
@@ -158,36 +169,48 @@ export class ApplicationSetupFlow {
     this.set('codex', { phase: 'idle', manualConfiguration: configuration });
   }
 
-  async connect(client: ApplicationSetupClient, choice?: string): Promise<void> {
+  async connect(
+    client: ApplicationSetupClient,
+    choice?: string,
+    { showRestartNotice = false }: { showRestartNotice?: boolean } = {},
+  ): Promise<void> {
     if (client === 'opencode-v2') {
       await this.openCodeV2.connect();
       return;
     }
     if (this.disposed || this.openCodeV2.busy() || mcpSetupClients.some((item) => this.busy(item)))
       return;
-    const previous = this.states[client];
+    const state = this.states[client];
+    if (state.phase === 'confirmation' || state.phase === 'succeeded') return;
+    const previous: ApplicationSetupState =
+      client === 'codex' && showRestartNotice ? { ...state, restartNotice: 'requested' } : state;
     if (previous.phase === 'uncertain') {
-      await this.recheck(client);
+      await this.recheck(client, previous);
       return;
     }
     if (client === 'codex' && previous.deliveryIssue && previous.target) {
       this.set(client, { ...previous, phase: 'applying' });
-      const deliveryIssue = await enableChatDelivery(this.invoke, previous.target.path);
+      const delivery = await configureChatDelivery(this.invoke, previous.target.path);
       this.set(client, {
         ...previous,
-        phase: deliveryIssue ? 'failed' : 'succeeded',
-        deliveryIssue,
+        phase: delivery.issue ? 'failed' : 'succeeded',
+        deliveryIssue: delivery.issue,
+        restartNotice: restartNoticeAfter(
+          previous,
+          !delivery.issue,
+          !!delivery.changed || previous.result?.status === 'applied',
+        ),
       });
       await this.onApplied?.().catch(() => {});
       return;
     }
-    if (previous.phase === 'confirmation' || previous.phase === 'succeeded') return;
     const reviewRequired = previous.reviewRequired || previous.result?.status === 'failed';
     this.discard(previous.preview);
     this.set(client, {
       ...previous,
       phase: 'preparing',
       preview: undefined,
+      configurations: undefined,
       error: undefined,
       reviewRequired,
     });
@@ -275,8 +298,7 @@ export class ApplicationSetupFlow {
   }
 
   /** A separate owner retry first reads the original selected path, including its canonical target. */
-  private async recheck(client: McpSetupClient): Promise<void> {
-    const previous = this.states[client];
+  private async recheck(client: McpSetupClient, previous: ApplicationSetupState): Promise<void> {
     if (!previous.target || !previous.preview) return;
     this.set(client, { ...previous, phase: 'rechecking' });
     let fresh: McpSetupPreview | undefined;
@@ -294,14 +316,15 @@ export class ApplicationSetupFlow {
       }
       if (check.disposition === 'configured') {
         this.discard(fresh);
-        const deliveryIssue =
+        const delivery =
           client === 'codex'
-            ? await enableChatDelivery(this.invoke, previous.target.path)
+            ? await configureChatDelivery(this.invoke, previous.target.path)
             : undefined;
         this.set(client, {
           ...previous,
-          deliveryIssue,
-          phase: deliveryIssue ? 'failed' : 'succeeded',
+          deliveryIssue: delivery?.issue,
+          phase: delivery?.issue ? 'failed' : 'succeeded',
+          restartNotice: restartNoticeAfter(previous, !delivery?.issue, !!delivery?.changed),
           verified: true,
           result: undefined,
           error: undefined,
@@ -355,12 +378,28 @@ export class ApplicationSetupFlow {
       return;
     }
     if (this.states[client].configurations) {
-      this.set(client, { ...this.states[client], phase: 'idle', configurations: undefined });
+      this.set(client, {
+        ...this.states[client],
+        phase: 'idle',
+        configurations: undefined,
+        restartNotice: undefined,
+      });
       return;
     }
     if (this.states[client].phase !== 'confirmation') return;
     this.discard(this.states[client].preview);
-    this.set(client, { ...this.states[client], phase: 'idle', preview: undefined });
+    this.set(client, {
+      ...this.states[client],
+      phase: 'idle',
+      preview: undefined,
+      restartNotice: undefined,
+    });
+  }
+
+  acknowledgeCodexRestart(): void {
+    const state = this.states.codex;
+    if (state.restartNotice === 'pending')
+      this.set('codex', { ...state, restartNotice: undefined });
   }
 
   invalidateSucceeded(client?: ApplicationSetupClient): void {
@@ -381,6 +420,7 @@ export class ApplicationSetupFlow {
           result: undefined,
           error: undefined,
           verified: false,
+          restartNotice: undefined,
         });
   }
 
@@ -394,14 +434,20 @@ export class ApplicationSetupFlow {
         planId: preview.planId,
         confirmReplace,
       });
-      const deliveryIssue =
+      const delivery =
         client === 'codex' && result.status !== 'failed' && previous.target
-          ? await enableChatDelivery(this.invoke, previous.target.path)
+          ? await configureChatDelivery(this.invoke, previous.target.path)
           : undefined;
+      const succeeded = result.status !== 'failed' && !delivery?.issue;
       this.set(client, {
         ...previous,
-        deliveryIssue,
-        phase: result.status === 'failed' || deliveryIssue ? 'failed' : 'succeeded',
+        deliveryIssue: delivery?.issue,
+        phase: succeeded ? 'succeeded' : 'failed',
+        restartNotice: restartNoticeAfter(
+          previous,
+          succeeded,
+          result.status === 'applied' || !!delivery?.changed,
+        ),
         preview,
         result,
         error: result.error,

@@ -519,3 +519,45 @@ test('delivery retry for a manually selected profile never repeats Apply or fall
     'desktopSessionDelivery:enable',
   ]);
 });
+
+test('ChatGPT restart notice follows a successful change, including delivery-only changes', async () => {
+  for (const [result, delivery, expected] of [
+    ['applied', 'enabled', 'pending'],
+    ['unchanged', 'ready', 'pending'],
+    ['unchanged', 'enabled', undefined],
+    ['applied', 'close-required', 'requested'],
+    ['failed', 'enabled', 'requested'],
+  ] as const) {
+    let enables = 0;
+    const flow = new ApplicationSetupFlow((async (method: string, raw: { action?: string }) => {
+      if (method === 'codexSetupPrepare')
+        return {
+          client: 'codex',
+          planId: 'restart-fixture',
+          requiresReplacement: false,
+          files: [{ id: 'configuration', path: '/fixture/Work/config.toml' }],
+        };
+      if (method === 'mcpSetupApply') return { status: result, files: [] };
+      if (method === 'desktopSessionDelivery') {
+        if (raw.action === 'enable') enables++;
+        return {
+          state: raw.action === 'enable' ? 'enabled' : delivery,
+          profile: '/fixture/Work',
+          scope: 'login',
+        };
+      }
+      throw Error(method);
+    }) as McpSetupInvoke);
+    await flow.connect('codex', undefined, { showRestartNotice: true });
+    assert.equal(flow.getSnapshot().codex.restartNotice, expected, result + delivery);
+    assert.equal(enables, delivery === 'ready' ? 1 : 0);
+    const phase = flow.getSnapshot().codex.phase;
+    assert.equal(phase, expected === 'requested' ? 'failed' : 'succeeded');
+    if (expected === 'pending') {
+      flow.acknowledgeCodexRestart();
+      assert.equal(flow.getSnapshot().codex.restartNotice, undefined);
+      assert.equal(flow.getSnapshot().codex.phase, 'succeeded');
+    }
+    flow.dispose();
+  }
+});
