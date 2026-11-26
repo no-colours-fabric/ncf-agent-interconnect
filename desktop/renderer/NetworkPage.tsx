@@ -619,13 +619,11 @@ export function NetworkPage({
   const approvalStatus = approval.phase && (
     <Stack spacing={1}>
       <Alert severity={approval.phase === 'failed' ? 'warning' : 'info'} role="status">
-        {requestingApproval && approval.confirmed
-          ? approvalCopy.confirmed
-          : approvalCopy[approval.phase]}
+        {approvalCopy[approval.phase]}
       </Alert>
       {requestingApproval && approval.comparisonCode && (
         <Stack spacing={1} sx={{ alignItems: 'flex-start' }}>
-          <Typography variant="body2">{approvalCopy.compare}</Typography>
+          <Typography variant="body2">{approvalCopy.compareOnRecipient}</Typography>
           <Typography
             variant="h4"
             component="p"
@@ -634,14 +632,6 @@ export function NetworkPage({
           >
             {approval.comparisonCode}
           </Typography>
-          <Button
-            variant="contained"
-            sx={{ minHeight: 44 }}
-            disabled={pairPending || approval.phase !== 'shown' || approval.confirmed}
-            onClick={() => void approval.confirm()}
-          >
-            {approvalCopy.confirm}
-          </Button>
         </Stack>
       )}
     </Stack>

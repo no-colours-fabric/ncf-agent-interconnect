@@ -1528,7 +1528,6 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
  if(method==='copy')return {copied:true};
  if(method==='accessCode')return {code:'ABCD2345',expiresAt:new Date(Date.now()+600000).toISOString()};
  if(method==='requestPeerApproval'||method==='peerApprovalProgress')return {state:approvalState,comparisonCode:'042317'};
- if(method==='confirmPeerApproval')return {confirmed:true};
  if(method==='removePeer'){const peer=value.peers.find(peer=>peer.id===input.nodeId);value.peers=value.peers.filter(peer=>peer.id!==input.nodeId);value.peerDisconnection={id:peer.id,label:peer.label};changed();return {removed:true};}
  if(method==='cancelPeerApproval')return {canceled:true};
  if(method==='connectPeer'){if(pairError)throw new Error(pairError);return {id:'authenticated-fixture-result',label:'Authenticated fixture result'};}
@@ -1981,20 +1980,17 @@ window.interconnect={async pairingApproval(method){calls.push({method:'approvalW
             await page.getByRole('button', { name: `Connect ${first.label}`, exact: true }).click();
             dialog = page.getByRole('dialog');
             await dialog.getByText(m.waiting, { exact: true }).waitFor();
-            await dialog.getByText(m.compare, { exact: true }).waitFor();
+            await dialog.getByText(m.compareOnRecipient, { exact: true }).waitFor();
             await dialog.getByText('042317', { exact: true }).waitFor();
             const confirm = dialog.getByRole('button', { name: m.confirm, exact: true });
-            assert.equal(await confirm.isEnabled(), false);
+            assert.equal(await confirm.count(), 0);
             const request = (await calls(page, 'requestPeerApproval')).at(-1)!.input;
             assert.equal(request.address, first.address);
             assert.equal(request.expectedNodeId, first.nodeId);
             await approval('shown');
             await dialog.getByText(m.shown, { exact: true }).waitFor();
-            await confirm.click();
-            await dialog.getByText(m.confirmed, { exact: true }).waitFor();
-            assert.deepEqual((await calls(page, 'confirmPeerApproval')).at(-1)!.input, {
-              id: request.id,
-            });
+            await dialog.getByText('042317', { exact: true }).waitFor();
+            assert.equal(await confirm.count(), 0);
             const code = dialog.getByRole('textbox', { name: 'Connection code', exact: true });
             await code.fill('ABCD2345');
             await approval('dismissed');

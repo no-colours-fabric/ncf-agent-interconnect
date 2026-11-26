@@ -187,8 +187,6 @@ interface OutgoingApproval {
     identity: Omit<PairedIdentity, 'secret'>;
   };
   checking?: Promise<OutgoingPairApproval>;
-  displayed?: boolean;
-  confirmed?: boolean;
   committing?: boolean;
 }
 
@@ -1407,7 +1405,6 @@ export class PeerNetwork extends EventEmitter {
       this.checkOutgoingApproval(id, entry);
       const status = approvalStatus.parse(value.body);
       if (status.state === 'waiting' || status.state === 'shown') {
-        entry.displayed = status.state === 'shown';
         return { state: status.state, comparisonCode };
       }
       if (status.state === 'suppressed' || status.state === 'dismissed') {
@@ -1448,13 +1445,6 @@ export class PeerNetwork extends EventEmitter {
     return true;
   }
 
-  confirmApproval(id: string): boolean {
-    const entry = this.outgoingApprovals.get(id);
-    if (!entry?.remote || !entry.displayed || this.stopped) return false;
-    entry.confirmed = true;
-    return true;
-  }
-
   async approvalProgress(id: string): Promise<OutgoingPairApproval> {
     const entry = this.outgoingApprovals.get(id);
     if (!entry?.remote) return { state: 'dismissed' };
@@ -1481,7 +1471,6 @@ export class PeerNetwork extends EventEmitter {
       this.checkOutgoingApproval(id, entry);
       const status = approvalStatus.parse(response.body);
       if (status.state === 'waiting' || status.state === 'shown') {
-        entry.displayed = status.state === 'shown';
         return { state: status.state, comparisonCode: remote.comparisonCode };
       }
       if (status.state === 'dismissed' || status.state === 'suppressed') {
@@ -1490,8 +1479,6 @@ export class PeerNetwork extends EventEmitter {
       }
       if (status.state !== 'approved')
         throw new PairingError('Unexpected connection approval state', 409);
-      entry.displayed = true;
-      if (!entry.confirmed) return { state: 'shown', comparisonCode: remote.comparisonCode };
       this.checkApprovalIdentity(remote.identity);
       const lease = this.holdPeer(remote.identity.nodeId);
       entry.committing = true;

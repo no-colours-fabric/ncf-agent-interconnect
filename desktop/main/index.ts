@@ -527,7 +527,6 @@ function setupIpc(): void {
         'requestPeerApproval',
         'peerApprovalProgress',
         'cancelPeerApproval',
-        'confirmPeerApproval',
         'registerAgent',
         'renameAgent',
         'clearAgents',

@@ -129,7 +129,8 @@ const approval = {
     'This node is not showing requests from this computer. Use its code to connect.',
     'This node uses pairing codes. Enter its code to connect.',
     'Could not complete the request. You can still enter the code.',
-    'Confirmed here. Waiting for the other computer.',
+    'Confirmed. Completing the connection…',
+    'Compare the codes on both computers. Confirm on the receiving computer if they match.',
   ],
   ru: [
     'Запрос на подключение',
@@ -146,7 +147,8 @@ const approval = {
     'На этом узле отключены запросы с вашего компьютера. Для подключения введите код узла.',
     'Этот узел использует коды сопряжения. Для подключения введите его код.',
     'Не удалось завершить запрос. Можно подключиться по коду.',
-    'Вы подтвердили подключение. Ожидаем подтверждения на другом компьютере.',
+    'Подтверждено. Устанавливаем соединение…',
+    'Сравните коды на обоих компьютерах. Если они совпадают, подтвердите на компьютере, который получил запрос.',
   ],
   'zh-CN': [
     '连接请求',
@@ -163,7 +165,8 @@ const approval = {
     '此节点已停止显示来自此电脑的请求。请输入其配对码进行连接。',
     '此节点使用配对码。请输入其配对码进行连接。',
     '无法完成请求。你仍可输入配对码。',
-    '此电脑已确认，正在等待另一台电脑确认。',
+    '已确认，正在建立连接…',
+    '请比较两台电脑上的代码。如果一致，请在收到请求的电脑上确认。',
   ],
   fr: [
     'Demande de connexion',
@@ -180,7 +183,8 @@ const approval = {
     'Ce nœud n’affiche plus les demandes de cet ordinateur. Saisissez son code pour vous connecter.',
     'Ce nœud utilise des codes d’association. Saisissez son code pour vous connecter.',
     'La demande n’a pas abouti. Vous pouvez toujours saisir le code.',
-    'Confirmation enregistrée ici. En attente de l’autre ordinateur.',
+    'Demande confirmée. Connexion en cours…',
+    'Comparez les codes sur les deux ordinateurs. S’ils correspondent, confirmez sur l’ordinateur qui a reçu la demande.',
   ],
   de: [
     'Verbindungsanfrage',
@@ -197,7 +201,8 @@ const approval = {
     'Dieser Knoten zeigt Anfragen von diesem Computer nicht mehr an. Geben Sie zum Verbinden seinen Code ein.',
     'Dieser Knoten verwendet Kopplungscodes. Geben Sie zum Verbinden seinen Code ein.',
     'Die Anfrage konnte nicht abgeschlossen werden. Sie können weiterhin den Code eingeben.',
-    'Hier bestätigt. Die Bestätigung auf dem anderen Computer steht noch aus.',
+    'Bestätigt. Die Verbindung wird hergestellt…',
+    'Vergleichen Sie die Codes auf beiden Computern. Wenn sie übereinstimmen, bestätigen Sie auf dem Computer, der die Anfrage erhalten hat.',
   ],
   it: [
     'Richiesta di connessione',
@@ -214,7 +219,8 @@ const approval = {
     'Questo nodo non mostra le richieste di questo computer. Usa il suo codice per connetterti.',
     'Questo nodo usa codici di associazione. Inserisci il suo codice per connetterti.',
     'Impossibile completare la richiesta. Puoi comunque inserire il codice.',
-    'Conferma ricevuta su questo computer. In attesa dell’altro computer.',
+    'Richiesta confermata. Connessione in corso…',
+    'Confronta i codici sui due computer. Se coincidono, conferma sul computer che ha ricevuto la richiesta.',
   ],
   es: [
     'Solicitud de conexión',
@@ -231,7 +237,8 @@ const approval = {
     'Este nodo no muestra las solicitudes de este equipo. Introduce su código para conectarte.',
     'Este nodo usa códigos de emparejamiento. Introduce su código para conectarte.',
     'No se pudo completar la solicitud. Aún puedes introducir el código.',
-    'Confirmado en este equipo. Falta la confirmación del otro.',
+    'Solicitud confirmada. Estableciendo la conexión…',
+    'Compara los códigos en ambos equipos. Si coinciden, confirma en el equipo que recibió la solicitud.',
   ],
   kk: [
     'Қосылу сұрауы',
@@ -248,7 +255,8 @@ const approval = {
     'Бұл түйін осы компьютерден келген сұрауларды көрсетпейді. Қосылу үшін оның кодын енгізіңіз.',
     'Бұл түйін жұптастыру кодтарын қолданады. Қосылу үшін оның кодын енгізіңіз.',
     'Сұрауды аяқтау мүмкін болмады. Код арқылы қосыла аласыз.',
-    'Бұл компьютерде расталды. Екінші компьютердің растауы күтілуде.',
+    'Расталды. Байланыс орнатылып жатыр…',
+    'Екі компьютердегі кодтарды салыстырыңыз. Кодтар сәйкес келсе, сұрауды қабылдаған компьютерде растаңыз.',
   ],
   ja: [
     '接続リクエスト',
@@ -265,7 +273,8 @@ const approval = {
     'このノードでは、このコンピューターからのリクエストが表示されません。接続するには相手のコードを入力してください。',
     'このノードはペアリングコードを使用します。接続するには相手のコードを入力してください。',
     'リクエストを完了できませんでした。コードで接続できます。',
-    'このコンピューターでは確認済みです。もう一方の確認を待っています。',
+    '確認済みです。接続を確立しています…',
+    '両方のコンピューターのコードを比較してください。一致する場合は、リクエストを受け取ったコンピューターで確認してください。',
   ],
   'pt-BR': [
     'Solicitação de conexão',
@@ -282,7 +291,8 @@ const approval = {
     'Este nó não exibe solicitações deste computador. Digite o código dele para se conectar.',
     'Este nó usa códigos de pareamento. Digite o código dele para se conectar.',
     'Não foi possível concluir a solicitação. Você ainda pode digitar o código.',
-    'Confirmado neste computador. Aguardando a confirmação no outro.',
+    'Solicitação confirmada. Estabelecendo a conexão…',
+    'Compare os códigos nos dois computadores. Se forem iguais, confirme no computador que recebeu a solicitação.',
   ],
   ko: [
     '연결 요청',
@@ -299,7 +309,8 @@ const approval = {
     '이 노드는 이 컴퓨터의 요청을 표시하지 않습니다. 연결하려면 상대의 코드를 입력하세요.',
     '이 노드는 페어링 코드를 사용합니다. 연결하려면 상대의 코드를 입력하세요.',
     '요청을 완료하지 못했습니다. 코드로 연결할 수 있습니다.',
-    '이 컴퓨터에서 확인했습니다. 다른 컴퓨터의 확인을 기다리는 중입니다.',
+    '확인했습니다. 연결하는 중입니다…',
+    '두 컴퓨터의 코드를 비교하세요. 코드가 일치하면 요청을 받은 컴퓨터에서 확인하세요.',
   ],
   tr: [
     'Bağlantı isteği',
@@ -316,7 +327,8 @@ const approval = {
     'Bu düğüm bu bilgisayardan gelen istekleri göstermiyor. Bağlanmak için düğümün kodunu girin.',
     'Bu düğüm eşleştirme kodları kullanıyor. Bağlanmak için düğümün kodunu girin.',
     'İstek tamamlanamadı. Kodla bağlanabilirsiniz.',
-    'Bu bilgisayarda onaylandı. Diğer bilgisayarın onayı bekleniyor.',
+    'İstek onaylandı. Bağlantı kuruluyor…',
+    'İki bilgisayardaki kodları karşılaştırın. Kodlar eşleşirse isteği alan bilgisayarda onaylayın.',
   ],
   pl: [
     'Prośba o połączenie',
@@ -333,7 +345,8 @@ const approval = {
     'Ten węzeł nie wyświetla próśb z tego komputera. Wpisz jego kod, aby się połączyć.',
     'Ten węzeł używa kodów parowania. Wpisz jego kod, aby się połączyć.',
     'Nie udało się zakończyć prośby. Nadal możesz wpisać kod.',
-    'Potwierdzono na tym komputerze. Oczekiwanie na potwierdzenie na drugim komputerze.',
+    'Prośba potwierdzona. Trwa nawiązywanie połączenia…',
+    'Porównaj kody na obu komputerach. Jeśli są identyczne, potwierdź na komputerze, który otrzymał prośbę.',
   ],
   nl: [
     'Verbindingsverzoek',
@@ -350,7 +363,8 @@ const approval = {
     'Dit knooppunt toont geen verzoeken van deze computer. Voer de code in om verbinding te maken.',
     'Dit knooppunt gebruikt koppelcodes. Voer de code in om verbinding te maken.',
     'Het verzoek kon niet worden voltooid. Je kunt nog steeds de code invoeren.',
-    'Hier bevestigd. De bevestiging op de andere computer wordt afgewacht.',
+    'Verzoek bevestigd. De verbinding wordt tot stand gebracht…',
+    'Vergelijk de codes op beide computers. Komen ze overeen, bevestig dan op de computer die het verzoek heeft ontvangen.',
   ],
   uk: [
     'Запит на підключення',
@@ -367,11 +381,13 @@ const approval = {
     'Цей вузол не показує запити з цього комп’ютера. Щоб підключитися, введіть його код.',
     'Цей вузол використовує коди спарювання. Щоб підключитися, введіть його код.',
     'Не вдалося завершити запит. Підключення за кодом доступне.',
-    'На цьому комп’ютері підключення підтверджено. Очікуємо підтвердження на іншому.',
+    'Запит підтверджено. Встановлюємо з’єднання…',
+    'Порівняйте коди на обох комп’ютерах. Якщо вони збігаються, підтвердьте на комп’ютері, який отримав запит.',
   ],
 } satisfies Record<
   Locale,
   readonly [
+    string,
     string,
     string,
     string,
@@ -407,6 +423,7 @@ export function pairingApprovalMessages(locale: Locale) {
     unsupported,
     failed,
     confirmed,
+    compareOnRecipient,
   ] = approval[locale];
   return {
     title,
@@ -424,5 +441,6 @@ export function pairingApprovalMessages(locale: Locale) {
     unsupported,
     failed,
     confirmed,
+    compareOnRecipient,
   };
 }

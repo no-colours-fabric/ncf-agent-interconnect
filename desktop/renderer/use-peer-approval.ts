@@ -6,7 +6,6 @@ type Phase = Exclude<OutgoingPairApproval['state'], 'paired'> | 'requesting' | '
 interface Attempt {
   id: string;
   timer?: ReturnType<typeof setTimeout>;
-  confirming?: boolean;
 }
 
 export function usePeerApproval(invoke: McpSetupInvoke) {
@@ -15,7 +14,6 @@ export function usePeerApproval(invoke: McpSetupInvoke) {
   latestInvoke.current = invoke;
   const [phase, setPhase] = useState<Phase>();
   const [comparisonCode, setComparisonCode] = useState<string>();
-  const [confirmed, setConfirmed] = useState(false);
   useEffect(
     () => () => {
       const attempt = current.current;
@@ -45,25 +43,8 @@ export function usePeerApproval(invoke: McpSetupInvoke) {
     }
     setPhase(undefined);
     setComparisonCode(undefined);
-    setConfirmed(false);
     return true;
   }, []);
-
-  const confirm = async () => {
-    const attempt = current.current;
-    if (!attempt || attempt.confirming) return;
-    attempt.confirming = true;
-    try {
-      const answer = await latestInvoke.current<{ confirmed: boolean }>('confirmPeerApproval', {
-        id: attempt.id,
-      });
-      if (current.current === attempt && answer.confirmed) setConfirmed(true);
-    } catch {
-      if (current.current === attempt && (await cancel()) && !current.current) setPhase('failed');
-    } finally {
-      attempt.confirming = false;
-    }
-  };
 
   const start = (
     address: string,
@@ -74,7 +55,6 @@ export function usePeerApproval(invoke: McpSetupInvoke) {
     const attempt: Attempt = { id: crypto.randomUUID() };
     current.current = attempt;
     setComparisonCode(undefined);
-    setConfirmed(false);
     setPhase('requesting');
     const update = async (initial: boolean) => {
       try {
@@ -100,5 +80,5 @@ export function usePeerApproval(invoke: McpSetupInvoke) {
     };
     void update(true);
   };
-  return { phase, comparisonCode, confirmed, confirm, cancel, start };
+  return { phase, comparisonCode, cancel, start };
 }

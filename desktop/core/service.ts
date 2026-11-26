@@ -4145,14 +4145,9 @@ export class NodeService extends EventEmitter {
       if (!this.running) throw new Error('Start the node first');
       return this.network.requestApproval(id, address, expectedNodeId);
     }
-    if (
-      method === 'peerApprovalProgress' ||
-      method === 'cancelPeerApproval' ||
-      method === 'confirmPeerApproval'
-    ) {
+    if (method === 'peerApprovalProgress' || method === 'cancelPeerApproval') {
       const { id } = z.object({ id: z.uuid() }).strict().parse(raw);
       if (method === 'cancelPeerApproval') return { canceled: this.network.cancelApproval(id) };
-      if (method === 'confirmPeerApproval') return { confirmed: this.network.confirmApproval(id) };
       return this.network.approvalProgress(id);
     }
     if (method === 'removePeer') {

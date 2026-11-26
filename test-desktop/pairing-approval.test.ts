@@ -26,7 +26,6 @@ function pending(state: OutgoingPairApproval, phase: 'waiting' | 'shown'): strin
   assert.match(state.comparisonCode, /^[0-9]{6}$/);
   return state.comparisonCode;
 }
-const confirm = (node: NodeService, id: string) => node.userCall('confirmPeerApproval', { id });
 const progress = (first: NodeService, id: string) =>
   first.userCall('peerApprovalProgress', { id }) as Promise<OutgoingPairApproval>;
 
@@ -42,12 +41,10 @@ test('dismissal creates no trust, a retry gets a new dialog, and approval pairs 
   assert.equal(first.label, a.snapshot().nodeLabel);
   assert.equal(first.comparisonCode, firstCode);
   assert.equal(pending(await progress(a, id), 'waiting'), firstCode);
-  assert.deepEqual(await confirm(a, id), { confirmed: false });
   await assert.rejects(b.network.approvalHost.decide(first.id, 'confirm'), /no longer displayed/);
   assert.equal(b.network.approvalHost.displayed(randomUUID()), false);
   assert.equal(b.network.approvalHost.displayed(first.id), true);
   assert.equal(pending(await progress(a, id), 'shown'), firstCode);
-  assert.deepEqual(await confirm(a, id), { confirmed: true });
   await b.network.approvalHost.decide(first.id, 'dismiss');
   assert.deepEqual(await progress(a, id), { state: 'dismissed' });
   assert.equal(b.network.approvalHost.next(), undefined);
@@ -58,15 +55,14 @@ test('dismissal creates no trust, a retry gets a new dialog, and approval pairs 
   const incoming = b.network.approvalHost.next()!;
   assert.notEqual(incoming.id, first.id);
   assert.equal(incoming.comparisonCode, retryCode);
-  assert.deepEqual(await confirm(a, id), { confirmed: false });
   await b.network.approvalHost.decide(first.id, 'confirm');
   assert.equal(b.network.approvalHost.next()?.id, incoming.id);
   b.network.approvalHost.displayed(incoming.id);
+  assert.equal(pending(await progress(a, retry), 'shown'), retryCode);
+  assert.equal(peers(a).length + peers(b).length, 0);
   await b.network.approvalHost.decide(incoming.id, 'confirm');
   assert.equal(peers(a).length + peers(b).length, 0);
   assert.equal(b.network.approvalHost.next()?.comparisonCode, retryCode);
-  assert.equal(pending(await progress(a, retry), 'shown'), retryCode);
-  assert.deepEqual(await confirm(a, retry), { confirmed: true });
   const result = await progress(a, retry);
   assert.equal(b.network.approvalHost.next(), undefined);
   assert.equal(result.state, 'paired');
@@ -118,7 +114,6 @@ test('a canceled requester has no pairing and a 404 receiver still supports code
   const incoming = b.network.approvalHost.next()!;
   b.network.approvalHost.displayed(incoming.id);
   await b.network.approvalHost.decide(incoming.id, 'confirm');
-  assert.equal((await progress(a, pending)).state, 'shown');
   assert.deepEqual(await a.userCall('cancelPeerApproval', { id: pending }), { canceled: true });
   assert.deepEqual(await progress(a, pending), { state: 'dismissed' });
 
