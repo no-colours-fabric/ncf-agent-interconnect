@@ -1,3 +1,4 @@
+import { createMacSessionDelivery } from './mac-session-delivery.js';
 import {
   app,
   BrowserWindow,
@@ -38,10 +39,12 @@ import { pendingInstallationRestartNotice } from './installation-restart-notice.
 
 const directory = path.dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(1);
+const windowsSessionServiceCommand =
+  process.platform === 'win32' && args.some((arg) => arg.startsWith('--chatgpt-service'));
 const windowsShortcutLaunch = process.platform === 'win32' && hasCodexShortcutLaunchFlags(args);
 const dataArg = args.indexOf('--data-dir');
 const alternateUserData = dataArg >= 0 ? args[dataArg + 1] : undefined;
-if (!windowsShortcutLaunch && alternateUserData)
+if (!windowsShortcutLaunch && !windowsSessionServiceCommand && alternateUserData)
   app.setPath('userData', path.resolve(alternateUserData));
 app.setName('NCF Agent Interconnect');
 const runningCodexConfiguration =
@@ -74,7 +77,40 @@ const lanSearchLifecycle = new LanSearchLifecycle(async (isCurrent) => {
     return;
   await active.userCall('startLanSearch', {});
 });
-if (windowsShortcutLaunch) {
+function windowsDesktopDeliveryOptions() {
+  return {
+    userData: app.getPath('userData'),
+    appExecutable: process.execPath,
+    appPath: app.getAppPath(),
+    appData: app.getPath('appData'),
+    installed: app.isPackaged,
+    alternateUserData: !!alternateUserData,
+  };
+}
+if (windowsSessionServiceCommand) {
+  if (
+    !app.isPackaged ||
+    args.length !== 1 ||
+    !['--chatgpt-service', '--chatgpt-service-stop', '--chatgpt-service-disable'].includes(args[0])
+  )
+    app.exit(1);
+  else
+    void app
+      .whenReady()
+      .then(async () => {
+        const native = await import('./desktop-session-delivery-windows.js');
+        const options = windowsDesktopDeliveryOptions();
+        const success =
+          args[0] === '--chatgpt-service'
+            ? await native.restoreWindowsDesktopSessionService(options)
+            : await native.stopWindowsDesktopSessionService(
+                options,
+                args[0] === '--chatgpt-service-disable',
+              );
+        app.exit(success ? 0 : 20);
+      })
+      .catch(() => app.exit(20));
+} else if (windowsShortcutLaunch) {
   // Shortcut arguments never start the hub or redirect to an alternate userData.
   if (!app.isPackaged) app.exit(1);
   else {
@@ -158,6 +194,19 @@ else {
               : undefined,
         lanDiscovery: process.env.NCF_DISABLE_LAN_DISCOVERY === '1' ? undefined : {},
       });
+      if (process.platform === 'win32' && app.isPackaged && !alternateUserData) {
+        void import('./desktop-session-delivery-windows.js')
+          .then(async (native) => {
+            if (quitting) return;
+            const options = windowsDesktopDeliveryOptions();
+            const stopWatching = native.watchWindowsDesktopSessionLaunches(options, () =>
+              service?.desktopChatGptLaunched(),
+            );
+            app.once('before-quit', stopWatching);
+            await native.restoreWindowsDesktopSessionService(options);
+          })
+          .catch(() => {});
+      }
       service.on('change', () => {
         pairingApprovalWindow?.sync();
         updateTray();
@@ -305,6 +354,22 @@ function setupIpc(): void {
   );
   const mcpSetup = createMcpSetupHandler({
     runningCodexConfiguration,
+    createDesktopDelivery:
+      !app.isPackaged || alternateUserData
+        ? undefined
+        : process.platform === 'darwin'
+          ? (selected) => createMacSessionDelivery(userData, selected)
+          : process.platform === 'win32'
+            ? (selected) => {
+                const handler = import('./desktop-session-delivery-windows.js').then((native) =>
+                  native.createWindowsDesktopSessionDeliveryHandler(
+                    windowsDesktopDeliveryOptions(),
+                    selected,
+                  ),
+                );
+                return async (action, expected) => (await handler)(action, expected);
+              }
+            : undefined,
     instructions: (client) => access.current().clientInstructions(client),
     dialog,
     window: () => window,

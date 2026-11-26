@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
 import { watch, type FSWatcher } from 'node:fs';
 import { lstat, realpath } from 'node:fs/promises';
@@ -276,17 +277,27 @@ async function codexTranscript(
   return transcriptPath;
 }
 
+type WindowsQueueVendorResolver = (info: { root: string }) => Promise<{ originalCli: string }>;
+
+export async function resolveWindowsCodexQueueExecutable(
+  files: Pick<NativeDiscoveryFiles, 'windowsCodex'> = new NativeDiscoveryFiles(),
+  resolveVendor: WindowsQueueVendorResolver = async (info) => {
+    const bridge = createRequire(import.meta.url)('../integrations/codex-windows-bridge.cjs') as {
+      resolveVendor: WindowsQueueVendorResolver;
+    };
+    return bridge.resolveVendor(info);
+  },
+): Promise<string> {
+  const installs = await files.windowsCodex();
+  if (installs.length !== 1) throw new Error('The ChatGPT package is unavailable or ambiguous');
+  // MSIX resources can be readable but not executable by an unpackaged host.
+  // Reuse the vendor-created cache only after the existing exact asset guards.
+  const vendor = await resolveVendor({ root: installs[0].root });
+  return vendor.originalCli;
+}
+
 async function bundledQueueExecutable(): Promise<string> {
-  if (process.platform === 'win32') {
-    const files = new NativeDiscoveryFiles();
-    const installs = await files.windowsCodex();
-    if (installs.length !== 1) throw new Error('The ChatGPT package is unavailable or ambiguous');
-    const cli = path.join(path.dirname(installs[0].executable), 'resources', 'codex.exe');
-    const resolved = await files.canonical(cli);
-    if (!resolved || path.relative(cli, resolved) || !(await files.executable(resolved)))
-      throw new Error('The bundled Codex executable is unavailable');
-    return resolved;
-  }
+  if (process.platform === 'win32') return resolveWindowsCodexQueueExecutable();
   const cli = process.platform === 'linux' ? '/usr/lib/chatgpt/resources/codex' : macBundledCodex;
   const executable = await lstat(cli);
   const allowedOwners = process.platform === 'linux' ? [0] : [0, process.getuid!()];
@@ -401,7 +412,7 @@ async function releaseQueueWorker(user: AbortSignal): Promise<void> {
   await Promise.all(closing);
 }
 
-async function macControlSocket(home: string) {
+export async function macControlSocket(home: string) {
   const uid = process.getuid!();
   const directory = path.join(home, controlDirectory);
   const socketPath = path.join(directory, controlSocket);
@@ -983,8 +994,8 @@ export class CodexQueueAdapter implements AgentAdapter {
         this.ensureWatcher();
         for (const [id, projection] of this.projections)
           if (!projection.isCurrent()) this.projections.delete(id);
-        if (this.wakeChat && (!shared || thread.state === 'notLoaded'))
-          await this.wakePendingQueue(call, thread.id).catch(() => {});
+        if (shared ? thread.state === 'notLoaded' : this.wakeChat)
+          await this.wakePendingQueue(call, thread.id, shared).catch(() => {});
         let cursor: string | undefined;
         for (let page = 0; page < projectionPageLimit && this.projections.size; page++) {
           const { data, nextCursor } = await this.projectionPage(call, thread.id, cursor);
@@ -1008,7 +1019,11 @@ export class CodexQueueAdapter implements AgentAdapter {
     this.projectionTimer.unref?.();
   }
 
-  private async wakePendingQueue(call: QueueCall, threadId: string): Promise<void> {
+  private async wakePendingQueue(
+    call: QueueCall,
+    threadId: string,
+    shared: boolean,
+  ): Promise<void> {
     const pending = [...this.projections].filter(
       ([, item]) => item.wakePending && item.isCurrent(),
     );
@@ -1021,18 +1036,33 @@ export class CodexQueueAdapter implements AgentAdapter {
     do {
       const response = await call('thread/queue/list', {
         threadId,
-        limit: confirmationQueueLimit,
+        limit: shared ? 1 : confirmationQueueLimit,
         cursor,
       });
       if (!Array.isArray(response.data)) return;
       for (const row of response.data) {
         const item = wanted.get(row?.clientUserMessageId);
         const body = singleText(row?.input);
-        if (!item || body === undefined || !matchesPayload(body, item.payloadHash)) continue;
+        if (
+          !item ||
+          body === undefined ||
+          (shared
+            ? contentHash(body) !== item.payloadHash
+            : !matchesPayload(body, item.payloadHash))
+        ) {
+          // Resuming can consume the head of the queue, including an unrelated draft.
+          if (shared) return;
+          continue;
+        }
         const current = () => !this.controller.signal.aborted && item.isCurrent();
         if (!current()) continue;
         const generation = this.launchGeneration;
-        await this.wakeChat?.(this.profile, current, item.wakePending || 'delivery');
+        if (shared) {
+          if ((await this.verifyThread(call)).state !== 'notLoaded' || !current()) return;
+          await call('thread/resume', { threadId, excludeTurns: true });
+        } else {
+          await this.wakeChat?.(this.profile, current, item.wakePending || 'delivery');
+        }
         if (generation === this.launchGeneration) {
           for (const [, projection] of pending) projection.wakePending = false;
         }
@@ -1116,7 +1146,7 @@ export class CodexQueueAdapter implements AgentAdapter {
           text,
           messageId,
         );
-        if (echoed && this.wakeChat && (!shared || thread.state === 'notLoaded')) {
+        if (echoed && this.wakeChat && !shared) {
           const generation = this.launchGeneration;
           const current = () => !this.controller.signal.aborted && (input.isCurrent?.() ?? true);
           if (current()) {

@@ -133,6 +133,29 @@ export async function inspectMacCodexDesktop(
   }
 }
 
+export async function macSetupConfigurations(appPath: string, home: string, appData: string) {
+  const install = await findMacCodex();
+  if (!install) return undefined;
+  try {
+    const { stdout } = await execute(
+      path.join(appPath, 'build/assets/codex-mac-launcher'),
+      [
+        '--list-setup-profiles',
+        install.desktopExecutable,
+        path.join(home, '.codex'),
+        path.join(appData, 'Codex'),
+      ],
+      { timeout: 3000, maxBuffer: 65536 },
+    );
+    return z
+      .array(z.string().refine(path.isAbsolute))
+      .parse(JSON.parse(stdout))
+      .map((profile) => path.join(profile, 'config.toml'));
+  } catch {
+    return undefined;
+  }
+}
+
 export function watchMacChatLaunches(appPath: string, launched: () => void): () => void {
   const helper = execFile(path.join(appPath, 'build/assets/codex-mac-launcher'), [
     '--watch-desktop-launches',

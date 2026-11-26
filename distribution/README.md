@@ -17,7 +17,9 @@ Choose the Apple Silicon (arm64) or Intel (x64) DMG. Requires macOS 13 or
 later. The build is ad-hoc signed without Apple notarization. The Intel package
 was not run on Intel hardware.
 
-Windows x64: use the Windows installer. Packages are unsigned.
+Windows x64: use the Windows installer. Packages are unsigned. The installer
+checks whether NCF files can be replaced and can stop its own idle background
+service. An older running NCF service may still block its first upgrade.
 
 This release provides four installers: Apple Silicon DMG, Intel DMG,
 Windows x64 EXE and Linux x86_64 AppImage.
@@ -52,8 +54,12 @@ their own chats to connect under names you choose.
   Restart OpenCode v1. If you use a frontend, choose one that loads the included
   plugin from that OpenCode installation. A busy chat can receive messages when
   it becomes idle.
-- **ChatGPT:** reconnect MCP after setup and ask the assistant to connect in the
-  intended chat. Open ChatGPT normally.
+- **ChatGPT:** choose **Connect** to set up the profile and enable background
+  delivery. If macOS offers Home and Work profiles, select the one you use.
+  Windows background delivery supports the default ChatGPT profile. Use the
+  settings gear in the ChatGPT row to open manual setup or manage background
+  delivery. Follow the prompt to quit and reopen ChatGPT from its usual icon,
+  then connect the intended chat.
 - **Cursor:** restart Cursor once after setup, then connect in the intended
   chat and keep it open. Open connected chats can receive messages even when
   they are not selected in the IDE or Agents Window. After a restart, send one

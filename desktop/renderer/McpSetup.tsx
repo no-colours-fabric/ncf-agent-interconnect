@@ -1,3 +1,9 @@
+import { DesktopSessionDeliveryControl } from './DesktopSessionDeliveryControl.js';
+import {
+  configurationProfile,
+  enableChatDelivery,
+  type DeliveryIssue,
+} from '../shared/desktop-session-delivery.js';
 import { ClientLogo } from './ApplicationDiscovery.js';
 import { ChatgptCompatibilityNotice } from './ChatgptCompatibilityNotice.js';
 import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
@@ -409,10 +415,35 @@ function ClientSetupDialog({
     state.result ?? (state.verified ? { status: 'unchanged', files: [] } : undefined);
   const checkingOriginalResult =
     !!state.uncertain && !result && state.preview?.planId === state.uncertain.preview.planId;
+  const configuration = state.files.find((file) => file.id === 'configuration')?.path ?? '';
+  const [pendingConfiguration, setPendingConfiguration] = useState<string>();
+  const [deliveryRefresh, setDeliveryRefresh] = useState(0);
+  const [deliveryIssue, setDeliveryIssue] = useState<DeliveryIssue>();
+  const [deliveryBusy, setDeliveryBusy] = useState(false);
+  const verifiedConfiguration =
+    state.status?.remembered &&
+    state.status.state === 'configured' &&
+    state.status.files.some((file) => file.path === configuration);
   const apply = async () => {
     if (result) await flow.begin();
     await flow.apply(!result && replaceConfirmed);
     const current = flow.getSnapshot();
+    if (
+      client === 'codex' &&
+      (current.verified || (current.result && current.result.status !== 'failed'))
+    ) {
+      const target =
+        current.preview?.files.find((file) => file.id === 'configuration')?.path ??
+        current.status?.files[0]?.path;
+      if (pendingConfiguration && target === pendingConfiguration) {
+        setDeliveryBusy(true);
+        const issue = await enableChatDelivery(invoke, target);
+        setDeliveryBusy(false);
+        setDeliveryIssue(issue);
+        setPendingConfiguration(undefined);
+      }
+      setDeliveryRefresh((value) => value + 1);
+    }
     if (current.result && current.result !== state.result && current.result.status !== 'failed')
       onSuccess?.(current.result.status);
     else if (current.verified && !state.verified) onSuccess?.('unchanged');
@@ -621,6 +652,7 @@ function ClientSetupDialog({
                 variant="contained"
                 disabled={
                   state.busy ||
+                  deliveryBusy ||
                   setupBusy ||
                   (!result &&
                     (!state.preview ||
@@ -698,6 +730,20 @@ function ClientSetupDialog({
             </Stack>
           );
         })}
+        {client === 'codex' && (
+          <DesktopSessionDeliveryControl
+            invoke={invoke}
+            locale={locale}
+            configuration={configuration}
+            configured={!!verifiedConfiguration}
+            pending={!!pendingConfiguration && pendingConfiguration === configuration}
+            onPendingChange={(value) => setPendingConfiguration(value ? configuration : undefined)}
+            refresh={deliveryRefresh}
+            applyIssue={deliveryIssue}
+            clearIssue={() => setDeliveryIssue(undefined)}
+            formBusy={state.busy || deliveryBusy || !!setupBusy}
+          />
+        )}
         {(state.preview?.requiresReplacement || state.reviewRequired) && !result && (
           <FormControlLabel
             control={
@@ -1073,7 +1119,17 @@ export function McpSetup({
   const copy = applicationSetupMessages(locale);
   const closeManual = () => {
     if (showOpenCodeV2) autoFlow.openCodeV2.cancel();
-    else manualFlows[selectedClient].cancel();
+    else {
+      const draft = manualFlows[selectedClient].getSnapshot();
+      if (selectedClient === 'codex') {
+        const target = draft.files.find((file) => file.id === 'configuration')?.path;
+        if (target && configurationProfile(target) && !draft.uncertain)
+          autoFlow.selectCodexConfiguration(
+            draft.status?.remembered && draft.status.files[0]?.path === target ? undefined : target,
+          );
+      }
+      manualFlows[selectedClient].cancel();
+    }
     setSelectedManual(null);
     onCloseManual?.();
   };

@@ -1,3 +1,4 @@
+import { sessionDeliveryMessages } from '../desktop/renderer/i18n/session-delivery.js';
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import React from 'react';
@@ -814,7 +815,7 @@ test('Applications rows keep setup status and manual actions with immediate unhe
   assert.ok(!row.includes('data-testid="application-configured-codex"'));
   assert.ok(!row.includes('aria-expanded'));
   assert.ok(row.includes('data-testid="application-guidance-codex"'));
-  assert.ok(row.includes(mcpSetupMessages('en').codexNext));
+  assert.ok(row.includes(sessionDeliveryMessages.en.connectRestart));
   assert.ok(!row.includes(applicationSetupMessages('en').nextStep));
   assert.ok(!row.includes(' hidden='));
   assert.ok(row.includes('data-testid="application-manual-codex"'));
@@ -913,14 +914,8 @@ test('Applications working guidance requires a current ready bound chat, not sav
     assert.ok(row.includes('data-testid="application-guidance-codex"'), mode);
     assert.ok(!row.includes('data-testid="application-configured-codex"'), mode);
     assert.ok(!row.includes('Copy connection prompt'), mode);
-    if (mode === 'ready') {
-      assert.ok(row.includes('In your app, open a new chat or return to an existing one'), mode);
-      assert.ok(row.includes('Connect as agent &lt;a name you choose&gt;</code>'), mode);
-      assert.ok(!row.includes(mcpSetupMessages('en').codexNext), mode);
-    } else {
-      assert.ok(row.includes(mcpSetupMessages('en').codexNext), mode);
-      assert.ok(!row.includes('Connect as agent &lt;a name you choose&gt;'), mode);
-    }
+    assert.ok(row.includes(sessionDeliveryMessages.en.connectRestart), mode);
+    assert.ok(!row.includes('Connect as agent &lt;a name you choose&gt;'), mode);
   }
 });
 
@@ -934,7 +929,7 @@ test('inline working hints are one localized paragraph with the exact visible co
     if (locale !== 'en') assert.notEqual(copy, english, locale);
     const html = renderToStaticMarkup(
       React.createElement(NextStep, {
-        client: 'codex',
+        client: 'cursor',
         locale,
         invoke: noInvoke,
         inline: true,

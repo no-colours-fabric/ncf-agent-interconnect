@@ -307,6 +307,7 @@ async function fixture(
   const queued: object[] = [];
   const steered: object[] = [];
   const started: object[] = [];
+  const resumed: object[] = [];
   const queuedId = randomUUID();
   const activeTurn = randomUUID();
   let threadState = shared ? 'active' : 'notLoaded';
@@ -337,6 +338,12 @@ async function fixture(
       if (method === 'thread/items/list') return { data: projection };
       if (method === 'thread/turns/list') return { data: [latestTurn] };
       assert.equal(attempt.meta.phase, 'issued');
+      if (method === 'thread/resume') {
+        assert.equal(threadState, 'notLoaded');
+        resumed.push(params);
+        threadState = 'active';
+        return { thread: { id: threadId } };
+      }
       if (method === 'turn/steer') {
         steered.push(params);
         if (expiredTurn) throw new CodexRpcRejection(-32600, 'no active turn to steer');
@@ -365,8 +372,11 @@ async function fixture(
       assert.equal(value, transcript);
       return transcript;
     },
-    // Both loaded and unloaded chats use the synthetic server on every platform.
-    session,
+    shared
+      ? session
+      : async () => {
+          throw new Error('No shared owner');
+        },
     wake,
   );
   t.after(async () => {
@@ -394,6 +404,10 @@ async function fixture(
     queued,
     steered,
     started,
+    resumed,
+    unload: () => {
+      threadState = 'notLoaded';
+    },
     queuedId,
     activeTurn,
     body,
@@ -501,6 +515,43 @@ test('wakes a verified queued submission on desktop launch without resending or 
   await delay(250);
   assert.equal(receipts, 1);
   assert.equal(wakeCount, 2);
+});
+
+test('resumes an unloaded chat on its owner only for the verified head, without navigating or sending twice', async (t) => {
+  const navigate = t.mock.fn(async () => {});
+  const f = await fixture(t, true, navigate);
+  f.unload();
+  f.echoInput();
+  await f.adapter.start();
+  assert.equal((await f.adapter.deliver(f.input)).state, 'queued');
+  const other = { ...f.queued[0], clientUserMessageId: randomUUID() };
+  f.queued.unshift(other);
+  let receipts = 0;
+  f.adapter.observeDelivery(
+    f.attempt,
+    () => true,
+    () => receipts++,
+  );
+  await delay(250);
+  assert.equal(f.resumed.length, 0);
+  f.queued.shift();
+  const row = f.queued[0] as { input: { text: string }[] };
+  row.input[0]!.text = f.body + '\n';
+  f.adapter.desktopLaunched();
+  await delay(250);
+  assert.equal(f.resumed.length, 0);
+  row.input[0]!.text = f.body;
+  f.adapter.desktopLaunched();
+  await delay(250);
+  assert.deepEqual(f.resumed, [{ threadId: f.input.binding.chatId, excludeTurns: true }]);
+  assert.equal(navigate.mock.callCount(), 0);
+  assert.equal(receipts, 0);
+  f.adapter.desktopLaunched();
+  await f.setProjection(f.attempt.id, f.body);
+  await delay(250);
+  assert.equal(f.resumed.length, 1);
+  assert.equal(f.queued.length, 1);
+  assert.equal(receipts, 1);
 });
 
 test('a warm queue wake preserves other loaded desktop chats, independently of the sender', async (t) => {

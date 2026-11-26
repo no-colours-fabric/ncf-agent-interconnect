@@ -1042,3 +1042,45 @@ test('AionUi owner Apply targets the real Cursor file with its bridge, preservin
   assert.equal(await readFile(filename, 'utf8'), bytes);
   assert.equal((await service.status('aionui')).state, 'configured');
 });
+
+test('quick Connect offers the open Mac profiles and keeps the selected profile after relaunch', async (t) => {
+  const { directory } = await fixture(t);
+  const base = await realpath(directory);
+  const home = path.join(base, 'Home', 'config.toml'),
+    work = path.join(base, 'Work', 'config.toml');
+  let running = [home, work];
+  const make = () =>
+    createMcpSetupHandler({
+      home: base,
+      stateDirectory: path.join(base, 'state'),
+      env: {},
+      macSetupProfiles: async () => running,
+      window: () => null,
+      openPath: async () => '',
+      dialog: {
+        showOpenDialog: async () => {
+          throw Error('unexpected picker');
+        },
+      },
+      instructions,
+    });
+  const handler = make();
+  const prepare = async (handle: ReturnType<typeof make>, params: object) => {
+    const reply = await handle('codexSetupPrepare', params, owner);
+    assert.ok(reply.handled);
+    return reply.result as import('../desktop/shared/mcp-setup.js').CodexSetupPreparation;
+  };
+  assert.deepEqual(await prepare(handler, {}), { configurations: running });
+  assert.deepEqual(await prepare(handler, { configuration: path.join(base, 'foreign.toml') }), {
+    configurations: running,
+  });
+  const preview = await prepare(handler, { configuration: work });
+  assert.ok('planId' in preview);
+  assert.equal(preview.files[0].path, work);
+  await handler('mcpSetupApply', { planId: preview.planId, confirmReplace: false }, owner);
+  running = [home];
+  const saved = await prepare(make(), {});
+  assert.ok('planId' in saved);
+  assert.equal(saved.files[0].path, work);
+  await assert.rejects(stat(home), { code: 'ENOENT' });
+});

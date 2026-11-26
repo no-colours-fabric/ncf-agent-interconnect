@@ -1,3 +1,5 @@
+import path from 'node:path';
+import type { DesktopSessionDelivery, DeliveryAction } from '../shared/desktop-session-delivery.js';
 import type { BrowserWindow, Dialog } from 'electron';
 import { z } from 'zod';
 import {
@@ -5,7 +7,7 @@ import {
   OpenCodeV2SetupService,
   type McpSetupOptions,
 } from '../core/mcp-setup.js';
-import { createCodexShortcutHandler } from './codex-shortcut-ipc.js';
+import { macSetupConfigurations, macShortcutDirectory } from './codex-shortcut-mac.js';
 import { McpSetupPaths } from '../core/mcp-setup-paths.js';
 import { openCodeV2TargetSchema } from '../core/opencode-v2-auth.js';
 import { mcpSetupClients, mcpSetupMethods, openCodeV2SetupMethods } from '../shared/mcp-setup.js';
@@ -22,6 +24,10 @@ export function createMcpSetupHandler(
     dialog: Pick<Dialog, 'showOpenDialog'>;
     window: () => BrowserWindow | null;
     openPath: (filename: string) => Promise<string>;
+    macSetupProfiles?: () => Promise<string[] | undefined>;
+    createDesktopDelivery?: (
+      selected: () => Promise<string | null>,
+    ) => (action: DeliveryAction, expected?: string) => Promise<DesktopSessionDelivery>;
     codexShortcut?: {
       platform: NodeJS.Platform;
       installed: boolean;
@@ -45,35 +51,76 @@ export function createMcpSetupHandler(
   const setup = new McpSetupService(options);
   const v2 = new OpenCodeV2SetupService(options);
   const paths = new McpSetupPaths(options.stateDirectory);
-  const codexShortcut =
-    options.codexShortcut?.platform === 'darwin' &&
-    createCodexShortcutHandler({
-      ...options.codexShortcut,
-      window: options.window,
-      configurationPath: async () =>
-        (await paths.get('codex')) ?? (await setup.defaults('codex')).files[0].path,
-      codexHome: (options.env ?? process.env).CODEX_HOME?.trim(),
-      desktopDataOverride: (options.env ?? process.env).CODEX_ELECTRON_USER_DATA_PATH?.trim(),
-      configuredFile: (filename) => setup.configuredCodexFile(filename),
-    });
+  const desktop = options.codexShortcut;
+  const macProfiles =
+    options.macSetupProfiles ??
+    (desktop?.platform === 'darwin'
+      ? () => macSetupConfigurations(desktop.appPath, desktop.home, desktop.appData)
+      : undefined);
+
+  async function quickProfiles() {
+    const saved = await paths.get('codex');
+    if (saved) return { configurations: [saved], choose: false };
+    const running = await macProfiles?.();
+    if (running?.length) return { configurations: running, choose: running.length > 1 };
+    const defaults = (await setup.defaults('codex')).files[0];
+    if (!macProfiles) return { configurations: [defaults.path], choose: false };
+
+    // Discovery was inconclusive. Offer known locations for an explicit selection.
+    const candidates = new Set(defaults.alternatives);
+    for (const { socket } of desktop?.boundProfiles() ?? []) {
+      if (!socket || !path.isAbsolute(socket)) continue;
+      const parent = path.dirname(socket);
+      if (
+        !(path.basename(parent) === 'ipc' && path.basename(socket) === 'ipc.sock') &&
+        !(
+          path.basename(parent) === 'app-server-control' &&
+          path.basename(socket) === 'app-server-control.sock'
+        )
+      )
+        continue;
+      const profile = path.dirname(parent);
+      if ((await macShortcutDirectory(profile).catch(() => null)) === profile)
+        candidates.add(path.join(profile, 'config.toml'));
+    }
+    return { configurations: [...candidates], choose: !running || candidates.size > 1 };
+  }
+  const desktopDelivery = options.createDesktopDelivery?.(async () => {
+    const remembered = await paths.get('codex');
+    const targets = remembered ? undefined : await quickProfiles();
+    const selected = remembered ?? (targets && !targets.choose ? targets.configurations[0] : null);
+    const configured = selected && (await setup.configuredCodexFile(selected));
+    return configured ? path.dirname(configured) : null;
+  });
   const startupCheck = setup.statusAll().catch(() => undefined);
   return async (method, raw, owner) => {
+    if (method === 'desktopSessionDelivery') {
+      if (!owner) throw new Error('The desktop interface session is missing');
+      const request = z
+        .discriminatedUnion('action', [
+          z.object({ action: z.literal('status') }).strict(),
+          z.object({ action: z.literal('enable'), profile: z.string().min(1).max(8192) }).strict(),
+          z.object({ action: z.literal('disable'), profile: z.string().min(1).max(8192) }).strict(),
+        ])
+        .parse(raw);
+      const result = desktopDelivery
+        ? await desktopDelivery(request.action, 'profile' in request ? request.profile : undefined)
+        : { state: 'unsupported' };
+      return { handled: true, result };
+    }
     if (method === 'codexSetupPrepare') {
       if (!owner) throw new Error('The desktop interface session is missing');
-      z.object({}).strict().parse(raw);
-      const platform = options.codexShortcut?.platform ?? process.platform;
-      const remembered = await paths.get('codex');
-      const exact = remembered
-        ? { configuration: remembered }
-        : platform === 'linux' || platform === 'win32'
-          ? { configuration: (await setup.defaults('codex')).files[0].path }
-          : codexShortcut && (await codexShortcut('codexShortcutConfiguration', {}));
-      if (!exact || typeof exact !== 'object' || !('configuration' in exact))
-        return { handled: true, result: null };
+      const { configuration } = z
+        .object({ configuration: z.string().min(1).max(8192).optional() })
+        .strict()
+        .parse(raw);
+      const { configurations, choose } = await quickProfiles();
+      if (configuration ? !configurations.includes(configuration) : choose)
+        return { handled: true, result: { configurations } };
       return {
         handled: true,
         result: await setup.preview(owner, 'codex', [
-          { id: 'configuration', path: exact.configuration },
+          { id: 'configuration', path: configuration ?? configurations[0] },
         ]),
       };
     }
@@ -132,7 +179,25 @@ export function createMcpSetupHandler(
     if (method === 'mcpSetupStatus') {
       const { client } = z.object({ client: clientSchema }).strict().parse(raw);
       await startupCheck;
-      result = await setup.status(client);
+      const status = await setup.status(client);
+      if (client === 'codex' && status.state === 'configured') {
+        const { configurations, choose } = await quickProfiles();
+        const delivery = await desktopDelivery?.('status').catch(
+          () => ({ state: 'unavailable' }) as const,
+        );
+        if (
+          choose ||
+          configurations[0] !== status.files[0]?.path ||
+          (delivery &&
+            delivery.state !== 'unsupported' &&
+            !(
+              delivery.state === 'enabled' &&
+              delivery.profile === path.dirname(status.files[0].path)
+            ))
+        )
+          status.codexConnectRequired = true;
+      }
+      result = status;
     } else if (method === 'mcpSetupOpen') {
       const { client } = z.object({ client: clientSchema }).strict().parse(raw);
       const error = await options.openPath(await setup.openablePath(client));
@@ -140,7 +205,13 @@ export function createMcpSetupHandler(
       result = { opened: true };
     } else if (method === 'mcpSetupDefaults') {
       const { client } = z.object({ client: clientSchema }).strict().parse(raw);
-      result = await setup.defaults(client);
+      const defaults = await setup.defaults(client);
+      if (client === 'codex' && macProfiles) {
+        const running = await macProfiles();
+        const file = defaults.files[0];
+        file.alternatives = [...new Set([...file.alternatives, ...(running ?? [])])];
+      }
+      result = defaults;
     } else if (method === 'mcpSetupBrowse') {
       const { client, path } = z
         .object({ client: clientSchema, path: z.string().max(8192) })

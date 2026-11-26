@@ -19,6 +19,7 @@ import { ClientLogo } from './ApplicationDiscovery.js';
 import {
   ReadyChatGuidance,
   SetupDetails,
+  setupFailure,
   applicationNextStep,
   applicationSetupAction,
   setupApplicationName,
@@ -191,7 +192,7 @@ export function OverviewApplications({
               )}
               {!active && (pending || failed) && (
                 <Alert severity={pending ? 'warning' : 'error'}>
-                  {pending ? copy.uncertain : copy.failed}
+                  {pending ? copy.uncertain : setupFailure(state, locale)}
                 </Alert>
               )}
               {!active && <SetupDetails state={state} locale={locale} />}

@@ -4,6 +4,7 @@
 
 - When you choose **Connect** or **Apply** for Claude Code or OpenCode, setup adds only the missing permissions for routine NCF Agent Interconnect actions. Existing restrictions still apply. If a rule in the selected profile conflicts, setup explains the conflict before saving changes.
 - **Applications** shows OpenCode v1 setup by default when it detects a v1 configuration or installation. OpenCode v2 setup remains available.
+- **Applications → ChatGPT → Connect** sets up the selected profile and enables background delivery. The settings gear opens manual setup. On macOS, choose Home or Work when setup offers a choice. Windows supports the default ChatGPT profile. Follow the prompt to quit and reopen ChatGPT from its usual icon.
 
 Live message delivery in OpenCode v2 remains unverified for this release.
 
@@ -26,7 +27,9 @@ Live message delivery in OpenCode v2 remains unverified for this release.
 
 ## ChatGPT compatibility
 
-For stable real-time messaging, stay on ChatGPT app version **26.1111.71704** or earlier. On newer versions, incoming messages may stay queued until the current reply ends or the next turn begins.
+When background delivery is active, supported ChatGPT sessions can receive messages in an active turn and resume an unloaded connected chat without switching tabs. On Windows, eligible existing chat bindings can recover through the verified profile.
+
+Without background delivery, incoming messages on newer ChatGPT versions may stay queued until the current reply ends or the next turn begins. ChatGPT **26.1111.71704** or earlier supports the previously verified delivery path.
 
 See [our delivery regression report in OpenAI Codex issue #63680](https://github.com/openai/codex/issues/63680) for the behavior we observed and the results of our checks. The [related discussion in OpenAI Codex issue #51625](https://github.com/openai/codex/issues/51625#issuecomment-7135067258) requests a supported way to send messages during an active turn.
 
@@ -35,8 +38,7 @@ During setup, NCF Agent Interconnect may warn about delivery delays if your Chat
 - [Apple Silicon Mac — ChatGPT 26.1111.71704](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
 - [Windows x64 — ChatGPT 26.1111.71704 (MSIX package 26.1111.9664.0)](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)
 
-If a connected chat stays closed after a restart and messages are missing,
-open that chat.
+If messages remain queued after a restart, open the connected chat.
 
 ## Cursor delivery after restart
 
@@ -46,4 +48,4 @@ After Cursor restarts or reloads, send an ordinary message in the same connected
 
 Before updating, quit NCF Agent Interconnect and back up its complete local profile, including history and attachments. Version 1.1.0 changes the profile format. To return to 1.0.0, restore the backup you made before updating. Save any work created after the update that you want to keep.
 
-If the Windows installer asks you to close connected applications, close the listed apps and click **Retry**.
+If the Windows installer asks you to close connected applications, close the listed apps and click **Retry**. The installer can stop its own idle background service. A running service from an older build can still block the first upgrade.

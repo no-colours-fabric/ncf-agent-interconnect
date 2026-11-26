@@ -5,9 +5,11 @@ using System.IO;
 using System.Management;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Security.Cryptography;
+using System.Web.Script.Serialization;
 using System.Text;
 
-// Installer inventory and lightweight shell helpers. Never stop processes or change permissions.
+// Installer inventory and lightweight shell helpers. Never force-stop processes or change permissions.
 internal static class NcfUpdatePreflight {
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     static extern void SHChangeNotify(uint eventId, uint flags, string item1, IntPtr item2);
@@ -33,6 +35,8 @@ internal static class NcfUpdatePreflight {
     static readonly Dictionary<uint, string> blockers = new Dictionary<uint, string>();
     static readonly Stopwatch deadline = Stopwatch.StartNew();
     static string owner;
+    static string currentRoot;
+    static readonly List<Process> ownServices = new List<Process>();
     static bool Same(string a, string b) { return String.Equals(a, b, StringComparison.OrdinalIgnoreCase); }
     static void Inspect(ManagementObject process, bool fileLock) {
         if (deadline.ElapsedMilliseconds > 9000) throw new InvalidOperationException();
@@ -46,7 +50,15 @@ internal static class NcfUpdatePreflight {
             }
         }
         string command = ((string)process["CommandLine"] ?? "").Replace('\\', '/').ToLowerInvariant();
-        string role = fileLock ? "An application is using NCF files" : "NCF Agent Interconnect";
+        string executable = (string)process["ExecutablePath"] ?? "";
+        string ownScript = Path.Combine(currentRoot,"resources","app.asar","build","integrations","codex-windows-service.cjs").Replace('\\','/').ToLowerInvariant();
+        if (!fileLock && Same(executable,Path.Combine(currentRoot,"NCF Agent Interconnect.exe")) && command.Contains(ownScript)) {
+            // Only this installation's user-mode service is stopped by its authenticated control API.
+            ownServices.Add(Process.GetProcessById((int)pid));
+            return;
+        }
+        string filename=Path.GetFileName(executable);
+        string role = fileLock && !String.IsNullOrWhiteSpace(filename) ? "Close " + filename : fileLock ? "An application is using NCF files" : "NCF Agent Interconnect";
         if (command.Contains("/integrations/cursor")) role = "Cursor integration - close Cursor";
         else if (command.Contains("/integrations/aion")) role = "AionUi integration - close AionUi";
         else if (command.Contains("/integrations/claude")) role = "Claude integration - close Claude Desktop / Claude Code";
@@ -58,11 +70,12 @@ internal static class NcfUpdatePreflight {
     }
     static ManagementObjectSearcher Query(string filter) {
         var options = new EnumerationOptions { Timeout = TimeSpan.FromSeconds(5), ReturnImmediately = false };
-        return new ManagementObjectSearcher("root\\cimv2", "SELECT ProcessId, CommandLine FROM Win32_Process WHERE " + filter, options);
+        // Projected instances need their object path for GetOwnerSid invocation.
+        return new ManagementObjectSearcher("root\\cimv2", "SELECT __PATH, ProcessId, CommandLine, ExecutablePath FROM Win32_Process WHERE " + filter, options);
     }
     static void InspectLocks(string root) {
         var files = new List<string>();
-        foreach (string relative in new [] { "NCF Agent Interconnect.exe", "resources/app.asar", "resources/app.asar.unpacked/build/assets/codex-stdio-shim.exe", "resources/app.asar.unpacked/build/assets/codex-win-socket.exe" }) {
+        foreach (string relative in new [] { "NCF Agent Interconnect.exe", "resources/app.asar", "resources/app.asar.unpacked/build/assets/codex-stdio-shim.exe", "resources/app.asar.unpacked/build/assets/codex-win-socket.exe", "resources/app.asar.unpacked/build/assets/codex-win-pipe.exe" }) {
             string file = Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(file)) files.Add(file);
         }
@@ -86,6 +99,21 @@ internal static class NcfUpdatePreflight {
             }
         } finally { RmEndSession(handle); }
     }
+    static bool StopOwnService(string root) {
+        string executable=Path.Combine(root,"NCF Agent Interconnect.exe");
+        string helper=Path.Combine(root,"resources","app.asar.unpacked","build","assets","codex-win-pipe.exe");
+        if (!File.Exists(helper)) return ownServices.Count==0;
+        string archive=Path.Combine(root,"resources","app.asar"),stampFile=Path.Combine(root,"resources","ncf-launcher-identity.json");
+        if (!Same(FileVersionInfo.GetVersionInfo(executable).ProductName,"NCF Agent Interconnect") || !File.Exists(stampFile) || new FileInfo(stampFile).Length>4096) return false;
+        var stamp=new JavaScriptSerializer().Deserialize<Dictionary<string,object>>(File.ReadAllText(stampFile));
+        if (!stamp.ContainsKey("pipeHash") || !Same((string)stamp["pipeHash"],Hash(helper)) || !Same((string)stamp["asarHash"],Hash(archive))) return false;
+        var start=new ProcessStartInfo(executable,"--chatgpt-service-stop") { UseShellExecute=false,CreateNoWindow=true,WorkingDirectory=root };
+        start.EnvironmentVariables.Remove("ELECTRON_RUN_AS_NODE");
+        using(var child=Process.Start(start)) { if(!child.WaitForExit(25000)||child.ExitCode!=0)return false; }
+        foreach(var process in ownServices) using(process) { if(!process.WaitForExit(5000))return false; }
+        return true;
+    }
+    static string Hash(string filename) { using(var input=new FileStream(filename,FileMode.Open,FileAccess.Read,FileShare.Read,1024*1024,FileOptions.SequentialScan)) using(var hash=new SHA256Cng()) return BitConverter.ToString(hash.ComputeHash(input)).Replace("-","").ToLowerInvariant(); }
     public static int Main(string[] args) {
         try {
             if (args.Length == 2 && args[0] == "--notify-shortcut-created") {
@@ -100,6 +128,7 @@ internal static class NcfUpdatePreflight {
             }
             if (args.Length != 1 || !Path.IsPathRooted(args[0])) throw new InvalidOperationException();
             string root = Path.GetFullPath(args[0]);
+            currentRoot = root;
             owner = WindowsIdentity.GetCurrent().User.Value;
             // Legacy uninstallers match this image name globally. Show the real
             // client roles before invoking them, including other copies owned by
@@ -107,6 +136,9 @@ internal static class NcfUpdatePreflight {
             using (var search = Query("Name='NCF Agent Interconnect.exe'"))
             using (var matches = search.Get())
                 foreach (ManagementObject process in matches) using (process) Inspect(process, false);
+            if(blockers.Count==0&&!StopOwnService(root)) blockers[0]="ChatGPT background delivery - close ChatGPT before updating";
+            // Restart Manager remains the final file-lock check after graceful service shutdown.
+            deadline.Restart();
             InspectLocks(root);
             if (blockers.Count == 0) return 0;
             Console.WriteLine("Before continuing, close NCF Agent Interconnect using Quit in its tray menu and close these connected applications/background tasks:");
@@ -115,10 +147,10 @@ internal static class NcfUpdatePreflight {
                 if (++lines > 7) { Console.WriteLine("Additional NCF background components are still running."); break; }
                 Console.WriteLine(item.Value + " (PID " + item.Key + ")");
             }
-            Console.WriteLine("Closing ChatGPT alone does not stop Cursor or other client integrations. After closing them, click Retry. No installed files have been removed and no process has been terminated.");
+            Console.WriteLine("Closing ChatGPT alone does not stop Cursor or other client integrations. After closing them, click Retry. No installed files have been removed and connected applications have not been force-closed.");
             return 10;
         } catch {
-            Console.WriteLine("Setup could not verify that NCF files are free. Close NCF from its tray menu and close connected applications (ChatGPT, Cursor, AionUi, Claude or OpenCode), then click Retry. Setup has not removed any installed files or terminated a process.");
+            Console.WriteLine("Setup could not verify that NCF files are free. Close NCF from its tray menu and close connected applications (ChatGPT, Cursor, AionUi, Claude or OpenCode), then click Retry. Setup has not removed any installed files or force-closed connected applications.");
             return 20;
         }
     }

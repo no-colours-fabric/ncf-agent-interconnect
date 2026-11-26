@@ -1,6 +1,7 @@
 import {
   mcpSetupClients,
   type McpSetupApplyResult,
+  type CodexSetupPreparation,
   type McpSetupClient,
   type McpSetupDefaults,
   type McpSetupInvoke,
@@ -9,6 +10,7 @@ import {
   type McpSetupTarget,
 } from '../shared/mcp-setup.js';
 import { OpenCodeV2SetupFlow, type OpenCodeV2SetupState } from './opencode-v2-setup-model.js';
+import { enableChatDelivery, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
 
 export type ApplicationSetupClient = McpSetupClient | 'opencode-v2';
 export const applicationSetupClients: readonly ApplicationSetupClient[] = [
@@ -27,6 +29,9 @@ export interface ApplicationSetupState {
     | 'failed'
     | 'uncertain';
   target?: McpSetupTarget;
+  manualConfiguration?: string;
+  configurations?: string[];
+  deliveryIssue?: DeliveryIssue;
   preview?: McpSetupPreview;
   result?: McpSetupApplyResult;
   error?: string;
@@ -146,7 +151,14 @@ export class ApplicationSetupFlow {
     if (preview) void this.invoke('mcpSetupDiscard', { planId: preview.planId }).catch(() => {});
   }
 
-  async connect(client: ApplicationSetupClient): Promise<void> {
+  selectCodexConfiguration(configuration?: string) {
+    const previous = this.states.codex;
+    if (this.busy('codex') || previous.phase === 'uncertain') return;
+    this.discard(previous.preview);
+    this.set('codex', { phase: 'idle', manualConfiguration: configuration });
+  }
+
+  async connect(client: ApplicationSetupClient, choice?: string): Promise<void> {
     if (client === 'opencode-v2') {
       await this.openCodeV2.connect();
       return;
@@ -156,6 +168,17 @@ export class ApplicationSetupFlow {
     const previous = this.states[client];
     if (previous.phase === 'uncertain') {
       await this.recheck(client);
+      return;
+    }
+    if (client === 'codex' && previous.deliveryIssue && previous.target) {
+      this.set(client, { ...previous, phase: 'applying' });
+      const deliveryIssue = await enableChatDelivery(this.invoke, previous.target.path);
+      this.set(client, {
+        ...previous,
+        phase: deliveryIssue ? 'failed' : 'succeeded',
+        deliveryIssue,
+      });
+      await this.onApplied?.().catch(() => {});
       return;
     }
     if (previous.phase === 'confirmation' || previous.phase === 'succeeded') return;
@@ -171,7 +194,23 @@ export class ApplicationSetupFlow {
     let preview: McpSetupPreview | undefined;
     try {
       if (client === 'codex') {
-        const prepared = await this.invoke<McpSetupPreview | null>('codexSetupPrepare', {});
+        const prepared = previous.manualConfiguration
+          ? await this.invoke<McpSetupPreview>('mcpSetupPreview', {
+              client,
+              files: [{ id: 'configuration', path: previous.manualConfiguration }],
+            })
+          : await this.invoke<CodexSetupPreparation | null>(
+              'codexSetupPrepare',
+              choice ? { configuration: choice } : {},
+            );
+        if (prepared && 'configurations' in prepared) {
+          this.set(client, {
+            ...this.states[client],
+            phase: 'idle',
+            configurations: prepared.configurations,
+          });
+          return;
+        }
         if (this.disposed) {
           this.discard(prepared ?? undefined);
           return;
@@ -184,6 +223,7 @@ export class ApplicationSetupFlow {
         const needsConfirmation = preview.requiresReplacement || reviewRequired;
         this.set(client, {
           ...this.states[client],
+          configurations: undefined,
           target: { id: 'configuration', path: file.path },
           phase: needsConfirmation ? 'confirmation' : 'preparing',
           preview,
@@ -254,9 +294,14 @@ export class ApplicationSetupFlow {
       }
       if (check.disposition === 'configured') {
         this.discard(fresh);
+        const deliveryIssue =
+          client === 'codex'
+            ? await enableChatDelivery(this.invoke, previous.target.path)
+            : undefined;
         this.set(client, {
           ...previous,
-          phase: 'succeeded',
+          deliveryIssue,
+          phase: deliveryIssue ? 'failed' : 'succeeded',
           verified: true,
           result: undefined,
           error: undefined,
@@ -309,6 +354,10 @@ export class ApplicationSetupFlow {
       this.openCodeV2.cancel();
       return;
     }
+    if (this.states[client].configurations) {
+      this.set(client, { ...this.states[client], phase: 'idle', configurations: undefined });
+      return;
+    }
     if (this.states[client].phase !== 'confirmation') return;
     this.discard(this.states[client].preview);
     this.set(client, { ...this.states[client], phase: 'idle', preview: undefined });
@@ -345,9 +394,14 @@ export class ApplicationSetupFlow {
         planId: preview.planId,
         confirmReplace,
       });
+      const deliveryIssue =
+        client === 'codex' && result.status !== 'failed' && previous.target
+          ? await enableChatDelivery(this.invoke, previous.target.path)
+          : undefined;
       this.set(client, {
         ...previous,
-        phase: result.status === 'failed' ? 'failed' : 'succeeded',
+        deliveryIssue,
+        phase: result.status === 'failed' || deliveryIssue ? 'failed' : 'succeeded',
         preview,
         result,
         error: result.error,

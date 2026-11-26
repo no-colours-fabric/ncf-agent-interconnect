@@ -43,6 +43,8 @@ export interface McpSetupPreview {
   files: McpSetupFilePreview[];
   requiresReplacement: boolean;
 }
+export type CodexSetupPreparation = McpSetupPreview | { configurations: string[] };
+
 export interface McpSetupApplyResult {
   status: 'applied' | 'unchanged' | 'failed';
   files: {
@@ -64,6 +66,8 @@ export type McpSetupFileStatus =
 export interface McpSetupStatus {
   client: McpSetupClient;
   remembered: boolean;
+  /** Quick Connect still needs a profile choice or background delivery setup. */
+  codexConnectRequired?: true;
   /** A known configuration contains v1 settings, independent of NCF setup status. */
   openCodeV1Configuration?: boolean;
   state: McpSetupFileStatus;

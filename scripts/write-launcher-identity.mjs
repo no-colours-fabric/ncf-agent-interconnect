@@ -22,6 +22,7 @@ export default async function writeLauncherIdentity(context) {
       asarHash: digest.digest('hex'),
       shimHash: await helper('codex-stdio-shim'),
       helperHash: await helper('codex-win-socket'),
+      pipeHash: await helper('codex-win-pipe'),
       stopHash: await helper('codex-console-stop'),
     }) + '\n',
   );

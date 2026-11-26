@@ -175,6 +175,25 @@ static int inspectDesktop(const char *target, const char *home, const char *data
     }
 }
 
+// Setup may offer a choice between verified running profiles without choosing one for the user.
+static int listSetupProfiles(const char *target, const char *home, const char *data) {
+    @autoreleasepool {
+        NSString *expected = [NSString stringWithUTF8String:target];
+        NSString *stockProfile = [NSString stringWithUTF8String:home];
+        NSString *stockData = [NSString stringWithUTF8String:data];
+        NSMutableOrderedSet *profiles = [NSMutableOrderedSet orderedSet];
+        for (NSRunningApplication *app in [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.openai.codex"]) {
+            if (app.terminated) continue;
+            if (![app.executableURL.path isEqualToString:expected]) return 1;
+            NSDictionary *pair = desktopLaunchPair(app.processIdentifier, expected, stockProfile, stockData);
+            if (!pair) return 1;
+            [profiles addObject:pair[@"profile"]];
+        }
+        NSData *json = [NSJSONSerialization dataWithJSONObject:profiles.array options:0 error:NULL];
+        return json && fwrite(json.bytes, 1, json.length, stdout) == json.length ? 0 : 1;
+    }
+}
+
 static BOOL desktopProfileIsOpen(NSString *path) {
     NSString *lock = [path stringByAppendingPathComponent:@"SingletonLock"];
     NSString *target = [[NSFileManager defaultManager] destinationOfSymbolicLinkAtPath:lock error:NULL];
@@ -230,6 +249,8 @@ static int watchDesktopLaunches(void) {
 
 int main(int argc, const char *argv[]) {
     if (argc == 2 && strcmp(argv[1], "--watch-desktop-launches") == 0) return watchDesktopLaunches();
+    if (argc == 5 && strcmp(argv[1], "--list-setup-profiles") == 0)
+        return listSetupProfiles(argv[2], argv[3], argv[4]);
     if (argc == 5 && strcmp(argv[1], "--inspect-desktop") == 0)
         return inspectDesktop(argv[2], argv[3], argv[4]);
     if (argc == 4 && strcmp(argv[1], "--match-desktop-process") == 0) {

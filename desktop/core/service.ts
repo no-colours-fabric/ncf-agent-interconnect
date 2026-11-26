@@ -1569,7 +1569,7 @@ export class NodeService extends EventEmitter {
     nickname: string,
     connectionId: string,
     profile: AdapterProfile,
-    socket = profile.socket,
+    requestedSocket?: string,
   ) {
     const epoch = this.deliveryIncarnation;
     const setup = this.adapterSetup.then(async () => {
@@ -1590,6 +1590,13 @@ export class NodeService extends EventEmitter {
           throw new Error('The connection belongs to another Codex chat');
       };
       assertSameBinding();
+      // Windows legacy pipes contain no profile path. Automatic recovery must
+      // resolve the same verified control socket as an explicit reconnect.
+      const socket =
+        requestedSocket ??
+        (process.platform === 'win32' && !saved.codexQueue
+          ? await this.configuredCodexQueueSocket()
+          : saved.socket);
       if (
         process.platform === 'win32' &&
         !saved.codexQueue &&

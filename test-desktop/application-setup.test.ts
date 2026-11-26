@@ -277,6 +277,7 @@ test('an unchanged result is successful; a failed status refresh cannot cause an
   let writes = 0;
   const flow = new ApplicationSetupFlow(
     (async (method: string) => {
+      if (method === 'desktopSessionDelivery') return { state: 'unsupported' };
       if (method === 'codexSetupPrepare')
         return {
           client: 'codex',
@@ -350,6 +351,7 @@ test('one Connect uses the existing guarded writer and preserves other clients a
       planId: string;
       confirmReplace: boolean;
     };
+    if (method === 'desktopSessionDelivery') return { state: 'unsupported' };
     if (method === 'codexSetupPrepare')
       return service.preview('isolated-owner', 'codex', [{ id: 'configuration', path: target }]);
     if (method === 'mcpSetupApply')
@@ -475,4 +477,45 @@ test('failed write review survives cancelling its fresh confirmation and reconne
   await flow.confirm('cursor');
   assert.equal(applies, 2);
   assert.equal(flow.getSnapshot().cursor.reviewRequired, false);
+});
+
+test('delivery retry for a manually selected profile never repeats Apply or falls back to Home', async () => {
+  const actions: string[] = [];
+  let attempts = 0;
+  const target = '/fixture/work/config.toml';
+  const flow = new ApplicationSetupFlow((async (method: string, raw: any) => {
+    actions.push(method + ':' + (raw?.action ?? ''));
+    if (method === 'mcpSetupPreview') {
+      assert.equal(raw.files[0].path, target);
+      return {
+        client: 'codex',
+        planId: 'work',
+        requiresReplacement: false,
+        files: [{ id: 'configuration', path: target }],
+      };
+    }
+    if (method === 'mcpSetupApply') return { status: 'unchanged', files: [] };
+    if (method === 'desktopSessionDelivery') {
+      if (raw.action === 'status')
+        return { state: 'ready', scope: 'user', profile: '/fixture/work' };
+      assert.equal(raw.profile, '/fixture/work');
+      return ++attempts === 1
+        ? { state: 'close-required' }
+        : { state: 'enabled', scope: 'user', profile: raw.profile };
+    }
+    throw Error(method);
+  }) as McpSetupInvoke);
+  flow.selectCodexConfiguration(target);
+  await flow.connect('codex');
+  assert.equal(flow.getSnapshot().codex.deliveryIssue, 'close-required');
+  await flow.connect('codex');
+  assert.equal(flow.getSnapshot().codex.phase, 'succeeded');
+  assert.deepEqual(actions, [
+    'mcpSetupPreview:',
+    'mcpSetupApply:',
+    'desktopSessionDelivery:status',
+    'desktopSessionDelivery:enable',
+    'desktopSessionDelivery:status',
+    'desktopSessionDelivery:enable',
+  ]);
 });

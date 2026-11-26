@@ -103,6 +103,7 @@ if (process.platform === 'win32') {
   );
   for (const helper of [
     'codex-win-socket',
+    'codex-win-pipe',
     'codex-stdio-shim',
     'codex-console-stop',
     'ncf-update-preflight',
@@ -116,7 +117,9 @@ if (process.platform === 'win32') {
         helper === 'codex-win-socket' && process.arch !== 'x64'
           ? '/platform:anycpu'
           : '/platform:x64',
-        ...(helper === 'codex-stdio-shim' ? ['/reference:System.Web.Extensions.dll'] : []),
+        ...(['codex-stdio-shim', 'codex-win-pipe', 'ncf-update-preflight'].includes(helper)
+          ? ['/reference:System.Web.Extensions.dll']
+          : []),
         ...(helper === 'ncf-update-preflight' ? ['/reference:System.Management.dll'] : []),
         '/out:' + path.resolve('build', 'assets', helper + '.exe'),
         path.resolve('desktop', 'integrations', helper + '.cs'),
@@ -128,6 +131,10 @@ if (process.platform === 'win32') {
   await copyFile(
     'desktop/integrations/codex-windows-bridge.cjs',
     'build/integrations/codex-windows-bridge.cjs',
+  );
+  await copyFile(
+    'desktop/integrations/codex-windows-service.cjs',
+    'build/integrations/codex-windows-service.cjs',
   );
 }
 await mkdir('release', { recursive: true });

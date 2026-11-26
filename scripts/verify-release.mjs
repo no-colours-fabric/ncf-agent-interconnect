@@ -54,7 +54,15 @@ if (process.platform === 'win32') {
     'Bridge runs from its own ASAR',
   );
   assert.ok(entries.includes('/node_modules/ws/package.json'), 'Bridge can load bundled ws');
-  for (const filename of ['codex-stdio-shim.exe', 'codex-console-stop.exe']) {
+  assert.ok(
+    entries.includes('/build/integrations/codex-windows-service.cjs'),
+    'Standalone Windows service is packaged',
+  );
+  assert.ok(
+    entries.includes('/build/main/desktop-session-delivery-windows.js'),
+    'Windows service setup is packaged',
+  );
+  for (const filename of ['codex-stdio-shim.exe', 'codex-console-stop.exe', 'codex-win-pipe.exe']) {
     const filenameInPackage = 'build/assets/' + filename;
     assert.equal(asar.statFile(archive, path.normalize(filenameInPackage)).unpacked, true);
     const binary = await readFile(

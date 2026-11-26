@@ -1,3 +1,5 @@
+import { sessionDeliveryMessages } from './i18n/session-delivery.js';
+import { configurationProfile } from '../shared/desktop-session-delivery.js';
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
   Alert,
@@ -73,6 +75,7 @@ export function applicationNextStep(
   locale: Locale,
   messages = mcpSetupMessages(locale),
 ): string {
+  if (client === 'codex') return sessionDeliveryMessages[locale].connectRestart;
   if (client === 'opencode-v2') return applicationSetupMessages(locale).openCodeV2Next;
   if (client === 'claude') return messages.claudeNext;
   if (client === 'aionui') return messages.aionNext;
@@ -88,6 +91,16 @@ interface SetupPresentationState {
 
 const hasPendingSetupResult = (state: SetupPresentationState): boolean =>
   state.phase === 'uncertain' || state.phase === 'rechecking';
+
+export function setupFailure(
+  state: SetupPresentationState & { deliveryIssue?: ApplicationSetupState['deliveryIssue'] },
+  locale: Locale,
+) {
+  const issue = state.deliveryIssue;
+  return issue
+    ? sessionDeliveryMessages[locale][issue === 'close-required' ? 'quitBeforeChange' : issue]
+    : applicationSetupMessages(locale).failed;
+}
 
 function setupActionLabel(state: SetupPresentationState, locale: Locale, busy: boolean): string {
   const copy = applicationSetupMessages(locale);
@@ -135,35 +148,19 @@ interface SetupProps {
 }
 
 export function SetupDetails({ state, locale }: { state: SetupPresentationState; locale: Locale }) {
-  const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
-  if (!state.error && !state.uncertain && !state.result?.warning && state.phase !== 'failed')
-    return null;
+  if (!state.result?.warning && !state.result?.files.some((file) => file.backupPath)) return null;
   return (
-    <Box component="details" sx={{ fontSize: 12, overflowWrap: 'anywhere' }}>
-      <Box component="summary" sx={{ cursor: 'pointer', py: 1 }}>
-        {copy.details}
-      </Box>
-      {state.uncertain && (
-        <Typography variant="body2">
-          {copy.uncertain} {state.uncertain.error}
-        </Typography>
-      )}
-      {state.error && state.error !== state.uncertain?.error && (
-        <Typography variant="body2">{state.error}</Typography>
-      )}
-      {state.result?.warning && <Typography variant="body2">{state.result.warning}</Typography>}
-      {state.result?.files.map((file) => (
-        <Box key={file.path} sx={{ mt: 1 }}>
-          <Typography variant="body2">{file.path}</Typography>
-          {file.backupPath && (
-            <Typography variant="body2">
+    <Box>
+      {state.result.warning && <Alert severity="warning">{state.result.warning}</Alert>}
+      {state.result.files.map(
+        (file) =>
+          file.backupPath && (
+            <Typography variant="body2" key={file.path}>
               {m.backup}: {file.backupPath}
             </Typography>
-          )}
-          {file.error && <Typography variant="body2">{file.error}</Typography>}
-        </Box>
-      ))}
+          ),
+      )}
     </Box>
   );
 }
@@ -226,7 +223,13 @@ export function NextStep({
         data-testid={'application-guidance-' + client}
         sx={{ mt: 1.5, overflowWrap: 'anywhere', whiteSpace: 'normal' }}
       >
-        {working ? <ReadyChatGuidance locale={locale} /> : applicationNextStep(client, locale, m)}
+        {client === 'codex' ? (
+          sessionDeliveryMessages[locale].connectRestart
+        ) : working ? (
+          <ReadyChatGuidance locale={locale} />
+        ) : (
+          applicationNextStep(client, locale, m)
+        )}
       </Typography>
     );
   }
@@ -346,6 +349,45 @@ export function ApplicationSetupConfirmation({
   const client = applicationSetupClients.find((item) => states[item].phase === 'confirmation');
   const copy = applicationSetupMessages(locale);
   const m = mcpSetupMessages(locale);
+  const choices = states.codex.configurations;
+  const profileName = (file: string) => {
+    const profile = configurationProfile(file);
+    return (
+      profile
+        ?.split(/[\\/]/)
+        .at(-1)
+        ?.replace(/^\.codex[-_]/i, '') ||
+      profile ||
+      file
+    );
+  };
+  if (choices?.length)
+    return (
+      <Dialog open onClose={() => flow.cancel('codex')} aria-labelledby="codex-profile-choice">
+        <DialogTitle id="codex-profile-choice">
+          {sessionDeliveryMessages[locale].chooseProfile}
+        </DialogTitle>
+        <DialogContent>
+          <Stack spacing={1}>
+            {choices.map((configuration) => (
+              <Button
+                key={configuration}
+                onClick={() => void flow.connect('codex', configuration)}
+                sx={{ textTransform: 'none' }}
+              >
+                {choices.filter((file) => profileName(file) === profileName(configuration)).length >
+                1
+                  ? configurationProfile(configuration)
+                  : profileName(configuration)}
+              </Button>
+            ))}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => flow.cancel('codex')}>{m.cancel}</Button>
+        </DialogActions>
+      </Dialog>
+    );
   const preview = client ? states[client].preview : undefined;
   return (
     <Dialog
@@ -519,8 +561,12 @@ export function setupView(
   return {
     state,
     configured:
-      state.phase === 'succeeded' ||
-      (!statuses.errors[client] && statuses.statuses[client]?.state === 'configured'),
+      (state.phase === 'succeeded' && !state.deliveryIssue) ||
+      (!state.deliveryIssue &&
+        !state.manualConfiguration &&
+        !statuses.statuses[client]?.codexConnectRequired &&
+        !statuses.errors[client] &&
+        statuses.statuses[client]?.state === 'configured'),
     detected: !!discovery.snapshot?.applications.some(
       (item) => item.client === client && item.status === 'detected',
     ),
@@ -731,29 +777,7 @@ function ApplicationCompactList({
                 sx={{ alignSelf: 'flex-start' }}
               />
             )}
-            <Box component="details" sx={{ minWidth: 0, fontSize: 13 }}>
-              <Box
-                component="summary"
-                sx={{ minHeight: 44, alignContent: 'center', cursor: 'pointer' }}
-              >
-                {copy.details}
-              </Box>
-              <Stack spacing={1}>
-                <Typography variant="body2" color="text.secondary">
-                  {copy.intro}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {detection}
-                </Typography>
-                <Typography variant="body2" aria-label={m.statusMcpConfig}>
-                  {m.statusMcpConfig}: {setupStatus}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {copy.detectionHelp}
-                </Typography>
-                <SetupDetails state={state} locale={locale} />
-              </Stack>
-            </Box>
+            {client !== 'codex' && <SetupDetails state={state} locale={locale} />}
           </Stack>
         </Box>
         {connect ? (
@@ -808,7 +832,7 @@ function ApplicationCompactList({
             severity={pending ? 'warning' : 'error'}
             sx={{ gridColumn: '2 / -1', minWidth: 0 }}
           >
-            {pending ? copy.uncertain : copy.failed}
+            {pending ? copy.uncertain : setupFailure(state, locale)}
             {client === 'claude' && state.error?.startsWith('Claude Code permissions.') && (
               <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                 {state.error}
@@ -1133,6 +1157,11 @@ export function ApplicationRows({
             />
           </Stack>
         </Box>
+        {client === 'codex' && action && !showGuidance && !states.codex.deliveryIssue && (
+          <Typography variant="body2" color="text.secondary">
+            {sessionDeliveryMessages[locale].connectRestart}
+          </Typography>
+        )}
         {client === 'codex' &&
           (detected ||
             configured ||
@@ -1146,7 +1175,7 @@ export function ApplicationRows({
           )}
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
           <Alert severity={hasPendingSetupResult(state) ? 'warning' : 'error'} sx={{ mt: 2 }}>
-            {hasPendingSetupResult(state) ? copy.uncertain : copy.failed}
+            {hasPendingSetupResult(state) ? copy.uncertain : setupFailure(state, locale)}
             {client === 'claude' && state.error?.startsWith('Claude Code permissions.') && (
               <Typography variant="body2" sx={{ overflowWrap: 'anywhere' }}>
                 {state.error}
@@ -1154,7 +1183,7 @@ export function ApplicationRows({
             )}
           </Alert>
         )}
-        <SetupDetails state={state} locale={locale} />
+        {client !== 'codex' && <SetupDetails state={state} locale={locale} />}
         {showGuidance && (
           <NextStep
             client={client}
@@ -1519,10 +1548,10 @@ export function ApplicationSetup({
                     )}
                     {(pending || failed) && (
                       <Alert severity={pending ? 'warning' : 'error'}>
-                        {pending ? copy.uncertain : copy.failed}
+                        {pending ? copy.uncertain : setupFailure(view.state, locale)}
                       </Alert>
                     )}
-                    <SetupDetails state={view.state} locale={locale} />
+                    {client !== 'codex' && <SetupDetails state={view.state} locale={locale} />}
                   </StartupApplicationTile>
                 );
               })}
@@ -1540,7 +1569,7 @@ export function ApplicationSetup({
                 compact
                 onManualSetup={client === 'aionui' ? () => manual('aionui') : undefined}
               />
-              <SetupDetails state={states[client]} locale={locale} />
+              {client !== 'codex' && <SetupDetails state={states[client]} locale={locale} />}
             </Box>
           ))}
         </Stack>
