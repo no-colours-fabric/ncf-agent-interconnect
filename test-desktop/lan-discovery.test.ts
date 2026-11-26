@@ -26,11 +26,16 @@ const announce = (extra: Record<string, unknown> = {}) => ({
   ...extra,
 });
 const query = { service: 'ncf-agent-interconnect', version: 1, type: 'query' };
+const directQuery = { ...query, type: 'direct-query', padding: '0'.repeat(512) };
 const bytes = (value: unknown) => Buffer.from(JSON.stringify(value));
 
 class FakeTransport implements LanDiscoveryTransport {
   handlers?: Parameters<LanDiscoveryTransport['start']>[0];
-  sent: { packet: Record<string, unknown>; interfaceAddress?: string }[] = [];
+  sent: {
+    packet: Record<string, unknown>;
+    interfaceAddress?: string;
+    recipientAddress?: string;
+  }[] = [];
   closed = false;
   startError = false;
   sendError = false;
@@ -40,9 +45,13 @@ class FakeTransport implements LanDiscoveryTransport {
     if (this.startError) throw new Error('Isolated bind failure');
     await this.pending;
   }
-  send(data: Uint8Array, interfaceAddress?: string) {
+  send(data: Uint8Array, interfaceAddress?: string, recipientAddress?: string) {
     if (this.sendError) throw new Error('Isolated send failure');
-    this.sent.push({ packet: JSON.parse(Buffer.from(data).toString()), interfaceAddress });
+    this.sent.push({
+      packet: JSON.parse(Buffer.from(data).toString()),
+      interfaceAddress,
+      ...(recipientAddress ? { recipientAddress } : {}),
+    });
   }
   stop() {
     this.closed = true;
@@ -99,6 +108,7 @@ test('startup queries all interfaces, announces only the live listener and sends
   await f.discovery.start();
   assert.deepEqual(f.transport.sent, [
     { packet: query, interfaceAddress: undefined },
+    { packet: directQuery, interfaceAddress: undefined },
     {
       packet: { ...announce(), nodeId: localId, label: 'Local Mac' },
       interfaceAddress: '192.168.4.10',
@@ -126,7 +136,7 @@ test('a loopback-only node still receives discovery for outbound pairing', async
     available: false,
     reason: 'listener-local',
   });
-  assert.ok(f.transport.sent.every(({ packet }) => packet.type === 'query'));
+  assert.ok(f.transport.sent.every(({ packet }) => packet.type !== 'announce'));
 });
 
 test('an absent listener is reported separately from discovered nodes', async () => {
@@ -151,11 +161,55 @@ test('multiple interfaces retain their own subnet boundaries and announce only a
   assert.equal(f.discovery.snapshot().nodes.length, 1);
   assert.equal(f.discovery.snapshot().nodes[0].address, 'wss://10.3.9.20:7336/peer');
   assert.equal(f.transport.sent[0].interfaceAddress, undefined);
-  assert.equal(f.transport.sent[1].interfaceAddress, '192.168.4.10');
+  assert.equal(f.transport.sent[2].interfaceAddress, '192.168.4.10');
   f.discovery.updateLocal({ ...local(), listener: { address: '10.3.0.10', port: 18888 } });
   f.advance(2000);
   assert.equal(f.transport.sent.at(-1)!.interfaceAddress, '10.3.0.10');
   assert.equal(f.transport.sent.at(-1)!.packet.peerPort, 18888);
+});
+
+test('discovery answers a valid query directly from the most specific live subnet', async () => {
+  const f = fixture({
+    interfaces: () => [
+      { address: '192.168.3.10', netmask: '255.255.248.0' },
+      { address: '192.168.4.10', netmask: '255.255.255.0' },
+      { address: '172.16.0.10', netmask: '255.255.255.0' },
+    ],
+    local: {
+      ...local(),
+      listeners: [
+        { address: '192.168.3.10', port: 2336 },
+        { address: '192.168.4.10', port: 8336 },
+      ],
+    },
+  });
+  await f.discovery.start();
+  f.transport.sent.length = 0;
+  f.transport.receive(directQuery, '192.168.4.20');
+  f.transport.receive(directQuery, '192.168.4.20');
+  f.transport.receive(directQuery, '172.16.0.20');
+  f.transport.receive(directQuery, '192.168.9.20');
+  f.transport.receive(directQuery, '192.168.4.10');
+  f.transport.receive({ ...directQuery, padding: '' }, '192.168.4.25');
+  f.advance(1000);
+  assert.deepEqual(f.transport.sent, [
+    {
+      packet: { ...announce(), nodeId: localId, label: local().label, peerPort: 8336 },
+      interfaceAddress: '192.168.4.10',
+      recipientAddress: '192.168.4.20',
+    },
+  ]);
+  f.transport.receive(directQuery, '192.168.4.22');
+  f.advance(1000);
+  assert.equal(f.transport.sent.length, 1);
+  f.advance(1000);
+  assert.equal(f.transport.sent.at(-1)?.recipientAddress, '192.168.4.22');
+  for (let index = 0; index < 30; index++)
+    f.transport.receive(directQuery, '192.168.4.' + (100 + index));
+  f.advance(2000);
+  const last = f.transport.sent.slice(2);
+  assert.equal(last.length, lanDiscoveryLimits.replyBatch);
+  assert.ok(last.every(({ packet }) => bytes(packet).byteLength <= bytes(directQuery).byteLength));
 });
 
 test('invalid live listener endpoints and identity do not announce or suppress reception', async () => {
@@ -172,7 +226,7 @@ test('invalid live listener endpoints and identity do not announce or suppress r
     f.transport.receive(announce());
     assert.equal(f.discovery.snapshot().nodes.length, 1);
     assert.equal(f.discovery.snapshot().announcement.available, false);
-    assert.ok(f.transport.sent.every(({ packet }) => packet.type === 'query'));
+    assert.ok(f.transport.sent.every(({ packet }) => packet.type !== 'announce'));
   }
 });
 
@@ -317,7 +371,11 @@ test('query storms coalesce replies and cannot cause unicast reflection', async 
   }
   const announcements = f.transport.sent.filter(({ packet }) => packet.type === 'announce');
   assert.equal(announcements.length, 6);
-  assert.ok(announcements.every((entry) => entry.interfaceAddress === '192.168.4.10'));
+  assert.ok(
+    announcements.every(
+      (entry) => entry.interfaceAddress === '192.168.4.10' && !entry.recipientAddress,
+    ),
+  );
   assert.equal(f.transport.sent.filter(({ packet }) => packet.type === 'query').length, 2);
 });
 

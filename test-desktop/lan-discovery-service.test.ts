@@ -155,7 +155,7 @@ test('loopback listener still receives discovery but keeps it out of settings, M
   assert.deepEqual(await service.userCall('startLanSearch'), { started: true });
   assert.deepEqual(
     discovery.transport.sent.map(({ packet }) => packet.type),
-    ['query'],
+    ['query', 'direct-query'],
   );
   const before = changes;
   discovery.transport.announce();
@@ -861,7 +861,7 @@ for (const initiator of ['connector', 'receiver'] as const) {
       discovery.advance(1000);
       assert.deepEqual(
         discovery.transport.sent.map(({ packet }) => packet.type),
-        ['query'],
+        ['query', 'direct-query'],
       );
       const snapshot = await uiSnapshot(node);
       assert.equal(snapshot.lanSearch?.runId, 1);

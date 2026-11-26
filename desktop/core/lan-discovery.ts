@@ -21,6 +21,7 @@ export const lanDiscoveryLimits = Object.freeze({
   sourcePacketsPerSecond: 8,
   announceMs: 10000,
   replyMs: 2000,
+  replyBatch: 8,
   queryMs: 10000,
   queryRestartMs: 1000,
   interfaces: 32,
@@ -44,8 +45,19 @@ const announcementSchema = z
   })
   .strict();
 const querySchema = z.object({ ...base, type: z.literal('query') }).strict();
-const packetSchema = z.discriminatedUnion('type', [querySchema, announcementSchema]);
+const directQueryPadding = '0'.repeat(512);
+const directQuerySchema = z
+  .object({ ...base, type: z.literal('direct-query'), padding: z.literal(directQueryPadding) })
+  .strict();
+const packetSchema = z.discriminatedUnion('type', [
+  querySchema,
+  directQuerySchema,
+  announcementSchema,
+]);
 const query = Buffer.from(JSON.stringify({ ...baseValues(), type: 'query' }));
+const directQuery = Buffer.from(
+  JSON.stringify({ ...baseValues(), type: 'direct-query', padding: directQueryPadding }),
+);
 function baseValues() {
   return { service: 'ncf-agent-interconnect', version: 1 };
 }
@@ -65,10 +77,10 @@ export interface LocalLanNode {
 export interface LanDiscoveryTransport {
   start(handlers: {
     message(data: Uint8Array, sourceAddress: string): void;
-    failed(): void;
+    failed(error?: unknown): void;
   }): Promise<void>;
-  /** Multicast only; callers cannot select a destination or an arbitrary port. */
-  send(data: Uint8Array, interfaceAddress?: string): void;
+  /** A query response may target its validated source at the same discovery port. */
+  send(data: Uint8Array, interfaceAddress?: string, recipientAddress?: string): void;
   stop(): void;
 }
 export interface LanDiscoveryOptions {
@@ -124,7 +136,10 @@ function interfaceList(values: LanInterface[]): LanInterface[] {
 }
 
 /** Uses IPv4 multicast consistently on all supported operating systems. */
-export function udpLanTransport(interfaces: readonly LanInterface[]): LanDiscoveryTransport {
+export function udpLanTransport(
+  interfaces: readonly LanInterface[],
+  multicast: { group: string; port: number } = lanDiscoveryLimits,
+): LanDiscoveryTransport {
   let receiver: Socket | undefined;
   const senders = new Map<string, Socket>();
   let active = false;
@@ -157,7 +172,7 @@ export function udpLanTransport(interfaces: readonly LanInterface[]): LanDiscove
           };
           socket.once('error', failed);
           socket.once('close', closed);
-          socket.bind(lanDiscoveryLimits.port, '0.0.0.0', () => {
+          socket.bind(multicast.port, '0.0.0.0', () => {
             socket.off('error', failed);
             socket.off('close', closed);
             resolve();
@@ -165,8 +180,7 @@ export function udpLanTransport(interfaces: readonly LanInterface[]): LanDiscove
         });
         if (!active) return;
         socket.on('error', handlers.failed);
-        for (const entry of interfaces)
-          socket.addMembership(lanDiscoveryLimits.group, entry.address);
+        for (const entry of interfaces) socket.addMembership(multicast.group, entry.address);
         socket.on('message', (data, source) => {
           if (active) handlers.message(data, source.address);
         });
@@ -201,12 +215,13 @@ export function udpLanTransport(interfaces: readonly LanInterface[]): LanDiscove
         throw error;
       }
     },
-    send(data, interfaceAddress) {
+    send(data, interfaceAddress, recipientAddress) {
       if (!active || data.byteLength > lanDiscoveryLimits.packetBytes) return;
       for (const [address, socket] of senders) {
         if (interfaceAddress && interfaceAddress !== address) continue;
-        socket.send(data, lanDiscoveryLimits.port, lanDiscoveryLimits.group, (error) => {
-          if (error && active) {
+        socket.send(data, multicast.port, recipientAddress ?? multicast.group, (error) => {
+          // A failed reply to one host does not interrupt multicast or other listeners.
+          if (error && !recipientAddress && active) {
             stop();
             // The service receives a failure through the socket's error channel.
             socket.emit('error', error);
@@ -243,7 +258,9 @@ export class LanDiscovery {
   private querying: boolean;
   private queryUntil = Infinity;
   private queryRequested = false;
-  private pendingReply = false;
+  private announceRequested = false;
+  private lastReply = -Infinity;
+  private readonly pendingQueries = new Set<string>();
   private dirty = false;
   private readonly now: () => number;
   constructor(private readonly options: LanDiscoveryOptions) {
@@ -296,6 +313,7 @@ export class LanDiscovery {
     this.transport?.stop();
     this.transport = undefined;
     this.interfaces = interfaces;
+    this.pendingQueries.clear();
     if (!interfaces.length) {
       this.state = 'unavailable';
       this.reason = 'no-interfaces';
@@ -328,7 +346,7 @@ export class LanDiscovery {
           transport.stop();
           return;
         }
-        this.pendingReply = true;
+        this.announceRequested = true;
         this.lastAnnounce = -Infinity;
         this.tick();
         this.options.changed?.();
@@ -356,8 +374,9 @@ export class LanDiscovery {
     this.sourceRates.clear();
     this.packetCount = 0;
     this.rateWindow = -Infinity;
-    this.lastAnnounce = this.lastQuery = -Infinity;
-    this.pendingReply = this.dirty = false;
+    this.lastAnnounce = this.lastQuery = this.lastReply = -Infinity;
+    this.pendingQueries.clear();
+    this.announceRequested = this.dirty = false;
     this.queryRequested = false;
   }
   /** Both the deadline and transport ticks use the injected monotonic clock. */
@@ -369,7 +388,7 @@ export class LanDiscovery {
   }
   updateLocal(local: LocalLanNode): void {
     this.local = structuredClone(local);
-    this.pendingReply = true;
+    this.announceRequested = true;
     this.dirty = true;
     if (this.cancelTick) void this.reconcileInterfaces();
     else if (this.state === 'unavailable') void this.start();
@@ -448,7 +467,11 @@ export class LanDiscovery {
       return;
     }
     if (packet.type === 'query') {
-      this.pendingReply = true;
+      this.announceRequested = true;
+      return;
+    }
+    if (packet.type === 'direct-query') {
+      if (this.pendingQueries.size < lanDiscoveryLimits.replyBatch) this.pendingQueries.add(source);
       return;
     }
     const nodeId = packet.nodeId.toLowerCase();
@@ -484,15 +507,17 @@ export class LanDiscovery {
       ) {
         this.lastQuery = now;
         this.queryRequested = false;
+        // Older nodes still understand the compact multicast query.
         this.transport?.send(query);
+        this.transport?.send(directQuery);
       }
-      if (
-        this.announcementReason() === null &&
-        (now - this.lastAnnounce >= lanDiscoveryLimits.announceMs || this.pendingReply) &&
-        now - this.lastAnnounce >= lanDiscoveryLimits.replyMs
-      ) {
-        this.lastAnnounce = now;
-        this.pendingReply = false;
+      const announceDue =
+        (this.announceRequested || now - this.lastAnnounce >= lanDiscoveryLimits.announceMs) &&
+        now - this.lastAnnounce >= lanDiscoveryLimits.replyMs;
+      const repliesDue =
+        this.pendingQueries.size > 0 && now - this.lastReply >= lanDiscoveryLimits.replyMs;
+      if ((announceDue || repliesDue) && this.announcementReason() === null) {
+        const packets = new Map<string, Buffer>();
         for (const listener of this.local.listeners ??
           (this.local.listener ? [this.local.listener] : [])) {
           if (
@@ -502,7 +527,8 @@ export class LanDiscovery {
             listener.port > 65535
           )
             continue;
-          this.transport?.send(
+          packets.set(
+            listener.address,
             Buffer.from(
               JSON.stringify({
                 ...baseValues(),
@@ -512,10 +538,32 @@ export class LanDiscovery {
                 peerPort: listener.port,
               }),
             ),
-            listener.address,
           );
         }
+        if (announceDue) {
+          this.lastAnnounce = now;
+          this.announceRequested = false;
+          for (const [address, data] of packets) this.transport?.send(data, address);
+        }
+        if (repliesDue) {
+          this.lastReply = now;
+          const sources = this.interfaces
+            .filter((entry) => packets.has(entry.address))
+            .sort((a, b) => ipv4Number(b.netmask) - ipv4Number(a.netmask));
+          // Multicast may work in only one direction. Reply once to each validated source
+          // using an advertised address in that source's most specific local subnet.
+          for (const recipientAddress of this.pendingQueries) {
+            const source = sources.find((entry) => onInterface(recipientAddress, entry));
+            if (!source) continue;
+            const packet = packets.get(source.address)!;
+            // A padded opt-in query is at least as large as the reply it can trigger.
+            if (packet.byteLength <= directQuery.byteLength)
+              this.transport?.send(packet, source.address, recipientAddress);
+          }
+        }
       }
+      // Discard the batch even if no listener is currently available.
+      if (repliesDue) this.pendingQueries.clear();
     } catch {
       this.failed();
       return;

@@ -288,7 +288,7 @@ test('loopback announcement does not prevent receiving a valid search result', a
   f.advance(1000);
   assert.equal(f.search.snapshot().foundCount, 1);
   assert.equal(f.search.discoverySnapshot().announcement.reason, 'listener-local');
-  assert.ok(f.transport.packets.every((packet) => packet.type === 'query'));
+  assert.ok(f.transport.packets.every((packet) => packet.type !== 'announce'));
 });
 
 test('close cancels pending start, timers and stale callbacks without producing a search', async (t) => {
