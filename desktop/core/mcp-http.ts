@@ -226,18 +226,26 @@ export function createAgentMcp(
         // The error result carries no content, so the attempt ends without receipt.
         if (delivery) service.store.cancelClaudeDelivery(delivery, 'The call lost its authority');
         handoff?.discardDelivery();
+        const setupAction =
+          e instanceof CodexConnectFailure && e.stage === 'profile' && !e.savedMailbox;
         const recovery =
           name === 'agent_connect' && e instanceof CodexConnectFailure
             ? {
                 status: 'codex_recovery_required',
                 stage: e.stage,
                 ...(e.expiresAt && { expiresAt: e.expiresAt }),
-                nextAction: e.savedMailbox ? 'agent_read' : 'agent_connect',
+                nextAction: e.savedMailbox
+                  ? 'agent_read'
+                  : setupAction
+                    ? 'apply_codex_setup'
+                    : 'agent_connect',
                 description:
                   e.message +
                   (e.savedMailbox
                     ? ' Call agent_read once with your saved connectionId for pending messages. A later agent_connect with the same arguments resumes native recovery.'
-                    : ' When this stage is available, retry agent_connect once in this chat with the same arguments.'),
+                    : setupAction
+                      ? ' Ask the owner to click Apply in NCF Agent Interconnect manual setup for the selected Codex configuration.'
+                      : ' When this stage is available, retry agent_connect once in this chat with the same arguments.'),
               }
             : undefined;
         const response: CallToolResult = {

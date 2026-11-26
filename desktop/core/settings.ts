@@ -10,7 +10,7 @@ import path from 'node:path';
 import { isIP } from 'node:net';
 import { z } from 'zod';
 import { normalizeInterfaceExclusions } from './network-interfaces.js';
-import type { Peer, Settings } from '../shared/contracts.js';
+import type { AdapterProfile, Peer, Settings } from '../shared/contracts.js';
 
 export const adapterSchema = z
   .object({
@@ -219,6 +219,33 @@ export class SettingsFile {
     const operation = this.saving.then(async () => {
       settingsSchema.parse(this.value);
       await atomicJson(this.filename, this.value);
+    });
+    this.saving = operation.catch(() => {});
+    await operation;
+  }
+  async replaceAdapter(
+    previous: AdapterProfile,
+    replacement: AdapterProfile,
+    guard?: () => void,
+  ): Promise<void> {
+    const operation = this.saving.then(async () => {
+      const assertCurrent = () => {
+        guard?.();
+        if (!this.value.adapters.includes(previous) || previous.id !== replacement.id)
+          throw new Error('The saved adapter changed');
+      };
+      assertCurrent();
+      const candidate = {
+        ...this.value,
+        adapters: this.value.adapters.map((profile) =>
+          profile === previous ? replacement : profile,
+        ),
+      };
+      settingsSchema.parse(candidate);
+      await atomicJson(this.filename, candidate, assertCurrent, assertCurrent);
+      const index = this.value.adapters.indexOf(previous);
+      if (index < 0) throw new Error('The saved adapter changed');
+      this.value.adapters[index] = replacement;
     });
     this.saving = operation.catch(() => {});
     await operation;

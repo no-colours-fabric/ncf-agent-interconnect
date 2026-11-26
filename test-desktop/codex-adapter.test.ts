@@ -15,8 +15,12 @@ import {
   codexExchange,
 } from '../desktop/core/codex-adapter.js';
 import { AdapterRegistry, agentMessageText, type EventInput } from '../desktop/core/adapters.js';
-import { CodexQueueAdapter, codexQueueLocator } from '../desktop/core/codex-queue.js';
-import { codexQueueWitness } from '../desktop/core/delivery-attempt.js';
+import {
+  CodexConnectFailure,
+  CodexQueueAdapter,
+  codexQueueLocator,
+} from '../desktop/core/codex-queue.js';
+import { codexQueueWitness, contentHash } from '../desktop/core/delivery-attempt.js';
 import { NodeService } from '../desktop/core/service.js';
 import { formatAgentMessageTimestamp } from '../desktop/core/message-presentation.js';
 import type { AdapterProfile } from '../desktop/shared/contracts.js';
@@ -2083,7 +2087,11 @@ test('agent_connect keeps MCP available and resumes the same saved Codex binding
   assert.equal(submitted.length, 1);
   const beforeObservation = discoveries;
   await connect();
-  assert.equal(discoveries, beforeObservation);
+  assert.equal(
+    discoveries,
+    beforeObservation + 1,
+    'probe the exact Desktop route before observing the existing offer',
+  );
   assert.equal(submitted.length, 1);
   const token = submitted[0].split('contextToken: ')[1];
   assert.ok(token);
@@ -2110,3 +2118,274 @@ test('agent_connect keeps MCP available and resumes the same saved Codex binding
   assert.equal(submitted.length, 1);
   assert.equal(service.store.get(msg.id, 'in')?.state, 'processed');
 });
+
+async function recoveryMcp(
+  t: test.TestContext,
+  options: NonNullable<ConstructorParameters<typeof NodeService>[1]>,
+) {
+  const directory = await realpath(await mkdtemp(path.join(os.tmpdir(), 'ncf-accept-connect-')));
+  const service = new NodeService(directory, options);
+  const client = new Client({ name: 'Codex', version: 'fixture' });
+  t.after(async () => {
+    await client.close();
+    await service.close();
+    await rm(directory, { recursive: true, force: true });
+  });
+  await service.open();
+  await client.connect(
+    new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
+      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
+    }),
+  );
+  const connect = async (threadId: string, proof: Record<string, unknown> = {}) => {
+    const result = await client.callTool({
+      name: 'agent_connect',
+      arguments: { nickname: 'Recipient', ...proof },
+      _meta: { threadId },
+    });
+    return {
+      isError: result.isError,
+      content: result.content,
+      body: result.structuredContent as Record<string, unknown> | undefined,
+    };
+  };
+  return { directory, service, connect };
+}
+
+async function legacyConfirmation(t: test.TestContext) {
+  const f = await fixture(t);
+  const { service, connect } = await recoveryMcp(t, { codexSockets: () => [f.profile.socket!] });
+  const thread = f.profile.threadId!;
+  const initial = await service.connectCodex(
+    { client: 'Codex', nickname: 'Recipient' },
+    { threadId: thread, socket: f.profile.socket },
+  );
+  if (initial.status !== 'connected') throw Error('fixture binding');
+  const saved = service.store.assertOwner(initial.binding.connectionId).binding;
+  const prior = await service.send({
+    connectionId: saved.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Fixture archive',
+    text: 'History before recovery — ё / 東京.',
+  });
+  const history = service.store.get(prior.id, 'out');
+  assert.ok(history);
+  const assertHistory = () => assert.deepEqual(service.store.get(prior.id, 'out'), history);
+  const old = service.adapters.get(saved.adapterId);
+  const ready = old.status();
+  let allowQueue = true;
+  t.mock.method(old, 'status', () =>
+    f.state.discoveryResult === 'error' && allowQueue
+      ? { ...ready, state: 'error', error: 'Codex IPC: ECONNREFUSED' }
+      : ready,
+  );
+  const tokens: string[] = [];
+  t.mock.method(CodexQueueAdapter.prototype, 'challenge', async (token: string) => {
+    tokens.push(token);
+    return { state: 'dispatched', witness: { messageId: randomUUID(), payloadHash: 'fixture' } };
+  });
+  f.state.discoveryResult = 'error';
+  const offer = await connect(thread);
+  assert.equal(offer.body?.status, 'codex_recovery_pending');
+  const deadline = Date.parse(String(offer.body?.expiresAt));
+  assert.ok(Number.isFinite(deadline));
+  return {
+    f,
+    thread,
+    saved,
+    old,
+    ready,
+    service,
+    connect,
+    tokens,
+    deadline,
+    assertHistory,
+    blockFreshQueue: () => {
+      allowQueue = false;
+    },
+  };
+}
+
+test(
+  'pending Codex confirmation allows the same Desktop owner to return on either side of expiry',
+  { skip: process.platform === 'win32' },
+  async (t) => {
+    for (const offset of [-1, 1])
+      await t.test(String(offset), async (t) => {
+        const x = await legacyConfirmation(t);
+        x.blockFreshQueue();
+        let now = x.deadline - 2;
+        t.mock.method(Date, 'now', () => now);
+        const existing = await x.connect(x.thread);
+        assert.equal(existing.body?.status, 'codex_recovery_pending');
+        assert.equal(Date.parse(String(existing.body?.expiresAt)), x.deadline);
+        x.f.state.discoveryResult = 'success';
+        const before = x.f.requests.length;
+        now = x.deadline + offset;
+        assert.deepEqual((await x.connect(x.thread)).body?.binding, x.saved);
+        assert.ok(
+          x.f.requests
+            .slice(before)
+            .some(
+              (request) =>
+                request.method === 'thread-owner-discovery' &&
+                request.params.conversationId === x.thread,
+            ),
+        );
+        assert.equal(x.service.adapters.get(x.saved.adapterId), x.old);
+        x.assertHistory();
+        assert.equal((await x.connect(x.thread, { contextToken: x.tokens[0] })).isError, true);
+        assert.equal(x.tokens.length, 1);
+      });
+    await t.test('expiry takes precedence over an unavailable recovery route', async (t) => {
+      const x = await legacyConfirmation(t);
+      x.blockFreshQueue();
+      t.mock.method(Date, 'now', () => x.deadline);
+      assert.equal((await x.connect(x.thread)).body?.status, 'codex_recovery_expired');
+      assert.equal(x.tokens.length, 1);
+      assert.deepEqual(x.service.store.bindingForNickname('Recipient'), x.saved);
+    });
+  },
+);
+
+test('profile setup failure returns one public MCP action for the selected configuration', async (t) => {
+  let file = '';
+  const { directory, service, connect } = await recoveryMcp(t, {
+    codexSockets: () => [],
+    runningCodexConfiguration: async () => file,
+  });
+  file = path.join(directory, 'config.toml');
+  const thread = randomUUID();
+  for (const content of [undefined, '# unrelated setup\n']) {
+    if (content) await writeFile(file, content, { mode: 0o600 });
+    const error = await connect(thread);
+    assert.equal(error.isError, true);
+    assert.equal(error.body?.stage, 'profile');
+    assert.equal(error.body?.nextAction, 'apply_codex_setup');
+    assert.match(JSON.stringify(error.content), /Apply/);
+    assert.doesNotMatch(JSON.stringify(error), /retry agent_connect|agent_read|config\.toml/);
+    assert.equal(service.store.bindingForNickname('Recipient'), undefined);
+  }
+  // Exercise the Windows profile-verification refusal via the same real file resolver on any host.
+  const profile: AdapterProfile = {
+    id: randomUUID(),
+    kind: 'codex-desktop',
+    label: 'Fixture',
+    threadId: thread,
+    codexQueue: true,
+    socket: codexQueueLocator(directory),
+  };
+  const start = t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {});
+  await service.installAdapter(profile);
+  const saved = service.connect({
+    nickname: 'Recipient',
+    client: 'Codex',
+    chatId: thread,
+    adapterId: profile.id,
+  });
+  if (saved.status !== 'connected') throw Error('fixture binding');
+  start.mock.mockImplementation(async () => {
+    await service['configuredCodexQueueSocket']();
+  });
+  const bound = await connect(thread, { connectionId: saved.binding.connectionId });
+  assert.equal(bound.isError, true);
+  assert.equal(bound.body?.stage, 'profile');
+  assert.equal(bound.body?.nextAction, 'agent_read');
+  assert.doesNotMatch(JSON.stringify(bound.content), /Apply/);
+  assert.deepEqual(service.store.bindingForNickname('Recipient'), saved.binding);
+});
+
+test(
+  'same-chat redemption rejects stale authority before changing the route or binding',
+  { skip: process.platform === 'win32' },
+  async (t) => {
+    for (const barrier of [
+      'adapterSetup',
+      'readiness',
+      'replacement',
+      'settings-write',
+      'binding',
+    ] as const)
+      await t.test(barrier, async (t) => {
+        const x = await legacyConfirmation(t);
+        const before = contentHash(await readFile(x.service.settings.filename, 'utf8'));
+        const originalProfile = structuredClone(
+          x.service.settings.value.adapters.find((a) => a.id === x.saved.adapterId),
+        );
+        const commit = t.mock.method(x.service.store, 'connect');
+        let now = x.deadline - 1;
+        t.mock.method(Date, 'now', () => now);
+        // First prove a transient readiness failure leaves this same proof retryable.
+        let fail = true;
+        let entered!: () => void, unblock!: () => void;
+        const entering = new Promise<void>((resolve) => {
+          entered = resolve;
+        });
+        const blocked = new Promise<void>((resolve) => {
+          unblock = resolve;
+        });
+        t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {
+          if (fail) throw new CodexConnectFailure('history');
+          if (barrier === 'readiness' || barrier === 'replacement') {
+            entered();
+            await blocked;
+          }
+        });
+        t.mock.method(CodexQueueAdapter.prototype, 'status', () => x.ready);
+        assert.equal(
+          (await x.connect(x.thread, { contextToken: x.tokens[0] })).body?.stage,
+          'history',
+        );
+        fail = false;
+        if (barrier === 'adapterSetup') {
+          // Schedule the real retry behind a held serialized operation.
+          x.service['adapterSetup'] = blocked;
+          const complete = x.service['completeCodexBinding'].bind(x.service);
+          t.mock.method(
+            x.service as unknown as { completeCodexBinding: typeof complete },
+            'completeCodexBinding',
+            (...args: Parameters<typeof complete>) => {
+              const result = complete(...args);
+              entered();
+              return result;
+            },
+          );
+        }
+        if (barrier === 'settings-write' || barrier === 'binding') {
+          const replace = x.service.settings.replaceAdapter.bind(x.service.settings);
+          t.mock.method(
+            x.service.settings,
+            'replaceAdapter',
+            async (previous: AdapterProfile, next: AdapterProfile, guard?: () => void) => {
+              if (!guard) return replace(previous, next);
+              if (barrier === 'binding') await replace(previous, next, guard);
+              entered();
+              await blocked;
+              if (barrier === 'settings-write') return replace(previous, next, guard);
+            },
+          );
+        }
+        const retry = x.connect(x.thread, { contextToken: x.tokens[0] });
+        await entering;
+        if (barrier === 'replacement') x.service['codexRecovery'].delete(x.thread);
+        else now = x.deadline;
+        unblock();
+        const result = await retry;
+        assert.equal(result.isError, true);
+        assert.match(JSON.stringify(result.content), /invalid or expired/);
+        assert.equal(commit.mock.callCount(), 0);
+        x.assertHistory();
+        assert.deepEqual(x.service.store.bindingForNickname('Recipient'), x.saved);
+        assert.deepEqual(
+          x.service.settings.value.adapters.find((a) => a.id === x.saved.adapterId),
+          originalProfile,
+        );
+        assert.equal(contentHash(await readFile(x.service.settings.filename, 'utf8')), before);
+        const adapter = x.service.adapters.get(x.saved.adapterId);
+        if (barrier === 'settings-write' || barrier === 'binding')
+          assert.ok(adapter instanceof CodexDesktopAdapter);
+        else assert.equal(adapter, x.old);
+        assert.equal(x.tokens.length, 1);
+      });
+  },
+);

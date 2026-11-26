@@ -548,7 +548,7 @@ export class AdapterRegistry extends EventEmitter {
         ? new ManualAdapter(profile)
         : profile.kind === 'codex-desktop'
           ? profile.codexQueue
-            ? CodexQueueAdapter.forDesktop(profile, changed, this.wakeCodexChat)
+            ? this.prepareCodexQueue(profile)
             : new CodexDesktopAdapter(profile, changed)
           : profile.kind === 'cursor-hook'
             ? new CursorHookAdapter(profile, changed, idle)
@@ -562,6 +562,25 @@ export class AdapterRegistry extends EventEmitter {
     this.adapters.set(profile.id, adapter);
     await adapter.start();
   }
+  prepareCodexQueue(profile: AdapterProfile): CodexQueueAdapter {
+    const adapter = CodexQueueAdapter.forDesktop(
+      profile,
+      () => {
+        if (this.adapters.get(profile.id) !== adapter) return;
+        this.emit('change');
+        if (adapter.status().state === 'ready') this.emit('idle');
+      },
+      this.wakeCodexChat,
+    );
+    return adapter;
+  }
+
+  activateCodexQueue(previous: AgentAdapter, prepared: CodexQueueAdapter): void {
+    if (this.adapters.get(prepared.profile.id) !== previous)
+      throw new Error('The saved Codex adapter changed');
+    this.adapters.set(prepared.profile.id, prepared);
+  }
+
   states(): AdapterState[] {
     return [...this.adapters.values()].map((a) => a.status());
   }
