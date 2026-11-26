@@ -1,4 +1,4 @@
-import { createMacSessionDelivery } from './mac-session-delivery.js';
+import { createMacDeliveryHost, createMacSessionDelivery } from './mac-session-delivery.js';
 import {
   app,
   BrowserWindow,
@@ -358,7 +358,8 @@ function setupIpc(): void {
       !app.isPackaged || alternateUserData
         ? undefined
         : process.platform === 'darwin'
-          ? (selected) => createMacSessionDelivery(userData, selected)
+          ? (selected) =>
+              createMacSessionDelivery(userData, selected, createMacDeliveryHost(app.getAppPath()))
           : process.platform === 'win32'
             ? (selected) => {
                 const handler = import('./desktop-session-delivery-windows.js').then((native) =>

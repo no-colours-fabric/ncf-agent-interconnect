@@ -3,6 +3,7 @@
 #import <limits.h>
 #import <signal.h>
 #import <unistd.h>
+#import <sys/event.h>
 #import <sys/stat.h>
 #import <sys/sysctl.h>
 
@@ -29,6 +30,88 @@ static BOOL sameProcessIdentity(const struct proc_bsdinfo *before, const struct 
         before->pbi_uid == after->pbi_uid && before->pbi_ruid == after->pbi_ruid &&
         before->pbi_start_tvsec == after->pbi_start_tvsec &&
         before->pbi_start_tvusec == after->pbi_start_tvusec;
+}
+
+static BOOL deliveryLaunchMatches(pid_t pid, const char *profile, const char *marker) {
+    int mib[] = {CTL_KERN, KERN_PROCARGS2, pid};
+    NSMutableData *buffer = [NSMutableData dataWithLength:1024 * 1024];
+    size_t size = buffer.length;
+    const char *bytes = buffer.mutableBytes;
+    if (!bytes || sysctl(mib, 3, buffer.mutableBytes, &size, NULL, 0) != 0 ||
+        size <= sizeof(int) || size > buffer.length) return NO;
+    int argc;
+    memcpy(&argc, bytes, sizeof argc);
+    const char *end = bytes + size;
+    const char *cursor = memchr(bytes + sizeof argc, 0, size - sizeof argc);
+    if (!cursor || argc < 4 || argc > 4096) return NO;
+    while (cursor < end && !*cursor) ++cursor;
+    for (int i = 0; i < argc; ++i) {
+        const char *zero = memchr(cursor, 0, end - cursor);
+        if (!zero || (i == 1 && strcmp(cursor, "app-server") != 0)) return NO;
+        cursor = zero + 1;
+    }
+    BOOL homeFound = NO, markerFound = NO;
+    const char homeKey[] = "CODEX_HOME=";
+    const char markerKey[] = "NCF_MAC_DELIVERY_OWNER=";
+    while (cursor < end && *cursor) {
+        const char *zero = memchr(cursor, 0, end - cursor);
+        if (!zero) return NO;
+        if (!strncmp(cursor, homeKey, sizeof homeKey - 1)) {
+            if (homeFound || strcmp(cursor + sizeof homeKey - 1, profile)) return NO;
+            homeFound = YES;
+        } else if (!strncmp(cursor, markerKey, sizeof markerKey - 1)) {
+            if (markerFound || strcmp(cursor + sizeof markerKey - 1, marker)) return NO;
+            markerFound = YES;
+        }
+        cursor = zero + 1;
+    }
+    return homeFound && markerFound;
+}
+
+static NSString *processStart(const struct proc_bsdinfo *info) {
+    return [NSString stringWithFormat:@"%llu:%llu",
+        (unsigned long long)info->pbi_start_tvsec, (unsigned long long)info->pbi_start_tvusec];
+}
+
+static int deliveryProcess(int argc, const char *argv[]) {
+    @autoreleasepool {
+        char *end = NULL;
+        long number = strtol(argv[2], &end, 10);
+        if (!end || *end || number < 2 || number > INT_MAX) return 1;
+        pid_t pid = (pid_t)number;
+        BOOL stopping = argc == 7;
+        struct proc_bsdinfo before, after;
+        if (proc_pidinfo(pid, PROC_PIDTBSDINFO, 0, &before, sizeof before) != sizeof before)
+            return stopping && kill(pid, 0) == -1 && errno == ESRCH ? 0 : 1;
+        if (stopping && ![processStart(&before) isEqualToString:@(argv[6])]) return 0;
+        if (!verifiedDesktop(pid, argv[3], &after) || !sameProcessIdentity(&before, &after) ||
+            !deliveryLaunchMatches(pid, argv[4], argv[5]))
+            return stopping && kill(pid, 0) == -1 && errno == ESRCH ? 0 : 1;
+        if (!stopping) {
+            if (!verifiedDesktop(pid, argv[3], &after) || !sameProcessIdentity(&before, &after)) return 1;
+            return puts(processStart(&before).UTF8String) >= 0 ? 0 : 1;
+        }
+
+        // Observe this exact process before sending the vendor's graceful-only signal.
+        int queue = kqueue();
+        if (queue == -1) return 1;
+        struct kevent event;
+        EV_SET(&event, (uintptr_t)pid, EVFILT_PROC, EV_ADD | EV_ONESHOT, NOTE_EXIT, 0, NULL);
+        int result = 1;
+        if (kevent(queue, &event, 1, NULL, 0, NULL) == -1) {
+            if (errno == ESRCH) result = 0;
+        } else if (!verifiedDesktop(pid, argv[3], &after) || !sameProcessIdentity(&before, &after)) {
+            if (kill(pid, 0) == -1 && errno == ESRCH) result = 0;
+        } else if (kill(pid, SIGHUP) == -1) {
+            if (errno == ESRCH) result = 0;
+        } else {
+            struct timespec timeout = { .tv_sec = 8, .tv_nsec = 0 };
+            if (kevent(queue, NULL, 0, &event, 1, &timeout) == 1 &&
+                !(event.flags & EV_ERROR) && (event.fflags & NOTE_EXIT)) result = 0;
+        }
+        close(queue);
+        return result;
+    }
 }
 
 static NSString *canonicalAperitif(NSString *desktop) {
@@ -248,6 +331,17 @@ static int watchDesktopLaunches(void) {
 }
 
 int main(int argc, const char *argv[]) {
+    if (argc == 2 && strcmp(argv[1], "--chatgpt-running") == 0) {
+        @autoreleasepool {
+            for (NSRunningApplication *app in [NSRunningApplication runningApplicationsWithBundleIdentifier:@"com.openai.codex"]) {
+                if (!app.terminated) return puts("running") >= 0 ? 0 : 1;
+            }
+            return puts("closed") >= 0 ? 0 : 1;
+        }
+    }
+    if ((argc == 6 && strcmp(argv[1], "--identify-delivery-process") == 0) ||
+        (argc == 7 && strcmp(argv[1], "--stop-delivery-process") == 0))
+        return deliveryProcess(argc, argv);
     if (argc == 2 && strcmp(argv[1], "--watch-desktop-launches") == 0) return watchDesktopLaunches();
     if (argc == 5 && strcmp(argv[1], "--list-setup-profiles") == 0)
         return listSetupProfiles(argv[2], argv[3], argv[4]);
