@@ -1366,7 +1366,7 @@ export interface ApplicationStartup {
   close: () => void;
 }
 
-function startupOfferClients(
+export function startupOfferClients(
   discovery: ApplicationDiscoveryModel,
   states: ApplicationSetupStates,
   statuses: McpSetupStatuses,
@@ -1374,14 +1374,24 @@ function startupOfferClients(
 ): ApplicationSetupClient[] | null {
   if (!discovery.snapshot) return discovery.failed ? [] : null;
   const { applications, offers } = discovery.snapshot;
+  const majors =
+    applications
+      .find((item) => item.client === 'opencode')
+      ?.instances.map((item) => item.openCodeMajor) ?? [];
+  const unversioned = !majors.length || majors.includes(undefined);
   const candidates = mcpSetupClients
     .filter(
       (client) =>
         offers.includes(client) &&
         applications.some((item) => item.client === client && item.status === 'detected'),
     )
-    // Generic OpenCode discovery supplies no v1 installation proof.
-    .map((client) => (client === 'opencode' ? ('opencode-v2' as const) : client));
+    .flatMap((client): ApplicationSetupClient[] => {
+      if (client !== 'opencode') return [client];
+      const choices: ApplicationSetupClient[] = [];
+      if (unversioned || majors.includes(1)) choices.push('opencode');
+      if (unversioned || majors.includes(2)) choices.push('opencode-v2');
+      return choices;
+    });
   if (
     candidates.some((client) => {
       if (client === 'opencode-v2') {
@@ -1394,6 +1404,9 @@ function startupOfferClients(
     return null;
   return candidates.filter((client) => {
     const view = setupView(client, states, statuses, discovery);
+    if (client === 'opencode-v2' || client === 'opencode') {
+      return !view.configured && !hasConnectedClientChat(client, snapshot);
+    }
     return (
       view.detected &&
       view.automatic &&
@@ -1584,17 +1597,41 @@ export function ApplicationSetup({
                 const busy = flow.busy(client);
                 const name = setupApplicationName(client, locale);
                 const action = applicationSetupAction(view, locale, busy, operationBusy);
+                const openCode = client === 'opencode' || client === 'opencode-v2';
+                const confirmedMajor = discovery.snapshot?.applications
+                  .find((app) => app.client === 'opencode')
+                  ?.instances.some(
+                    (instance) => instance.openCodeMajor === (client === 'opencode' ? 1 : 2),
+                  );
+                const manualOnly =
+                  openCode &&
+                  (!view.automatic ||
+                    view.unavailable ||
+                    view.configurationState === 'needs-update') &&
+                  !pending &&
+                  !failed;
                 return (
                   <StartupApplicationTile
                     key={client}
                     client={client}
                     offer={client === 'opencode-v2' ? 'opencode' : client}
                     name={name}
-                    status={busy ? copy.connecting : copy.detected}
+                    status={
+                      busy
+                        ? copy.connecting
+                        : openCode && !confirmedMajor
+                          ? m.statusUnknown
+                          : copy.detected
+                    }
                     busy={busy}
                     compatibilityWarning={client === 'codex' && chatgptWarning}
-                    action={action}
+                    action={manualOnly ? { label: copy.manual, disabled: operationBusy } : action}
                     onConnect={() => {
+                      if (manualOnly) {
+                        flow.openCodeV2.selectManualMajor(client === 'opencode' ? 1 : 2);
+                        manual('opencode');
+                        return;
+                      }
                       setAttempted((current) =>
                         current.includes(client) ? current : [...current, client],
                       );

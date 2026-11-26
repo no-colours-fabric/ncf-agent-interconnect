@@ -8,6 +8,7 @@ import {
   ApplicationTiles,
   NextStep,
   setupApplicationName,
+  startupOfferClients,
 } from '../desktop/renderer/ApplicationSetup.js';
 import { ApplicationSetupFlow } from '../desktop/renderer/application-setup-model.js';
 import { applicationSetupMessages } from '../desktop/renderer/i18n/application-setup.js';
@@ -60,6 +61,81 @@ const statuses: McpSetupStatuses = {
   errors: {},
   refreshAll: async () => {},
 };
+
+test('startup uses installation major evidence and preserves explicit choices for an unversioned host', async () => {
+  const target = {
+    major: 2 as const,
+    installationId: null,
+    installationPath: null,
+    profilePath: '/qa',
+    configurationPath: '/qa/opencode.json',
+  };
+  const flow = new ApplicationSetupFlow((async (method) => {
+    if (method === 'opencodeV2SetupDefaults')
+      return {
+        client: 'opencode-v2',
+        target,
+        alternatives: [],
+        setupAvailability: { state: 'available' },
+      };
+    if (method === 'opencodeV2SetupStatus')
+      return {
+        client: 'opencode-v2',
+        target,
+        remembered: false,
+        state: 'missing',
+        files: [],
+        setupAvailability: { state: 'available' },
+      };
+    throw Error('Startup attempted to write');
+  }) as McpSetupInvoke);
+  await flow.openCodeV2.refresh();
+  const offer = (majors: (1 | 2 | undefined)[], known = statuses) =>
+    startupOfferClients(
+      {
+        ...discovery,
+        snapshot: {
+          ...discovery.snapshot!,
+          offers: ['opencode'],
+          applications: [
+            {
+              client: 'opencode',
+              status: 'detected',
+              coverage: [],
+              instances: majors.map((openCodeMajor, i) => ({
+                path: '/qa/' + i,
+                form: 'cli',
+                evidence: 'package-metadata',
+                openCodeMajor,
+              })),
+            },
+          ],
+        },
+      },
+      flow.getSnapshot(),
+      known,
+    );
+  assert.deepEqual(offer([1]), ['opencode']);
+  assert.deepEqual(offer([2]), ['opencode-v2']);
+  assert.deepEqual(offer([undefined]), ['opencode', 'opencode-v2']);
+  assert.deepEqual(offer([1, 2]), ['opencode', 'opencode-v2']);
+  const existing: McpSetupStatuses = {
+    ...statuses,
+    statuses: {
+      ...statuses.statuses,
+      opencode: {
+        client: 'opencode',
+        state: 'configured',
+        openCodeV1Configuration: true,
+        remembered: true,
+        files: [],
+      },
+    },
+  };
+  assert.deepEqual(offer([1], existing), []);
+  assert.deepEqual(offer([2], existing), ['opencode-v2']);
+  flow.dispose();
+});
 
 test('all five groups retain manual setup; the default v2 target does not infer capability from discovery', () => {
   const html = renderToStaticMarkup(
