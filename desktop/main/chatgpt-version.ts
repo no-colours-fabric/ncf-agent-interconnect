@@ -41,20 +41,23 @@ async function installedMacVersion(installation: string): Promise<ChatgptRuntime
 async function runningWindowsVersions(files: DiscoveryFiles): Promise<ChatgptRuntime[]> {
   if (!files.windowsCodex) return [];
   const system = process.env.SystemRoot ?? 'C:\\Windows';
-  const [packages, { stdout }] = await Promise.all([
-    files.windowsCodex(),
-    execute(
-      path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
-      ['-NoProfile', '-NonInteractive', '-Command', windowsChatgptProcesses],
-      limits,
-    ),
-  ]);
-  const running: unknown = JSON.parse(stdout);
+  const packages = await files.windowsCodex();
+  // A unique registered installation supplies its version without a running GUI
+  // or a process query. Only multiple installations need runtime disambiguation.
+  const running: unknown =
+    packages.length === 1
+      ? []
+      : JSON.parse(
+          (
+            await execute(
+              path.win32.join(system, 'System32/WindowsPowerShell/v1.0/powershell.exe'),
+              ['-NoProfile', '-NonInteractive', '-Command', windowsChatgptProcesses],
+              limits,
+            )
+          ).stdout,
+        );
   if (!Array.isArray(running) || running.length > 128) return [{}];
-  const selected =
-    !running.length && packages.length === 1
-      ? packages
-      : packages.filter((item) => running.some((p) => sameWindowsDesktop(p, item)));
+  const selected = selectWindowsDesktopPackages(packages, running);
   return Promise.all(
     selected.map(async (pkg) => {
       const version = await archiveVersion(files, path.win32.dirname(pkg.executable)).catch(
@@ -63,6 +66,16 @@ async function runningWindowsVersions(files: DiscoveryFiles): Promise<ChatgptRun
       return { ...version, architecture: pkg.architecture };
     }),
   );
+}
+
+export function selectWindowsDesktopPackages<
+  T extends { executable: string; packageFullName?: string },
+>(packages: readonly T[], running: readonly unknown[]): readonly T[] {
+  const matched = packages.filter((item) =>
+    running.some((candidate) => sameWindowsDesktop(candidate, item)),
+  );
+  // CLI and helper processes do not make a unique registered desktop ambiguous.
+  return matched.length || packages.length !== 1 ? matched : packages;
 }
 
 export function sameWindowsDesktop(
