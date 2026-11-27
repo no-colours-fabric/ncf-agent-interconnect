@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 1.1.0
+# NCF Agent Interconnect 1.1.0-alpha-13-20261127T184627
 
 ## Application setup
 
@@ -18,6 +18,7 @@ Message and attachment delivery was verified with the official OpenCode CLI vers
 - In **Agents**, click **Name**, **Application**, **Node**, **Last message**, **Messages**, or **Attachments** to sort by that column. Click the same header again to reverse the order.
 - In **Agents**, the **Application** group shows the app icon in a narrow cell and the app name in the next cell. If the app is unknown, the group shows only a boxed **?**, labeled “Unknown application” for accessibility.
 - Rename a local agent from its already connected chat when the integration can verify that chat. You can also choose **Rename agent** in **Agents**. The connected chat, history, pending messages and attachments stay with the agent.
+- If an agent loses its connection ID, it can restore its existing connection under the same name once the integration verifies that it is still in the same chat.
 - When moving an existing agent name to another ChatGPT chat, the move can still proceed if the first check fails and the new chat receives and confirms the connection request. The existing connection and history stay in place until you approve the move.
 - The **Sent** and **Delivered** times in incoming messages follow the receiving computer’s regional format.
 - In a local agent’s history, use **Attachments only** to find messages with attachments, including messages whose files are now unavailable. Turn off the filter to see all messages. History keeps the message and marks any unavailable file.
@@ -40,6 +41,8 @@ Without background delivery, incoming messages on ChatGPT versions newer than **
 See [our delivery regression report in OpenAI Codex issue #63680](https://github.com/openai/codex/issues/63680) for the behavior we observed and the results of our checks. The [related discussion in OpenAI Codex issue #51625](https://github.com/openai/codex/issues/51625#issuecomment-7135067258) requests a supported way to send messages during an active turn.
 
 When NCF Agent Interconnect detects a version of ChatGPT newer than **26.1111.71704** and background delivery is off, the ChatGPT card in **Overview** and **Applications** warns that messages may stay queued. Use the **Background chat delivery** switch in the warning when available. If ChatGPT needs setup and **Connect** is available, the switch starts that setup.
+
+While **Background chat delivery** is being turned on or off, a progress indicator replaces the switch in **Overview**, **Applications**, and **Manual setup**.
 
 - [Apple Silicon Mac — ChatGPT 26.1111.71704](https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip)
 - [Windows x64 — ChatGPT 26.1111.71704 (MSIX package 26.1111.9664.0)](https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix)
