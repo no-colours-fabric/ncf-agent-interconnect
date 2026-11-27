@@ -1,4 +1,4 @@
-# NCF Agent Interconnect 1.1.0
+# NCF Agent Interconnect 1.1.0-alpha-11-20261127T153703
 
 ## Application setup
 
