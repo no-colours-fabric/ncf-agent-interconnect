@@ -22,7 +22,7 @@ import { openCodeRuntimeText } from '../desktop/renderer/i18n/opencode-runtime.j
 import type { OpenCodeV2SetupStatus } from '../desktop/shared/mcp-setup.js';
 import type { McpSetupInvoke, OpenCodeV2SetupTarget } from '../desktop/shared/mcp-setup.js';
 
-test('OpenCode permission preview lists only new exact permissions for the selected major', () => {
+test('automatic OpenCode confirmation lists only new exact permissions for the selected major', () => {
   for (const client of ['opencode', 'opencode-v2'] as const) {
     const field = client === 'opencode' ? 'permission' : 'permissions';
     const names = ['agent_send', 'agent_read', 'agent_history'].map(
@@ -94,7 +94,7 @@ function fixture() {
             id: 'configuration',
             path: params.target!.configurationPath,
             action: changed ? 'update' : 'create',
-            changes: [],
+            changes: [{ scope: 'permissions.ncf_agent_interconnect_agent_send', action: 'add' }],
           },
         ],
       };
@@ -157,7 +157,12 @@ test('v2 manual UI shows the configuration path without setup details; v1 keeps 
         client: 'opencode',
         planId: 'v1',
         files: [
-          { id: 'configuration', path: '/isolated/Legacy v1.json', action: 'create', changes: [] },
+          {
+            id: 'configuration',
+            path: '/isolated/Legacy v1.json',
+            action: 'create',
+            changes: [{ scope: 'permission.ncf_agent_interconnect_agent_send', action: 'add' }],
+          },
         ],
         requiresReplacement: false,
       };
@@ -177,6 +182,14 @@ test('v2 manual UI shows the configuration path without setup details; v1 keeps 
   assert.ok(legacyHtml.includes('/isolated/Legacy v1.json'));
   assert.ok(!legacyHtml.includes('草稿.json'));
   assert.ok(!html.includes('Legacy v1.json'));
+  const messages = mcpSetupMessages('ru');
+  for (const manual of [legacyHtml, html]) {
+    assert.ok(manual.includes(escape(messages.create)));
+    assert.doesNotMatch(manual, /ncf_agent_interconnect_/);
+    for (const label of [messages.pathLabel, messages.browse, messages.openFile])
+      assert.ok(manual.includes('aria-label="' + escape(label) + '"'));
+    assert.ok(manual.includes('>' + escape(messages.apply) + '<'));
+  }
   assert.equal(f.writes(), 0);
 });
 
