@@ -2,6 +2,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { Alert, Box, FormControlLabel, Switch, Typography } from '@mui/material';
 import type { ApplicationDiscoverySnapshot } from '../shared/application-discovery.js';
 import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
+import { DesktopSessionDeliveryProgress } from './DesktopSessionDeliveryControl.js';
 import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 import type { Locale } from './i18n/index.js';
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
@@ -9,45 +10,49 @@ import { sessionDeliveryMessages } from './i18n/session-delivery.js';
 const delayNoticeCutoff = '26.1111.71704';
 const versionOrder = new Intl.Collator('en', { numeric: true });
 
-export function showsChatgptCompatibilityNotice(
+export function chatgptCompatibilityWarning(
   compatibility: ChatgptCompatibility | undefined,
   delivery: ReturnType<DesktopSessionDeliveryModel['getSnapshot']>,
-): boolean {
-  return (
-    isAboveCutoff(compatibility?.version) &&
-    (delivery.notice === 'configuration-required' ||
-      (!delivery.notice && delivery.known?.state === 'ready'))
-  );
+): 'off' | 'version-unknown' | undefined {
+  if (delivery.notice !== 'configuration-required' && delivery.known?.state !== 'ready') return;
+  const version = compatibility?.version;
+  if (!version || !/^\d{1,4}\.\d{1,5}\.\d{1,5}$/.test(version)) return 'version-unknown';
+  return versionOrder.compare(version, delayNoticeCutoff) > 0 ? 'off' : undefined;
 }
 
-function isAboveCutoff(version?: string) {
-  return (
-    !!version &&
-    /^\d{1,4}\.\d{1,5}\.\d{1,5}$/.test(version) &&
-    versionOrder.compare(version, delayNoticeCutoff) > 0
-  );
-}
-
-export function useChatgptCompatibilityNotice(
+export function useChatgptDeliveryPresentation(
   model: DesktopSessionDeliveryModel,
   discovery?: ApplicationDiscoverySnapshot,
 ) {
-  const compatibility = discovery?.applications.some(
+  const detected = discovery?.applications.some(
     ({ client, status }) => client === 'codex' && status === 'detected',
-  )
-    ? discovery.chatgptCompatibility
-    : undefined;
+  );
   const state = useSyncExternalStore(model.subscribe, model.getSnapshot, model.getSnapshot);
-  const newer = isAboveCutoff(compatibility?.version);
   useEffect(() => {
-    if (newer) model.load();
-  }, [model, newer]);
-  return showsChatgptCompatibilityNotice(compatibility, state);
+    if (detected) model.load();
+  }, [model, detected]);
+  return {
+    state,
+    warning: detected
+      ? chatgptCompatibilityWarning(discovery?.chatgptCompatibility, state)
+      : undefined,
+  };
+}
+
+export function ChatgptDisablingIndicator({ locale }: { locale: Locale }) {
+  const copy = sessionDeliveryMessages[locale];
+  return (
+    <Box role="status" sx={{ display: 'flex', alignItems: 'center' }}>
+      <DesktopSessionDeliveryProgress label={copy.disabling} />
+      <Typography variant="body2">{copy.disabling}</Typography>
+    </Box>
+  );
 }
 
 export function ChatgptCompatibilityNotice({
   model,
   locale,
+  warning,
   marginTop,
   disabled,
   showSwitch = false,
@@ -55,6 +60,7 @@ export function ChatgptCompatibilityNotice({
 }: {
   model: DesktopSessionDeliveryModel;
   locale: Locale;
+  warning: 'off' | 'version-unknown';
   marginTop?: string;
   disabled?: boolean;
   showSwitch?: boolean;
@@ -67,6 +73,7 @@ export function ChatgptCompatibilityNotice({
   );
   const profile = !notice && known?.state === 'ready' ? known.profile : undefined;
   const copy = sessionDeliveryMessages[locale];
+  const visibleIssue = issue ?? (notice === 'configuration-required' ? undefined : notice);
   return (
     <Alert
       data-testid="chatgpt-delivery-off"
@@ -81,7 +88,11 @@ export function ChatgptCompatibilityNotice({
         '& .MuiAlert-message': { flex: '1 1 105px', minWidth: 0, overflowWrap: 'anywhere' },
       }}
     >
-      <Typography variant="body2">{copy.offWarning}</Typography>
+      <Typography variant="body2">
+        {warning === 'off'
+          ? copy.offWarning
+          : copy.unknownVersionWarning.replace('{version}', delayNoticeCutoff)}
+      </Typography>
       {showSwitch && (
         <FormControlLabel
           sx={{ ml: 0, mr: 0 }}
@@ -89,7 +100,11 @@ export function ChatgptCompatibilityNotice({
           control={
             <Switch
               checked={false}
-              disabled={busy || disabled || (!profile && !onConnect)}
+              disabled={
+                busy ||
+                disabled ||
+                (!profile && (notice !== 'configuration-required' || !onConnect))
+              }
               onChange={() => {
                 if (!profile) {
                   onConnect?.();
@@ -116,9 +131,9 @@ export function ChatgptCompatibilityNotice({
           }
         />
       )}
-      {issue && (
+      {visibleIssue && visibleIssue !== 'unsupported' && (
         <Box role="alert" sx={{ typography: 'body2' }}>
-          {issue === 'close-required' ? copy.quitBeforeChange : copy[issue]}
+          {visibleIssue === 'close-required' ? copy.quitBeforeChange : copy[visibleIssue]}
         </Box>
       )}
     </Alert>

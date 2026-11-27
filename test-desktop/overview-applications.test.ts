@@ -194,7 +194,7 @@ test('Overview lists detected apps, highlights live connections, and offers setu
   assert.ok(html.includes('You can start working'));
   assert.ok(html.includes('overview-application-cursor" data-connected="true"'));
   assert.ok(html.includes('Inbox: 4'));
-  assert.ok(html.includes('Configured'));
+  assert.ok(html.includes('Connected'));
   assert.ok(html.includes('Already set up. You can work in this app now.'));
   assert.ok(html.includes('Detected on this computer'));
   assert.ok(html.includes('Connect — ChatGPT'));
@@ -215,7 +215,8 @@ test('Overview retains a live ChatGPT card when installation discovery is unavai
         ...setupFixture(discovery),
       }),
     );
-    assert.ok(html.includes('overview-application-codex" data-connected="true"'));
+    assert.match(html, /data-testid="overview-application-codex"/);
+    assert.doesNotMatch(html, /overview-application-codex" data-connected="true"/);
     assert.ok(html.includes('Inbox: 2'));
     assert.ok(!html.includes('Connect — ChatGPT'));
     assert.ok(!html.includes('Connect — Codex'));
@@ -283,19 +284,40 @@ test('Overview widens ChatGPT only when it displays the disabled delivery warnin
         }) as T,
     );
     await flow.chatDelivery.refresh();
+    const setup = setupFixture(discovery);
     const html = renderToStaticMarkup(
       React.createElement(OverviewApplications, {
         snapshot,
-        ...setupFixture(discovery),
+        ...setup,
+        statuses: {
+          ...setup.statuses,
+          statuses: {
+            codex: {
+              client: 'codex',
+              remembered: true,
+              codexConnectRequired: true,
+              state: 'configured',
+              files: [
+                {
+                  id: 'configuration',
+                  path: '/fixture/profile/config.toml',
+                  state: 'configured',
+                },
+              ],
+            },
+          },
+        },
         flow,
       }),
     );
     assert.equal(/<div[^>]*data-compatibility-warning="true"/.test(html), warning);
     if (warning) {
       const notice = html.indexOf('data-testid="chatgpt-delivery-off"');
-      assert.ok(
-        notice > 0 && notice < html.indexOf('Already set up. You can work in this app now.'),
-      );
+      assert.ok(notice > 0);
+      assert.match(html, /Configured/);
+      assert.doesNotMatch(html, /Already set up\. You can work in this app now\./);
+      assert.doesNotMatch(html, /Connect — ChatGPT/);
+      assert.doesNotMatch(html, /data-connected="true"/);
     }
   }
 });

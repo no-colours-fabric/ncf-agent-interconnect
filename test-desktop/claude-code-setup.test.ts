@@ -391,7 +391,10 @@ test('Claude renderer Apply and quick Connect persist the same exact rules throu
       inline: true,
     }),
   );
-  for (const rule of exactRules) assert.ok(markup.includes(rule));
+  assert.match(markup, /data-testid="mcp-path-configuration"/);
+  assert.match(markup, /data-testid="mcp-apply"/);
+  assert.ok(!markup.includes(mcpSetupMessages('en').create));
+  for (const rule of exactRules) assert.ok(!markup.includes(rule));
   assert.deepEqual(await readdir(directory), []);
   manual.cancel();
   assert.deepEqual(await readdir(directory), []);
@@ -413,6 +416,26 @@ test('Claude renderer Apply and quick Connect persist the same exact rules throu
     permissions: { allow: [readRule] },
   });
   await writeFile(filename, replacement);
+  const manualReplacement = new McpSetupFlow('claude', invoke);
+  await manualReplacement.begin();
+  assert.equal(manualReplacement.getSnapshot().preview?.requiresReplacement, true);
+  const replacementMarkup = renderToStaticMarkup(
+    React.createElement(ClaudeSetupDialog, {
+      invoke,
+      flow: manualReplacement,
+      messages: mcpSetupMessages('en'),
+      locale: 'en',
+      inline: true,
+    }),
+  );
+  assert.match(replacementMarkup, /type="checkbox"/);
+  assert.match(
+    replacementMarkup,
+    /<button[^>]*(?:disabled[^>]*data-testid="mcp-apply"|data-testid="mcp-apply"[^>]*disabled)/,
+  );
+  for (const rule of exactRules) assert.ok(!replacementMarkup.includes(rule));
+  manualReplacement.cancel();
+  assert.equal(await readFile(filename, 'utf8'), replacement);
   quick.invalidateSucceeded('claude');
   await quick.connect('claude');
   const pending = quick.getSnapshot().claude;

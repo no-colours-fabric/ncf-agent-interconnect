@@ -1,9 +1,28 @@
-import { useEffect, useSyncExternalStore } from 'react';
-import { Alert, Box, Button, FormControlLabel, Switch, Typography } from '@mui/material';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  FormControlLabel,
+  Switch,
+  Typography,
+} from '@mui/material';
 import { configurationProfile, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
 import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 import type { Locale } from './i18n/index.js';
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
+
+export function DesktopSessionDeliveryProgress({ label }: { label: string }) {
+  return (
+    <Box
+      component="span"
+      sx={{ width: 58, height: 38, display: 'inline-grid', placeItems: 'center' }}
+    >
+      <CircularProgress size={20} aria-label={label} />
+    </Box>
+  );
+}
 
 export function DesktopSessionDeliveryControl({
   model,
@@ -26,11 +45,12 @@ export function DesktopSessionDeliveryControl({
   clearIssue: () => void;
   formBusy: boolean;
 }) {
-  const { known, notice, issue, busy } = useSyncExternalStore(
+  const { known, notice, issue, busy, disabling } = useSyncExternalStore(
     model.subscribe,
     model.getSnapshot,
     model.getSnapshot,
   );
+  const switchInput = useRef<HTMLInputElement>(null);
   const copy = sessionDeliveryMessages[locale];
   useEffect(() => model.load(), [model]);
   if (notice === 'unsupported' || (!known && !notice)) return null;
@@ -64,25 +84,40 @@ export function DesktopSessionDeliveryControl({
         <>
           <FormControlLabel
             control={
-              <Switch
-                slotProps={{ input: { role: 'switch', ...{ 'data-chatgpt-restart-focus': '' } } }}
-                checked={known.state === 'enabled' && known.profile === profile}
-                disabled={
-                  busy ||
-                  formBusy ||
-                  !profile ||
-                  visibleNotice === 'unavailable' ||
-                  visibleNotice === 'conflict'
-                }
-                onChange={() => {
-                  if (!profile) return;
-                  clearIssue();
-                  void model.change(
-                    known.state === 'enabled' && known.profile === profile ? 'disable' : 'enable',
-                    profile,
-                  );
-                }}
-              />
+              disabling ? (
+                <DesktopSessionDeliveryProgress label={copy.disabling} />
+              ) : (
+                <Switch
+                  slotProps={{
+                    input: {
+                      ref: switchInput,
+                      role: 'switch',
+                      ...{ 'data-chatgpt-restart-focus': '' },
+                    },
+                  }}
+                  checked={known.state === 'enabled' && known.profile === profile}
+                  disabled={
+                    busy ||
+                    formBusy ||
+                    !profile ||
+                    visibleNotice === 'unavailable' ||
+                    visibleNotice === 'conflict'
+                  }
+                  onChange={() => {
+                    if (!profile) return;
+                    clearIssue();
+                    const action =
+                      known.state === 'enabled' && known.profile === profile ? 'disable' : 'enable';
+                    void model.change(action, profile).then(() => {
+                      if (action === 'disable' && !model.getSnapshot().queueWarningPending)
+                        requestAnimationFrame(() => {
+                          if (document.activeElement === document.body)
+                            switchInput.current?.focus();
+                        });
+                    });
+                  }}
+                />
+              )
             }
             label={copy.label}
           />

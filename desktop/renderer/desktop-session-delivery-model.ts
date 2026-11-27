@@ -13,6 +13,8 @@ interface DeliveryState {
   notice?: Notice;
   issue?: DeliveryIssue;
   busy: boolean;
+  disabling?: true;
+  queueWarningPending?: true;
   restartPending?: true;
 }
 
@@ -33,7 +35,8 @@ export class DesktopSessionDeliveryModel {
   };
 
   private set(state: DeliveryState) {
-    this.state = { restartPending: this.state.restartPending, ...state };
+    const { queueWarningPending, restartPending } = this.state;
+    this.state = { queueWarningPending, restartPending, ...state };
     for (const listener of this.listeners) listener();
   }
 
@@ -43,6 +46,10 @@ export class DesktopSessionDeliveryModel {
 
   acknowledgeRestart() {
     if (this.state.restartPending) this.set({ ...this.state, restartPending: undefined });
+  }
+
+  acknowledgeQueueWarning() {
+    if (this.state.queueWarningPending) this.set({ ...this.state, queueWarningPending: undefined });
   }
 
   load() {
@@ -69,11 +76,11 @@ export class DesktopSessionDeliveryModel {
     }
   }
 
-  private beginWrite() {
+  private beginWrite(disabling?: true) {
     this.loaded = true;
     this.writing = true;
     this.revision++;
-    this.set({ ...this.state, issue: undefined, busy: true });
+    this.set({ ...this.state, issue: undefined, busy: true, disabling });
   }
 
   private finishWrite(status?: DesktopSessionDelivery, issue?: DeliveryIssue) {
@@ -83,15 +90,22 @@ export class DesktopSessionDeliveryModel {
         known: status,
         issue,
         busy: false,
+        queueWarningPending: this.state.disabling || this.state.queueWarningPending,
         restartPending: status.restartRequired === true ? true : this.state.restartPending,
       });
     else if (status) this.set({ notice: status.state, issue, busy: false });
-    else this.set({ ...this.state, issue, busy: false });
+    else this.set({ ...this.state, issue, busy: false, disabling: undefined });
   }
 
   async change(action: 'enable' | 'disable', profile: string) {
     if (this.writing || this.state.busy) return;
-    this.beginWrite();
+    const disabling = action === 'disable';
+    if (
+      disabling &&
+      (this.state.known?.state !== 'enabled' || this.state.known.profile !== profile)
+    )
+      return;
+    this.beginWrite(disabling ? true : undefined);
     try {
       const result = await this.invoke<DesktopSessionDelivery>('desktopSessionDelivery', {
         action,

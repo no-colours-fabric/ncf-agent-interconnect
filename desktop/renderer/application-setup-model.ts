@@ -10,7 +10,7 @@ import {
   type McpSetupTarget,
 } from '../shared/mcp-setup.js';
 import { OpenCodeV2SetupFlow, type OpenCodeV2SetupState } from './opencode-v2-setup-model.js';
-import type { DeliveryIssue } from '../shared/desktop-session-delivery.js';
+import { configurationProfile, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
 import { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 
 export type ApplicationSetupClient = McpSetupClient | 'opencode-v2';
@@ -121,6 +121,7 @@ export class ApplicationSetupFlow {
   readonly openCodeV2: OpenCodeV2SetupFlow;
   private snapshot: ApplicationSetupStates;
   private readonly unsubscribeV2: () => void;
+  private readonly unsubscribeDelivery: () => void;
 
   constructor(
     private readonly invoke: McpSetupInvoke,
@@ -132,6 +133,19 @@ export class ApplicationSetupFlow {
     );
     this.snapshot = { ...this.states, 'opencode-v2': this.openCodeV2.getSnapshot() };
     this.unsubscribeV2 = this.openCodeV2.subscribe(() => this.publish());
+    this.unsubscribeDelivery = this.chatDelivery.subscribe(() => {
+      const state = this.states.codex;
+      const { known, notice } = this.chatDelivery.getSnapshot();
+      if (
+        state.phase === 'failed' &&
+        state.deliveryIssue &&
+        state.target &&
+        !notice &&
+        known?.state === 'enabled' &&
+        known.profile === configurationProfile(state.target.path)
+      )
+        this.set('codex', { ...state, phase: 'succeeded', deliveryIssue: undefined });
+    });
   }
 
   getSnapshot = (): ApplicationSetupStates => this.snapshot;
@@ -475,6 +489,7 @@ export class ApplicationSetupFlow {
 
   dispose(): void {
     this.unsubscribeV2();
+    this.unsubscribeDelivery();
     this.openCodeV2.dispose();
     this.disposed = true;
     for (const state of Object.values(this.states))
