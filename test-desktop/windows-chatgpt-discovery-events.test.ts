@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { PassThrough } from 'node:stream';
-import { type spawn } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { mkdtemp, realpath, rm } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -120,3 +120,62 @@ test('Windows package invalidation publishes unknown and threshold changes throu
   child.stdout.write('changed\n');
   assert.equal(published, before.published);
 });
+
+test(
+  'closing discovery removes the real Windows catalog helper through its lifecycle',
+  { skip: process.platform !== 'win32', timeout: 15000 },
+  async (t) => {
+    const tempRoot = await realpath(os.tmpdir());
+    const state = await realpath(await mkdtemp(path.join(tempRoot, 'ncf-win-catalog-close-')));
+    let child: ChildProcess | undefined;
+    let exited: Promise<number | null> | undefined;
+    let ready: () => void;
+    let failed: (error: Error) => void;
+    const announced = new Promise<void>((resolve, reject) => {
+      ready = resolve;
+      failed = reject;
+    });
+    const launch = ((command: string, args: string[], options: object) => {
+      child = spawn(command, args, options);
+      exited = new Promise((resolve, reject) => {
+        child!.once('exit', resolve);
+        child!.once('error', reject);
+      });
+      return child;
+    }) as typeof spawn;
+    const handler = createApplicationDiscoveryHandler({
+      platform: 'win32',
+      home: 'C:\\NCF-fixture',
+      env: {},
+      files: {
+        canonical: async () => undefined,
+        bytes: async () => Buffer.alloc(0),
+        executable: async () => false,
+        plist: async () => ({}),
+        packageIdentity: async () => undefined,
+        windowsCodex: async () => [],
+      },
+      stateDirectory: state,
+      window: () => null,
+      dialog: { showOpenDialog: () => assert.fail() } as Pick<Dialog, 'showOpenDialog'>,
+      chatgptCompatibility: async () => ({ status: 'unknown' }),
+      watchChatgptInstallations: (changed) => ({
+        update() {},
+        close: watchWindowsChatgptInstallation(changed, {
+          launch,
+          unavailable: () => failed(Error('Native package catalog helper unavailable')),
+        }),
+      }),
+      onChatgptInstallationsChanged: () => ready(),
+    });
+    t.after(async () => {
+      handler.close();
+      assert.ok(state.startsWith(tempRoot + path.sep));
+      await rm(state, { recursive: true });
+    });
+    await announced;
+    handler.close();
+    assert.equal(await exited, 0);
+    assert.equal(child!.exitCode, 0);
+  },
+);
