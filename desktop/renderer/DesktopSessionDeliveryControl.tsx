@@ -9,17 +9,27 @@ import {
   Typography,
 } from '@mui/material';
 import { configurationProfile, type DeliveryIssue } from '../shared/desktop-session-delivery.js';
-import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
+import type {
+  DesktopSessionDeliveryModel,
+  PendingDeliveryAction,
+} from './desktop-session-delivery-model.js';
 import type { Locale } from './i18n/index.js';
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
 
-export function DesktopSessionDeliveryProgress({ label }: { label: string }) {
+export function DesktopSessionDeliveryProgress({
+  locale,
+  action,
+}: {
+  locale: Locale;
+  action: PendingDeliveryAction;
+}) {
+  const copy = sessionDeliveryMessages[locale];
   return (
     <Box
       component="span"
       sx={{ width: 58, height: 38, display: 'inline-grid', placeItems: 'center' }}
     >
-      <CircularProgress size={20} aria-label={label} />
+      <CircularProgress size={20} aria-label={action === 'disable' ? copy.disabling : copy.label} />
     </Box>
   );
 }
@@ -45,15 +55,18 @@ export function DesktopSessionDeliveryControl({
   clearIssue: () => void;
   formBusy: boolean;
 }) {
-  const { known, notice, issue, busy, disabling } = useSyncExternalStore(
+  const { known, notice, issue, busy, pendingAction } = useSyncExternalStore(
     model.subscribe,
     model.getSnapshot,
     model.getSnapshot,
   );
   const switchInput = useRef<HTMLInputElement>(null);
   const copy = sessionDeliveryMessages[locale];
+  const progress = pendingAction && (
+    <DesktopSessionDeliveryProgress locale={locale} action={pendingAction} />
+  );
   useEffect(() => model.load(), [model]);
-  if (notice === 'unsupported' || (!known && !notice)) return null;
+  if (notice === 'unsupported' || (!known && !notice && !pendingAction)) return null;
   const profile = configurationProfile(configuration);
   const staged = !configured;
   if (staged && notice !== 'conflict')
@@ -62,11 +75,13 @@ export function DesktopSessionDeliveryControl({
         <FormControlLabel
           label={copy.label}
           control={
-            <Switch
-              checked={pending}
-              disabled={!profile || formBusy}
-              onChange={(_, value) => onPendingChange(value)}
-            />
+            progress || (
+              <Switch
+                checked={pending}
+                disabled={!profile || formBusy}
+                onChange={(_, value) => onPendingChange(value)}
+              />
+            )
           }
         />
         <Typography variant="body2" color="text.secondary">
@@ -80,13 +95,12 @@ export function DesktopSessionDeliveryControl({
   const visibleNotice = notice ?? issue ?? applyIssue;
   return (
     <Box sx={{ gridColumn: '1 / -1', mt: 1 }}>
+      {!known && progress}
       {known && (
         <>
           <FormControlLabel
             control={
-              disabling ? (
-                <DesktopSessionDeliveryProgress label={copy.disabling} />
-              ) : (
+              progress || (
                 <Switch
                   slotProps={{
                     input: {
@@ -109,7 +123,8 @@ export function DesktopSessionDeliveryControl({
                     const action =
                       known.state === 'enabled' && known.profile === profile ? 'disable' : 'enable';
                     void model.change(action, profile).then(() => {
-                      if (action === 'disable' && !model.getSnapshot().queueWarningPending)
+                      const { queueWarningPending, restartPending } = model.getSnapshot();
+                      if (!queueWarningPending && !restartPending)
                         requestAnimationFrame(() => {
                           if (document.activeElement === document.body)
                             switchInput.current?.focus();

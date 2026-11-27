@@ -64,13 +64,12 @@ const invoke = async (method, params) => {
     if (sharedDelivery || requiredDelivery) {
       if (query.get('state') === 'unavailable') return {state:'unavailable'};
       if (status.state !== 'configured') return {state:'configuration-required'};
-      if (windowsDelivery && guiRunning && params.action !== 'status') return {state:'close-required'};
-      if (params.action==='enable') enabled=true;
-      if (params.action==='disable') {
-        if (query.get('delay') === 'true') await new Promise((resolve) => {
-          window.fixture.finishDisable = resolve;
+      if (params.action !== 'status') {
+        if (query.get('delay') === params.action) await new Promise((resolve) => {
+          window.fixture.finishDelivery = resolve;
         });
-        enabled=false;
+        if (windowsDelivery && guiRunning) return {state:'close-required'};
+        enabled=params.action==='enable';
       }
       return {...first, state:enabled?'enabled':'ready',
         restartRequired: query.get('restart') === 'required' && params.action !== 'status'};
@@ -146,7 +145,11 @@ function Fixture({discovery=props.discovery}) {
   const overview = <OverviewApplications {...props} discovery={discovery} states={states}/>;
   const applications = <McpSetup client="codex" onClientChange={()=>{}} invoke={invoke} discovery={discovery} setupFlow={flow} setupStatuses={props.statuses} snapshot={props.snapshot}/>;
   if (sharedDelivery || requiredDelivery) return <><section data-testid="delivery-overview">{overview}</section>
-    <section data-testid="delivery-applications">{applications}</section>{confirm}</>;
+    <section data-testid="delivery-applications">{applications}</section>
+    {query.get('mirror')==='true' && <section data-testid="delivery-manual">
+      <CodexSetupDialog invoke={invoke} inline messages={mcpSetupEnglish} chatDelivery={flow.chatDelivery}/>
+    </section>}
+    {confirm}</>;
   if (surface === 'overview') return <>{overview}{confirm}</>;
   if (surface === 'startup') return <ApplicationSetup {...props} startup={{open:true, clients:['codex'],close:()=>{}}}/>;
   if (['manual-choice','manual-before','manual-failed','manual-undetected','restart-quick'].includes(surface)) return <>{applications}{confirm}</>;
@@ -549,7 +552,7 @@ createRoot(document.getElementById('root')).render(restartFixture || sharedDeliv
     ],
   );
 
-  await openDelivery('&state=enabled&restart=required&delay=true&gui=open');
+  await openDelivery('&state=enabled&restart=required&delay=disable&gui=open');
   await appSettings.getByTestId('application-manual-codex').press('Enter');
   await dialogToggle.waitFor();
   await dialogToggle.press('Space');
@@ -560,7 +563,7 @@ createRoot(document.getElementById('root')).render(restartFixture || sharedDeliv
   assert.equal(await restart.count(), 0);
   await page.keyboard.press('Space');
   assert.equal((await deliveryCalls()).filter(({ action }) => action === 'disable').length, 1);
-  await page.evaluate(() => window.fixture.finishDisable());
+  await page.evaluate(() => window.fixture.finishDelivery());
   await queue.waitFor();
   assert.equal(await progress.count(), 0);
   assert.equal(await restart.count(), 0);
@@ -581,6 +584,73 @@ createRoot(document.getElementById('root')).render(restartFixture || sharedDeliv
   await overviewWarning.waitFor({ state: 'hidden' });
   await acknowledge.press('Enter');
   await restart.waitFor({ state: 'hidden' });
+
+  // The production pages share one model. Keep all three mounted to observe the same pending IPC.
+  const manual = page.getByTestId('delivery-manual');
+  const manualToggle = manual.getByRole('switch', switchName);
+  for (const [action, source, refused] of [
+    ['enable', overviewWarning, false],
+    ['enable', appWarning, false],
+    ['enable', manual, false],
+    ['enable', overviewWarning, true],
+    ['disable', manual, false],
+    ['disable', manual, true],
+  ]) {
+    const enabled = action === 'disable';
+    await openDelivery(
+      `&mirror=true&delay=${action}${enabled ? '&state=enabled' : ''}${refused ? '&platform=win32&gui=open' : ''}`,
+    );
+    await manualToggle.waitFor();
+    const control = source.getByRole('switch', switchName);
+    assert.equal(await control.isChecked(), enabled);
+    await control.press('Space');
+    for (const surface of [summary, appSettings, manual]) {
+      await surface
+        .getByRole('progressbar', {
+          name: enabled ? 'Disabling background delivery' : switchName.name,
+        })
+        .waitFor();
+      assert.equal(await surface.getByRole('switch', switchName).count(), 0);
+    }
+    assert.equal(await queue.count(), 0);
+    assert.equal(await restart.count(), 0);
+    await page.keyboard.press('Space');
+    assert.deepEqual(
+      (await deliveryCalls()).filter(({ action }) => action !== 'status'),
+      [{ action, profile: '/fixture/work' }],
+    );
+    await page.evaluate(() => window.fixture.finishDelivery());
+    if (enabled && !refused) {
+      await queue.waitFor();
+      await dismissQueue.press('Enter');
+      await queue.waitFor({ state: 'hidden' });
+    }
+    await manualToggle.waitFor();
+    for (const surface of [summary, appSettings, manual]) {
+      await surface
+        .getByRole('progressbar', {
+          name: enabled ? 'Disabling background delivery' : switchName.name,
+        })
+        .waitFor({ state: 'hidden' });
+    }
+    const finalEnabled = refused ? enabled : !enabled;
+    assert.equal(await manualToggle.isChecked(), finalEnabled);
+    if (finalEnabled) {
+      await overviewWarning.waitFor({ state: 'hidden' });
+      await appWarning.waitFor({ state: 'hidden' });
+    } else {
+      for (const area of [overviewWarning, appWarning]) {
+        const toggle = area.getByRole('switch', switchName);
+        await toggle.waitFor();
+        assert.equal(await toggle.isChecked(), false);
+      }
+    }
+    assert.equal(await queue.count(), 0);
+    assert.equal(await restart.count(), 0);
+  }
+  process.stdout.write(
+    'Pending delivery replaced switches on all three surfaces for enable and disable, preserving success and refusal states.\n',
+  );
 
   for (const query of [
     '&version=26.1111.71704',

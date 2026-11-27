@@ -47,7 +47,7 @@ import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2
 import { ClientLogo } from './ApplicationDiscovery.js';
 import {
   ChatgptCompatibilityNotice,
-  ChatgptDisablingIndicator,
+  ChatgptDeliveryIndicator,
   useChatgptDeliveryPresentation,
 } from './ChatgptCompatibilityNotice.js';
 import { ChatgptDeliveryDialogs } from './ChatgptDeliveryDialogs.js';
@@ -592,7 +592,7 @@ export function setupView(
   const matchingDelivery =
     !!configuration &&
     !delivery?.notice &&
-    !delivery?.disabling &&
+    delivery?.pendingAction !== 'disable' &&
     delivery?.known?.state === 'enabled' &&
     delivery.known.profile === configurationProfile(configuration);
   return {
@@ -1111,7 +1111,7 @@ export function ApplicationRows({
       !checking &&
       !needsRetry &&
       (configured || working) &&
-      (client !== 'codex' || (!chatgptWarning && !chatgptDelivery.disabling));
+      (client !== 'codex' || (!chatgptWarning && !chatgptDelivery.pendingAction));
     const runtime =
       client === 'opencode-v2' ? openCodeRuntimeText(locale, states[client].status, snapshot) : '';
     const setupStatus = busy
@@ -1241,8 +1241,8 @@ export function ApplicationRows({
             />
           </Stack>
         </Box>
-        {client === 'codex' && chatgptDelivery.disabling && (
-          <ChatgptDisablingIndicator locale={locale} />
+        {client === 'codex' && chatgptDelivery.pendingAction && !chatgptWarning && (
+          <ChatgptDeliveryIndicator locale={locale} action={chatgptDelivery.pendingAction} />
         )}
         {client === 'codex' && chatgptWarning && (
           <ChatgptCompatibilityNotice

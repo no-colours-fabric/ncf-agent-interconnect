@@ -1,7 +1,7 @@
 import React from 'react';
 import {
   ChatgptCompatibilityNotice,
-  ChatgptDisablingIndicator,
+  ChatgptDeliveryIndicator,
   useChatgptDeliveryPresentation,
 } from './ChatgptCompatibilityNotice.js';
 import { ApplicationCardGrid } from './ApplicationCardGrid.js';
@@ -203,8 +203,8 @@ export function OverviewApplications({
                   {status}
                 </Typography>
               </Stack>
-              {client === 'codex' && chatgptDelivery.disabling && (
-                <ChatgptDisablingIndicator locale={locale} />
+              {client === 'codex' && chatgptDelivery.pendingAction && !compatibilityWarning && (
+                <ChatgptDeliveryIndicator locale={locale} action={chatgptDelivery.pendingAction} />
               )}
               {compatibilityWarning && (
                 <ChatgptCompatibilityNotice
@@ -226,7 +226,7 @@ export function OverviewApplications({
               )}
               {(configured || ready) &&
                 !compatibilityWarning &&
-                !(client === 'codex' && chatgptDelivery.disabling) && (
+                !(client === 'codex' && chatgptDelivery.pendingAction) && (
                   <Typography component="span" variant="caption" color="text.secondary">
                     {ready
                       ? copy.applicationReadyHelp

@@ -1,5 +1,6 @@
 import {
   configureChatDelivery,
+  type DeliveryAction,
   type DeliveryIssue,
   type DesktopSessionDelivery,
 } from '../shared/desktop-session-delivery.js';
@@ -7,13 +8,14 @@ import type { McpSetupInvoke } from '../shared/mcp-setup.js';
 
 type Verified = Extract<DesktopSessionDelivery, { profile: string }>;
 type Notice = Exclude<DesktopSessionDelivery, Verified>['state'];
+export type PendingDeliveryAction = Exclude<DeliveryAction, 'status'>;
 
 interface DeliveryState {
   known?: Verified;
   notice?: Notice;
   issue?: DeliveryIssue;
   busy: boolean;
-  disabling?: true;
+  pendingAction?: PendingDeliveryAction;
   queueWarningPending?: true;
   restartPending?: true;
 }
@@ -76,11 +78,11 @@ export class DesktopSessionDeliveryModel {
     }
   }
 
-  private beginWrite(disabling?: true) {
+  private beginWrite(pendingAction: PendingDeliveryAction) {
     this.loaded = true;
     this.writing = true;
     this.revision++;
-    this.set({ ...this.state, issue: undefined, busy: true, disabling });
+    this.set({ ...this.state, issue: undefined, busy: true, pendingAction });
   }
 
   private finishWrite(status?: DesktopSessionDelivery, issue?: DeliveryIssue) {
@@ -90,14 +92,15 @@ export class DesktopSessionDeliveryModel {
         known: status,
         issue,
         busy: false,
-        queueWarningPending: this.state.disabling || this.state.queueWarningPending,
+        queueWarningPending:
+          this.state.pendingAction === 'disable' || this.state.queueWarningPending,
         restartPending: status.restartRequired === true ? true : this.state.restartPending,
       });
     else if (status) this.set({ notice: status.state, issue, busy: false });
-    else this.set({ ...this.state, issue, busy: false, disabling: undefined });
+    else this.set({ ...this.state, issue, busy: false, pendingAction: undefined });
   }
 
-  async change(action: 'enable' | 'disable', profile: string) {
+  async change(action: PendingDeliveryAction, profile: string) {
     if (this.writing || this.state.busy) return;
     const disabling = action === 'disable';
     if (
@@ -105,7 +108,7 @@ export class DesktopSessionDeliveryModel {
       (this.state.known?.state !== 'enabled' || this.state.known.profile !== profile)
     )
       return;
-    this.beginWrite(disabling ? true : undefined);
+    this.beginWrite(action);
     try {
       const result = await this.invoke<DesktopSessionDelivery>('desktopSessionDelivery', {
         action,
@@ -134,7 +137,7 @@ export class DesktopSessionDeliveryModel {
 
   async enableForConfiguration(configuration: string) {
     if (this.writing) return { issue: 'unavailable' as const };
-    this.beginWrite();
+    this.beginWrite('enable');
     const result = await configureChatDelivery(this.invoke, configuration);
     // Quick Connect presents its own error beside the selected configuration.
     const status = result.status;

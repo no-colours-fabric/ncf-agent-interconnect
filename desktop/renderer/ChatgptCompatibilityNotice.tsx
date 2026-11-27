@@ -1,9 +1,12 @@
-import { useEffect, useSyncExternalStore } from 'react';
+import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { Alert, Box, FormControlLabel, Switch, Typography } from '@mui/material';
 import type { ApplicationDiscoverySnapshot } from '../shared/application-discovery.js';
 import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
 import { DesktopSessionDeliveryProgress } from './DesktopSessionDeliveryControl.js';
-import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
+import type {
+  DesktopSessionDeliveryModel,
+  PendingDeliveryAction,
+} from './desktop-session-delivery-model.js';
 import type { Locale } from './i18n/index.js';
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
 
@@ -39,12 +42,18 @@ export function useChatgptDeliveryPresentation(
   };
 }
 
-export function ChatgptDisablingIndicator({ locale }: { locale: Locale }) {
+export function ChatgptDeliveryIndicator({
+  locale,
+  action,
+}: {
+  locale: Locale;
+  action: PendingDeliveryAction;
+}) {
   const copy = sessionDeliveryMessages[locale];
   return (
     <Box role="status" sx={{ display: 'flex', alignItems: 'center' }}>
-      <DesktopSessionDeliveryProgress label={copy.disabling} />
-      <Typography variant="body2">{copy.disabling}</Typography>
+      <DesktopSessionDeliveryProgress locale={locale} action={action} />
+      <Typography variant="body2">{action === 'disable' ? copy.disabling : copy.label}</Typography>
     </Box>
   );
 }
@@ -66,13 +75,14 @@ export function ChatgptCompatibilityNotice({
   showSwitch?: boolean;
   onConnect?: () => void;
 }) {
-  const { known, notice, issue, busy } = useSyncExternalStore(
+  const { known, notice, issue, busy, pendingAction } = useSyncExternalStore(
     model.subscribe,
     model.getSnapshot,
     model.getSnapshot,
   );
   const profile = !notice && known?.state === 'ready' ? known.profile : undefined;
   const copy = sessionDeliveryMessages[locale];
+  const switchInput = useRef<HTMLInputElement>(null);
   const visibleIssue = issue ?? (notice === 'configuration-required' ? undefined : notice);
   return (
     <Alert
@@ -98,36 +108,37 @@ export function ChatgptCompatibilityNotice({
           sx={{ ml: 0, mr: 0 }}
           label={copy.label}
           control={
-            <Switch
-              checked={false}
-              disabled={
-                busy ||
-                disabled ||
-                (!profile && (notice !== 'configuration-required' || !onConnect))
-              }
-              onChange={() => {
-                if (!profile) {
-                  onConnect?.();
-                  return;
+            pendingAction ? (
+              <DesktopSessionDeliveryProgress locale={locale} action={pendingAction} />
+            ) : (
+              <Switch
+                slotProps={{ input: { ref: switchInput } }}
+                checked={false}
+                disabled={
+                  busy ||
+                  disabled ||
+                  (!profile && (notice !== 'configuration-required' || !onConnect))
                 }
-                const target = document.activeElement;
-                const card = target?.closest<HTMLElement>('[data-chatgpt-restart-focus]');
-                void model.change('enable', profile).then(() => {
-                  if (
-                    model.getSnapshot().known?.state === 'enabled' &&
-                    !model.getSnapshot().restartPending &&
-                    (document.activeElement === target || document.activeElement === document.body)
-                  )
-                    requestAnimationFrame(() => {
-                      if (
-                        document.activeElement === target ||
-                        document.activeElement === document.body
-                      )
-                        card?.focus();
-                    });
-                });
-              }}
-            />
+                onChange={() => {
+                  if (!profile) {
+                    onConnect?.();
+                    return;
+                  }
+                  const target = document.activeElement;
+                  const card = target?.closest<HTMLElement>('[data-chatgpt-restart-focus]');
+                  void model.change('enable', profile).then(() => {
+                    if (!model.getSnapshot().restartPending)
+                      requestAnimationFrame(() => {
+                        if (
+                          document.activeElement === target ||
+                          document.activeElement === document.body
+                        )
+                          (switchInput.current ?? card)?.focus();
+                      });
+                  });
+                }}
+              />
+            )
           }
         />
       )}
