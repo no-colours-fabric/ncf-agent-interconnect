@@ -32,6 +32,7 @@ import {
   createNativeDiscoveryFiles,
 } from './application-discovery-ipc.js';
 import { detectChatgptCompatibility } from './chatgpt-version.js';
+import { watchMacChatgptInstallations } from './mac-chatgpt-installations.js';
 import { isChatgptReleaseUrl } from '../shared/chatgpt-compatibility.js';
 import { UiServiceAccess } from './ui-service-access.js';
 import { hasCodexShortcutLaunchFlags } from '../shared/codex-shortcut.js';
@@ -409,10 +410,23 @@ function setupIpc(): void {
     files: discoveryFiles,
     chatgptCompatibility: (installs) =>
       detectChatgptCompatibility(discoveryFiles, process.platform, installs),
+    watchChatgptInstallations:
+      process.platform === 'darwin'
+        ? (changed) =>
+            watchMacChatgptInstallations(
+              ['/Applications', path.join(app.getPath('home'), 'Applications')],
+              changed,
+            )
+        : undefined,
+    onChatgptInstallationsChanged: () => {
+      if (!quitting && window && !window.isDestroyed())
+        window.webContents.send('interconnect:application-discovery-change');
+    },
     dialog,
     window: () => window,
     stateDirectory: userData,
   });
+  app.once('before-quit', applicationDiscovery.close);
   ipcMain.handle('interconnect:call', async (event, method: unknown, raw: unknown) => {
     if (
       !window ||

@@ -12,6 +12,7 @@ import { ApplicationDiscoveryState } from '../core/application-discovery-state.j
 import { NativeDiscoveryFiles } from '../core/application-discovery-platforms.js';
 import { createRequire } from 'node:module';
 import type { ChatgptCompatibility } from '../shared/chatgpt-compatibility.js';
+import type { watchMacChatgptInstallations } from './mac-chatgpt-installations.js';
 
 /** Raw archives need original-fs; never disable ASAR support for the application globally. */
 export function createNativeDiscoveryFiles(
@@ -30,6 +31,10 @@ export function createApplicationDiscoveryHandler(
     window: () => BrowserWindow | null;
     stateDirectory: string;
     chatgptCompatibility?: (installations: InstallationInstance[]) => Promise<ChatgptCompatibility>;
+    watchChatgptInstallations?: (
+      changed: () => void,
+    ) => ReturnType<typeof watchMacChatgptInstallations>;
+    onChatgptInstallationsChanged?: () => void;
   },
 ) {
   const discovery = new ApplicationDiscovery({
@@ -40,6 +45,7 @@ export function createApplicationDiscoveryHandler(
   let generation = 0;
   let current: Promise<ApplicationDiscoverySnapshot>;
   let servedOwner = '';
+  let chosenChatgptBundle: string | undefined;
   const servedOffers = new Set<string>();
   const refresh = () => {
     const requested = ++generation;
@@ -51,11 +57,31 @@ export function createApplicationDiscoveryHandler(
       offers: await state.offers(result.applications),
       stateError: state.error,
     }));
-    current = scan.then((value) => (requested === generation ? value : current));
+    current = scan.then((value) => {
+      if (requested !== generation) return current;
+      if (monitor) {
+        const installed =
+          value.applications
+            .find((a) => a.client === 'codex')
+            ?.instances.filter(({ form }) => form === 'desktop')
+            .map(({ path }) => path) ?? [];
+        monitor.update(chosenChatgptBundle ? [...installed, chosenChatgptBundle] : installed);
+      }
+      return value;
+    });
     return current;
   };
+  const monitor = options.watchChatgptInstallations?.(() => {
+    const scan = refresh();
+    void scan.then(
+      () => {
+        if (current === scan) options.onChatgptInstallationsChanged?.();
+      },
+      () => {},
+    );
+  });
   refresh();
-  return async (
+  const handle = async (
     method: string,
     raw: unknown,
     owner: string,
@@ -86,7 +112,10 @@ export function createApplicationDiscoveryHandler(
         properties: process.platform === 'darwin' ? ['openFile', 'openDirectory'] : ['openFile'],
       });
       if (!picked.canceled && picked.filePaths[0]) {
-        discovery.choose(client, picked.filePaths[0]);
+        const chosen = picked.filePaths[0];
+        discovery.choose(client, chosen);
+        if (monitor && client === 'codex')
+          chosenChatgptBundle = /^(.*\.app)(?:\/|$)/i.exec(chosen)?.[1];
         result = await refresh();
       } else result = await current;
     } else {
@@ -113,4 +142,5 @@ export function createApplicationDiscoveryHandler(
     }
     return { handled: true, result };
   };
+  return Object.assign(handle, { close: () => monitor?.close() });
 }
