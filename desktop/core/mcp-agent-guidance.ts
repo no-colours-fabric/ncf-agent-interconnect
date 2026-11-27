@@ -160,8 +160,8 @@ export function agentToolFailure(
   if (name === 'agents_list' && message === 'The node is not configured')
     return guidance(
       'node_not_configured',
-      'This directory page was not returned. Call the read-only node_status tool with no arguments and select the intended node by its known UUID. Ask the owner about pairing only after confirming the intended node is not paired.',
-      'node_status',
+      'The supplied nodeId is not configured. Call node_peers with no arguments. From a successful result, select localNode.id or the configured peer id for the exact intended node. Use that UUID as nodeId in a fresh agents_list with the same other filters and no cursor. If the intended node is absent, ask the owner to verify whether it needs pairing. Do not substitute another node.',
+      'node_peers',
     );
   if (
     name === 'agents_list' &&
@@ -173,8 +173,8 @@ export function agentToolFailure(
       (message === 'The directory cursor is invalid'
         ? 'This directory page was not returned because its cursor is invalid. '
         : 'This directory page was not returned because the snapshot changed. ') +
-        'For a known node, use the read-only node_status tool with no arguments to check its availability. When ready, restart agents_list with the same filters and no cursor. Use a continuation cursor only if a successful page returns nextCursor.',
-      'node_status',
+        'Restart agents_list with the same filters and no cursor. Use a continuation cursor only if a successful page returns a non-null nextCursor.',
+      'agents_list',
     );
   if (name === 'agent_read' && message === 'A read is already waiting on this connection')
     return guidance('read_pending', message + '. Wait for it to finish.');

@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { randomUUID } from 'node:crypto';
 import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import test from 'node:test';
@@ -285,19 +286,67 @@ test('MCP directory and peer source failures direct the agent to read-only node 
   const second = await call('agents_list', secondArgs);
   assert.ok(!second.isError);
   assert.equal(second.structuredContent?.nextCursor, null);
-  owner('Third');
-  const stale = refused(
-    await call('agents_list', secondArgs),
-    'directory_page_unavailable',
-    'node_status',
+});
+
+test('MCP agents_list restarts invalid and stale cursors directly with the same filters', async (t) => {
+  const { service, call, owner } = await fixture(t);
+  owner('First');
+  owner('Second');
+  for (const nodeId of [undefined, service.settings.value.nodeId]) {
+    const filters = { includeUnavailable: true, limit: 1, ...(nodeId && { nodeId }) };
+    const first = await call('agents_list', filters);
+    assert.ok(!first.isError);
+    const cursor = first.structuredContent?.nextCursor;
+    assert.ok(typeof cursor === 'string');
+    owner(nodeId ? 'Fourth' : 'Third');
+    for (const [invalidCursor, cause] of [
+      [cursor, 'snapshot changed'],
+      ['not-a-directory-cursor', 'cursor is invalid'],
+    ]) {
+      const failure = refused(
+        await call('agents_list', { ...filters, cursor: invalidCursor }),
+        'directory_page_unavailable',
+        'agents_list',
+      );
+      assert.ok(String(failure.description).includes(cause));
+      assert.match(
+        String(failure.description),
+        /Restart agents_list with the same filters and no cursor/,
+      );
+      assert.ok(!('nextCursor' in failure) && !('agents' in failure));
+    }
+    const restarted = await call('agents_list', filters);
+    assert.ok(!restarted.isError);
+    assert.equal(typeof restarted.structuredContent?.nextCursor, 'string');
+    assert.notEqual(restarted.structuredContent?.nextCursor, cursor);
+  }
+});
+
+test('MCP agents_list uses a successful node_peers result after rejecting an unconfigured node ID', async (t) => {
+  const { service, call, owner } = await fixture(t);
+  owner('Local target');
+  const filters = { nickname: 'Local target', includeUnavailable: true };
+  const failure = refused(
+    await call('agents_list', { ...filters, nodeId: randomUUID() }),
+    'node_not_configured',
+    'node_peers',
   );
-  assert.match(String(stale.description), /snapshot changed.*same filters and no cursor/);
-  const invalid = refused(
-    await call('agents_list', { ...dirArgs, cursor: 'not-a-directory-cursor' }),
-    'directory_page_unavailable',
-    'node_status',
+  assert.match(
+    String(failure.description),
+    /supplied nodeId is not configured.*From a successful result.*exact intended node/,
   );
-  assert.match(String(invalid.description), /cursor is invalid.*same filters and no cursor/);
+  assert.ok(!('nextCursor' in failure) && !('agents' in failure));
+  const peers = await call('node_peers');
+  assert.ok(!peers.isError);
+  const local = peers.structuredContent?.localNode as { id: string };
+  assert.equal(local.id, service.settings.value.nodeId);
+  const recovered = await call('agents_list', { ...filters, nodeId: local.id });
+  assert.ok(!recovered.isError);
+  const agents = recovered.structuredContent?.agents as { nickname: string; nodeId: string }[];
+  assert.deepEqual(
+    agents.map(({ nickname, nodeId }) => ({ nickname, nodeId })),
+    [{ nickname: 'Local target', nodeId: local.id }],
+  );
 });
 
 test('MCP initialization and agent_read catalog prioritize direct delivery and retain the MCP fallback', async (t) => {
