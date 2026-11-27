@@ -6,7 +6,6 @@ import type { ApplicationDiscoveryModel } from './useApplicationDiscovery.js';
 import {
   ApplicationRows,
   ApplicationSetupConfirmation,
-  ClaudePermissionChanges,
   OpenCodePermissionPreview,
   useApplicationSetup,
 } from './ApplicationSetup.js';
@@ -722,9 +721,8 @@ function ClientSetupDialog({
                 </Alert>
               )}
               <Box sx={inline ? undefined : { minHeight: '3em' }}>
-                {checked && !result && <Typography variant="body2">{m[checked.action]}</Typography>}
-                {client === 'claude' && checked && !result && (
-                  <ClaudePermissionChanges file={checked} />
+                {client !== 'claude' && checked && !result && (
+                  <Typography variant="body2">{m[checked.action]}</Typography>
                 )}
                 {checked && !result && (
                   <OpenCodePermissionPreview client={client} file={checked} locale={locale} />
