@@ -90,6 +90,13 @@ Use `npm run format` for the shared source style.
 
 ## Interface conventions
 
+- Design for everyday users. Keep the interface simple, friendly and consistent
+  across clients, including the layout and language of manual setup screens.
+- In manual setup, show the options users can configure themselves and the
+  explanations and confirmations they need to complete setup. Keep command lists,
+  generated configuration and other implementation details in the documentation.
+  Show technical details in the interface only when users need them to act.
+
 - Outlined controls use permanent, unscaled labels above the complete border.
   Empty, focused and filled states do not move the label. Ordinary single-line
   inputs are 44 px high; preserve multiline rows/autosize and larger code fields.
