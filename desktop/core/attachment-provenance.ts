@@ -21,6 +21,12 @@ export interface ManagedAttachmentFile {
 
 type ManagedRoot = 'Temporary Attachments' | 'Received';
 
+export class AttachmentStageStorageUnavailable extends Error {
+  constructor(cause: unknown) {
+    super('Temporary attachment storage is unavailable before slot creation', { cause });
+  }
+}
+
 export class AttachmentProvenance {
   constructor(private readonly dataDir: string) {}
 
@@ -54,12 +60,18 @@ export class AttachmentProvenance {
 
   async stage(name: string): Promise<{ localPath: string; witness: ManagedAttachmentFile }> {
     if (!safeComponent(name)) throw new Error('Choose a plain attachment filename');
-    const base = path.join(await realpath(this.dataDir), 'Temporary Attachments');
-    await mkdir(base, { mode: 0o700 }).catch((error) => {
-      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    });
-    if (!(await lstat(base)).isDirectory())
-      throw new Error('The managed attachment directory is unavailable');
+    let base: string;
+    try {
+      base = path.join(await realpath(this.dataDir), 'Temporary Attachments');
+      await mkdir(base, { mode: 0o700 }).catch((error) => {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      });
+      if (!(await lstat(base)).isDirectory())
+        throw new Error('The managed attachment directory is unavailable');
+    } catch (error) {
+      throw new AttachmentStageStorageUnavailable(error);
+    }
+    // From the first per-slot mutation onward, an exception alone does not prove no slot exists.
     const directory = randomUUID();
     const target = path.join(base, directory);
     await mkdir(target, { mode: 0o700 });

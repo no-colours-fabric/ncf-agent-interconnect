@@ -177,6 +177,56 @@ for (const transport of ['ordinary', 'Claude'] as const) {
   });
 }
 
+test('Claude MCP history withholds a temporarily invisible reserved row without a receipt capability', async (t) => {
+  const f = await claudeFixture(t);
+  const nickname = 'History recipient';
+  const { session, helper, connectionId } = await bound(f, nickname);
+  const filename = path.join(f.service.settings.value.exportRoots[0], 'history-fixture.txt');
+  await writeFile(filename, 'Synthetic text file');
+  const sent = await sender(f)(nickname, 'Synthetic private history', [filename]);
+  const materialize = f.service.files.materialize.bind(f.service.files);
+  const get = f.service.store.get.bind(f.service.store);
+  let hide = false,
+    faults = 0;
+  f.service.files.materialize = async (...args) => {
+    const result = await materialize(...args);
+    if (f.service.store.claudeFenced(sent.id) && !faults) hide = true;
+    return result;
+  };
+  f.service.store.get = (id, direction) => {
+    if (hide && id === sent.id && direction === 'in') {
+      hide = false;
+      faults++;
+      return undefined;
+    }
+    return direction === 'in' || direction === 'out' ? get(id, direction) : get(id);
+  };
+  const args = { connectionId, after: 0, limit: 1 };
+  const result = await call(f, helper, session, 'agent_history', args);
+  assert.equal(faults, 1);
+  assert.equal(result.isError, true);
+  const error = result.structuredContent as { status?: string; resumeAfter?: number } | undefined;
+  assert.equal(error?.status, 'history_page_unavailable');
+  assert.equal(error?.resumeAfter, 0);
+  assert.equal(result._meta?.['ncf/claude-delivery'], undefined);
+  assert.ok(!JSON.stringify(result).includes('Synthetic private history'));
+  assert.equal(state(f, sent.id), 'ready');
+  assert.equal(get(sent.id, 'out')?.state, 'ready');
+  assert.equal(f.service.store.claudeFenced(sent.id), false);
+
+  const resumed = await call(f, helper, session, 'agent_history', args);
+  assert.ok(!resumed.isError);
+  const page = resumed.structuredContent as unknown as Page;
+  assert.equal(page.messages[0]?.envelope.id, sent.id);
+  assert.ok(page.nextCursor > args.after);
+  assert.equal(state(f, sent.id), 'ready');
+  assert.deepEqual((await report(f, helper, deliveryOf(resumed), 'commit')).body, {
+    state: 'committed',
+  });
+  assert.equal(state(f, sent.id), 'processed');
+  assert.equal(get(sent.id, 'out')?.state, 'processed');
+});
+
 test('Only the issuing helper can report; a cancel before any write releases the IDs', async (t) => {
   const f = await claudeFixture(t);
   const { session, helper, connectionId } = await bound(f, 'Ева');

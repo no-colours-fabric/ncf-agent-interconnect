@@ -197,7 +197,9 @@ test('MCP history rejects a cleared and reinserted raw row even when its message
   f.service.store.ready(row.envelope.id);
   assert.notEqual(f.service.store.get(row.envelope.id, 'in')!.sequence, before);
   release();
-  await assert.rejects(reading, /message was cleared/);
+  await assert.rejects(reading, /original history row was replaced/);
+  assert.equal(f.service.store.get(row.envelope.id, 'in')?.state, 'ready');
+  assert.equal(f.service.store.deliveryFenced(row.envelope.id), false);
 });
 
 test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs before file snapshots', async (t) => {

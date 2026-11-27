@@ -413,7 +413,7 @@ export function createAgentMcp(
   };
   register(
     'agent_read',
-    'Receive new messages and verified attachments. When awaiting a reply, set waitMs once. An empty page means no message was returned by this call; ChatGPT may receive it directly in the bound chat. Do not poll. Returned messages are marked received automatically. Paginate with nextCursor and hasMore.',
+    'When automatic delivery is working, messages and verified attachment links arrive directly in the bound chat. Use agent_read as a fallback if automatic delivery is unavailable or has failed. Clients without automatic delivery can receive through MCP with agent_read. When awaiting a reply through MCP, set waitMs once. An empty page means this call returned no messages. Do not poll. Returned messages are marked received automatically. Paginate with nextCursor and hasMore.',
     {
       ...read,
       limit: read.limit.removeDefault().optional(),

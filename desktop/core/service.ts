@@ -53,7 +53,11 @@ import { LanSearch, lanSearchLimits, type LanSearchOptions } from './lan-search.
 import { AdapterRegistry, CursorHookAdapter, type AgentAdapter } from './adapters.js';
 import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
-import { CodexRenameReconnectRequired, McpReadAttachmentFailure } from './mcp-agent-guidance.js';
+import {
+  CodexRenameReconnectRequired,
+  McpHistoryPageFailure,
+  McpReadAttachmentFailure,
+} from './mcp-agent-guidance.js';
 import type { ResponseInvocation } from './mcp-response-handoff.js';
 import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
@@ -1027,10 +1031,18 @@ export class NodeService extends EventEmitter {
       .digest('hex');
     let offset = 0;
     if (args.cursor) {
-      const cursor = z
+      let decoded: unknown;
+      try {
+        decoded = JSON.parse(Buffer.from(args.cursor, 'base64url').toString());
+      } catch {
+        throw new Error('The directory cursor is invalid');
+      }
+      const parsed = z
         .object({ snapshotId: z.string(), offset: z.number().int().nonnegative() })
         .strict()
-        .parse(JSON.parse(Buffer.from(args.cursor, 'base64url').toString()));
+        .safeParse(decoded);
+      if (!parsed.success) throw new Error('The directory cursor is invalid');
+      const cursor = parsed.data;
       if (cursor.snapshotId !== snapshotId)
         throw new Error('The directory changed; restart pagination without a cursor');
       offset = cursor.offset;
@@ -2633,6 +2645,37 @@ export class NodeService extends EventEmitter {
       return { ...file, status: 'unavailable' };
     }
   }
+  private selectReadPage(key: string, after: number, limit: number, unread: boolean) {
+    try {
+      return this.store.history(key, after, limit, unread);
+    } catch (error) {
+      throw unread ? error : new McpHistoryPageFailure('unavailable', error);
+    }
+  }
+  private readRowSequence(
+    { envelope, direction }: Pick<Message, 'envelope' | 'direction'>,
+    unread: boolean,
+    expected?: number,
+  ): number {
+    let saved, cleared;
+    try {
+      saved = this.store.get(envelope.id, direction);
+      if (!saved && !unread) cleared = this.store.clearedState(envelope.id, direction);
+    } catch (error) {
+      throw unread ? error : new McpHistoryPageFailure('unavailable', error);
+    }
+    if (saved && (expected === undefined || saved.sequence === expected)) return saved.sequence;
+    if (unread) throw new Error('The message was cleared');
+    throw new McpHistoryPageFailure(saved ? 'replaced' : cleared ? 'cleared' : 'unavailable');
+  }
+  private captureReadRows(rows: Message[], unread: boolean) {
+    return new Map(
+      rows.map((row) => [
+        row.envelope.id + '\0' + row.direction,
+        this.readRowSequence(row, unread),
+      ]),
+    );
+  }
   async read(
     connectionId: string,
     after = 0,
@@ -2652,14 +2695,8 @@ export class NodeService extends EventEmitter {
         incarnation = this.store.sourceStampByKey(owner.key).incarnation,
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
-      const page = this.store.history(owner.key, after, limit, unread);
-      const pageRows = new Map(
-        page.messages.map((row) => {
-          const saved = this.store.get(row.envelope.id, row.direction);
-          if (!saved) throw new Error('The message was cleared');
-          return [row.envelope.id + '\0' + row.direction, saved.sequence] as const;
-        }),
-      );
+      const page = this.selectReadPage(owner.key, after, limit, unread);
+      const pageRows = this.captureReadRows(page.messages, unread);
       const fenced = new Set(
         page.messages
           .filter(
@@ -2710,11 +2747,12 @@ export class NodeService extends EventEmitter {
             this.store.sourceStampByKey(owner.key).incarnation !== incarnation
           )
             throw new Error('The history owner changed');
-          for (const row of prepared) {
-            const saved = this.store.get(row.envelope.id, row.direction);
-            if (!saved || saved.sequence !== pageRows.get(row.envelope.id + '\0' + row.direction))
-              throw new Error('The message was cleared');
-          }
+          for (const row of prepared)
+            this.readRowSequence(
+              row,
+              unread,
+              pageRows.get(row.envelope.id + '\0' + row.direction)!,
+            );
         };
         assertPageCurrent();
         if (attempt) this.store.assertDeliveryCurrent(attempt.id);
@@ -2729,7 +2767,7 @@ export class NodeService extends EventEmitter {
             const { state, error: _error, ...message } = ready;
             const replyRef =
               message.direction === 'in'
-                ? 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36)
+                ? 'r' + pageRows.get(message.envelope.id + '\0in')!.toString(36)
                 : undefined;
             return {
               ...message,
@@ -2816,7 +2854,8 @@ export class NodeService extends EventEmitter {
       const owner = this.store.assertOwner(connectionId),
         adapter = unread ? this.adapters.get(owner.binding.adapterId) : undefined;
       adapter?.beforeRead?.(connectionId);
-      const page = this.store.history(owner.key, after, limit, unread);
+      const page = this.selectReadPage(owner.key, after, limit, unread);
+      const pageRows = unread ? undefined : this.captureReadRows(page.messages, false);
       if (unread && page.messages.some((row) => this.store.claudeFenced(row.envelope.id)))
         throw new Error('Message delivery is in progress or uncertain; content is not repeated');
       const fenced = new Set(
@@ -2863,8 +2902,7 @@ export class NodeService extends EventEmitter {
         );
         this.store.assertOwner(connectionId);
         for (const row of prepared)
-          if (!this.store.get(row.envelope.id, row.direction))
-            throw new Error('The message was cleared');
+          this.readRowSequence(row, unread, pageRows?.get(row.envelope.id + '\0' + row.direction));
         // The last check before content may leave the node; no await follows.
         authorized();
         if (delivery) this.store.issueClaudeDelivery(delivery);
@@ -2877,7 +2915,11 @@ export class NodeService extends EventEmitter {
           const { state, error: _error, ...message } = ready;
           const replyRef =
             message.direction === 'in'
-              ? 'r' + this.store.get(message.envelope.id, 'in')!.sequence.toString(36)
+              ? 'r' +
+                (
+                  pageRows?.get(message.envelope.id + '\0in') ??
+                  this.store.get(message.envelope.id, 'in')!.sequence
+                ).toString(36)
               : undefined;
           return {
             ...message,
