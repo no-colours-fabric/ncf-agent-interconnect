@@ -33,6 +33,7 @@ import {
 } from './application-discovery-ipc.js';
 import { detectChatgptCompatibility } from './chatgpt-version.js';
 import { watchMacChatgptInstallations } from './mac-chatgpt-installations.js';
+import { watchWindowsChatgptInstallation } from './chatgpt-windows-installation-events.js';
 import { isChatgptReleaseUrl } from '../shared/chatgpt-compatibility.js';
 import { UiServiceAccess } from './ui-service-access.js';
 import { hasCodexShortcutLaunchFlags } from '../shared/codex-shortcut.js';
@@ -417,7 +418,12 @@ function setupIpc(): void {
               ['/Applications', path.join(app.getPath('home'), 'Applications')],
               changed,
             )
-        : undefined,
+        : process.platform === 'win32'
+          ? (changed) => ({
+              update() {},
+              close: watchWindowsChatgptInstallation(changed),
+            })
+          : undefined,
     onChatgptInstallationsChanged: () => {
       if (!quitting && window && !window.isDestroyed())
         window.webContents.send('interconnect:application-discovery-change');

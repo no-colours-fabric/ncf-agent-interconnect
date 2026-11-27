@@ -70,6 +70,20 @@ from the native subscription proof and requires the agreed shared discovery hook
 Compact logs are retained in the primary checkout at
 `.local/qa/windows-round-25-28-35-38-20261127/`.
 
+The coordinator subsequently supplied the exact b6d0b5c bundle (10177 bytes,
+SHA-256 da1404767ef0d52c5a54180b7932eddd55376fea0e191783be58a9198033c019).
+Checksum, prerequisite 978489f, bundle verification and FETCH_HEAD matched. The
+source was merged into the isolated Windows tree. Coordinator r1ld approved the
+exact main hook on 2026-11-27: add only the Windows import and win32 branch to the
+existing watchChatgptInstallations option, retaining macOS and shared IPC.
+
+The isolated pipeline uses the real Windows event parser, discovery handler and
+archive reader with a fixture ASAR/package inventory and a controlled event stream.
+It publishes undefined, versions below/equal/above 26.1111.71704, and undefined
+again without a manual refresh. Synthetic GUI-only events do not cause a scan.
+The real WinRT subscriptions and shutdown are verified separately with synthetic
+callback payloads; no actual package update or working GUI lifecycle is claimed.
+
 Primary references:
 
 - https://learn.microsoft.com/en-us/uwp/api/windows.applicationmodel.packagecatalog
