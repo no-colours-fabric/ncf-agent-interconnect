@@ -9,6 +9,11 @@ contextBridge.exposeInMainWorld('interconnect', {
     ipcRenderer.on('interconnect:change', listener);
     return () => ipcRenderer.removeListener('interconnect:change', listener);
   },
+  onApplicationDiscoveryChange: (callback: () => void) => {
+    const listener = () => callback();
+    ipcRenderer.on('interconnect:application-discovery-change', listener);
+    return () => ipcRenderer.removeListener('interconnect:application-discovery-change', listener);
+  },
   onNavigate: (callback: (tab: string) => void) => {
     const listener = (_event: unknown, tab: string) => callback(tab);
     ipcRenderer.on('interconnect:navigate', listener);

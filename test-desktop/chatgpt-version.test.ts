@@ -29,61 +29,46 @@ const textOnly = (markup: string) =>
 const official =
   'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip';
 
-test('macOS version query reads the installed desktop when AppKit returns a string zero', () => {
-  const architecture = 0x0100000c;
+test('macOS version metadata comes from the exact installed bundle regardless of GUI state', () => {
   const installation = '/fixtures/ChatGPT.app';
-  const installedVersions = ['26.1111.71703', good.version, '26.1111.71705'];
-  const bundle = ({ version, build }: { version: string; build: string }) => ({
-    bundleIdentifier: 'com.openai.codex',
-    executableArchitectures: [architecture],
-    objectForInfoDictionaryKey(key: string) {
-      return key === 'CFBundleShortVersionString' ? version : build;
-    },
-  });
-  let running = false;
-  let installedVersion = installedVersions[0];
-  let installedReads = 0;
-  const probe = (argv: string[]) =>
+  let bundleIdentifier = 'com.openai.codex';
+  let version = good.version;
+  const probe = () =>
     JSON.parse(
       runInNewContext(macChatgptVersionQuery + '\nrun(argv)', {
-        argv,
+        argv: [installation],
         ObjC: {
-          import() {},
+          import(name: string) {
+            assert.equal(name, 'Foundation');
+          },
           unwrap: (value: unknown) => value,
           deepUnwrap: (value: unknown) => value,
         },
         $: {
-          NSRunningApplication: {
-            runningApplicationsWithBundleIdentifier: () => ({
-              count: running ? '1' : '0',
-              objectAtIndex: () => ({
-                bundleURL: 'running desktop',
-                executableArchitecture: architecture,
-              }),
-            }),
+          get NSRunningApplication() {
+            return assert.fail('Reading installed metadata must not query running applications');
           },
           NSBundle: {
             bundleWithPath(filename: string) {
               assert.equal(filename, installation);
-              installedReads++;
-              return bundle({ version: installedVersion, build: good.build });
+              return {
+                bundleIdentifier,
+                executableArchitectures: [0x0100000c],
+                objectForInfoDictionaryKey: (key: string) =>
+                  key === 'CFBundleShortVersionString' ? version : good.build,
+              };
             },
-            bundleWithURL: () => bundle(affected),
           },
         },
       }),
     );
-  for (const version of installedVersions) {
-    installedVersion = version;
-    assert.deepEqual(probe([installation]), [{ ...good, version }]);
+
+  for (const installedVersion of ['26.1111.71703', good.version, '26.1111.71705']) {
+    version = installedVersion;
+    assert.deepEqual(probe(), { ...good, version });
   }
-  assert.deepEqual(probe([]), []);
-  running = true;
-  assert.deepEqual(probe([installation]), [affected]);
-  assert.deepEqual(probe([]), [affected]);
-  running = false;
-  assert.deepEqual(probe([installation]), [{ ...good, version: installedVersion }]);
-  assert.equal(installedReads, 4);
+  bundleIdentifier = 'test.unrelated';
+  assert.throws(probe, /Unknown bundle/);
 });
 
 test('Windows only establishes the available compatibility metadata and keeps unknown versions undefined', async (context) => {

@@ -16,35 +16,23 @@ import {
 const execute = promisify(execFile);
 const limits = { timeout: 4000, maxBuffer: 32768, windowsHide: true } as const;
 
-// NSRunningApplication does not launch ChatGPT or send it Apple events.
+// Read the chosen installation's bundle without depending on an open desktop.
 export const macChatgptVersionQuery = [
-  'ObjC.import("AppKit");',
+  'ObjC.import("Foundation");',
   'function run(argv) {',
-  'const apps = $.NSRunningApplication.runningApplicationsWithBundleIdentifier("com.openai.codex");',
-  // JXA can bridge NSUInteger as a string, including the zero count.
-  'const count = Number(apps.count);',
-  'const result = [];',
-  'function add(bundle, architecture) {',
-  '  if (ObjC.unwrap(bundle.bundleIdentifier) !== "com.openai.codex") throw Error("Unknown bundle");',
-  '  result.push({version: ObjC.unwrap(bundle.objectForInfoDictionaryKey("CFBundleShortVersionString")),',
-  '    build: ObjC.unwrap(bundle.objectForInfoDictionaryKey("CFBundleVersion")),',
-  '    architecture: ({"16777228":"arm64","16777223":"x64"})[String(architecture)]});',
+  'const bundle = $.NSBundle.bundleWithPath(argv[0]);',
+  'if (ObjC.unwrap(bundle.bundleIdentifier) !== "com.openai.codex") throw Error("Unknown bundle");',
+  'const slices = ObjC.deepUnwrap(bundle.executableArchitectures);',
+  'return JSON.stringify({version: ObjC.unwrap(bundle.objectForInfoDictionaryKey("CFBundleShortVersionString")),',
+  '  build: ObjC.unwrap(bundle.objectForInfoDictionaryKey("CFBundleVersion")),',
+  '  architecture: slices.length === 1 ? ({"16777228":"arm64","16777223":"x64"})[String(slices[0])] : undefined});',
   '}',
-  'for (let i = 0; i < count; i++) {',
-  '  const app = apps.objectAtIndex(i); add($.NSBundle.bundleWithURL(app.bundleURL), app.executableArchitecture);',
-  '}',
-  'if (count === 0 && argv.length === 1) {',
-  '  const bundle = $.NSBundle.bundleWithPath(argv[0]);',
-  '  const slices = ObjC.deepUnwrap(bundle.executableArchitectures);',
-  '  add(bundle, slices.length === 1 ? slices[0] : null);',
-  '}',
-  'return JSON.stringify(result); }',
 ].join('\n');
 
-async function macVersions(installation?: string): Promise<ChatgptRuntime[]> {
+async function installedMacVersion(installation: string): Promise<ChatgptRuntime> {
   const { stdout } = await execute(
     '/usr/bin/osascript',
-    ['-l', 'JavaScript', '-e', macChatgptVersionQuery, ...(installation ? [installation] : [])],
+    ['-l', 'JavaScript', '-e', macChatgptVersionQuery, installation],
     limits,
   );
   return JSON.parse(stdout);
@@ -128,7 +116,7 @@ export async function detectChatgptCompatibility(
   const desktops = installations.filter((instance) => instance.form === 'desktop');
   const installation = desktops.length === 1 ? desktops[0].path : undefined;
   try {
-    if (platform === 'darwin') versions = await macVersions(installation);
+    if (platform === 'darwin' && installation) versions = [await installedMacVersion(installation)];
     if (platform === 'win32') versions = await runningWindowsVersions(files);
     if (platform === 'linux') {
       versions = await runningLinuxVersions(files);
