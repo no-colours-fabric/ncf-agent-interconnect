@@ -4,7 +4,11 @@
 
 Base `85c72c355c3e934fdf2c86bfabb87d918c163674`. Source and regression commit `e75a03675a3b2a4b8f8b4d8d9d5f80378a8ee316` on `codex/feedback-37-41-mcp`.
 
-Prior evidence: [loopback MCP refusals](feedback-37-loopback-agent-follow-up-2026-11-27.md), [directory and peer source failures](mcp-qa37-offline-and-data-source-failures-2026-11-27.md), [independent evidence review](feedback-37-independent-evidence-review-2026-11-27.md), and [attachment lifecycle](attachment-lifecycle.md).
+Prior evidence: [attachment lifecycle](attachment-lifecycle.md). Three additional QA records are local coordination artifacts. Their paths in the coordination checkout are:
+
+- `research/feedback-37-loopback-agent-follow-up-2026-11-27.md`
+- `research/mcp-qa37-offline-and-data-source-failures-2026-11-27.md`
+- `research/feedback-37-independent-evidence-review-2026-11-27.md`
 
 ## Server cases
 
@@ -33,3 +37,16 @@ git diff --check
 ```
 
 The main test file passed six cases. The selected existing-file run passed seventeen cases, including the new Claude case. Both processes exited 0 with zero failures or skips. Type checking, scoped formatting and whitespace checks passed. Raw TAP: `/private/tmp/ncf-37-41-measured-final.tap` and `/private/tmp/ncf-37-41-guards.tap`.
+
+## Directory follow-up
+
+Source and regression commit `edceabd07918b4d154d15317efc2aeccce3277c2`. A confirmed invalid or stale cursor returns `nextAction: agents_list` with the same filters and no cursor. A rejected node UUID returns `nextAction: node_peers` and requires the exact intended UUID from a successful listing. An unverified source failure still returns `nextAction: node_status`.
+
+The follow-up passed three isolated Streamable HTTP tests, including cursor recovery both with and without a selected node, recovery from a rejected UUID and failure of either list source. Type, scoped format and diff checks passed. Raw TAP: `/private/tmp/ncf-37-41-directory-followup-final.tap`.
+
+```sh
+node --experimental-sqlite --import tsx --import ./test-desktop/network-test-isolation.ts   --test --test-concurrency=1   --test-name-pattern='MCP directory and peer source failures|MCP agents_list'   test-desktop/mcp-measured-recovery.test.ts
+npm run typecheck
+./node_modules/.bin/prettier --check desktop/core/mcp-agent-guidance.ts   test-desktop/mcp-measured-recovery.test.ts
+git diff --check
+```
