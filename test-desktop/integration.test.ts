@@ -152,6 +152,24 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
     'node_peers',
     'node_status',
   ]);
+  for (const guidance of [
+    instructions,
+    ...['agent_connect', 'agent_rename', 'agent_disconnect'].map(
+      (name) => catalog.tools.find((tool) => tool.name === name)?.description ?? '',
+    ),
+  ]) {
+    assert.match(
+      guidance,
+      /already bound as a different agent, ask whether.*end the turn\. Wait for the human’s answer before calling any NCF tool.*A name assignment alone gives no permission to rename a bound agent.*new unbound chat.*means agent_connect/,
+    );
+    assert.match(guidance, /For reconnection, use the current nickname/);
+  }
+  for (const name of ['agent_connect', 'agent_rename']) {
+    assert.match(
+      catalog.tools.find((tool) => tool.name === name)?.description ?? '',
+      /^If this chat is already bound as a different agent/,
+    );
+  }
   const renameTool = catalog.tools.find((tool) => tool.name === 'agent_rename')!;
   assert.deepEqual(Object.keys(renameTool.inputSchema.properties!).sort(), [
     'connectionId',
