@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import os from 'node:os';
+import { runInNewContext } from 'node:vm';
 import { test } from 'node:test';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -14,7 +15,11 @@ import {
 import { DesktopSessionDeliveryModel } from '../desktop/renderer/desktop-session-delivery-model.js';
 import { sessionDeliveryMessages } from '../desktop/renderer/i18n/session-delivery.js';
 import { supportedLocales } from '../desktop/renderer/i18n/index.js';
-import { detectChatgptCompatibility, sameWindowsDesktop } from '../desktop/main/chatgpt-version.js';
+import {
+  detectChatgptCompatibility,
+  macChatgptVersionQuery,
+  sameWindowsDesktop,
+} from '../desktop/main/chatgpt-version.js';
 import { NativeDiscoveryFiles } from '../desktop/core/application-discovery-platforms.js';
 
 const good = { version: '26.1111.71704', build: '29030', architecture: 'arm64' };
@@ -23,6 +28,63 @@ const textOnly = (markup: string) =>
   markup.replace(/<style\b[^>]*>[\s\S]*?<\/style>/g, '').replace(/<[^>]*>/g, '');
 const official =
   'https://persistent.oaistatic.com/codex-app-prod/ChatGPT-darwin-arm64-26.1111.71704.zip';
+
+test('macOS version query reads the installed desktop when AppKit returns a string zero', () => {
+  const architecture = 0x0100000c;
+  const installation = '/fixtures/ChatGPT.app';
+  const installedVersions = ['26.1111.71703', good.version, '26.1111.71705'];
+  const bundle = ({ version, build }: { version: string; build: string }) => ({
+    bundleIdentifier: 'com.openai.codex',
+    executableArchitectures: [architecture],
+    objectForInfoDictionaryKey(key: string) {
+      return key === 'CFBundleShortVersionString' ? version : build;
+    },
+  });
+  let running = false;
+  let installedVersion = installedVersions[0];
+  let installedReads = 0;
+  const probe = (argv: string[]) =>
+    JSON.parse(
+      runInNewContext(macChatgptVersionQuery + '\nrun(argv)', {
+        argv,
+        ObjC: {
+          import() {},
+          unwrap: (value: unknown) => value,
+          deepUnwrap: (value: unknown) => value,
+        },
+        $: {
+          NSRunningApplication: {
+            runningApplicationsWithBundleIdentifier: () => ({
+              count: running ? '1' : '0',
+              objectAtIndex: () => ({
+                bundleURL: 'running desktop',
+                executableArchitecture: architecture,
+              }),
+            }),
+          },
+          NSBundle: {
+            bundleWithPath(filename: string) {
+              assert.equal(filename, installation);
+              installedReads++;
+              return bundle({ version: installedVersion, build: good.build });
+            },
+            bundleWithURL: () => bundle(affected),
+          },
+        },
+      }),
+    );
+  for (const version of installedVersions) {
+    installedVersion = version;
+    assert.deepEqual(probe([installation]), [{ ...good, version }]);
+  }
+  assert.deepEqual(probe([]), []);
+  running = true;
+  assert.deepEqual(probe([installation]), [affected]);
+  assert.deepEqual(probe([]), [affected]);
+  running = false;
+  assert.deepEqual(probe([installation]), [{ ...good, version: installedVersion }]);
+  assert.equal(installedReads, 4);
+});
 
 test('Windows only establishes the available compatibility metadata and keeps unknown versions undefined', async (context) => {
   const missing = Object.assign(new NativeDiscoveryFiles('win32'), { windowsCodex: undefined });
