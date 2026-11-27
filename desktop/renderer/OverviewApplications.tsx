@@ -1,7 +1,8 @@
 import React from 'react';
 import {
   ChatgptCompatibilityNotice,
-  useChatgptCompatibilityNotice,
+  ChatgptDisablingIndicator,
+  useChatgptDeliveryPresentation,
 } from './ChatgptCompatibilityNotice.js';
 import { ApplicationCardGrid } from './ApplicationCardGrid.js';
 import { Alert, Box, Button, Stack, Tooltip, Typography } from '@mui/material';
@@ -83,7 +84,10 @@ export function OverviewApplications({
   statuses: McpSetupStatuses;
   locale: Locale;
 }): React.JSX.Element | null {
-  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
+  const { warning: chatgptWarning, state: chatgptDelivery } = useChatgptDeliveryPresentation(
+    flow.chatDelivery,
+    discovery.snapshot,
+  );
   const connect = (client: (typeof applications)[number]['client']) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
@@ -128,19 +132,37 @@ export function OverviewApplications({
         {visible.map(({ client }) => {
           const name = setupApplicationName(client, locale);
           const active = connected.find((item) => item.client === client);
-          const view = setupView(client, states, statuses, discovery);
+          const view = setupView(client, states, statuses, discovery, snapshot, chatgptDelivery);
           const { state } = view;
           const pending = state.phase === 'uncertain' || state.phase === 'rechecking';
           const failed = state.phase === 'failed';
           const busy = flow.busy(client);
-          const configured = !!active || (view.configured && !pending && !failed && !busy);
+          const configured = view.configured && !pending && !busy;
+          const ready = view.adapterReady && !pending && !failed && !busy;
           const action = applicationSetupAction(view, locale, busy, anyBusy);
           const status = configured
             ? copy.configuredStatus
             : pending
               ? setupCopy.statusUnknown
-              : copy.detected;
-          const compatibilityWarning = client === 'codex' && chatgptWarning;
+              : ready
+                ? t(locale, 'clientsConnected')
+                : view.configurationState === 'not-configured'
+                  ? setupCopy['not-configured']
+                  : active && !view.detected
+                    ? setupCopy.statusUnknown
+                    : copy.detected;
+          const compatibilityWarning = client === 'codex' ? chatgptWarning : undefined;
+          const actionButton = action && (
+            <Button
+              variant="contained"
+              disabled={action.disabled}
+              onClick={() => void connect(client)}
+              aria-label={`${action.label} — ${name}`}
+              sx={{ minHeight: 44, px: 1, overflowWrap: 'anywhere' }}
+            >
+              {action.label}
+            </Button>
+          );
           const heading = (
             <Stack spacing={1.25} sx={{ minWidth: 0 }}>
               <ClientLogo client={client === 'opencode-v2' ? 'opencode' : client} size={48} />
@@ -157,10 +179,11 @@ export function OverviewApplications({
                 spacing={1}
                 sx={{
                   alignItems: 'flex-start',
-                  color: configured ? 'success.main' : 'text.secondary',
+                  color:
+                    ready || (configured && client !== 'codex') ? 'success.main' : 'text.secondary',
                 }}
               >
-                {configured ? (
+                {ready || (configured && client !== 'codex') ? (
                   <CheckRounded sx={{ fontSize: 17, mt: '2px' }} />
                 ) : (
                   <Box
@@ -180,23 +203,37 @@ export function OverviewApplications({
                   {status}
                 </Typography>
               </Stack>
+              {client === 'codex' && chatgptDelivery.disabling && (
+                <ChatgptDisablingIndicator locale={locale} />
+              )}
               {compatibilityWarning && (
                 <ChatgptCompatibilityNotice
                   model={flow.chatDelivery}
                   locale={locale}
+                  warning={compatibilityWarning}
                   showSwitch
                   disabled={anyBusy || state.phase === 'confirmation'}
-                  onConnect={action && !action.disabled ? () => void connect(client) : undefined}
+                  onConnect={
+                    view.automatic &&
+                    !view.checking &&
+                    view.hasStatus &&
+                    !anyBusy &&
+                    state.phase !== 'confirmation'
+                      ? () => void connect(client)
+                      : undefined
+                  }
                 />
               )}
-              {configured && (
-                <Typography component="span" variant="caption" color="text.secondary">
-                  {active
-                    ? copy.applicationReadyHelp
-                    : applicationNextStep(client, locale, setupCopy)}
-                </Typography>
-              )}
-              {!active && (pending || failed) && (
+              {(configured || ready) &&
+                !compatibilityWarning &&
+                !(client === 'codex' && chatgptDelivery.disabling) && (
+                  <Typography component="span" variant="caption" color="text.secondary">
+                    {ready
+                      ? copy.applicationReadyHelp
+                      : applicationNextStep(client, locale, setupCopy)}
+                  </Typography>
+                )}
+              {(pending || failed) && (
                 <Alert severity={pending ? 'warning' : 'error'}>
                   {pending ? copy.uncertain : setupFailure(state, locale)}
                 </Alert>
@@ -210,24 +247,14 @@ export function OverviewApplications({
               <Box
                 key={client}
                 data-testid={testId}
-                data-compatibility-warning={compatibilityWarning || undefined}
+                data-compatibility-warning={!!compatibilityWarning || undefined}
                 data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
                 aria-label={client === 'codex' ? name : undefined}
                 tabIndex={client === 'codex' ? -1 : undefined}
                 sx={cardSx}
               >
                 {heading}
-                {action && (
-                  <Button
-                    variant="contained"
-                    disabled={action.disabled}
-                    onClick={() => void connect(client)}
-                    aria-label={`${action.label} — ${name}`}
-                    sx={{ minHeight: 44, px: 1, overflowWrap: 'anywhere' }}
-                  >
-                    {action.label}
-                  </Button>
-                )}
+                {actionButton}
               </Box>
             );
           }
@@ -240,15 +267,19 @@ export function OverviewApplications({
             <Box
               key={client}
               data-testid={testId}
-              data-connected="true"
-              data-compatibility-warning={compatibilityWarning || undefined}
+              data-connected={ready || undefined}
+              data-compatibility-warning={!!compatibilityWarning || undefined}
               data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
               aria-label={client === 'codex' ? name : undefined}
               tabIndex={client === 'codex' ? -1 : undefined}
               sx={{
                 ...cardSx,
-                backgroundColor: designTokens.successAlertBackground,
-                borderColor: designTokens.successAlertBorder,
+                ...(ready
+                  ? {
+                      backgroundColor: designTokens.successAlertBackground,
+                      borderColor: designTokens.successAlertBorder,
+                    }
+                  : {}),
               }}
             >
               {heading}
@@ -290,6 +321,7 @@ export function OverviewApplications({
                   </Tooltip>
                 ))}
               </Stack>
+              {actionButton}
             </Box>
           );
         })}

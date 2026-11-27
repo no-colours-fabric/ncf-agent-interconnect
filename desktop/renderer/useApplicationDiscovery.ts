@@ -10,10 +10,13 @@ export function useApplicationDiscovery(invoke: McpSetupInvoke) {
   const [offerError, setOfferError] = useState(false);
   const acknowledged = useRef(new Set<McpSetupClient>());
   const generation = useRef(0);
+  const inFlight = useRef(false);
+  const nativeChangePending = useRef(false);
   const request = useCallback(
-    async (method: string, params: unknown = {}) => {
+    async function requestSnapshot(method: string, params: unknown = {}, background = false) {
       const current = ++generation.current;
-      setBusy(true);
+      inFlight.current = true;
+      if (!background) setBusy(true);
       try {
         const result = await invoke<ApplicationDiscoverySnapshot>(method, params);
         if (current === generation.current) {
@@ -27,15 +30,38 @@ export function useApplicationDiscovery(invoke: McpSetupInvoke) {
           ]);
         }
       } catch {
-        if (current === generation.current) setFailed(true);
+        if (current === generation.current && !background) setFailed(true);
       } finally {
-        if (current === generation.current) setBusy(false);
+        if (current === generation.current) {
+          inFlight.current = false;
+          if (!background) setBusy(false);
+          if (nativeChangePending.current) {
+            nativeChangePending.current = false;
+            void requestSnapshot('applicationDiscovery', {}, true);
+          }
+        }
       }
     },
     [invoke],
   );
   useEffect(() => {
+    const off = window.interconnect?.onApplicationDiscoveryChange?.(() => {
+      if (inFlight.current) nativeChangePending.current = true;
+      else void request('applicationDiscovery', {}, true);
+    });
     void request('applicationDiscovery');
+    const refreshOnFocus = () => {
+      // Installation metadata may have changed while another window was active.
+      if (!inFlight.current) void request('applicationDiscoveryRefresh', {}, true);
+    };
+    window.addEventListener('focus', refreshOnFocus);
+    return () => {
+      ++generation.current;
+      inFlight.current = false;
+      nativeChangePending.current = false;
+      off?.();
+      window.removeEventListener('focus', refreshOnFocus);
+    };
   }, [request]);
   const acknowledge = useCallback(
     async (clients: McpSetupClient[]) => {

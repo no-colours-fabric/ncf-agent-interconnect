@@ -62,6 +62,28 @@ const statuses: McpSetupStatuses = {
   refreshAll: async () => {},
 };
 
+test('Startup skips saved ChatGPT setup even when its background delivery needs attention', () => {
+  const flow = new ApplicationSetupFlow(noInvoke);
+  const offers = ['codex' as const];
+  const detected = { ...discovery, offers, snapshot: { ...discovery.snapshot!, offers } };
+  const checked: McpSetupStatuses = {
+    ...statuses,
+    statuses: {
+      ...statuses.statuses,
+      codex: {
+        client: 'codex',
+        remembered: true,
+        codexConnectRequired: true,
+        state: 'configured',
+        files: [{ id: 'configuration', path: '/fixture/profile/config.toml', state: 'configured' }],
+      },
+    },
+  };
+  assert.deepEqual(startupOfferClients(detected, flow.getSnapshot(), checked), []);
+  assert.deepEqual(startupOfferClients(detected, flow.getSnapshot(), statuses), offers);
+  flow.dispose();
+});
+
 test('startup uses installation major evidence and preserves explicit choices for an unversioned host', async () => {
   const target = {
     major: 2 as const,

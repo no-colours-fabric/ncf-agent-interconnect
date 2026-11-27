@@ -9,7 +9,7 @@ import {
 } from '../desktop/shared/chatgpt-compatibility.js';
 import {
   ChatgptCompatibilityNotice,
-  showsChatgptCompatibilityNotice,
+  chatgptCompatibilityWarning,
 } from '../desktop/renderer/ChatgptCompatibilityNotice.js';
 import { DesktopSessionDeliveryModel } from '../desktop/renderer/desktop-session-delivery-model.js';
 import { sessionDeliveryMessages } from '../desktop/renderer/i18n/session-delivery.js';
@@ -42,8 +42,8 @@ test('Windows only establishes the available compatibility metadata and keeps un
       'https://persistent.oaistatic.com/codex-app-prod/releases/26.1111.9664.0/ChatGPT-x64.msix',
     );
     assert.equal(
-      showsChatgptCompatibilityNotice(result, { busy: false, notice: 'configuration-required' }),
-      false,
+      chatgptCompatibilityWarning(result, { busy: false, notice: 'configuration-required' }),
+      'version-unknown',
     );
   }
   for (const architecture of ['arm64', 'ia32'] as const) {
@@ -93,39 +93,39 @@ test('only a tested platform, architecture and exact build can establish current
   assert.equal(isChatgptReleaseUrl(official.replace('https:', 'http:'), 'darwin'), false);
 });
 
-test('the notice requires a numeric version above the cutoff and a confirmed off state', () => {
+test('off delivery warns above the cutoff and conditionally when the version is unknown', () => {
   const ready = { state: 'ready', scope: 'login', profile: '/fixture/profile' } as const;
   for (const [version, visible] of [
-    ['25.9999.99999', false],
-    ['26.999.99999', false],
-    ['26.1111.9', false],
-    ['26.1111.71703', false],
-    [good.version, false],
-    ['26.1111.71705', true],
-    ['26.1112.1', true],
-    ['27.1.1', true],
-    [undefined, false],
-    ['invalid', false],
-    ['26.1111.9664.0', false],
+    ['25.9999.99999', undefined],
+    ['26.999.99999', undefined],
+    ['26.1111.9', undefined],
+    ['26.1111.71703', undefined],
+    [good.version, undefined],
+    ['26.1111.71705', 'off'],
+    ['26.1112.1', 'off'],
+    ['27.1.1', 'off'],
+    [undefined, 'version-unknown'],
+    ['invalid', 'version-unknown'],
+    ['26.1111.9664.0', 'version-unknown'],
   ] as const) {
     const compatibility = { status: 'unknown' as const, version };
     assert.equal(
-      showsChatgptCompatibilityNotice(compatibility, { busy: false, known: ready }),
+      chatgptCompatibilityWarning(compatibility, { busy: false, known: ready }),
       visible,
     );
     assert.equal(
-      showsChatgptCompatibilityNotice(compatibility, {
+      chatgptCompatibilityWarning(compatibility, {
         busy: false,
         notice: 'configuration-required',
       }),
       visible,
     );
     assert.equal(
-      showsChatgptCompatibilityNotice(compatibility, {
+      chatgptCompatibilityWarning(compatibility, {
         busy: false,
         known: { ...ready, state: 'enabled' },
       }),
-      false,
+      undefined,
     );
   }
   for (const notice of [
@@ -136,19 +136,19 @@ test('the notice requires a numeric version above the cutoff and a confirmed off
     undefined,
   ] as const) {
     assert.equal(
-      showsChatgptCompatibilityNotice(
+      chatgptCompatibilityWarning(
         { status: 'unknown', version: affected.version },
         { busy: false, notice },
       ),
-      false,
+      undefined,
     );
   }
   assert.equal(
-    showsChatgptCompatibilityNotice(
+    chatgptCompatibilityWarning(
       { status: 'unknown', version: affected.version },
       { busy: false, notice: 'unavailable', known: ready },
     ),
-    false,
+    'off',
   );
 });
 
@@ -159,12 +159,18 @@ test('all 15 locales render the new warning and an accessible switch without a d
   assert.equal(supportedLocales.length, 15);
   for (const locale of supportedLocales) {
     const copy = sessionDeliveryMessages[locale];
-    const html = renderToStaticMarkup(
-      createElement(ChatgptCompatibilityNotice, { model, locale, showSwitch: true }),
-    );
-    assert.ok(textOnly(html).includes(copy.offWarning));
-    assert.ok(textOnly(html).includes(copy.label));
-    assert.match(html, /role="switch"/);
-    assert.doesNotMatch(html, /href=|26\.1111/);
+    for (const warning of ['off', 'version-unknown'] as const) {
+      const html = renderToStaticMarkup(
+        createElement(ChatgptCompatibilityNotice, { model, locale, warning, showSwitch: true }),
+      );
+      const expected =
+        warning === 'off'
+          ? copy.offWarning
+          : copy.unknownVersionWarning.replace('{version}', good.version);
+      assert.ok(textOnly(html).includes(expected));
+      assert.ok(textOnly(html).includes(copy.label));
+      assert.match(html, /role="switch"/);
+      assert.doesNotMatch(html, /href=/);
+    }
   }
 });

@@ -144,7 +144,7 @@ function App({
     applicationSetup.getSnapshot,
     applicationSetup.getSnapshot,
   );
-  const { restartPending: chatgptRestartPending } = useSyncExternalStore(
+  const { restartPending: chatgptRestartPending, queueWarningPending } = useSyncExternalStore(
     applicationSetup.chatDelivery.subscribe,
     applicationSetup.chatDelivery.getSnapshot,
     applicationSetup.chatDelivery.getSnapshot,
@@ -385,6 +385,7 @@ function App({
             installationRestartPending ||
             applicationStartup.open ||
             chatgptRestartPending ||
+            queueWarningPending ||
             applicationSetupStates.codex.restartNotice === 'pending' ||
             Object.values(applicationSetupStates).some((state) => state.phase === 'confirmation')
           }
@@ -781,6 +782,7 @@ function App({
           installationRestartPending ? { ...applicationStartup, open: false } : applicationStartup
         }
         statuses={setupStatuses}
+        snapshot={snapshot ?? undefined}
         invoke={call}
         locale={locale}
         onManualSetup={openManualSetup}

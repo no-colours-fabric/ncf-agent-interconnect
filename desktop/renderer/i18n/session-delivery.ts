@@ -2,6 +2,10 @@ import type { Locale } from './index.js';
 
 export const sessionDeliveryMessages = {
   en: {
+    unknownVersionWarning:
+      'If your ChatGPT version is newer than {version}, messages may stay in the queue.',
+    disabling: 'Disabling background delivery',
+    queueWarningTitle: 'Messages may stay in the queue',
     offWarning:
       'Background chat delivery is off. Turn it on to receive messages in the chat right away. While background delivery is off, messages may stay in the queue.',
     chooseProfile: 'Choose the ChatGPT profile to connect',
@@ -21,6 +25,10 @@ export const sessionDeliveryMessages = {
       'Could not verify the ChatGPT configuration. Check the profile selected in Applications.',
   },
   ru: {
+    unknownVersionWarning:
+      'Если ваша версия ChatGPT новее {version}, сообщения могут оставаться в очереди.',
+    disabling: 'Отключение фоновой доставки',
+    queueWarningTitle: 'Сообщения могут оставаться в очереди',
     offWarning:
       'Фоновая доставка в чат отключена. Включите её, чтобы сообщения сразу поступали в чат. Пока фоновая доставка отключена, сообщения могут оставаться в очереди.',
     chooseProfile: 'Выберите профиль ChatGPT для подключения',
@@ -42,6 +50,9 @@ export const sessionDeliveryMessages = {
       'Не удалось проверить настройки ChatGPT. Проверьте выбранный профиль в разделе «Приложения».',
   },
   'zh-CN': {
+    unknownVersionWarning: '如果你的 ChatGPT 版本高于 {version}，消息可能会留在队列中。',
+    disabling: '正在关闭后台投递',
+    queueWarningTitle: '消息可能会留在队列中',
     offWarning:
       '聊天后台投递已关闭。开启后，消息会立即送达聊天。后台投递关闭时，消息可能会留在队列中。',
     chooseProfile: '选择要连接的 ChatGPT 配置文件',
@@ -60,6 +71,10 @@ export const sessionDeliveryMessages = {
     unavailable: '无法验证 ChatGPT 配置。请在“应用程序”中检查所选配置文件。',
   },
   fr: {
+    unknownVersionWarning:
+      'Si votre version de ChatGPT est plus récente que la version {version}, les messages peuvent rester en file d’attente.',
+    disabling: 'Désactivation de la livraison en arrière-plan',
+    queueWarningTitle: 'Les messages peuvent rester en file d’attente',
     offWarning:
       'La livraison des messages en arrière-plan est désactivée. Activez-la pour recevoir les messages immédiatement dans la discussion. Tant qu’elle est désactivée, les messages peuvent rester en file d’attente.',
     chooseProfile: 'Choisissez le profil ChatGPT à connecter',
@@ -83,6 +98,10 @@ export const sessionDeliveryMessages = {
       'Impossible de vérifier la configuration de ChatGPT. Vérifiez le profil sélectionné dans Applications.',
   },
   de: {
+    unknownVersionWarning:
+      'Wenn Ihre ChatGPT-Version neuer als {version} ist, können Nachrichten in der Warteschlange bleiben.',
+    disabling: 'Hintergrundzustellung wird deaktiviert',
+    queueWarningTitle: 'Nachrichten können in der Warteschlange bleiben',
     offWarning:
       'Die Hintergrundzustellung an den Chat ist deaktiviert. Aktivieren Sie sie, damit Nachrichten sofort im Chat ankommen. Solange die Hintergrundzustellung deaktiviert ist, können Nachrichten in der Warteschlange bleiben.',
     chooseProfile: 'ChatGPT-Profil für die Verbindung auswählen',
@@ -105,6 +124,10 @@ export const sessionDeliveryMessages = {
       'Die ChatGPT-Konfiguration konnte nicht geprüft werden. Prüfen Sie das unter Anwendungen ausgewählte Profil.',
   },
   it: {
+    unknownVersionWarning:
+      'Se la tua versione di ChatGPT è più recente della {version}, i messaggi potrebbero rimanere in coda.',
+    disabling: 'Disattivazione della consegna in background',
+    queueWarningTitle: 'I messaggi potrebbero rimanere in coda',
     offWarning:
       'La consegna in background nella chat è disattivata. Attivala per ricevere subito i messaggi nella chat. Finché la consegna in background è disattivata, i messaggi potrebbero rimanere in coda.',
     chooseProfile: 'Scegli il profilo ChatGPT da collegare',
@@ -128,6 +151,10 @@ export const sessionDeliveryMessages = {
       'Impossibile verificare la configurazione di ChatGPT. Controlla il profilo selezionato in Applicazioni.',
   },
   es: {
+    unknownVersionWarning:
+      'Si tu versión de ChatGPT es posterior a la {version}, los mensajes pueden quedar en cola.',
+    disabling: 'Desactivando la entrega en segundo plano',
+    queueWarningTitle: 'Los mensajes pueden quedar en cola',
     offWarning:
       'La entrega de mensajes en segundo plano al chat está desactivada. Actívala para recibir los mensajes de inmediato en el chat. Mientras esté desactivada, los mensajes pueden quedar en cola.',
     chooseProfile: 'Elige el perfil de ChatGPT que quieres conectar',
@@ -152,6 +179,10 @@ export const sessionDeliveryMessages = {
       'No se ha podido verificar la configuración de ChatGPT. Comprueba el perfil seleccionado en Aplicaciones.',
   },
   kk: {
+    unknownVersionWarning:
+      'ChatGPT нұсқаңыз {version} нұсқасынан жаңарақ болса, хабарлар кезекте қалуы мүмкін.',
+    disabling: 'Фондық жеткізу өшіріліп жатыр',
+    queueWarningTitle: 'Хабарлар кезекте қалуы мүмкін',
     offWarning:
       'Чатқа фондық жеткізу өшірулі. Хабарлар чатқа бірден түсуі үшін оны қосыңыз. Фондық жеткізу өшірулі кезде хабарлар кезекте қалуы мүмкін.',
     chooseProfile: 'Қосылатын ChatGPT профилін таңдаңыз',
@@ -174,6 +205,10 @@ export const sessionDeliveryMessages = {
       'ChatGPT параметрлерін тексеру мүмкін болмады. «Қолданбалар» бөлімінде таңдалған профильді тексеріңіз.',
   },
   ja: {
+    unknownVersionWarning:
+      'お使いの ChatGPT がバージョン {version} より新しい場合、メッセージがキューに残ることがあります。',
+    disabling: 'バックグラウンド配信をオフにしています',
+    queueWarningTitle: 'メッセージがキューに残る場合があります',
     offWarning:
       'チャットへのバックグラウンド配信はオフです。オンにすると、メッセージがすぐにチャットに届きます。オフの間は、メッセージがキューに残る場合があります。',
     chooseProfile: '接続する ChatGPT プロファイルを選択',
@@ -197,6 +232,10 @@ export const sessionDeliveryMessages = {
       'ChatGPT の設定を確認できませんでした。「アプリケーション」で選択したプロファイルを確認してください。',
   },
   'pt-BR': {
+    unknownVersionWarning:
+      'Se sua versão do ChatGPT for mais recente que a {version}, as mensagens podem ficar na fila.',
+    disabling: 'Desativando a entrega em segundo plano',
+    queueWarningTitle: 'As mensagens podem ficar na fila',
     offWarning:
       'A entrega de mensagens em segundo plano no chat está desativada. Ative-a para receber mensagens imediatamente no chat. Enquanto estiver desativada, as mensagens poderão ficar na fila.',
     chooseProfile: 'Escolha o perfil do ChatGPT que deseja conectar',
@@ -219,6 +258,10 @@ export const sessionDeliveryMessages = {
       'Não foi possível verificar a configuração do ChatGPT. Confira o perfil selecionado em Aplicativos.',
   },
   ko: {
+    unknownVersionWarning:
+      '사용 중인 ChatGPT 버전이 {version}보다 최신이면 메시지가 대기열에 남을 수 있습니다.',
+    disabling: '백그라운드 전달을 끄는 중',
+    queueWarningTitle: '메시지가 대기열에 남을 수 있습니다',
     offWarning:
       '채팅 백그라운드 전달이 꺼져 있습니다. 메시지를 채팅에서 바로 받으려면 이 기능을 켜세요. 백그라운드 전달이 꺼져 있으면 메시지가 대기열에 남을 수 있습니다.',
     chooseProfile: '연결할 ChatGPT 프로필을 선택하세요',
@@ -238,6 +281,10 @@ export const sessionDeliveryMessages = {
     unavailable: 'ChatGPT 설정을 확인할 수 없습니다. 애플리케이션에서 선택한 프로필을 확인하세요.',
   },
   tr: {
+    unknownVersionWarning:
+      'ChatGPT sürümünüz {version} sürümünden yeniyse iletiler kuyrukta kalabilir.',
+    disabling: 'Arka planda teslim kapatılıyor',
+    queueWarningTitle: 'İletiler kuyrukta kalabilir',
     offWarning:
       'Sohbete arka planda ileti teslimi kapalı. İletileri sohbetinizde hemen almak için bu özelliği açın. Arka planda teslim kapalıyken iletiler kuyrukta kalabilir.',
     chooseProfile: 'Bağlanacak ChatGPT profilini seçin',
@@ -259,6 +306,10 @@ export const sessionDeliveryMessages = {
       'ChatGPT yapılandırması doğrulanamadı. Uygulamalar bölümünde seçili profili kontrol edin.',
   },
   pl: {
+    unknownVersionWarning:
+      'Jeśli Twoja wersja ChatGPT jest nowsza niż {version}, wiadomości mogą pozostawać w kolejce.',
+    disabling: 'Wyłączanie dostarczania w tle',
+    queueWarningTitle: 'Wiadomości mogą pozostawać w kolejce',
     offWarning:
       'Dostarczanie wiadomości do czatu w tle jest wyłączone. Włącz je, aby od razu otrzymywać wiadomości w czacie. Gdy dostarczanie w tle jest wyłączone, wiadomości mogą pozostawać w kolejce.',
     chooseProfile: 'Wybierz profil ChatGPT do połączenia',
@@ -279,6 +330,10 @@ export const sessionDeliveryMessages = {
       'Nie udało się sprawdzić konfiguracji ChatGPT. Sprawdź profil wybrany w sekcji Aplikacje.',
   },
   nl: {
+    unknownVersionWarning:
+      'Als je ChatGPT-versie nieuwer is dan {version}, kunnen berichten in de wachtrij blijven.',
+    disabling: 'Bezorging op de achtergrond wordt uitgeschakeld',
+    queueWarningTitle: 'Berichten kunnen in de wachtrij blijven',
     offWarning:
       'Berichtbezorging op de achtergrond is uitgeschakeld. Schakel dit in om berichten direct in de chat te ontvangen. Zolang bezorging op de achtergrond is uitgeschakeld, kunnen berichten in de wachtrij blijven.',
     chooseProfile: 'Kies het ChatGPT-profiel dat je wilt verbinden',
@@ -302,6 +357,10 @@ export const sessionDeliveryMessages = {
       'De ChatGPT-configuratie kon niet worden gecontroleerd. Controleer het gekozen profiel onder Apps.',
   },
   uk: {
+    unknownVersionWarning:
+      'Якщо ваша версія ChatGPT новіша за {version}, повідомлення можуть залишатися в черзі.',
+    disabling: 'Вимкнення фонової доставки',
+    queueWarningTitle: 'Повідомлення можуть залишатися в черзі',
     offWarning:
       'Фонову доставку в чат вимкнено. Увімкніть її, щоб повідомлення одразу надходили в чат. Поки фонову доставку вимкнено, повідомлення можуть залишатися в черзі.',
     chooseProfile: 'Виберіть профіль ChatGPT для підключення',
@@ -330,6 +389,9 @@ export const sessionDeliveryMessages = {
     | 'connectRestartTitle'
     | 'restartInstruction'
     | 'offWarning'
+    | 'unknownVersionWarning'
+    | 'disabling'
+    | 'queueWarningTitle'
     | 'offer'
     | 'label'
     | 'login'

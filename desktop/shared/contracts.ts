@@ -274,6 +274,7 @@ export interface DesktopBridge {
   invoke<T = unknown>(method: string, params?: unknown): Promise<T>;
   pairingApproval<T = unknown>(method: 'view' | 'ready' | PairApprovalDecision): Promise<T>;
   onChange(callback: () => void): () => void;
+  onApplicationDiscoveryChange?(callback: () => void): () => void;
   onNavigate(callback: (tab: string) => void): () => void;
 }
 declare global {

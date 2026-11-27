@@ -57,16 +57,18 @@ export function ClientApplicationMetrics({
   locale,
   unknownLabel,
   deliveryLabel,
+  deliveryPaused,
 }: {
   kind?: AdapterProfile['kind'];
   snapshot?: Props['snapshot'];
   locale: Locale;
   unknownLabel: string;
   deliveryLabel: string;
+  deliveryPaused?: boolean;
 }): React.JSX.Element {
   const aggregate = kind && snapshot ? applicationStatus(kind, snapshot) : undefined;
   const activity = kind && snapshot ? applicationActivity(kind, snapshot) : null;
-  const connection = aggregate?.summary;
+  const connection = deliveryPaused && aggregate?.agents.length ? 'paused' : aggregate?.summary;
   const ConnectionIcon =
     connection === 'connected'
       ? CheckCircleOutlineOutlined

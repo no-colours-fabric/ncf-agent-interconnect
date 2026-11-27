@@ -1,6 +1,5 @@
 import { sessionDeliveryMessages } from './i18n/session-delivery.js';
 import { openCodeRuntimeText, type OpenCodeRuntimeSnapshot } from './i18n/opencode-runtime.js';
-import { installationRestartMessages } from './i18n/installation-restart.js';
 import { configurationProfile } from '../shared/desktop-session-delivery.js';
 import React, { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import {
@@ -48,8 +47,11 @@ import { openCodeV2TargetKey, openCodeV2AutomaticAvailable } from './opencode-v2
 import { ClientLogo } from './ApplicationDiscovery.js';
 import {
   ChatgptCompatibilityNotice,
-  useChatgptCompatibilityNotice,
+  ChatgptDisablingIndicator,
+  useChatgptDeliveryPresentation,
 } from './ChatgptCompatibilityNotice.js';
+import { ChatgptDeliveryDialogs } from './ChatgptDeliveryDialogs.js';
+import type { DesktopSessionDeliveryModel } from './desktop-session-delivery-model.js';
 import { ApplicationCardGrid } from './ApplicationCardGrid.js';
 import { StartupApplicationTile } from './StartupApplicationTiles.js';
 import { clientNextStep, hasConnectedClientChat, setupAdapterKinds } from './ClientSetupHelp.js';
@@ -363,11 +365,6 @@ export function ApplicationSetupConfirmation({
       file
     );
   };
-  const { restartPending } = useSyncExternalStore(
-    flow.chatDelivery.subscribe,
-    flow.chatDelivery.getSnapshot,
-    flow.chatDelivery.getSnapshot,
-  );
   if (choices?.length)
     return (
       <Dialog open onClose={() => flow.cancel('codex')} aria-labelledby="codex-profile-choice">
@@ -457,51 +454,11 @@ export function ApplicationSetupConfirmation({
   return (
     <>
       {confirmation}
-      <Dialog
-        open={restartPending === true || states.codex.restartNotice === 'pending'}
-        disableRestoreFocus
-        fullWidth
-        maxWidth="xs"
-        aria-labelledby="chatgpt-connect-restart-title"
-        aria-describedby="chatgpt-connect-restart-body"
-        slotProps={{
-          transition: {
-            onExited: () =>
-              requestAnimationFrame(() => {
-                const targets = [
-                  ...document.querySelectorAll<HTMLElement>('[data-chatgpt-restart-focus]'),
-                ].filter(
-                  (element) =>
-                    element.getClientRects().length && !element.closest('[aria-hidden="true"]'),
-                );
-                const target =
-                  targets.find((element) => element instanceof HTMLInputElement) ?? targets[0];
-                target?.focus();
-              }),
-          },
-        }}
-      >
-        <DialogTitle id="chatgpt-connect-restart-title">
-          {sessionDeliveryMessages[locale].connectRestartTitle}
-        </DialogTitle>
-        <DialogContent>
-          <Typography id="chatgpt-connect-restart-body" variant="body2" color="text.secondary">
-            {sessionDeliveryMessages[locale].restartInstruction}
-          </Typography>
-        </DialogContent>
-        <DialogActions>
-          <Button
-            autoFocus
-            variant="contained"
-            onClick={() => {
-              flow.chatDelivery.acknowledgeRestart();
-              flow.acknowledgeCodexRestart();
-            }}
-          >
-            {installationRestartMessages(locale).dismiss}
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <ChatgptDeliveryDialogs
+        flow={flow}
+        locale={locale}
+        connectRestartPending={states.codex.restartNotice === 'pending'}
+      />
     </>
   );
 }
@@ -589,7 +546,10 @@ export function setupView(
   states: ApplicationSetupStates,
   statuses: McpSetupStatuses,
   discovery: ApplicationDiscoveryModel,
+  snapshot?: SetupProps['snapshot'],
+  delivery?: ReturnType<DesktopSessionDeliveryModel['getSnapshot']>,
 ) {
+  const hasBoundAdapter = hasConnectedClientChat(client, snapshot);
   if (client === 'opencode-v2') {
     const state = states[client];
     const status =
@@ -600,6 +560,9 @@ export function setupView(
         : undefined;
     return {
       state,
+      hasBoundAdapter,
+      adapterReady: hasBoundAdapter,
+      selectedConfigurationChanged: false,
       configured:
         state.phase === 'succeeded' ||
         (state.availability === 'available' && status?.state === 'configured'),
@@ -615,20 +578,37 @@ export function setupView(
     };
   }
   const state = states[client];
+  const status = statuses.errors[client] ? undefined : statuses.statuses[client];
+  const configured =
+    status?.state === 'configured' ||
+    state.phase === 'succeeded' ||
+    (client === 'codex' &&
+      !!state.deliveryIssue &&
+      (state.verified ||
+        state.result?.status === 'applied' ||
+        state.result?.status === 'unchanged'));
+  const configuration =
+    (state.phase === 'succeeded' ? state.target?.path : undefined) ?? status?.files[0]?.path;
+  const matchingDelivery =
+    !!configuration &&
+    !delivery?.notice &&
+    !delivery?.disabling &&
+    delivery?.known?.state === 'enabled' &&
+    delivery.known.profile === configurationProfile(configuration);
   return {
     state,
-    configured:
-      (state.phase === 'succeeded' && !state.deliveryIssue) ||
-      (!state.deliveryIssue &&
-        !state.manualConfiguration &&
-        !statuses.statuses[client]?.codexConnectRequired &&
-        !statuses.errors[client] &&
-        statuses.statuses[client]?.state === 'configured'),
+    configured,
+    hasBoundAdapter,
+    adapterReady: hasBoundAdapter && (client !== 'codex' || matchingDelivery),
+    selectedConfigurationChanged:
+      client === 'codex' &&
+      !!state.manualConfiguration &&
+      configuration !== state.manualConfiguration,
     detected: !!discovery.snapshot?.applications.some(
       (item) => item.client === client && item.status === 'detected',
     ),
     hasStatus: !!statuses.statuses[client],
-    configurationState: statuses.errors[client] ? undefined : statuses.statuses[client]?.state,
+    configurationState: status?.state,
     checking: false,
     automatic: !!discovery.snapshot?.applications.some(
       (item) => item.client === client && item.status === 'detected',
@@ -638,14 +618,26 @@ export function setupView(
 }
 
 export function applicationSetupAction(
-  { state, configured, automatic, checking, hasStatus }: ReturnType<typeof setupView>,
+  {
+    state,
+    configured,
+    automatic,
+    checking,
+    hasStatus,
+    selectedConfigurationChanged,
+    adapterReady,
+  }: ReturnType<typeof setupView>,
   locale: Locale,
   busy: boolean,
   anyBusy: boolean,
 ) {
   const pending = hasPendingSetupResult(state);
   const retry = state.phase === 'failed' || pending;
-  if ((configured && !pending) || (!automatic && !retry)) return undefined;
+  if (
+    ((configured || adapterReady) && !retry && !selectedConfigurationChanged) ||
+    (!automatic && !retry)
+  )
+    return undefined;
   return {
     label: setupActionLabel(state, locale, busy),
     disabled: anyBusy || checking || state.phase === 'confirmation' || (!hasStatus && !retry),
@@ -668,7 +660,10 @@ function ApplicationCompactList({
   context: 'application' | 'startup' | 'overview';
 }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
-  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
+  const { warning: chatgptWarning } = useChatgptDeliveryPresentation(
+    flow.chatDelivery,
+    discovery.snapshot,
+  );
   const connectApplication = (client: ApplicationSetupClient) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
@@ -886,7 +881,11 @@ function ApplicationCompactList({
           />
         )}
         {client === 'codex' && chatgptWarning && (
-          <ChatgptCompatibilityNotice model={flow.chatDelivery} locale={locale} />
+          <ChatgptCompatibilityNotice
+            model={flow.chatDelivery}
+            locale={locale}
+            warning={chatgptWarning}
+          />
         )}
         {(state.phase === 'failed' || pending) && (
           <Alert
@@ -954,7 +953,11 @@ function ConfiguredApplicationStatus({
   client,
   snapshot,
   locale,
-}: Pick<SetupProps, 'snapshot' | 'locale'> & { client: ApplicationSetupClient }) {
+  deliveryPaused,
+}: Pick<SetupProps, 'snapshot' | 'locale'> & {
+  client: ApplicationSetupClient;
+  deliveryPaused?: boolean;
+}) {
   const m = mcpSetupMessages(locale);
 
   return (
@@ -1007,6 +1010,7 @@ function ConfiguredApplicationStatus({
           locale={locale}
           unknownLabel={m.statusUnknown}
           deliveryLabel={m.statusDelivery}
+          deliveryPaused={deliveryPaused}
         />
       </Box>
       {client === 'opencode' && (
@@ -1029,7 +1033,10 @@ export function ApplicationRows({
   disabled = false,
 }: SetupProps) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
-  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
+  const { warning: chatgptWarning, state: chatgptDelivery } = useChatgptDeliveryPresentation(
+    flow.chatDelivery,
+    discovery.snapshot,
+  );
   const connect = (client: ApplicationSetupClient) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
@@ -1071,7 +1078,7 @@ export function ApplicationRows({
     onManualSetup(client === 'opencode-v2' ? 'opencode' : client);
   };
   const row = (client: ApplicationSetupClient, border = false) => {
-    const view = setupView(client, states, statuses, discovery);
+    const view = setupView(client, states, statuses, discovery, snapshot, chatgptDelivery);
     const {
       state,
       configured,
@@ -1081,6 +1088,7 @@ export function ApplicationRows({
       checking,
       automatic,
       configurationState,
+      adapterReady: working,
     } = view;
     const busy = flow.busy(client);
     const action = applicationSetupAction(view, locale, busy, anyBusy);
@@ -1090,15 +1098,20 @@ export function ApplicationRows({
       client === 'cursor' &&
       state.phase === 'succeeded' &&
       state.result?.cursorPermission?.state === 'unconfirmed';
-    const working = hasConnectedClientChat(client, snapshot);
+    const deliveryIssue = client === 'codex' && 'deliveryIssue' in state && state.deliveryIssue;
     const showStatus =
       configured &&
       !busy &&
       !checking &&
-      !needsRetry &&
+      (!needsRetry || !!deliveryIssue) &&
       !cursorPermissionUnconfirmed &&
       (client !== 'aionui' || aionUiPaired);
-    const showGuidance = !busy && !checking && !needsRetry && (configured || working);
+    const showGuidance =
+      !busy &&
+      !checking &&
+      !needsRetry &&
+      (configured || working) &&
+      (client !== 'codex' || (!chatgptWarning && !chatgptDelivery.disabling));
     const runtime =
       client === 'opencode-v2' ? openCodeRuntimeText(locale, states[client].status, snapshot) : '';
     const setupStatus = busy
@@ -1111,17 +1124,22 @@ export function ApplicationRows({
             ? cursorPermissionUnconfirmed
               ? `${m.configured}. ${t(locale, 'clientsUnavailableImpact')}`
               : [m.configured, runtime].filter(Boolean).join(' · ')
-            : unavailable || state.phase === 'failed'
-              ? m.unavailable
-              : configurationState === 'needs-update'
-                ? m['needs-update']
-                : hasStatus
-                  ? m['not-configured']
-                  : m.statusUnknown;
+            : working
+              ? t(locale, 'clientsConnected')
+              : unavailable || state.phase === 'failed'
+                ? m.unavailable
+                : configurationState === 'needs-update'
+                  ? m['needs-update']
+                  : hasStatus
+                    ? m['not-configured']
+                    : m.statusUnknown;
     return (
       <Box
         key={client}
         data-testid={'application-row-' + client}
+        data-chatgpt-restart-focus={client === 'codex' ? '' : undefined}
+        aria-label={client === 'codex' ? setupApplicationName(client, locale) : undefined}
+        tabIndex={client === 'codex' ? -1 : undefined}
         sx={{
           px: 3,
           py: 2.5,
@@ -1179,7 +1197,7 @@ export function ApplicationRows({
               )}
               <Typography
                 variant="body2"
-                color={configured && !pending ? 'success.main' : 'text.secondary'}
+                color={(configured || working) && !pending ? 'success.main' : 'text.secondary'}
                 data-testid={
                   cursorPermissionUnconfirmed ? 'cursor-permission-unconfirmed' : undefined
                 }
@@ -1223,14 +1241,22 @@ export function ApplicationRows({
             />
           </Stack>
         </Box>
+        {client === 'codex' && chatgptDelivery.disabling && (
+          <ChatgptDisablingIndicator locale={locale} />
+        )}
         {client === 'codex' && chatgptWarning && (
           <ChatgptCompatibilityNotice
             model={flow.chatDelivery}
             locale={locale}
+            warning={chatgptWarning}
             marginTop="12px"
             showSwitch
             disabled={anyBusy || state.phase === 'confirmation'}
-            onConnect={action && !action.disabled ? () => void connect(client) : undefined}
+            onConnect={
+              automatic && !checking && hasStatus && !anyBusy && state.phase !== 'confirmation'
+                ? () => void connect(client)
+                : undefined
+            }
           />
         )}
         {(state.phase === 'failed' || hasPendingSetupResult(state)) && (
@@ -1255,7 +1281,16 @@ export function ApplicationRows({
           />
         )}
         {showStatus && (
-          <ConfiguredApplicationStatus client={client} snapshot={snapshot} locale={locale} />
+          <ConfiguredApplicationStatus
+            client={client}
+            snapshot={snapshot}
+            locale={locale}
+            deliveryPaused={
+              client === 'codex' &&
+              (chatgptDelivery.known?.state === 'ready' ||
+                chatgptDelivery.notice === 'configuration-required')
+            }
+          />
         )}
         {showStatus && runtime && (
           <Typography variant="body2" role="status">
@@ -1411,16 +1446,16 @@ export function startupOfferClients(
   )
     return null;
   return candidates.filter((client) => {
-    const view = setupView(client, states, statuses, discovery);
+    const view = setupView(client, states, statuses, discovery, snapshot);
     if (client === 'opencode-v2' || client === 'opencode') {
-      return !view.configured && !hasConnectedClientChat(client, snapshot);
+      return !view.configured && !view.hasBoundAdapter;
     }
     return (
       view.detected &&
       view.automatic &&
       !view.unavailable &&
       !view.configured &&
-      !hasConnectedClientChat(client, snapshot) &&
+      !view.hasBoundAdapter &&
       (view.configurationState === 'missing' || view.configurationState === 'not-configured')
     );
   });
@@ -1460,7 +1495,10 @@ export function ApplicationSetup({
   startup,
 }: SetupProps & { startup: ApplicationStartup }) {
   const states = useSyncExternalStore(flow.subscribe, flow.getSnapshot, flow.getSnapshot);
-  const chatgptWarning = useChatgptCompatibilityNotice(flow.chatDelivery, discovery.snapshot);
+  const { warning: chatgptWarning } = useChatgptDeliveryPresentation(
+    flow.chatDelivery,
+    discovery.snapshot,
+  );
   const connect = (client: ApplicationSetupClient) =>
     flow.connect(client, undefined, {
       showRestartNotice: client === 'codex' && discovery.snapshot?.platform === 'darwin',
@@ -1472,7 +1510,8 @@ export function ApplicationSetup({
   const completed = attempted.filter((client) => states[client].phase === 'succeeded');
   const remaining = startup.clients.filter((client) => {
     const { configured, state } = setupView(client, states, statuses, discovery);
-    return !configured || hasPendingSetupResult(state);
+    const deliveryFailed = client === 'codex' && 'deliveryIssue' in state && !!state.deliveryIssue;
+    return !configured || hasPendingSetupResult(state) || deliveryFailed;
   });
   const visibleOffers = remaining.join(',');
   const open = startup.open;
@@ -1624,12 +1663,14 @@ export function ApplicationSetup({
                     status={
                       busy
                         ? copy.connecting
-                        : openCode && !confirmedMajor
-                          ? m.statusUnknown
-                          : copy.detected
+                        : view.configured
+                          ? copy.configuredStatus
+                          : openCode && !confirmedMajor
+                            ? m.statusUnknown
+                            : copy.detected
                     }
                     busy={busy}
-                    compatibilityWarning={client === 'codex' && chatgptWarning}
+                    compatibilityWarning={client === 'codex' && !!chatgptWarning}
                     action={manualOnly ? { label: copy.manual, disabled: operationBusy } : action}
                     onConnect={() => {
                       if (manualOnly) {
@@ -1644,7 +1685,11 @@ export function ApplicationSetup({
                     }}
                   >
                     {client === 'codex' && chatgptWarning && (
-                      <ChatgptCompatibilityNotice model={flow.chatDelivery} locale={locale} />
+                      <ChatgptCompatibilityNotice
+                        model={flow.chatDelivery}
+                        locale={locale}
+                        warning={chatgptWarning}
+                      />
                     )}
                     {client === 'claude' && action && (
                       <Typography variant="caption" color="text.secondary">
