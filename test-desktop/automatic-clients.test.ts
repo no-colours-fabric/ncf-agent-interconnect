@@ -176,7 +176,7 @@ test('one OpenCode integration connects any chat without user session settings a
   const ref = 'r' + stored.sequence.toString(36);
   assert.equal(
     f.prompts[0].text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(stored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nДоставить локально\n\nReply-To "Автор": ${ref}\nUse agent_send(connectionId, replyRef="${ref}", text) to reply.`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(stored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nДоставить локально\n\nReply-To "Автор": ${ref}\nUse agent_send(connectionId, replyRef="${ref}", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.`,
   );
   assert.ok(!f.prompts[0].text.includes(b.binding.connectionId));
   assert.ok(!f.prompts[0].text.includes(a.binding.connectionId));
@@ -241,7 +241,7 @@ test('queued messages and attachment links arrive as complete chat messages with
   const secondRef = 'r' + secondStored.sequence.toString(36);
   assert.equal(
     f.prompts[1].text,
-    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(secondStored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nСравни два варианта.\n\nReply-To "Автор": ${secondRef}\nUse agent_send(connectionId, replyRef="${secondRef}", text) to reply.`,
+    `**Incoming NCF Agent Interconnect**\nFrom: "Автор"\nSent: ${formatAgentMessageTimestamp(secondStored.envelope.createdAt, display)}\nDelivered: ${formatAgentMessageTimestamp(deliveredAt, display)}\n\nСравни два варианта.\n\nReply-To "Автор": ${secondRef}\nUse agent_send(connectionId, replyRef="${secondRef}", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.`,
   );
   for (const prompt of f.prompts)
     for (const noise of [

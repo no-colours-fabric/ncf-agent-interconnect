@@ -136,6 +136,7 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   assert.match(instructions, /From:/);
   assert.match(instructions, /Reply-To/);
   assert.match(instructions, /Example:.*agent_send/);
+  assert.doesNotMatch(instructions, /codex/i);
   const catalog = await firstClient.listTools();
   assert.deepEqual(catalog.tools.map(({ name }) => name).sort(), [
     'agent_clear_history',
@@ -170,6 +171,19 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
       /^If this chat is already bound as a different agent/,
     );
   }
+  for (const tool of catalog.tools) {
+    assert.doesNotMatch(tool.description ?? '', /codex/i);
+    for (const property of Object.values(tool.inputSchema.properties ?? {})) {
+      const description = (property as { description?: string }).description;
+      assert.doesNotMatch(description ?? '', /codex/i);
+    }
+  }
+  for (const name of ['agent_read', 'agent_history', 'attachment_stage', 'attachment_receive']) {
+    assert.match(
+      catalog.tools.find((tool) => tool.name === name)?.description ?? '',
+      /own last confirmed nickname and recoverOnly=true, omitting connectionId/,
+    );
+  }
   const renameTool = catalog.tools.find((tool) => tool.name === 'agent_rename')!;
   assert.deepEqual(Object.keys(renameTool.inputSchema.properties!).sort(), [
     'connectionId',
@@ -184,6 +198,28 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   assert.ok(!connectSchema.properties?.adapterId);
   assert.ok(!connectSchema.properties?.codexTarget);
   assert.ok(!connectSchema.properties?.agent);
+  const inactiveId = randomUUID();
+  for (const [name, args] of [
+    ['agent_read', {}],
+    ['agent_history', {}],
+    ['attachment_stage', { name: 'fixture.txt' }],
+    ['attachment_receive', { messageId: randomUUID(), fileId: 'a'.repeat(64) }],
+  ] as const) {
+    const refused = await firstClient.callTool({
+      name,
+      arguments: { ...args, connectionId: inactiveId },
+    });
+    const outcome = refused.structuredContent as {
+      status: string;
+      nextAction: string;
+      description: string;
+    };
+    assert.equal(refused.isError, true);
+    assert.ok(outcome, name + ': ' + JSON.stringify(refused.content));
+    assert.equal(outcome.status, 'connection_not_found');
+    assert.equal(outcome.nextAction, 'agent_connect');
+    assert.match(outcome.description, /did not reach the operation.*recoverOnly=true/);
+  }
   const connected = await firstClient.callTool({
     name: 'agent_connect',
     arguments: { nickname: 'Новая тема' },
@@ -196,6 +232,30 @@ test('real Streamable HTTP MCP exposes agent tools and never leaks another activ
   });
   assert.equal(unverified.isError, true);
   assert.equal(service.store.assertOwner(first.binding.connectionId).nickname, 'Новая тема');
+  const recoveryWithoutNativeContext = await secondClient.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: 'Новая тема', recoverOnly: true },
+  });
+  const recoveryStatus = recoveryWithoutNativeContext.structuredContent as { status: string };
+  assert.equal(recoveryStatus.status, 'own_binding_unverified');
+  assert.ok(!JSON.stringify(recoveryWithoutNativeContext).includes(first.binding.connectionId));
+  assert.deepEqual(service.store.bindingForNickname('Новая тема'), first.binding);
+  const connectFailure = t.mock.method(service, 'connectAutomatic', async () => {
+    throw new Error('a hidden path must not leak');
+  });
+  const unknown = await firstClient.callTool({
+    name: 'agent_connect',
+    arguments: { nickname: 'Новая тема', recoverOnly: true },
+  });
+  connectFailure.mock.restore();
+  const unknownOutcome = unknown.structuredContent as { status: string; description: string };
+  assert.equal(unknownOutcome.status, 'connect_outcome_unverified');
+  assert.match(
+    unknownOutcome.description,
+    /prior result reported confirmation pending, queued or uncertain/,
+  );
+  assert.match(unknownOutcome.description, /previously confirmed.*recoverOnly=true/);
+  assert.doesNotMatch(unknownOutcome.description, /codex|hidden path|may be pending/i);
   const occupied = await secondClient.callTool({
     name: 'agent_connect',
     arguments: { nickname: 'НОВАЯ ТЕМА' },

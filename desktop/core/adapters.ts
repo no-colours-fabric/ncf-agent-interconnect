@@ -1,3 +1,4 @@
+import { agentReplyInstruction } from './agent-reply-instruction.js';
 import { EventEmitter } from 'node:events';
 import { randomUUID } from 'node:crypto';
 import type {
@@ -83,7 +84,7 @@ export function agentMessageText(input: EventInput): string {
         .join('\n')
     : '';
   const sender = markdownName(JSON.stringify(fromNickname));
-  return `**Incoming NCF Agent Interconnect**\nFrom: ${sender}\n\n${text}${attachments}\n\nReply-To: ${input.replyRef}\nUse agent_send(connectionId, replyRef="${input.replyRef}", text) to reply.`;
+  return `**Incoming NCF Agent Interconnect**\nFrom: ${sender}\n\n${text}${attachments}\n\nReply-To: ${input.replyRef}\n${agentReplyInstruction(input.replyRef)}`;
 }
 // An adapter admits an event to an exact existing session. It does not execute
 // arbitrary CLI commands and does not infer permission from peer text.

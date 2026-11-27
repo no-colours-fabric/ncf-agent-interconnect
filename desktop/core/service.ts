@@ -55,6 +55,7 @@ import { ClaudeCodeAdapter } from './claude-adapter.js';
 import { McpEndpoint } from './mcp-http.js';
 import {
   CodexRenameReconnectRequired,
+  OwnBindingRecoveryUnavailable,
   McpHistoryPageFailure,
   McpReadAttachmentFailure,
 } from './mcp-agent-guidance.js';
@@ -157,19 +158,20 @@ interface CodexRecoveryChallenge {
 
 const codexRecoveryDescriptions = {
   codex_recovery_pending:
-    'The confirmation was dispatched to this Codex chat. Complete it only if it arrives here before expiry.',
+    'The confirmation was dispatched to this chat. Complete it only if it arrives here before expiry.',
   codex_recovery_queued:
-    'The confirmation is queued in this Codex chat. Complete it within five minutes of delivery to this chat and before the stated outer deadline.',
+    'The confirmation is queued in this chat. Complete it within five minutes of delivery to this chat and before the stated outer deadline.',
   codex_recovery_uncertain:
-    'Codex could not confirm delivery. No duplicate was sent. This attempt expires at the stated time.',
+    'Delivery of the confirmation to this chat could not be verified. No duplicate was sent. This attempt expires at the stated time.',
   codex_recovery_unavailable:
     'This confirmation is unavailable. No additional confirmation was sent.',
-  codex_recovery_expired: 'The Codex confirmation expired. No additional confirmation was sent.',
+  codex_recovery_expired: 'The confirmation expired. No additional confirmation was sent.',
 };
 type CodexRecoveryResult = {
   status: keyof typeof codexRecoveryDescriptions;
   description: string;
   expiresAt?: string;
+  phase?: 'redeeming';
 };
 type ConnectedResult = ConnectResult & { delivery?: { automatic: boolean; description: string } };
 type AutomaticConnectResult = ConnectedResult | CodexRecoveryResult;
@@ -178,6 +180,7 @@ interface AutomaticConnectInput {
   nickname: string;
   contextToken?: string;
   codexRecoveryToken?: string;
+  recoverOnly?: boolean;
   connectionId?: string;
   transferId?: string;
   confirmTransfer?: boolean;
@@ -1090,6 +1093,27 @@ export class NodeService extends EventEmitter {
     this.emit('change');
     this.drainAdapters();
   }
+  private assertOwnBindingRecovery(
+    input: Pick<AutomaticConnectInput, 'nickname' | 'connectionId'>,
+    chat: { client: string; chatId: string; adapterId?: string },
+    expected?: Binding,
+  ): Binding {
+    const current = this.store.bindingForNickname(input.nickname);
+    if (
+      !current ||
+      current.client !== chat.client ||
+      current.chatId !== chat.chatId ||
+      (chat.adapterId !== undefined && current.adapterId !== chat.adapterId) ||
+      (input.connectionId !== undefined && current.connectionId !== input.connectionId) ||
+      (expected &&
+        (current.connectionId !== expected.connectionId ||
+          current.generation !== expected.generation ||
+          current.adapterId !== expected.adapterId))
+    )
+      throw new OwnBindingRecoveryUnavailable();
+    return current;
+  }
+
   async connectAutomatic(
     args: AutomaticConnectInput & { contextToken: string },
     host: McpHost,
@@ -1102,7 +1126,9 @@ export class NodeService extends EventEmitter {
     args: AutomaticConnectInput,
     host: McpHost,
   ): Promise<AutomaticConnectResult> {
-    const { contextToken, codexRecoveryToken, ...input } = args;
+    const { contextToken, codexRecoveryToken, recoverOnly, ...input } = args;
+    if (recoverOnly && (input.transferId || input.confirmTransfer || input.resetHistory))
+      throw new OwnBindingRecoveryUnavailable();
     const recoveryToken =
       codexRecoveryToken ?? (/codex/i.test(host.client) ? contextToken : undefined);
     if (recoveryToken) {
@@ -1116,7 +1142,7 @@ export class NodeService extends EventEmitter {
         input.resetHistory
       )
         throw new Error('The Codex confirmation must be submitted from its exact chat');
-      return this.confirmCodexRecovery(input.nickname, threadId, recoveryToken);
+      return this.confirmCodexRecovery(input.nickname, threadId, recoveryToken, recoverOnly);
     }
     let context: ClientContext | undefined;
     if (contextToken) {
@@ -1153,10 +1179,45 @@ export class NodeService extends EventEmitter {
         throw new Error(
           'Codex did not provide the current chat context. Automatic binding is not supported by this client version.',
         );
-      const binding = this.store.bindingForNickname(input.nickname);
+      const chat = { client: 'Codex', chatId: threadId };
+      const recoveryBinding = recoverOnly ? this.assertOwnBindingRecovery(input, chat) : undefined;
+      const binding = recoveryBinding ?? this.store.bindingForNickname(input.nickname);
       const profile =
         binding && this.settings.value.adapters.find((a) => a.id === binding.adapterId);
       const pending = this.codexRecovery.get(threadId);
+      const epoch = this.deliveryIncarnation;
+      const assertCurrentRecovery =
+        recoveryBinding &&
+        (() => {
+          if (!this.integrationsReady || this.deliveryIncarnation !== epoch)
+            throw new OwnBindingRecoveryUnavailable();
+          this.assertOwnBindingRecovery(input, chat, recoveryBinding);
+        });
+      // Recovering an already active proof must not issue a second one.
+      if (recoveryBinding && pending && pending.state !== 'retired') {
+        if (
+          pending.target.binding?.connectionId !== recoveryBinding.connectionId ||
+          pending.target.binding.generation !== recoveryBinding.generation ||
+          pending.target.binding.adapterId !== recoveryBinding.adapterId
+        )
+          throw new OwnBindingRecoveryUnavailable();
+        if (pending.expires <= Date.now()) {
+          this.codexRecovery.delete(threadId);
+          return this.codexRecoveryStatus('codex_recovery_expired');
+        }
+        if (pending.state === 'used') {
+          if (!this.integrationsReady || pending.target.epoch !== this.deliveryIncarnation)
+            throw new OwnBindingRecoveryUnavailable();
+          return {
+            ...this.codexRecoveryStatus('codex_recovery_uncertain', pending.expires),
+            phase: 'redeeming',
+            description:
+              'Confirmation is already being completed in this chat. Wait for that result. Do not send the token again, restart the attempt, or poll.',
+          };
+        }
+        this.assertCodexRecoveryTarget(pending.target);
+        return this.codexRecoveryOffered(pending);
+      }
       const checkpoint = profile && this.codexReconnect.get(profile);
       const resume =
         checkpoint &&
@@ -1172,7 +1233,18 @@ export class NodeService extends EventEmitter {
         !input.resetHistory;
       if (!resume) {
         try {
-          const result = await this.connectCodex({ ...input, client: 'Codex' }, { threadId });
+          const result = await this.connectCodex(
+            {
+              ...input,
+              client: 'Codex',
+              ...(recoveryBinding && {
+                adapterId: recoveryBinding.adapterId,
+                connectionId: recoveryBinding.connectionId,
+              }),
+            },
+            { threadId },
+            assertCurrentRecovery,
+          );
           if (
             result.status === 'connected' &&
             pending &&
@@ -1184,7 +1256,7 @@ export class NodeService extends EventEmitter {
             delivery: {
               automatic: true,
               description:
-                'Messages with their sender, body and attachment links are delivered automatically to this Codex Desktop chat. This integration is experimental.',
+                'Messages with their sender, body and attachment links are delivered automatically to this chat. Automatic delivery is experimental.',
             },
           };
         } catch (error) {
@@ -1207,6 +1279,7 @@ export class NodeService extends EventEmitter {
       if (!input.connectionId) {
         if (pending && this.codexRecovery.get(threadId) !== pending)
           throw new Error('The Codex confirmation is no longer current');
+        assertCurrentRecovery?.();
         return this.requestCodexRecovery(input.nickname, threadId);
       }
       // A saved credential can recover only its current owner and exact chat.
@@ -1263,6 +1336,10 @@ export class NodeService extends EventEmitter {
       throw new Error(
         'For automatic Cursor binding, apply the Cursor setup in NCF Agent Interconnect and restart Cursor.',
       );
+    if (recoverOnly) {
+      if (!context) throw new OwnBindingRecoveryUnavailable();
+      input.connectionId = this.assertOwnBindingRecovery(input, context).connectionId;
+    }
     if (!context && input.connectionId) {
       if (input.transferId)
         context = this.store.transferContext(input.connectionId, input.transferId, input.nickname);
@@ -1409,6 +1486,7 @@ export class NodeService extends EventEmitter {
     args: {
       nickname: string;
       contextToken?: string;
+      recoverOnly?: boolean;
       connectionId?: string;
       transferId?: string;
       confirmTransfer?: boolean;
@@ -1417,6 +1495,9 @@ export class NodeService extends EventEmitter {
     identity: OpenCodeV2Identity,
   ): Promise<ConnectResult> {
     identity.assertCurrent();
+    const { contextToken: _ignored, recoverOnly, ...input } = args;
+    if (recoverOnly && (input.transferId || input.confirmTransfer || input.resetHistory))
+      throw new OwnBindingRecoveryUnavailable();
     let profile = this.settings.value.adapters.find(
       (profile) =>
         profile.kind === 'opencode-v2' &&
@@ -1425,6 +1506,14 @@ export class NodeService extends EventEmitter {
         profile.instanceId === identity.scope.bootId &&
         profile.sessionId === identity.sessionID,
     );
+    if (recoverOnly) {
+      if (!profile) throw new OwnBindingRecoveryUnavailable();
+      input.connectionId = this.assertOwnBindingRecovery(input, {
+        client: 'OpenCode v2',
+        chatId: identity.sessionID,
+        adapterId: profile.id,
+      }).connectionId;
+    }
     if (!profile) {
       profile = {
         id: randomUUID(),
@@ -1438,7 +1527,6 @@ export class NodeService extends EventEmitter {
       await this.installAdapter(profile);
       identity.assertCurrent();
     }
-    const { contextToken: _ignored, ...input } = args;
     const previous = this.store.bindingForNickname(input.nickname);
     if (
       !input.connectionId &&
@@ -1572,6 +1660,7 @@ export class NodeService extends EventEmitter {
   async connectCodex(
     args: Partial<ConnectInput> & { nickname: string; client: string },
     target: { threadId: string; socket?: string },
+    assertRecoveryCurrent?: () => void,
   ): Promise<ConnectResult> {
     const validated = z
       .object({ threadId: z.uuid(), socket: z.string().min(1).max(2000).optional() })
@@ -1585,6 +1674,7 @@ export class NodeService extends EventEmitter {
         throw new Error('The Codex chat already has an active binding');
     };
     const setup = this.adapterSetup.then(async () => {
+      assertRecoveryCurrent?.();
       assertNoOtherOwner();
       const socket =
         validated.socket ??
@@ -1602,6 +1692,7 @@ export class NodeService extends EventEmitter {
               .map((a) => a.socket!),
           ],
         ));
+      assertRecoveryCurrent?.();
       let profile = this.settings.value.adapters.find(
         (a) => a.kind === 'codex-desktop' && a.threadId === validated.threadId,
       );
@@ -1623,9 +1714,15 @@ export class NodeService extends EventEmitter {
         profile.socket !== socket ||
         this.adapters.get(profile.id).status().state !== 'ready'
       ) {
-        profile.socket = socket;
-        delete profile.codexQueue;
-        await this.settings.save();
+        if (assertRecoveryCurrent) {
+          const { codexQueue: _queue, ...updated } = { ...profile, socket };
+          await this.settings.replaceAdapter(profile, updated, assertRecoveryCurrent);
+          profile = updated;
+        } else {
+          profile.socket = socket;
+          delete profile.codexQueue;
+          await this.settings.save();
+        }
         await this.adapters.add(profile);
       }
       adapterId = profile.id;
@@ -1636,6 +1733,7 @@ export class NodeService extends EventEmitter {
     });
     this.adapterSetup = setup.catch(() => {});
     await setup;
+    assertRecoveryCurrent?.();
     assertNoOtherOwner();
     const existing = this.store.bindingForNickname(args.nickname);
     const connectionId =
@@ -1766,7 +1864,7 @@ export class NodeService extends EventEmitter {
     return {
       automatic: true,
       description:
-        'Full messages and attachment links are queued for this exact Codex chat. Receipt is recorded after Codex saves the message in the chat.',
+        'Full messages and attachment links are queued for this exact chat. Receipt is recorded after the message is saved in the chat.',
     };
   }
 
@@ -2168,6 +2266,7 @@ export class NodeService extends EventEmitter {
     nickname: string,
     threadId: string,
     token: string,
+    recoverOnly?: boolean,
   ): Promise<ConnectedResult> {
     const challenge = this.codexRecovery.get(threadId);
     if (
@@ -2178,6 +2277,15 @@ export class NodeService extends EventEmitter {
       !secretMatches(contentHash(token), challenge.digest)
     )
       throw new Error('The Codex confirmation is invalid or expired');
+    if (recoverOnly) {
+      if (!challenge.target.binding || challenge.target.binding.chatId !== threadId)
+        throw new OwnBindingRecoveryUnavailable();
+      this.assertOwnBindingRecovery(
+        { nickname },
+        { client: 'Codex', chatId: threadId },
+        challenge.target.binding,
+      );
+    }
     // After the original proof window, only a recent ordinary item from the exact
     // transcript can authorize redemption. Merely finding the token in the queue
     // or retrying agent_connect cannot restart the clock.
@@ -2201,7 +2309,9 @@ export class NodeService extends EventEmitter {
     challenge.expires = Math.min(challenge.expires, Date.now() + codexRecoveryLifetime);
     challenge.state = 'used';
     try {
-      return await this.completeCodexBinding(challenge, profile);
+      const result = await this.completeCodexBinding(challenge, profile);
+      if (this.codexRecovery.get(threadId) === challenge) this.codexRecovery.delete(threadId);
+      return result;
     } catch (error) {
       // A failed readiness check precedes binding/transfer. The verified caller
       // may retry with the same proof, within its original lifetime.
@@ -2211,6 +2321,10 @@ export class NodeService extends EventEmitter {
         this.assertCodexRecoveryTarget(target);
         challenge.state = 'pending';
         error.expiresAt = new Date(challenge.expires).toISOString();
+      } else if (this.codexRecovery.get(threadId) === challenge) {
+        // This redemption ended without a result. Keep its token unusable and
+        // do not treat a later recovery check as an in-progress redemption.
+        challenge.state = 'retired';
       }
       throw error;
     }
