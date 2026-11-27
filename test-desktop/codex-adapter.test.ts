@@ -318,7 +318,7 @@ test('Codex owner probe is read-only; idle admission inherits settings and targe
   assert.deepEqual(params.turnStart.request.input, [
     {
       type: 'text',
-      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply.`,
+      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.`,
       text_elements: [],
     },
   ]);
@@ -2173,6 +2173,9 @@ test('agent_connect keeps MCP available and resumes the same saved Codex binding
     'probe the exact Desktop route before observing the existing offer',
   );
   assert.equal(submitted.length, 1);
+  assert.doesNotMatch(submitted[0]!, /codex/i);
+  assert.match(submitted[0]!, /call agent_connect once with the original nickname/);
+  assert.match(submitted[0]!, /Omit connectionId and transfer or reset options/);
   const token = submitted[0].split('contextToken: ')[1];
   assert.ok(token);
   // Make the registered adapter check readiness again during proof redemption.
@@ -2229,10 +2232,172 @@ async function recoveryMcp(
       body: result.structuredContent as Record<string, unknown> | undefined,
     };
   };
-  return { directory, service, connect };
+  return { directory, service, client, connect };
 }
 
-async function legacyConfirmation(t: test.TestContext) {
+test('fresh Codex MCP session recovers a lost ID before sending one exact reply', async (t) => {
+  const f = await fixture(t);
+  const { service, client, connect } = await recoveryMcp(t, {
+    codexSockets: () => [f.profile.socket!],
+  });
+  const thread = f.profile.threadId!;
+  const owner = await service.connectCodex(
+    { client: 'Codex', nickname: 'Recipient' },
+    { threadId: thread, socket: f.profile.socket },
+  );
+  assert.equal(owner.status, 'connected');
+  if (owner.status !== 'connected') throw new Error('fixture binding');
+  const saved = owner.binding;
+  const author = service.connect({ client: 'Fixture', nickname: 'Author' });
+  if (author.status !== 'connected') throw new Error('fixture sender');
+  const delivered = await service.send({
+    connectionId: author.binding.connectionId,
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Recipient',
+    text: 'Original Incoming — 東京',
+  });
+  const incoming = service.store.get(delivered.id, 'in')!;
+  const ref = 'r' + incoming.sequence.toString(36);
+
+  const { tools } = await client.listTools();
+  const connectTool = tools.find((tool) => tool.name === 'agent_connect')!;
+  const sendTool = tools.find((tool) => tool.name === 'agent_send')!;
+  assert.ok(!connectTool.inputSchema.required?.includes('connectionId'));
+  assert.ok(sendTool.inputSchema.required?.includes('connectionId'));
+  for (const description of [
+    client.getInstructions(),
+    connectTool.description,
+    sendTool.description,
+  ])
+    assert.match(description ?? '', /nickname and recoverOnly=true\. Omit connectionId if lost/);
+  for (const args of [
+    { nickname: 'Unbound name', recoverOnly: true },
+    { recoverOnly: true, connectionId: author.binding.connectionId },
+    { recoverOnly: true, confirmTransfer: true },
+    { recoverOnly: true, resetHistory: true },
+  ]) {
+    const refused = await connect(thread, args);
+    assert.equal(refused.body?.status, 'own_binding_unverified');
+    assert.doesNotMatch(JSON.stringify(refused), /transferId|requestingChat|currentOwner/);
+    assert.ok(!JSON.stringify(refused).includes(saved.connectionId));
+  }
+  const foreign = await connect(randomUUID(), { recoverOnly: true });
+  assert.equal(foreign.body?.status, 'own_binding_unverified');
+  assert.ok(!JSON.stringify(foreign).includes(saved.connectionId));
+  assert.equal(service.store.list().length, 2);
+  assert.deepEqual(service.store.bindingForNickname('Recipient'), saved);
+
+  const recovered = await connect(thread, { recoverOnly: true });
+  assert.equal(recovered.body?.status, 'connected');
+  assert.deepEqual(recovered.body?.binding, saved);
+  assert.equal(recovered.body?.connectionId, undefined);
+  assert.match(String(recovered.body?.description), /^Read binding\.connectionId first\./);
+  assert.deepEqual(JSON.parse((recovered.content as { text: string }[])[0]!.text), recovered.body);
+  const reply = {
+    connectionId: saved.connectionId,
+    replyRef: ref,
+    text: 'One exact reply',
+    id: randomUUID(),
+  };
+  const originalSend = service.send.bind(service);
+  const lostResponse = t.mock.method(
+    service,
+    'send',
+    async (...args: Parameters<typeof service.send>) => {
+      await originalSend(...args);
+      throw new Error(
+        'Connection not found. Call agent_connect with the agent name chosen by the user',
+      );
+    },
+  );
+  const uncertain = await client.callTool({
+    name: 'agent_send',
+    arguments: reply,
+    _meta: { threadId: thread },
+  });
+  const outcome = uncertain.structuredContent as Record<string, unknown>;
+  assert.equal(outcome.status, 'send_outcome_unverified');
+  assert.equal(outcome.nextAction, 'agent_history');
+  const history = await client.callTool({
+    name: 'agent_history',
+    arguments: { connectionId: saved.connectionId },
+    _meta: { threadId: thread },
+  });
+  const rows = ((history.structuredContent as { messages?: unknown[] })?.messages ?? []) as {
+    direction: string;
+    envelope: { id: string; text: string; replyTo?: string };
+  }[];
+  assert.deepEqual(
+    rows
+      .filter((row) => row.direction === 'out' && row.envelope.id === reply.id)
+      .map(({ envelope }) => ({ text: envelope.text, replyTo: envelope.replyTo })),
+    [{ text: reply.text, replyTo: delivered.id }],
+  );
+  assert.equal(lostResponse.mock.callCount(), 1);
+});
+
+test(
+  'Codex lost-ID recovery retains the existing exact confirmation without starting another',
+  { skip: process.platform === 'win32' },
+  async (t) => {
+    const x = await legacyConfirmation(t, true);
+    let entered!: () => void;
+    let unblock!: () => void;
+    const entering = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    const blocked = new Promise<void>((resolve) => {
+      unblock = resolve;
+    });
+    t.mock.method(CodexQueueAdapter.prototype, 'start', async () => {
+      entered();
+      await blocked;
+    });
+    t.mock.method(CodexQueueAdapter.prototype, 'status', () => x.ready);
+    const recovering = await x.connect(x.thread, { recoverOnly: true });
+    assert.equal(recovering.body?.status, 'codex_recovery_pending');
+    assert.equal(recovering.body?.expiresAt, new Date(x.deadline).toISOString());
+    assert.doesNotMatch(String(recovering.body?.description), /codex/i);
+    assert.match(
+      String(recovering.body?.description),
+      /Do not resend, restart agent_connect or poll/,
+    );
+    assert.equal(x.tokens.length, 1);
+    const foreign = await x.connect(randomUUID(), { recoverOnly: true, contextToken: x.tokens[0] });
+    assert.equal(foreign.body?.status, 'codex_confirmation_unusable');
+    const redeeming = x.connect(x.thread, { recoverOnly: true, contextToken: x.tokens[0] });
+    await entering;
+    try {
+      const during = await x.connect(x.thread, { recoverOnly: true });
+      assert.equal(during.body?.status, 'codex_recovery_uncertain');
+      assert.equal(during.body?.phase, 'redeeming');
+      assert.match(String(during.body?.description), /Wait for that result/);
+      assert.doesNotMatch(String(during.body?.description), /codex/i);
+      assert.equal(x.tokens.length, 1);
+    } finally {
+      unblock();
+    }
+    const restored = await redeeming;
+    assert.equal(restored.body?.status, 'connected');
+    assert.deepEqual(restored.body?.binding, x.saved);
+    assert.equal(x.tokens.length, 1);
+    x.assertHistory();
+    assert.equal(
+      (await x.connect(x.thread, { recoverOnly: true, contextToken: x.tokens[0] })).isError,
+      true,
+    );
+    // The successful redemption result may have been dropped. A caller without
+    // it must not end up waiting for the already redeemed confirmation.
+    x.f.state.discoveryResult = 'success';
+    const afterLostResponse = await x.connect(x.thread, { recoverOnly: true });
+    assert.equal(afterLostResponse.body?.status, 'connected');
+    assert.deepEqual(afterLostResponse.body?.binding, x.saved);
+    assert.equal(x.tokens.length, 1);
+    x.assertHistory();
+  },
+);
+
+async function legacyConfirmation(t: test.TestContext, recoverOnly = false) {
   const f = await fixture(t);
   const { service, connect } = await recoveryMcp(t, { codexSockets: () => [f.profile.socket!] });
   const thread = f.profile.threadId!;
@@ -2265,7 +2430,7 @@ async function legacyConfirmation(t: test.TestContext) {
     return { state: 'dispatched', witness: { messageId: randomUUID(), payloadHash: 'fixture' } };
   });
   f.state.discoveryResult = 'error';
-  const offer = await connect(thread);
+  const offer = await connect(thread, recoverOnly ? { recoverOnly } : {});
   assert.equal(offer.body?.status, 'codex_recovery_pending');
   const deadline = Date.parse(String(offer.body?.expiresAt));
   assert.ok(Number.isFinite(deadline));

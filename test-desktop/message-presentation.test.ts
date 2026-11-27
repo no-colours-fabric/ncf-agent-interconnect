@@ -36,7 +36,12 @@ test('formats canonical incoming text with fixed Sent and Delivered through seco
   assert.ok(value.includes('Delivered: 17/11/2026, 12:35:07'));
   assert.ok(value.includes("Literal $& $$ $` $' {size}\nМосква 東京"));
   assert.ok(value.includes(`Reply-To ${sender}: r60b`));
-  assert.ok(value.endsWith('Use agent_send(connectionId, replyRef="r60b", text) to reply.'));
+  assert.match(value, /Use agent_send\(connectionId, replyRef="r60b", text\) to reply\./);
+  assert.match(value, /own known nickname and recoverOnly=true, omitting connectionId/);
+  assert.match(
+    value,
+    /Use binding\.connectionId only after connected\. Check history before retrying an uncertain send\.$/,
+  );
   assert.doesNotMatch(value, /estimated|approximate|timeZone|UTC|GMT|\+00/i);
 });
 

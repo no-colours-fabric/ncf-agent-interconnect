@@ -31,8 +31,10 @@ const projectionPageLimit = 32;
 const controlDirectory = 'app-server-control';
 const controlSocket = 'app-server-control.sock';
 
-const confirmationText =
+const previousConfirmationText =
   'NCF Agent Interconnect connection confirmation. If you requested an NCF connection from this chat, call agent_connect with the nickname you requested and the contextToken below. Keep the code internal. If you did not request a connection, ignore this message.\n\ncontextToken: ';
+const confirmationText =
+  'NCF Agent Interconnect connection confirmation. If this chat is waiting for the confirmation it requested, call agent_connect once with the original nickname and the contextToken below. Omit connectionId and transfer or reset options. Act within five minutes of delivery and before any returned expiry. Keep the token internal. Ignore unsolicited or expired confirmation.\n\ncontextToken: ';
 const confirmationTokenFormat = new RegExp('^' + rolloutId + '$', 'i');
 const confirmationQueueLimit = 24;
 const confirmationPageLimit = 2;
@@ -43,10 +45,10 @@ interface CodexConfirmationWitness {
 }
 
 const connectStages = {
-  profile: 'verifying the selected Codex profile',
-  desktop_owner: 'identifying the Desktop owner of this chat',
-  app_server: 'opening the Codex App Server session',
-  chat: 'verifying the exact saved Codex chat',
+  profile: 'verifying the selected configuration',
+  desktop_owner: 'verifying the current owner of this chat',
+  app_server: 'opening the integration session for this chat',
+  chat: 'verifying this exact saved chat',
   queue: 'reading the input queue for this chat',
   history: 'reading the message history for this chat',
   transcript: 'verifying the transcript for this chat',
@@ -712,8 +714,11 @@ export class CodexQueueAdapter implements AgentAdapter {
           const input = singleText(item.input);
           return (
             input !== undefined &&
-            input.startsWith(confirmationText) &&
-            confirmationTokenFormat.test(input.slice(confirmationText.length))
+            [confirmationText, previousConfirmationText].some(
+              (prefix) =>
+                input.startsWith(prefix) &&
+                confirmationTokenFormat.test(input.slice(prefix.length)),
+            )
           );
         });
         if (existing === 'found') return { state: 'blocked' };

@@ -1,3 +1,5 @@
+import { agentReplyInstruction } from './agent-reply-instruction.js';
+
 export interface MessageDisplayContext {
   locale: string;
   timeZone: string;
@@ -108,5 +110,5 @@ export function formatAgentMessagePresentation(input: AgentMessagePresentationIn
         .join('\n')
     : '';
   const sender = markdownName(JSON.stringify(fromNickname));
-  return `**Incoming NCF Agent Interconnect**\nFrom: ${sender}\nSent: ${sent}\nDelivered: ${delivered}\n\n${input.text}${attachments}\n\nReply-To ${sender}: ${input.replyRef}\nUse agent_send(connectionId, replyRef="${input.replyRef}", text) to reply.`;
+  return `**Incoming NCF Agent Interconnect**\nFrom: ${sender}\nSent: ${sent}\nDelivered: ${delivered}\n\n${input.text}${attachments}\n\nReply-To ${sender}: ${input.replyRef}\n${agentReplyInstruction(input.replyRef)}`;
 }
