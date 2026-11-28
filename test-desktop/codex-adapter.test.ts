@@ -1,6 +1,9 @@
+import { runCodexSendHook } from '../desktop/integrations/codex-send-hook.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import net from 'node:net';
+import { exec } from 'node:child_process';
+import { parse as parseToml } from '@decimalturn/toml-patch';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 import fsPromises, { mkdir, mkdtemp, realpath, rm, writeFile, readFile } from 'node:fs/promises';
@@ -318,7 +321,7 @@ test('Codex owner probe is read-only; idle admission inherits settings and targe
   assert.deepEqual(params.turnStart.request.input, [
     {
       type: 'text',
-      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(connectionId, replyRef="${event.replyRef}", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.`,
+      text: `**Incoming NCF Agent Interconnect**\nFrom: "Коллега"\n\nГотовое поручение\n\nReply-To: ${event.replyRef}\nUse agent_send(replyRef="${event.replyRef}", text) to reply.`,
       text_elements: [],
     },
   ]);
@@ -837,7 +840,10 @@ test('Codex MCP metadata automatically selects the exact chat and profile among 
   assert.equal(unverified.isError, true);
   assert.equal(structured(unverified)?.status, 'codex_rename_reconnect_required');
   assert.equal(structured(unverified)?.nextAction, 'agent_connect');
-  assert.match(String(structured(unverified)?.description), /current nickname.*same connectionId/);
+  assert.match(
+    String(structured(unverified)?.description),
+    /last confirmed nickname.*same connectionId/,
+  );
   assert.match(
     String(structured(unverified)?.description),
     /After status=connected, call agent_rename once/,
@@ -911,18 +917,21 @@ test(
       codexSockets: () => [f.profile.socket!],
       wakeCodexChat: async () => {},
     });
-    await service.open();
     const client = new Client({ name: 'Codex', version: 'test' });
+    t.after(async () => {
+      try {
+        await client.close();
+      } finally {
+        await service.close();
+        await rm(directory, { recursive: true, force: true });
+      }
+    });
+    await service.open();
     await client.connect(
       new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
         requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
       }),
     );
-    t.after(async () => {
-      await client.close();
-      await service.close();
-      await rm(directory, { recursive: true, force: true });
-    });
     const threadId = f.profile.threadId!;
     const receiver = await service.connectCodex(
       { nickname: 'Recipient', client: 'Codex' },
@@ -1575,7 +1584,10 @@ test('Codex queue recovery offers a transfer only in the exact verified destinat
     });
   const denied = await connect(unknown);
   assert.equal(denied.isError, true);
-  assert.match(JSON.stringify(denied.content), /exact Codex chat, input queue or transcript/);
+  assert.match(
+    JSON.stringify(denied.content),
+    /chat’s route for confirmation could not be verified/,
+  );
   assert.equal(
     service.settings.value.adapters.some((profile) => profile.threadId === unknown),
     false,
@@ -2235,6 +2247,108 @@ async function recoveryMcp(
   return { directory, service, client, connect };
 }
 
+test('ChatGPT confirms the exact send from a new MCP session with either the host hook or two halves of a native confirmation', async (t) => {
+  const f = await fixture(t);
+  const { service, client, directory } = await recoveryMcp(t, {
+    codexSockets: () => [f.profile.socket!],
+  });
+  const thread = f.profile.threadId!;
+  const owner = await service.connectCodex(
+    { client: 'Codex', nickname: 'Source' },
+    { threadId: thread, socket: f.profile.socket },
+  );
+  assert.equal(owner.status, 'connected');
+  const args = {
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Recipient',
+    text: 'One 普通 Ω',
+    id: randomUUID(),
+  };
+  const begin = (input: Record<string, unknown>, id = thread) =>
+    client.callTool({ name: 'agent_send', arguments: input, _meta: { threadId: id } });
+  const resume = (receipt: string, contextToken?: string, id = thread) =>
+    client.callTool({
+      name: 'agent_connect',
+      arguments: { sendReceipt: receipt, ...(contextToken && { contextToken }) },
+      _meta: { threadId: id },
+    });
+  const stage = await begin(args);
+  const body = stage.structuredContent as { status: string; receipt: string };
+  assert.equal(body.status, 'awaiting_chat_confirmation');
+  assert.equal(service.store.get(args.id, 'out'), undefined);
+  const event = {
+    hook_event_name: 'PostToolUse',
+    session_id: thread,
+    turn_id: randomUUID(),
+    tool_use_id: 'call-fixture',
+    tool_name: 'mcp__ncf_agent_interconnect__agent_send',
+    tool_input: args,
+    tool_response: stage,
+  };
+  const hook = (changes: Record<string, unknown> = {}) =>
+    runCodexSendHook(path.join(directory, 'Integrations'), { ...event, ...changes });
+  for (const invalid of [
+    { session_id: randomUUID() },
+    { tool_input: { ...args, text: 'Other' } },
+  ]) {
+    const rejected = JSON.stringify(await hook(invalid));
+    assert.match(rejected, /send_chat_changed/);
+    assert.doesNotMatch(rejected, /agent_history|outgoing history/);
+  }
+  assert.equal(service.store.get(args.id, 'out'), undefined);
+  const config = parseToml(service.clientInstructions('codex').configuration).hooks as {
+    PostToolUse: { hooks: { command: string }[] }[];
+  };
+  const command = config.PostToolUse[0].hooks[0].command;
+  const output = await new Promise<string>((resolve, reject) => {
+    const child = exec(command, { timeout: 15_000 }, (error, stdout) =>
+      error ? reject(error) : resolve(stdout),
+    );
+    child.stdin!.end(JSON.stringify(event));
+  });
+  assert.match(JSON.parse(output).hookSpecificOutput.additionalContext, /accepted/);
+  assert.match(JSON.stringify(await hook()), /accepted/);
+  assert.equal(service.store.get(args.id, 'out')?.envelope.fromNickname, 'Source');
+  const other = { ...args, id: randomUUID(), text: 'fallback' };
+  const fallback = (await begin(other)).structuredContent as { receipt: string };
+  f.state.runtime = 'active';
+  const notices = () =>
+    f.requests.filter(
+      (r) =>
+        r.method === 'thread-follower-steer-turn' &&
+        JSON.stringify(r.params).includes('NCF Agent Interconnect send confirmation.'),
+    );
+  assert.equal((await resume(fallback.receipt, undefined, randomUUID())).isError, true);
+  const offer = await resume(fallback.receipt);
+  assert.equal(
+    (offer.structuredContent as { status: string }).status,
+    'awaiting_native_confirmation',
+  );
+  assert.equal(notices().length, 1);
+  const text = (notices()[0].params.input as { text: string }[])[0].text;
+  const proof = text.split('contextToken: ').at(-1)!;
+  assert.match(proof, /^[0-9a-f-]{36}$/);
+  assert.ok(!text.includes(fallback.receipt));
+  assert.ok(!JSON.stringify(offer).includes(proof));
+  await resume(fallback.receipt);
+  assert.equal(notices().length, 1);
+  assert.equal((await resume(fallback.receipt, randomUUID())).isError, true);
+  assert.equal(service.store.get(other.id, 'out'), undefined);
+  const both = await Promise.all([
+    resume(fallback.receipt, proof),
+    resume(fallback.receipt, proof),
+  ]);
+  assert.ok(both.every((r) => (r.structuredContent as { accepted?: boolean })?.accepted === true));
+  assert.equal(service.store.get(other.id, 'out')?.envelope.text, 'fallback');
+  const third = { ...args, id: randomUUID() };
+  const old = (await begin(third)).structuredContent as { receipt: string };
+  assert.equal(owner.status, 'connected');
+  if (owner.status !== 'connected') throw new Error();
+  service.disconnect(owner.binding.connectionId);
+  assert.equal((await resume(old.receipt)).isError, true);
+  assert.equal(service.store.get(third.id, 'out'), undefined);
+});
+
 test('fresh Codex MCP session recovers a lost ID before sending one exact reply', async (t) => {
   const f = await fixture(t);
   const { service, client, connect } = await recoveryMcp(t, {
@@ -2263,13 +2377,9 @@ test('fresh Codex MCP session recovers a lost ID before sending one exact reply'
   const connectTool = tools.find((tool) => tool.name === 'agent_connect')!;
   const sendTool = tools.find((tool) => tool.name === 'agent_send')!;
   assert.ok(!connectTool.inputSchema.required?.includes('connectionId'));
-  assert.ok(sendTool.inputSchema.required?.includes('connectionId'));
-  for (const description of [
-    client.getInstructions(),
-    connectTool.description,
-    sendTool.description,
-  ])
-    assert.match(description ?? '', /nickname and recoverOnly=true\. Omit connectionId if lost/);
+  assert.equal(sendTool.inputSchema.properties?.connectionId, undefined);
+  assert.match(sendTool.description ?? '', /Call agent_send directly/);
+  assert.match(connectTool.description ?? '', /recoverOnly=true/);
   for (const args of [
     { nickname: 'Unbound name', recoverOnly: true },
     { recoverOnly: true, connectionId: author.binding.connectionId },
@@ -2294,7 +2404,6 @@ test('fresh Codex MCP session recovers a lost ID before sending one exact reply'
   assert.match(String(recovered.body?.description), /^Read binding\.connectionId first\./);
   assert.deepEqual(JSON.parse((recovered.content as { text: string }[])[0]!.text), recovered.body);
   const reply = {
-    connectionId: saved.connectionId,
     replyRef: ref,
     text: 'One exact reply',
     id: randomUUID(),
@@ -2315,7 +2424,13 @@ test('fresh Codex MCP session recovers a lost ID before sending one exact reply'
     arguments: reply,
     _meta: { threadId: thread },
   });
-  const outcome = uncertain.structuredContent as Record<string, unknown>;
+  const receipt = (uncertain.structuredContent as { receipt: string }).receipt;
+  const outcome = await service.codexSends.finish({
+    thread,
+    receipt,
+    input: reply,
+    toolUseId: 'fixture',
+  });
   assert.equal(outcome.status, 'send_outcome_unverified');
   assert.equal(outcome.nextAction, 'agent_history');
   const history = await client.callTool({

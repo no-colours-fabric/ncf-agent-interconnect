@@ -21,6 +21,36 @@ function containsSettings(current: unknown, required: unknown): boolean {
     ([key, value]) => Object.hasOwn(current, key) && containsSettings(current[key], value),
   );
 }
+function managedCodexSendHook(value: unknown): boolean {
+  if (
+    !object(value) ||
+    Object.keys(value).length !== 2 ||
+    value.matcher !== '^mcp__ncf_agent_interconnect__agent_send$' ||
+    !Array.isArray(value.hooks) ||
+    value.hooks.length !== 1
+  )
+    return false;
+  const hook = value.hooks[0];
+  if (
+    !object(hook) ||
+    Object.keys(hook).length !== 3 ||
+    hook.type !== 'command' ||
+    hook.timeout !== 30 ||
+    typeof hook.command !== 'string'
+  )
+    return false;
+  const windows =
+    /^powershell\.exe -NoProfile -NonInteractive -EncodedCommand ([A-Za-z0-9+/=]+)$/.exec(
+      hook.command,
+    );
+  const command = windows ? Buffer.from(windows[1], 'base64').toString('utf16le') : hook.command;
+  return (
+    (windows
+      ? command.startsWith("$env:ELECTRON_RUN_AS_NODE='1';")
+      : command.startsWith('ELECTRON_RUN_AS_NODE=1 ')) &&
+    /[/\\]codex-send-hook\.(?:js|ts)['"]/.test(command)
+  );
+}
 function json(text: string): Record<string, unknown> {
   const errors: ParseError[] = [];
   const input = text.trim() ? text : '{}';
@@ -432,9 +462,31 @@ export function editMcpConfiguration(
         updates[inbox] = updatedInbox;
       }
     }
-    if (Object.keys(updates).length) {
+    const hookRoot = own(root, 'hooks'),
+      wantedHooks = own(desired, 'hooks');
+    let mergedHooks: Record<string, unknown> | undefined;
+    if (object(wantedHooks) && Array.isArray(wantedHooks.PostToolUse)) {
+      if (hookRoot !== undefined && !object(hookRoot))
+        throw new Error('Invalid hooks configuration');
+      const entries = (object(hookRoot) ? hookRoot.PostToolUse : undefined) ?? [];
+      if (!Array.isArray(entries)) throw new Error('Invalid PostToolUse hooks');
+      const desiredEntry = wantedHooks.PostToolUse[0];
+      const present = entries.some((entry) => isDeepStrictEqual(entry, desiredEntry));
+      const replaced = !present && entries.some(managedCodexSendHook);
+      // Keep independent or customized handlers. An app move replaces its generated command only on owner approval.
+      if (!present)
+        mergedHooks = Object.assign(Object.create(null), hookRoot, {
+          PostToolUse: [...entries.filter((entry) => !managedCodexSendHook(entry)), desiredEntry],
+        });
+      changes.push({
+        scope: 'hooks.PostToolUse (NCF send confirmation)',
+        action: present ? 'unchanged' : replaced ? 'replace' : 'add',
+      });
+    }
+    if (Object.keys(updates).length || mergedHooks) {
       const updated = Object.assign(Object.create(null), root, {
         [parent]: Object.assign(Object.create(null), servers, updates),
+        ...(mergedHooks && { hooks: mergedHooks }),
       });
       try {
         content = patchToml(source, updated);

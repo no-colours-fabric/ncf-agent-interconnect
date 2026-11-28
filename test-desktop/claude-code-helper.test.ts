@@ -85,7 +85,7 @@ test('Generated plugin files use exec form on POSIX, quoted literals on Windows 
       Buffer.from(posix['plugin/hooks/incoming-format.js']).toString('base64')
   );
   const presentation =
-    '**Incoming NCF Agent Interconnect**\nFrom: "Боб"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nТочный текст 漢字\n\nReply-To "Боб": r1\nUse agent_send(connectionId, replyRef="r1", text) to reply.';
+    '**Incoming NCF Agent Interconnect**\nFrom: "Боб"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nТочный текст 漢字\n\nReply-To "Боб": r1\nUse agent_send(replyRef="r1", text) to reply.';
   const page = {
     messages: [
       {

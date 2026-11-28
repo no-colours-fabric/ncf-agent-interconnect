@@ -18,6 +18,11 @@ import {
   type AgentToolName,
 } from './mcp-agent-guidance.js';
 import type { NodeService } from './service.js';
+import { changedSender as changed, sendFromChat } from './chat-send.js';
+import { SendChatRequired } from './mcp-agent-guidance.js';
+import { sendInputHash } from '../integrations/send-hash.js';
+import type { Binding } from '../shared/contracts.js';
+import { codexThreadId } from './service.js';
 import { chatRenameSchema } from './client-contexts.js';
 import { McpResponseHandoff, type ResponseInvocation } from './mcp-response-handoff.js';
 import { helperHelloSchema, type ClaudeHelper, type WakeSink } from './claude-sessions.js';
@@ -102,6 +107,7 @@ export function createAgentMcp(
         requestId?: string | number;
         /** The admitted Claude Code call permit, when this is one. */
         claudePermit?: string;
+        assertCurrent: () => void;
         handoff?: ResponseInvocation;
         openCodeV2Identity?: OpenCodeV2Identity;
       },
@@ -125,6 +131,11 @@ export function createAgentMcp(
           );
         let nativeIdentity: OpenCodeV2Identity | undefined;
         if (openCodeV2) {
+          if (name === 'agent_send' && (!openCodeV2.bootId || !openCodeV2.admissionId))
+            throw new SendChatRequired(
+              'send_chat_unverified',
+              'Open this chat through the current NCF plugin for OpenCode v2 so its running instance can confirm the sender.',
+            );
           if (
             name === 'node_status' &&
             !openCodeV2.bootId &&
@@ -220,6 +231,7 @@ export function createAgentMcp(
         invoked = true;
         const output = await handler(args as z.infer<z.ZodObject<T>>, {
           ...extra,
+          assertCurrent: currentCall,
           ...(handoff ? { handoff } : {}),
           ...(nativeIdentity ? { openCodeV2Identity: nativeIdentity } : {}),
           ...(typeof permit === 'string' && mcp.server.getClientVersion()?.name === 'Claude Code'
@@ -320,9 +332,15 @@ export function createAgentMcp(
     'agent_connect',
     'Connect this chat under the owner-chosen name through its supported integration. If confirmation is pending, queued or uncertain, wait for it in this exact chat. When it arrives, call agent_connect once with the original nickname and its contextToken, within five minutes and before any returned expiry. Omit the ID and any transfer or reset options. Keep the token internal. Do not poll or restart the attempt. If confirmation expired or is unavailable, stop this attempt and follow the returned guidance. If nickname_in_use is returned, offer both choices: transfer preserving history, or start as a new agent deleting old MCP history and revoking the previous binding. Obtain explicit user approval for the chosen mode, then repeat with connectionId from the offer, the selected choice transferId and confirmTransfer=true. Set resetHistory=true only with the reset choice token; the top-level transferId is preserve-only. Reset is available only for an occupied name in another exact chat. Reset cannot erase client transcripts or foreign admitted history, recall in-flight messages, or cancel remote queues; previously unknown incoming messages may arrive afterward. Never ask the user to copy technical parameters or invent a contextToken.',
     {
-      nickname: nicknameSchema.describe(
-        'The owner-chosen agent nickname. For recovery, use this exact chat’s last confirmed own nickname.',
-      ),
+      sendReceipt: z
+        .uuid()
+        .optional()
+        .describe('Use only the continuation from your own pending agent_send.'),
+      nickname: nicknameSchema
+        .optional()
+        .describe(
+          'The owner-chosen agent nickname. For recovery, use this exact chat’s last confirmed own nickname.',
+        ),
       connectionId: z
         .uuid()
         .optional()
@@ -356,11 +374,37 @@ export function createAgentMcp(
     },
     false,
     async (args, extra) => {
+      const { sendReceipt, nickname, ...options } = args;
+      if (sendReceipt) {
+        if (
+          nickname ||
+          options.connectionId ||
+          options.transferId ||
+          options.confirmTransfer ||
+          options.resetHistory ||
+          options.recoverOnly ||
+          options.codexRecoveryToken ||
+          extra.openCodeV2Identity ||
+          extra.claudePermit
+        )
+          throw changed();
+        return service.codexSends.resume(
+          codexThreadId({ client: mcp.server.getClientVersion()?.name ?? '', meta: extra._meta }),
+          sendReceipt,
+          options.contextToken,
+        );
+      }
+      if (!nickname)
+        throw new SendChatRequired(
+          'send_chat_unbound',
+          'Call agent_connect with the name chosen by the owner for this chat.',
+        );
+      const input = { ...options, nickname };
       if (extra.openCodeV2Identity && args.codexRecoveryToken)
         throw new Error('The Codex confirmation must be submitted from its exact chat');
       const result = extra.openCodeV2Identity
-        ? await service.connectOpenCodeV2(args, extra.openCodeV2Identity)
-        : await service.connectAutomatic(args, {
+        ? await service.connectOpenCodeV2(input, extra.openCodeV2Identity)
+        : await service.connectAutomatic(input, {
             client: mcp.server.getClientVersion()?.name ?? 'MCP',
             meta: extra._meta,
           });
@@ -481,11 +525,6 @@ export function createAgentMcp(
     'agent_send',
     'Durably queue text and permitted local files for the explicit recipientNode UUID and recipientNickname. Get node UUIDs from node_peers. The local UUID explicitly selects a local mailbox, even before its chat connects. A configured offline peer keeps its remote queue; no local fallback occurs. accepted means saved, not received by the agent; delivery reports queued, accepted_by_node or received_by_agent. attachmentTransfer peer_size_limit means the message remains queued because the destination cannot accept its attachment size. For replies, use replyRef from Reply-To instead of the address fields, or copy all parameters from legacy Reply-To JSON. Reuse the message UUID only for identical retries. Use attachment_stage for a file created solely for transfer. NCF cannot clean up sources outside an issued slot. If you created a temporary source elsewhere, delete it yourself only after agent_history reports received_by_agent and you no longer need it for a retry. Preserve ordinary files. This chat must still be connected as the sending agent.',
     {
-      connectionId: z
-        .uuid()
-        .describe(
-          'From binding.connectionId in a successful agent_connect. If lost, first call agent_connect with this chat’s own known nickname and recoverOnly=true, omitting the ID.',
-        ),
       recipientNode: z
         .uuid()
         .describe('Explicit local or configured remote node UUID; required without replyRef.')
@@ -505,10 +544,78 @@ export function createAgentMcp(
       files: z.array(z.string()).max(16).default([]),
     },
     false,
-    (args) => {
-      touch(args.connectionId);
-      const address = service.resolveReplyAddress(args.connectionId, args);
-      return service.send({ ...args, ...address });
+    async (args, extra) => {
+      const host = { client: mcp.server.getClientVersion()?.name ?? '', meta: extra._meta };
+      const profiles = service.settings.value.adapters;
+      const identity = extra.openCodeV2Identity;
+      const hash = sendInputHash(args);
+      let binding: Binding;
+      let verify = () => {};
+      if (extra.handoff?.manualSender === 'unverified')
+        throw new SendChatRequired(
+          'send_chat_unverified',
+          'No message was sent. Restore the dedicated signing channel for this chat in its host.',
+        );
+      if (extra.handoff?.manualSender) {
+        binding = extra.handoff.manualSender.binding;
+        verify = extra.handoff.manualSender.current;
+      } else if (identity) {
+        identity.assertCurrent();
+        const profile = profiles.find(
+          (p) =>
+            p.kind === 'opencode-v2' &&
+            !p.released &&
+            p.setupTargetId === identity.scope.targetId &&
+            p.instanceId === identity.scope.bootId &&
+            p.sessionId === identity.sessionID,
+        );
+        binding = service.chatSender('OpenCode v2', identity.sessionID, profile);
+        verify = () => {
+          identity.assertCurrent();
+          if (!profile || profile.released || !service.settings.value.adapters.includes(profile))
+            throw changed();
+        };
+      } else if (extra.claudePermit) {
+        const scope = service.claude.callScope(extra.claudePermit);
+        if (scope.tool !== 'agent_send') throw changed();
+        const profile = profiles.find(
+          (p) => p.kind === 'claude-code' && p.sessionId === scope.lease.session,
+        );
+        binding = service.chatSender('Claude Code', scope.lease.session, profile);
+        verify = () => {
+          extra.assertCurrent();
+          if (!profile || !service.settings.value.adapters.includes(profile)) throw changed();
+        };
+      } else {
+        const native = service.contexts.consumeSend(
+          extra._meta?.['ncf/sendProof'],
+          host.client,
+          hash,
+        );
+        if (!native) {
+          const thread = codexThreadId(host);
+          if (thread) return service.codexSends.begin(thread, args);
+          throw new SendChatRequired(
+            'send_chat_unverified',
+            'No message was sent. Use the exact chat through its configured NCF client integration. A shared MCP connection cannot identify the sending chat.',
+          );
+        }
+        const context = native.context;
+        binding = service.chatSender(
+          context.client,
+          context.chatId,
+          profiles.find((p) => p.id === context.adapterId),
+        );
+        verify = () => {
+          if (!native.current()) throw changed();
+        };
+      }
+      touch(binding.connectionId);
+      return sendFromChat(service, binding, args, () => {
+        if (!isActive()) throw changed();
+        extra.handoff?.assertCurrent();
+        verify();
+      });
     },
   );
   register(
@@ -751,6 +858,7 @@ export class McpEndpoint {
         '/integrations/opencode',
         '/integrations/opencode/release',
         '/integrations/aionui/context',
+        '/integrations/codex/send',
         '/integrations/cursor/context',
         '/integrations/cursor/hook',
       ].includes(req.url ?? '') &&
@@ -760,13 +868,43 @@ export class McpEndpoint {
       const chunks: Buffer[] = [];
       for await (const chunk of req) {
         size += (chunk as Buffer).length;
-        if (size > 16384) {
+        if (size > (req.url === '/integrations/codex/send' ? 1024 * 1024 : 16384)) {
           reject(413, 'Request too large');
           return;
         }
         chunks.push(Buffer.from(chunk));
       }
       const body: unknown = JSON.parse(Buffer.concat(chunks).toString());
+      if (req.url === '/integrations/codex/send') {
+        if (!secretMatches(req.headers['x-ncf-codex-hook'], this.service.codexHookSecret)) {
+          reject(403, 'The installed ChatGPT hook is required.');
+          return;
+        }
+        let outcome;
+        try {
+          outcome = await this.service.codexSends.finish(body);
+        } catch (error) {
+          if (!(error instanceof SendChatRequired)) throw error;
+          outcome = agentToolFailure('agent_send', error, {}, false);
+        }
+        res.writeHead(200, { 'content-type': 'application/json', 'cache-control': 'no-store' });
+        res.end(JSON.stringify(outcome));
+        return;
+      }
+      if (
+        (req.url === '/integrations/opencode' || req.url === '/integrations/opencode/release') &&
+        !secretMatches(req.headers['x-ncf-opencode-host'], this.service.openCodeHookSecret)
+      ) {
+        reject(403, 'The installed OpenCode host is required.');
+        return;
+      }
+      if (
+        req.url === '/integrations/cursor/context' &&
+        !secretMatches(req.headers['x-ncf-cursor-hook'], this.service.cursorHookSecret)
+      ) {
+        reject(403, 'The installed Cursor hook is required to verify this send.');
+        return;
+      }
       if (req.url!.startsWith('/integrations/claude/') && !this.service.integrationsReady) {
         reject(503, 'The node is not ready to accept connections');
         return;
@@ -895,6 +1033,18 @@ export class McpEndpoint {
       };
       if (Array.isArray(body) && session.mcp.server.getClientVersion()?.name === 'Claude Code')
         throw new Error('Claude Code calls require individual request admission.');
+      if (
+        call?.method === 'tools/call' &&
+        call.params?.name === 'agent_send' &&
+        call.params.arguments &&
+        typeof call.params.arguments === 'object'
+      ) {
+        const args = call.params.arguments as Record<string, unknown>;
+        if (Object.hasOwn(args, 'ncfSendProof')) {
+          call.params._meta = { ...call.params._meta, 'ncf/sendProof': args.ncfSendProof };
+          delete args.ncfSendProof;
+        }
+      }
       if (call?.method === 'tools/call') {
         const client = session.mcp.server.getClientVersion()?.name;
         const permit = call.params?._meta?.[claudeCallMetaKey];
@@ -931,6 +1081,18 @@ export class McpEndpoint {
         (typeof call.id === 'string' || typeof call.id === 'number')
       ) {
         const scope = this.responses.begin(session.transport, session.key, call.id, res);
+        if (req.headers['x-ncf-chat-proof'] !== undefined) {
+          try {
+            if (v2Target || call.params?.name !== 'agent_send') throw changed();
+            scope.manualSender = this.service.manualChats.authenticate(
+              req.headers['x-ncf-chat-proof'],
+              sessionId,
+              Buffer.concat(chunks),
+            );
+          } catch {
+            scope.manualSender = 'unverified';
+          }
+        }
         await this.responses.context.run(scope, () =>
           session.transport.handleRequest(req, res, body),
         );

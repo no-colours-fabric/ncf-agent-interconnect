@@ -86,7 +86,7 @@ test('Claude uses the bounded node presentation while preserving strict MCP page
     pathToFileURL(path.join(root, 'plugin/hooks/incoming-format.js')).href
   );
   const presentation =
-    '**Incoming NCF Agent Interconnect**\nFrom: "Боб 漢字"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nD-PROBE-001\nТочный текст 漢字\n\nReply-To "Боб 漢字": r1\nUse agent_send(connectionId, replyRef="r1", text) to reply.';
+    '**Incoming NCF Agent Interconnect**\nFrom: "Боб 漢字"\nSent: 17/11/2026, 12:34:56\nDelivered: 17/11/2026, 12:35:07\n\nD-PROBE-001\nТочный текст 漢字\n\nReply-To "Боб 漢字": r1\nUse agent_send(replyRef="r1", text) to reply.';
   const page = {
     messages: [
       {

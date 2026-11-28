@@ -1,3 +1,4 @@
+import { sendConfirmationText } from './codex-send-notice.js';
 import net from 'node:net';
 import { existsSync, lstatSync, readdirSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
@@ -102,7 +103,7 @@ export const CODEX_IPC_MAX_FRAME_BYTES = 128 * 1024 * 1024;
 
 export async function codexExchange(
   profile: AdapterProfile,
-  input?: EventInput,
+  input?: EventInput | { sendConfirmation: string; isCurrent: () => boolean },
   signal?: AbortSignal,
   timeoutMs = 5000,
   onVerified?: () => void,
@@ -214,9 +215,14 @@ export async function codexExchange(
         return;
       }
       const presentation = 'presentMessage' in input ? input.presentMessage?.() : undefined;
-      const text = presentation?.text ?? agentMessageText(input);
+      const text =
+        'sendConfirmation' in input
+          ? sendConfirmationText + input.sendConfirmation
+          : (presentation?.text ?? agentMessageText(input));
       const beforeWrite = (representation: string) => {
-        input.beforeRelease?.(representation);
+        if (!input.isCurrent || input.isCurrent()) {
+          if ('beforeRelease' in input) input.beforeRelease?.(representation);
+        } else throw new Error('The sending chat changed');
         submitted = true;
       };
       if (runtime === 'active') {

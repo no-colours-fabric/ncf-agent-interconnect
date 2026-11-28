@@ -12,6 +12,7 @@ type Completion = { release(): void; complete(): void; abort(possibleWrite: bool
 
 /** One actual HTTP invocation. A request ID alone never grants this capability. */
 export class ResponseInvocation {
+  manualSender?: import('./manual-chat-channel.js').ManualAuthority | 'unverified';
   readonly nonce = randomUUID();
   readonly controller = new AbortController();
   expected?: unknown;

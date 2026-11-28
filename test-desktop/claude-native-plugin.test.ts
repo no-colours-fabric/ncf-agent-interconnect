@@ -48,7 +48,7 @@ async function fixture(t: test.TestContext, bare = true) {
   const descriptor = { url: 'http://127.0.0.1:12345', token: 'isolated test capability' };
   const nativeLeaseNonce = randomUUID();
   const body =
-    '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(connectionId, replyRef="r9", text) to reply.';
+    '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(replyRef="r9", text) to reply.';
   const reportKey = 'a'.repeat(64);
   const trigger = nativeClaudeTrigger + delivery;
   const reports: any[] = [];
@@ -172,7 +172,7 @@ test('actual emitted main/gate modules turn one opaque trigger into the canonica
   assert.equal(
     f.reports[0].representationHash,
     nativeClaudeRowHash(
-      '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(connectionId, replyRef="r9", text) to reply.',
+      '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(replyRef="r9", text) to reply.',
       undefined,
       false,
     ),
@@ -275,7 +275,7 @@ test('bare incoming receipt still requires the exact plugin origin and asUser mo
     content: [
       {
         type: 'text',
-        text: '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(connectionId, replyRef="r9", text) to reply.',
+        text: '**Incoming NCF Agent Interconnect**\nFrom: "Sender 漢字"\n\nFull body\n\nReply-To: r9\nUse agent_send(replyRef="r9", text) to reply.',
       },
     ],
   };

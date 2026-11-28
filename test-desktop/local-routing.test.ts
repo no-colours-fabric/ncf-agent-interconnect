@@ -1,3 +1,4 @@
+import { dedicatedClient } from './fixtures/manual-chat-client.js';
 import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -45,7 +46,6 @@ test('missing, malformed and unknown nodes fail before files, phantom agents or 
   const sender = service.connect({ nickname: 'Автор', client: 'A' });
   if (sender.status !== 'connected') throw new Error();
   const args = {
-    connectionId: sender.binding.connectionId,
     recipientNickname: 'Удалённый',
     text: 'Не локально',
     files: ['/missing.txt'],
@@ -56,19 +56,28 @@ test('missing, malformed and unknown nodes fail before files, phantom agents or 
     throw new Error('Unexpected snapshot');
   };
   await assert.rejects(
-    service.send(args as SendInput & { connectionId: string }),
+    service.send({ ...args, connectionId: sender.binding.connectionId } as SendInput & {
+      connectionId: string;
+    }),
     /recipientNode is required/,
   );
-  await assert.rejects(service.send({ ...args, recipientNode: 'invalid' }));
   await assert.rejects(
-    service.send({ ...args, recipientNode: randomUUID() }),
+    service.send({ ...args, connectionId: sender.binding.connectionId, recipientNode: 'invalid' }),
+  );
+  await assert.rejects(
+    service.send({
+      ...args,
+      connectionId: sender.binding.connectionId,
+      recipientNode: randomUUID(),
+    }),
     /not been configured/,
   );
   const catalog = await c.listTools();
   assert.ok(
     catalog.tools.find((tool) => tool.name === 'agent_send')!.inputSchema.properties?.replyRef,
   );
-  const missing = await c.callTool({ name: 'agent_send', arguments: args });
+  const signed = await dedicatedClient(t, service, sender);
+  const missing = await signed.callTool({ name: 'agent_send', arguments: args });
   assert.equal(missing.isError, true);
   assert.match(JSON.stringify(missing.content), /recipientNode.*required/);
   assert.equal(snapshots, 0);
@@ -81,11 +90,10 @@ test('missing, malformed and unknown nodes fail before files, phantom agents or 
 
 test('MCP guides an uncertain send to its existing history without leaking an internal error', async (t) => {
   const service = await fixture(t);
-  const c = await client(t, service);
   const sender = service.connect({ nickname: 'Автор', client: 'A' });
   if (sender.status !== 'connected') throw new Error();
+  const c = await dedicatedClient(t, service, sender);
   const args = {
-    connectionId: sender.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
     recipientNickname: 'Проверяющий',
     text: 'Исходный текст',
@@ -94,9 +102,16 @@ test('MCP guides an uncertain send to its existing history without leaking an in
   const send = service.send.bind(service);
   const internalDetails = '/private/fixture/other-chat/' + randomUUID();
   let calls = 0;
-  service.send = async (input) => {
+  service.send = async () => {
+    throw new Error(internalDetails);
+  };
+  const beforeStorage = await c.callTool({ name: 'agent_send', arguments: args });
+  assert.equal((beforeStorage.structuredContent as { status: string }).status, 'send_not_stored');
+  assert.doesNotMatch(JSON.stringify(beforeStorage), /agent_history/);
+  assert.equal(service.store.get(args.id, 'out'), undefined);
+  service.send = async (...params) => {
     calls++;
-    await send(input);
+    await send(...params);
     throw new Error(internalDetails);
   };
   const lost = await c.callTool({ name: 'agent_send', arguments: args });
@@ -104,11 +119,11 @@ test('MCP guides an uncertain send to its existing history without leaking an in
   const recovery = lost.structuredContent as Record<string, unknown> | undefined;
   assert.equal(recovery?.status, 'send_outcome_unverified');
   assert.equal(recovery?.nextAction, 'agent_history');
-  assert.match(String(recovery?.description), /original id.*Do not send another copy/);
+  assert.match(String(recovery?.description), /original message ID.*Do not send another copy/);
   assert.ok(!JSON.stringify(lost).includes(internalDetails));
   const history = await c.callTool({
     name: 'agent_history',
-    arguments: { connectionId: args.connectionId },
+    arguments: { connectionId: sender.binding.connectionId },
   });
   const { messages } = page(history.structuredContent);
   assert.equal(messages.length, 1);
@@ -119,14 +134,16 @@ test('MCP guides an uncertain send to its existing history without leaking an in
 
 test('two MCP chats exchange local text/files and automatic delivery receipts without any configured peer or network dispatch', async (t) => {
   const service = await fixture(t),
-    a = await client(t, service),
-    b = await client(t, service);
-  const first = (await a.callTool({ name: 'agent_connect', arguments: { nickname: 'Автор' } }))
+    aSetup = await client(t, service),
+    bSetup = await client(t, service);
+  const first = (await aSetup.callTool({ name: 'agent_connect', arguments: { nickname: 'Автор' } }))
     .structuredContent as unknown as ConnectResult;
   const second = (
-    await b.callTool({ name: 'agent_connect', arguments: { nickname: 'Проверяющий' } })
+    await bSetup.callTool({ name: 'agent_connect', arguments: { nickname: 'Проверяющий' } })
   ).structuredContent as unknown as ConnectResult;
   if (first.status !== 'connected' || second.status !== 'connected') throw new Error();
+  const a = await dedicatedClient(t, service, first),
+    b = await dedicatedClient(t, service, second);
   const peers = (await a.callTool({ name: 'node_peers', arguments: {} })).structuredContent as {
     localNode: { id: string };
     peers: unknown[];
@@ -149,7 +166,6 @@ test('two MCP chats exchange local text/files and automatic delivery receipts wi
   const file = path.join(service.settings.value.exportRoots[0], 'локальное.txt');
   await writeFile(file, 'Локальное вложение\n');
   const args = {
-    connectionId: first.binding.connectionId,
     recipientNode: service.settings.value.nodeId,
     recipientNickname: 'ПРОВЕРЯЮЩИЙ',
     text: 'Первое локальное сообщение',
@@ -199,7 +215,6 @@ test('two MCP chats exchange local text/files and automatic delivery receipts wi
   const reply = await b.callTool({
     name: 'agent_send',
     arguments: {
-      connectionId: second.binding.connectionId,
       recipientNode: service.settings.value.nodeId,
       recipientNickname: 'АВТОР',
       text: 'Ответ на том же узле',

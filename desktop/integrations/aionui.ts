@@ -11,6 +11,7 @@ import {
   type LoggingMessageNotification,
 } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
+import { sendInputHash } from './send-hash.js';
 
 const descriptorSchema = z
   .object({ url: z.url(), token: z.string().regex(/^[a-f0-9]{64}$/) })
@@ -138,10 +139,17 @@ export async function startAionBridge(
     }
   });
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    let submitted = false;
     try {
       const client = await connect();
       const args = { ...request.params.arguments };
-      if (request.params.name === 'agent_connect' || request.params.name === 'agent_rename') {
+      const send = request.params.name === 'agent_send';
+      delete args.ncfSendProof;
+      if (
+        send ||
+        request.params.name === 'agent_connect' ||
+        request.params.name === 'agent_rename'
+      ) {
         delete args.contextToken;
         const context = aionRuntimeContext(env);
         const config = await descriptor();
@@ -150,6 +158,7 @@ export async function startAionBridge(
           headers: { 'content-type': 'application/json', authorization: 'Bearer ' + config.token },
           body: JSON.stringify({
             ...context,
+            ...(send && { sendHash: sendInputHash(args) }),
             ...(request.params.name === 'agent_rename'
               ? { rename: { connectionId: args.connectionId, nickname: args.nickname } }
               : {}),
@@ -163,9 +172,11 @@ export async function startAionBridge(
           );
         const ticket = z.object({ contextToken: z.uuid() }).safeParse(await response.json());
         if (!ticket.success) throw new Error('AionUi chat verification failed.');
-        args.contextToken = ticket.data.contextToken;
+        if (send) args.ncfSendProof = ticket.data.contextToken;
+        else args.contextToken = ticket.data.contextToken;
       }
       // A failed tool request is never replayed: its effects may already be durable.
+      submitted = true;
       return await client.callTool({ ...request.params, arguments: args });
     } catch (error) {
       const previous = remote;
@@ -177,7 +188,9 @@ export async function startAionBridge(
         (error.message.startsWith('This MCP integration requires') ||
           error.message.startsWith('AionUi chat verification failed'))
           ? error.message
-          : 'The NCF request could not be confirmed. Do not repeat a send automatically; reconnect MCP and inspect history.';
+          : !submitted && request.params.name === 'agent_send'
+            ? 'No message was sent. Restore this chat’s AionUi integration before sending.'
+            : 'The NCF request could not be confirmed. Do not repeat a send automatically; reconnect MCP and inspect history.';
       return { isError: true, content: [{ type: 'text', text: message }] };
     }
   });

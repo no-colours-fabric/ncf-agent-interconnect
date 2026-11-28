@@ -1,3 +1,4 @@
+import { dedicatedClient } from './fixtures/manual-chat-client.js';
 import { mcpRead } from './fixtures/mcp-read.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -48,17 +49,6 @@ function incoming(service: NodeService, nickname: string, changes: Partial<Envel
   return service.store.get(envelope.id, 'in')!;
 }
 const reference = (row: Message) => 'r' + row.sequence.toString(36);
-
-async function client(t: test.TestContext, service: NodeService) {
-  const c = new Client({ name: 'compact-reply-test', version: '1' });
-  await c.connect(
-    new StreamableHTTPClientTransport(new URL(service.snapshot().mcpUrl), {
-      requestInit: { headers: { authorization: 'Bearer ' + service.settings.value.localToken } },
-    }),
-  );
-  t.after(() => c.close());
-  return c;
-}
 
 test('compact template preserves literal content and attachments without routing UUIDs', async (t) => {
   const { f, owner } = await fixture(t);
@@ -213,7 +203,7 @@ test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs bef
     toNickname: 'Other',
   };
   f.service.store.insert(outgoing, 'out');
-  const c = await client(t, f.service);
+  const c = await dedicatedClient(t, f.service, owner);
   let snapshots = 0;
   f.service.files.snapshot = async () => {
     snapshots++;
@@ -238,7 +228,6 @@ test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs bef
     const result = await c.callTool({
       name: 'agent_send',
       arguments: {
-        connectionId: owner.binding.connectionId,
         replyRef,
         text: 'Invalid',
         files: ['/missing'],
@@ -255,7 +244,6 @@ test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs bef
     const result = await c.callTool({
       name: 'agent_send',
       arguments: {
-        connectionId: owner.binding.connectionId,
         replyRef: reference(row),
         ...mixed,
         text: 'Invalid',
@@ -272,7 +260,6 @@ test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs bef
     const result = await c.callTool({
       name: 'agent_send',
       arguments: {
-        connectionId: owner.binding.connectionId,
         ...address,
         text: 'Invalid',
         files: ['/missing'],
@@ -293,7 +280,6 @@ test('MCP rejects mixed, incomplete, foreign, outgoing and noncanonical refs bef
     const result = await c.callTool({
       name: 'agent_send',
       arguments: {
-        connectionId: owner.binding.connectionId,
         ...address,
         text: 'Compatible reply',
       },

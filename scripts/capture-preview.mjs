@@ -1,3 +1,4 @@
+import { fixtureChat } from './fixtures/dedicated-chat.mjs';
 import { _electron as electron } from 'playwright';
 import { createRequire } from 'node:module';
 import { mkdtemp, mkdir, readFile, writeFile, rm } from 'node:fs/promises';
@@ -31,15 +32,18 @@ try {
   const settings = JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8'));
   const snapshot = await page.evaluate(() => window.interconnect.invoke('snapshot'));
   const connect = async (nickname) => {
+    const host = fixtureChat(profile, settings.nodeId);
     const client = new Client({ name: 'MCP demo', version: '1' });
     clients.push(client);
     await client.connect(
       new StreamableHTTPClientTransport(new URL(snapshot.mcpUrl), {
+        fetch: host.fetch,
         requestInit: { headers: { authorization: 'Bearer ' + settings.localToken } },
       }),
     );
     const result = await client.callTool({ name: 'agent_connect', arguments: { nickname } });
     assert.equal(result.structuredContent.status, 'connected');
+    host.bind(result.structuredContent);
     return { client, connectionId: result.structuredContent.binding.connectionId };
   };
   const researcher = await connect('Researcher'),
@@ -53,7 +57,6 @@ try {
     sender.client.callTool({
       name: 'agent_send',
       arguments: {
-        connectionId: sender.connectionId,
         recipientNode: settings.nodeId,
         recipientNickname,
         text,

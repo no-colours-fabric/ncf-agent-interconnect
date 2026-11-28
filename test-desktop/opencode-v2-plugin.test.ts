@@ -244,7 +244,7 @@ test('canonical opaque body submits once and joins early committed Delivered wit
     return returned.promise;
   };
   const text =
-    '**Incoming NCF Agent Interconnect**\nFrom: "Sender"\n\nТекст 漢字\n\nReply-To: r1\nUse agent_send(connectionId, replyRef="r1", text) to reply.';
+    '**Incoming NCF Agent Interconnect**\nFrom: "Sender"\n\nТекст 漢字\n\nReply-To: r1\nUse agent_send(replyRef="r1", text) to reply.';
   const command = submit(peer, captured, ready.armId, text);
   const sending = peer.command(command);
   await entered.promise;

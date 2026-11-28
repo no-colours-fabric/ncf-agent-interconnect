@@ -20,6 +20,24 @@ function changed(service: NodeService, condition: () => boolean): Promise<void> 
     check();
   });
 }
+test('v2 shared setup route cannot authorize an outgoing request from a legacy instance', async (t) => {
+  const { service, host, call } = await openCodeV2ProductFixture(t, { legacy: true });
+  const chat = host.addSession('ses_shared_setup_only');
+  const connected = await call(chat, 'agent_connect', { nickname: 'Legacy fixture' });
+  assert.equal(connected.isError, undefined);
+  const result = await call(chat, 'agent_send', {
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Destination',
+    text: 'only a fixture',
+  });
+  assert.equal(result.isError, true);
+  assert.equal((result.structuredContent as { status: string }).status, 'send_chat_unverified');
+  assert.equal(
+    service.store.history(service.store.keyForNickname('Legacy fixture')!).messages.length,
+    0,
+  );
+});
+
 test('v2 exact own-handler connect does not await idle; canonical content joins real bridge evidence into common receipt', async (t) => {
   const { service, host, call } = await openCodeV2ProductFixture(t);
   const id = host.addSession('ses_Тайд漢字');
@@ -76,14 +94,13 @@ test('v2 exact own-handler connect does not await idle; canonical content joins 
         text +
         '\\n\\nReply-To "Fixture sender": ' +
         ref +
-        '\\nUse agent_send\\(connectionId, replyRef="' +
+        '\\nUse agent_send\\(replyRef="' +
         ref +
         '", text\\) to reply\\.$',
     ),
   );
   assert.equal(host.prompts[0].text.includes('agent_read'), false);
   const reply = await call(id, 'agent_send', {
-    connectionId: result.binding.connectionId,
     replyRef: ref,
     text: 'Source fixture reply',
   });

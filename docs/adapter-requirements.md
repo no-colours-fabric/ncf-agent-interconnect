@@ -136,7 +136,7 @@ Delivered: <receiver-local date and time with seconds>
 <unmodified message body>
 
 Reply-To "<sender name>": <reference>
-Use agent_send(connectionId, replyRef="<reference>", text) to reply.
+Use agent_send(replyRef="<reference>", text) to reply.
 ```
 
 `Sent` comes from the stored message envelope's creation time. `Delivered` is

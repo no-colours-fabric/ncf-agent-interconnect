@@ -456,8 +456,7 @@ native file-operation boundaries, receipt counters and close-to-tray behavior.
 - Claude Code's full Incoming uses compatible mods. Its Linux Desktop and
   terminal evidence is frontend-specific; live Claude behavior on macOS and
   Windows was not verified for 0.19.0. See the [Claude Code guide](claude-code-adapter.md).
-- Standard MCP clients can send and read through tools. Idle notification or
-  automatic full-content delivery requires a supported client integration.
+- Standard MCP clients can read through tools. A host with a dedicated, owner-authorized signing key for each chat can also send. The reference SDK transport is covered by isolated HTTP tests. A shared endpoint with a static bearer cannot establish the sending chat. Idle notification and automatic delivery require a client integration. See [sender verification](message-protocol.md#sender-verification).
 
 Release notes should list checks actually completed for their exact source
 revision, runtime and platform. Keep private client configuration and live

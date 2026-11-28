@@ -98,6 +98,7 @@ export class AgentStore {
       this.transaction(() => {
         this.db.exec(`
       CREATE TABLE IF NOT EXISTS agents (key TEXT PRIMARY KEY, nickname TEXT NOT NULL, binding TEXT, generation INTEGER NOT NULL DEFAULT 0, incarnation TEXT NOT NULL DEFAULT '');
+      CREATE TABLE IF NOT EXISTS manual_send_grants (key TEXT PRIMARY KEY, revision TEXT NOT NULL, public_key TEXT NOT NULL, external_chat TEXT NOT NULL, binding TEXT NOT NULL UNIQUE, generation INTEGER NOT NULL);
       CREATE TABLE IF NOT EXISTS transfers (id TEXT PRIMARY KEY, key TEXT NOT NULL, generation INTEGER NOT NULL, requester TEXT NOT NULL, details TEXT NOT NULL, expires INTEGER NOT NULL, consumed INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'transfer');
       CREATE TABLE IF NOT EXISTS messages (sequence INTEGER PRIMARY KEY AUTOINCREMENT, id TEXT NOT NULL, local_key TEXT NOT NULL, direction TEXT NOT NULL, envelope TEXT NOT NULL, state TEXT NOT NULL, error TEXT, UNIQUE(id,direction));
       CREATE INDEX IF NOT EXISTS inbox ON messages(local_key,state,sequence);
@@ -575,6 +576,14 @@ export class AgentStore {
   }
   attachmentReferenced(id: string, messageId?: string): boolean {
     return this.attachments.retainedBlob(id, messageId);
+  }
+  bindingForChat(client: string, chatId: string, adapterId?: string): Binding | undefined {
+    const rows = this.db
+      .prepare(
+        "SELECT binding FROM agents WHERE json_extract(binding, '$.client')=? AND json_extract(binding, '$.chatId')=? AND (? IS NULL OR json_extract(binding, '$.adapterId')=?) LIMIT 2",
+      )
+      .all(client, chatId, adapterId ?? null, adapterId ?? null);
+    if (rows.length === 1) return JSON.parse(String(rows[0].binding)) as Binding;
   }
   assertOwner(connectionId: string): { key: string; nickname: string; binding: Binding } {
     for (const row of this.db

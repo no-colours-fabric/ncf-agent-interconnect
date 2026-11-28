@@ -59,7 +59,7 @@ _Remote nodes in 1.0.0 with two isolated test nodes paired._
 | Cursor                              | Yes                  | Automatic in open connected chats. See the restart step below.                                                |
 | AionUi with Cursor Agent            | Yes                  | Complete authorization and setup for Cursor Agent in AionUi.                                                  |
 | Claude Code with compatible mods    | Yes                  | Automatic with compatible mods. See the setup and verification limits.                                        |
-| Other compatible MCP clients        | Through MCP          | Automatic delivery depends on the application.                                                                |
+| Other compatible MCP clients        | Through MCP          | Reading is available. Sending requires a host that verifies the originating chat.                             |
 
 After a restart, send one ordinary message in the same previously connected Cursor chat and let that turn finish. For other setup steps, see [application setup](docs/mcp-clients.md#cursor), [OpenCode setup](docs/setup.md#2-choose-an-application) and [AionUi with Cursor Agent setup](docs/aionui-setup.md).
 

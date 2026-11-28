@@ -1,3 +1,4 @@
+import { fixtureChat } from './fixtures/dedicated-chat.mjs';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -328,9 +329,11 @@ try {
   assert.equal((await invoke('aionUiStatus')).bridgeConnected, true);
   const settings = JSON.parse(await readFile(path.join(profile, 'settings.json'), 'utf8'));
   const snapshot = await invoke('snapshot');
+  const host = fixtureChat(profile, settings.nodeId);
   sender = new Client({ name: 'synthetic-sender', version: 'fixture' });
   await sender.connect(
     new StreamableHTTPClientTransport(new URL(snapshot.mcpUrl), {
+      fetch: host.fetch,
       requestInit: { headers: { authorization: 'Bearer ' + settings.localToken } },
     }),
   );
@@ -341,10 +344,10 @@ try {
     arguments: { nickname: 'IPC source' },
   });
   assert.ok(!source.isError);
+  host.bind(source.structuredContent);
   const message = await sender.callTool({
     name: 'agent_send',
     arguments: {
-      connectionId: source.structuredContent.binding.connectionId,
       recipientNode: snapshot.nodeId,
       recipientNickname: 'IPC Тигр 漢字',
       text: 'Synthetic IPC delivery 漢字',

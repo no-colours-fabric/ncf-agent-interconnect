@@ -222,8 +222,8 @@ try {
   await host['tool.execute.before']({ tool: 'ncf_agent_interconnect_agent_connect', sessionID: 'ses_packaged' }, output);
   const second = (await opencode.callTool({ name: 'agent_connect', arguments: output.args })).structuredContent;
   assert.equal(second.status, 'connected'); assert.equal(second.delivery.automatic, true);
-  const missingAddress = await manual.callTool({ name: 'agent_send', arguments: { connectionId: first.binding.connectionId, recipientNickname: 'Package recipient', text: 'Missing explicit node' } });
-  assert.equal(missingAddress.isError, true); assert.match(JSON.stringify(missingAddress.content), /recipientNode.*required/);
+  const missingAddress = await manual.callTool({ name: 'agent_send', arguments: { recipientNickname: 'Package recipient', text: 'Missing explicit node' } });
+  assert.equal(missingAddress.isError, true); assert.equal(missingAddress.structuredContent.status,'send_chat_unverified');
   const message = await service.send({ connectionId: first.binding.connectionId, recipientNode: service.settings.value.nodeId, recipientNickname: 'Package recipient', text: 'The package runs without source files' });
   assert.equal(message.accepted, true); assert.equal(message.recipientNode, service.settings.value.nodeId); assert.ok(!('sent' in message));
   const deadline = Date.now() + 5000;
@@ -233,8 +233,10 @@ try {
   const packagedLines = prompts[0].text.split(String.fromCharCode(10));
   assert.deepEqual(packagedLines.slice(0, 2), ['**Incoming NCF Agent Interconnect**', 'From: "Package sender"']);
   assert.match(packagedLines[2], /^Sent: .+$/); assert.match(packagedLines[3], /^Delivered: .+$/);
-  assert.equal(packagedLines.slice(4).join(String.fromCharCode(10)), ['', 'The package runs without source files', '', 'Reply-To "Package sender": ' + replyRef, 'Use agent_send(connectionId, replyRef="' + replyRef + '", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
-  const reply = await opencode.callTool({ name: 'agent_send', arguments: { connectionId: second.binding.connectionId, replyRef, text: 'Packaged compact reply' } });
+  assert.equal(packagedLines.slice(4).join(String.fromCharCode(10)), ['', 'The package runs without source files', '', 'Reply-To "Package sender": ' + replyRef, 'Use agent_send(replyRef="' + replyRef + '", text) to reply.'].join(String.fromCharCode(10))); assert.ok(!prompts[0].text.includes(second.binding.connectionId));
+  const replyCall = {args:{replyRef,text:'Packaged compact reply'}};
+  await host['tool.execute.before']({tool:'ncf_agent_interconnect_agent_send',sessionID:'ses_packaged'},replyCall);
+  const reply = await opencode.callTool({name:'agent_send',arguments:replyCall.args});
   assert.ok(!reply.isError); const replyEnvelope = service.store.get(reply.structuredContent.id, 'out').envelope;
   assert.equal(replyEnvelope.toNode, service.settings.value.nodeId); assert.equal(replyEnvelope.toNickname, 'Package sender'); assert.equal(replyEnvelope.replyTo, message.id);
   while (service.snapshot().agents.find(agent => agent.nickname === 'Package recipient').unread) { if (Date.now() > deadline) throw new Error('Delivered message still unread'); await new Promise(resolve => setTimeout(resolve, 10)); } assert.deepEqual(service.snapshot().peers, []);
@@ -420,8 +422,8 @@ try {
   const v2Lines = v2Prompts[0].text.split(String.fromCharCode(10));
   assert.deepEqual(v2Lines.slice(0, 2), ['**Incoming NCF Agent Interconnect**', 'From: "Package V2 sender"']);
   assert.match(v2Lines[2], /^Sent: .+$/); assert.match(v2Lines[3], /^Delivered: .+$/);
-  assert.equal(v2Lines.slice(4).join(String.fromCharCode(10)), ['', 'Packaged v2 full input 漢字', '', 'Reply-To "Package V2 sender": ' + v2ReplyRef, 'Use agent_send(connectionId, replyRef="' + v2ReplyRef + '", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.'].join(String.fromCharCode(10)));
-  const v2Reply = await v2Client.callTool({ name: 'agent_send', arguments: { connectionId: v2Connected.structuredContent.binding.connectionId, replyRef: v2ReplyRef, text: 'Packaged v2 reply' }, _meta: { 'ai.opencode/sessionID': v2Session } }); assert.ok(!v2Reply.isError);
+  assert.equal(v2Lines.slice(4).join(String.fromCharCode(10)), ['', 'Packaged v2 full input 漢字', '', 'Reply-To "Package V2 sender": ' + v2ReplyRef, 'Use agent_send(replyRef="' + v2ReplyRef + '", text) to reply.'].join(String.fromCharCode(10)));
+  const v2Reply = await v2Client.callTool({ name: 'agent_send', arguments: { replyRef: v2ReplyRef, text: 'Packaged v2 reply' }, _meta: { 'ai.opencode/sessionID': v2Session } }); assert.ok(!v2Reply.isError);
   const codexPackage = await verifyCodexPackage();
   console.log(JSON.stringify({ ...codexPackage, electron: process.versions.electron, node: process.versions.node, installedPlugin: true, nicknameOnlyConnect: true, explicitRecipientNode: true, fullReplyAddress: true, compactReplyReference: true, exactLocalDelivery: true, directMessageBody: true, automaticReceipt: true, coldHostStartup: true, savedChatRestoredWithoutUi: true, originalBindingPreserved: true, packagedCursorBridge: true, packagedCursorHook: true, cursorExactContext: true, cursorCorrelatedAdmission: true, cursorReceiptAfterCallbackOnly: true, cursorPersistedRestartRecovery: true, cursorRecoveryWithoutConnectOrRead: true, cursorRecoveringUntilStop: true, cursorRestoredWaitDiscoverable: true, cursorEndedWaitUnavailable: true, cursorOwnAsar: true, openCodeV2OwnAsar: true, openCodeV2InstalledPlugin: true, openCodeV2CommittedProjectionSynthetic: true, openCodeV2PinnedContractFixture: '2.3.0', openCodeV2LiveClientTested: false, mcpToolCount: tools.tools.length, independentOfCheckout: true, liveAgentsContacted: false, nativeUiTested: false }));
 } finally {
@@ -552,7 +554,7 @@ try {
   const lease = await readNativeLease(nodeFile, session);
   const admitted = await postNode('/integrations/claude/native/admit', { sessionId: session, delivery: prepared.delivery, nativeLeaseNonce: lease.nonce });
   assert.ok(admitted.body.startsWith('**Incoming NCF Agent Interconnect**'));
-  assert.ok(admitted.body.includes('Packaged full native incoming') && admitted.body.includes('Use agent_send(connectionId, replyRef='));
+  assert.ok(admitted.body.includes('Packaged full native incoming') && admitted.body.includes('Use agent_send(replyRef='));
   assert.equal(service.store.get(nativeMessage.id, 'in').state, 'ready');
   assert.deepEqual(await postNode('/integrations/claude/native/report', { sessionId: session, delivery: prepared.delivery, reportKey: prepared.reportKey, phase: 'stored', storedRowId: randomUUID(), representationHash: nativeClaudeRowHash(admitted.body) }), { state: 'committed' });
   assert.equal(service.store.get(nativeMessage.id, 'in').state, 'processed');

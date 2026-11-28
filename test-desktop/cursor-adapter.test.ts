@@ -83,7 +83,7 @@ test('Cursor plugin commands use the installed Electron runtime on macOS and Win
   const contextualTool = new RegExp(macHooks.hooks.preToolUse[0].matcher);
   assert.ok(contextualTool.test('MCP:ncf_agent_interconnect_agent_connect'));
   assert.ok(contextualTool.test('MCP:ncf_agent_interconnect_agent_rename'));
-  assert.ok(!contextualTool.test('MCP:ncf_agent_interconnect_agent_send'));
+  assert.ok(contextualTool.test('MCP:ncf_agent_interconnect_agent_send'));
   assert.match(macHooks.hooks.beforeSubmitPrompt[0].command, /^ELECTRON_RUN_AS_NODE=1 /);
   assert.match(macHooks.hooks.beforeSubmitPrompt[0].command, /owner'\\''s Mac/);
 });
@@ -330,6 +330,40 @@ test('Cursor plugin context is one-use and arbitrary owner prompts restore exact
   assert.equal(
     service.settings.value.adapters.find((profile) => profile.id === body.binding.adapterId)?.kind,
     'cursor-hook',
+  );
+  const direct = {
+    recipientNode: service.settings.value.nodeId,
+    recipientNickname: 'Recipient',
+    text: 'One Cursor reply',
+  };
+  const sendHook = await runCursorHook(nodeFile, 'preToolUse', {
+    conversation_id: conversationId,
+    tool_name: 'MCP:ncf_agent_interconnect_agent_send',
+    tool_input: direct,
+  });
+  assert.ok((await client.callTool({ name: 'agent_send', arguments: direct })).isError);
+  const unknownId = randomUUID();
+  const unknownHook = await runCursorHook(nodeFile, 'preToolUse', {
+    conversation_id: randomUUID(),
+    tool_name: 'MCP:ncf_agent_interconnect_agent_send',
+    tool_input: { ...direct, id: unknownId },
+  });
+  const unknown = await client.callTool({
+    name: 'agent_send',
+    arguments: unknownHook.updated_input as Record<string, unknown>,
+  });
+  assert.equal((unknown.structuredContent as { status: string }).status, 'send_chat_unbound');
+  assert.match(JSON.stringify(unknown.structuredContent), /agent_connect/);
+  assert.equal(service.store.get(unknownId, 'out'), undefined);
+  const sentByHook = await client.callTool({
+    name: 'agent_send',
+    arguments: sendHook.updated_input as Record<string, unknown>,
+  });
+  assert.ok(!sentByHook.isError, JSON.stringify(sentByHook));
+  assert.equal(
+    service.store.get(String((sentByHook.structuredContent as { id: string }).id), 'out')?.envelope
+      .fromNickname,
+    'Курсор',
   );
   const reused = await client.callTool({
     name: 'agent_connect',

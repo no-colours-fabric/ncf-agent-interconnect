@@ -1,3 +1,4 @@
+import { sendConfirmationText } from './codex-send-notice.js';
 import { spawn } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { randomUUID } from 'node:crypto';
@@ -695,8 +696,12 @@ export class CodexQueueAdapter implements AgentAdapter {
     return 'unknown';
   }
 
-  async challenge(token: string, isCurrent: () => boolean): Promise<CodexConfirmationOffer> {
-    const text = confirmationText + token;
+  async challenge(
+    token: string,
+    isCurrent: () => boolean,
+    purpose: 'connect' | 'send' = 'connect',
+  ): Promise<CodexConfirmationOffer> {
+    const text = (purpose === 'send' ? sendConfirmationText : confirmationText) + token;
     const witness = { messageId: randomUUID(), payloadHash: contentHash(text) };
     let submitting = false;
     let stage: ConnectStage = 'app_server';
@@ -714,7 +719,7 @@ export class CodexQueueAdapter implements AgentAdapter {
           const input = singleText(item.input);
           return (
             input !== undefined &&
-            [confirmationText, previousConfirmationText].some(
+            [confirmationText, previousConfirmationText, sendConfirmationText].some(
               (prefix) =>
                 input.startsWith(prefix) &&
                 confirmationTokenFormat.test(input.slice(prefix.length)),

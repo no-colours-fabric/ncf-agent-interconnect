@@ -1,5 +1,7 @@
+import { ManualChatChannels } from './manual-chat-channel.js';
+import { CodexSends } from './codex-send.js';
 import { EventEmitter } from 'node:events';
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID, createHash, randomBytes } from 'node:crypto';
 import { mkdir, readFile, writeFile, rename, lstat, realpath } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import path from 'node:path';
@@ -56,6 +58,7 @@ import { McpEndpoint } from './mcp-http.js';
 import {
   CodexRenameReconnectRequired,
   OwnBindingRecoveryUnavailable,
+  SendChatRequired,
   McpHistoryPageFailure,
   McpReadAttachmentFailure,
 } from './mcp-agent-guidance.js';
@@ -63,7 +66,13 @@ import type { ResponseInvocation } from './mcp-response-handoff.js';
 import { contentHash, type DeliveryAttempt } from './delivery-attempt.js';
 import { mcpInstructions } from './instructions.js';
 import { ClientContexts, type ClientContext } from './client-contexts.js';
-import { discoverCodex, codexEndpoints, CodexDesktopUnavailable } from './codex-adapter.js';
+import {
+  codexExchange,
+  CodexDesktopAdapter,
+  discoverCodex,
+  codexEndpoints,
+  CodexDesktopUnavailable,
+} from './codex-adapter.js';
 import {
   CodexQueueAdapter,
   CodexConnectFailure,
@@ -84,7 +93,7 @@ import { ClaudeNativeIncoming } from './claude-native-incoming.js';
 import type { McpSetupClient } from '../shared/mcp-setup.js';
 import type { AionUiSetupInstructions } from '../shared/aionui.js';
 import { AgentPresence } from './presence.js';
-import { cursorIntegration } from './cursor-integration.js';
+import { cursorIntegration, quote } from './cursor-integration.js';
 import { traceClaude } from '../integrations/claude-diagnostics.js';
 import {
   defaultMessageDisplayContext,
@@ -187,7 +196,7 @@ interface AutomaticConnectInput {
   resetHistory?: boolean;
 }
 
-function codexThreadId(host: McpHost): string | undefined {
+export function codexThreadId(host: McpHost): string | undefined {
   if (!/codex/i.test(host.client)) return;
   let metadata = host.meta?.['x-codex-turn-metadata'];
   if (typeof metadata === 'string') {
@@ -216,6 +225,11 @@ export class NodeService extends EventEmitter {
   readonly aionui: AionUiSessions;
   readonly claude: ClaudeSessions;
   readonly opencodeV2: OpenCodeV2Bridges;
+  readonly codexHookSecret = randomBytes(32).toString('hex');
+  readonly codexSends = new CodexSends(this);
+  readonly manualChats = new ManualChatChannels(this);
+  readonly openCodeHookSecret = randomBytes(32).toString('hex');
+  readonly cursorHookSecret = randomBytes(32).toString('hex');
   readonly contexts = new ClientContexts(this);
   /** One-use claims for wake notices submitted by the installed Claude Code mod. */
   readonly wakeClaims: WakeClaims;
@@ -525,16 +539,30 @@ export class NodeService extends EventEmitter {
   }
   private async publishIntegration(): Promise<void> {
     await mkdir(path.dirname(this.openCodePlugin), { recursive: true, mode: 0o700 });
-    const source = await readFile(
-      new URL('../integrations/opencode.' + this.integrationExtension, import.meta.url),
-    );
-    const temporary = this.openCodePlugin + '.' + randomUUID() + '.tmp';
-    await writeFile(temporary, source, { mode: 0o600, flag: 'wx' });
-    await rename(temporary, this.openCodePlugin);
+    for (const name of ['send-hash', 'opencode']) {
+      const file = name + '.' + this.integrationExtension;
+      const source = await readFile(new URL('../integrations/' + file, import.meta.url));
+      const published = path.join(path.dirname(this.openCodePlugin), file);
+      const temporary = published + '.' + randomUUID() + '.tmp';
+      await writeFile(temporary, source, { mode: 0o600, flag: 'wx' });
+      await rename(temporary, published);
+    }
     await atomicJson(path.join(this.directory, 'Integrations', 'node.json'), {
       url: this.snapshot().mcpUrl,
       token: this.settings.value.localToken,
     });
+    await atomicJson(
+      path.join(this.directory, 'Integrations', 'opencode-host.key'),
+      this.openCodeHookSecret,
+    );
+    await atomicJson(
+      path.join(this.directory, 'Integrations', 'codex-send.key'),
+      this.codexHookSecret,
+    );
+    await atomicJson(
+      path.join(this.directory, 'Integrations', 'cursor-send.key'),
+      this.cursorHookSecret,
+    );
     await publishClaudePlugin(this.claudePluginRoot, claudePluginFiles(await this.claudeRuntime()));
   }
   get claudePluginRoot(): string {
@@ -2175,7 +2203,27 @@ export class NodeService extends EventEmitter {
     return this.checkCodexRecovery(challenge);
   }
 
-  private codexRecoveryAdapter(target: CodexRecoveryTarget): CodexQueueAdapter {
+  async offerSendProof(profile: AdapterProfile, token: string, valid: () => boolean) {
+    if (!profile.threadId || !valid()) throw new Error('The original chat changed.');
+    if (this.adapters.get(profile.id) instanceof CodexDesktopAdapter) {
+      const offer = await codexExchange(profile, { sendConfirmation: token, isCurrent: valid });
+      if (offer.state === 'admitted') return { state: 'dispatched' } as const;
+      if (offer.state === 'uncertain') return { state: 'uncertain' } as const;
+      if (offer.state !== 'failed' || !valid()) return { state: 'failed' } as const;
+    }
+    const socket = await this.recoverySocket(profile, true);
+    if (!valid()) throw new Error('The original chat changed.');
+    const adapter = this.codexRecoveryAdapter({ threadId: profile.threadId, socket, profile });
+    try {
+      return await adapter.challenge(token, valid, 'send');
+    } finally {
+      await adapter.stop();
+      this.codexRecoveryAdapters.delete(adapter);
+    }
+  }
+  private codexRecoveryAdapter(
+    target: Pick<CodexRecoveryTarget, 'threadId' | 'socket' | 'profile'>,
+  ): CodexQueueAdapter {
     const adapter = CodexQueueAdapter.forDesktop(
       {
         id: target.profile?.id ?? randomUUID(),
@@ -3168,6 +3216,16 @@ export class NodeService extends EventEmitter {
     if (delivered.size) this.emit('change');
     return delivered;
   }
+  chatSender(client: string, chatId: string, profile: AdapterProfile | undefined) {
+    const binding =
+      profile && !profile.released && this.store.bindingForChat(client, chatId, profile.id);
+    if (!binding)
+      throw new SendChatRequired(
+        'send_chat_unbound',
+        'Call agent_connect with the name the owner chose for this chat. If no name was chosen, ask the owner for the name.',
+      );
+    return binding;
+  }
   resolveReplyAddress(
     connectionId: string,
     address: {
@@ -3207,16 +3265,27 @@ export class NodeService extends EventEmitter {
       replyTo: address.replyTo,
     };
   }
-  async send(args: SendInput & { connectionId: string }): Promise<SendResult> {
+  async send(
+    args: SendInput & { connectionId: string },
+    current?: () => void,
+    onWriteAttempt?: () => void,
+  ): Promise<SendResult> {
     const before = this.store.assertOwner(args.connectionId);
-    return this.sendFrom(before.nickname, args, () => {
-      this.store.assertOwner(args.connectionId);
-    });
+    return this.sendFrom(
+      before.nickname,
+      args,
+      () => {
+        current?.();
+        this.store.assertOwner(args.connectionId);
+      },
+      onWriteAttempt,
+    );
   }
   private async sendFrom(
     nickname: string,
     args: SendInput,
     stillOwner: () => void = () => {},
+    onWriteAttempt?: () => void,
   ): Promise<SendResult> {
     if (!args.recipientNode)
       throw new Error('recipientNode is required; select an explicit node UUID from node_peers');
@@ -3315,6 +3384,7 @@ export class NodeService extends EventEmitter {
         };
         if (local) {
           const previous = this.store.get(id, 'in');
+          onWriteAttempt?.();
           this.store.insertLocal(envelope, this.running, recipientKey, saveProvenance);
           if (
             this.running &&
@@ -3322,7 +3392,10 @@ export class NodeService extends EventEmitter {
             (!previous || previous.state === 'received')
           )
             this.messageReady(envelope);
-        } else this.store.insert(envelope, 'out', saveProvenance);
+        } else {
+          onWriteAttempt?.();
+          this.store.insert(envelope, 'out', saveProvenance);
+        }
         return envelope;
       } catch (error) {
         this.store.queueFileCleanup(randomUUID(), attachments);
@@ -4132,6 +4205,30 @@ export class NodeService extends EventEmitter {
       void job.finally(() => this.jobs.delete(job));
     }
   }
+  private codexSendCommand() {
+    const script = fileURLToPath(
+      new URL('../integrations/codex-send-hook.' + this.integrationExtension, import.meta.url),
+    );
+    const runtimeArgs =
+      this.integrationExtension === 'ts' ? ['--import', import.meta.resolve('tsx')] : [];
+    const args = [
+      process.execPath,
+      ...runtimeArgs,
+      script,
+      path.join(this.directory, 'Integrations'),
+    ];
+    if (process.platform === 'win32') {
+      const command =
+        "$env:ELECTRON_RUN_AS_NODE='1'; $OutputEncoding=[System.Text.UTF8Encoding]::new($false); [Console]::OutputEncoding=$OutputEncoding; [Console]::InputEncoding=$OutputEncoding; [Console]::In.ReadToEnd() | & " +
+        args.map((s) => quote(s, 'win32')).join(' ') +
+        '; exit $LASTEXITCODE';
+      return (
+        'powershell.exe -NoProfile -NonInteractive -EncodedCommand ' +
+        Buffer.from(command, 'utf16le').toString('base64')
+      );
+    }
+    return 'ELECTRON_RUN_AS_NODE=1 ' + args.map((s) => quote(s, process.platform)).join(' ');
+  }
   clientInstructions(client: McpSetupClient) {
     const nodeFile = path.join(this.directory, 'Integrations', 'node.json');
     const cursorBridge = fileURLToPath(
@@ -4165,6 +4262,7 @@ export class NodeService extends EventEmitter {
       commonConfiguration,
       { ...cursorPlugin, configuration: commonConfiguration },
       this.claudePluginRoot,
+      this.codexSendCommand(),
     );
   }
   async userCall(
@@ -4461,6 +4559,7 @@ export class NodeService extends EventEmitter {
     this.acceptingIntegrations = false;
     this.opencodeV2.close();
     this.contexts.clear();
+    this.codexSends.clear();
     this.claudeContextLeases.clear();
     this.codexRecovery.clear();
     await Promise.allSettled([...this.codexRecoveryAdapters].map((adapter) => adapter.stop()));

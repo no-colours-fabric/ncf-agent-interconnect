@@ -59,6 +59,22 @@ async function fixture(
   return { f, session, client, clientTransport, serverTransport, connectionId, sent };
 }
 
+test('Claude Code sends through the current admitted hook without a model sender ID', async (t) => {
+  const { client, f, session } = await fixture(t);
+  const args = {
+    recipientNode: f.service.settings.value.nodeId,
+    recipientNickname: 'Recipient',
+    text: 'One Claude reply',
+    id: randomUUID(),
+  };
+  const token = await f.preTool(session, 'agent_send', args);
+  const result = await client.callTool({
+    name: 'agent_send',
+    arguments: { ...args, contextToken: token },
+  });
+  assert.ok(!result.isError, JSON.stringify(result));
+  assert.equal(f.service.store.get(args.id, 'out')?.envelope.fromNickname, 'Отмена 漢字');
+});
 test('Actual SDK cancellation and request-id reuse cannot commit an unwritten read response', async (t) => {
   const { f, session, client, clientTransport, connectionId, sent } = await fixture(t);
   const reached = barrier(),

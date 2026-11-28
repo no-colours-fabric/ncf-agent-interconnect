@@ -110,6 +110,7 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
     }
   });
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    let submitted = false;
     try {
       if (
         (request.params.name === 'agent_connect' || request.params.name === 'agent_rename') &&
@@ -118,7 +119,9 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
         throw new Error(
           'Cursor did not provide the current chat. Check that the NCF Agent Interconnect Cursor plugin is enabled, then send the request again.',
         );
-      return await (await connect()).callTool(request.params);
+      const client = await connect();
+      submitted = true;
+      return await client.callTool(request.params);
     } catch (error) {
       const previous = remote;
       remote = undefined;
@@ -127,7 +130,9 @@ export async function startCursorBridge(nodeFile: string): Promise<{ close: () =
       const message =
         error instanceof Error && error.message.startsWith('Cursor did not provide')
           ? error.message
-          : 'The NCF Agent Interconnect request could not be confirmed. Do not repeat a send automatically; reconnect MCP and inspect history.';
+          : !submitted || request.params.name !== 'agent_send'
+            ? 'Reconnect the Cursor MCP integration to the local NCF Agent Interconnect node.'
+            : 'The send was submitted and its result is unknown. Check outgoing history before another send.';
       return { isError: true, content: [{ type: 'text', text: message }] };
     }
   });

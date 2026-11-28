@@ -44,6 +44,38 @@ const instructions = (client: McpSetupClient) =>
     undefined,
     '/isolated/claude-marketplace',
   );
+test('Codex send setup preserves other hooks, is idempotent and flags a changed managed command for approval', () => {
+  const generated = (folder: string) =>
+    mcpInstructions(
+      url,
+      token,
+      'codex',
+      plugin,
+      undefined,
+      undefined,
+      undefined,
+      "ELECTRON_RUN_AS_NODE=1 '/fixture/electron' '/" +
+        folder +
+        "/codex-send-hook.js' '/fixture/Integrations'",
+    ).configuration;
+  const custom =
+    '[[hooks.PostToolUse]]\nmatcher = "^mcp__ncf_agent_interconnect__agent_send$"\n[[hooks.PostToolUse.hooks]]\ntype = "command"\ncommand = "my-custom-command"\n';
+  const first = editMcpConfiguration('codex', custom, generated('first'));
+  assert.equal(first.requiresReplacement, false);
+  assert.equal(
+    editMcpConfiguration('codex', first.content, generated('first')).content,
+    first.content,
+  );
+  const moved = editMcpConfiguration('codex', first.content, generated('second'));
+  assert.ok(moved.requiresReplacement);
+  const parsed = parseToml(moved.content).hooks as {
+    PostToolUse: { hooks: { command: string }[] }[];
+  };
+  assert.equal(parsed.PostToolUse.length, 2);
+  assert.equal(parsed.PostToolUse[0].hooks[0].command, 'my-custom-command');
+  assert.match(parsed.PostToolUse[1].hooks[0].command, /second/);
+});
+
 const instructionsWithCursorPlugin = (client: McpSetupClient) => {
   const base = instructions(client);
   if (client !== 'cursor') return base;

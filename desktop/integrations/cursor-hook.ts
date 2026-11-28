@@ -1,4 +1,6 @@
 import { readFile } from 'node:fs/promises';
+import { sendInputHash } from './send-hash.js';
+import path from 'node:path';
 import { request } from 'node:http';
 import { pathToFileURL } from 'node:url';
 import { z } from 'zod';
@@ -8,7 +10,7 @@ const descriptorSchema = z
   .strict();
 const uuid = '[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}';
 const contextTool =
-  /^(?:MCP:)?(?:(?:ncf_agent_interconnect[:_])?(agent_connect)|ncf_agent_interconnect[:_](agent_rename))$/;
+  /^(?:MCP:)?(?:(?:ncf_agent_interconnect[:_])?(agent_connect)|ncf_agent_interconnect[:_](agent_rename|agent_send))$/;
 
 async function input(): Promise<Record<string, unknown>> {
   let value = '';
@@ -42,6 +44,17 @@ async function post(
   timeout?: number,
 ): Promise<Record<string, unknown>> {
   const node = await descriptor(nodeFile);
+  const hookSecret =
+    route === '/integrations/cursor/context'
+      ? z
+          .string()
+          .regex(/^[0-9a-f]{64}$/)
+          .parse(
+            JSON.parse(
+              await readFile(path.join(path.dirname(nodeFile), 'cursor-send.key'), 'utf8'),
+            ),
+          )
+      : undefined;
   const url = new URL(route, node.url);
   return new Promise<Record<string, unknown>>((resolve, reject) => {
     const client = request(
@@ -50,6 +63,7 @@ async function post(
         method: 'POST',
         headers: {
           authorization: 'Bearer ' + node.token,
+          ...(hookSecret && { 'x-ncf-cursor-hook': hookSecret }),
           'content-type': 'application/json',
         },
         ...(timeout ? { signal: AbortSignal.timeout(timeout) } : {}),
@@ -131,6 +145,7 @@ export async function runCursorHook(
           conversationId,
           workspaceRoots: Array.isArray(raw.workspace_roots) ? raw.workspace_roots : [],
           toolName: operation,
+          ...(operation === 'agent_send' && { sendHash: sendInputHash(args) }),
           ...(operation === 'agent_rename'
             ? { rename: { connectionId: args.connectionId, nickname: args.nickname } }
             : {}),
@@ -138,8 +153,14 @@ export async function runCursorHook(
         10000,
       );
       const contextToken = z.uuid().parse(ticket.contextToken);
+      if (operation === 'agent_send')
+        return { permission: 'allow', updated_input: { ...args, ncfSendProof: contextToken } };
       return { permission: 'allow', updated_input: { ...args, contextToken } };
     } catch {
+      if (operation === 'agent_send') {
+        const { ncfSendProof: _discarded, ...input } = args;
+        return { permission: 'allow', updated_input: input };
+      }
       if (operation === 'agent_rename') {
         const { contextToken: _discarded, ...input } = args;
         return { permission: 'allow', updated_input: input };

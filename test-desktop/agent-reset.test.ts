@@ -425,7 +425,10 @@ test('MCP advertises two choices; reset revokes old tools, clears refs, preserve
       },
     });
     assert.equal(result.isError, true, name);
-    assert.match(JSON.stringify(result.content), /agent_moved/);
+    assert.match(
+      JSON.stringify(result.content),
+      name === 'agent_send' ? /Unrecognized key.*connectionId/ : /agent_moved/,
+    );
   }
   assert.ok(service.store.get(message.id, 'out'));
   const next = await service.send({

@@ -23,6 +23,7 @@ export function mcpInstructions(
   aionConfiguration?: string,
   cursorIntegration?: Pick<McpInstructions, 'configuration' | 'managedFiles'>,
   claudeMarketplace?: string,
+  codexSendCommand?: string,
 ): McpInstructions {
   const testPrompt = 'Connect as agent <a name you choose>.';
   if (client === 'claude') {
@@ -79,6 +80,17 @@ export function mcpInstructions(
         'enabled_tools = ["agent_read"]',
         'supports_parallel_tool_calls = true',
         'tools.agent_read.output_token_limit = 65536',
+        ...(codexSendCommand
+          ? [
+              '',
+              '[[hooks.PostToolUse]]',
+              'matcher = "^mcp__ncf_agent_interconnect__agent_send$"',
+              '[[hooks.PostToolUse.hooks]]',
+              'type = "command"',
+              'command = ' + JSON.stringify(codexSendCommand),
+              'timeout = 30',
+            ]
+          : []),
         '',
       ].join('\n'),
       testPrompt,

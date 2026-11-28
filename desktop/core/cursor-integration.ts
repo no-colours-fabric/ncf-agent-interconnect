@@ -8,7 +8,7 @@ export interface CursorIntegrationOptions {
   platform: NodeJS.Platform;
 }
 
-function quote(value: string, platform: NodeJS.Platform): string {
+export function quote(value: string, platform: NodeJS.Platform): string {
   if (platform === 'win32') return "'" + value.replaceAll("'", "''") + "'";
   return "'" + value.replaceAll("'", "'\\''") + "'";
 }
@@ -100,7 +100,7 @@ export function cursorIntegration(
                 preToolUse: [
                   {
                     command: command('preToolUse'),
-                    matcher: 'MCP:.*agent_(connect|rename)$',
+                    matcher: 'MCP:.*agent_(connect|rename|send)$',
                     timeout: 15,
                   },
                 ],

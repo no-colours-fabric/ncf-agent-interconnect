@@ -1,3 +1,4 @@
+import { fixtureChat } from './dedicated-chat.mjs';
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
@@ -45,6 +46,7 @@ function within(promise, reason) {
 }
 
 export class PluginQueueProbe {
+  senders = new Map();
   route = '/events-fixture/' + randomUUID();
   armed = Promise.withResolvers();
   received = Promise.withResolvers();
@@ -231,9 +233,17 @@ export class PluginQueueProbe {
       },
       true,
     );
+    const bindingKey = sender.binding.connectionId;
+    let dedicated = this.senders.get(bindingKey);
+    if (!dedicated) {
+      dedicated = fixtureChat(hub.directory, hub.settings.value.nodeId);
+      dedicated.bind(sender);
+      this.senders.set(bindingKey, dedicated);
+    }
     const client = new Client({ name: 'ncf_fixture_sender', version: '1' });
     await client.connect(
       new StreamableHTTPClientTransport(new URL(hub.snapshot().mcpUrl), {
+        fetch: dedicated.fetch,
         requestInit: {
           headers: { Authorization: 'Bearer ' + hub.settings.value.localToken },
         },
@@ -281,7 +291,6 @@ export class PluginQueueProbe {
       const sent = await client.callTool({
         name: 'agent_send',
         arguments: {
-          connectionId: sender.binding.connectionId,
           recipientNode: hub.settings.value.nodeId,
           recipientNickname: 'Recipient',
           id: this.messageId,

@@ -183,7 +183,7 @@ test('native preparation releases only an exact trigger; admission returns the s
       'Sent: 17/11/2026, 12:34:56\n' +
       'Delivered: 17/11/2026, 12:35:07\n\n' +
       message.text +
-      `\n\nReply-To "Отправитель 漢字": ${ref}\nUse agent_send(connectionId, replyRef="${ref}", text) to reply. If you lost your ID, use agent_connect with your own known nickname and recoverOnly=true, omitting connectionId. Use binding.connectionId only after connected. Check history before retrying an uncertain send.`,
+      `\n\nReply-To "Отправитель 漢字": ${ref}\nUse agent_send(replyRef="${ref}", text) to reply.`,
   );
   assert.equal(f.presentationCalls, 1);
   assert.ok(!admitted.body.includes('Message ID'));

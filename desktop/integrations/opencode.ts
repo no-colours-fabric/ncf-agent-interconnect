@@ -1,7 +1,9 @@
+import path from 'node:path';
 import http, { type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
-import { randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, timingSafeEqual } from 'node:crypto';
 
+import { sendInputHash } from './send-hash.js';
 type Reply = { data?: unknown; error?: unknown; response?: Response };
 type Method = (options: Record<string, unknown>) => Promise<Reply>;
 interface Context {
@@ -190,10 +192,21 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       !/^[a-f0-9]{64}$/.test(node.token)
     )
       throw new Error('Invalid NCF Agent Interconnect node address');
+    const keyFile =
+      typeof descriptor === 'string'
+        ? path.join(path.dirname(descriptor), 'opencode-host.key')
+        : new URL('./opencode-host.key', descriptor);
+    const hostKey = JSON.parse(await readFile(keyFile, 'utf8'));
+    if (typeof hostKey !== 'string' || !/^[a-f0-9]{64}$/.test(hostKey))
+      throw new Error('Invalid OpenCode host credential');
     url.pathname = route;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { authorization: 'Bearer ' + node.token, 'content-type': 'application/json' },
+      headers: {
+        authorization: 'Bearer ' + node.token,
+        'x-ncf-opencode-host': hostKey,
+        'content-type': 'application/json',
+      },
       redirect: 'error',
       signal: AbortSignal.timeout(route.endsWith('/release') ? 2000 : 15000),
       body: JSON.stringify(body),
@@ -202,7 +215,11 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       throw new Error('The NCF Agent Interconnect node is unavailable. Start the app.');
     return response.json() as Promise<{ sessions?: string[]; contextToken?: string }>;
   };
-  const register = (sessionId?: string, rename?: { connectionId: unknown; nickname: unknown }) =>
+  const register = (
+    sessionId?: string,
+    rename?: { connectionId: unknown; nickname: unknown },
+    sendHash?: string,
+  ) =>
     nodeCall('/integrations/opencode', {
       baseUrl,
       password,
@@ -211,6 +228,7 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       workspace: context.directory,
       ...(sessionId ? { sessionId } : {}),
       ...(rename ? { rename } : {}),
+      ...(sendHash ? { sendHash } : {}),
     });
   const restore = (): Promise<void> => {
     if (!restoring)
@@ -255,6 +273,15 @@ export const NCFAgentInterconnect = async (context: Context, options?: { descrip
       input: { tool: string; sessionID: string },
       output: { args: Record<string, unknown> },
     ) => {
+      if (input.tool === 'ncf_agent_interconnect_agent_send') {
+        delete output.args.ncfSendProof;
+        await sessionGet(input.sessionID);
+        const result = await register(input.sessionID, undefined, sendInputHash(output.args));
+        if (!result.contextToken)
+          throw new Error('The OpenCode plugin could not verify this send.');
+        output.args.ncfSendProof = result.contextToken;
+        return;
+      }
       const rename = input.tool === 'ncf_agent_interconnect_agent_rename';
       if (!rename && input.tool !== 'ncf_agent_interconnect_agent_connect') return;
       delete output.args.contextToken;

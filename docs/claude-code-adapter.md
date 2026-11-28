@@ -2,7 +2,7 @@
 
 The integration delivers a full **Incoming NCF Agent Interconnect**
 message to the exact connected Claude chat: original sender, body, attachment
-links, `Reply-To` and `Use agent_send(connectionId, replyRef="…", text) to reply.`
+links, `Reply-To` and `Use agent_send(replyRef="…", text) to reply.`
 There is no model instruction to fetch the body, and no Message ID in the main
 message. The mod requests unframed text with `asUser: true`; the engine-owned
 plugin origin remains available to the gate and receipt checks. Manual MCP

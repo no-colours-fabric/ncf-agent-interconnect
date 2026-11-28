@@ -102,7 +102,7 @@ unloaded chat must be opened to process its queue. Compatible older Codex
 Desktop IPC retains full-content native Incoming.
 
 Call
-`agent_send` with `connectionId`, `replyRef` and `text` to reply. Do not supply
+`agent_send` with `replyRef` and `text` to reply. Do not supply
 `recipientNode`, `recipientNickname` or `replyTo` together with `replyRef`, even
 as null. The server resolves the exact sender node, original agent name and
 message UUID from incoming history owned by the current binding.
@@ -120,6 +120,28 @@ returned by `agent_read` and `agent_history` additionally include `replyRef`;
 outgoing rows do not. System agent-moved notices have no reply reference.
 Server initialization instructions describe both reply forms. Client use and
 reactive delivery remain adapter-dependent.
+
+## Sender verification
+
+Call `agent_send` directly in the originating chat. The tool schema accepts the destination or Reply-To reference, text, optional files and an optional message ID. A binding identifier in the arguments is rejected. The node verifies the sender before resolving Reply-To or opening an attachment. A queued result acknowledges a saved message.
+
+| Source                 | Evidence accepted for an outgoing request                                                                                                                                                                                                                      |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ChatGPT                | The installed PostToolUse hook returns the node's private request receipt together with the actual native chat and original arguments. Without the hook, NCF correlates the initiating receipt with a separate one-use code delivered to the exact bound chat. |
+| Claude Code            | The installed helper and native lease admit the specific tool invocation and its arguments for the bound session.                                                                                                                                              |
+| OpenCode v1            | The installed plugin confirms the current native session on its authenticated running instance and issues a one-use ticket for the request.                                                                                                                    |
+| OpenCode v2            | The running plugin supplies the instance credential and native session. The shared setup endpoint alone cannot authorize a send.                                                                                                                               |
+| Cursor IDE             | The installed preToolUse hook confirms the runtime conversation and the send arguments on its private host channel.                                                                                                                                            |
+| Cursor Agent in AionUi | The paired AionUi instance verifies the runtime conversation and access to the exact conversation before issuing the request ticket.                                                                                                                           |
+| Standard MCP           | A host can sign each outgoing request using an owner-authorized key exclusive to its actual chat. A single shared URL and bearer give no sender authority.                                                                                                     |
+
+The optional ChatGPT hook uses the original tool result, requires the host's normal trust review and preserves tool approval policy. If its result is missing, follow the returned `agent_connect` call. Keep the receipt from the initiating call within that chat. The confirmation path never moves the binding. An unbound chat needs the name chosen by the owner. An accepted send requires no further action. After an uncertain send, use the original message ID to check outgoing history before considering a retry. [ChatGPT hook contract](https://learn.chatgpt.com/docs/hooks#posttooluse)
+
+### Dedicated Standard MCP hosts
+
+The TypeScript SDK example in `desktop/integrations/manual-chat.ts` signs the exact HTTP body, node, current MCP session, native chat, timestamp and one-use nonce. Host code obtains each signing key from the actual conversation independently of model input. A host must enforce this isolation. The node cannot independently verify how an arbitrary third-party process handles its private keys. The protocol covers hosts implementing this contract. Static configuration alone, such as a shared server entry in Claude Desktop or a workspace server in VS Code, does not implement it. Those client configurations can still use authorized reads. [MCP SDK host configuration](https://py.sdk.modelcontextprotocol.io/get-started/real-host/)
+
+For integrators working from the built source checkout, the local owner command is `node scripts/authorize-manual-chat.mjs authorize NODE_DIRECTORY NICKNAME SAVED_CHAT HOST_CHAT PUBLIC_KEY_FILE`. The owner verifies the key belongs exclusively to the intended host chat before provisioning. The command pins the existing manual binding and generation and prints the public key fingerprint and a grant ID for the host transport. Reauthorizing the same key issues a new grant ID and invalidates requests signed for the previous grant. The corresponding `revoke NODE_DIRECTORY KEY_FINGERPRINT` operation withdraws the grant. A transfer or disconnection invalidates its sending authority. MCP tools cannot provision grants.
 
 ## Explicit agent removal
 

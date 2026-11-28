@@ -1,3 +1,4 @@
+import { SendChatRequired } from './mcp-agent-guidance.js';
 import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import type { NodeService } from './service.js';
@@ -23,6 +24,10 @@ const registration = z
       .max(200)
       .optional(),
     rename: chatRenameSchema.optional(),
+    sendHash: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .optional(),
   })
   .strict();
 const cursorContext = z
@@ -31,6 +36,10 @@ const cursorContext = z
     workspaceRoots: z.array(z.string().min(1).max(4000)).max(32).default([]),
     toolName: z.string().min(1).max(300),
     rename: chatRenameSchema.optional(),
+    sendHash: z
+      .string()
+      .regex(/^[0-9a-f]{64}$/)
+      .optional(),
   })
   .strict();
 const cursorHook = z
@@ -54,6 +63,18 @@ export class ClientContexts {
     string,
     { context: ClientContext; expires: number; rename?: ChatRename & { profile: AdapterProfile } }
   >();
+  private readonly sendTickets = new Map<
+    string,
+    {
+      expires: number;
+      hash: string;
+      context: Pick<ClientContext, 'client' | 'chatId'>;
+      profile?: AdapterProfile;
+      connectionId?: string;
+      generation?: number;
+      incarnation: string;
+    }
+  >();
   private setup: Promise<unknown> = Promise.resolve();
   constructor(private readonly service: NodeService) {}
   /** A one-use ticket for context that the node has already verified itself. */
@@ -64,6 +85,68 @@ export class ClientContexts {
     const contextToken = randomUUID();
     this.tickets.set(contextToken, { context, expires: now + 60000, rename });
     return contextToken;
+  }
+  private issueSend(
+    context: Pick<ClientContext, 'client' | 'chatId'>,
+    profile: AdapterProfile | undefined,
+    hash: string,
+  ) {
+    const now = Date.now();
+    for (const [key, stamp] of this.sendTickets)
+      if (stamp.expires <= now) this.sendTickets.delete(key);
+    if (this.sendTickets.size >= 512) throw new Error('Too many send proofs');
+    const binding =
+      profile && this.service.store.bindingForChat(context.client, context.chatId, profile.id);
+    const token = randomUUID();
+    this.sendTickets.set(token, {
+      expires: now + 60_000,
+      hash,
+      context,
+      profile,
+      connectionId: binding?.connectionId,
+      generation: binding?.generation,
+      incarnation: this.service.deliveryIncarnation,
+    });
+    return { contextToken: token };
+  }
+  consumeSend(token: unknown, client: string, hash: string) {
+    if (typeof token !== 'string') return;
+    const stamp = this.sendTickets.get(token);
+    this.sendTickets.delete(token);
+    if (
+      !stamp ||
+      stamp.expires <= Date.now() ||
+      stamp.hash !== hash ||
+      (stamp.context.client === 'OpenCode'
+        ? !/opencode/i.test(client)
+        : stamp.context.client !== client)
+    )
+      return;
+    const profile = stamp.profile;
+    if (!profile)
+      throw new SendChatRequired(
+        'send_chat_unbound',
+        'Call agent_connect with the name the owner chose for this chat. If no name was chosen, ask the owner for the name.',
+      );
+    const current = () => {
+      if (
+        !this.service.integrationsReady ||
+        stamp.incarnation !== this.service.deliveryIncarnation ||
+        profile.released ||
+        !this.service.settings.value.adapters.includes(profile)
+      )
+        return false;
+      if (profile.kind === 'aionui') this.service.aionui.access(profile.aionConnectionId!);
+      const binding = this.service.store.bindingForChat(
+        stamp.context.client,
+        stamp.context.chatId,
+        profile.id,
+      );
+      return (
+        binding?.connectionId === stamp.connectionId && binding?.generation === stamp.generation
+      );
+    };
+    if (current()) return { context: { ...stamp.context, adapterId: profile.id }, current };
   }
   private issueRename(
     client: string,
@@ -88,6 +171,17 @@ export class ClientContexts {
     if (!this.service.integrationsReady)
       throw new Error('The node is not ready to accept connections');
     const input = cursorContext.parse(raw);
+    if (input.toolName === 'agent_send' && input.sendHash && !input.rename) {
+      const profile = this.service.settings.value.adapters.find(
+        (p) => p.kind === 'cursor-hook' && p.sessionId === input.conversationId,
+      );
+      return this.issueSend(
+        { client: 'Cursor', chatId: input.conversationId },
+        profile,
+        input.sendHash,
+      );
+    }
+    if (input.sendHash) throw new Error('Invalid Cursor send context');
     if (input.toolName === 'agent_rename' && input.rename) {
       const profile = this.service.settings.value.adapters.find(
         (candidate) =>
@@ -209,7 +303,7 @@ export class ClientContexts {
     };
     if (session.id !== input.sessionId)
       throw new Error('The integration returned a different chat');
-    if (input.rename) {
+    if (input.rename || input.sendHash) {
       const profile = this.service.settings.value.adapters.find(
         (a) =>
           a.kind === 'opencode-http' &&
@@ -220,7 +314,15 @@ export class ClientContexts {
           a.baseUrl === input.baseUrl &&
           a.password === input.password,
       );
-      if (!this.service.integrationsReady || !profile)
+      if (!this.service.integrationsReady)
+        throw new Error('The node is not ready to accept connections');
+      if (input.sendHash && !input.rename)
+        return this.issueSend(
+          { client: 'OpenCode', chatId: input.sessionId },
+          profile,
+          input.sendHash,
+        );
+      if (!profile || !input.rename || input.sendHash)
         throw new Error('The current OpenCode chat is not connected');
       return this.issueRename('OpenCode', input.sessionId, profile, input.rename);
     }
@@ -285,6 +387,10 @@ export class ClientContexts {
         sessionId: aionId,
         runtimeToken: z.string().min(1).max(8192),
         rename: chatRenameSchema.optional(),
+        sendHash: z
+          .string()
+          .regex(/^[0-9a-f]{64}$/)
+          .optional(),
       })
       .strict()
       .safeParse(raw);
@@ -315,6 +421,13 @@ export class ClientContexts {
           a.aionConnectionId === connection.id &&
           a.sessionId === input.sessionId,
       );
+      if (input.sendHash && !input.rename) {
+        return this.issueSend(
+          { client: 'AionUi', chatId: input.sessionId },
+          profile,
+          input.sendHash,
+        );
+      }
       if (input.rename) {
         if (!profile) throw new AionUiError('The current AionUi chat is not connected.');
         return this.issueRename('AionUi', input.sessionId, profile, input.rename);
@@ -364,5 +477,6 @@ export class ClientContexts {
   }
   clear(): void {
     this.tickets.clear();
+    this.sendTickets.clear();
   }
 }

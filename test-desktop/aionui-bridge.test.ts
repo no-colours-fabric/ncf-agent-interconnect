@@ -66,6 +66,20 @@ test('bundled stdio bridge injects current context, hides it from the model and 
   };
   assert.equal(connected.binding.chatId, 'fixture-chat-b');
   assert.equal(connected.delivery.automatic, true);
+  const outgoing = await client.callTool({
+    name: 'agent_send',
+    arguments: {
+      recipientNode: service.settings.value.nodeId,
+      recipientNickname: 'Destination',
+      text: 'AionUi exact sender',
+    },
+  });
+  assert.ok(!outgoing.isError, JSON.stringify(outgoing));
+  assert.equal(
+    service.store.get((outgoing.structuredContent as { id: string }).id, 'out')?.envelope
+      .fromNickname,
+    'Мост 漢字',
+  );
   const renameTool = tools.tools.find((tool) => tool.name === 'agent_rename')!;
   assert.ok(!('contextToken' in renameTool.inputSchema.properties!));
   const rename = await client.callTool({
