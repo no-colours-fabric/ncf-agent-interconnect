@@ -35,13 +35,13 @@ fileOptions:
 artifactName: NCF-Agent-Interconnect-${version}-${os}-${arch}.${ext}
 mac:
   category: public.app-category.developer-tools
-  bundleShortVersion: '1.1.0'
-  bundleVersion: '1.1.0'
+  bundleShortVersion: '2.0.0'
+  bundleVersion: '2.0.0a1'
   sign:
     identity: '-'
     hardenedRuntime: false
   extendInfo:
-    NCFReleaseVersion: '1.1.0'
+    NCFReleaseVersion: '2.0.0-alpha-1-20261128T145245'
     NSLocalNetworkUsageDescription: Exchange messages and files with nodes explicitly configured by the user.
   icon: build/assets/icon.icns
   target:

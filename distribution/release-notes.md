@@ -1,4 +1,12 @@
-# NCF Agent Interconnect 1.1.0
+# NCF Agent Interconnect 2.0.0-alpha-1-20261128T145245
+
+## Verified sending from connected chats
+
+- `agent_send` now identifies the sender from the verified originating chat and rejects the former `connectionId` argument. Replies use the short **Reply-To** reference and message text.
+- Shared MCP connections without chat verification retain authorized reads. Sending requires a supported integration or an SDK host with a key dedicated to the originating chat.
+- In ChatGPT, the assistant can use a one-time confirmation in the same chat if the send hook is missing. If confirmation is unavailable, open **Applications → ChatGPT → Manual setup**, select that profile and choose **Apply** to install the hook. Review it in ChatGPT if prompted.
+
+Verified with real MCP calls, isolated SDK hosts and simulated desktop events. Live testing in installed desktop clients is pending.
 
 ## Application setup
 
